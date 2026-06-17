@@ -21,7 +21,17 @@ import {
   WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS,
 } from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 
-export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }: { searchQuery: string; workflowMode?: boolean }) {
+export default function FlowEditorGraphTab({
+  searchQuery,
+  workflowMode = false,
+  requestedEntryLabel,
+  requestedEntryToken,
+}: {
+  searchQuery: string
+  workflowMode?: boolean
+  requestedEntryLabel?: string
+  requestedEntryToken?: number
+}) {
   const panelTypography = usePanelTypography()
   const graphData = useGraphStore(s => s.graphData)
   const graphFieldsStatusNoop = React.useCallback((_msg: string) => {
@@ -44,6 +54,14 @@ export default function FlowEditorGraphTab({ searchQuery, workflowMode = false }
     entryOpenTokenRef.current += 1
     setEntryOpenRequest({ token: entryOpenTokenRef.current, entryLabel })
   }, [])
+  React.useEffect(() => {
+    const nextEntryLabel = String(requestedEntryLabel || '').trim()
+    if (!nextEntryLabel || !requestedEntryToken) return
+    setEntryOpenRequest({
+      token: requestedEntryToken,
+      entryLabel: nextEntryLabel,
+    })
+  }, [requestedEntryLabel, requestedEntryToken])
 
   if (workflowMode) {
     return (

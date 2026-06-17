@@ -13,14 +13,19 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   ]
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const openMappingHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'openWorkflowManagerMappingForNode.ts')
   const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
+  const metaPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiMeta.ts')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayText = overlayImplementationPaths.map(path => readFileSync(path, 'utf8')).join('\n')
   const overlaySurfaceText = [overlaySurfacePath, overlaySurfaceElementsPath].map(path => readFileSync(path, 'utf8')).join('\n')
+  const openMappingHelperText = readFileSync(openMappingHelperPath, 'utf8')
   const copyText = readFileSync(copyPath, 'utf8')
+  const metaText = readFileSync(metaPath, 'utf8')
 
   const requiredToolbarSnippets = [
-    'Update KV entry',
+    'title={UI_LABELS.updateKvEntry}',
+    'tooltipContent={UI_LABELS.updateKvEntry}',
     'flowWidgetOpenInSidepane',
     'flowWidgetEnableHandles',
     'flowWidgetConvertToLoop',
@@ -72,17 +77,52 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (!overlaySurfaceText.includes('void args.runWorkflowNode(actionNodeId)')) {
     throw new Error('expected FlowEditor widget Run action to reuse the existing workflow run callback through the resolved action identity')
   }
-  if (!overlaySurfaceText.includes("workflowManagerTab: 'mapping'")) {
-    throw new Error('expected widget toolbar Update KV entry action to deep-link into the mapping CRUD tab')
+  if (!toolbarText.includes('GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL')) {
+    throw new Error('expected Open sidepane to reuse the shared Graph Fields node entry label instead of a local literal')
   }
-  if (!overlaySurfaceText.includes('const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({')) {
-    throw new Error('expected Update KV entry to resolve the exact active widget registry entry before opening the mapping tab')
+  if (!toolbarText.includes("workflowManagerEntryLabel: GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL")) {
+    throw new Error('expected Open sidepane to deep-link into the Workflow Manager node entry target')
   }
-  if (!overlaySurfaceText.includes('String(resolvedWidgetRegistryEntry?.id || \'\').trim()')) {
-    throw new Error('expected Update KV entry to search by exact registry entry id so multiple text widget variants open the correct CRUD rows')
+  if (toolbarText.includes("emitFloatingPanelOpen({ tab: 'node', open: true })")) {
+    throw new Error('expected Open sidepane to stop using the ambiguous floating-panel node route')
+  }
+  if (!overlaySurfaceText.includes('openWorkflowManagerMappingForNode({')) {
+    throw new Error('expected Update KV entry to reuse the shared mapping-open helper instead of inlining a local route')
+  }
+  for (const snippet of [
+    'const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({',
+    'const widgetIdentity = resolveWidgetIdentity({',
+    "workflowManagerTab: 'mapping' as const",
+    '...(searchQuery ? { searchQuery } : {}),',
+  ]) {
+    if (!openMappingHelperText.includes(snippet)) {
+      throw new Error(`expected shared mapping-open helper snippet: ${snippet}`)
+    }
   }
   if (!copyText.includes("flowWidgetRun: 'Run'")) {
     throw new Error('expected shared UI copy to expose a Run label for the widget tiny floating toolbar')
+  }
+  for (const snippet of [
+    "flowWidgetOpenInSidepane: 'Open sidepane'",
+    "flowWidgetConvertToLoop: 'Convert to loop'",
+    "flowWidgetDuplicate: 'Duplicate'",
+    "flowWidgetClearOutput: 'Clear output'",
+    "flowWidgetRemoveNode: 'Remove'",
+  ]) {
+    if (!copyText.includes(snippet)) {
+      throw new Error(`expected shared widget toolbar copy snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "updateKvEntry: 'Update KV entry'",
+    "openInSidepane: 'Open sidepane'",
+    "convertToLoopNode: 'Convert to loop'",
+    "clearOutput: 'Clear output'",
+    "removeNode: 'Remove'",
+  ]) {
+    if (!metaText.includes(snippet)) {
+      throw new Error(`expected shared widget toolbar meta label snippet: ${snippet}`)
+    }
   }
 }
 

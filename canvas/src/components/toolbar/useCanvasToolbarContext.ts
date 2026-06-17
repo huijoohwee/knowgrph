@@ -119,6 +119,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     mainPanelRequestedAnchorId,
     mainPanelRequestedAnchorSeq,
     mainPanelRequestedWorkflowManagerTab,
+    mainPanelRequestedWorkflowManagerEntryLabel,
     mainPanelCardRef,
     mainPanelPinned,
     setMainPanelPinned,
@@ -217,11 +218,16 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
         searchQuery?: string
         anchorId?: string
         workflowManagerTab?: WorkflowManagerTabKey
+        workflowManagerEntryLabel?: string
       } | undefined>
       const detailTab = e.detail && e.detail.tab
       const detailSearchQuery = e.detail && typeof e.detail.searchQuery === 'string' ? e.detail.searchQuery : ''
       const detailAnchorId = e.detail && typeof e.detail.anchorId === 'string' ? e.detail.anchorId : ''
       const detailWorkflowManagerTab = e.detail?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
+      const detailWorkflowManagerEntryLabel =
+        e.detail && typeof e.detail.workflowManagerEntryLabel === 'string'
+          ? e.detail.workflowManagerEntryLabel.trim()
+          : ''
       const tab: MainPanelTabKey =
         detailTab === 'collaboration'
         || detailTab === 'integrations'
@@ -240,7 +246,12 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       const options: MainPanelOpenOptions = {
         ...(detailSearchQuery ? { searchQuery: detailSearchQuery } : {}),
         ...(detailAnchorId ? { anchorId: detailAnchorId } : {}),
-        ...(tab === 'workflowManager' ? { workflowManagerTab: detailWorkflowManagerTab } : {}),
+        ...(tab === 'workflowManager'
+          ? {
+              workflowManagerTab: detailWorkflowManagerTab,
+              ...(detailWorkflowManagerEntryLabel ? { workflowManagerEntryLabel: detailWorkflowManagerEntryLabel } : {}),
+            }
+          : {}),
       }
       openMainPanel(tab, options)
     }
@@ -310,6 +321,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     mainPanelRequestedAnchorId,
     mainPanelRequestedAnchorSeq,
     mainPanelRequestedWorkflowManagerTab,
+    mainPanelRequestedWorkflowManagerEntryLabel,
     nodeShapeMode,
     openMainPanel,
     portHandlesEnabled,

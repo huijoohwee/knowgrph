@@ -3,13 +3,19 @@ import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { createUniqueId } from '@/lib/ids'
 import { dump as stringifyYaml } from 'js-yaml'
 import {
   buildRenderableIframeUrl,
   buildRenderableMediaThumbnailUrl,
   inferMediaKindFromResourceUrl,
 } from '@/lib/graph/mediaUrlKind'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import {
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_FORM_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import type {
@@ -49,6 +55,7 @@ const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'o
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
+const escapeRegExp = (value: string): string => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const shortHash = (value: unknown): string => hashText(String(value ?? '')).slice(0, 12)
 
@@ -407,6 +414,107 @@ export const updateStrybldrStoryboardMarkdownCardOverride = (args: {
   if (hasOverride) nextCards[index >= 0 ? index : nextCards.length - 1] = next
   else if (index >= 0) nextCards.splice(index, 1)
   const nextPayload = { ...rawPayload }
+  if (nextCards.length > 0) nextPayload.cards = nextCards
+  else delete nextPayload.cards
+  return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
+}
+
+export const createNextStrybldrStoryboardMarkdownNodeId = (args: {
+  text: string
+  prefix?: string
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  if (!doc) return null
+  const prefix = cleanText(args.prefix) || 'storyboard-card-'
+  const usedIds = new Set<string>()
+  const idRe = new RegExp(`${escapeRegExp(prefix)}\\d+`, 'g')
+  for (const match of String(args.text || '').matchAll(idRe)) {
+    const id = cleanText(match[0])
+    if (id) usedIds.add(id)
+  }
+  return createUniqueId(prefix, usedIds)
+}
+
+export const appendStrybldrStoryboardMarkdownElement = (args: {
+  text: string
+  nodeId: string
+  title?: string | null
+  type?: string | null
+  lane?: string | null
+  order?: number | null
+  sourceUnitId?: string | null
+  summary?: string | null
+  action?: string | null
+  prompt?: string | null
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  const nodeId = cleanText(args.nodeId)
+  if (!doc || !nodeId) return null
+  const existingElementIds = new Set(doc.elements.map(element => cleanText(element.id)).filter(Boolean))
+  const existingCardIds = new Set((doc.cards || []).map(card => cleanText(card.nodeId)).filter(Boolean))
+  if (existingElementIds.has(nodeId) || existingCardIds.has(nodeId)) return null
+  const sourceUnitId = cleanText(args.sourceUnitId) || cleanText(doc.sources[0]?.sourceUnitId)
+  if (!sourceUnitId) return null
+  const maxOrder = Math.max(
+    0,
+    ...doc.elements.map(element => Number(element.order)).filter(Number.isFinite),
+    ...(doc.cards || []).map(card => Number(card.order)).filter(Number.isFinite),
+  )
+  const nextOrder = Number.isFinite(Number(args.order)) ? Number(args.order) : maxOrder + 1
+  const title = cleanText(args.title) || 'New storyboard card'
+  const summary = cleanMultilineText(args.summary)
+  const action = cleanMultilineText(args.action)
+  const prompt = cleanMultilineText(args.prompt)
+  const lane = cleanText(args.lane)
+  const type = cleanText(args.type)
+  const nextElement: StrybldrElement = {
+    id: nodeId,
+    sourceUnitId,
+    label: title,
+    confidence: 1,
+    sourceBox: null,
+    evidenceKind: 'user-edit',
+    provider: 'human',
+    order: nextOrder,
+    ...(summary ? { summary } : {}),
+    ...(action ? { action } : {}),
+    ...(prompt ? { prompt } : {}),
+  }
+  const nextCard: StrybldrCardOverride = {
+    nodeId,
+    ...(title ? { title } : {}),
+    ...(type ? { type } : {}),
+    ...(lane ? { lane } : {}),
+    order: nextOrder,
+    ...(summary ? { summary } : {}),
+    ...(action ? { action } : {}),
+    ...(prompt ? { prompt } : {}),
+  }
+  const nextPayload = {
+    ...rawPayload,
+    elements: [...doc.elements, nextElement],
+    cards: [...(doc.cards || []), nextCard],
+  }
+  return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
+}
+
+export const removeStrybldrStoryboardMarkdownElement = (args: {
+  text: string
+  nodeId: string
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  const nodeId = cleanText(args.nodeId)
+  if (!doc || !nodeId) return null
+  const nextElements = doc.elements.filter(element => cleanText(element.id) !== nodeId)
+  const nextCards = (doc.cards || []).filter(card => cleanText(card.nodeId) !== nodeId)
+  if (nextElements.length === doc.elements.length && nextCards.length === (doc.cards || []).length) return null
+  const nextPayload = {
+    ...rawPayload,
+    elements: nextElements,
+  }
   if (nextCards.length > 0) nextPayload.cards = nextCards
   else delete nextPayload.cards
   return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
@@ -1322,7 +1430,7 @@ const readExplainerVideoSnapshot = (value: unknown): StrybldrExplainerVideoSnaps
 }
 
 const readStrybldrElementFromNode = (node: GraphNode, index: number): StrybldrElement | null => {
-  if (cleanText(node.type) !== 'StoryboardElement') return null
+  if (cleanText(node.type) !== FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) return null
   const props = node.properties || {}
   const sourceUnitId = cleanText(props.strybldrSourceUnitId)
   if (!sourceUnitId) return null
@@ -1467,7 +1575,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     nodes.push(applyStrybldrCardOverride({
       id: elementId,
       label: element.label,
-      type: 'StoryboardElement',
+      type: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
       properties: {
         title: asJson(element.label),
         lane: asJson(resolveStrybldrElementLane({ element, workflow: doc.workflow })),
@@ -1490,6 +1598,8 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         confidence: asJson(element.confidence),
         evidenceKind: asJson(element.evidenceKind),
         provider: asJson(element.provider),
+        ['flow:widgetTypeId']: asJson(FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID),
+        ['flow:widgetFormId']: asJson(FLOW_STORYBOARD_ELEMENT_FORM_ID),
       },
     }, cardOverridesByNodeId.get(elementId)))
     edges.push(createEdge(frameNodeId, elementId, 'containsElement'))
@@ -1616,7 +1726,7 @@ export const buildStrybldrVideoHandoffFromGraphData = (graphData: GraphData | nu
   const cards: StrybldrVideoHandoffCard[] = nodes
     .filter(node => {
       const type = cleanText(node.type)
-      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === 'StoryboardElement' || type === 'StorytreeSnapshot' || type === 'StorytreeNode' || type === 'StorytreeCandidateRun' || type === 'StorytreeCandidate' || type === 'ExplainerVideoSnapshot' || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      return type === 'StrybldrImageSource' || type === 'StoryboardFrame' || type === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID || type === 'StorytreeSnapshot' || type === 'StorytreeNode' || type === 'StorytreeCandidateRun' || type === 'StorytreeCandidate' || type === 'ExplainerVideoSnapshot' || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     })
     .map((node, index): StrybldrVideoHandoffCard => {
       const props = node.properties || {}

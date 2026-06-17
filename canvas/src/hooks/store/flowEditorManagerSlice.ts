@@ -7,6 +7,7 @@ import type { GraphState } from '@/hooks/store/types'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -50,6 +51,7 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
       || nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID
       || nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      || nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID
       || nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
       || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
     )

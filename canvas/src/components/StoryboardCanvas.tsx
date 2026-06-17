@@ -20,9 +20,10 @@ import {
 } from 'lucide-react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import {
   DATA_VIEW_CHIP_ROW_CLASSNAME,
@@ -43,6 +44,20 @@ import {
   type StoryboardCardModel,
   type StoryboardCardReference,
 } from '@/components/StoryboardCanvas/storyboardModel'
+import { buildStoryboardHelpToast } from '@/components/StoryboardCanvas/storyboardHelpAction'
+import { runStoryboardClearOutputAction } from '@/components/StoryboardCanvas/storyboardClearOutputAction'
+import { runStoryboardDuplicateAction } from '@/components/StoryboardCanvas/storyboardDuplicateAction'
+import { runStoryboardConvertLoopAction } from '@/components/StoryboardCanvas/storyboardConvertLoopAction'
+import { runStoryboardOpenSidepaneAction } from '@/components/StoryboardCanvas/storyboardOpenSidepaneAction'
+import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
+import { runStoryboardRunAction } from '@/components/StoryboardCanvas/storyboardRunAction'
+import { runStoryboardSelectAction } from '@/components/StoryboardCanvas/storyboardSelectAction'
+import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
+import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
+import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'
+import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
+import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
+import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -50,9 +65,12 @@ import { isKanbanMoveNoOp, buildKanbanDropOutcomeText } from '@/features/markdow
 import { buildKanbanCardDropIntentLabel, buildKanbanDragStatusText, buildKanbanLaneDropIntentLabel } from '@/features/markdown/ui/kanban/kanbanDragIntent'
 import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
 import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
+import { KanbanNewRecordDividerRow } from '@/features/markdown/ui/kanban/KanbanNewRecordDividerRow'
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
+import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
 import {
   CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
@@ -80,10 +98,21 @@ import {
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
-import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybldr/strybldrStoryboard'
+import {
+  appendStrybldrStoryboardMarkdownElement,
+  createNextStrybldrStoryboardMarkdownNodeId,
+  removeStrybldrStoryboardMarkdownElement,
+  updateStrybldrStoryboardMarkdownCardOverride,
+} from '@/features/strybldr/strybldrStoryboard'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, collectGraphKeywordTermStats } from '@/lib/graph/keywordTerms'
 import { WorkspaceDataViewNewRecordButton } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton'
+import { UI_COPY } from '@/lib/config'
+import { createUniqueId } from '@/lib/ids'
+import { createFlowEditorWorkflowNodeRunner, resolveFlowEditorBaseGraphKind } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunAction'
+import { openWorkflowManagerMappingForNode } from '@/features/flow-editor-manager/openWorkflowManagerMappingForNode'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 
 type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
 
@@ -402,19 +431,33 @@ function StoryboardReferenceStrip(props: {
   )
 }
 
+function resolveStoryboardCardPrimaryReferenceUrl(card: Pick<StoryboardCardModel, 'href' | 'references'>): string {
+  const directHref = readStoryboardScalar(card.href)
+  if (directHref) return directHref
+  for (const reference of card.references) {
+    const url = readStoryboardScalar(reference.url)
+    if (url) return url
+  }
+  return ''
+}
+
 export default function StoryboardCanvas({
   active = true,
 }: {
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { graphRevision, selectedNodeId, selectNode, updateNode, addNode, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
+  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
     useShallow(s => ({
+      storeGraphData: (s.graphData as GraphData | null) || null,
       graphRevision: s.graphDataRevision || 0,
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
       updateNode: s.updateNode,
       addNode: s.addNode,
+      removeNode: s.removeNode,
+      setSelectionSource: s.setSelectionSource,
+      updateOpenWidgetNodeIds: s.updateOpenWidgetNodeIds,
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
       setMarkdownDocument: s.setMarkdownDocument,
       addHistory: s.addHistory,
@@ -430,10 +473,61 @@ export default function StoryboardCanvas({
   const boardScrollRef = React.useRef<HTMLElement>(null)
   const laneScrollElementsRef = React.useRef(new Map<string, HTMLOListElement>())
   const cardElementsRef = React.useRef(new Map<string, HTMLElement>())
+  const storyboardRunGraphRef = React.useRef<GraphData | null>(storeGraphData || graphData || null)
   const [storyboardEdgeLayer, setStoryboardEdgeLayer] = React.useState<StoryboardEdgeLayer>({ width: 0, height: 0, edges: [] })
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const widgetRegistry = React.useMemo(() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }), [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
+  React.useEffect(() => {
+    storyboardRunGraphRef.current = storeGraphData || graphData || null
+  }, [graphData, storeGraphData])
+  const storyboardRunBaseGraphKind = React.useMemo(
+    () => resolveFlowEditorBaseGraphKind(storeGraphData || graphData || null),
+    [graphData, storeGraphData],
+  )
+  const appendStoryboardRunNode = React.useCallback((appendArgs: {
+    id?: string | null
+    type: string
+    label?: string | null
+    x: number
+    y: number
+    properties?: Record<string, unknown>
+  }): string => {
+    const currentGraph = storyboardRunGraphRef.current || storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }
+    const currentNodes = Array.isArray(currentGraph.nodes) ? currentGraph.nodes : []
+    const usedIds = new Set(currentNodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+    const nextId = String(appendArgs.id || '').trim() || createUniqueId('n', usedIds)
+    const nextNode: GraphNode = {
+      id: nextId,
+      label: typeof appendArgs.label === 'string' && appendArgs.label.trim() ? appendArgs.label.trim() : nextId,
+      type: appendArgs.type,
+      x: appendArgs.x,
+      y: appendArgs.y,
+      properties: (appendArgs.properties || {}) as never,
+    }
+    const nextGraph = normalizeGraphData({ ...currentGraph, nodes: [...currentNodes, nextNode] })
+    storyboardRunGraphRef.current = nextGraph
+    setGraphDataPreservingLayout(nextGraph)
+    updateOpenWidgetNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
+    return nextId
+  }, [graphData, setGraphDataPreservingLayout, storeGraphData, updateOpenWidgetNodeIds])
+  const runStoryboardWorkflowNode = React.useMemo(() => createFlowEditorWorkflowNodeRunner({
+    baseGraphKind: storyboardRunBaseGraphKind,
+    baseGraphData: storeGraphData || graphData || null,
+    readDraftGraphData: () => storyboardRunGraphRef.current || storeGraphData || graphData || null,
+    commitDraftGraphDataUpdate: (_currentDraft, nextDraft) => {
+      storyboardRunGraphRef.current = nextDraft
+      setGraphDataPreservingLayout(nextDraft)
+    },
+    renderGraphDataOverride: graphData,
+    markdownDocumentName,
+    markdownDocumentSourceUrl: null,
+    widgetRegistry,
+    appendDraftNode: appendStoryboardRunNode,
+    updateNode,
+    upsertUiToast,
+    scheduleOverlayEdgeUpdate: () => {},
+  }), [appendStoryboardRunNode, graphData, markdownDocumentName, setGraphDataPreservingLayout, storyboardRunBaseGraphKind, storeGraphData, updateNode, upsertUiToast, widgetRegistry])
   const storyboardKeywordCommandContextText = React.useMemo(() => {
     return collectGraphKeywordTermStats(graphData)
       .map(entry => `#${entry.term}`)
@@ -468,6 +562,10 @@ export default function StoryboardCanvas({
     }
     return map
   }, [board.lanes])
+  const nodeById = React.useMemo(
+    () => buildStoryboardGraphBackedNodeLookup([storeGraphData, graphData]),
+    [graphData, storeGraphData],
+  )
   const storytreeIncomingEdgeByCardId = React.useMemo(() => {
     const out = new Map<string, { sourceId: string; sourceTitle: string; label: string }>()
     const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
@@ -508,18 +606,78 @@ export default function StoryboardCanvas({
   }, [board.lanes, currentPropertiesByCardId, storytreeFilter])
   const visibleCardIds = React.useMemo(() => visibleLanes.flatMap(lane => lane.cards.map(card => card.id)), [visibleLanes])
   const visibleCardKey = visibleCardIds.join('\u0000')
-  const handleNewStoryboardRecord = React.useCallback(() => {
+  const commitStoryboardMarkdownMutation = React.useCallback((args: {
+    nextMarkdownText: string | null
+    historyLabel: string
+    nextSelectedNodeId?: string | null
+  }): boolean => {
+    if (!args.nextMarkdownText || !markdownDocumentName || args.nextMarkdownText === markdownDocumentText) return false
+    setMarkdownDocument(markdownDocumentName, args.nextMarkdownText, { applyViewPreset: false })
+    writeActiveMarkdownDocumentTextIfPresent({
+      state: useGraphStore.getState(),
+      sourceFiles: useGraphStore.getState().sourceFiles || [],
+      text: args.nextMarkdownText,
+      label: args.historyLabel,
+    })
+    addHistory(args.historyLabel)
+    if (Object.prototype.hasOwnProperty.call(args, 'nextSelectedNodeId')) {
+      selectNode(args.nextSelectedNodeId ? String(args.nextSelectedNodeId) : null)
+    }
+    return true
+  }, [addHistory, markdownDocumentName, markdownDocumentText, selectNode, setMarkdownDocument])
+  const updateStoryboardCanonicalProperty = React.useCallback((args: {
+    cardId: string
+    propertyKeys: readonly string[]
+    canonicalKey: string
+    nextValue: string
+  }) => {
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: args.cardId,
+      patch: { [args.canonicalKey]: args.nextValue },
+    })
+    if (commitStoryboardMarkdownMutation({
+      nextMarkdownText,
+      historyLabel: `Storyboard ${args.canonicalKey}`,
+    })) {
+      return
+    }
+    const currentProperties = currentPropertiesByCardId.get(args.cardId) || {}
+    const nextProperties = buildGraphNodeCanonicalTextPatch({
+      currentProperties,
+      propertyKeys: args.propertyKeys,
+      canonicalKey: args.canonicalKey,
+      nextValue: args.nextValue,
+    })
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === args.cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === args.cardId
+            ? { ...node, properties: nextProperties as never }
+            : node
+        )),
+      })
+      addHistory(`Storyboard ${args.canonicalKey}`)
+      return
+    }
+    updateNode(args.cardId, { properties: nextProperties as never })
+  }, [addHistory, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, setGraphDataPreservingLayout, updateNode])
+  const handleNewStoryboardRecord = React.useCallback((preferredLane?: string) => {
     const storeGraphData = useGraphStore.getState().graphData as GraphData | null
     const baseGraphData = (storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }) as GraphData
     const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
     const activeNodes = Array.isArray(graphData?.nodes) ? graphData.nodes : nodes
-    const usedIds = new Set<string>([
-      ...nodes.map(node => String(node.id || '').trim()).filter(Boolean),
-      ...activeNodes.map(node => String(node.id || '').trim()).filter(Boolean),
-    ])
-    const nextId = createUniqueId('storyboard-card-', usedIds)
+    const nextId = createNextStrybldrStoryboardMarkdownNodeId({
+      text: markdownDocumentText || '',
+    }) || createStoryboardNewRecordId([...nodes, ...activeNodes])
     const selectedCard = selectedNodeId ? cardById.get(selectedNodeId) || null : null
-    const targetLane = String(selectedCard?.lane || visibleLanes.find(lane => lane.cards.length > 0)?.id || STORYBOARD_EMPTY_LANE).trim() || STORYBOARD_EMPTY_LANE
+    const targetLane = String(
+      preferredLane
+      || selectedCard?.lane
+      || visibleLanes.find(lane => lane.cards.length > 0)?.id
+      || STORYBOARD_EMPTY_LANE,
+    ).trim() || STORYBOARD_EMPTY_LANE
     const maxOrder = board.lanes.reduce((max, lane) => {
       return lane.cards.reduce((laneMax, card) => Math.max(laneMax, Number.isFinite(card.order) ? card.order : 0), max)
     }, 0)
@@ -527,6 +685,32 @@ export default function StoryboardCanvas({
     const maxY = activeNodes.reduce((max, node) => Math.max(max, Number.isFinite(node.y) ? Number(node.y) : 0), 0)
     const label = STORYBOARD_NEW_CARD_LABEL
     const type = STORYBOARD_NEW_CARD_NODE_TYPE
+    const selectedSourceUnitId = selectedCard
+      ? readStoryboardScalar(currentPropertiesByCardId.get(selectedCard.id)?.strybldrSourceUnitId)
+      : ''
+    const laneSourceUnitId = (preferredLane ? visibleLanes.find(lane => lane.id === preferredLane) : undefined)?.cards
+      .map(card => readStoryboardScalar(currentPropertiesByCardId.get(card.id)?.strybldrSourceUnitId))
+      .find(Boolean) || ''
+    const fallbackSourceUnitId = activeNodes
+      .map(node => readStoryboardScalar(readStoryboardNodeProperties(node).strybldrSourceUnitId))
+      .find(Boolean) || ''
+    const targetSourceUnitId = selectedSourceUnitId || laneSourceUnitId || fallbackSourceUnitId
+    const nextMarkdownText = appendStrybldrStoryboardMarkdownElement({
+      text: markdownDocumentText || '',
+      nodeId: nextId,
+      title: label,
+      type,
+      lane: targetLane === STORYBOARD_EMPTY_LANE ? '' : targetLane,
+      order: maxOrder + 1,
+      sourceUnitId: targetSourceUnitId,
+    })
+    if (commitStoryboardMarkdownMutation({
+      nextMarkdownText,
+      historyLabel: 'Storyboard new record',
+      nextSelectedNodeId: nextId,
+    })) {
+      return
+    }
     const beforeIds = new Set<string>((storeGraphData?.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
     const nextNode: GraphNode = {
       id: nextId,
@@ -550,7 +734,222 @@ export default function StoryboardCanvas({
       return String(node.label || '').trim() === label && String(node.type || '').trim() === type
     })?.id
     selectNode(String(exactId || composedId || insertedId || nextId))
-  }, [addNode, board.lanes, cardById, graphData, selectNode, selectedNodeId, visibleLanes])
+  }, [addNode, board.lanes, cardById, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, selectNode, selectedNodeId, visibleLanes])
+  const resolveStoryboardActionTarget = React.useCallback((cardId: string) => {
+    const sourceNode = nodeById.get(cardId) || null
+    const resolvedCardNodeId = readStoryboardScalar(sourceNode?.id) || cardId
+    return { sourceNode, resolvedCardNodeId }
+  }, [nodeById])
+  const openStoryboardCardInSidepane = React.useCallback((card: StoryboardCardModel) => {
+    const { resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    return runStoryboardOpenSidepaneAction({
+      resolvedCardNodeId,
+      setSelectionSource,
+      selectNode,
+      updateOpenWidgetNodeIds,
+      openSidepane: () => emitFloatingPanelOpen({ tab: 'node', open: true }),
+    })
+  }, [resolveStoryboardActionTarget, selectNode, setSelectionSource, updateOpenWidgetNodeIds])
+  const runStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    const runResult = runStoryboardRunAction({
+      cardId: card.id,
+      hasSourceNode: Boolean(sourceNode),
+      resolvedCardNodeId,
+      openInSidepane: () => openStoryboardCardInSidepane(card),
+      runNode: runStoryboardWorkflowNode,
+    })
+    if (runResult.status === 'unavailable') {
+      upsertUiToast(runResult.toast)
+      return
+    }
+  }, [openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, upsertUiToast])
+  const hasStrybldrStoryboardDuplicatePath = React.useMemo(
+    () => Boolean(createNextStrybldrStoryboardMarkdownNodeId({ text: markdownDocumentText || '' })),
+    [markdownDocumentText],
+  )
+  const canUseStrybldrStoryboardDuplicatePathForCard = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    return canUseStrybldrStoryboardDuplicatePath({
+      hasStrybldrStoryboardDuplicatePath,
+      sourceNode,
+      resolvedCardNodeId,
+      cardId: card.id,
+      currentPropertiesByCardId,
+    })
+  }, [currentPropertiesByCardId, hasStrybldrStoryboardDuplicatePath, resolveStoryboardActionTarget])
+  const canDuplicateStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    if (canUseStrybldrStoryboardDuplicatePathForCard(card)) return true
+    const sourceLocation = getDocumentLocationFromMetadata(sourceNode?.metadata)
+    if (markdownDocumentName && sourceLocation?.documentPath === markdownDocumentName) return true
+    const sourceId = String(readStoryboardScalar(sourceNode?.id) || resolvedCardNodeId || card.id || '').trim()
+    const isMarkdownBackedCard = sourceId.startsWith('blk:md:')
+    if (isMarkdownBackedCard) return false
+    return Boolean(graphData && sourceNode)
+  }, [canUseStrybldrStoryboardDuplicatePathForCard, graphData, markdownDocumentName, resolveStoryboardActionTarget])
+  const duplicateStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    const sourceLocation = getDocumentLocationFromMetadata(sourceNode?.metadata)
+    const duplicatedResult = runStoryboardDuplicateAction({
+      canUseStrybldrDuplicatePath: canUseStrybldrStoryboardDuplicatePathForCard(card),
+      title: `${card.title || STORYBOARD_NEW_CARD_LABEL} copy`,
+      typeLabel: card.typeLabel,
+      lane: card.lane,
+      order: card.order + 1,
+      sourceUnitId: readStoryboardScalar(currentPropertiesByCardId.get(card.id)?.strybldrSourceUnitId),
+      summary: card.summary,
+      action: card.action,
+      prompt: card.prompt,
+      markdownDocumentName,
+      markdownDocumentText,
+      sourceLocation,
+      getNodes: () => {
+        const committedGraphData = useGraphStore.getState().graphData as GraphData | null
+        return Array.isArray(committedGraphData?.nodes) ? committedGraphData.nodes : []
+      },
+      commitStrybldrMutation: ({ nextMarkdownText, nextSelectedNodeId }) => commitStoryboardMarkdownMutation({
+        nextMarkdownText,
+        historyLabel: 'Storyboard duplicate',
+        nextSelectedNodeId,
+      }),
+      commitMarkdownMutation: nextMarkdownText => commitStoryboardMarkdownMutation({
+        nextMarkdownText,
+        historyLabel: 'Storyboard duplicate',
+      }),
+      selectNode: nextSelectedNodeId => selectNode(String(nextSelectedNodeId)),
+    })
+    if (duplicatedResult.handled) return
+    const sourceId = String(readStoryboardScalar(sourceNode?.id) || resolvedCardNodeId || card.id || '').trim()
+    if (sourceId.startsWith('blk:md:')) {
+      upsertUiToast({
+        id: `storyboard-duplicate-${card.id}`,
+        kind: 'warning',
+        message: 'Duplicate is unavailable for markdown-backed storyboard cards until a durable document duplicate path is available.',
+        ttlMs: 3000,
+      })
+      return
+    }
+    if (!graphData || !sourceNode) {
+      upsertUiToast({
+        id: `storyboard-duplicate-${card.id}`,
+        kind: 'warning',
+        message: 'Duplicate is unavailable for this storyboard card.',
+        ttlMs: 2600,
+      })
+      return
+    }
+    const nextId = createUniqueId('n', new Set(graphData.nodes.map(node => readStoryboardScalar(node.id)).filter(Boolean)))
+    const baseLabel = readStoryboardScalar(sourceNode.label) || card.title || nextId
+    const nextNode: GraphNode = {
+      ...sourceNode,
+      id: nextId,
+      label: `${baseLabel} copy`,
+      x: (Number.isFinite(sourceNode.x) ? Number(sourceNode.x) : 0) + 40,
+      y: (Number.isFinite(sourceNode.y) ? Number(sourceNode.y) : 0) + 40,
+    }
+    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: [...graphData.nodes, nextNode] }))
+    updateOpenWidgetNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
+    setSelectionSource('canvas')
+    selectNode(nextId)
+    addHistory('Storyboard duplicate')
+  }, [addHistory, canUseStrybldrStoryboardDuplicatePathForCard, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentName, markdownDocumentText, resolveStoryboardActionTarget, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenWidgetNodeIds, upsertUiToast])
+  const clearStoryboardCardOutput = React.useCallback((card: StoryboardCardModel) => {
+    const clearResult = runStoryboardClearOutputAction({
+      output: card.output,
+      clearOutput: () => updateStoryboardCanonicalProperty({
+        cardId: card.id,
+        propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS,
+        canonicalKey: 'output',
+        nextValue: '',
+      }),
+    })
+    if (clearResult.status === 'empty') {
+      upsertUiToast({
+        id: `storyboard-clear-output-${card.id}`,
+        kind: 'neutral',
+        message: 'No storyboard output to clear.',
+        ttlMs: 2200,
+      })
+      return
+    }
+    upsertUiToast({
+      id: `storyboard-clear-output-${card.id}`,
+      kind: 'neutral',
+      message: 'Cleared storyboard output.',
+      ttlMs: 2200,
+    })
+  }, [updateStoryboardCanonicalProperty, upsertUiToast])
+  const showStoryboardCardHelp = React.useCallback(() => {
+    upsertUiToast(buildStoryboardHelpToast({
+      message: UI_COPY.flowWidgetHelpToast,
+    }))
+  }, [upsertUiToast])
+  const convertStoryboardCardToLoop = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    const convertResult = runStoryboardConvertLoopAction({
+      graphData,
+      hasSourceNode: Boolean(sourceNode),
+      resolvedCardNodeId,
+    })
+    if (convertResult.status === 'unavailable') {
+      upsertUiToast({
+        id: `storyboard-convert-loop-${card.id}`,
+        kind: 'neutral',
+        message: 'Convert to loop is only available for graph-backed nodes.',
+        ttlMs: 2200,
+      })
+      return
+    }
+    if (convertResult.status === 'already-loop') {
+      upsertUiToast({
+        id: `storyboard-convert-loop-${card.id}`,
+        kind: 'neutral',
+        message: UI_COPY.flowWidgetConvertToLoopAlreadyLoopToast,
+        ttlMs: 2200,
+      })
+      return
+    }
+    setGraphDataPreservingLayout(convertResult.graphData)
+    addHistory('Storyboard convert to loop')
+    upsertUiToast({
+      id: `storyboard-convert-loop-${card.id}`,
+      kind: 'success',
+      message: UI_COPY.flowWidgetConvertToLoopToast,
+      ttlMs: 2600,
+    })
+  }, [addHistory, graphData, resolveStoryboardActionTarget, setGraphDataPreservingLayout, upsertUiToast])
+  const removeStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    const removeResult = runStoryboardRemoveAction({
+      markdownDocumentText,
+      cardId: card.id,
+      resolvedCardNodeId,
+      hasSourceNode: Boolean(sourceNode),
+      commitMarkdownRemoval: nextMarkdownText => commitStoryboardMarkdownMutation({
+        nextMarkdownText,
+        historyLabel: 'Storyboard remove',
+        nextSelectedNodeId: null,
+      }),
+      removeGraphNode: removeNode,
+    })
+    if (removeResult.handled) return
+    upsertUiToast({
+      id: `storyboard-remove-${card.id}`,
+      kind: 'warning',
+      message: 'Remove is unavailable for this storyboard card.',
+      ttlMs: 2600,
+    })
+  }, [commitStoryboardMarkdownMutation, markdownDocumentText, removeNode, resolveStoryboardActionTarget, upsertUiToast])
+  const openStoryboardCardWorkflowManagerMapping = React.useCallback((card: StoryboardCardModel) => {
+    const { sourceNode } = resolveStoryboardActionTarget(card.id)
+    runStoryboardUpdateKvEntryAction({
+      sourceNode,
+      registry: widgetRegistry,
+      graphMetaKind: storyboardRunBaseGraphKind,
+      openMappingForNode: openWorkflowManagerMappingForNode,
+    })
+  }, [openWorkflowManagerMappingForNode, resolveStoryboardActionTarget, storyboardRunBaseGraphKind, widgetRegistry])
   const registerCardElement = React.useCallback((cardId: string, element: HTMLElement | null) => {
     if (element) {
       cardElementsRef.current.set(cardId, element)
@@ -689,49 +1088,6 @@ export default function StoryboardCanvas({
       history: 'ForkCompare publish',
     })
   }, [commitStrytreeWorkflowResult, graphData])
-  const updateStoryboardCanonicalProperty = React.useCallback((args: {
-    cardId: string
-    propertyKeys: readonly string[]
-    canonicalKey: string
-    nextValue: string
-  }) => {
-    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
-      text: markdownDocumentText || '',
-      nodeId: args.cardId,
-      patch: { [args.canonicalKey]: args.nextValue },
-    })
-    if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
-      setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
-      writeActiveMarkdownDocumentTextIfPresent({
-        state: useGraphStore.getState(),
-        sourceFiles: useGraphStore.getState().sourceFiles || [],
-        text: nextMarkdownText,
-        label: `Storyboard ${args.canonicalKey}`,
-      })
-      addHistory(`Storyboard ${args.canonicalKey}`)
-      return
-    }
-    const currentProperties = currentPropertiesByCardId.get(args.cardId) || {}
-    const nextProperties = buildGraphNodeCanonicalTextPatch({
-      currentProperties,
-      propertyKeys: args.propertyKeys,
-      canonicalKey: args.canonicalKey,
-      nextValue: args.nextValue,
-    })
-    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === args.cardId)) {
-      setGraphDataPreservingLayout({
-        ...graphData,
-        nodes: graphData.nodes.map(node => (
-          readStoryboardScalar(node?.id) === args.cardId
-            ? { ...node, properties: nextProperties as never }
-            : node
-        )),
-      })
-      addHistory(`Storyboard ${args.canonicalKey}`)
-      return
-    }
-    updateNode(args.cardId, { properties: nextProperties as never })
-  }, [addHistory, currentPropertiesByCardId, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
   const updateStoryboardTitle = React.useCallback((cardId: string, nextValue: string) => {
     const label = String(nextValue || '').trim()
     const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
@@ -916,7 +1272,7 @@ export default function StoryboardCanvas({
 
   return (
     <section className={['relative flex h-full w-full flex-col overflow-hidden', UI_THEME_TOKENS.panel.bg].join(' ')} aria-label="Storyboard canvas">
-      <header className={['flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3', UI_THEME_TOKENS.panel.border].join(' ')}>
+      <header className={['kg-data-view-new-record-hover-scope flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3', UI_THEME_TOKENS.panel.border].join(' ')}>
         <section className="min-w-0">
           <section className="flex items-center gap-2">
             <PanelsTopLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -945,7 +1301,6 @@ export default function StoryboardCanvas({
           <span className={['hidden text-[10px] sm:inline font-mono', UI_THEME_TOKENS.text.tertiary].join(' ')} title={board.semanticKey}>
             {board.semanticKey ? board.semanticKey.slice(0, 10) : 'empty'}
           </span>
-          <WorkspaceDataViewNewRecordButton onClick={handleNewStoryboardRecord} labelMode="hover" />
         </section>
       </header>
 
@@ -988,6 +1343,7 @@ export default function StoryboardCanvas({
                 return (
               <section
                 key={lane.id}
+                data-kg-kanban-group="1"
                 className={[
                   'flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
                   UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
@@ -1009,7 +1365,10 @@ export default function StoryboardCanvas({
                 aria-label={`Storyboard lane ${readMarkdownSigilDisplayText(lane.label)}`}
                 {...laneDropProps}
               >
-                <header className={['sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.kanban.groupBg].join(' ')}>
+                <header
+                  data-kg-kanban-group-header="1"
+                  className={['kg-data-view-new-record-hover-scope sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.kanban.groupBg].join(' ')}
+                >
                   <section className="min-w-0">
                     <h3 className={['m-0 text-sm font-medium truncate', UI_THEME_TOKENS.text.primary].join(' ')} title={readMarkdownSigilDisplayText(lane.label)}>
                       {renderMarkdownSigilInlineText(lane.label)}
@@ -1018,9 +1377,25 @@ export default function StoryboardCanvas({
                       {lane.cards.length} storyboard cards
                     </p>
                   </section>
-                  <span className={['inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
-                    {lane.cards.length}
-                  </span>
+                  <section className="flex shrink-0 items-center gap-2">
+                    <menu
+                      data-kg-kanban-group-actions="1"
+                      className="m-0 flex list-none items-center gap-1 p-0 opacity-0 pointer-events-none transition-opacity"
+                      aria-label={`${readMarkdownSigilDisplayText(lane.label)} actions`}
+                    >
+                      <li className="list-none">
+                        <WorkspaceDataViewNewRecordButton
+                          className="rounded-lg"
+                          onClick={() => handleNewStoryboardRecord(lane.id)}
+                          labelMode="icon"
+                          hoverRevealScope="container"
+                        />
+                      </li>
+                    </menu>
+                    <span className={['inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
+                      {lane.cards.length}
+                    </span>
+                  </section>
                 </header>
                 {lane.id === 'Storytree' ? (
                   <section className={['flex gap-1 overflow-x-auto border-b px-3 py-2', UI_THEME_TOKENS.panel.divider].join(' ')} aria-label="Storytree filters">
@@ -1055,15 +1430,39 @@ export default function StoryboardCanvas({
                     }
                     laneScrollElementsRef.current.delete(lane.id)
                   }}
+                  data-kg-kanban-group-list="1"
                   className="flex-1 space-y-3 overflow-y-auto p-3 list-none m-0"
                   aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}
                   {...laneDropProps}
                 >
                   {lane.cards.map((card, cardIndex) => {
-                    const selected = selectedNodeId === card.id
+                    const resolvedCardNodeId = readStoryboardScalar(nodeById.get(card.id)?.id) || card.id
+                    const selected = isCanonicalNodeIdEqual(selectedNodeId, resolvedCardNodeId)
+                    const selectStoryboardCardFromCanvas = () => runStoryboardSelectAction({
+                      resolvedCardNodeId,
+                      setSelectionSource,
+                      selectNode,
+                    })
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const primaryReferenceUrl = resolveStoryboardCardPrimaryReferenceUrl(card)
+                    const toolbarProps = buildStoryboardToolbarProps({
+                      active,
+                      duplicateDisabled: !canDuplicateStoryboardCard(card),
+                      primaryReferenceUrl,
+                    })
+                    const toolbarActionBindings = buildStoryboardToolbarActionBindings({
+                      card,
+                      runCard: runStoryboardCard,
+                      openCardInSidepane: openStoryboardCardInSidepane,
+                      duplicateCard: duplicateStoryboardCard,
+                      clearCardOutput: clearStoryboardCardOutput,
+                      showCardHelp: showStoryboardCardHelp,
+                      removeCard: removeStoryboardCard,
+                      openCardWorkflowManagerMapping: openStoryboardCardWorkflowManagerMapping,
+                      convertCardToLoop: convertStoryboardCardToLoop,
+                    })
                     const visualBriefReference = card.references.find(isStoryboardImageReference) || null
                     const storyboardCommandContextText = [
                       storyboardKeywordCommandContextText,
@@ -1119,22 +1518,29 @@ export default function StoryboardCanvas({
                     const candidateElapsedMs = Number(currentCardProperties.elapsedMs || 0)
                     const candidatePublishEligible = readStoryboardBool(currentCardProperties.publishEligible)
                     return (
-                      <li
-                        key={card.id}
-                        className="relative list-none"
-                        style={isStorytreeBranch ? { paddingLeft: `${Math.min(storytreeDepth, 5) * 14}px` } : undefined}
-                      >
-                        {storytreeIncomingEdge ? (
-                          <StorytreeEdgeConnector
-                            sourceId={storytreeIncomingEdge.sourceId}
-                            sourceTitle={storytreeIncomingEdge.sourceTitle}
-                            targetId={card.id}
-                            targetTitle={card.title}
-                            label={storytreeIncomingEdge.label}
-                            depth={storytreeDepth}
-                          />
-                        ) : null}
-                        <article
+                      <React.Fragment key={card.id}>
+                        <li
+                          className="relative list-none"
+                          style={isStorytreeBranch ? { paddingLeft: `${Math.min(storytreeDepth, 5) * 14}px` } : undefined}
+                        >
+                          {selected ? (
+                            <NodeOverlayEditorActionsToolbar
+                              visible
+                              {...toolbarProps}
+                              {...toolbarActionBindings}
+                            />
+                          ) : null}
+                          {storytreeIncomingEdge ? (
+                            <StorytreeEdgeConnector
+                              sourceId={storytreeIncomingEdge.sourceId}
+                              sourceTitle={storytreeIncomingEdge.sourceTitle}
+                              targetId={card.id}
+                              targetTitle={card.title}
+                              label={storytreeIncomingEdge.label}
+                              depth={storytreeDepth}
+                            />
+                          ) : null}
+                          <article
                           className={[
                             'group overflow-hidden rounded-2xl border bg-white shadow-sm transition-transform duration-150 select-none',
                             UI_THEME_TOKENS.kanban.cardHoverBg,
@@ -1163,13 +1569,17 @@ export default function StoryboardCanvas({
                           onDragEnd={cardDragProps.onDragEnd}
                           onClick={event => {
                             if (isInteractiveEventTarget(event.target)) return
-                            selectNode(card.id)
+                            selectStoryboardCardFromCanvas()
+                          }}
+                          onFocusCapture={() => {
+                            if (selected) return
+                            selectStoryboardCardFromCanvas()
                           }}
                           onKeyDown={event => {
                             if (isInteractiveEventTarget(event.target)) return
                             if (event.key === 'Enter' || event.key === ' ') {
                               event.preventDefault()
-                              selectNode(card.id)
+                              selectStoryboardCardFromCanvas()
                             }
                           }}
                         >
@@ -1534,10 +1944,15 @@ export default function StoryboardCanvas({
                               ) : null}
                             </section>
                           </section>
-                        </article>
-                      </li>
+                          </article>
+                        </li>
+                        {cardIndex < lane.cards.length - 1 ? (
+                          <KanbanNewRecordDividerRow onClick={() => handleNewStoryboardRecord(lane.id)} />
+                        ) : null}
+                      </React.Fragment>
                     )
                   })}
+                  <KanbanNewRecordDividerRow onClick={() => handleNewStoryboardRecord(lane.id)} />
                   {storyboardDrag.draggingRowId !== null && storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragOverRowId == null ? (
                     <li className="list-none">
                       <KanbanLaneDropPreview label={buildKanbanLaneDropIntentLabel({ targetLaneLabel: lane.label })} compact />

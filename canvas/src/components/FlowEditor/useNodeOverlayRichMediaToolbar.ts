@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'
 import { useRichMediaWidgetPreview } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import {
@@ -115,17 +116,10 @@ export function useNodeOverlayRichMediaToolbar(args: {
           handleRichMediaPanelChange({ activeTab: 'text', freezeConnectedOutput: true, text: base })
         },
       } : undefined,
-      openExternalAction: richMediaOpenUrl ? {
-        visible: true,
+      openExternalAction: buildNodeOverlayOpenExternalAction({
+        url: richMediaOpenUrl,
         label: 'Open source',
-        onOpen: () => {
-          try {
-            window.open(richMediaOpenUrl, '_blank', 'noopener,noreferrer')
-          } catch {
-            void 0
-          }
-        },
-      } : undefined,
+      }),
     }
   }, [
     handleRichMediaPanelChange,

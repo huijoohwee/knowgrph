@@ -80,7 +80,7 @@ export function WorkspaceDataViewHeader(props: {
   }
 
   return (
-    <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20 kg-data-view-header">
+    <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20 kg-data-view-header kg-data-view-new-record-hover-scope">
       <section className={`kg-data-view-header-controls ${uiToolbarRowScrollClassName} gap-2 px-3 pt-2`} aria-label="Data view controls">
         <button
           type="button"
@@ -204,7 +204,7 @@ export function WorkspaceDataViewHeader(props: {
           </button>
 
           {props.canMutate && props.onNewRecord ? (
-            <WorkspaceDataViewNewRecordButton onClick={() => props.onNewRecord?.()} labelMode="hover" />
+            <WorkspaceDataViewNewRecordButton onClick={() => props.onNewRecord?.()} labelMode="icon" hoverRevealScope="container" />
           ) : null}
         </section>
       </section>

@@ -43,6 +43,7 @@ This ensures Node-side entrypoints (notably Vite config) never attempt to execut
 - Host wrappers live under `knowgrph/canvas/src/lib/*` and re-export from `grph-shared/*`.
 - `knowgrph/canvas/vite.config.ts` may import small helpers (e.g. text sanitizers) but relies on the JS `dist/` export contract.
 - Canvas scripts compile `grph-shared` as part of `predev`, `prebuild`, and `pretest:ci`.
+- Repo-local shared utilities that stay renderer- or workspace-owned but neutral across surfaces should live under canonical Canvas owners such as `components/StoryboardCanvas/storyboard*`, `lib/kanban/*`, `lib/graph-data-table/*`, or `features/markdown-workspace/data-view/*`; do not force those helpers into `grph-shared` unless they are package-stable and cross-repo reusable.
 
 **Markdown SSOT consumers**
 - Viewer/Presentation share wikilinks/backlinks/slugify via `grph-shared/markdown/*` to prevent UI↔parser drift.
@@ -60,6 +61,7 @@ This ensures Node-side entrypoints (notably Vite config) never attempt to execut
 | Imports | Preserve boundaries | - [ ] Use `grph-shared/*` exports only; forbid `grph-shared/src/*` imports |
 | Packaging | Preserve Node compatibility | - [ ] Export `dist/*.js` for runtime; forbid exporting TS source paths |
 | Ownership | Keep SSOT | - [ ] Keep shared code under `knowgrph/grph-shared`; forbid a second sibling `../grph-shared` repo |
+| Surface helpers | Preserve neutral utility ownership | - [ ] Keep Storyboard / Editor Workspace / Kanban shared helpers under one canonical Canvas owner; forbid duplicating toolbar/data-view/list utilities across renderer-specific folders |
 
 ---
 

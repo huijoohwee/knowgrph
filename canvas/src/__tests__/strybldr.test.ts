@@ -4,10 +4,12 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } from '@/components/StoryboardCanvas/storyboardModel'
 import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
+  appendStrybldrStoryboardMarkdownElement,
   buildStrybldrStoryboardDocument,
   buildStrybldrVideoHandoffFromGraphData,
   buildStrybldrVideoHandoffMarkdown,
   mergeStrybldrElementsIntoGraphData,
+  removeStrybldrStoryboardMarkdownElement,
   serializeStrybldrStoryboardMarkdown,
   updateStrybldrStoryboardMarkdownCardOverride,
 } from '@/features/strybldr/strybldrStoryboard'
@@ -30,6 +32,11 @@ import {
 import { getCanvas2dSurfaceId, getToolbarRunAllFloatingPanelTab, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
 import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS } from '@/features/chat/byteplusRunGeneration'
 import { parseWorkspaceStrybldrStoryboardGraphDataCached } from '@/hooks/active-graph-data/workspaceStructuredGraph'
+import {
+  FLOW_STORYBOARD_ELEMENT_FORM_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -85,7 +92,15 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   assert(parsed?.parserId === 'strybldr-storyboard', `expected strybldr parser, got ${parsed?.parserId}`)
   assert(parsed.graphData?.metadata && String((parsed.graphData.metadata as Record<string, unknown>).kgCanvas2dRenderer || '') === 'storyboard', 'expected Strybldr graph to advertise Storyboard renderer metadata')
   assert(String((parsed.graphData.metadata as Record<string, unknown>).graphSemanticKey || '').length > 0, 'expected shared graph semantic key metadata')
-  assert((parsed.graphData.nodes || []).some(node => String(node.type || '') === 'StoryboardElement'), 'expected storyboard element nodes')
+  assert((parsed.graphData.nodes || []).some(node => String(node.type || '') === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID), 'expected storyboard element nodes')
+  assert(
+    (parsed.graphData.nodes || []).some(node => (
+      String(node.type || '') === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID
+      && String(node.properties?.['flow:widgetTypeId'] || '') === FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID
+      && String(node.properties?.['flow:widgetFormId'] || '') === FLOW_STORYBOARD_ELEMENT_FORM_ID
+    )),
+    'expected storyboard element nodes to carry shared widget identity for Workflow Manager mapping deep links',
+  )
   assert((parsed.graphData.nodes || []).some(node => String(node.properties?.strybldrSourceUnitId || '') === 'corpus-source-demo'), 'expected provenance source-unit id on cards')
   assert((parsed.graphData.nodes || []).some(node => String(node.properties?.mediaKind || '') === 'image' && String(node.properties?.mimeHint || '') === 'image/png'), 'expected image media metadata for Viewer and Canvas rendering')
 
@@ -168,6 +183,61 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   const updatedBoard = buildStoryboardBoardModel({ graphData: updatedParsed.graphData, graphRevision: 2 })
   const updatedSourceCard = updatedBoard.lanes.find(lane => lane.id === 'Source')?.cards.find(card => card.id === sourceCard.id)
   assert(updatedSourceCard?.action === nextSourceAction, 'expected updated Strybldr markdown payload to regenerate the Source card action')
+}
+
+export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload() {
+  const starterName = 'knowgrph-strybldr-starter-template.md'
+  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
+  const text = fs.readFileSync(starterPath, 'utf8')
+  const appendedId = 'storyboard-card-append-regression'
+  const updatedText = appendStrybldrStoryboardMarkdownElement({
+    text,
+    nodeId: appendedId,
+    title: 'New storyboard card',
+    type: 'Storyboard',
+    lane: 'Elements',
+    order: 99,
+    sourceUnitId: 'strybldr-starter-source',
+  })
+  assert(updatedText && updatedText !== text, 'expected Strybldr structured append to update the markdown payload')
+  assert(
+    updatedText.includes('\n    - id: storyboard-card-append-regression\n'),
+    'expected appended storyboard record to be written into the structured Strybldr elements payload',
+  )
+  const graph = parseWorkspaceStrybldrStoryboardGraphDataCached({
+    markdownName: starterName,
+    markdownText: updatedText,
+  })
+  assert(graph, 'expected workspace Strybldr parser to parse the appended starter template payload')
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  const appendedCard = board.lanes
+    .find(lane => lane.id === 'Elements')
+    ?.cards.find(card => card.id === appendedId)
+  assert(appendedCard, 'expected appended Strybldr element to render as a visible Elements storyboard card')
+  assert(appendedCard?.title === 'New storyboard card', `expected appended card title, got ${String(appendedCard?.title || '')}`)
+}
+
+export function testStrybldrStoryboardRemoveElementPersistsToStructuredPayload() {
+  const starterName = 'knowgrph-strybldr-starter-template.md'
+  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
+  const text = fs.readFileSync(starterPath, 'utf8')
+  const removedId = 'starter-elements-card'
+  const updatedText = removeStrybldrStoryboardMarkdownElement({
+    text,
+    nodeId: removedId,
+  })
+  assert(updatedText && updatedText !== text, 'expected Strybldr structured remove to update the markdown payload')
+  assert(!updatedText.includes(`id: ${removedId}`), 'expected removed storyboard record to leave the structured Strybldr payload')
+  const graph = parseWorkspaceStrybldrStoryboardGraphDataCached({
+    markdownName: starterName,
+    markdownText: updatedText,
+  })
+  assert(graph, 'expected workspace Strybldr parser to parse the removed starter template payload')
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  const removedCard = board.lanes
+    .find(lane => lane.id === 'Elements')
+    ?.cards.find(card => card.id === removedId)
+  assert(!removedCard, 'expected removed Strybldr element to disappear from the rendered Elements storyboard lane')
 }
 
 export function testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers() {
@@ -715,6 +785,8 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('Save card update'), 'expected Strybldr panel to expose the user update gate before generation')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('useActiveGraphRenderData(true)'), 'expected Strybldr panel Run All to reuse the active renderer graph projection')
   assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('const graphData = activeGraphData || rawGraphData'), 'expected Strybldr panel to fall back to raw graph only when no active document graph exists')
+  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('selectedNodeId: s.selectedNodeId'), 'expected Strybldr panel to subscribe to the shared selected node id')
+  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('isCanonicalNodeIdEqual(nextSelectedNodeId, card.id)'), 'expected Strybldr panel card editor to follow canvas selection via canonical node ids')
   assert(readSource('components', 'Toolbar.tsx').includes('supportsToolbarRunAll'), 'expected toolbar Run All support to use the shared renderer helper')
   assert(readSource('components', 'Toolbar.tsx').includes('getToolbarRunAllFloatingPanelTab'), 'expected toolbar Run All panel mount to use the shared renderer helper')
   assert(readSource('components', 'Toolbar.tsx').includes('TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS'), 'expected toolbar Run All to retry after lazy Strybldr panel mount')

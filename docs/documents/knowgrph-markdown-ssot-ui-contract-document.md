@@ -189,6 +189,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Interactive toolbar/menu buttons must use the shared hand-cursor class token and shared pointer-down guard; forbid per-button arrow-cursor overrides or focus-loss-prone handlers.
   - Variable toolbar Apply must route through shared `applyVariableToken` only; direct DOM query/mutation paths are forbidden.
 - Workspace Data View header controls for Table/Multi-dimensional Table/Kanban must use semantic landmarks (`header/nav/aside`) and floating menus must render above sticky table layers via shared high-z menu classes; controls must remain fully clickable and never be hidden behind table/header surfaces.
+- Storyboard card toolbars and Editor Workspace Table/Multi-dimensional Table/Kanban controls must reuse shared toolbar/data-view utility owners when semantics overlap. Keep action binding, hover `New Record`, header/settings payloads, and external-open affordances centralized in shared helpers rather than per-surface inline branches.
 
 ### Title and title-like inline editing
 - Heading blocks render title text truncated with ellipsis in View and Edit rest state, reuse the same typography in html contentEditable, and reveal full text on focus via horizontal scroll; entering edit must not introduce alternate WYSIWYG title stacks or layout/spacing drift.

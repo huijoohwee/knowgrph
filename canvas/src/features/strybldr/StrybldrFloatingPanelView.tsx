@@ -8,6 +8,7 @@ import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, UI_RESPONSIVE_PANEL_TEXT
 import { cn } from '@/lib/utils'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { JSONValue } from '@/lib/graph/types'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { notifyWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
@@ -102,6 +103,7 @@ export function StrybldrFloatingPanelView({
     updateNode,
     pushUiToast,
     addHistory,
+    selectedNodeId,
     chatProvider,
     chatEndpointUrl,
     chatApiKey,
@@ -118,6 +120,7 @@ export function StrybldrFloatingPanelView({
       updateNode: s.updateNode,
       pushUiToast: s.pushUiToast,
       addHistory: s.addHistory,
+      selectedNodeId: s.selectedNodeId,
       chatProvider: s.chatProvider,
       chatEndpointUrl: s.chatEndpointUrl,
       chatApiKey: s.chatApiKey,
@@ -165,6 +168,19 @@ export function StrybldrFloatingPanelView({
   React.useEffect(() => {
     if (selectedStorytreeCard?.id && selectedStorytreeCard.id !== selectedStorytreeCardId) setSelectedStorytreeCardId(selectedStorytreeCard.id)
   }, [selectedStorytreeCard?.id, selectedStorytreeCardId])
+
+  React.useEffect(() => {
+    const nextSelectedNodeId = readString(selectedNodeId)
+    if (!nextSelectedNodeId) return
+    const selectedCanvasCard = cards.find(card => isCanonicalNodeIdEqual(nextSelectedNodeId, card.id)) || null
+    if (!selectedCanvasCard) return
+    if (selectedCanvasCard.lane === 'Storytree') {
+      if (selectedCanvasCard.id !== selectedStorytreeCardId) setSelectedStorytreeCardId(selectedCanvasCard.id)
+      return
+    }
+    if (!editableCards.some(card => card.id === selectedCanvasCard.id)) return
+    if (selectedCanvasCard.id !== selectedCardId) setSelectedCardId(selectedCanvasCard.id)
+  }, [cards, editableCards, selectedCardId, selectedNodeId, selectedStorytreeCardId])
 
   React.useEffect(() => {
     if (!selectedCard) return

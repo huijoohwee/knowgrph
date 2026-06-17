@@ -50,6 +50,7 @@
   - Canvas View Mode “2D Renderer: Multi-dimensional Table” is the canonical canvas entry point for the Markdown data-view renderer. It reuses the Editor Workspace Viewer `MarkdownWorkspaceDerivedViewer` in `multiDimTable` mode; it does not route through the D3 renderer surface or the GraphTable DB workspace surface.
   - Workspace toolbar “Workspace: Multi-dimensional Table” remains the only entry point for the Graph Data Table workspace.
   - Workspace Editor `multiDimTable` must remain first-class in workspace preferences, Graph Data Table view selection, and local-storage persistence; the current DOM table renderer may be reused for that mode, but the mode contract itself must not be downgraded to plain `table`.
+  - Table/Multi-dimensional Table/Kanban header controls, settings payloads, and hover `New Record` affordances must stay on the shared Workspace data-view owner so Storyboard/FloatingPanel `View` reuse the same utilities instead of mounting local renderer variants.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
   - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
   - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.

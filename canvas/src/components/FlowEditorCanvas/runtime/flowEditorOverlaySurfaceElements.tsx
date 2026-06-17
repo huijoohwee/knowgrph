@@ -4,10 +4,8 @@ import {
   FlowEditorWidgetOverlay,
   type ToolMode,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { resolveWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { openWorkflowManagerMappingForNode } from '@/features/flow-editor-manager/openWorkflowManagerMappingForNode'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
@@ -232,23 +230,10 @@ export function buildOverlayEditorElements(args: {
         onConvertToLoopNode={() => args.convertNodeToLoopById(actionNodeId)}
         onEnableHandlesForAllInputs={args.enableHandlesForAllInputs}
         onUpdateKvEntry={() => {
-          if (typeof window === 'undefined') return
-          const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({
+          openWorkflowManagerMappingForNode({
             node: renderNode,
             registry: args.widgetRegistry,
             graphMetaKind: overlayGraphMetaKind,
-          })
-          const widgetIdentity = resolveWidgetIdentity({ node: renderNode, registryEntry: resolvedWidgetRegistryEntry })
-          const searchQuery = [
-            String(resolvedWidgetRegistryEntry?.id || '').trim(),
-            String(renderNode.type || '').trim(),
-            widgetIdentity.widgetTypeId,
-            widgetIdentity.formId,
-          ].filter(Boolean).join(' ')
-          emitMainPanelOpen({
-            tab: 'workflowManager' as const,
-            workflowManagerTab: 'mapping' as const,
-            searchQuery,
           })
         }}
         onPinnedInCanvasChange={args.handlePinnedInCanvasChange}

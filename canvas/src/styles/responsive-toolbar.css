@@ -2136,14 +2136,18 @@
 
   .kg-data-view-new-record-action--hover-label:hover,
   .kg-data-view-new-record-action--hover-label:focus-visible,
-  .kg-data-view-new-record-action--hover-label:focus-within {
+  .kg-data-view-new-record-action--hover-label:focus-within,
+  .kg-data-view-new-record-hover-scope:hover .kg-data-view-new-record-action--container-hover-label,
+  .kg-data-view-new-record-hover-scope:focus-within .kg-data-view-new-record-action--container-hover-label {
     width: var(--kg-data-view-new-record-action-expanded-width, 8.75rem);
     inline-size: var(--kg-data-view-new-record-action-expanded-width, 8.75rem);
   }
 
   .kg-data-view-new-record-action--hover-label:hover .kg-data-view-new-record-label--hover,
   .kg-data-view-new-record-action--hover-label:focus-visible .kg-data-view-new-record-label--hover,
-  .kg-data-view-new-record-action--hover-label:focus-within .kg-data-view-new-record-label--hover {
+  .kg-data-view-new-record-action--hover-label:focus-within .kg-data-view-new-record-label--hover,
+  .kg-data-view-new-record-hover-scope:hover .kg-data-view-new-record-action--container-hover-label .kg-data-view-new-record-label--hover,
+  .kg-data-view-new-record-hover-scope:focus-within .kg-data-view-new-record-action--container-hover-label .kg-data-view-new-record-label--hover {
     max-width: var(--kg-data-view-new-record-label-max-width, 6.75rem);
     max-inline-size: var(--kg-data-view-new-record-label-max-width, 6.75rem);
     opacity: 1;

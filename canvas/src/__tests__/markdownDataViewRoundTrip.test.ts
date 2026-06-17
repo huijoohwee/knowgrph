@@ -9,7 +9,7 @@ import {
   updateMarkdownDataViewCell,
 } from '@/features/markdown/ui/markdownDataViewModel'
 import { serializeMarkdownDataViewToTableLines } from '@/features/markdown/ui/markdownDataViewSerialize'
-import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
+import { duplicateMarkdownLineRange, replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 
 export function testMarkdownDataViewInfersGroupAndTitleColumns() {
   const markdown = [
@@ -127,5 +127,26 @@ export function testMarkdownDataViewColumnCrudRoundTripsToMarkdownTable() {
   }
   if (!next.includes('| Cold Open | Merge overlapping requests before implementation. | Merge overlapping requests before implementation. |')) {
     throw new Error('expected duplicated text values to persist in markdown table output')
+  }
+}
+
+export function testDuplicateMarkdownLineRangeKeepsBlockSeparation() {
+  const markdown = [
+    '# Title',
+    '',
+    'Alpha paragraph.',
+    '',
+    'Tail paragraph.',
+  ].join('\n')
+  const duplicated = duplicateMarkdownLineRange({
+    markdownText: markdown,
+    startLine: 3,
+    endLine: 3,
+  })
+  if (!duplicated.markdownText.includes('Alpha paragraph.\n\nAlpha paragraph.\n\nTail paragraph.')) {
+    throw new Error(`expected duplicated markdown block to remain separated by blank lines, got ${JSON.stringify(duplicated.markdownText)}`)
+  }
+  if (duplicated.duplicatedStartLine !== 5 || duplicated.duplicatedEndLine !== 5) {
+    throw new Error(`expected duplicated range to resolve to line 5, got ${duplicated.duplicatedStartLine}-${duplicated.duplicatedEndLine}`)
   }
 }

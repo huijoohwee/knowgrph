@@ -10,6 +10,24 @@ gates must pass first: `npm run runtime:test`.
 
 ---
 
+## Recent Pages UI Release Evidence (2026-06-16)
+
+This runbook covers the full connector topology, but the `/knowgrph` Pages app-shell release also has a lighter Dev->Prod->Cloudflare path.
+
+- Dev repo commit: `36dd25e7`
+- Publish repo commit: `af9f48a5`
+- Preview: `https://ea647ff5.joohwee.pages.dev`
+- Live: `https://airvio.co/knowgrph/`
+
+Release path (app shell only):
+```
+npm --prefix canvas run test:ci:unit -- strybldr
+npm --prefix canvas run typecheck
+npm run pages:build-sync
+npm run pages:check-sync
+npm run pages:deploy-cloudflare
+```
+
 ## Pre-reqs (one-time)
 
 - Cloudflare: account + `airvio.co` zone; `wrangler login`.

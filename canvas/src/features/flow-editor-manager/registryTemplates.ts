@@ -27,6 +27,10 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_FORM_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_LABEL,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
   FLOW_SWARM_PREDICTION_NODE_LABEL,
   FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
@@ -422,6 +426,7 @@ export function getWidgetRegistryEntryLabel(args: {
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) return FLOW_STORYBOARD_ELEMENT_NODE_LABEL
   if (nodeTypeId === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return FLOW_SWARM_PREDICTION_NODE_LABEL
   if (nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
   return nodeTypeId || String(args.formId || '').trim() || String(args.widgetTypeId || '').trim() || FLOW_TEXT_GENERATION_NODE_LABEL
@@ -637,7 +642,34 @@ export function buildCanonicalWidgetRegistryDraft(args: {
       formId: formId || draft.formId,
     }
   }
+  if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) {
+    return {
+      ...buildStoryboardElementRegistryDraft(),
+      widgetTypeId: widgetTypeId || FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+      formId: formId || FLOW_STORYBOARD_ELEMENT_FORM_ID,
+    }
+  }
   return null
+}
+
+export function buildStoryboardElementRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
+  return {
+    id: '',
+    isEnabled: true,
+    nodeTypeId: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+    widgetTypeId: FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+    formId: FLOW_STORYBOARD_ELEMENT_FORM_ID,
+    fields: [
+      { fieldKey: 'title', fieldType: 'text', schemaPath: 'properties.title', required: true, label: 'Title' },
+      { fieldKey: 'lane', fieldType: 'text', schemaPath: 'properties.lane', label: 'Lane' },
+      { fieldKey: 'summary', fieldType: 'textarea', schemaPath: 'properties.summary', label: 'Summary' },
+      { fieldKey: 'action', fieldType: 'textarea', schemaPath: 'properties.action', label: 'Action' },
+      { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', label: 'Prompt' },
+      { fieldKey: 'references', fieldType: 'json', schemaPath: 'properties.references', label: 'References' },
+    ],
+    ports: [],
+    schemaMappings: [],
+  }
 }
 
 export function buildVideoTranscriberRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {

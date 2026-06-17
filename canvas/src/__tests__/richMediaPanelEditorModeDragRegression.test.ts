@@ -226,10 +226,12 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const overlayEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
+  const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
   const panelText = readFileSync(panelPath, 'utf8')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
+  const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
 
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
@@ -274,11 +276,23 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   if (!overlayEditorText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
     throw new Error('expected NodeOverlayEditor to own the Rich Media open-source action through the real outer widget floating toolbar')
   }
+  if (!toolbarHookText.includes("import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
+    throw new Error('expected Rich Media toolbar wiring to import the shared node-overlay external action helper')
+  }
+  if (!toolbarHookText.includes('openExternalAction: buildNodeOverlayOpenExternalAction({')) {
+    throw new Error('expected Rich Media toolbar wiring to build the open-source action through the shared helper')
+  }
+  if (toolbarHookText.includes("window.open(richMediaOpenUrl, '_blank', 'noopener,noreferrer')")) {
+    throw new Error('expected Rich Media toolbar wiring to avoid inline window.open choreography')
+  }
   if (!toolbarText.includes('richMediaTextModeToggle?: {')) {
     throw new Error('expected NodeOverlayEditorActionsToolbar to expose a shared rich-media text edit/view toggle contract')
   }
-  if (!toolbarText.includes('openExternalAction?: {')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to expose a shared open-source action contract')
+  if (!toolbarText.includes("import type { NodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to import the shared open-source action contract type')
+  }
+  if (!toolbarText.includes('openExternalAction?: NodeOverlayOpenExternalAction')) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to expose the typed shared open-source action contract')
   }
   if (!toolbarText.includes("data-kg-rich-media-text-mode-toggle=\"1\"")) {
     throw new Error('expected the shared floating toolbar to expose a stable rich-media text toggle hook')

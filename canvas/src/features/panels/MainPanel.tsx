@@ -118,6 +118,7 @@ export default function MainPanel({
   requestedAnchorSeq,
   requestedSearchQuery,
   requestedWorkflowManagerTab,
+  requestedWorkflowManagerEntryLabel,
   collapsed,
   pinned,
   onMinimize,
@@ -131,6 +132,7 @@ export default function MainPanel({
   requestedAnchorSeq?: number
   requestedSearchQuery?: string
   requestedWorkflowManagerTab?: 'graph' | 'mapping'
+  requestedWorkflowManagerEntryLabel?: string
   collapsed?: boolean
   pinned?: boolean
   onMinimize?: () => void
@@ -459,6 +461,8 @@ export default function MainPanel({
               <FlowEditorManagerViewLazy
                 searchQuery={search}
                 requestedTab={requestedWorkflowManagerTab}
+                requestedEntryLabel={requestedWorkflowManagerEntryLabel}
+                requestedEntryToken={requestedAnchorSeq}
                 onRegisterActions={setWorkflowManagerActionsStable}
               />
             </React.Suspense>

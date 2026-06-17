@@ -77,6 +77,15 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   if (!overlayText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
     throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel open-source action through the real outer widget floating toolbar')
   }
+  if (!overlayText.includes("import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
+    throw new Error('expected Rich Media floating toolbar wiring to import the shared node-overlay external action helper')
+  }
+  if (!overlayText.includes('openExternalAction: buildNodeOverlayOpenExternalAction({')) {
+    throw new Error('expected Rich Media floating toolbar wiring to build the open-source action through the shared helper')
+  }
+  if (overlayText.includes("window.open(richMediaOpenUrl, '_blank', 'noopener,noreferrer')")) {
+    throw new Error('expected Rich Media floating toolbar wiring to avoid inline window.open choreography')
+  }
   if (!panelText.includes('widgetToolbarActive={false}')) {
     throw new Error('expected NodeOverlayEditorPanel to keep the RichMediaPanel body free of duplicate in-body widget toolbar ownership')
   }
@@ -109,6 +118,18 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   }
   if (!toolbarText.includes('getRichMediaPanelViewTitle(richMediaViewToggle.isKtvRows)')) {
     throw new Error('expected Rich Media floating toolbar toggle to reuse the shared Rich Media Panel title helper')
+  }
+  if (!toolbarText.includes("import type { NodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to type the open-source action through the shared helper contract')
+  }
+  if (!toolbarText.includes('openExternalAction?: NodeOverlayOpenExternalAction')) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to expose the typed shared open-source action contract')
+  }
+  if (!toolbarText.includes('onEnableHandlesForAllInputs?: () => void')) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to make the enable-handles callback optional when the action is hidden')
+  }
+  if (!toolbarText.includes('showEnableHandlesAction && !enableHandlesDisabled && onEnableHandlesForAllInputs')) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to only render the enable-handles action when a real callback is provided')
   }
   if (toolbarText.includes('UI_LABELS.panelView') || toolbarText.includes('UI_LABELS.ktvRows')) {
     throw new Error('expected Rich Media floating toolbar toggle to avoid generic Panel View/KTV Rows labels')

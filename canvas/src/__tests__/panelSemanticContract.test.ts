@@ -1590,8 +1590,20 @@ export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = (
   if (!graphFieldsText.includes('resolveGraphFieldsEntryCommandTarget')) {
     throw new Error('Expected GraphFieldsView to route entry commands through the shared Graph Fields command helper')
   }
+  if (!graphFieldsText.includes('isGraphFieldsSelectionInspectorEntryLabel')) {
+    throw new Error('Expected GraphFieldsView to detect selection-inspector entry requests inside the shared Graph Fields pane model')
+  }
+  if (!graphFieldsText.includes('GraphTableSelectionInspectorLazy')) {
+    throw new Error('Expected GraphFieldsView to reuse the shared selection inspector inside the existing settings pane')
+  }
+  if (!graphFieldsText.includes('handledEntryOpenTokenRef')) {
+    throw new Error('Expected GraphFieldsView entry-open handling to dedupe repeated request tokens and avoid runtime update loops')
+  }
   if (!graphFieldsCommandsText.includes('WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS') || !graphFieldsCommandsText.includes('resolveGraphFieldsEntryCommandTarget')) {
     throw new Error('Expected Graph Fields command helper to own workflow labels and target routing')
+  }
+  if (!graphFieldsCommandsText.includes('isGraphFieldsSelectionInspectorEntryLabel')) {
+    throw new Error('Expected Graph Fields command helper to centralize selection-inspector entry detection')
   }
   if (!graphFieldsCommandsText.includes('INLINE_MEDIA_COMMAND_ENTRY_LABELS')) {
     throw new Error('Expected Graph Fields command helper to reuse shared media command labels')
@@ -1695,6 +1707,9 @@ export const testWorkflowManagerNonWorkflowListsReuseGraphFieldsRightPane = () =
   }
   if (!graphFieldsText.includes('aria-label="Graph Fields entry shortcuts"')) {
     throw new Error('Expected GraphFieldsView to render shortcut buttons within Graph Fields surface')
+  }
+  if (!graphFieldsText.includes("key={`entry-shortcut:${label}:${index}`}")) {
+    throw new Error('Expected GraphFieldsView shortcut buttons to use stable per-entry keys instead of label-only keys')
   }
   if (!graphFieldsText.includes('onClick={() => onEntryShortcutClick(label)}')) {
     throw new Error('Expected GraphFieldsView shortcut clicks to route through the shared right-pane open handler')

@@ -76,11 +76,14 @@ export function testWorkspaceDataViewFloatingPanelOwnsQueryWorkbench() {
   const headerText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader.tsx')
   const newRecordButtonText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton.tsx')
   const responsiveCssText = readUtf8('src/styles/responsive-toolbar.css')
+  const indexCssText = readUtf8('src/index.css')
   const canvasViewportText = readUtf8('src/components/CanvasViewport.tsx')
   const bridgeText = readUtf8('src/features/markdown-workspace/main/viewer/CanvasWorkspaceDataViewFloatingRegistrationBridge.tsx')
   const derivedViewerText = readUtf8('src/features/markdown-workspace/main/viewer/MarkdownWorkspaceDerivedViewer.tsx')
   const multiDimTableSurfaceText = readUtf8('src/features/markdown-workspace/main/viewer/MultiDimTableSurface.tsx')
   const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
+  const kanbanGroupText = readUtf8('src/features/markdown/ui/kanban/KanbanGroup.tsx')
+  const kanbanDividerRowText = readUtf8('src/features/markdown/ui/kanban/KanbanNewRecordDividerRow.tsx')
 
   if (!floatingPanelViewText.includes('<WorkspaceDataViewSettingsPanel')) {
     throw new Error('expected FloatingPanel View to delegate to the shared workspace data-view settings panel')
@@ -94,11 +97,26 @@ export function testWorkspaceDataViewFloatingPanelOwnsQueryWorkbench() {
   if (!storyboardCanvasText.includes('<WorkspaceDataViewNewRecordButton') || !storyboardCanvasText.includes('handleNewStoryboardRecord')) {
     throw new Error('expected Storyboard to reuse the shared New Record action instead of a renderer-local control')
   }
-  if (!newRecordButtonText.includes('kg-data-view-new-record-action--hover-label') || !newRecordButtonText.includes('MARKDOWN_DATA_VIEW_COPY.newRecordLabel')) {
-    throw new Error('expected shared New Record button to own hover-revealed label behavior and copy')
+  if (!newRecordButtonText.includes("labelMode?: 'always' | 'hover' | 'icon'") || !newRecordButtonText.includes("presentation?: 'button' | 'divider'") || !newRecordButtonText.includes("hoverRevealScope?: 'self' | 'container'") || !newRecordButtonText.includes('kg-data-view-new-record-action--container-hover-label') || !newRecordButtonText.includes('UI_THEME_TOKENS.button.square') || !newRecordButtonText.includes('UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_DEFAULT_CLASSNAME') || !newRecordButtonText.includes('kg-data-view-new-record-divider-action') || !newRecordButtonText.includes('MARKDOWN_DATA_VIEW_COPY.newRecordLabel')) {
+    throw new Error('expected shared New Record button to own square icon sizing, divider-row presentation, and hover-reveal behavior with shared copy')
   }
-  if (!responsiveCssText.includes('.kg-data-view-new-record-action--hover-label:hover') || !responsiveCssText.includes('.kg-data-view-new-record-label--hover')) {
-    throw new Error('expected New Record hover label behavior to live in shared responsive CSS')
+  if (!responsiveCssText.includes('.kg-data-view-new-record-hover-scope:hover .kg-data-view-new-record-action--container-hover-label') || !responsiveCssText.includes('.kg-data-view-new-record-label--hover')) {
+    throw new Error('expected New Record hover label behavior to live in shared responsive CSS, including container-triggered reveal support')
+  }
+  if (!headerText.includes('kg-data-view-new-record-hover-scope') || !headerText.includes('hoverRevealScope="container"') || !headerText.includes('labelMode="icon"')) {
+    throw new Error('expected data view header to reuse the shared icon-only New Record action and container hover scope')
+  }
+  if (!storyboardCanvasText.includes('kg-data-view-new-record-hover-scope') || !storyboardCanvasText.includes('hoverRevealScope="container"') || !storyboardCanvasText.includes('labelMode="icon"')) {
+    throw new Error('expected Storyboard to reuse the shared container hover scope for an icon-only New Record action')
+  }
+  if (!kanbanDividerRowText.includes('<WorkspaceDataViewNewRecordButton') || !kanbanDividerRowText.includes('presentation="divider"')) {
+    throw new Error('expected shared kanban divider row utility to own the semantic New Record divider presentation')
+  }
+  if (!kanbanGroupText.includes('data-kg-kanban-group-header="1"') || !kanbanGroupText.includes('data-kg-kanban-group-list="1"') || !kanbanGroupText.includes('<KanbanNewRecordDividerRow') || !indexCssText.includes('[data-kg-kanban-group-header="1"]:hover [data-kg-kanban-group-actions="1"]') || !indexCssText.includes('[data-kg-kanban-group-list="1"]:hover [data-kg-kanban-group-actions="1"]')) {
+    throw new Error('expected shared kanban group actions to reveal from both the lane header and semantic card list and reuse the shared New Record divider row utility')
+  }
+  if (!storyboardCanvasText.includes('data-kg-kanban-group-header="1"') || !storyboardCanvasText.includes('data-kg-kanban-group-list="1"') || !storyboardCanvasText.includes('<KanbanNewRecordDividerRow')) {
+    throw new Error('expected Storyboard lanes to reuse the shared kanban header and semantic list action reveal contract, including the shared New Record divider row utility')
   }
   if (!settingsPanelText.includes('props.onNewRecord?.()')) {
     throw new Error('expected FloatingPanel View settings panel to render the shared New Record action')

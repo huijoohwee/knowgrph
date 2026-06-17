@@ -197,8 +197,12 @@
     pointer-events: auto;
   }
 
-  [data-kg-kanban-group="1"]:hover [data-kg-kanban-group-actions="1"],
-  [data-kg-kanban-group="1"]:focus-within [data-kg-kanban-group-actions="1"] {
+  [data-kg-kanban-group-header="1"]:hover [data-kg-kanban-group-actions="1"],
+  [data-kg-kanban-group-header="1"]:focus-within [data-kg-kanban-group-actions="1"],
+  [data-kg-kanban-group-header="1"]:hover ~ * [data-kg-kanban-group-actions="1"],
+  [data-kg-kanban-group-list="1"]:hover [data-kg-kanban-group-actions="1"],
+  [data-kg-kanban-group-list="1"]:focus-within [data-kg-kanban-group-actions="1"],
+  [data-kg-kanban-group-header="1"]:focus-within ~ * [data-kg-kanban-group-actions="1"] {
     opacity: 1;
     pointer-events: auto;
   }

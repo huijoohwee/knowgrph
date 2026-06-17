@@ -25,6 +25,7 @@ export const testEmitMainPanelOpenDispatchesSharedEvent = async () => {
   emitMainPanelOpen({
     tab: 'workflowManager',
     workflowManagerTab: 'mapping',
+    workflowManagerEntryLabel: 'Node',
     searchQuery: 'textGeneration default',
   })
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -39,6 +40,9 @@ export const testEmitMainPanelOpenDispatchesSharedEvent = async () => {
   }
   if (String(last.searchQuery || '') !== 'textGeneration default') {
     throw new Error(`expected shared emitter to preserve searchQuery detail, got ${JSON.stringify(last)}`)
+  }
+  if (String(last.workflowManagerEntryLabel || '') !== 'Node') {
+    throw new Error(`expected shared emitter to preserve workflowManagerEntryLabel detail, got ${JSON.stringify(last)}`)
   }
 
   dom.window.removeEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
@@ -74,5 +78,38 @@ export const testWorkflowManagerHeaderUsesSharedSectionChooser = () => {
   const text = readUtf8('src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx')
   if (!text.includes('<ToolbarDropdownSelect') || !text.includes('title={`Workflow section:') || text.includes('inline-flex items-center gap-1" aria-label={UI_LABELS.workflowManager}')) {
     throw new Error('expected workflow manager header section switching to use the shared click-expand-down chooser instead of a local horizontal row')
+  }
+}
+
+export const testWorkflowManagerNodeEntryRequestFlowsFromToolbarIntoGraphFields = () => {
+  const toolbarText = readUtf8('src/components/Toolbar.tsx')
+  const useCanvasToolbarContextText = readUtf8('src/components/toolbar/useCanvasToolbarContext.ts')
+  const mainPanelDragText = readUtf8('src/features/toolbar/hooks/useMainPanelDrag.ts')
+  const mainPanelText = readUtf8('src/features/panels/MainPanel.tsx')
+  const managerViewText = readUtf8('src/features/panels/views/FlowEditorManagerView.tsx')
+  const graphTabText = readUtf8('src/features/flow-editor-manager/FlowEditorGraphTab.tsx')
+
+  for (const snippet of [
+    'workflowManagerEntryLabel?: string',
+    'mainPanelRequestedWorkflowManagerEntryLabel',
+    'workflowManagerEntryLabel: detailWorkflowManagerEntryLabel',
+    'requestedWorkflowManagerEntryLabel={mainPanelRequestedWorkflowManagerEntryLabel}',
+    'requestedEntryLabel={requestedWorkflowManagerEntryLabel}',
+    'requestedEntryToken={requestedAnchorSeq}',
+    'requestedEntryLabel?: string',
+    'requestedEntryToken?: number',
+    'const nextEntryLabel = String(requestedEntryLabel || \'\').trim()',
+    'setEntryOpenRequest({',
+  ]) {
+    const source =
+      toolbarText.includes(snippet) ? toolbarText
+        : useCanvasToolbarContextText.includes(snippet) ? useCanvasToolbarContextText
+        : mainPanelDragText.includes(snippet) ? mainPanelDragText
+        : mainPanelText.includes(snippet) ? mainPanelText
+        : managerViewText.includes(snippet) ? managerViewText
+        : graphTabText
+    if (!source.includes(snippet)) {
+      throw new Error(`expected workflow manager node entry request snippet: ${snippet}`)
+    }
   }
 }

@@ -14,6 +14,7 @@ export type WorkflowManagerTabKey = 'graph' | 'mapping'
 export type MainPanelOpenOptions = {
   searchQuery?: string;
   workflowManagerTab?: WorkflowManagerTabKey;
+  workflowManagerEntryLabel?: string;
   anchorId?: string;
 };
 
@@ -24,6 +25,7 @@ export function useMainPanelDrag() {
   const [mainPanelRequestedAnchorId, setMainPanelRequestedAnchorId] = useState('');
   const [mainPanelRequestedAnchorSeq, setMainPanelRequestedAnchorSeq] = useState(0);
   const [mainPanelRequestedWorkflowManagerTab, setMainPanelRequestedWorkflowManagerTab] = useState<WorkflowManagerTabKey>('graph');
+  const [mainPanelRequestedWorkflowManagerEntryLabel, setMainPanelRequestedWorkflowManagerEntryLabel] = useState('');
   const mainPanelCardRef = useRef<HTMLElement>(null);
   const mainPanelDragPosRef = useRef<{ top: number; left: number } | null>(null);
   const dragSchedulerRef = useRef(createRafValueScheduler((pos: { top: number; left: number }) => setMainPanelDragPosSynced(pos)));
@@ -81,8 +83,13 @@ export function useMainPanelDrag() {
       setMainPanelRequestedTab(tab);
       const requestedSearch = typeof options?.searchQuery === 'string' ? options.searchQuery : '';
       const requestedAnchorId = typeof options?.anchorId === 'string' ? options.anchorId : '';
+      const requestedWorkflowManagerEntryLabel =
+        typeof options?.workflowManagerEntryLabel === 'string' ? options.workflowManagerEntryLabel.trim() : '';
       setMainPanelRequestedSearchQuery(prev => (prev === requestedSearch ? prev : requestedSearch));
       setMainPanelRequestedAnchorId(prev => (prev === requestedAnchorId ? prev : requestedAnchorId));
+      setMainPanelRequestedWorkflowManagerEntryLabel(prev =>
+        prev === requestedWorkflowManagerEntryLabel ? prev : requestedWorkflowManagerEntryLabel,
+      );
       setMainPanelRequestedAnchorSeq(prev => prev + 1);
       const requestedWorkflowManagerTab =
         options?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
@@ -171,6 +178,7 @@ export function useMainPanelDrag() {
     mainPanelRequestedAnchorId,
     mainPanelRequestedAnchorSeq,
     mainPanelRequestedWorkflowManagerTab,
+    mainPanelRequestedWorkflowManagerEntryLabel,
     setMainPanelRequestedTab,
     mainPanelCardRef,
     mainPanelPinned,

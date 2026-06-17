@@ -67,6 +67,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     mainPanelRequestedSearchQuery,
     mainPanelRequestedTab,
     mainPanelRequestedWorkflowManagerTab,
+    mainPanelRequestedWorkflowManagerEntryLabel,
     openMainPanel,
     setIsMainPanelOpen,
     setMainPanelCollapsed,
@@ -237,6 +238,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                     requestedAnchorSeq={mainPanelRequestedAnchorSeq}
                     requestedSearchQuery={mainPanelRequestedSearchQuery}
                     requestedWorkflowManagerTab={mainPanelRequestedWorkflowManagerTab}
+                    requestedWorkflowManagerEntryLabel={mainPanelRequestedWorkflowManagerEntryLabel}
                     collapsed={false}
                     pinned={true}
                     onMinimize={undefined}
@@ -271,6 +273,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                   requestedAnchorSeq={mainPanelRequestedAnchorSeq}
                   requestedSearchQuery={mainPanelRequestedSearchQuery}
                   requestedWorkflowManagerTab={mainPanelRequestedWorkflowManagerTab}
+                  requestedWorkflowManagerEntryLabel={mainPanelRequestedWorkflowManagerEntryLabel}
                   collapsed={effectiveMainPanelCollapsed}
                   pinned={effectiveMainPanelPinned}
                   onMinimize={!effectiveMainPanelCollapsed ? () => setMainPanelCollapsed(true) : undefined}

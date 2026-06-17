@@ -1,15 +1,14 @@
 import React from 'react'
 import type { MarkdownDataView, MarkdownDataViewRow } from '../markdownDataViewModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { DataViewTagChip } from '../MarkdownDataViewChips'
 import { KanbanCard } from './KanbanCard'
 import { KanbanLaneDragOverIndicator, KanbanLaneDropPreview } from './KanbanDropPreview'
+import { KanbanNewRecordDividerRow } from './KanbanNewRecordDividerRow'
 import { getKanbanLaneDragVisualState } from './kanbanDragVisualState'
 import type { KanbanCardDragProps, KanbanCardDropProps, KanbanLaneDropProps } from './useKanbanDragAndDrop'
 import {
-  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_KANBAN_GROUP_CLASSNAME,
   UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME,
@@ -83,7 +82,10 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         {...props.laneDropProps}
       >
         {props.isDragOver ? <KanbanLaneDragOverIndicator /> : null}
-        <header className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+        <header
+          data-kg-kanban-group-header="1"
+          className={[UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME, 'gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}
+        >
           <button
             type="button"
             className={['flex items-center gap-2 flex-1 min-w-0 rounded', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
@@ -143,61 +145,52 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         </header>
 
         {expanded ? (
-          <ol ref={props.laneScrollRef} className={UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME} aria-label={`Cards in ${props.group.key}`}>
-            {props.group.rows.map(row => {
+          <ol
+            ref={props.laneScrollRef}
+            data-kg-kanban-group-list="1"
+            className={UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME}
+            aria-label={`Cards in ${props.group.key}`}
+          >
+            {props.group.rows.map((row, index) => {
               const title = String(row.cells[props.titleIndex] ?? '')
               const groupValue = String(row.cells[props.groupByIndex] ?? '').trim() || props.group.key
               return (
-                <li key={row.id} className="list-none">
-                  <KanbanCard
-                    row={row}
-                    title={title}
-                    groupValue={groupValue}
-                    canMutate={props.canMutate}
-                    groupByColumnId={groupByColumnId}
-                    groupByIndex={props.groupByIndex}
-                    moveTargets={props.moveTargets}
-                    groupColumnOptions={props.groupColumnOptions}
-                    view={props.view}
-                    otherColumnIndices={props.otherColumnIndices}
-                    onUpdateCell={props.onUpdateCell}
-                    onActivateRow={props.onActivateRow}
-                    cardDragProps={props.getCardDragProps?.({ rowId: row.id, groupKey: props.group.key })}
-                    cardDropProps={props.getCardDropProps?.({ rowId: row.id, groupKey: props.group.key })}
-                    isDragging={props.draggingRowId === row.id}
-                    isDropTarget={props.dragOverRowId === row.id}
-                    dropPosition={props.dragOverPosition}
-                    onKeyboardMove={props.onKeyboardMove}
-                    hasActiveDrag={!!props.hasActiveDrag}
-                    dropPreviewLabel={props.getCardDropPreviewLabel?.({ rowId: row.id, groupKey: props.group.key })}
-                    isCommitFlash={props.commitFlashRowId === row.id}
-                    onFocusableRowElement={props.onFocusableRowElement}
-                  />
-                </li>
+                <React.Fragment key={row.id}>
+                  <li className="list-none">
+                    <KanbanCard
+                      row={row}
+                      title={title}
+                      groupValue={groupValue}
+                      canMutate={props.canMutate}
+                      groupByColumnId={groupByColumnId}
+                      groupByIndex={props.groupByIndex}
+                      moveTargets={props.moveTargets}
+                      groupColumnOptions={props.groupColumnOptions}
+                      view={props.view}
+                      otherColumnIndices={props.otherColumnIndices}
+                      onUpdateCell={props.onUpdateCell}
+                      onActivateRow={props.onActivateRow}
+                      cardDragProps={props.getCardDragProps?.({ rowId: row.id, groupKey: props.group.key })}
+                      cardDropProps={props.getCardDropProps?.({ rowId: row.id, groupKey: props.group.key })}
+                      isDragging={props.draggingRowId === row.id}
+                      isDropTarget={props.dragOverRowId === row.id}
+                      dropPosition={props.dragOverPosition}
+                      onKeyboardMove={props.onKeyboardMove}
+                      hasActiveDrag={!!props.hasActiveDrag}
+                      dropPreviewLabel={props.getCardDropPreviewLabel?.({ rowId: row.id, groupKey: props.group.key })}
+                      isCommitFlash={props.commitFlashRowId === row.id}
+                      onFocusableRowElement={props.onFocusableRowElement}
+                    />
+                  </li>
+                  {props.canMutate && index < props.group.rows.length - 1 ? (
+                    <KanbanNewRecordDividerRow onClick={() => props.onNewRecord({ [groupByColumnId]: props.group.key })} />
+                  ) : null}
+                </React.Fragment>
               )
             })}
 
             {props.canMutate ? (
-              <li
-                data-kg-kanban-group-actions="1"
-                className="list-none opacity-0 pointer-events-none transition-opacity"
-              >
-                <button
-                  type="button"
-                  className={[
-                    'kg-panel-action-btn',
-                    UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
-                    'w-full gap-2 text-xs px-2 py-2 rounded-md',
-                    UI_THEME_TOKENS.text.secondary,
-                    UI_THEME_TOKENS.button.hoverBg,
-                    UI_THEME_TOKENS.focus.primarySoftRing,
-                  ].join(' ')}
-                  onClick={() => props.onNewRecord({ [groupByColumnId]: props.group.key })}
-                >
-                  <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span className="kg-truncate">{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
-                </button>
-              </li>
+              <KanbanNewRecordDividerRow onClick={() => props.onNewRecord({ [groupByColumnId]: props.group.key })} />
             ) : null}
             {props.showLaneDropPreview ? (
               <li className="list-none">

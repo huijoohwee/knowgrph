@@ -64,6 +64,10 @@ export const FLOW_SWARM_PREDICTION_NODE_TYPE_ID = 'SwarmPrediction' as const
 export const FLOW_SWARM_PREDICTION_NODE_LABEL = 'Swarm Prediction Engine' as const
 export const FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID = 'default' as const
 export const FLOW_SWARM_PREDICTION_FORM_ID = 'swarmPrediction' as const
+export const FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID = 'StoryboardElement' as const
+export const FLOW_STORYBOARD_ELEMENT_NODE_LABEL = 'Storyboard Element Widget' as const
+export const FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID = 'default' as const
+export const FLOW_STORYBOARD_ELEMENT_FORM_ID = 'storyboardElement' as const
 
 export const FLOW_VIDEO_SCRIPT_FORM_ID = 'videoScript' as const
 export const FLOW_VIDEO_SCRIPT_WIDGET_LABEL = 'BytePlus Video Script Widget' as const

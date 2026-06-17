@@ -5,6 +5,8 @@ import IconButton from '@/components/IconButton'
 import { commitActiveCardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
+import type { NodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'
+import { GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL } from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
   getRichMediaPanelMediaSelectorOptions,
@@ -25,6 +27,9 @@ import { unwrapUserProvidedText } from '@/lib/url'
 
 export type NodeOverlayEditorActionsToolbarProps = {
   visible: boolean
+  ariaLabel?: string
+  navClassName?: string
+  navStyle?: React.CSSProperties
   iconSizeClass: string
   iconStrokeWidth: number
   active: boolean
@@ -51,11 +56,7 @@ export type NodeOverlayEditorActionsToolbarProps = {
     freezeConnectedOutput: boolean
     onToggle: () => void
   }
-  openExternalAction?: {
-    visible: boolean
-    label?: string
-    onOpen: () => void
-  }
+  openExternalAction?: NodeOverlayOpenExternalAction
   actionVisibility?: Partial<{
     run: boolean
     updateKvEntry: boolean
@@ -77,9 +78,10 @@ export type NodeOverlayEditorActionsToolbarProps = {
   onClearOutput: () => void
   onHelp: () => void
   onRemove: () => void
-  onEnableHandlesForAllInputs: () => void
+  onEnableHandlesForAllInputs?: () => void
   onConvertToLoopNode: () => void
   onUpdateKvEntry?: () => void
+  onOpenInSidepane?: () => void
   maxWidthPx?: number
 }
 
@@ -105,6 +107,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onEnableHandlesForAllInputs,
     onConvertToLoopNode,
     onUpdateKvEntry,
+    onOpenInSidepane,
     maxWidthPx,
   } = args
   const actionVisibility = args.actionVisibility || {}
@@ -147,9 +150,15 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   return (
     <>
       <nav
-        className="Island App-toolbar App-toolbar--compact App-toolbar--touch-scroll pointer-events-auto w-fit shadow-lg"
-        aria-label={UI_LABELS.flowWidgetActions}
-        style={typeof maxWidthPx === 'number' && Number.isFinite(maxWidthPx) && maxWidthPx > 0 ? { maxWidth: `${maxWidthPx}px` } : undefined}
+        className={cn(
+          'Island App-toolbar App-toolbar--compact App-toolbar--touch-scroll pointer-events-auto w-fit shadow-lg',
+          args.navClassName || '',
+        )}
+        aria-label={args.ariaLabel || UI_LABELS.flowWidgetActions}
+        style={{
+          ...(typeof maxWidthPx === 'number' && Number.isFinite(maxWidthPx) && maxWidthPx > 0 ? { maxWidth: `${maxWidthPx}px` } : undefined),
+          ...(args.navStyle || {}),
+        }}
         onPointerDownCapture={e => {
           try {
             e.stopPropagation()
@@ -272,8 +281,8 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
         {showUpdateKvEntryAction ? (
           <IconButton
-            title={UI_LABELS.applyToNode}
-            tooltipContent="Update KV entry"
+            title={UI_LABELS.updateKvEntry}
+            tooltipContent={UI_LABELS.updateKvEntry}
             showTooltip
             onClick={onUpdateKvEntry || (() => {
               emitMainPanelOpen({
@@ -292,14 +301,20 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             title={UI_LABELS.openInSidepane}
             tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
             showTooltip
-            onClick={() => emitFloatingPanelOpen({ tab: 'node', open: true })}
+            onClick={onOpenInSidepane || (() => {
+              emitMainPanelOpen({
+                tab: 'workflowManager' as const,
+                workflowManagerTab: 'graph' as const,
+                workflowManagerEntryLabel: GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL,
+              })
+            })}
             className="App-toolbar__btn"
           >
             <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
           </IconButton>
         ) : null}
 
-        {showEnableHandlesAction && !enableHandlesDisabled ? (
+        {showEnableHandlesAction && !enableHandlesDisabled && onEnableHandlesForAllInputs ? (
           <IconButton
             title={UI_LABELS.enableHandlesForAllInputs}
             tooltipContent={UI_COPY.flowWidgetEnableHandles}

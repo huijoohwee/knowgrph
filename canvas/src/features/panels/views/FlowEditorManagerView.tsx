@@ -35,10 +35,14 @@ const hasWorkflowSectionsInFrontmatterMeta = (graphData: unknown): boolean => {
 export default function FlowEditorManagerView({
   searchQuery,
   requestedTab,
+  requestedEntryLabel,
+  requestedEntryToken,
   onRegisterActions,
 }: {
   searchQuery: string
   requestedTab?: FlowEditorManagerTabKey
+  requestedEntryLabel?: string
+  requestedEntryToken?: number
   onRegisterActions?: (actions: {
     apply?: () => void
     reset?: () => void
@@ -100,7 +104,12 @@ export default function FlowEditorManagerView({
           </section>
         ) : (
           <section role="tabpanel" aria-label={UI_LABELS.flowEditorGraph} className="h-full">
-            <FlowEditorGraphTab searchQuery={searchQuery} workflowMode={workflowMode} />
+            <FlowEditorGraphTab
+              searchQuery={searchQuery}
+              workflowMode={workflowMode}
+              requestedEntryLabel={requestedEntryLabel}
+              requestedEntryToken={requestedEntryToken}
+            />
           </section>
         )}
       </section>

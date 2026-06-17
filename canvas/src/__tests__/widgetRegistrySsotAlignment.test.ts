@@ -3,6 +3,8 @@ import { buildBytePlusTextGenerationFields } from '@/features/integrations/bytep
 import { buildBytePlusVideoGenerationFields } from '@/features/integrations/byteplusVideoGenerationSsot'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_FORM_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -28,6 +30,16 @@ export const testWidgetRegistryPortsCoverConnectedSchemaPaths = () => {
   ;['prompt_in', 'reference_image', 'videoUrl'].forEach(key => {
     if (!videoPorts.has(key)) throw new Error(`expected VideoGeneration ports to include ${key}`)
   })
+
+  const storyboardElement = buildCanonicalWidgetRegistryDraft({ nodeTypeId: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID })
+  if (!storyboardElement) throw new Error('expected canonical StoryboardElement registry draft')
+  if (storyboardElement.formId !== FLOW_STORYBOARD_ELEMENT_FORM_ID) {
+    throw new Error(`expected canonical StoryboardElement form id ${FLOW_STORYBOARD_ELEMENT_FORM_ID}, got ${String(storyboardElement.formId || '')}`)
+  }
+  const storyboardFieldKeys = new Set(storyboardElement.fields.map(field => field.fieldKey))
+  ;['title', 'lane', 'summary', 'action', 'prompt', 'references'].forEach(key => {
+    if (!storyboardFieldKeys.has(key)) throw new Error(`expected StoryboardElement fields to include ${key}`)
+  })
 }
 
 export const testBytePlusVideoWidgetFieldsIncludeReferenceImage = () => {
@@ -41,4 +53,3 @@ export const testBytePlusTextWidgetFieldsIncludeOutput = () => {
   const keys = buildBytePlusTextGenerationFields().map(field => field.fieldKey)
   if (!keys.includes('output')) throw new Error('expected BytePlus TextGeneration widget fields to include output')
 }
-

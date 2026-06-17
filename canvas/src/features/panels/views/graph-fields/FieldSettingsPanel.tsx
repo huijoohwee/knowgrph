@@ -168,18 +168,12 @@ export default function FieldSettingsPanel({
     return selectedField.scope === 'node' ? localSchemaNodeTypes : localSchemaEdgeLabels
   }, [localSchemaEdgeLabels, localSchemaNodeTypes, selectedField])
 
-  const [schemaOwnerKey, setSchemaOwnerKey] = React.useState('')
-
-  React.useEffect(() => {
-    if (!selectedField || !schema) {
-      setSchemaOwnerKey('')
-      return
-    }
+  const schemaOwnerKey = React.useMemo(() => {
+    if (!selectedField || !schema) return ''
     if (preferredSchemaOwnerKey && ownerCandidatesForSelectedField.includes(preferredSchemaOwnerKey)) {
-      setSchemaOwnerKey(preferredSchemaOwnerKey)
-      return
+      return preferredSchemaOwnerKey
     }
-    setSchemaOwnerKey(ownerCandidatesForSelectedField[0] ?? '')
+    return ownerCandidatesForSelectedField[0] ?? ''
   }, [selectedField, schema, preferredSchemaOwnerKey, ownerCandidatesForSelectedField])
 
   const updateSelectedSettings = React.useCallback(

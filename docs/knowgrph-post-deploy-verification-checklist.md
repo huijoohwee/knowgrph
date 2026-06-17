@@ -21,6 +21,13 @@ Cloudflare Pages. The goal is to confirm:
 - a safe dry-run `tools/call` works without paid side effects
 - persisted Run_Manifest read-back is consistent
 
+## Recent Release Evidence (2026-06-16)
+
+- Dev repo commit: `36dd25e7`
+- Publish repo commit: `af9f48a5`
+- Preview: `https://ea647ff5.joohwee.pages.dev`
+- Live: `https://airvio.co/knowgrph/`
+
 ## 1. Route Reachability
 
 Expect `200` from each route:

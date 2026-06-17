@@ -20,6 +20,18 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-17
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Storyboard + Editor Workspace/Kanban shared-utils doc sync | Keep canonical authored docs and cross-repo guidelines aligned with the new shared toolbar/data-view ownership | Update only canonical authored docs and guidelines, record shared Storyboard toolbar reuse plus shared Workspace/Kanban `New Record` and settings ownership, and forbid renderer-local utility forks or alias renderer wording. | `knowgrph/{docs/documents/{knowgrph-*-document.md,knowgrph-strybldr-prd-tad.md},todo-log.md}`, `huijoohwee.github.io/{guidelines/{knowgrph-pipeline-guidelines.md,yaml-frontmatter-guidelines.md},schema/AgenticRAG/README.pipeline-and-renderer-guidelines.md}` | Canonical docs + cross-repo guideline SSOT | authored-doc updates, guideline sync, ledger entry | Recent Storyboard toolbar helper extraction, shared Viewer/Workspace/Kanban utility reuse, and canonical renderer id `storyboard` | Updated authored docs, updated guidelines, and one planning-ledger row capturing the shared-utils sync boundary | Canonical authored docs remain upstream truth; schema/guideline mirrors describe validated ownership only, and generated or renderer-local notes must not become parallel authority. | Re-run `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` after the next related docs batch and continue mirroring only from canonical authored sources. | 2026-06-17 |
+
+## 2026-06-16
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Dev -> Prod -> Cloudflare release: storyboard + Strybldr + typecheck gates | Log the production release evidence and keep the Dev->Prod->Cloudflare pipeline drift-free | Release only via `pages:build-sync` + `pages:deploy-cloudflare`, keep storyboard renderer id `storyboard` (not `strybldr`), preserve Strybldr `mediaKind` parsing, and require `npm --prefix canvas run test:ci:unit -- strybldr` + `npm --prefix canvas run typecheck` before deploying. | `knowgrph/{canvas/src/{features/chat,features/strybldr,components/StoryboardCanvas.tsx},cloudflare/workers/knowgrph-storage,todo-log.md}`, `huijoohwee/{content/knowgrph,knowgrph}` | Pages publish pipeline + storyboard/Strybldr contract owners | `pages:build-sync`, `pages:check-sync`, `pages:deploy-cloudflare` | Dev commit `36dd25e7`, Prod commit `af9f48a5`, preview `https://ea647ff5.joohwee.pages.dev` | Live `https://airvio.co/knowgrph/` updated with sync parity; seeded docs `applied=37, conflict=0, rejected=0` | Publish artifacts are generated-only; downstream mirrors and schema graphs remain derived from canonical docs and validated pipelines. | Run `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` after doc changes and address Dependabot alerts before the next production release. | 2026-06-16 |
+
 ## 2026-06-15
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

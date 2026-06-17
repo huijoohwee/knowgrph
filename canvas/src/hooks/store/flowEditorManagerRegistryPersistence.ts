@@ -2,6 +2,7 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage } from '@/lib/persistence'
 import { createUniqueId } from '@/lib/ids'
 import {
+  buildStoryboardElementRegistryDraft,
   buildGenerateImageRegistryDraft,
   buildGenerateTextRegistryDraft,
   buildGenerateVideoRegistryDraft,
@@ -23,6 +24,9 @@ import {
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_FORM_ID,
+  FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+  FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_FORM_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
@@ -380,6 +384,10 @@ export function normalizeWidgetRegistryEntries(entries: WidgetRegistryEntry[]): 
     formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
     draft: buildVideoTranscriberRegistryDraft(),
   })
+  canonicalizeBuiltInForm({
+    formId: FLOW_STORYBOARD_ELEMENT_FORM_ID,
+    draft: buildStoryboardElementRegistryDraft(),
+  })
 
   out.sort((a, b) => {
     const nodeTypeComparison = a.nodeTypeId.localeCompare(b.nodeTypeId)
@@ -555,8 +563,15 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildVideoTranscriberRegistryDraft(),
     nowIso,
   })
-  const seededRichMediaPanel = ensureDefaultRegistryEntry({
+  const seededStoryboardElement = ensureDefaultRegistryEntry({
     entries: seededVideoTranscriber.entries,
+    nodeTypeId: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
+    formId: FLOW_STORYBOARD_ELEMENT_FORM_ID,
+    draft: buildStoryboardElementRegistryDraft(),
+    nowIso,
+  })
+  const seededRichMediaPanel = ensureDefaultRegistryEntry({
+    entries: seededStoryboardElement.entries,
     nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
     formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
     draft: buildRichMediaPanelRegistryDraft(),
@@ -580,6 +595,7 @@ export function ensureDefaultWidgetRegistryEntries(
       || seededDeerFlowText.changed
       || seededOpenAiVideoScript.changed
       || seededVideoTranscriber.changed
+      || seededStoryboardElement.changed
       || seededRichMediaPanel.changed
       || seededGrabMapsDiscovery.changed,
   }

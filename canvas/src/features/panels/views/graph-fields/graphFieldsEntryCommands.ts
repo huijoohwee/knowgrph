@@ -2,9 +2,11 @@ import type { GraphField, GraphFieldId } from '@/features/graph-fields/graphFiel
 import { normalized } from '@/features/panels/utils/json'
 import { INLINE_MEDIA_COMMAND_ENTRY_LABELS } from '@/lib/command-menu/inlineCommandMenuCatalog'
 
+export const GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL = 'Node' as const
+
 export const GRAPH_FIELDS_COMMAND_ENTRY_LABELS = [
   'Renderer',
-  'Node',
+  GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL,
   'Edges',
   'Clusters',
   'Layer Mode',
@@ -26,6 +28,11 @@ export const WORKFLOW_MANAGER_GRAPH_FIELDS_COMMAND_ENTRY_LABELS = [
   'Clusters · Samples',
   'Inspector',
 ] as const
+
+export function isGraphFieldsSelectionInspectorEntryLabel(entryLabel: string): boolean {
+  const label = normalized(entryLabel).toLowerCase()
+  return label.includes('node') || label.includes('inspector')
+}
 
 export function resolveGraphFieldsEntryCommandTarget(args: {
   entryLabel: string

@@ -2,9 +2,9 @@
 title: "Knowgrph XR Mode PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KXR-001"
-version: "0.2.0"
-status: "Accepted; Dev implementation baseline active"
-date: "2026-06-02"
+version: "0.4.0"
+status: "Accepted; Blender pipeline updates active"
+date: "2026-06-17"
 authors:
   - "airvio"
 schema: "kgc-computing-flow/v1"
@@ -24,6 +24,8 @@ epics:
     title: "FOSS PNG To SVG To GLB Pipeline"
   - id: "KXR-E4"
     title: "Cost, Token, And Performance Observability"
+  - id: "KXR-E5"
+    title: "Blender-Inspired 3D Pipeline"
 tags:
   - "xr"
   - "webxr"
@@ -35,6 +37,15 @@ tags:
   - "tco"
   - "token-economics"
   - "harness"
+  - "blender-pipeline"
+  - "modeling"
+  - "rigging"
+  - "animation"
+  - "simulation"
+  - "rendering"
+  - "compositing"
+  - "motion-tracking"
+  - "sequencer"
 ---
 
 # Knowgrph XR Mode PRD & TAD
@@ -108,6 +119,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 - Deterministic `svg -> glb` compile path for vector assets that warrant 3D placement.
 - GLB inspection gates for generated assets, with optional glTF Transform optimization/reporting profiles.
 - TCO, token, and performance metrics emitted per conversion or optional AI-assisted step.
+- Declarative Blender-inspired 3D pipeline specification and rendering.
 
 ### Out Of Scope
 
@@ -119,6 +131,8 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 - Photorealistic 3D reconstruction from arbitrary PNGs.
 - Deployment to Prod or Cloudflare as part of this document generation task.
 
+---
+
 ## Epic KXR-E1 - XR Surface Mode
 
 ### User Story
@@ -128,22 +142,36 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 ### Acceptance Criteria
 
 **KXR-E1-S1-AC1** - XR surface selection
-
-Given a workspace document or toolbar action requests `kgCanvasSurfaceMode: "xr"`, when Canvas applies the view selection, then `canvasRenderMode` becomes `3d` and `canvas3dMode` becomes `xr` before the render surface is activated.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.viewSelection.xrSurfaceMode" passes and no non-XR renderer option is removed`
+* **Given** a workspace document or toolbar action requests `kgCanvasSurfaceMode: "xr"`, **when** Canvas applies the view selection, **then** `canvasRenderMode` becomes `3d` and `canvas3dMode` becomes `xr` before the render surface is activated.
+* > **VCC translation**: `Verify canvas mode updates by running tests in src/__tests__/canvas3dMode.test.ts and ensuring no non-XR options are dropped`
 
 **KXR-E1-S1-AC2** - Render Settings preserves XR
-
-Given the Render Settings 3D mode select is open, when the user selects `xr`, then the setting preserves `xr` instead of coercing it to plain `3d`.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.renderSettings.xrModeSelect" passes and RenderSettingsSection exposes option value "xr"`
+* **Given** the Render Settings 3D mode select is open, **when** the user selects `xr`, **then** the setting preserves `xr` instead of coercing it to plain `3d`.
+* > **VCC translation**: `Verify render settings preserve value "xr" by running tests in src/__tests__/canvas3dMode.test.ts`
 
 **KXR-E1-S1-AC3** - Distinct graph spatial stage
+* **Given** XR Mode renders graph data, **when** the Three.js scene mounts, **then** it mounts the XR spatial stage and excludes plain 3D globe effects.
+* > **VCC translation**: `Verify XrGraphStage component is rendered and GlobeEffects are unmounted in ThreeGraph.impl.tsx`
 
-Given XR Mode renders graph data, when the Three.js scene mounts, then it mounts the XR spatial stage and excludes plain 3D globe effects.
+### Workflow: XR Surface Activation
 
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrMode.graphSpatialStage" passes and XrGraphStage markers are present`
+**Trigger**: User selects `xr` from Canvas View Mode toolbar or opens a document with `kgCanvasSurfaceMode: "xr"` frontmatter.
+**Actors**: Solo Dev, Canvas View Controller, Zustand Graph Store, Three.js Renderer.
+
+**Happy Path**:
+1. Solo Dev selects `xr` from the Canvas toolbar or imports a document with XR frontmatter → Canvas View Controller receives the mode change intent.
+2. Canvas View Controller normalizes the mode to `canvasRenderMode: "3d"` and `canvas3dMode: "xr"` → Zustand Graph Store updates state.
+3. Three.js Renderer reactively mounts the XR spatial stage and excludes plain 3D globe effects → Solo Dev sees the XR inspection surface.
+
+**Alternate Paths**:
+- Already in XR mode: Canvas View Controller detects the mode is unchanged → no store mutation, no re-mount; workflow complete without render churn.
+
+**Error Paths**:
+- WebGL context lost: Three.js Renderer emits a context-lost event → Canvas displays a non-blocking recovery message and attempts context restoration on next user interaction.
+
+**Postconditions**: `canvas3dMode === "xr"` in Zustand state; Three.js canvas renders XR spatial stage; no GraphData mutation occurred.
+
+---
 
 ## Epic KXR-E2 - Model Asset Ingest And Render
 
@@ -154,22 +182,39 @@ Given XR Mode renders graph data, when the Three.js scene mounts, then it mounts
 ### Acceptance Criteria
 
 **KXR-E2-S1-AC1** - GLB manifest render gate
-
-Given a valid `.glb` model asset document, when XR Mode renders it, then the Three.js canvas remains mounted even if the document has no graph nodes and the shared model component renders the asset.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrMode.glbAssetRenderGate" passes and GLB magic validation is honored before loader input is built`
+* **Given** a valid `.glb` model asset document, **when** XR Mode renders it, **then** the Three.js canvas remains mounted even if the document has no graph nodes and the shared model component renders the asset.
+* > **VCC translation**: `Verify GLB component mounts and parses container validation flags under test:ci:unit`
 
 **KXR-E2-S1-AC2** - GLTF manifest render gate
-
-Given a valid `.gltf` model asset document with source-relative external resources, when XR Mode renders it, then the GLTF payload preserves the source base path and the loader receives parseable JSON text.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrMode.gltfAssetRenderGate" and "canvas.xrMode.gltfIngestParseRenderPipeline" pass`
+* **Given** a valid `.gltf` model asset document with source-relative external resources, **when** XR Mode renders it, **then** the GLTF payload preserves the source base path and the loader receives parseable JSON text.
+* > **VCC translation**: `Verify source-relative base path resolution in GlbAssetModel.tsx passes validation`
 
 **KXR-E2-S1-AC3** - Session-independent inspection
+* **Given** the browser does not support immersive WebXR sessions, **when** the user opens an XR model document, **then** the inline canvas still renders the spatial inspection stage and shows a non-blocking XR entry state.
+* > **VCC translation**: `Verify inline canvas displays model content with data-kg-canvas-xr-status set to "checking" or "unsupported"`
 
-Given the browser does not support immersive WebXR sessions, when the user opens an XR model document, then the inline canvas still renders the spatial inspection stage and shows a non-blocking XR entry state.
+### Workflow: Model Asset Import To XR Render
 
-> **`/goal` translation**: `the XR canvas renders model or graph content with data-kg-canvas-xr-status="unsupported" or "checking" and no "XR unavailable" hard-stop label blocks model rendering`
+**Trigger**: Solo Dev imports a `.glb` or `.gltf` file via Source Files, URL import, or drag-and-drop.
+**Actors**: Solo Dev, Import Handler, Manifest Builder, Markdown Workspace, XR Renderer.
+
+**Happy Path**:
+1. Solo Dev triggers import → Import Handler validates file type and byte length.
+2. Import Handler passes raw payload to Manifest Builder → Manifest Builder generates a Markdown model manifest with `kgAssetType: "model"`, `kgCanvasSurfaceMode: "xr"`, and validation metadata.
+3. Manifest Builder registers the document in Markdown Workspace → Solo Dev sees the new model document.
+4. Solo Dev opens the document → XR Renderer mounts the model in an inline XR spatial stage.
+
+**Alternate Paths**:
+- GLTF with external resources: Manifest Builder preserves the `kgAssetUrl` base path so external textures/buffers resolve correctly at load time.
+- Browser lacks WebXR: Renderer displays the inline canvas preview with `data-kg-canvas-xr-status="unsupported"` and disables the session entry button.
+
+**Error Paths**:
+- Invalid GLB magic number: Manifest Builder records `kgAssetValidGlbMagic: false` → Payload Helper rejects before loader input → Renderer shows structured error state.
+- Invalid GLTF JSON: Manifest Builder records `kgAssetValidGltfJson: false` → Payload Helper emits parse error → Renderer shows structured error state.
+
+**Postconditions**: A valid model manifest exists in Markdown Workspace; XR Renderer displays the asset in an inline spatial stage without requiring a WebXR session; invalid assets are rejected with recorded validation flags.
+
+---
 
 ## Epic KXR-E3 - FOSS PNG To SVG To GLB Pipeline
 
@@ -180,22 +225,41 @@ Given the browser does not support immersive WebXR sessions, when the user opens
 ### Acceptance Criteria
 
 **KXR-E3-S1-AC1** - FOSS vectorization harness
-
-Given a PNG input marked for XR conversion, when the conversion harness runs, then it validates file type and byte limit, chooses VTracer for color inputs or Potrace for black/white thresholded inputs, emits an SVG artifact, and records a zero-token cost log.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrAsset.pngToSvgHarness.vtracerZeroToken" passes with cost_log.model="none", prompt_tokens=0, completion_tokens=0, and no proprietary converter dependency`
+* **Given** a PNG input marked for XR conversion, **when** the conversion harness runs, **then** it validates file type and byte limit, chooses VTracer for color inputs or Potrace for black/white thresholded inputs, emits an SVG artifact, and records a zero-token cost log.
+* > **VCC translation**: `Verify conversion harness returns correct paths and cost log contains zero token values`
 
 **KXR-E3-S1-AC2** - SVG compile to GLB
-
-Given an SVG artifact from the harness, when the compile step runs, then it produces a GLB workspace model manifest with source provenance, deterministic dimensions, draw-call metadata, and GLB container inspection metadata.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrAsset.svgToGlbCompiler.manifestInspect" passes and produces kgAssetFormat="glb", kgCanvasSurfaceMode="xr", draw-call metadata, triangle-count metadata, and GLB container validation`
+* **Given** an SVG artifact from the harness, **when** the compile step runs, **then** it produces a GLB workspace model manifest with source provenance, deterministic dimensions, draw-call metadata, and GLB container inspection metadata.
+* > **VCC translation**: `Verify GLB manifest is created with kgAssetFormat="glb", draw-calls, and triangle counts`
 
 **KXR-E3-S1-AC3** - Raster fallback policy
+* **Given** a PNG is photographic, noisy, too large, or unsuitable for vector tracing, **when** the conversion harness evaluates it, **then** it stores the PNG as a texture-on-plane GLB candidate or keeps it as rich media instead of pretending the raster image became real geometry.
+* > **VCC translation**: `Verify output manifest specifies fallback_reason and sets geometry type to plane_texture`
 
-Given a PNG is photographic, noisy, too large, or unsuitable for vector tracing, when the conversion harness evaluates it, then it stores the PNG as a texture-on-plane GLB candidate or keeps it as rich media instead of pretending the raster image became real geometry.
+### Workflow: FOSS PNG To SVG To GLB Conversion
 
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrAsset.pngToSvgHarness.inputFallbacks" and "canvas.xrAsset.pngToSvgHarness.pathBudget" pass with fallback_reason and no path-count explosion`
+**Trigger**: Solo Dev selects a PNG asset for XR conversion via workspace action or pipeline automation.
+**Actors**: Solo Dev, Conversion Harness, VTracer/Potrace CLI, SVG Compiler, GLB Inspector, Manifest Builder.
+
+**Happy Path**:
+1. Conversion Harness validates the PNG input schema (file type, byte limit, image dimensions) → input accepted.
+2. Harness selects VTracer (color) or Potrace (black/white) → CLI produces SVG artifact.
+3. SVG Compiler sanitizes SVG, builds mesh geometry, exports GLB → GLB artifact created.
+4. GLB Inspector measures byte length, draw calls, triangle count → inspect report generated.
+5. Manifest Builder creates Markdown model manifest with provenance, inspection metadata, and `kgCanvasSurfaceMode: "xr"` → Solo Dev sees XR-ready model.
+
+**Alternate Paths**:
+- Path-count budget exceeded: Harness reduces VTracer precision settings and retries once → if still over budget, falls through to fallback path.
+- Potrace selected for thresholded color input: Harness preprocesses with ImageMagick threshold before passing to Potrace.
+
+**Error Paths**:
+- PNG is photographic/noisy: Harness classifies input as unsuitable → stores original as texture-on-plane GLB candidate with explicit `fallback_reason` → no false vectorization.
+- SVG contains unsafe content (scripts, external references): SVG Compiler rejects → structured error with `rejection_reason: "unsafe_svg"`.
+- Generated GLB exceeds byte/draw-call budget: Inspector flags over-budget → manifest records budget violation for user review.
+
+**Postconditions**: Either a valid GLB model manifest exists with source provenance and inspect metrics, or the original PNG is preserved with an explicit fallback reason; cost log records zero token spend; no proprietary tool invoked.
+
+---
 
 ## Epic KXR-E4 - Cost, Token, And Performance Observability
 
@@ -206,22 +270,84 @@ Given a PNG is photographic, noisy, too large, or unsuitable for vector tracing,
 ### Acceptance Criteria
 
 **KXR-E4-S1-AC1** - Deterministic default has zero token spend
-
-Given the default PNG/SVG/GLB pipeline uses only local FOSS tools, when it completes, then token cost is logged as zero and monthly API cost remains zero.
-
-> **`/goal` translation**: `npm -C canvas run test:ci:unit -- "canvas.xrAsset.pngToSvgHarness.vtracerZeroToken" and "canvas.xrAsset.svgToGlbCompiler.manifestInspect" pass with cost_log.estimated_cost_usd=0 and no external model call`
+* **Given** the default PNG/SVG/GLB pipeline uses only local FOSS tools, **when** it completes, **then** token cost is logged as zero and monthly API cost remains zero.
+* > **VCC translation**: `Verify cost_log.estimated_cost_usd is exactly 0 and no model calls are made`
 
 **KXR-E4-S1-AC2** - Optional AI steps are harnessed
-
-Given a future AI-assisted asset step is enabled, when it calls a model, then input/output schemas are validated, token usage is logged, max iteration is one by default, and the circuit breaker rejects calls over budget.
-
-> **Deferred `/goal` translation**: `AI-assisted XR step has schema validation, one-call max iteration, cost log fields, and a failing budget fixture returns structured error before model call`
+* **Given** a future AI-assisted asset step is enabled, **when** it calls a model, **then** input/output schemas are validated, token usage is logged, max iteration is one by default, and the circuit breaker rejects calls over budget.
+* > **VCC translation**: `Verify schema validator blocks over-budget requests and loops terminate at maxIteration = 1`
 
 **KXR-E4-S1-AC3** - Frame budget and asset budget gates
+* **Given** an XR scene is loaded on desktop or mobile, **when** the renderer runs the inline canvas preview, **then** p95 frame work remains within budget and generated GLB assets stay under configured byte/draw-call thresholds.
+* > **VCC translation**: `Verify preview remains stable under 16ms per frame and generated GLB file size is logged`
 
-Given an XR scene is loaded on desktop or mobile, when the renderer runs the inline canvas preview, then p95 frame work remains within budget and generated GLB assets stay under configured byte/draw-call thresholds.
+### Workflow: Cost And Token Observability
 
-> **Deferred `/goal` translation**: `XR smoke proof captures nonblank canvas pixels and asset inspect metrics under configured size/draw-call budget`
+**Trigger**: Any XR conversion step or optional AI-assisted step completes execution.
+**Actors**: Conversion Harness, AI Harness (future), Cost Logger, Budget Gate.
+
+**Happy Path**:
+1. Conversion step completes → Cost Logger emits `{ model: "none", prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 }`.
+2. Budget Gate validates output against configured byte/draw-call/frame thresholds → all within budget.
+3. Metrics are persisted to cost log → aggregatable for sprint review.
+
+**Alternate Paths**:
+- AI-assisted step enabled (future): AI Harness validates input schema → calls model → validates output schema → logs actual token usage and cost → Budget Gate evaluates against token budget ceiling.
+
+**Error Paths**:
+- AI call exceeds token budget: Circuit breaker rejects the call before completion → cost log records the rejected attempt with `rejection_reason: "over_budget"`.
+- Generated GLB exceeds asset budget: Budget Gate flags the violation → manifest is annotated with budget overrun for user review.
+
+**Postconditions**: Every conversion step has a cost log entry; zero-token deterministic paths record explicit zeros; budget violations are surfaced, not hidden.
+
+---
+
+## Epic KXR-E5 - Blender-Inspired 3D Pipeline
+
+### User Story
+
+**KXR-E5-S1**: As a Solo Dev, I want the XR Mode to feature a Blender-inspired 3D pipeline, so that I can configure modeling, rigging, animation, simulation, rendering, compositing, motion tracking, and video editing through document-native metadata.
+
+### Acceptance Criteria
+
+**KXR-E5-S1-AC1** - Frontmatter spec rendering
+* **Given** a document with `kgAsset3dPipeline` metadata, **when** the canvas mounts in XR mode, **then** the R3F viewport reactively instantiates modeling procedural hulls, armature skinning, timeline animations, and post-rendering effects defined in the spec.
+* > **VCC translation**: `Verify ThreeGraph mounts the pipeline coordinator and instantiates custom R3F geometry passes without throwing exceptions`
+
+**KXR-E5-S1-AC2** - Procedural modeling & skinned edge rigging
+* **Given** modeling and rigging configurations are declared, **when** nodes and edges are rendered, **then** nodes use parametric SDF hulls and curved edges skin their vertex groups dynamically onto multi-joint bone armatures.
+* > **VCC translation**: `Verify bones hierarchies are initialized and vertex shader skins meshes according to joint weights`
+
+**KXR-E5-S1-AC3** - Animation & simulation solver
+* **Given** animation actions and simulation physics are active, **when** the frame updates, **then** node positions update via Verlet integration while the NLA mixer updates keyframe paths.
+* > **VCC translation**: `Verify Verlet solver updates node position buffers and NLA mixer advances timelines`
+
+**KXR-E5-S1-AC4** - Compositing & video sequencer
+* **Given** rendering effects and sequencer tracks are enabled, **when** playing the timeline, **then** the compositor blends background, graph, and UI render passes, while the sequencer executes rendering, text captions, and trace events in sync.
+* > **VCC translation**: `Verify EffectComposer passes resolve to final viewport buffer and sequencer emits aligned timestamp events`
+
+### Workflow: Blender-Inspired 3D Pipeline Activation
+
+**Trigger**: User opens a document with `kgAsset3dPipeline` frontmatter metadata in XR Mode.
+**Actors**: Solo Dev, Frontmatter Parser, Pipeline Coordinator, Modeling/Rigging/Animation/Simulation/Rendering/Compositing/Tracking/Sequencer modules, R3F Viewport.
+
+**Happy Path**:
+1. Frontmatter Parser extracts `kgAsset3dPipeline` object → validated against schema.
+2. Pipeline Coordinator receives configuration → instantiates only the declared pipeline stages (e.g., modeling + animation, or rendering + compositing).
+3. Active modules register their R3F hooks and shader passes → R3F Viewport renders the configured pipeline.
+4. Solo Dev interacts with the spatial scene → pipeline stages respond reactively to state changes.
+
+**Alternate Paths**:
+- Partial pipeline: Only some stages are declared (e.g., `modeling` and `rendering` without `simulation`) → Coordinator activates only declared modules; undeclared modules remain dormant with no resource allocation.
+- Default fallback: No `kgAsset3dPipeline` in frontmatter → Coordinator applies default PBR material and standard layout without custom pipeline stages.
+
+**Error Paths**:
+- Shader compilation failure: Rendering module catches WebGL shader error → falls back to default PBR material → logs the error with shader source reference.
+- Simulation divergence: Verlet solver detects position values exceeding safe bounds → circuit-breaker halts simulation → nodes freeze at last valid position → user is notified via console warning.
+
+**Postconditions**: Pipeline modules are instantiated per frontmatter spec; R3F viewport renders the configured stages; undeclared modules consume no resources; shader or simulation failures degrade gracefully without crashing the canvas.
+
+---
 
 ## Success Metrics
 
@@ -234,14 +360,13 @@ Given an XR scene is loaded on desktop or mobile, when the renderer runs the inl
 | Generated GLB inspection | n/a | GLB inspect metrics stored per generated model; glTF Transform remains the optional optimizer/reporting CLI | MVP |
 | Inline XR preview support | Partial | Nonblank canvas proof on desktop; graceful unsupported state on non-WebXR browser | MVP |
 | ROI Score | n/a | >= 20 for Must-tier features | MVP |
+| Token cost / month | $0 | $0 (fully FOSS local tracing default) | MVP |
+| Monthly TCO | $0 | $0 (local developer environment execution) | MVP |
 
 ### ROI Calculation
 
 Formula:
-
-```
-ROI Score = (User Impact x Reach) / (Build Hours + Monthly TCO + Token Cost / Month)
-```
+$$ROI Score = \frac{User Impact \times Reach}{Build Hours + Monthly TCO + Token Cost / Month}$$
 
 | Feature | Impact | Reach/mo | Build h | TCO/mo | Token/mo | ROI | Priority |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -249,6 +374,7 @@ ROI Score = (User Impact x Reach) / (Build Hours + Monthly TCO + Token Cost / Mo
 | GLB/GLTF model manifest render | 5 | 60 sessions | 8 | 0 | 0 | 37.5 | Must |
 | FOSS PNG->SVG harness | 4 | 40 conversions | 8 | 0 | 0 | 20.0 | Must |
 | SVG->GLB compile + inspect | 4 | 40 conversions | 10 | 0 | 0 | 16.0 | Should |
+| Blender-inspired 3D pipeline | 5 | 50 sessions | 24 | 0 | 0 | 10.4 | Should |
 | Optional AI 3D reconstruction | 3 | 10 conversions | 24 | 30 | 15 | 0.4 | Won't for MVP |
 
 ## MoSCoW Priority
@@ -260,6 +386,7 @@ ROI Score = (User Impact x Reach) / (Build Hours + Monthly TCO + Token Cost / Mo
 | Must | FOSS PNG->SVG vectorization harness | 20.0 | Meets explicit FOSS and TCO requirement |
 | Should | SVG->GLB compile with inspect metadata | 16.0 | Converts vectors into XR-ready model manifests with bounded runtime cost |
 | Should | WebXR enter/exit panel with VR then AR support check | 12.0 | Progressive enhancement; inline preview remains primary |
+| Should | Blender-inspired 3D pipeline spec & coordinator | 10.4 | Standardizes procedurals, rigging, and post-processing natively |
 | Could | KTX2 texture compression for heavy models | 7.0 | Valuable when texture-heavy assets appear |
 | Could | Optional AI caption/layout suggestions | 1.5 | Only if user value is proven and token budget is capped |
 | Won't | Proprietary tracing or 3D SaaS conversion | 0.5 | Violates FOSS/TCO-zero unless future ROI is extraordinary |
@@ -268,17 +395,17 @@ ROI Score = (User Impact x Reach) / (Build Hours + Monthly TCO + Token Cost / Mo
 ## Min-Viable Scope
 
 MVP is complete when:
-
 - `kgCanvasSurfaceMode: "xr"` activates `canvasRenderMode="3d"` and `canvas3dMode="xr"`.
-- Imported GLB/GLTF documents render in inline XR inspection mode without requiring a WebXR session.
+- Imported GLB/GLTF documents render in inline XR mode without requiring a WebXR session.
 - PNG conversion has a deterministic FOSS harness path to SVG with zero token spend.
 - Generated or imported model assets carry inspectable metadata and a clear fallback reason when conversion is unsuitable.
 - Existing renderer derivation remains the SSOT; XR Mode never forks GraphData.
+- The declarative `kgAsset3dPipeline` coordinator reactively configures custom shader, skeleton, and physics solver passes.
 
 ## Dependencies
 
 | Dependency | Type | TCO | FOSS / Vendor | Notes |
-|---|---|---:|---|---|
+|---|---|---|---|---|
 | Three.js | Runtime library | $0 | FOSS | Existing dependency; WebXR and GLTFLoader path |
 | React Three Fiber | Runtime library | $0 | FOSS | Existing dependency; preserve Canvas ownership |
 | glTF Transform CLI | Optional build/conversion CLI | $0 | FOSS | Optional inspect/optimize profile for generated GLB artifacts |
@@ -295,6 +422,7 @@ MVP is complete when:
 | Should the 8 MB PNG input default be adjusted for mobile-first or bulk-import profiles? | Technical Reviewer | Before export integration |
 | Should generated GLB assets be committed, stored in workspace storage, or treated as ephemeral build artifacts? | Solo Dev | Before export integration |
 | Which WebXR device/browser pair is the canonical smoke-test target? | Solo Dev | Before live XR validation |
+| For larger graphs (600+ nodes), should the simulation solver run on a Web Worker or WASM thread to prevent main thread frame drops? | Technical Reviewer | Before simulation implementation |
 
 ---
 
@@ -312,6 +440,16 @@ flowchart LR
   Manifest --> Preset["Frontmatter Preset: kgCanvasSurfaceMode=xr"]
   Preset --> Canvas["Canvas Render Mode: 3d + canvas3dMode=xr"]
   Canvas --> Three["Three.js / React Three Fiber Surface"]
+  Three --> Pipeline["3D Pipeline Coordinator"]
+  Pipeline --> Mod["1. Modeling Engine"]
+  Pipeline --> Rig["2. Rigging & Armatures"]
+  Pipeline --> Anim["3. Animation Mixer"]
+  Pipeline --> Sim["4. Simulation Solver"]
+  Pipeline --> Rend["5. Post-Renderer"]
+  Pipeline --> Comp["6. Compositing Graph"]
+  Pipeline --> Track["7. Motion Tracker"]
+  Pipeline --> Seq["8. Sequencer Editor"]
+  Mod & Rig & Anim & Sim --> Three
   Three --> Inline["Inline XR Spatial Preview"]
   Inline --> Session{"navigator.xr supported?"}
   Session -->|yes + user activation| WebXR["Immersive WebXR Session"]
@@ -330,157 +468,204 @@ flowchart LR
 | Discover | Manifest creation | GLB/GLTF bytes/text -> Markdown manifest | `workspaceImport/glbAsset.ts` |
 | Engage | XR surface activation | Frontmatter -> store mode update | `canvasViewActions`, `canvas3dMode.ts`, `canvasFrontmatterPreset` |
 | Complete | Inline render / optional session | Manifest or GraphData -> Three.js scene -> XR session | `ThreeGraph.impl.tsx`, `GlbAssetModel.tsx`, `ThreeGraphXr.tsx` |
+| Complete | 3D Pipeline instantiation | Frontmatter `kgAsset3dPipeline` -> coordinator -> active pipeline steps | `ThreeGraph.impl.tsx`, `XrPipelineCoordinator.ts` |
 | Return | Optimized artifact reuse | SVG/GLB + inspect report -> workspace/export | XR asset conversion harness |
 
 ## Component Specifications
 
 ### Component: XR Mode Resolver
-
-**Responsibility**: Normalize and preserve `xr` as a first-class 3D mode.
-
-**Interfaces**:
-
-- Input: `raw: unknown`
-- Output: `Canvas3dModeId = "3d" | "xr" | "voxel"`
-- Errors: Unknown values normalize to `"3d"`.
-
-**Dependencies**: `canvas/src/lib/canvas/canvas3dMode.ts`, config type owners.
-
-**Configuration**: None.
-
-**FOSS / Vendor**: Internal code; no vendor dependency.
-
-**`/goal` Conditions**:
-
-- `canvas.viewSelection.xrSurfaceMode` passes.
-- `canvas.renderSettings.xrModeSelect` passes.
+* **Responsibility**: Normalizes and preserves `xr` as a first-class 3D mode.
+* **Interfaces**:
+  * Input: `raw: unknown`
+  * Output: `Canvas3dModeId = "3d" | "xr" | "voxel"`
+  * Errors: Unknown values normalize to `"3d"`.
+* **Dependencies**: `canvas/src/lib/canvas/canvas3dMode.ts`, config type owners.
+* **Configuration**: None.
+* **FOSS / Vendor**: Internal code; no vendor dependency.
+* **VCC Conditions**:
+  * `canvas.viewSelection.xrSurfaceMode` passes.
+  * `canvas.renderSettings.xrModeSelect` passes.
 
 ### Component: Model Asset Manifest Builder
-
-**Responsibility**: Convert imported `.glb` and `.gltf` files into Markdown manifests with model metadata and XR surface activation.
-
-**Interfaces**:
-
-- Input: `{ name, sourceKind, sourceUrl?, buffer | text }`
-- Output: Markdown with `kgAssetType: "model"`, `kgAssetFormat`, validation metadata, and `kgCanvasSurfaceMode: "xr"`.
-- Errors: Invalid GLB magic or invalid GLTF JSON is recorded in frontmatter and rejected by payload helper before loader input.
-
-**Dependencies**: `workspaceImport/glbAsset.ts`, `glbAssetDocument.ts`, `gltfFormat.ts`.
-
-**Configuration**: Model format inferred from filename or caller.
-
-**FOSS / Vendor**: Internal code plus glTF open format.
-
-**`/goal` Conditions**:
-
-- `canvas.xrMode.glbAssetRenderGate` passes.
-- `canvas.xrMode.gltfAssetRenderGate` passes.
-- `canvas.xrMode.gltfIngestParseRenderPipeline` passes.
+* **Responsibility**: Converts imported `.glb` and `.gltf` files into Markdown manifests with model metadata and XR surface activation.
+* **Interfaces**:
+  * Input: `{ name, sourceKind, sourceUrl?, buffer | text }`
+  * Output: Markdown with `kgAssetType: "model"`, `kgAssetFormat`, validation metadata, and `kgCanvasSurfaceMode: "xr"`.
+  * Errors: Invalid GLB magic or invalid GLTF JSON is recorded in frontmatter and rejected by payload helper before loader input.
+* **Dependencies**: `workspaceImport/glbAsset.ts`, `glbAssetDocument.ts`, `gltfFormat.ts`.
+* **Configuration**: Model format inferred from filename or caller.
+* **FOSS / Vendor**: Internal code plus glTF open format.
+* **VCC Conditions**:
+  * `canvas.xrMode.glbAssetRenderGate` passes.
+  * `canvas.xrMode.gltfAssetRenderGate` passes.
+  * `canvas.xrMode.gltfIngestParseRenderPipeline` passes.
 
 ### Component: XR Three.js Renderer Surface
-
-**Responsibility**: Render graph or model payloads in inline XR Mode and optionally attach a WebXR session.
-
-**Interfaces**:
-
-- Input: `GraphData` or `GlbAssetDocument`, `Canvas3dModeId`, active/paused state.
-- Output: Three.js canvas with spatial stage; optional `XRSession`.
-- Errors: No WebGL or no renderable scene returns an empty bounded surface; no WebXR support returns a disabled entry state.
-
-**Dependencies**: `ThreeGraph.impl.tsx`, `Scene.impl.tsx`, `XrGraphStage.tsx`, `GlbAssetModel.tsx`, `ThreeGraphXr.tsx`.
-
-**Configuration**: Existing schema camera/layout settings; WebXR optional features `local-floor`, `bounded-floor`, and `hand-tracking`.
-
-**FOSS / Vendor**: Three.js and React Three Fiber, both FOSS.
-
-**`/goal` Conditions**:
-
-- `canvas.xrMode.graphSpatialStage` passes.
-- Browser smoke proves nonblank canvas for graph and model fixtures.
+* **Responsibility**: Renders graph or model payloads in inline XR Mode and optionally attaches a WebXR session.
+* **Interfaces**:
+  * Input: `GraphData` or `GlbAssetDocument`, `Canvas3dModeId`, active/paused state.
+  * Output: Three.js canvas with spatial stage; optional `XRSession`.
+  * Errors: No WebGL or no renderable scene returns an empty bounded surface; no WebXR support returns a disabled entry state.
+* **Dependencies**: `ThreeGraph.impl.tsx`, `Scene.impl.tsx`, `XrGraphStage.tsx`, `GlbAssetModel.tsx`, `ThreeGraphXr.tsx`.
+* **Configuration**: Existing schema camera/layout settings; WebXR optional features `local-floor`, `bounded-floor`, and `hand-tracking`.
+* **FOSS / Vendor**: Three.js and React Three Fiber, both FOSS.
+* **VCC Conditions**:
+  * `canvas.xrMode.graphSpatialStage` passes.
+  * Browser smoke proves nonblank canvas for graph and model fixtures.
 
 ### Component: FOSS PNG To SVG Conversion Harness
-
-**Responsibility**: Convert suitable PNG assets into vector SVG artifacts using local FOSS tools with typed validation and cost logging.
-
-**Interfaces**:
-
-- Input schema:
-  - `source_path: string`
-  - `source_mime: "image/png"`
-  - `byte_length: number`
-  - `mode: "auto" | "color" | "bw"`
-  - `max_paths: number`
-  - `max_output_bytes: number`
-- Output schema:
-  - `artifact_path: string`
-  - `artifact_mime: "image/svg+xml"`
-  - `tool: "vtracer" | "potrace"`
-  - `path_count: number`
-  - `fallback_reason?: string`
-  - `cost_log: { model, prompt_tokens, completion_tokens, cache_hits, estimated_cost_usd }`
-- Errors: Reject malformed input before tool execution; emit structured fallback for noisy, oversized, or photographic input.
-
-**Dependencies**: VTracer, Potrace, optional ImageMagick/Netpbm preprocessing.
-
-**Configuration**: Tool path, max input bytes, max output bytes, path-count budget, threshold policy.
-
-**FOSS / Vendor**: FOSS only. VTracer is the default for color PNGs; Potrace is fallback for black/white or thresholded line art.
-
-**Harness Contract**:
-
-- Input schema validated before conversion.
-- Output schema validated before artifact registration.
-- Cost log fields: `{ model: "none", prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 }`.
-- Fallback path: keep original PNG as rich media or texture-on-plane GLB candidate with explicit `fallback_reason`.
-
-**Token Budget**: `0 + 0 @ 0 cache hits = $0/request`.
-
-**Orchestration Topology**: Sequential; max 1 vectorization attempt plus max 1 fallback classification pass; circuit breaker on input bytes, output bytes, and path count.
-
-**`/goal` Conditions**:
-
-- `canvas.xrAsset.pngToSvgHarness.vtracerZeroToken` passes.
-- `canvas.xrAsset.pngToSvgHarness.inputFallbacks` passes.
-- `canvas.xrAsset.pngToSvgHarness.pathBudget` passes.
+* **Responsibility**: Converts suitable PNG assets into vector SVG artifacts using local FOSS tools with typed validation and cost logging.
+* **Interfaces**:
+  * Input schema:
+    ```typescript
+    interface InputSchema {
+      source_path: string;
+      source_mime: "image/png";
+      byte_length: number;
+      mode: "auto" | "color" | "bw";
+      max_paths: number;
+      max_output_bytes: number;
+    }
+    ```
+  * Output schema:
+    ```typescript
+    interface OutputSchema {
+      artifact_path: string;
+      artifact_mime: "image/svg+xml";
+      tool: "vtracer" | "potrace";
+      path_count: number;
+      fallback_reason?: string;
+      cost_log: CostLog;
+    }
+    ```
+  * Errors: Reject malformed input before tool execution; emit structured fallback for noisy, oversized, or photographic input.
+* **Dependencies**: VTracer, Potrace, optional ImageMagick/Netpbm preprocessing.
+* **Configuration**: Tool path, max input bytes, max output bytes, path-count budget, threshold policy.
+* **FOSS / Vendor**: FOSS only. VTracer is the default for color PNGs; Potrace is fallback for black/white or thresholded line art.
+* **Harness Contract**:
+  * Input schema validated before conversion.
+  * Output schema validated before artifact registration.
+  * Cost log fields: `{ model: "none", prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 }`.
+  * Fallback path: keep original PNG as rich media or texture-on-plane GLB candidate with explicit `fallback_reason`.
+* **Token Budget**: `0 + 0 @ 0 cache hits = $0/request`.
+* **Orchestration Topology**: Sequential; max 1 vectorization attempt plus max 1 fallback classification pass; circuit breaker on input bytes, output bytes, and path count.
+* **VCC Conditions**:
+  * `canvas.xrAsset.pngToSvgHarness.vtracerZeroToken` passes.
+  * `canvas.xrAsset.pngToSvgHarness.inputFallbacks` passes.
+  * `canvas.xrAsset.pngToSvgHarness.pathBudget` passes.
 
 ### Component: SVG To GLB Compile Harness
+* **Responsibility**: Compiles vector SVG artifacts into GLB models suitable for XR placement, then inspects them and optionally optimizes them.
+* **Interfaces**:
+  * Input schema:
+    ```typescript
+    interface InputSchema {
+      svg_path: string;
+      extrude_depth: number;
+      bevel_size: number;
+      target_format: "glb";
+      optimization_profile: "web" | "xr-mobile";
+    }
+    ```
+  * Output schema:
+    ```typescript
+    interface OutputSchema {
+      glb_path: string;
+      manifest_path: string;
+      inspect_report_path: string;
+      byte_length: number;
+      draw_calls: number;
+      triangle_count: number;
+      texture_bytes: number;
+      cost_log: CostLog;
+    }
+    ```
+  * Errors: Reject unsafe SVG, invalid path geometry, or generated assets over budget.
+* **Dependencies**: Deterministic headless GLB compiler in Dev; optional Three.js `SVGLoader` + GLTF exporter or Blender headless for higher-fidelity geometry; optional glTF Transform CLI for optimize/reporting.
+* **Configuration**: Geometry precision, extrusion depth, bevel defaults, optimization profile.
+* **FOSS / Vendor**: FOSS only.
+* **Harness Contract**:
+  * Deterministic input/output schemas.
+  * No LLM call in MVP.
+  * Cost log model is `"none"` unless a future AI assist is explicitly enabled.
+* **Token Budget**: `0 + 0 = $0/request` for MVP.
+* **Orchestration Topology**: Sequential: sanitize SVG -> build mesh -> export GLB -> inspect -> manifest. Optional optimize profile may run after inspect with max 1 retry; circuit breaker if optimized GLB still exceeds budget.
+* **VCC Conditions**:
+  * `canvas.xrAsset.svgToGlbCompiler.manifestInspect` passes.
 
-**Responsibility**: Compile vector SVG artifacts into GLB models suitable for XR placement, then inspect them and optionally optimize them.
+### Component: XR Modeling Engine
+* **Responsibility**: Generates procedural SDF and voxel geometries for canvas nodes.
+* **Interfaces**: `generateNodeMesh(node: GraphNode, type: string): THREE.Mesh`
+* **Dependencies**: Three.js, geometry/SDF generation helpers.
+* **Configuration**: `modeling.nodeGeometry`, `modeling.hullResolution`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.modelingRigging` unit tests pass.
 
-**Interfaces**:
+### Component: XR Rigging & Skinning Engine
+* **Responsibility**: Creates skeletal armatures and skins edge tube vertices onto bone chains.
+* **Interfaces**: `createArmature(edges: GraphEdge[]): THREE.Skeleton`, `applySkinning(mesh: THREE.Mesh, skeleton: THREE.Skeleton): void`
+* **Dependencies**: Three.js SkinnedMesh API.
+* **Configuration**: `rigging.maxBonesPerEdge`, `rigging.vertexWeightMode`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.modelingRigging` skeleton verification passes.
 
-- Input schema:
-  - `svg_path: string`
-  - `extrude_depth: number`
-  - `bevel_size: number`
-  - `target_format: "glb"`
-  - `optimization_profile: "web" | "xr-mobile"`
-- Output schema:
-  - `glb_path: string`
-  - `manifest_path: string`
-  - `inspect_report_path: string`
-  - `byte_length: number`
-  - `draw_calls: number`
-  - `triangle_count: number`
-  - `texture_bytes: number`
-  - `cost_log`
-- Errors: Reject unsafe SVG, invalid path geometry, or generated assets over budget.
+### Component: XR Animation Mixer & Interpolator
+* **Responsibility**: Blends keyframe action tracks and applies easing functions reactively.
+* **Interfaces**: `updateMixer(delta: number): void`, `playAction(name: string): void`
+* **Dependencies**: Three.js AnimationMixer.
+* **Configuration**: `animation.defaultTrack`, `animation.curveType`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.animationSimulation` animation frame updates pass.
 
-**Dependencies**: Deterministic headless GLB compiler in Dev; optional Three.js `SVGLoader` + GLTF exporter or Blender headless for higher-fidelity geometry; optional glTF Transform CLI for optimize/reporting.
+### Component: XR Simulation Solver
+* **Responsibility**: Computes soft-body spring physics and collision constraints.
+* **Interfaces**: `solvePhysics(nodes: GraphNode[], edges: GraphEdge[], delta: number): void`
+* **Dependencies**: Physics solver math, Verlet integrator.
+* **Configuration**: `simulation.solver`, `simulation.gravityStrength`, `simulation.collisionRadius`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.animationSimulation` Verlet loop converges under budget.
 
-**Configuration**: Geometry precision, extrusion depth, bevel defaults, optimization profile.
+### Component: XR Post-Rendering Stack
+* **Responsibility**: Orchestrates post-processing passes (SSAO, Bloom, Depth of Field).
+* **Interfaces**: `renderPasses(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void`
+* **Dependencies**: Three.js EffectComposer.
+* **Configuration**: `rendering.effects`, `rendering.bloomThreshold`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.renderingCompositing` shader check passes.
 
-**FOSS / Vendor**: FOSS only.
+### Component: XR Compositing Node Graph
+* **Responsibility**: Blends background, graph core, and UI overlay passes.
+* **Interfaces**: `compositeLayers(targets: THREE.WebGLRenderTarget[]): void`
+* **Dependencies**: Three.js ShaderMaterial, custom compositing shaders.
+* **Configuration**: `compositing.passes`, `compositing.colorGrade`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.renderingCompositing` target blend verification passes.
 
-**Harness Contract**:
+### Component: XR Motion Tracker & Camera Solver
+* **Responsibility**: Aligns virtual viewport camera with device orientation or WebXR anchors.
+* **Interfaces**: `updateCameraPose(xrFrame: unknown): void`
+* **Dependencies**: WebXR Device API.
+* **Configuration**: `motionTracking.trackingSource`, `motionTracking.gestureControlsEnabled`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.motionTrackingSequencer` pose solver test passes.
 
-- Deterministic input/output schemas.
-- No LLM call in MVP.
-- Cost log model is `"none"` unless a future AI assist is explicitly enabled.
+### Component: XR Sequencer Editor
+* **Responsibility**: Aligns visual, textual, and trace event updates on a timeline.
+* **Interfaces**: `seekSequencer(time: number): void`, `playSequencer(): void`
+* **Dependencies**: Timeline track editor.
+* **Configuration**: `sequencer.timelineTracks`, `sequencer.autoPlay`.
+* **FOSS / Vendor**: FOSS.
+* **VCC Conditions**:
+  * `canvas.xrPipeline.motionTrackingSequencer` sequencer play runs cleanly.
 
-**Token Budget**: `0 + 0 = $0/request` for MVP.
-
-**Orchestration Topology**: Sequential: sanitize SVG -> build mesh -> export GLB -> inspect -> manifest. Optional optimize profile may run after inspect with max 1 retry; circuit breaker if optimized GLB still exceeds budget.
+---
 
 ## Data Flow: XR Surface Activation
 
@@ -513,6 +698,18 @@ flowchart LR
 | Store | Manifest builder | GLB + report | Markdown model manifest | Workspace document | Preserve original PNG/SVG provenance |
 | Serve | Three.js renderer | Manifest | XR spatial preview | Runtime only | Inline preview still works without WebXR |
 
+## Data Flow: Blender-Inspired 3D Pipeline
+
+| Stage | Component | Input Format | Output Format | Persistence | Error Handling |
+|---|---|---|---|---|---|
+| Ingest | Workspace loader | YAML Frontmatter | `kgAsset3dPipeline` object | Workspace text | Ignore missing pipeline block |
+| Transform | Pipeline coordinator | `kgAsset3dPipeline` | Configured R3F viewport parameters | Zustand store | Apply default PBR/layout settings on null |
+| Store | Three.js Renderer | Configured params | Render pass graphs, Armature skeletons | WebGL context | Render blank stage on shader compiler error |
+| Serve | R3F Viewport | Skeleton / Mesh / Physics buffers | Screen/Headset frames | Runtime frame buffer | Circuit break if simulation diverges |
+| Consume | User | Viewport frames | Interacted / inspected visual scene | None | Fallback to default render on target failure |
+
+---
+
 ## Integration Contracts
 
 ### Interface: XR Frontmatter Preset
@@ -522,6 +719,7 @@ flowchart LR
 | `kgCanvasSurfaceMode` | string | yes | `"xr"` activates XR surface intent |
 | `kgCanvasRenderMode` | string | recommended | `"3d"` ensures 3D render surface |
 | `kgCanvas3dMode` | string | recommended | `"xr"` preserves XR variant |
+| `kgAsset3dPipeline` | object | no | Declarative 3D pipeline specification |
 
 ### Interface: Model Asset Manifest
 
@@ -554,6 +752,8 @@ flowchart LR
 | `cache_hits` | number | yes | `0` |
 | `estimated_cost_usd` | number | yes | `0` |
 
+---
+
 ## Quality Attributes
 
 | Attribute | Scenario | Pattern | Validation |
@@ -566,24 +766,28 @@ flowchart LR
 | Observability | Conversion path hides cost | Harness emits cost log for every run | Cost-log fixture |
 | Token Cost | Deterministic conversion | No model call | Token cost fields are zero |
 | TCO | Solo-dev MVP | Reuse existing stack; FOSS conversion | ADR cost review |
+| Token Cost | Complex 3D simulation loops | Capped CPU physics step, zero model usage | Simulation frame step validation |
+
+---
 
 ## Deployment Strategy
 
 This document is a source document only. Implementation should land in `knowgrph` Dev first, then follow the existing Dev -> Prod -> Cloudflare chain only when explicitly requested.
 
 Release sequence:
-
 1. Validate existing XR mode tests.
 2. Add deterministic FOSS PNG->SVG harness behind explicit user action.
 3. Add SVG->GLB compile and GLB inspect report; add glTF Transform optimize/reporting only when the artifact profile needs it.
-4. Add focused browser smoke for inline XR graph/model preview.
-5. Publish only after user approval and standard sync checks.
+4. Add the declarative `kgAsset3dPipeline` parser and R3F coordinator.
+5. Add focused browser smoke for inline XR graph/model preview.
+6. Publish only after user approval and standard sync checks.
 
 Rollback:
-
 - Disable conversion menu action while preserving existing GLB/GLTF import manifests.
 - Keep `xr` frontmatter normalization but fall back to plain 3D rendering if XR stage fails.
 - Do not delete source PNG/SVG artifacts on failed conversion.
+
+---
 
 ## Component Inventory
 
@@ -601,6 +805,11 @@ Rollback:
 | Renderer | WebXR entry panel | `canvas/src/lib/three/ThreeGraphXr.tsx` | Present |
 | Harness | PNG->SVG conversion | `canvas/src/lib/xr/xrAssetConversion.ts` | Present |
 | Harness | SVG->GLB compile + inspect | `canvas/src/lib/xr/xrAssetConversion.ts`, `canvas/src/features/markdown-workspace/workspaceImport/xrModelAsset.ts` | Present |
+| Pipeline | 3D Pipeline coordinator | `canvas/src/features/three/pipeline/XrPipelineCoordinator.ts` | Proposed |
+| Pipeline | Modeling & Rigging modules | `canvas/src/features/three/pipeline/modeling.ts`, `canvas/src/features/three/pipeline/rigging.ts` | Proposed |
+| Pipeline | Animation & Simulation modules | `canvas/src/features/three/pipeline/animation.ts`, `canvas/src/features/three/pipeline/simulation.ts` | Proposed |
+| Pipeline | Post-rendering & Compositor modules | `canvas/src/features/three/pipeline/rendering.ts`, `canvas/src/features/three/pipeline/compositing.ts` | Proposed |
+| Pipeline | Motion Tracking & Sequencer modules | `canvas/src/features/three/pipeline/tracking.ts`, `canvas/src/features/three/pipeline/sequencer.ts` | Proposed |
 | Test | XR mode schema tests | `canvas/src/__tests__/canvas3dMode.test.ts` | Present |
 | Test | XR asset conversion tests | `canvas/src/__tests__/xrAssetConversionHarness.test.ts` | Present |
 
@@ -609,167 +818,183 @@ Rollback:
 # Architectural Decisions
 
 ## ADR-001: Reuse Existing Three.js WebXR Surface
-
 **Status**: Accepted
 **Date**: 2026-06-02
 
 ### Context
-
 Knowgrph already ships Three.js and React Three Fiber, has lazy 3D chunk budgets, and has tests for XR mode normalization and model rendering. Adding a separate XR framework would increase bundle size, ownership complexity, and TCO.
 
 ### Decision
-
 Reuse the existing Three.js / React Three Fiber surface and enable WebXR as progressive enhancement through `renderer.xr.enabled` and a session entry panel.
 
 ### Alternatives Considered
-
 1. **Existing Three.js surface**: Lowest implementation cost; preserves current graph/model contracts; FOSS.
 2. **A-Frame or Babylon.js**: FOSS and capable, but adds a parallel scene/rendering stack.
 3. **Native OpenXR app**: Strong device support, but outside web deployment chain and high TCO.
 
 ### Rationale
-
 The existing surface already renders graph and model data. XR Mode's highest ROI is to add spatial staging and session entry, not replatform rendering.
 
 ### TCO Impact
 
 | Dimension | Chosen Option | Best FOSS Alternative | Delta / 12 months |
 |---|---|---|---|
-| Infra cost | $0/mo | $0/mo | $0 |
+| Infra cost | $0/mo (existing Three.js) | $0/mo (A-Frame) | $0 |
 | Egress cost | Existing site delivery | Existing site delivery | $0 |
 | Token cost | $0/mo | $0/mo | $0 |
-| Build/ops cost | Low; existing owner | Medium; new framework owner | Lower TCO |
-| Vendor risk | Low; FOSS | Low; FOSS | Neutral |
+| Vendor risk | Low (FOSS) | Low (FOSS) | — |
 
-### Consequences
-
-- **Positive**: Smallest viable path; current tests map directly to requirements.
-- **Negative**: WebXR browser/device support remains uneven.
-- **Neutral**: Later dedicated XR packages can be evaluated if interaction complexity exceeds Three.js-only ergonomics.
+---
 
 ## ADR-002: GLB/GLTF Markdown Manifests Are The Workspace Contract
-
 **Status**: Accepted
 **Date**: 2026-06-02
 
 ### Context
-
 Knowgrph Source Files and Markdown Workspace already use Markdown/frontmatter as the activation contract. Raw binary assets need validation, provenance, and renderer presets.
 
 ### Decision
-
 Represent imported GLB/GLTF assets as Markdown model manifests containing validation metadata, embedded payload or source URL, and XR frontmatter presets.
 
 ### Alternatives Considered
-
 1. **Markdown model manifest**: Reuses existing workspace, parser, Source Files, and renderer contracts.
 2. **Raw asset table**: Cleaner binary storage, but creates a second workspace authority.
 3. **External asset manager service**: Powerful, but high TCO and vendor/ops burden.
 
 ### Rationale
-
 Manifests keep model assets queryable, inspectable, and compatible with existing Markdown/frontmatter workflows.
 
 ### TCO Impact
 
 | Dimension | Chosen Option | Best FOSS Alternative | Delta / 12 months |
 |---|---|---|---|
-| Infra cost | $0/mo | $0/mo local asset table | $0 |
+| Infra cost | $0/mo (Markdown manifests) | $0/mo (raw asset table) | $0 |
 | Egress cost | Existing asset delivery | Existing asset delivery | $0 |
 | Token cost | $0/mo | $0/mo | $0 |
-| Build/ops cost | Low | Medium | Lower TCO |
-| Vendor risk | Low | Low | Neutral |
+| Vendor risk | Low (internal) | Low (internal) | — |
 
-### Consequences
-
-- **Positive**: Model provenance and XR activation stay in one document.
-- **Negative**: Large embedded base64 assets can make Markdown heavy.
-- **Neutral**: Later storage can materialize large payloads while preserving manifest metadata.
+---
 
 ## ADR-003: FOSS PNG To SVG Uses VTracer Default And Potrace Fallback
-
 **Status**: Accepted
 **Date**: 2026-06-02
 
 ### Context
-
 The user explicitly requires FOSS `png -> svg`. PNG is raster; SVG is vector. Real conversion requires tracing, and the right tool differs by input type.
 
 ### Decision
-
 Use VTracer as the default for color PNGs and Potrace as the fallback for black/white or thresholded line art. Reject proprietary tracing in MVP.
 
 ### Alternatives Considered
-
 1. **VTracer default**: FOSS MIT; handles color images and produces compact SVG paths.
 2. **Potrace fallback**: FOSS; excellent for black/white bitmap tracing; requires preprocessing for color/greyscale inputs.
 3. **Adobe Illustrator Image Trace or online converters**: Can be convenient but violates TCO-zero and vendor-control goals.
-4. **Embed PNG inside SVG**: Not acceptable as vectorization; it only wraps raster data.
+4. **Embed PNG inside SVG**: Not acceptable as vectorization; wraps raster data.
 
 ### Rationale
-
 VTracer covers the most useful solo-dev asset set: colored logos, diagrams, low-noise illustrations, and pixel art. Potrace remains valuable for monochrome or thresholded technical drawings.
 
 ### TCO Impact
 
 | Dimension | Chosen Option | Best FOSS Alternative | Delta / 12 months |
 |---|---|---|---|
-| Infra cost | $0/mo local CLI | $0/mo Potrace-only | $0 |
+| Infra cost | $0/mo (VTracer local CLI) | $0/mo (Potrace local CLI) | $0 |
 | Egress cost | $0 | $0 | $0 |
 | Token cost | $0 | $0 | $0 |
-| Build/ops cost | Medium; two adapters | Low; one adapter | +small build scope accepted for color quality |
-| Vendor risk | Low; FOSS | Low; FOSS | Neutral |
+| Build/ops cost | Medium (two adapters) | Low (single adapter) | ~2h additional build |
+| Vendor risk | Low (FOSS MIT) | Low (FOSS GPL) | — |
 
-### Consequences
-
-- **Positive**: Meets FOSS and TCO requirements while supporting color PNGs.
-- **Negative**: Vectorization can produce too many paths for noisy images.
-- **Neutral**: Harness must expose fallback reasons and path-count budgets.
+---
 
 ## ADR-004: Default XR Asset Pipeline Is Deterministic And Zero-Token
-
 **Status**: Accepted
 **Date**: 2026-06-02
 
 ### Context
-
 AI-native products can accidentally hide recurring token/API cost in asset workflows. XR Mode should support optional AI later, but MVP value does not require model calls.
 
 ### Decision
-
 Default XR asset conversion uses deterministic local/FOSS tooling only. Optional AI steps are out of MVP and must use a schema-validated harness with explicit token budgets.
 
 ### Alternatives Considered
-
 1. **Deterministic FOSS conversion**: Zero token spend; predictable; lower TCO.
 2. **AI-assisted SVG/3D generation**: Potentially higher visual quality; higher cost and variance.
 3. **Hosted 3D generation API**: Fast demos; high vendor and token/API TCO risk.
 
 ### Rationale
-
 The MVP goal is to make existing assets spatially inspectable. That can be achieved with zero-token deterministic tooling, preserving AI budget for higher-value orchestration.
 
 ### TCO Impact
 
 | Dimension | Chosen Option | Best FOSS Alternative | Delta / 12 months |
 |---|---|---|---|
-| Infra cost | $0/mo | $0/mo | $0 |
-| Egress cost | $0 local conversion | $0 local conversion | $0 |
+| Infra cost | $0/mo (local FOSS) | $0/mo (same) | $0 |
+| Egress cost | $0 (local conversion) | $0 | $0 |
 | Token cost | $0/mo | $0/mo | $0 |
 | GPU/API cost | $0/mo | $0/mo | $0 |
-| Vendor risk | Low | Low | Neutral |
+| Vendor risk | Low | Low | — |
 
-### Consequences
+---
 
-- **Positive**: Cost behavior is easy to prove.
-- **Negative**: Does not solve arbitrary photoreal 3D reconstruction.
-- **Neutral**: AI generation can be added later behind explicit user opt-in and budget gates.
+## ADR-005: Frontmatter-Driven Blender-Inspired 3D Pipeline
+**Status**: Accepted
+**Date**: 2026-06-17
+
+### Context
+Implementing a complex, multi-stage 3D pipeline natively in the rendering code can easily lead to hardcoded components and rigid rendering behaviors that drift from document-native representation.
+
+### Decision
+Expose the configuration of the 8-stage 3D pipeline reactively through a new `kgAsset3dPipeline` frontmatter spec. The Three.js/R3F viewport dynamically adapts modeling, armature rigging, physics simulations, and compositing blend nodes based on this document specification.
+
+### Alternatives Considered
+1. **Document-native spec coordinator**: Retains universality and neutrality, mapping spec parameters to dynamic runtime components.
+2. **Hardcoded client engine**: Fast to compile initially but results in a brittle codebase and violates "spec-complete -> runtime-ready" design patterns.
+3. **External runtime scripts**: Embed custom JavaScript in the document body, but creates significant security and sandbox-escaping risks.
+
+### Rationale
+By moving the 3D pipeline settings into the Markdown document's frontmatter, we keep the codebase decoupled and generic, satisfying the TCO-zero, token economics, and agnosticism lenses.
+
+### TCO Impact
+
+| Dimension | Chosen Option | Best FOSS Alternative | Delta / 12 months |
+|---|---|---|---|
+| Infra cost | $0/mo (client-side only) | $0/mo (same) | $0 |
+| Egress cost | $0 | $0 | $0 |
+| Token cost | $0/mo (no model calls) | $0/mo | $0 |
+| Build/ops cost | Low | Medium (hardcoded engine maintenance) | -4h/mo maintenance |
+| Vendor risk | Low (FOSS) | Low (FOSS) | — |
+
+---
+
+# CID Directive Matrix
+
+Each row is a project-scoped instantiation of the universal CID grammar applied to XR Mode concerns. Rows are sorted A→Z and contain no vendor references.
+
+| Context | Intent | Directive |
+|---|---|---|
+| Acceptance | Define verifiable XR criteria | - [ ] Specify testable criteria expressible as VCCs; enable verification through existing canvas mode and asset conversion tests; forbid ambiguous XR requirements |
+| Adaptability | Enable frontmatter-driven pipeline configuration | - [ ] Design pipeline stages configurably through `kgAsset3dPipeline`; enable runtime adaptation; forbid hardcoded pipeline constants |
+| Architecture | Design XR component interactions | - [ ] Map XR component relationships through Journey-To-System table; design interactions via integration contracts; forbid undocumented dependencies |
+| Boundaries | Define XR Mode scope | - [ ] Establish clear scope in In Scope / Out Of Scope sections; define XR-specific boundaries; forbid scope creep into proprietary tooling |
+| Components | Specify modular pipeline units | - [ ] Define component boundaries per pipeline stage (modeling, rigging, animation, simulation, rendering, compositing, tracking, sequencer); forbid monolithic pipeline designs |
+| Data | Specify XR data flows | - [ ] Map data flows per epic (surface activation, model ingest, PNG->SVG->GLB, pipeline activation); forbid undocumented format transitions |
+| Decisions | Document XR architectural rationale | - [ ] Record every ADR with TCO comparison and FOSS-first evaluation; forbid unexplained architectural choices |
+| FOSS | Default to open-source XR dependencies | - [ ] Identify FOSS alternative before any proprietary selection (VTracer, Potrace, Three.js, R3F); document TCO comparison in ADR; forbid undocumented vendor lock-in |
+| Harness | Wrap conversion calls in typed contracts | - [ ] Define harness input/output schemas for PNG->SVG and SVG->GLB; emit zero-cost log per deterministic call; specify fallback path; forbid raw unvalidated conversion calls |
+| Journeys | Map XR user workflows | - [ ] Chart Solo Dev path from asset import through XR inspection; map journeys before writing stories; forbid feature-centric XR views |
+| Min-Viable | Maximise XR value per scope unit | - [ ] Define smallest deliverable per Must-tier acceptance criterion; score ROI before expanding scope; forbid feature bloat without user-impact justification |
+| Orchestration | Design bounded XR pipelines | - [ ] Specify sequential topology for conversion harnesses; set max-iteration bounds; forbid unbounded conversion loops |
+| ROI | Justify XR feature investment | - [ ] Compute ROI score per feature before MoSCoW tier assignment; rank features by ROI; forbid zero-ROI items in Must/Should tiers |
+| TCO | Make XR total cost explicit | - [ ] Estimate 12-month TCO for every XR dependency; document in ADR; forbid uncosted architectural decisions |
+| Token Economics | Treat token spend as XR metric | - [ ] Estimate tokens per pipeline call (0 for MVP); track cost log; forbid pipelines without token budget estimates |
+| Traceability | Link XR requirements to implementation | - [ ] Maintain requirement IDs (KXR-E*-S*-AC*); link to TAD components and VCC conditions; forbid orphaned requirements |
+| Workflows | Map XR processes with full paths | - [ ] Define trigger, happy path, alternate paths, error paths, and postconditions per epic; forbid workflow-free XR features |
 
 ---
 
 # Traceability And Goal Conditions
 
-| PRD Requirement | TAD Component | Interface | `/goal` Condition |
+| PRD Requirement | TAD Component | Interface | `/goal` / VCC Condition |
 |---|---|---|---|
 | KXR-E1-S1-AC1 | XR Mode Resolver | Canvas View selection | `canvas.viewSelection.xrSurfaceMode` passes |
 | KXR-E1-S1-AC2 | XR Mode Resolver | Render Settings select | `canvas.renderSettings.xrModeSelect` passes |
@@ -783,24 +1008,73 @@ The MVP goal is to make existing assets spatially inspectable. That can be achie
 | KXR-E4-S1-AC1 | Conversion Harness | Cost log | Cost log contains zero token and zero estimated cost |
 | KXR-E4-S1-AC2 | Optional AI Harness | AI input/output schema | Deferred AI fixture rejects over-budget request before model call |
 | KXR-E4-S1-AC3 | XR Renderer + Asset Optimizer | Smoke + inspect proof | Browser and inspect reports stay under budget |
+| KXR-E5-S1-AC1 | XR 3D Pipeline Coordinator | Frontmatter loading | `canvas.xrPipeline.modelingRigging` tests pass |
+| KXR-E5-S1-AC2 | XR Modeling & Rigging Engines | SDF mesh and armature skeletons | Skinned bone weights are applied and SDF meshes compile |
+| KXR-E5-S1-AC3 | XR Animation & Simulation Solver | Verlet updates and NLA blend paths | Verlet solver converges and NLA mixer advances frames |
+| KXR-E5-S1-AC4 | XR Compositor & Sequencer | Composer passes and timeline playback | Compositor blends passes and sequencer emits synchronized updates |
+
+---
 
 # Validation Checklist
 
-**PRD**:
+**Pre-Implementation (PRD)**:
+- [ ] Valid YAML frontmatter present with `frontmatter_contract: "required"`
+- [ ] Personas and user journey documented; every story anchored to a journey stage
+- [ ] Workflows defined with trigger, happy path, alternate paths, error paths, and postconditions per epic
+- [ ] Data flows typed at every stage boundary with persistence and error handling documented
+- [ ] User stories follow "As a… I want… So that" format
+- [ ] Acceptance criteria use Given-When-Then with observable outcomes
+- [ ] Every acceptance criterion translatable to a VCC: one measurable end state + a stated check + scope constraints
+- [ ] Features prioritized via MoSCoW with ROI score and rationale per feature
+- [ ] Min-viable scope explicitly stated for Must-tier features before implementation begins
+- [ ] Token budget estimated for every AI-powered pipeline: 0 for MVP deterministic paths
+- [ ] Monthly TCO estimated for every dependency; FOSS-first decision recorded in ADR
+- [ ] ROI score computed for every Must/Should feature using `(impact × reach) / (build + TCO + token cost)`
 
-- [x] Valid YAML frontmatter present.
-- [x] Personas and user journey documented.
-- [x] Acceptance criteria are Given/When/Then and trace to `/goal` conditions.
-- [x] MoSCoW includes ROI and TCO rationale.
-- [x] FOSS PNG-to-SVG requirement included.
+**Pre-Implementation (TAD)**:
+- [ ] Components have single responsibility; interfaces specified with explicit contracts
+- [ ] AI components have harness contract: typed input schema, typed output schema, cost log fields, fallback path
+- [ ] Orchestration topology specified for every pipeline: sequential with max-iteration bound and circuit-breaker condition
+- [ ] Architectural decisions documented with ADRs including TCO comparison table and FOSS alternative
+- [ ] Architecture diagrams use Mermaid (not ASCII for >5 nodes)
+- [ ] Component inventory table accompanies every architecture diagram
+- [ ] PRD-to-TAD traceability established via `PRD-[Epic]-[Story] ↔ TAD-[Component]-[Interface]`
+- [ ] VCCs recorded in TAD component specs and traced to source criteria
+- [ ] No implementation detail in PRD; no business logic in TAD
 
-**TAD**:
+**Post-Documentation Review**:
+- [ ] Stakeholders validate PRD addresses user problems
+- [ ] Development confirms TAD provides sufficient guidance
+- [ ] QA confirms acceptance criteria are objectively testable
+- [ ] Success metrics defined with baseline, target, and timeline
+- [ ] Quality attributes specified with measurable scenarios; token cost and TCO attributes present
+- [ ] Open questions resolved or formally tracked
+- [ ] Token budget actuals vs estimates reviewed each sprint; projections updated on model pricing or traffic changes
+- [ ] FOSS alternatives re-evaluated if any dependency TCO crosses the 12-month justification threshold
 
-- [x] Components have clear responsibilities and interfaces.
-- [x] Data flows specify formats, persistence, and error handling.
-- [x] Harness contracts include schema validation, cost log, fallback, token budget, topology, and circuit breaker.
-- [x] ADRs include FOSS alternatives and TCO comparisons.
-- [x] Existing implementation owners are mapped.
+---
+
+# Role—Action—Outcome
+
+**Solo Dev / Founder** → validates problem, maps user journey, writes stories and acceptance criteria, applies MoSCoW with ROI scoring, defines min-viable scope, selects FOSS tools → produces user-centric PRD and drives high-ROI feature delivery at near-zero TCO.
+
+**AI Orchestrator** → designs harness contracts for conversion pipelines, sets token budgets, validates cost logs, specifies orchestration topology with circuit breakers → ensures XR asset pipelines are observable, bounded, and ROI-positive.
+
+**Technical Reviewer** → reviews TAD for feasibility, validates architectural patterns, confirms ADR TCO comparisons, verifies VCC traceability → ensures XR implementation is technically sound and guideline-compliant.
+
+---
+
+# Mantra Application
+
+**"CID frames PRD/TAD standards · Flow patterns anchor stories to reality · RAO aligns team responsibilities · SVO clarifies requirement semantics · VCC closes the loop from criterion to verified implementation"**
+
+- **CID frames**: establishes XR Mode scope (spatial inspection + asset conversion), purpose (user value through inline XR preview), rules (FOSS-first, zero-token default, frontmatter-driven pipeline)
+- **Flow patterns anchor**: user journey (Solo Dev asset-to-XR), workflows (per-epic trigger→happy→alternate→error→postcondition), and data flows (surface activation, model ingest, PNG→SVG→GLB, pipeline activation) connect abstract XR requirements to observable system behavior
+- **RAO aligns**: maps Solo Dev/Founder, AI Orchestrator, and Technical Reviewer to their respective documentation deliverables with clear accountability
+- **SVO clarifies**: users import assets → harnesses convert deterministically → renderers display spatially → sessions enhance progressively — enabling unambiguous XR implementation
+- **VCC closes**: every acceptance criterion (KXR-E*-S*-AC*) maps to a VCC condition in the Traceability table; the chain extends from PRD through TAD to autonomous verification via `/goal` conditions
+
+---
 
 # Reference Sources
 

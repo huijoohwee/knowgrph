@@ -22,7 +22,10 @@ import {
   GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME,
   GRAPH_FIELDS_MAIN_SPLIT_GRID_CLASS_NAME,
 } from '@/features/panels/views/graph-fields/graphFieldResponsiveClasses'
-import { resolveGraphFieldsEntryCommandTarget } from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
+import {
+  isGraphFieldsSelectionInspectorEntryLabel,
+  resolveGraphFieldsEntryCommandTarget,
+} from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -33,7 +36,12 @@ export type GraphFieldsSelectedView =
       scope: 'node' | 'edge'
       ownerKey: string
     }
+  | { kind: 'selectionInspector' }
   | null
+
+const GraphTableSelectionInspectorLazy = React.lazy(
+  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
+)
 
 type GraphFieldsViewProps = {
   onStatusChange: (msg: string) => void
@@ -70,6 +78,7 @@ export default function GraphFieldsView({
   const setSelectedFieldId = useGraphStore(s => s.setSelectedGraphFieldId)
   const [selectedGlobalView, setSelectedGlobalView] = React.useState<GraphFieldsSelectedView>(null)
   const fieldSettingsPaneRef = React.useRef<HTMLElement | null>(null)
+  const handledEntryOpenTokenRef = React.useRef<number | null>(null)
 
   const derivedFields = React.useMemo<ReadonlyArray<GraphField>>(() => {
     if (!graphData) return []
@@ -164,6 +173,29 @@ export default function GraphFieldsView({
 
   React.useEffect(() => {
     if (!entryOpenRequest || !graphData || fields.length === 0) return
+    if (handledEntryOpenTokenRef.current === entryOpenRequest.token) return
+    if (isGraphFieldsSelectionInspectorEntryLabel(entryOpenRequest.entryLabel)) {
+      handledEntryOpenTokenRef.current = entryOpenRequest.token
+      setSelectedGlobalView(prev => (prev?.kind === 'selectionInspector' ? prev : { kind: 'selectionInspector' }))
+      if (selectedFieldId !== null) setSelectedFieldId(null)
+      try {
+        upsertUiToast({
+          id: `graphFields:entryOpen:${entryOpenRequest.token}`,
+          kind: 'neutral',
+          message: `Opened selected record inspector via ${entryOpenRequest.entryLabel}`,
+          ttlMs: 1800,
+        })
+      } catch {
+        void 0
+      }
+      try {
+        fieldSettingsPaneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+      } catch {
+        void 0
+      }
+      onStatusChange(`Opened selected record inspector via ${entryOpenRequest.entryLabel}`)
+      return
+    }
     const target = resolveGraphFieldsEntryCommandTarget({
       entryLabel: entryOpenRequest.entryLabel,
       fields,
@@ -171,6 +203,7 @@ export default function GraphFieldsView({
     })
     if (!target) return
 
+    handledEntryOpenTokenRef.current = entryOpenRequest.token
     setSelectedGlobalView(prev => (prev === null ? prev : null))
     if (selectedFieldId !== target.id) setSelectedFieldId(target.id)
     try {
@@ -252,17 +285,23 @@ export default function GraphFieldsView({
             />
           </section>
           <section ref={fieldSettingsPaneRef} className={GRAPH_FIELDS_MAIN_SETTINGS_PANE_CLASS_NAME}>
-            <FieldSettingsPanel
-            graphData={graphData}
-            selectedField={selectedField}
-            selectedGlobalView={selectedGlobalView}
-            setSelectedGlobalView={setSelectedGlobalView}
-            settingsById={settingsById}
-            patchGraphFieldSetting={patchGraphFieldSetting}
-            removeGraphFieldSetting={removeGraphFieldSetting}
-            onResync={resync}
-            onStatusChange={onStatusChange}
-            />
+            {selectedGlobalView?.kind === 'selectionInspector' ? (
+              <React.Suspense fallback={null}>
+                <GraphTableSelectionInspectorLazy />
+              </React.Suspense>
+            ) : (
+              <FieldSettingsPanel
+              graphData={graphData}
+              selectedField={selectedField}
+              selectedGlobalView={selectedGlobalView}
+              setSelectedGlobalView={setSelectedGlobalView}
+              settingsById={settingsById}
+              patchGraphFieldSetting={patchGraphFieldSetting}
+              removeGraphFieldSetting={removeGraphFieldSetting}
+              onResync={resync}
+              onStatusChange={onStatusChange}
+              />
+            )}
           </section>
         </section>
       </section>
@@ -281,9 +320,9 @@ export default function GraphFieldsView({
               Entry shortcuts (click to open Field Settings)
             </section>
             <section className="flex flex-wrap gap-1">
-              {entryShortcutLabels.map(label => (
+              {entryShortcutLabels.map((label, index) => (
                 <button
-                  key={label}
+                  key={`entry-shortcut:${label}:${index}`}
                   type="button"
                   className={cn('App-toolbar__btn text-xs', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
                   onClick={() => onEntryShortcutClick(label)}
