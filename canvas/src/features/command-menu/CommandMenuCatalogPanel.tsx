@@ -27,6 +27,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import {
   buildUploadedMediaAccessUrl,
+  listUploadedMediaFromKnowgrphStorage,
   readUploadedMediaKind,
   uploadMediaFileToKnowgrphStorage,
   type UploadedMediaStorageResult,
@@ -95,6 +96,30 @@ const writeStoredUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): vo
     window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify(syncedItems))
   } catch {
     void 0
+  }
+}
+
+const readUploadedMediaFileName = (storage: UploadedMediaStorageResult): string => {
+  const fromProvenance = typeof storage.provenance?.fileName === 'string' ? storage.provenance.fileName.trim() : ''
+  if (fromProvenance) return fromProvenance
+  return storage.objectKey.split('/').filter(Boolean).at(-1) || storage.shotId || 'uploaded-media'
+}
+
+const buildUploadedMediaPanelItemFromStorage = (storage: UploadedMediaStorageResult): UploadedMediaPanelItem | null => {
+  const kind = storage.stageId === 'image' || storage.stageId === 'audio' || storage.stageId === 'video' ? storage.stageId : null
+  if (!kind) return null
+  const sizeBytes = typeof storage.provenance?.sizeBytes === 'number' ? storage.provenance.sizeBytes : 0
+  return {
+    id: `cloudflare-media:${storage.contentHash}`,
+    name: readUploadedMediaFileName(storage),
+    kind,
+    localUrl: '',
+    linkUrl: storage.accessUrl,
+    contentType: storage.contentType,
+    sizeBytes,
+    status: 'synced',
+    storage,
+    error: null,
   }
 }
 
@@ -521,6 +546,29 @@ export function MediaCatalogPanel() {
       }
     })
     objectUrlsRef.current.clear()
+  }, [])
+  React.useEffect(() => {
+    let cancelled = false
+    listUploadedMediaFromKnowgrphStorage().then(storageItems => {
+      if (cancelled || storageItems.length === 0) return
+      const cloudflareItems = storageItems
+        .map(buildUploadedMediaPanelItemFromStorage)
+        .filter((item): item is UploadedMediaPanelItem => !!item)
+      if (cloudflareItems.length === 0) return
+      setUploadedMediaItems(prev => {
+        const nextById = new Map<string, UploadedMediaPanelItem>()
+        for (const item of cloudflareItems) nextById.set(item.id, item)
+        for (const item of prev) nextById.set(item.id, item.status === 'synced' ? { ...item, linkUrl: item.storage?.accessUrl || item.linkUrl } : item)
+        const next = Array.from(nextById.values())
+        writeStoredUploadedMediaPanelItems(next)
+        return next
+      })
+    }).catch(() => {
+      void 0
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
   const appendSyncedUploadedMediaSource = React.useCallback((args: {
     itemId: string

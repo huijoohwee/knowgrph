@@ -407,6 +407,29 @@ export type KnowgrphMediaAssetPersistResponse = {
   }
 }
 
+export type KnowgrphMediaAssetListItem = {
+  artifactId: string
+  objectKey: string
+  publicPath: string
+  runId: string
+  stageId: string
+  shotId: string
+  kind: KnowgrphMediaArtifactKind
+  contentHash: string
+  mediaType: string | null
+  provenance: Record<string, unknown>
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type KnowgrphMediaAssetListResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  artifacts: KnowgrphMediaAssetListItem[]
+}
+
 export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
 
 export type KnowgrphCollaborationSaveRequest = {
@@ -538,6 +561,9 @@ export const buildKnowgrphStorageMediaPath = (objectKey: string): string =>
 
 export const buildKnowgrphStorageMediaAssetPersistPath = (): string =>
   KNOWGRPH_STORAGE_ROUTE_PATHS.mediaAssetPersist
+
+export const buildKnowgrphStorageMediaAssetListPath = (workspaceId: string, limit = 50): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaAssetPersist}?workspaceId=${encodeURIComponent(String(workspaceId || '').trim())}&limit=${encodeURIComponent(String(limit))}`
 
 export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId?: string | null): string => {
   const normalizedWorkspaceId = String(workspaceId || '').trim()

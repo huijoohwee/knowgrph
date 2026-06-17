@@ -11,6 +11,7 @@ import { normalizeNumber, normalizeString } from './db'
 import type { D1DatabaseLike } from './db'
 import {
   findMediaArtifactByHash,
+  listRecentMediaArtifacts,
   upsertMediaArtifact,
 } from './mediaArtifacts'
 import {
@@ -59,6 +60,14 @@ const readJsonBody = async (request: Request): Promise<unknown> => {
   }
 }
 
+const readRequestWorkspaceId = (request: Request): string => {
+  try {
+    return normalizeString(new URL(request.url).searchParams.get('workspaceId') || '')
+  } catch {
+    return ''
+  }
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -86,6 +95,54 @@ const isMediaAssetPersistRequest = (value: unknown): value is KnowgrphMediaAsset
 
 export const isKnowgrphStorageMediaAssetRoute = (pathname: string): boolean =>
   normalizeString(pathname) === KNOWGRPH_STORAGE_ROUTE_PATHS.mediaAssetPersist
+
+const buildMediaAssetListResponse = async (
+  request: Request,
+  db: D1DatabaseLike,
+): Promise<Response> => {
+  const workspaceId = readRequestWorkspaceId(request)
+  if (!workspaceId) return errorResponse(400, 'bad_request', 'workspaceId is required')
+  const limit = (() => {
+    try {
+      return normalizeNumber(new URL(request.url).searchParams.get('limit'), 50)
+    } catch {
+      return 50
+    }
+  })()
+  const artifacts = await listRecentMediaArtifacts(db, workspaceId, limit)
+  return json(200, {
+    ok: true,
+    apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+    workspaceId,
+    artifacts: artifacts.map(artifact => {
+      const objectKey =
+        normalizeString(artifact.durableR2Url).replace(/^\/?api\/storage\/media\//, '') ||
+        `${artifact.runId}/${artifact.stageId}/${artifact.shotId}`
+      return {
+        artifactId: artifact.id,
+        objectKey,
+        publicPath: `${KNOWGRPH_STORAGE_ROUTE_PATHS.mediaPrefix}/${objectKey}`,
+        runId: artifact.runId,
+        stageId: artifact.stageId,
+        shotId: artifact.shotId,
+        kind: artifact.kind,
+        contentHash: artifact.contentHash,
+        mediaType: artifact.mediaType,
+        provenance: (() => {
+          try {
+            const parsed = JSON.parse(artifact.provenanceJson || '{}')
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+          } catch {
+            return {}
+          }
+        })(),
+        version: artifact.version,
+        createdAt: artifact.createdAt,
+        updatedAt: artifact.updatedAt,
+      }
+    }),
+  })
+}
 
 const clampAccessTtlSeconds = (value: number | null | undefined): number => {
   const normalized = normalizeNumber(value, MEDIA_ASSET_ACCESS_TTL_SECONDS_DEFAULT)
@@ -193,6 +250,9 @@ export const handleMediaAssetPersist = async (
   db: D1DatabaseLike,
   authProvider: MediaAuthProvider = defaultMediaAuthProvider,
 ): Promise<Response> => {
+  if (request.method === 'GET') {
+    return buildMediaAssetListResponse(request, db)
+  }
   if (request.method !== 'POST') {
     return errorResponse(405, 'bad_request', 'unsupported media asset route method')
   }

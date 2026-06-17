@@ -7,8 +7,10 @@ import { resolveKnowgrphStorageApiUrl } from '@/lib/storage/knowgrphStorageClien
 import {
   KNOWGRPH_STORAGE_API_VERSION,
   KNOWGRPH_STORAGE_R2_MEDIA_OBJECT_PREFIX,
+  buildKnowgrphStorageMediaAssetListPath,
   buildKnowgrphStorageMediaAssetPersistPath,
   buildKnowgrphStorageMediaPath,
+  type KnowgrphMediaAssetListResponse,
   type KnowgrphMediaArtifactKind,
   type KnowgrphMediaAssetPersistRequest,
   type KnowgrphMediaAssetPersistResponse,
@@ -102,7 +104,68 @@ export type UploadedMediaStorageResult = {
   accessUrl: string
   contentHash: string
   contentType: string
+  provenance: Record<string, unknown>
   response: KnowgrphMediaAssetPersistResponse
+}
+
+export const listUploadedMediaFromKnowgrphStorage = async (args: {
+  workspaceId?: string | null
+  fetchImpl?: typeof fetch
+  limit?: number | null
+} = {}): Promise<UploadedMediaStorageResult[]> => {
+  const workspaceId = normalizeString(args.workspaceId) || readActiveKnowgrphStorageWorkspaceId()
+  if (!workspaceId) return []
+  const fetchImpl = args.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null)
+  if (!fetchImpl) return []
+  const baseUrl = readKnowgrphStorageBaseUrl()
+  const response = await fetchImpl(resolveKnowgrphStorageApiUrl(buildKnowgrphStorageMediaAssetListPath(workspaceId, args.limit ?? 50), baseUrl), {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+  })
+  if (!response.ok) return []
+  const body = await response.json().catch(() => null) as KnowgrphMediaAssetListResponse | null
+  if (!body || body.ok !== true || !Array.isArray(body.artifacts)) return []
+  return body.artifacts.flatMap(artifact => {
+    const kind = artifact.kind === 'image' || artifact.kind === 'audio' || artifact.kind === 'video' ? artifact.kind : null
+    if (!kind || !artifact.objectKey || !artifact.runId || !artifact.contentHash) return []
+    const publicPath = artifact.publicPath || buildKnowgrphStorageMediaPath(artifact.objectKey)
+    const publicUrl = resolveKnowgrphStorageApiUrl(publicPath, baseUrl)
+    const accessUrl = buildUploadedMediaAccessUrl({ publicUrl, runId: artifact.runId })
+    return [{
+      workspaceId,
+      runId: artifact.runId,
+      stageId: artifact.stageId,
+      shotId: artifact.shotId,
+      objectKey: artifact.objectKey,
+      publicPath,
+      publicUrl,
+      accessUrl,
+      contentHash: artifact.contentHash,
+      contentType: normalizeString(artifact.mediaType) || 'application/octet-stream',
+      provenance: artifact.provenance,
+      response: {
+        ok: true,
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId,
+        artifactId: artifact.artifactId,
+        objectKey: artifact.objectKey,
+        publicPath,
+        durableR2Url: publicPath,
+        contentHash: artifact.contentHash,
+        storage: {
+          r2: 'confirmed',
+          d1: 'persisted',
+          kv: 'skipped',
+          durableObject: 'skipped',
+        },
+        access: {
+          cacheKey: null,
+          expiresAtMs: null,
+          url: accessUrl,
+        },
+      },
+    }]
+  })
 }
 
 export const uploadMediaFileToKnowgrphStorage = async (args: {
@@ -194,6 +257,7 @@ export const uploadMediaFileToKnowgrphStorage = async (args: {
     accessUrl,
     contentHash,
     contentType,
+    provenance: persistRequest.provenance,
     response,
   }
 }

@@ -304,6 +304,24 @@ export async function readMediaArtifactsByRun(
 }
 
 // -----------------------------------------------------------------------------
+// listRecentMediaArtifacts — workspace media inventory ordered by updated_at
+// -----------------------------------------------------------------------------
+
+export async function listRecentMediaArtifacts(
+  db: D1DatabaseLike,
+  workspaceId: string,
+  limit = 50,
+): Promise<MediaArtifactRecord[]> {
+  const boundedLimit = Math.max(1, Math.min(100, Math.floor(normalizeNumber(limit, 50))))
+  const rows = await queryAll<Record<string, unknown>>(
+    db,
+    'SELECT * FROM media_artifacts WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?',
+    [workspaceId, boundedLimit],
+  )
+  return rows.map((r) => rowToRecord(toRow(r)))
+}
+
+// -----------------------------------------------------------------------------
 // findMediaArtifactByHash — content-hash dedupe lookup (R3.9)
 // -----------------------------------------------------------------------------
 
