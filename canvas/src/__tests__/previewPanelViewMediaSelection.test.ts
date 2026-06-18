@@ -86,7 +86,8 @@ const buildMarkdown = (): string =>
 
 const readCommandMenuMediaRowName = (row: Element): string => {
   const input = row.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
-  return String(input?.value || row.textContent || '')
+  const label = row.querySelector('[data-kg-command-menu-media-name-text]') as HTMLElement | null
+  return String(input?.value || label?.textContent || row.textContent || '')
 }
 
 type InputHarnessWindow = Window & typeof globalThis
@@ -158,6 +159,12 @@ export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
       )
     }
 
+    const renameButton = graphCard.querySelector('[data-kg-command-menu-media-rename]') as HTMLButtonElement | null
+    if (!renameButton) throw new Error('expected graph media row to expose explicit rename control')
+    await act(async () => {
+      renameButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForNextFrame(dom.window)
+    })
     const nameInput = graphCard.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
     if (!nameInput) throw new Error('expected graph media row to expose inline name edit input')
     await act(async () => {
@@ -361,23 +368,29 @@ export async function testCommandMenuMarkdownMediaRenameSyncsWorkspaceHrefRefere
 
     await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
 
-    const nameInput = Array
-      .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
-      .find(input => input.value === href)
-    if (!nameInput) throw new Error('expected Command Menu media row to expose the URL-derived media name')
+    const nameText = Array
+      .from(doc.querySelectorAll('[data-kg-command-menu-media-name-text]') as NodeListOf<HTMLElement>)
+      .find(label => String(label.textContent || '').trim() === href)
+    if (!nameText) throw new Error('expected Command Menu media row to expose the URL-derived media name')
+    const mediaRow = nameText.closest('[data-kg-command-menu-media-candidate]')
+    const renameButton = mediaRow?.querySelector('[data-kg-command-menu-media-rename]') as HTMLButtonElement | null
+    if (!renameButton) throw new Error('expected Command Menu media row to expose explicit rename control')
+
+    await act(async () => {
+      renameButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForNextFrame(dom.window)
+    })
+
+    const nameInput = mediaRow?.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
+    if (!nameInput || nameInput.value !== href) throw new Error('expected explicit rename control to open the URL-derived media name input')
 
     await act(async () => {
       setInputValue(dom.window, nameInput, 'Seedance source media')
       await waitForNextFrame(dom.window)
     })
-    const syncedDraftInputs = Array
-      .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
-      .filter(input => input.value === 'Seedance source media')
-    if (syncedDraftInputs.length !== 1) {
-      const values = Array
-        .from(doc.querySelectorAll('[data-kg-command-menu-media-name-input]') as NodeListOf<HTMLInputElement>)
-        .map(input => input.value)
-      throw new Error(`expected same-href media rows to collapse to one live draft row, got ${syncedDraftInputs.length}; values=${JSON.stringify(values)}`)
+    const syncedDraftInput = mediaRow?.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
+    if (syncedDraftInput?.value !== 'Seedance source media') {
+      throw new Error(`expected same-href media row to keep one live draft input, got ${JSON.stringify(syncedDraftInput?.value || '')}`)
     }
 
     await act(async () => {

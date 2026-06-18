@@ -180,6 +180,46 @@ type KgDocumentLocalRecord = {
 
 Primary migration: `cloudflare/d1/migrations/0001_knowgrph_storage.sql`
 
+### Media Asset Persistence Extension
+
+AI/LLM-generated and user-uploaded media records use the Storage Worker media route as the runtime boundary. R2 owns the binary bytes, D1 owns searchable metadata and provenance, KV owns only short-lived access URL cache entries, and Durable Objects own room sync notifications for collaborators. Browser object URLs and provider URLs are not persistence records.
+
+```sql
+CREATE TABLE IF NOT EXISTS media_artifacts (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  run_id TEXT,
+  room_id TEXT,
+  card_id TEXT,
+  field_key TEXT,
+  media_kind TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  r2_object_key TEXT NOT NULL,
+  byte_size INTEGER NOT NULL,
+  source_action TEXT NOT NULL,
+  provenance_json TEXT NOT NULL,
+  access_url_expires_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+  UNIQUE (workspace_id, r2_object_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_artifacts_workspace_updated
+  ON media_artifacts(workspace_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_media_artifacts_room_updated
+  ON media_artifacts(room_id, updated_at DESC);
+```
+
+| Field | Purpose |
+|---|---|
+| `media_kind` | Normalized `image`, `audio`, or `video` kind used by FloatingPanel Media and `@` insertion. |
+| `r2_object_key` | Canonical R2 object key for the binary blob; never a browser object URL. |
+| `provenance_json` | Provider/upload source, prompt/run/card context, operator action, and sync status evidence. |
+| `access_url_expires_at` | Optional KV-backed access URL expiry; null when no KV namespace is bound. |
+
 ### Tables
 
 ```sql

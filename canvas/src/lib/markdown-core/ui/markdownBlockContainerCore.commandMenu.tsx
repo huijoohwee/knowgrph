@@ -1,5 +1,5 @@
 import React from 'react'
-import { Image, Search, Video } from 'lucide-react'
+import { FileAudio, Image, Search, Video } from 'lucide-react'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -11,7 +11,7 @@ export type MarkdownInlineCommandMenuItem = {
   description?: string
   keywords?: string[]
   thumbnailUrl?: string
-  thumbnailKind?: 'image' | 'video'
+  thumbnailKind?: 'image' | 'audio' | 'video'
   disabled?: boolean
   danger?: boolean
   onSelect: () => void
@@ -205,7 +205,11 @@ export const MarkdownBlockContainerCommandMenu = (props: {
                       aria-hidden="true"
                       data-kg-inline-command-thumbnail={item.thumbnailKind}
                     >
-                      {item.thumbnailKind === 'video' ? <Video className="h-4 w-4" strokeWidth={1.8} /> : <Image className="h-4 w-4" strokeWidth={1.8} />}
+                      {item.thumbnailKind === 'video'
+                        ? <Video className="h-4 w-4" strokeWidth={1.8} />
+                        : item.thumbnailKind === 'audio'
+                          ? <FileAudio className="h-4 w-4" strokeWidth={1.8} />
+                          : <Image className="h-4 w-4" strokeWidth={1.8} />}
                     </span>
                   ) : null}
                   <span className="min-w-0 flex-1">

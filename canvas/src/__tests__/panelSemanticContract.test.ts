@@ -1463,6 +1463,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
+  const uploadedMediaPanelUploadPath = path.resolve(root, 'src', 'lib', 'storage', 'uploadedMediaPanelUpload.ts')
   const helpSectionsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx')
   const helpCommandMenuSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCommandMenuSection.tsx')
   const helpCloudflareMediaSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCloudflareMediaSection.tsx')
@@ -1473,6 +1474,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
   const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
   const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
+  const uploadedMediaPanelUploadText = readUtf8(uploadedMediaPanelUploadPath)
   const helpSectionsText = readUtf8(helpSectionsPath)
   const helpCommandMenuSectionText = readUtf8(helpCommandMenuSectionPath)
   const helpCloudflareMediaSectionText = readUtf8(helpCloudflareMediaSectionPath)
@@ -1517,7 +1519,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!commandCatalogPanelText.includes('data-kg-media-upload-button') || !commandCatalogPanelText.includes('data-kg-media-upload-input') || !commandCatalogPanelText.includes('accept="image/*,audio/*,video/*"')) {
     throw new Error('Expected FloatingPanel Media to expose an Upload Media control for image, audio, and video files')
   }
-  if (!commandCatalogPanelText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('Open Cloudflare media link')) {
+  if (!commandCatalogPanelText.includes('uploadFilesToUploadedMediaPanel') || !uploadedMediaPanelUploadText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('Open Cloudflare media link')) {
     throw new Error('Expected FloatingPanel Media upload rows to reuse the Cloudflare media storage helper and expose synced links')
   }
   if (

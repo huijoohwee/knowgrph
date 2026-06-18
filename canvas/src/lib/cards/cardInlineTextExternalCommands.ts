@@ -16,6 +16,7 @@ const CARD_INLINE_TEXT_EXTERNAL_MEDIA_INSERT_EVENT = 'knowgrph:card-inline-text:
 
 type CardInlineTextExternalCommandState = {
   activeTarget: CardInlineTextExternalCommandTarget | null
+  targetByElement: WeakMap<Element, CardInlineTextExternalCommandTarget>
 }
 
 const readGlobalObject = (): (typeof globalThis & {
@@ -32,11 +33,13 @@ const readGlobalObject = (): (typeof globalThis & {
 
 const readCommandState = (): CardInlineTextExternalCommandState => {
   const globalObject = readGlobalObject()
-  if (!globalObject) return { activeTarget: null }
+  if (!globalObject) return { activeTarget: null, targetByElement: new WeakMap() }
   if (!globalObject[CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY]) {
-    globalObject[CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY] = { activeTarget: null }
+    globalObject[CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY] = { activeTarget: null, targetByElement: new WeakMap() }
   }
-  return globalObject[CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY]
+  const state = globalObject[CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY]
+  if (!state.targetByElement) state.targetByElement = new WeakMap()
+  return state
 }
 
 const normalizeText = (value: unknown): string => String(value || '').trim()
@@ -65,12 +68,43 @@ export function setActiveCardInlineTextExternalCommandTarget(target: CardInlineT
   readCommandState().activeTarget = target
 }
 
+export function setCardInlineTextExternalCommandElementTarget(element: Element | null, target: CardInlineTextExternalCommandTarget | null): void {
+  if (!element) return
+  const targetByElement = readCommandState().targetByElement
+  if (target) {
+    targetByElement.set(element, target)
+    return
+  }
+  targetByElement.delete(element)
+}
+
 export function clearActiveCardInlineTextExternalCommandTarget(id: string): void {
   const state = readCommandState()
   if (state.activeTarget?.id === id) state.activeTarget = null
 }
 
+const readSelectedCardInlineTextExternalCommandTarget = (): CardInlineTextExternalCommandTarget | null => {
+  try {
+    const ownerDocument = globalThis.document
+    if (!ownerDocument) return null
+    const selection = ownerDocument.getSelection?.()
+    const anchor = selection?.anchorNode || selection?.focusNode || null
+    if (!anchor) return null
+    const startElement = anchor.nodeType === 1 ? anchor as Element : anchor.parentElement
+    const field = startElement?.closest?.('[data-kg-card-inline-edit="1"]') || null
+    if (!field) return null
+    return readCommandState().targetByElement.get(field) || null
+  } catch {
+    return null
+  }
+}
+
 export function insertMediaIntoActiveCardInlineTextEditor(candidate: CardInlineTextExternalMediaCandidate): boolean {
+  const selectedTarget = readSelectedCardInlineTextExternalCommandTarget()
+  if (selectedTarget?.insertMedia(candidate) === true) {
+    setActiveCardInlineTextExternalCommandTarget(selectedTarget)
+    return true
+  }
   const activeTarget = readCommandState().activeTarget
   if (activeTarget?.insertMedia(candidate) === true) return true
   try {

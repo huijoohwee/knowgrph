@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
@@ -26,14 +26,23 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import {
-  buildUploadedMediaAccessUrl,
   deleteUploadedMediaFromKnowgrphStorage,
   listUploadedMediaFromKnowgrphStorage,
-  readUploadedMediaKind,
   renameUploadedMediaInKnowgrphStorage,
-  uploadMediaFileToKnowgrphStorage,
   type UploadedMediaStorageResult,
 } from '@/lib/storage/uploadedMediaStorage'
+import {
+  buildUploadedMediaPanelItemFromStorage,
+  buildUploadedMediaPanelItemId,
+  mergeUploadedMediaPanelItems,
+  readStoredUploadedMediaPanelItems,
+  readUploadedMediaFileName,
+  readUploadedMediaPanelDedupeKey,
+  UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT,
+  writeStoredUploadedMediaPanelItems,
+  type UploadedMediaPanelItem,
+} from '@/lib/storage/uploadedMediaPanelItems'
+import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
@@ -44,111 +53,6 @@ const commandMenuCatalogGroups = [
   { key: 'variable', label: '@', title: 'Variable commands', Icon: AtSign, actions: INLINE_VARIABLE_COMMAND_ACTIONS },
   { key: 'keyword', label: '#', title: 'Keyword commands', Icon: Hash, actions: INLINE_KEYWORD_COMMAND_ACTIONS },
 ] as const
-
-type UploadedMediaPanelItem = {
-  id: string
-  name: string
-  kind: 'image' | 'audio' | 'video'
-  localUrl: string
-  linkUrl: string
-  contentType: string
-  sizeBytes: number
-  status: 'uploading' | 'synced' | 'local'
-  storage: UploadedMediaStorageResult | null
-  error: string | null
-}
-
-const UPLOADED_MEDIA_PANEL_STORAGE_KEY = 'knowgrph:floating-panel-media:uploaded-cloudflare-items:v1'
-
-const isUploadedMediaPanelItemKind = (value: unknown): value is UploadedMediaPanelItem['kind'] =>
-  value === 'image' || value === 'audio' || value === 'video'
-
-const buildUploadedMediaPanelItemId = (storage: Pick<UploadedMediaStorageResult, 'contentHash' | 'objectKey'>): string =>
-  `cloudflare-media:${String(storage.contentHash || storage.objectKey).trim()}`
-
-const readUploadedMediaPanelDedupeKey = (item: UploadedMediaPanelItem): string =>
-  String(item.storage?.contentHash || item.storage?.objectKey || item.id).trim()
-
-const mergeUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): UploadedMediaPanelItem[] => {
-  const nextByKey = new Map<string, UploadedMediaPanelItem>()
-  for (const item of items) {
-    const key = readUploadedMediaPanelDedupeKey(item)
-    if (!key) continue
-    const canonicalItem = item.storage
-      ? { ...item, id: buildUploadedMediaPanelItemId(item.storage), linkUrl: item.storage.accessUrl || item.linkUrl }
-      : item
-    const existing = nextByKey.get(key)
-    const existingHasLocalName = !!existing?.storage && existing.name !== readUploadedMediaFileName(existing.storage)
-    const canonicalStorageName = canonicalItem.storage ? readUploadedMediaFileName(canonicalItem.storage) : canonicalItem.name
-    if (!existing || (canonicalItem.status === 'synced' && existing.status !== 'synced') || (!existingHasLocalName && canonicalItem.name !== canonicalStorageName)) {
-      nextByKey.set(key, canonicalItem)
-    }
-  }
-  return Array.from(nextByKey.values())
-}
-
-const readStoredUploadedMediaPanelItems = (): UploadedMediaPanelItem[] => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
-    const parsed = JSON.parse(raw || '[]') as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.flatMap(value => {
-      const item = value as Partial<UploadedMediaPanelItem>
-      const storage = item.storage as UploadedMediaStorageResult | null
-      if (!item.id || !item.name || !isUploadedMediaPanelItemKind(item.kind) || !storage?.publicUrl || !storage.runId) return []
-      const accessUrl = buildUploadedMediaAccessUrl({ publicUrl: storage.publicUrl, runId: storage.runId })
-      return [{
-        id: buildUploadedMediaPanelItemId(storage),
-        name: String(item.name),
-        kind: item.kind,
-        localUrl: '',
-        linkUrl: accessUrl,
-        contentType: String(item.contentType || storage.contentType || 'application/octet-stream'),
-        sizeBytes: Number(item.sizeBytes || 0),
-        status: 'synced' as const,
-        storage: { ...storage, accessUrl },
-        error: null,
-      }]
-    })
-  } catch {
-    return []
-  }
-}
-
-const writeStoredUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): void => {
-  if (typeof window === 'undefined') return
-  try {
-    const syncedItems = mergeUploadedMediaPanelItems(items).filter(item => item.status === 'synced' && item.storage)
-    window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify(syncedItems))
-  } catch {
-    void 0
-  }
-}
-
-function readUploadedMediaFileName(storage: UploadedMediaStorageResult): string {
-  const fromProvenance = typeof storage.provenance?.fileName === 'string' ? storage.provenance.fileName.trim() : ''
-  if (fromProvenance) return fromProvenance
-  return storage.objectKey.split('/').filter(Boolean).at(-1) || storage.shotId || 'uploaded-media'
-}
-
-const buildUploadedMediaPanelItemFromStorage = (storage: UploadedMediaStorageResult): UploadedMediaPanelItem | null => {
-  const kind = storage.stageId === 'image' || storage.stageId === 'audio' || storage.stageId === 'video' ? storage.stageId : null
-  if (!kind) return null
-  const sizeBytes = typeof storage.provenance?.sizeBytes === 'number' ? storage.provenance.sizeBytes : 0
-  return {
-    id: buildUploadedMediaPanelItemId(storage),
-    name: readUploadedMediaFileName(storage),
-    kind,
-    localUrl: '',
-    linkUrl: storage.accessUrl,
-    contentType: storage.contentType,
-    sizeBytes,
-    status: 'synced',
-    storage,
-    error: null,
-  }
-}
 
 function CommandPrefixType({
   Icon,
@@ -232,6 +136,9 @@ const isMediaRowControlTarget = (target: EventTarget | null): boolean => {
 const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): boolean =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && !isMediaRowControlTarget(event.target)
 
+const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
+  String(item.openUrl || item.src || item.thumbnailUrl || '').trim()
+
 function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
   const owner = item.renameOwner
   if (owner?.type === 'markdownLine') return String(owner.href || '').trim()
@@ -300,7 +207,7 @@ function MediaCandidateRow({
           <span className="flex min-w-0 items-center gap-2">
             <MediaCandidateThumb item={item} />
             <span className="flex min-w-0 flex-col leading-4">
-              <MediaCandidateNameInput
+              <MediaCandidateNameEditor
                 item={item}
                 displayName={displayName}
                 onDraftChange={onNameDraftChange}
@@ -324,7 +231,7 @@ function MediaCandidateRow({
   )
 }
 
-function MediaCandidateNameInput({
+function MediaCandidateNameEditor({
   item,
   displayName,
   onDraftChange,
@@ -335,15 +242,50 @@ function MediaCandidateNameInput({
   onDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
 }) {
+  const [editing, setEditing] = React.useState(false)
   const commitValue = React.useCallback((value: string) => {
     const next = String(value || '').trim()
     if (!next) {
       onDraftChange(item, item.label)
+      setEditing(false)
       return
     }
-    if (next === item.label) return
+    if (next === item.label) {
+      setEditing(false)
+      return
+    }
     onRename(item, next)
+    setEditing(false)
   }, [item, onDraftChange, onRename])
+
+  if (!editing) {
+    return (
+      <span className="flex min-w-0 items-center gap-1">
+        <span
+          className={cn('min-w-0 truncate px-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}
+          title={displayName}
+          data-kg-command-menu-media-name-text={item.key}
+        >
+          {displayName}
+        </span>
+        <button
+          type="button"
+          className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border opacity-70 hover:opacity-100', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+          title={`Rename ${displayName}`}
+          aria-label={`Rename ${displayName}`}
+          data-kg-command-menu-media-rename={item.key}
+          data-kg-media-row-control="1"
+          onPointerDown={event => event.stopPropagation()}
+          onClick={event => {
+            event.stopPropagation()
+            setEditing(true)
+          }}
+        >
+          <Pencil className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+        </button>
+      </span>
+    )
+  }
 
   return (
     <input
@@ -372,9 +314,11 @@ function MediaCandidateNameInput({
         if (event.key === 'Escape') {
           event.preventDefault()
           onDraftChange(item, item.label)
+          setEditing(false)
           event.currentTarget.blur()
         }
       }}
+      autoFocus
     />
   )
 }
@@ -477,6 +421,7 @@ function UploadedMediaRow({
     'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
   >
 }) {
+  const [editingName, setEditingName] = React.useState(false)
   const Icon = getMediaIcon(item.kind)
   const storage = item.storage?.response.storage
   const storageLabel = storage
@@ -488,9 +433,11 @@ function UploadedMediaRow({
     const nextName = String(value || '').trim()
     if (!nextName) {
       onNameChange(item, item.name)
+      setEditingName(false)
       return
     }
     if (nextName !== item.name) onRename(item, nextName)
+    setEditingName(false)
   }
   return (
     <section
@@ -528,36 +475,65 @@ function UploadedMediaRow({
               )}
             </span>
             <span className="flex min-w-0 flex-col leading-4">
-              <input
-                type="text"
-                value={item.name}
-                aria-label={`Rename ${item.name}`}
-                className={cn(
-                  'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
-                  UI_THEME_TOKENS.text.primary,
-                  'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
-                )}
-                data-kg-media-upload-name-input={item.id}
-                data-kg-media-row-control="1"
-                onClick={event => event.stopPropagation()}
-                onPointerDown={event => event.stopPropagation()}
-                onChange={event => onNameChange(item, event.target.value)}
-                onInput={event => onNameChange(item, event.currentTarget.value)}
-                onBlur={event => commitName(event.currentTarget.value)}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    commitName(event.currentTarget.value)
-                    event.currentTarget.blur()
-                    return
-                  }
-                  if (event.key === 'Escape') {
-                    event.preventDefault()
-                    onNameChange(item, item.storage ? readUploadedMediaFileName(item.storage) : item.name)
-                    event.currentTarget.blur()
-                  }
-                }}
-              />
+              {editingName ? (
+                <input
+                  type="text"
+                  value={item.name}
+                  aria-label={`Rename ${item.name}`}
+                  className={cn(
+                    'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
+                    UI_THEME_TOKENS.text.primary,
+                    'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
+                  )}
+                  data-kg-media-upload-name-input={item.id}
+                  data-kg-media-row-control="1"
+                  onClick={event => event.stopPropagation()}
+                  onPointerDown={event => event.stopPropagation()}
+                  onChange={event => onNameChange(item, event.target.value)}
+                  onInput={event => onNameChange(item, event.currentTarget.value)}
+                  onBlur={event => commitName(event.currentTarget.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      commitName(event.currentTarget.value)
+                      event.currentTarget.blur()
+                      return
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      onNameChange(item, item.storage ? readUploadedMediaFileName(item.storage) : item.name)
+                      setEditingName(false)
+                      event.currentTarget.blur()
+                    }
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <span className="flex min-w-0 items-center gap-1">
+                  <span
+                    className={cn('min-w-0 truncate px-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}
+                    title={item.name}
+                    data-kg-media-upload-name-text={item.id}
+                  >
+                    {item.name}
+                  </span>
+                  <button
+                    type="button"
+                    className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border opacity-70 hover:opacity-100', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+                    title={`Rename ${item.name}`}
+                    aria-label={`Rename ${item.name}`}
+                    data-kg-media-upload-rename={item.id}
+                    data-kg-media-row-control="1"
+                    onPointerDown={event => event.stopPropagation()}
+                    onClick={event => {
+                      event.stopPropagation()
+                      setEditingName(true)
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+                  </button>
+                </span>
+              )}
               <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{item.kind}</span>
             </span>
           </span>
@@ -728,6 +704,13 @@ export function MediaCatalogPanel() {
       cancelled = true
     }
   }, [])
+  React.useEffect(() => {
+    const onItemsChanged = () => setUploadedMediaItems(readStoredUploadedMediaPanelItems())
+    window.addEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
+    return () => {
+      window.removeEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
+    }
+  }, [])
   const appendSyncedUploadedMediaSource = React.useCallback((args: {
     itemId: string
     name: string
@@ -760,62 +743,32 @@ export function MediaCatalogPanel() {
     setSourceFiles([...currentSourceFiles, nextFile])
   }, [setSourceFiles])
   const handleUploadMediaFiles = React.useCallback(async (fileList: FileList | null) => {
-    const files = Array.from(fileList || [])
-    for (const file of files) {
-      const kind = readUploadedMediaKind(file)
-      if (!kind) continue
-      const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `media-upload-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const localUrl = URL.createObjectURL(file)
-      objectUrlsRef.current.add(localUrl)
-      const initialItem: UploadedMediaPanelItem = {
-        id,
-        name: file.name || `uploaded-${kind}`,
-        kind,
-        localUrl,
-        linkUrl: localUrl,
-        contentType: file.type || 'application/octet-stream',
-        sizeBytes: file.size,
-        status: 'uploading',
-        storage: null,
-        error: null,
-      }
-      setUploadedMediaItems(prev => [initialItem, ...prev])
-      try {
-        const storage = await uploadMediaFileToKnowgrphStorage({ file, uploadNow: true })
-        if (!storage) {
-          setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: 'Cloudflare media upload did not confirm R2/D1 persistence' } : item))
-          continue
-        }
-        setUploadedMediaItems(prev => {
-          const next = mergeUploadedMediaPanelItems(prev.map(item => item.id === id ? {
-            ...item,
-            id: buildUploadedMediaPanelItemId(storage),
-            name: readUploadedMediaFileName(storage),
-            status: 'synced' as const,
-            linkUrl: storage.accessUrl,
-            storage,
-            error: null,
-          } : item))
-          writeStoredUploadedMediaPanelItems(next)
-          return next
-        })
-        appendSyncedUploadedMediaSource({ itemId: id, name: file.name || `uploaded-${kind}`, kind, storage })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Upload failed'
-        setUploadedMediaItems(prev => prev.map(item => item.id === id ? { ...item, status: 'local', error: message } : item))
-      }
-    }
+    await uploadFilesToUploadedMediaPanel({
+      files: Array.from(fileList || []),
+      setItems: setUploadedMediaItems,
+      registerObjectUrl: url => objectUrlsRef.current.add(url),
+      onSynced: ({ item, storage }) => {
+        appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage })
+      },
+    })
   }, [appendSyncedUploadedMediaSource])
   const handleSelectMedia = React.useCallback((item: CommandMenuRichMediaItem) => {
+    if (item.kind === 'image' || item.kind === 'audio' || item.kind === 'video') {
+      const inserted = insertMediaIntoActiveCardInlineTextEditor({
+        kind: item.kind,
+        url: readRichMediaInsertUrl(item),
+        label: readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label,
+        sourceKey: item.key,
+      })
+      if (inserted) return
+    }
     setMermaidFocus(null)
     setActiveMediaKey(item.key)
     if (item.source === 'graph' && item.nodeId) {
       setSelectionSource('toolbar')
       selectNode(item.nodeId)
     }
-  }, [selectNode, setActiveMediaKey, setMermaidFocus, setSelectionSource])
+  }, [mediaNameDrafts, selectNode, setActiveMediaKey, setMermaidFocus, setSelectionSource])
   const handleMediaNameDraftChange = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
     const syncKey = getMediaNameSyncKey(item)
     writeCommandMenuMediaNameDraft(syncKey, nextName)

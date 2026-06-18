@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-18
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| FloatingPanel Media, `@ Upload Media`, and Cloudflare collaboration storage docs | Keep media insertion and persistence contracts source-owned across canonical docs and schema mirrors | Document one shared Media upload/inventory owner, keep `@` insertion as inline chips, and split Cloudflare duties: R2 bytes, D1 metadata/provenance, KV access cache, Durable Objects room sync. | `knowgrph/{docs/documents/{knowgrph-artifact-media-storage-architecture.md,knowgrph-storage-sync-document.md,knowgrph-storage-schemas-document.md,knowgrph-multi-user-collaboration-prd.tad.md},todo-log.md}`, `huijoohwee.github.io/{guidelines/knowgrph-pipeline-guidelines.md,schema/AgenticRAG/{README.pipeline-and-renderer-guidelines.md,panels.jsonld}}` | Media storage/collaboration docs SSOT | authored-doc updates, guideline sync, schema note sync | FloatingPanel Media upload, card-field `@ Upload Media`, R2/D1/KV/Durable Object runtime responsibilities | Updated canonical storage docs, collaboration extension boundary, cross-repo guideline note, AgenticRAG panel contract, and one ledger row | Media persistence is durable only after R2 and D1 confirmation; KV and Durable Objects are runtime accelerators/sync channels, not canonical blob or provenance stores. | Re-run `sync_map.py --mode check` after any new media doc is added, and keep Dev-only until a separate commit/push/deploy instruction. | 2026-06-18 |
+
 ## 2026-06-17
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

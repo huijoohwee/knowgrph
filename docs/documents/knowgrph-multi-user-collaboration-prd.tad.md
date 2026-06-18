@@ -1,10 +1,10 @@
 ---
 title: "Knowgrph Multi-User Collaboration PRD and TAD"
 doc_type: "PRD/TAD"
-version: "1.1.2"
-date: "2026-06-06"
+version: "1.2.0"
+date: "2026-06-18"
 status: "Accepted and implemented P2P pilot"
-scope: "MainPanel Collaboration, no-server WebRTC invite/answer sessions, peer roster, presence, document sync, targeted follow mode"
+scope: "MainPanel Collaboration, no-server WebRTC invite/answer sessions, peer roster, presence, document sync, targeted follow mode, planned Cloudflare media-room extension"
 lang: "en-US"
 guideline: "/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/prd-tad-guidelines.md"
 source_root: "/Users/huijoohwee/Documents/GitHub/knowgrph"
@@ -13,8 +13,8 @@ deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
 
 # Knowgrph Multi-User Collaboration - PRD & TAD
 
-**Document Version**: 1.1.2
-**Date**: 2026-06-06
+**Document Version**: 1.2.0
+**Date**: 2026-06-18
 **Status**: Accepted and implemented P2P pilot  
 **Scope**: MainPanel Collaboration, no-server WebRTC invite/answer sessions, peer roster, presence, document sync, targeted follow mode
 
@@ -36,7 +36,7 @@ deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
 | PRD authoring | Stories, acceptance, MoSCoW, ROI, and TCO are explicit | Passed | Product Contract, Prioritization, Success Metrics |
 | TAD authoring | Components, data flows, contracts, ADRs, and quality attributes are explicit | Passed | Architecture Contract, Data Flow, ADR, Quality Attributes |
 | Alignment | Requirements trace to implementation and `/goal` conditions | Passed | Requirement Traceability Matrix and Goal Conditions |
-| Living document | Version-stamped and scoped to source-owned behavior | Passed | Version `1.1.2`; planned extension boundary retained |
+| Living document | Version-stamped and scoped to source-owned behavior | Passed | Version `1.2.0`; planned extension boundary retained |
 
 ## Product Contract
 
@@ -109,6 +109,20 @@ ROI estimate uses `(User Impact x Reach) / (Build Hours + Monthly TCO + Token Co
 | Collaboration icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
 | App-level Collaboration open and host invite smoke | `canvas/src/components/toolbar/useCanvasToolbarContext.ts`, `canvas/scripts/verify-multi-user-collaboration-e2e.ts` | Shipped |
 | Runtime and UI regression tests | `canvas/src/__tests__/mainPanelCollaboration.test.tsx` and split collaboration test owners | Shipped |
+
+### Planned Extension: Runtime Media Collaboration
+
+The implemented P2P pilot remains the shipped collaboration baseline. Cloudflare-backed media collaboration is a planned extension for workspaces that need durable image/audio/video sharing across collaborators, refreshes, and devices.
+
+| Capability | Storage owner | Collaboration role |
+|---|---|---|
+| FloatingPanel Media and `@ Upload Media` | Shared Media upload/inventory helpers | Upload or select image/audio/video and insert a typed inline chip into the active card field. |
+| R2 | Storage Worker object route | Persist media binary blobs; browser object URLs and provider URLs are never durable state. |
+| D1 | `media_artifacts` metadata/provenance | Record content type, object key, source action, workspace/run/card context, and provenance. |
+| KV | Media access namespace | Cache short-lived openable URLs only when a real namespace is bound. |
+| Durable Objects | Canvas room object | Broadcast latest media asset notification and room sync state to connected collaborators. |
+
+Acceptance for this extension requires R2 object confirmation and D1 metadata confirmation before a media item can be presented as Cloudflare-synced. Durable Objects may fan out media-room notifications, but they must not become the canonical blob or provenance store.
 
 ### Component Specifications
 

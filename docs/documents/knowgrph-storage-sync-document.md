@@ -3,8 +3,8 @@ title: "Knowgrph Storage & Sync"
 id: "md:knowgrph-storage-sync-document"
 author: "airvio / joohwee"
 date: "2026-06-01"
-updated: "2026-06-14"
-version: "3.1.0"
+updated: "2026-06-18"
+version: "3.2.0"
 status: "deployed-dev; prod/cloudflare deploy remains manual"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -133,6 +133,19 @@ Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storag
 When on, the app keeps the workspace seed refresh loop active and allows same-file collaborative rooms to sync through PocketBase + Yjs. When off, seed refresh and collaboration room sync are paused; local Source Files persistence and graph composition remain local.
 
 Generated artifact publication remains explicitly opt-in through the runtime storage setting. A generated image/video/binary artifact is considered synced across Dev, Prod, and Cloudflare only when both checks pass: the Worker blob URL responds through `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*`, and the sibling manifest is readable through the D1 document route. AI/LLM generated media that participates in collaborative canvas state additionally uses `/api/storage/media/assets` to confirm the R2 object, persist D1 metadata/provenance, cache an operator-supplied access URL in KV when `KNOWGRPH_MEDIA_ACCESS_KV` is bound, and notify `KNOWGRPH_CANVAS_ROOM` when a collaboration room id is present. Local generated files, browser object URLs, provider URLs, and embedded `srcdoc` alone are proof of Dev output only, not Cloudflare persistence.
+
+#### Media Upload And `@` Command Runtime
+
+FloatingPanel Media is the rich-media catalog, not a storage settings panel. Upload Media from the panel and `@ Upload Media` from an active card field must call the same shared upload helper, produce the same image/audio/video asset record, and refresh the same Media inventory. The `@` insertion path adds an inline media chip to the selected card field without changing the surrounding text typography or recomputing the card surface.
+
+| Runtime surface | Storage responsibility |
+|---|---|
+| FloatingPanel Media | List, rename, delete, open, and insert persisted media records through shared media inventory helpers. |
+| `@ Upload Media` | Reuse FloatingPanel Media upload logic, then insert the resulting media record into the active card field as an inline chip. |
+| R2 | Store image/audio/video binary blobs under the configured workspace/object prefix. |
+| D1 | Store media asset metadata, provenance, content type, source action, and workspace/card/run context. |
+| KV | Cache short-lived access URLs only when `KNOWGRPH_MEDIA_ACCESS_KV` is bound. |
+| Durable Objects | Sync latest media room state and collaborator notifications when `KNOWGRPH_CANVAS_ROOM` is bound. |
 
 ### Why This Remains The Default
 

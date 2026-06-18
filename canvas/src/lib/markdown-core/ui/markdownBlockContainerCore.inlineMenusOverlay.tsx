@@ -131,15 +131,16 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       thumbnailUrl: candidate.thumbnailUrl,
       onSelect: () => applyMediaCommandCandidate(candidate),
     }))
-    const setModeByActionId: Record<Exclude<InlineVariableCommandId, 'insert-reference' | 'inline-declaration' | 'insert-image' | 'insert-video' | 'image-reference' | 'video-reference'>, () => void> = {
+    const setModeByActionId: Record<Exclude<InlineVariableCommandId, 'insert-reference' | 'inline-declaration' | 'insert-image' | 'insert-audio' | 'insert-video' | 'image-reference' | 'audio-reference' | 'video-reference'>, () => void> = {
       'browse-variable': () => setVariableMenu(prev => ({ ...prev, mode: 'ref' })),
+      'upload-media': () => setVariableMenu(prev => ({ ...prev, mode: 'ref' })),
       'new-variable': () => setVariableMenu(prev => ({ ...prev, mode: 'create' })),
       'edit-variable': () => setVariableMenu(prev => ({ ...prev, mode: 'update' })),
       'fallback-reference': () => setVariableMenu(prev => ({ ...prev, mode: 'fallback' })),
       'delete-variable': () => applyVariableToken('delete'),
     }
     const modeActionItems = INLINE_VARIABLE_COMMAND_ACTIONS
-      .filter(action => action.id !== 'insert-reference' && action.id !== 'inline-declaration' && action.id !== 'insert-image' && action.id !== 'insert-video' && action.id !== 'image-reference' && action.id !== 'video-reference')
+      .filter(action => action.id !== 'insert-reference' && action.id !== 'inline-declaration' && action.id !== 'insert-image' && action.id !== 'insert-audio' && action.id !== 'insert-video' && action.id !== 'image-reference' && action.id !== 'audio-reference' && action.id !== 'video-reference')
       .map(action => ({
         id: action.id,
         label: action.label,
@@ -149,7 +150,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
         danger: action.danger,
         onSelect: setModeByActionId[action.id],
       }))
-    const mediaInsertActionItems = (['insert-image', 'insert-video'] as const).map(actionId => {
+    const mediaInsertActionItems = (['insert-image', 'insert-audio', 'insert-video'] as const).map(actionId => {
       const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)
       const kind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[actionId]
       const fallbackCandidate = mediaCommandCandidates.find(candidate => candidate.kind === kind)
@@ -164,7 +165,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
         onSelect: () => fallbackCandidate ? applyMediaCommandCandidate(fallbackCandidate) : applyTurnInto(kind),
       }
     })
-    const mediaActionItems = (['image-reference', 'video-reference'] as const).map(actionId => {
+    const mediaActionItems = (['image-reference', 'audio-reference', 'video-reference'] as const).map(actionId => {
       const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)
       const key = INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID[actionId]
       return {

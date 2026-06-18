@@ -16,12 +16,15 @@ export type InlineSlashCommandId =
 
 export type InlineVariableCommandId =
   | 'browse-variable'
+  | 'upload-media'
   | 'insert-reference'
   | 'new-variable'
   | 'inline-declaration'
   | 'insert-image'
+  | 'insert-audio'
   | 'insert-video'
   | 'image-reference'
+  | 'audio-reference'
   | 'video-reference'
   | 'edit-variable'
   | 'fallback-reference'
@@ -61,7 +64,7 @@ export type ParsedInlineVariableCommandQuery = {
   fallback: string
 }
 
-export type InlineMediaKind = 'image' | 'video'
+export type InlineMediaKind = 'image' | 'audio' | 'video'
 
 export type InlineMediaCommandCandidate = {
   id: string
@@ -87,20 +90,26 @@ export const INLINE_VARIABLE_KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
 
 export const INLINE_MEDIA_COMMAND_ENTRY_LABELS = [
   'Image insertion',
+  'Audio insertion',
   'Video insertion',
   'Image reference',
+  'Audio reference',
   'Video reference',
 ] as const
 
 export const INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID = {
   'image-reference': 'imageUrl',
+  'audio-reference': 'audioUrl',
   'video-reference': 'videoUrl',
 } as const satisfies Partial<Record<InlineVariableCommandId, string>>
 
 export const INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID = {
   'insert-image': 'image',
+  'insert-audio': 'audio',
   'insert-video': 'video',
-} as const satisfies Partial<Record<InlineVariableCommandId, 'image' | 'video'>>
+} as const satisfies Partial<Record<InlineVariableCommandId, InlineMediaKind>>
+
+export const INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID = 'upload-media' as const satisfies InlineVariableCommandId
 
 export const INLINE_SLASH_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineSlashCommandId>[] = [
   {
@@ -221,6 +230,14 @@ export const INLINE_KEYWORD_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpe
 
 export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineVariableCommandId>[] = [
   {
+    id: INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
+    kind: 'variable',
+    label: 'Upload Media',
+    group: 'Insert media',
+    description: 'Upload image, audio, or video through the shared Media storage flow',
+    keywords: ['upload', 'media', 'image', 'audio', 'video', 'r2', 'storage'],
+  },
+  {
     id: 'browse-variable',
     kind: 'variable',
     label: 'Browse variables',
@@ -269,12 +286,28 @@ export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSp
     keywords: ['video', 'media', 'insert', 'videoUrl', 'clip'],
   },
   {
+    id: 'insert-audio',
+    kind: 'variable',
+    label: 'Audio',
+    group: 'Insert media',
+    description: 'Open audio insertion from @ commands',
+    keywords: ['audio', 'media', 'insert', 'audioUrl', 'sound'],
+  },
+  {
     id: 'image-reference',
     kind: 'variable',
     label: 'Image reference',
     group: 'Media',
     description: 'Insert {{imageUrl}} for image-backed cards',
     keywords: ['image', 'imageUrl', 'media', 'asset'],
+  },
+  {
+    id: 'audio-reference',
+    kind: 'variable',
+    label: 'Audio reference',
+    group: 'Media',
+    description: 'Insert {{audioUrl}} for audio-backed cards',
+    keywords: ['audio', 'audioUrl', 'media', 'sound'],
   },
   {
     id: 'video-reference',
@@ -342,13 +375,16 @@ const INLINE_MEDIA_URL_SOURCE_PATTERN = String.raw`(?:https?:\/\/|\/)[^\s"'<>),\
 const INLINE_MEDIA_URL_PATTERN = new RegExp(INLINE_MEDIA_URL_SOURCE_PATTERN, 'gi')
 const INLINE_MEDIA_KEY_VALUE_PATTERN = new RegExp(String.raw`^\s*["']?([A-Za-z0-9_.-]{1,96})["']?\s*[:=]\s*["']?(${INLINE_MEDIA_URL_SOURCE_PATTERN})`, 'i')
 const INLINE_IMAGE_KEY_PATTERN = /(image|img|thumbnail|poster|cover|still|artwork)/i
+const INLINE_AUDIO_KEY_PATTERN = /(audio|sound|music|voice|narration|tts)/i
 const INLINE_VIDEO_KEY_PATTERN = /(video|clip|movie|trailer|watch|playback|stream)/i
 const INLINE_IMAGE_URL_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i
+const INLINE_AUDIO_URL_PATTERN = /\.(?:aac|aiff?|flac|m4a|mp3|oga|ogg|opus|wav|weba)(?:[?#].*)?$/i
 const INLINE_VIDEO_URL_PATTERN = /\.(?:m3u8|m4v|mov|mp4|mpeg|mpg|ogg|ogv|webm)(?:[?#].*)?$/i
 
 function inferInlineMediaKind(key: string | undefined, url: string): InlineMediaKind | null {
   const sourceKey = String(key || '')
   if (INLINE_IMAGE_KEY_PATTERN.test(sourceKey)) return 'image'
+  if (INLINE_AUDIO_KEY_PATTERN.test(sourceKey)) return 'audio'
   if (INLINE_VIDEO_KEY_PATTERN.test(sourceKey)) return 'video'
   let parsed: URL | null = null
   try {
@@ -358,19 +394,21 @@ function inferInlineMediaKind(key: string | undefined, url: string): InlineMedia
   }
   const host = parsed?.hostname.toLowerCase() || ''
   if (INLINE_IMAGE_URL_PATTERN.test(url) || host.includes('ytimg') || host.includes('image') || host.startsWith('img.')) return 'image'
+  if (INLINE_AUDIO_URL_PATTERN.test(url) || host.includes('audio') || host.includes('sound')) return 'audio'
   if (INLINE_VIDEO_URL_PATTERN.test(url) || host.includes('youtube.') || host === 'youtu.be' || host.includes('vimeo.')) return 'video'
   return null
 }
 
 function buildInlineMediaCandidateLabel(kind: InlineMediaKind, sourceKey: string | undefined, url: string): string {
   const key = String(sourceKey || '').trim()
-  if (key) return `${kind === 'image' ? 'Image' : 'Video'}: ${key}`
+  const label = kind === 'image' ? 'Image' : kind === 'audio' ? 'Audio' : 'Video'
+  if (key) return `${label}: ${key}`
   try {
     const parsed = new URL(url)
     const pathName = parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname
-    return `${kind === 'image' ? 'Image' : 'Video'}: ${pathName}`
+    return `${label}: ${pathName}`
   } catch {
-    return kind === 'image' ? 'Image URL' : 'Video URL'
+    return `${label} URL`
   }
 }
 
@@ -545,6 +583,11 @@ export function buildInlineMediaEmbed(args: {
       .replace(/[[\]\n\r]/g, ' ')
       .trim() || 'Image alt'
     return `![${alt}](${url || 'image-url'})`
+  }
+  if (args.kind === 'audio') {
+    const title = label.replace(/[\n\r<>]/g, ' ').replace(/"/g, '&quot;').trim()
+    const titleAttr = title ? ` title="${title}"` : ''
+    return `<audio src="${url || selected || 'audio-url'}"${titleAttr} controls></audio>`
   }
   const poster = String(args.thumbnailUrl || '').trim()
   const posterAttr = poster ? ` poster="${poster.replace(/"/g, '&quot;')}"` : ''

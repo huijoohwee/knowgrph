@@ -3,8 +3,8 @@ title: "Knowgrph Artifact & Media Storage Architecture"
 id: "md:knowgrph-artifact-media-storage-architecture"
 author: "airvio / joohwee"
 date: "2026-06-11"
-updated: "2026-06-14"
-version: "1.1.0"
+updated: "2026-06-18"
+version: "1.2.0"
 status: "canonical"
 doc_type: "Technical Architecture Documentation"
 lang: "en-US"
@@ -30,8 +30,8 @@ traceability:
 
 # Knowgrph — Artifact & Media Storage Architecture
 
-**Version**: 1.1.0
-**Date**: 2026-06-14
+**Version**: 1.2.0
+**Date**: 2026-06-18
 **Status**: Canonical — supersedes any inline architecture notes in demo docs
 **Owner**: Knowgrph canonical docs
 **Scope**: Artifact and media storage, access, auto-save, replay, and infrastructure constraints for all agentic canvas runs
@@ -47,9 +47,10 @@ traceability:
 | UI + static | Cloudflare Pages | `airvio.co/knowgrph` |
 | Agent compute | Cloudflare Workers | `McpAgent` at `airvio.co/knowgrph/mcp` |
 | AI routing + cache | Cloudflare AI Gateway | unified billing, fallback, token count |
-| Document store | Cloudflare D1 | run manifests, node metadata, auto-save revisions |
-| Durable state | Cloudflare Durable Objects | per-run `RunManifest DO` |
-| Media bytes | Cloudflare R2 | images (`seedream`) and videos (`seedance`) |
+| Document store | Cloudflare D1 | run manifests, node metadata, media metadata/provenance, auto-save revisions |
+| Durable state | Cloudflare Durable Objects | per-run `RunManifest DO` and room-level canvas sync notifications |
+| Access cache | Cloudflare KV | short-lived media access URL cache when a namespace is bound |
+| Media bytes | Cloudflare R2 | image, audio, and video binary blobs |
 | Text / image / video models | BytePlus OpenArk | `agnes`, `seed`, `seedream-*`, `seedance-*`, `dreamina-*` |
 | Payments | Stripe | Checkout, payout |
 
@@ -70,7 +71,7 @@ architecture-beta
   service mcp(server)[McpAgent Worker] in cloudflare
   service gateway(server)[Cloudflare AI Gateway] in cloudflare
   service manifest(database)[Run Manifest DO] in cloudflare
-  service r2(database)[R2 image and video assets] in cloudflare
+  service r2(database)[R2 image audio and video assets] in cloudflare
   service byteplus(server)[BytePlus seedream and seedance] in providers
   service stripe(database)[Stripe] in providers
   web:R --> L:mcp
@@ -177,6 +178,19 @@ Image and video outputs are **separate canvas nodes** — never merged into one 
 ---
 
 ## Media Storage — Persist on Generate
+
+Generated or uploaded media is durable only after the Cloudflare storage path confirms both bytes and metadata. Browser object URLs, provider-hosted URLs, local previews, and embedded `srcdoc` are transient render evidence and must not be treated as synced collaboration state.
+
+| Layer | Owner | Runtime contract |
+|---|---|---|
+| FloatingPanel Media | Media browser/catalog | Lists uploaded and generated image/audio/video records and inserts selected media into active card fields as inline mention chips. |
+| `@ Upload Media` command | Shared Media upload helper | Reuses the FloatingPanel Media upload utility and inventory builder; no second uploader, no panel-local storage config. |
+| R2 | Blob persistence | Stores image/audio/video binary objects under configured workspace/object prefixes. |
+| D1 | Metadata and provenance | Stores media asset metadata, content type, object key, source/provenance, workspace/run/card context, and persistence status. |
+| KV | Access URL cache | Stores short-lived browser-openable access URLs only when a real namespace is bound; it is not canonical metadata. |
+| Durable Objects | Collaboration sync state | Holds room-level canvas sync state and latest media notification for connected collaborators; it is not the blob or provenance store. |
+
+Inline media chips in card text are display references. Inserting a chip through `@` or by clicking FloatingPanel Media must preserve the existing field text typography, line height, and source string order while attaching the selected media reference as structured inline content.
 
 BytePlus media URLs are **ephemeral** (short-lived signed URLs). On generation success the `McpAgent` Worker:
 

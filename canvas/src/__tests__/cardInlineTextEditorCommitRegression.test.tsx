@@ -13,9 +13,11 @@ import {
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { UPLOADED_MEDIA_PANEL_STORAGE_KEY } from '@/lib/storage/uploadedMediaPanelItems'
 import { DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
 import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -384,6 +386,180 @@ export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
       throw new Error(`expected FloatingPanel Media pointer-down invoke to insert before blur/click cleanup, got ${latest}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardField() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+  const storageKey = 'knowgrph:floating-panel-media:uploaded-cloudflare-items:v1'
+  const mediaUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
+
+  try {
+    dom.window.localStorage.setItem(storageKey, JSON.stringify([{
+      id: 'cloudflare-media:sha256:uploaded-demo',
+      name: 'airvio-demo.jpg',
+      kind: 'image',
+      localUrl: '',
+      linkUrl: mediaUrl,
+      contentType: 'image/jpeg',
+      sizeBytes: 1024,
+      status: 'synced',
+      storage: {
+        workspaceId: 'airvio',
+        runId: 'upload-demo',
+        stageId: 'image',
+        shotId: 'airvio-demo',
+        objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+        publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+        publicUrl: mediaUrl,
+        accessUrl: `${mediaUrl}?kg_media_token=test`,
+        contentHash: 'sha256:uploaded-demo',
+        contentType: 'image/jpeg',
+        provenance: { fileName: 'airvio-demo.jpg', sizeBytes: 1024 },
+        response: {
+          ok: true,
+          apiVersion: 'knowgrph.storage.v1',
+          workspaceId: 'airvio',
+          artifactId: 'upload-demo:image:airvio-demo',
+          objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+          publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+          durableR2Url: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+          contentHash: 'sha256:uploaded-demo',
+          storage: { r2: 'confirmed', d1: 'persisted', kv: 'skipped', durableObject: 'skipped' },
+          access: { cacheKey: null, expiresAtMs: null, url: `${mediaUrl}?kg_media_token=test` },
+        },
+      },
+      error: null,
+    }]))
+
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null,
+          React.createElement(CardInlineTextEditor, {
+            value: 'Review source evidence.',
+            ariaLabel: 'Action text',
+            placeholder: 'Add action',
+            canEdit: true,
+            multiline: true,
+            rows: 3,
+            onCommit: value => committedValues.push(value),
+          }),
+          React.createElement(CommandMenuCatalogPanel),
+        ),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 1)
+    })
+
+    const mediaName = container.querySelector('[data-kg-media-upload-name-text="cloudflare-media:sha256:uploaded-demo"]')
+    if (!(mediaName instanceof dom.window.HTMLElement)) throw new Error('expected uploaded media name text to be the primary insert target')
+    const renameButton = container.querySelector('[data-kg-media-upload-rename="cloudflare-media:sha256:uploaded-demo"]')
+    if (!(renameButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media rename to stay an explicit row control')
+
+    await act(async () => {
+      mediaName.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 2)
+    })
+
+    const latest = committedValues.at(-1) || ''
+    if (!latest.includes('Review source evidence.\n![airvio-demo.jpg](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=')) {
+      throw new Error(`expected uploaded Media name click to insert Cloudflare image into active Action field, got ${latest}`)
+    }
+  } finally {
+    dom.window.localStorage.removeItem(storageKey)
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const actionValues: string[] = []
+  const dialogueValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null,
+          React.createElement(CardInlineTextEditor, {
+            value: 'Review the source evidence into editable storyboard elements.',
+            ariaLabel: 'Action',
+            placeholder: 'Add action',
+            canEdit: true,
+            editActivation: 'click',
+            multiline: true,
+            rows: 3,
+            onCommit: value => actionValues.push(value),
+          }),
+          React.createElement(CardInlineTextEditor, {
+            value: 'Existing dialogue',
+            ariaLabel: 'Dialogue',
+            placeholder: 'Add dialogue',
+            canEdit: true,
+            editActivation: 'click',
+            multiline: true,
+            rows: 3,
+            onCommit: value => dialogueValues.push(value),
+          }),
+        ),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const actionDisplay = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit="1"]')
+    const dialogueDisplay = container.querySelector('[aria-label="Dialogue"][data-kg-card-inline-edit="1"]')
+    if (!(actionDisplay instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
+    if (!(dialogueDisplay instanceof dom.window.HTMLElement)) throw new Error('expected Dialogue display field')
+
+    await act(async () => {
+      dialogueDisplay.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      dialogueDisplay.dispatchEvent(new dom.window.MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 1)
+    })
+
+    const range = dom.window.document.createRange()
+    range.selectNodeContents(actionDisplay)
+    const selection = dom.window.document.getSelection()
+    if (!selection) throw new Error('expected browser selection')
+    selection.removeAllRanges()
+    selection.addRange(range)
+
+    const inserted = insertMediaIntoActiveCardInlineTextEditor({
+      kind: 'image',
+      url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/action-target.jpg?kg_media_token=token',
+      label: 'action-target.jpg',
+      sourceKey: 'sha256:action-target',
+    })
+    if (!inserted) throw new Error('expected selected Action display field to accept Media insertion')
+
+    const latestAction = actionValues.at(-1) || ''
+    if (!latestAction.includes('Review the source evidence into editable storyboard elements.\n![action-target.jpg](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/action-target.jpg?kg_media_token=token)')) {
+      throw new Error(`expected selected Action field to receive media insertion, got ${latestAction}`)
+    }
+    if (dialogueValues.length !== 0) {
+      throw new Error(`expected stale Dialogue target not to receive selected Action media insertion, got ${JSON.stringify(dialogueValues)}`)
     }
   } finally {
     await act(async () => {
@@ -927,6 +1103,237 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
   }
 }
 
+export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+  const publicUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
+  const accessUrl = `${publicUrl}?kg_media_token=token`
+  const storage = {
+    workspaceId: 'airvio',
+    runId: 'upload-demo',
+    stageId: 'image',
+    shotId: 'airvio-demo',
+    objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+    publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+    publicUrl,
+    accessUrl,
+    contentHash: 'sha256:uploaded-at-command-demo',
+    contentType: 'image/jpeg',
+    provenance: {
+      fileName: 'airvio_.JPEG',
+      sizeBytes: 1234,
+    },
+    response: {
+      ok: true,
+      apiVersion: 1,
+      workspaceId: 'airvio',
+      artifactId: 'upload-demo:image:airvio-demo',
+      objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+      publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+      durableR2Url: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+      contentHash: 'sha256:uploaded-at-command-demo',
+      storage: { r2: 'confirmed', d1: 'persisted', kv: 'skipped', durableObject: 'skipped' },
+      access: { cacheKey: null, expiresAtMs: null, url: accessUrl },
+    },
+  }
+
+  try {
+    dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
+      id: 'cloudflare-media:sha256:uploaded-at-command-demo',
+      name: 'airvio_.JPEG',
+      kind: 'image',
+      localUrl: '',
+      linkUrl: accessUrl,
+      contentType: 'image/jpeg',
+      sizeBytes: 1234,
+      status: 'synced',
+      storage,
+      error: null,
+    }]))
+
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review the source evidence into editable storyboard elements.',
+          ariaLabel: 'Action',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          onCommit: next => {
+            committedValues.push(next)
+          },
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+
+    const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 1)
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      textarea.setSelectionRange(0, 0)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await waitForFrames(dom.window, 4)
+    })
+
+    const mediaButtons = Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]
+    const uploadMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('Upload Media') && String(button.textContent || '').includes('Upload image, audio, or video through the shared Media storage flow'))
+    if (!(uploadMediaButton instanceof dom.window.HTMLButtonElement)) {
+      const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
+      throw new Error(`expected @ command menu to include shared Upload Media action, got ${buttonText}`)
+    }
+    const uploadedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('airvio_.JPEG') && String(button.textContent || '').includes('Uploaded media from Cloudflare storage'))
+    if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) {
+      const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
+      throw new Error(`expected @ command menu to include uploaded FloatingPanel Media item, got ${buttonText}`)
+    }
+
+    await act(async () => {
+      uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      uploadedMediaButton.click()
+      await waitForFrames(dom.window, 2)
+    })
+
+    const latest = committedValues.at(-1) || ''
+    if (!latest.startsWith('![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=')) {
+      throw new Error(`expected @ command media insertion to commit uploaded image into Action field, got ${JSON.stringify(committedValues)}`)
+    }
+    if (!latest.includes(')\n\nReview the source evidence into editable storyboard elements.')) {
+      throw new Error(`expected @ command media insertion to keep media as its own block before existing Action text, got ${JSON.stringify(latest)}`)
+    }
+  } finally {
+    dom.window.localStorage.removeItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMedia() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+  const publicUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
+  const accessUrl = `${publicUrl}?kg_media_token=token`
+  const initialValue = [
+    `![airvio_.JPEG](${accessUrl})`,
+    '',
+    'Review the source evidence into editable storyboard elements.',
+  ].join('\n')
+
+  try {
+    dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
+      id: 'cloudflare-media:sha256:uploaded-at-command-demo',
+      name: 'airvio_.JPEG',
+      kind: 'image',
+      localUrl: '',
+      linkUrl: accessUrl,
+      contentType: 'image/jpeg',
+      sizeBytes: 1234,
+      status: 'synced',
+      storage: {
+        workspaceId: 'airvio',
+        runId: 'upload-demo',
+        stageId: 'image',
+        shotId: 'airvio-demo',
+        objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+        publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+        publicUrl,
+        accessUrl,
+        contentHash: 'sha256:uploaded-at-command-demo',
+        contentType: 'image/jpeg',
+        provenance: { fileName: 'airvio_.JPEG', sizeBytes: 1234 },
+        response: {
+          ok: true,
+          apiVersion: 1,
+          workspaceId: 'airvio',
+          artifactId: 'upload-demo:image:airvio-demo',
+          objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
+          publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+          durableR2Url: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
+          contentHash: 'sha256:uploaded-at-command-demo',
+          storage: { r2: 'confirmed', d1: 'persisted', kv: 'skipped', durableObject: 'skipped' },
+          access: { cacheKey: null, expiresAtMs: null, url: accessUrl },
+        },
+      },
+      error: null,
+    }]))
+
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: initialValue,
+          ariaLabel: 'Action',
+          placeholder: 'Add action',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          onCommit: next => {
+            committedValues.push(next)
+          },
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+
+    const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 1)
+    })
+
+    const textarea = container.querySelector('textarea[aria-label="Action"]')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
+    const variableButton = container.querySelector('button[title="Variable commands"]')
+    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
+
+    await act(async () => {
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      variableButton.click()
+      await waitForFrames(dom.window, 4)
+    })
+
+    const uploadedMediaButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[])
+      .find(button => String(button.textContent || '').includes('airvio_.JPEG'))
+    if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded Media item in @ command menu')
+
+    await act(async () => {
+      uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      uploadedMediaButton.click()
+      await waitForFrames(dom.window, 2)
+    })
+
+    if (committedValues.length !== 0) {
+      throw new Error(`expected duplicate @ media insertion to no-op without mutating Action text, got ${JSON.stringify(committedValues)}`)
+    }
+  } finally {
+    dom.window.localStorage.removeItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
 export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuRenameDraft() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1037,6 +1444,136 @@ export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow()
     const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
     if (text !== 'Review source sd123 evidence into editable storyboard elements.') {
       throw new Error(`expected inline media chip to remain spaced inside paragraph text flow, got ${JSON.stringify(text)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardMarkdownPreview, {
+          markdownText: [
+            'Review the source evidence into editable storyboard elements.',
+            '',
+            '![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token)',
+          ].join('\n'),
+          activeDocumentPath: '/__card_inline_text_editor/preview.md',
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
+    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
+    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
+    if (attachments) throw new Error(`expected standalone media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
+    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected uploaded media chip inline in the card text run, html=${container.innerHTML}`)
+    if (!String(inlineChip.textContent || '').includes('airvio_.JPEG')) {
+      throw new Error(`expected inline media chip to preserve media label, got ${JSON.stringify(inlineChip.textContent)}`)
+    }
+    const rootText = String(previewRoot.textContent || '').replace(/\s+/g, ' ').trim()
+    const chipText = String(inlineChip.textContent || '').replace(/\s+/g, ' ').trim()
+    const proseText = rootText.replace(chipText, '').replace(/\s+/g, ' ').trim()
+    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
+      throw new Error(`expected card prose preview to keep text typography separate from media label, got ${JSON.stringify({ rootText, chipText, proseText })}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypography() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardMarkdownPreview, {
+          markdownText: '![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) Review the source evidence into editable storyboard elements.',
+          activeDocumentPath: '/__card_inline_text_editor/preview.md',
+          className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
+    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
+    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
+    if (attachments) throw new Error(`expected boundary media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
+    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected boundary media to render as an inline chip, html=${container.innerHTML}`)
+    const proseText = String(previewRoot.textContent || '')
+      .replace(String(inlineChip.textContent || ''), '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
+      throw new Error(`expected boundary media to leave prose text unchanged, got ${JSON.stringify(proseText)}`)
+    }
+    const markdownParagraph = previewRoot.querySelector('article p, .prose p')
+    if (markdownParagraph) {
+      throw new Error(`expected boundary-media prose to avoid markdown paragraph typography, html=${container.innerHTML}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypography() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardMarkdownPreview, {
+          markdownText: 'Review the ![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) source evidence into editable storyboard elements.',
+          activeDocumentPath: '/__card_inline_text_editor/preview.md',
+          className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
+    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
+    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
+    if (attachments) throw new Error(`expected inline image media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
+    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected inline image media to render as an inline chip, html=${container.innerHTML}`)
+    const proseText = String(previewRoot.textContent || '')
+      .replace(String(inlineChip.textContent || ''), '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
+      throw new Error(`expected inline image media to leave prose typography text unchanged, got ${JSON.stringify(proseText)}`)
+    }
+    const markdownParagraph = previewRoot.querySelector('article p, .prose p')
+    if (markdownParagraph) {
+      throw new Error(`expected inline image media to avoid markdown paragraph typography, html=${container.innerHTML}`)
     }
   } finally {
     await act(async () => {

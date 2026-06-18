@@ -16,6 +16,7 @@ import {
   buildCardInlineTextMediaEmbed,
   clearActiveCardInlineTextExternalCommandTarget,
   setActiveCardInlineTextExternalCommandTarget,
+  setCardInlineTextExternalCommandElementTarget,
   type CardInlineTextExternalMediaCandidate,
 } from '@/lib/cards/cardInlineTextExternalCommands'
 
@@ -150,6 +151,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const [commandQuery, setCommandQuery] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
   const commandRootRef = React.useRef<HTMLElement | null>(null)
+  const displayRef = React.useRef<HTMLElement | null>(null)
   const lastEditRequestKeyRef = React.useRef<string | number | null>(null)
   const lastEditingRef = React.useRef(editing)
   const lastCommandPersistedDraftRef = React.useRef('')
@@ -300,9 +302,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     focusInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
   }, [])
 
-  const activateExternalCommandTarget = React.useCallback(() => {
+  const buildExternalCommandTarget = React.useCallback(() => {
     const targetId = id || ariaLabel
-    setActiveCardInlineTextExternalCommandTarget({
+    return {
       id: targetId,
       insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => {
         const latest = externalCommandStateRef.current
@@ -339,14 +341,30 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         latest.onCommit?.(next)
         return true
       },
-    })
+    }
   }, [ariaLabel, id])
+
+  const registerExternalCommandElementTarget = React.useCallback(() => {
+    setCardInlineTextExternalCommandElementTarget(displayRef.current, buildExternalCommandTarget())
+  }, [buildExternalCommandTarget])
+
+  const activateExternalCommandTarget = React.useCallback(() => {
+    const target = buildExternalCommandTarget()
+    setActiveCardInlineTextExternalCommandTarget(target)
+    setCardInlineTextExternalCommandElementTarget(displayRef.current, target)
+  }, [buildExternalCommandTarget])
 
   React.useEffect(() => {
     return () => {
+      setCardInlineTextExternalCommandElementTarget(displayRef.current, null)
       clearActiveCardInlineTextExternalCommandTarget(id || ariaLabel)
     }
   }, [ariaLabel, id])
+
+  React.useEffect(() => {
+    if (editing || !canEdit) return
+    registerExternalCommandElementTarget()
+  }, [canEdit, editing, registerExternalCommandElementTarget, value])
 
   if (editing && canEdit) {
     const commonEditorProps = {
@@ -448,6 +466,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
 
   return (
     <section
+      ref={displayRef}
       id={id}
       className={[
         displayClassName || '',
@@ -473,6 +492,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
           event.stopPropagation()
         }
       }}
+      onPointerUp={() => {
+        if (!canEdit) return
+        activateExternalCommandTarget()
+      }}
       onMouseDown={event => {
         if (!canEdit) return
         activateExternalCommandTarget()
@@ -482,6 +505,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         if (stopActivationPropagation) {
           event.stopPropagation()
         }
+      }}
+      onMouseUp={() => {
+        if (!canEdit) return
+        activateExternalCommandTarget()
       }}
       onClick={event => {
         if (!canEdit) return

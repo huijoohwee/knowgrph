@@ -9,12 +9,14 @@ import {
   INLINE_VARIABLE_COMMAND_ACTIONS,
   INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID,
   INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID,
+  INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
   buildInlineKeywordToken,
   buildInlineMediaEmbed,
   collectInlineKeywordCommandCandidates,
   collectInlineMediaCommandCandidates,
   isInlineVariableKey,
   parseInlineVariableCommandQuery,
+  type InlineMediaCommandCandidate,
   type InlineSlashCommandId,
   type InlineVariableCommandId,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -22,6 +24,16 @@ import {
   applyCommandMenuMediaNameDraftsToInlineCandidates,
   useCommandMenuMediaNameDrafts,
 } from '@/lib/command-menu/commandMenuMediaNameSync'
+import { listUploadedMediaFromKnowgrphStorage } from '@/lib/storage/uploadedMediaStorage'
+import {
+  buildUploadedMediaPanelItemFromStorage,
+  mergeUploadedMediaPanelItems,
+  readStoredUploadedMediaPanelItems,
+  UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT,
+  writeStoredUploadedMediaPanelItems,
+  type UploadedMediaPanelItem,
+} from '@/lib/storage/uploadedMediaPanelItems'
+import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -97,6 +109,53 @@ function replaceDraftRange(args: {
   focusCardInlineTextInputSelectionSoon(args.input, cursor)
 }
 
+function findInlineCommandTokenRange(args: {
+  text: string
+  selection: { start: number; end: number }
+  sigil: '@' | '/' | '#'
+}): { start: number; end: number } {
+  const text = String(args.text || '')
+  const start = Math.max(0, Math.min(text.length, args.selection.start))
+  const end = Math.max(start, Math.min(text.length, args.selection.end))
+  const selected = text.slice(start, end)
+  if (new RegExp(`^\\${args.sigil}[A-Za-z0-9_.-]{0,96}$`).test(selected)) return { start, end }
+  const preceding = text.slice(0, end)
+  const match = new RegExp(`\\${args.sigil}[A-Za-z0-9_.-]{0,96}$`).exec(preceding)
+  if (match) return { start: end - match[0].length, end }
+  return { start: end, end }
+}
+
+function insertMarkdownBlockRange(args: {
+  text: string
+  start: number
+  end: number
+  block: string
+}): { text: string; cursor: number } {
+  const text = String(args.text || '').replace(/\r/g, '')
+  const block = String(args.block || '').trim()
+  const start = Math.max(0, Math.min(text.length, args.start))
+  const end = Math.max(start, Math.min(text.length, args.end))
+  const before = text.slice(0, start).replace(/[ \t]+$/g, '')
+  const after = text.slice(end).replace(/^[ \t]+/g, '')
+  const prefix = before ? (before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n') : ''
+  const suffix = after ? (after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n') : ''
+  const next = `${before}${prefix}${block}${suffix}${after}`
+  return { text: next, cursor: before.length + prefix.length + block.length }
+}
+
+function readMediaCommandDuplicateNeedle(url: string): string {
+  const raw = String(url || '').trim()
+  if (!raw) return ''
+  try {
+    const parsed = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid')
+    parsed.searchParams.delete('kg_media_token')
+    const pathAndQuery = `${parsed.pathname}${parsed.search}`
+    return parsed.origin === 'https://example.invalid' ? pathAndQuery : `${parsed.origin}${pathAndQuery}`
+  } catch {
+    return raw.split('?kg_media_token=')[0]?.trim() || raw
+  }
+}
+
 function replaceCurrentLine(args: {
   input: HTMLInputElement | HTMLTextAreaElement | null
   draft: string
@@ -114,6 +173,63 @@ function replaceCurrentLine(args: {
     .replace(/^\s{0,3}(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|- \[[ xX]\]\s+)/, '')
     .trimStart()
   replaceDraftRange({ ...args, start: lineStart, end: lineEnd, replacement: `${args.prefix}${content}` })
+}
+
+function buildUploadedMediaInlineCommandCandidate(item: UploadedMediaPanelItem): InlineMediaCommandCandidate | null {
+  if (item.status !== 'synced' || !item.storage) return null
+  const url = String(item.linkUrl || item.storage.accessUrl || '').trim()
+  if (!url) return null
+  const sourceKey = String(item.storage.contentHash || item.storage.objectKey || item.id).trim()
+  return {
+    id: `uploaded-${item.id}`,
+    kind: item.kind,
+    url,
+    thumbnailUrl: item.kind === 'image' ? url : undefined,
+    label: item.name,
+    sourceKey,
+    description: 'Uploaded media from Cloudflare storage',
+    keywords: [item.kind, item.name, sourceKey, url].filter(Boolean),
+  }
+}
+
+function useUploadedMediaInlineCommandCandidates(): InlineMediaCommandCandidate[] {
+  const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
+
+  React.useEffect(() => {
+    let cancelled = false
+    setUploadedMediaItems(readStoredUploadedMediaPanelItems())
+    listUploadedMediaFromKnowgrphStorage().then(storageItems => {
+      if (cancelled) return
+      const cloudflareItems = storageItems
+        .map(buildUploadedMediaPanelItemFromStorage)
+        .filter((item): item is UploadedMediaPanelItem => !!item)
+      setUploadedMediaItems(prev => {
+        const next = mergeUploadedMediaPanelItems([...cloudflareItems, ...readStoredUploadedMediaPanelItems(), ...prev])
+        writeStoredUploadedMediaPanelItems(next)
+        return next
+      })
+    }).catch(() => {
+      void 0
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  React.useEffect(() => {
+    const onItemsChanged = () => setUploadedMediaItems(readStoredUploadedMediaPanelItems())
+    window.addEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
+    return () => {
+      window.removeEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
+    }
+  }, [])
+
+  return React.useMemo(
+    () => uploadedMediaItems.flatMap(item => {
+      const candidate = buildUploadedMediaInlineCommandCandidate(item)
+      return candidate ? [candidate] : []
+    }),
+    [uploadedMediaItems],
+  )
 }
 
 export function CardInlineTextCommandMenus(props: {
@@ -147,7 +263,24 @@ export function CardInlineTextCommandMenus(props: {
     setDraft,
   } = props
   const [menuFrame, setMenuFrame] = React.useState<CardInlineCommandMenuFrame | null>(null)
+  const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
+  const uploadObjectUrlsRef = React.useRef<Set<string>>(new Set())
+  const [inlineUploadItems, setInlineUploadItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
+  const uploadedMediaCommandCandidates = useUploadedMediaInlineCommandCandidates()
+
+  React.useEffect(() => {
+    return () => {
+      for (const url of uploadObjectUrlsRef.current) {
+        try {
+          URL.revokeObjectURL(url)
+        } catch {
+          void 0
+        }
+      }
+      uploadObjectUrlsRef.current.clear()
+    }
+  }, [])
 
   React.useLayoutEffect(() => {
     if (!commandMode) {
@@ -202,6 +335,70 @@ export function CardInlineTextCommandMenus(props: {
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next)
   }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
 
+  const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
+    const text = String(draft || '')
+    const duplicateNeedle = readMediaCommandDuplicateNeedle(candidate.url)
+    if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
+      setCommandMode(null)
+      setCommandQuery('')
+      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+      return
+    }
+    const selection = commandSelectionRef.current
+    const selected = text.slice(
+      Math.max(0, Math.min(text.length, selection.start)),
+      Math.max(0, Math.min(text.length, selection.end)),
+    )
+    const replaceRange = selected && !/^@[A-Za-z0-9_.-]{0,96}$/.test(selected)
+      ? { start: selection.end, end: selection.end }
+      : findInlineCommandTokenRange({ text, selection, sigil: '@' })
+    const replacement = buildInlineMediaEmbed({
+      kind: candidate.kind,
+      url: candidate.url,
+      thumbnailUrl: candidate.thumbnailUrl,
+      label: candidate.label,
+      selectedText: selected,
+      sourceKey: candidate.sourceKey,
+    })
+    const next = insertMarkdownBlockRange({
+      text,
+      start: replaceRange.start,
+      end: replaceRange.end,
+      block: replacement,
+    })
+    setDraft(next.text)
+    onCommandDraftChange?.(next.text)
+    focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor)
+    setCommandMode(null)
+    setCommandQuery('')
+    if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
+  }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
+
+  const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
+    const results = await uploadFilesToUploadedMediaPanel({
+      files: Array.from(fileList || []),
+      setItems: setInlineUploadItems,
+      registerObjectUrl: url => uploadObjectUrlsRef.current.add(url),
+    })
+    const first = results[0]
+    if (!first) {
+      setCommandMode(null)
+      setCommandQuery('')
+      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+      return
+    }
+    insertMediaCommand({
+      id: `uploaded-${first.item.id}`,
+      kind: first.item.kind,
+      url: first.storage.accessUrl || first.item.linkUrl,
+      thumbnailUrl: first.item.kind === 'image' ? first.storage.accessUrl || first.item.linkUrl : undefined,
+      label: first.item.name,
+      sourceKey: first.storage.contentHash,
+      description: 'Uploaded media from Cloudflare storage',
+      keywords: [first.item.kind, first.item.name, first.storage.contentHash, first.storage.objectKey].filter(Boolean),
+    }, { closeAfterApply: true })
+  }, [commandSelectionRef, inputRef, insertMediaCommand, setCommandMode, setCommandQuery])
+
   const slashCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const prefixById: Partial<Record<InlineSlashCommandId, string>> = {
       h1: '# ',
@@ -236,7 +433,14 @@ export function CardInlineTextCommandMenus(props: {
           if (action.id === 'image' || action.id === 'video') {
             const selection = commandSelectionRef.current
             const selected = String(draft || '').slice(selection.start, selection.end)
-            replaceCommandSelection(buildInlineMediaEmbed({ kind: action.id, selectedText: selected }))
+            insertMediaCommand({
+              id: `slash-${action.id}`,
+              kind: action.id,
+              url: '',
+              label: selected,
+              description: action.description,
+              keywords: [...action.keywords],
+            })
             return
           }
           if (action.id === 'divider') {
@@ -247,14 +451,17 @@ export function CardInlineTextCommandMenus(props: {
           }
         },
       }))
-  }, [closeCommandMenu, commandSelectionRef, draft, inputRef, onCommandDraftChange, replaceCommandSelection, setDraft])
+  }, [closeCommandMenu, commandSelectionRef, draft, inputRef, insertMediaCommand, onCommandDraftChange, replaceCommandSelection, setDraft])
 
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const parsed = parseInlineVariableCommandQuery(commandQuery)
     const queryKey = parsed.key
-    const mediaCandidates = applyCommandMenuMediaNameDraftsToInlineCandidates(collectInlineMediaCommandCandidates({
-      draftText: [commandContextText, draft].filter(Boolean).join('\n'),
-    }), mediaNameDrafts).slice(0, 6)
+    const mediaCandidates = applyCommandMenuMediaNameDraftsToInlineCandidates([
+      ...uploadedMediaCommandCandidates,
+      ...collectInlineMediaCommandCandidates({
+        draftText: [commandContextText, draft].filter(Boolean).join('\n'),
+      }),
+    ], mediaNameDrafts).slice(0, 12)
     const mediaCandidateItems = mediaCandidates
       .filter(candidate => !queryKey || candidate.label.toLowerCase().includes(queryKey.toLowerCase()) || candidate.url.toLowerCase().includes(queryKey.toLowerCase()))
       .map(candidate => ({
@@ -265,18 +472,7 @@ export function CardInlineTextCommandMenus(props: {
         keywords: candidate.keywords,
         thumbnailKind: candidate.kind,
         thumbnailUrl: candidate.thumbnailUrl,
-        onSelect: () => {
-          const selection = commandSelectionRef.current
-          const selected = String(draft || '').slice(selection.start, selection.end)
-          replaceCommandSelection(buildInlineMediaEmbed({
-            kind: candidate.kind,
-            url: candidate.url,
-            thumbnailUrl: candidate.thumbnailUrl,
-            label: candidate.label,
-            selectedText: selected,
-            sourceKey: candidate.sourceKey,
-          }), { closeAfterApply: true })
-        },
+        onSelect: () => insertMediaCommand(candidate, { closeAfterApply: true }),
       }))
     const suggestionItems = collectMarkdownVariableBrowseRows({ draftText: draft })
       .filter(row => !queryKey || row.key.toLowerCase().includes(queryKey.toLowerCase()))
@@ -296,7 +492,7 @@ export function CardInlineTextCommandMenus(props: {
     const insertReference = actionById['insert-reference']
     const inlineDeclaration = actionById['inline-declaration']
     const fallbackReference = actionById['fallback-reference']
-    const mediaInsertActions = (['insert-image', 'insert-video'] as const).map((actionId: InlineVariableCommandId) => {
+    const mediaInsertActions = (['insert-image', 'insert-audio', 'insert-video'] as const).map((actionId: InlineVariableCommandId) => {
       const action = actionById[actionId]
       const kind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[actionId]
       const fallbackCandidate = mediaCandidates.find(candidate => candidate.kind === kind)
@@ -309,20 +505,18 @@ export function CardInlineTextCommandMenus(props: {
         thumbnailKind: fallbackCandidate?.kind,
         thumbnailUrl: fallbackCandidate?.thumbnailUrl,
         onSelect: () => {
-          const selection = commandSelectionRef.current
-          const selected = String(draft || '').slice(selection.start, selection.end)
-          replaceCommandSelection(buildInlineMediaEmbed({
+          insertMediaCommand(fallbackCandidate || {
+            id: action.id,
             kind,
-            url: fallbackCandidate?.url,
-            thumbnailUrl: fallbackCandidate?.thumbnailUrl,
-            label: fallbackCandidate?.label,
-            selectedText: selected,
-            sourceKey: fallbackCandidate?.sourceKey,
-          }), { closeAfterApply: !!fallbackCandidate?.url })
+            url: '',
+            label: '',
+            description: action.description,
+            keywords: [...action.keywords],
+          }, { closeAfterApply: !!fallbackCandidate?.url })
         },
       }
     })
-    const mediaActions = (['image-reference', 'video-reference'] as const).map((actionId: InlineVariableCommandId) => {
+    const mediaActions = (['image-reference', 'audio-reference', 'video-reference'] as const).map((actionId: InlineVariableCommandId) => {
       const action = actionById[actionId]
       const key = INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID[actionId]
       return {
@@ -334,7 +528,16 @@ export function CardInlineTextCommandMenus(props: {
         onSelect: () => replaceCommandSelection(buildMarkdownVariableToken({ mode: 'ref', key }) || ''),
       }
     })
+    const uploadMediaAction = actionById[INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID]
     return [
+      {
+        id: uploadMediaAction.id,
+        label: uploadMediaAction.label,
+        group: uploadMediaAction.group,
+        description: uploadMediaAction.description,
+        keywords: [...uploadMediaAction.keywords],
+        onSelect: () => uploadInputRef.current?.click(),
+      },
       ...mediaCandidateItems,
       ...mediaInsertActions,
       ...suggestionItems,
@@ -343,7 +546,7 @@ export function CardInlineTextCommandMenus(props: {
       { id: fallbackReference.id, label: fallbackReference.label, group: fallbackReference.group, description: fallbackReference.description, keywords: [parsed.key, ...fallbackReference.keywords].filter(Boolean) as string[], disabled: !canFallback, onSelect: () => { const token = buildMarkdownVariableToken({ mode: 'fallback', key: parsed.key, fallback: parsed.fallback }); if (token) replaceCommandSelection(token) } },
       ...mediaActions,
     ]
-  }, [commandContextText, commandQuery, commandSelectionRef, draft, mediaNameDrafts, replaceCommandSelection])
+  }, [commandContextText, commandQuery, draft, insertMediaCommand, mediaNameDrafts, replaceCommandSelection, uploadedMediaCommandCandidates])
 
   const keywordCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     return collectInlineKeywordCommandCandidates({
@@ -408,6 +611,19 @@ export function CardInlineTextCommandMenus(props: {
 
   return (
     <>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*,audio/*,video/*"
+        multiple
+        className="sr-only"
+        aria-label="Upload Media"
+        data-kg-inline-media-upload-input="1"
+        onChange={event => {
+          void uploadMediaCommand(event.currentTarget.files)
+          event.currentTarget.value = ''
+        }}
+      />
       <menu className="absolute right-2 top-2 z-10 m-0 flex list-none gap-1 p-0" aria-label="Card inline command launchers" {...{ [CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE]: '1' }}>
         <li className="list-none">
           <button type="button" className={cardInlineCommandButtonClassName} title="Slash commands" onMouseDown={preventDefaultMouseDown} onClick={() => openCommandMenu('slash')}>
