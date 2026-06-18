@@ -11,6 +11,7 @@ import {
   buildKnowgrphStorageMediaAssetPersistPath,
   buildKnowgrphStorageMediaPath,
   type KnowgrphMediaAssetDeleteResponse,
+  type KnowgrphMediaAssetListItem,
   type KnowgrphMediaAssetListResponse,
   type KnowgrphMediaAssetRenameResponse,
   type KnowgrphMediaArtifactKind,
@@ -131,6 +132,53 @@ const readMediaAssetAuthToken = (storage: Pick<UploadedMediaStorageResult, 'acce
 const artifactIdFromStorage = (storage: UploadedMediaStorageResult): string =>
   storage.response.artifactId || `${storage.runId}:${storage.stageId}:${storage.shotId}`
 
+const buildUploadedMediaStorageFromArtifact = (args: {
+  workspaceId: string
+  artifact: KnowgrphMediaAssetListItem
+}): UploadedMediaStorageResult | null => {
+  const artifact = args.artifact
+  const kind = artifact.kind === 'image' || artifact.kind === 'audio' || artifact.kind === 'video' ? artifact.kind : null
+  if (!kind || !artifact.objectKey || !artifact.runId || !artifact.contentHash) return null
+  const baseUrl = readKnowgrphStorageBaseUrl()
+  const publicPath = artifact.publicPath || buildKnowgrphStorageMediaPath(artifact.objectKey)
+  const publicUrl = resolveKnowgrphStorageApiUrl(publicPath, baseUrl)
+  const accessUrl = buildUploadedMediaAccessUrl({ publicUrl, runId: artifact.runId })
+  return {
+    workspaceId: args.workspaceId,
+    runId: artifact.runId,
+    stageId: artifact.stageId,
+    shotId: artifact.shotId,
+    objectKey: artifact.objectKey,
+    publicPath,
+    publicUrl,
+    accessUrl,
+    contentHash: artifact.contentHash,
+    contentType: normalizeString(artifact.mediaType) || 'application/octet-stream',
+    provenance: artifact.provenance,
+    response: {
+      ok: true,
+      apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+      workspaceId: args.workspaceId,
+      artifactId: artifact.artifactId,
+      objectKey: artifact.objectKey,
+      publicPath,
+      durableR2Url: publicPath,
+      contentHash: artifact.contentHash,
+      storage: {
+        r2: 'confirmed',
+        d1: 'persisted',
+        kv: 'skipped',
+        durableObject: 'skipped',
+      },
+      access: {
+        cacheKey: null,
+        expiresAtMs: null,
+        url: accessUrl,
+      },
+    },
+  }
+}
+
 export const listUploadedMediaFromKnowgrphStorage = async (args: {
   workspaceId?: string | null
   fetchImpl?: typeof fetch
@@ -149,45 +197,8 @@ export const listUploadedMediaFromKnowgrphStorage = async (args: {
   const body = await response.json().catch(() => null) as KnowgrphMediaAssetListResponse | null
   if (!body || body.ok !== true || !Array.isArray(body.artifacts)) return []
   return body.artifacts.flatMap(artifact => {
-    const kind = artifact.kind === 'image' || artifact.kind === 'audio' || artifact.kind === 'video' ? artifact.kind : null
-    if (!kind || !artifact.objectKey || !artifact.runId || !artifact.contentHash) return []
-    const publicPath = artifact.publicPath || buildKnowgrphStorageMediaPath(artifact.objectKey)
-    const publicUrl = resolveKnowgrphStorageApiUrl(publicPath, baseUrl)
-    const accessUrl = buildUploadedMediaAccessUrl({ publicUrl, runId: artifact.runId })
-    return [{
-      workspaceId,
-      runId: artifact.runId,
-      stageId: artifact.stageId,
-      shotId: artifact.shotId,
-      objectKey: artifact.objectKey,
-      publicPath,
-      publicUrl,
-      accessUrl,
-      contentHash: artifact.contentHash,
-      contentType: normalizeString(artifact.mediaType) || 'application/octet-stream',
-      provenance: artifact.provenance,
-      response: {
-        ok: true,
-        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
-        workspaceId,
-        artifactId: artifact.artifactId,
-        objectKey: artifact.objectKey,
-        publicPath,
-        durableR2Url: publicPath,
-        contentHash: artifact.contentHash,
-        storage: {
-          r2: 'confirmed',
-          d1: 'persisted',
-          kv: 'skipped',
-          durableObject: 'skipped',
-        },
-        access: {
-          cacheKey: null,
-          expiresAtMs: null,
-          url: accessUrl,
-        },
-      },
-    }]
+    const storage = buildUploadedMediaStorageFromArtifact({ workspaceId, artifact })
+    return storage ? [storage] : []
   })
 }
 
@@ -219,11 +230,7 @@ export const renameUploadedMediaInKnowgrphStorage = async (args: {
   if (!response.ok) return null
   const body = await response.json().catch(() => null) as KnowgrphMediaAssetRenameResponse | null
   if (!body || body.ok !== true || !body.artifact) return null
-  return listUploadedMediaFromKnowgrphStorage({
-    workspaceId: args.storage.workspaceId,
-    fetchImpl,
-    limit: 100,
-  }).then(items => items.find(item => artifactIdFromStorage(item) === body.artifact.artifactId) || null)
+  return buildUploadedMediaStorageFromArtifact({ workspaceId: body.workspaceId || args.storage.workspaceId, artifact: body.artifact })
 }
 
 export const deleteUploadedMediaFromKnowgrphStorage = async (args: {

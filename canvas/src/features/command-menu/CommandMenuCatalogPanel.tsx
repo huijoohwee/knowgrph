@@ -37,6 +37,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { cn } from '@/lib/utils'
+import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 
 const commandMenuCatalogGroups = [
   { key: 'slash', label: '/', title: 'Slash commands', Icon: Slash, actions: INLINE_SLASH_COMMAND_ACTIONS },
@@ -77,7 +78,9 @@ const mergeUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): Uploaded
       ? { ...item, id: buildUploadedMediaPanelItemId(item.storage), linkUrl: item.storage.accessUrl || item.linkUrl }
       : item
     const existing = nextByKey.get(key)
-    if (!existing || (canonicalItem.status === 'synced' && existing.status !== 'synced')) {
+    const existingHasLocalName = !!existing?.storage && existing.name !== readUploadedMediaFileName(existing.storage)
+    const canonicalStorageName = canonicalItem.storage ? readUploadedMediaFileName(canonicalItem.storage) : canonicalItem.name
+    if (!existing || (canonicalItem.status === 'synced' && existing.status !== 'synced') || (!existingHasLocalName && canonicalItem.name !== canonicalStorageName)) {
       nextByKey.set(key, canonicalItem)
     }
   }
@@ -123,7 +126,7 @@ const writeStoredUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): vo
   }
 }
 
-const readUploadedMediaFileName = (storage: UploadedMediaStorageResult): string => {
+function readUploadedMediaFileName(storage: UploadedMediaStorageResult): string {
   const fromProvenance = typeof storage.provenance?.fileName === 'string' ? storage.provenance.fileName.trim() : ''
   if (fromProvenance) return fromProvenance
   return storage.objectKey.split('/').filter(Boolean).at(-1) || storage.shotId || 'uploaded-media'
@@ -838,6 +841,13 @@ export function MediaCatalogPanel() {
   const handleSelectUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
     if (!item.storage || item.status !== 'synced') return
     appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage: item.storage })
+    const inserted = insertMediaIntoActiveCardInlineTextEditor({
+      kind: item.kind,
+      url: item.storage.accessUrl || item.linkUrl,
+      label: item.name,
+      sourceKey: item.storage.contentHash,
+    })
+    if (inserted) return
     setMermaidFocus(null)
     setActiveMediaKey(`media-upload:${item.storage.contentHash}`)
   }, [appendSyncedUploadedMediaSource, setActiveMediaKey, setMermaidFocus])

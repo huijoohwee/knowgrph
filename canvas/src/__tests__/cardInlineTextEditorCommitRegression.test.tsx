@@ -12,6 +12,7 @@ import {
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
@@ -219,6 +220,60 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
     }
     if (input.value !== 'Revenue card') {
       throw new Error(`expected click activation to preserve current card value, got ${JSON.stringify(input.value)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveField() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Review source evidence.',
+          ariaLabel: 'Action text',
+          placeholder: 'Add action',
+          canEdit: true,
+          multiline: true,
+          rows: 3,
+          onCommit: value => committedValues.push(value),
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) {
+      throw new Error('expected card inline display to expose the external invoke target')
+    }
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 2)
+    })
+
+    const inserted = insertMediaIntoActiveCardInlineTextEditor({
+      kind: 'image',
+      url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token',
+      label: 'airvio_.JPEG',
+      sourceKey: 'sha256:demo',
+    })
+    if (!inserted) throw new Error('expected FloatingPanel Media invoke to insert into the active card field')
+
+    const latest = committedValues.at(-1) || ''
+    if (!latest.includes('Review source evidence.\n![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token)')) {
+      throw new Error(`expected external Media invoke to append image markdown to Action field, got ${latest}`)
     }
   } finally {
     await act(async () => {

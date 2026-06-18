@@ -12,6 +12,12 @@ import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdown-core/ui/markdownInlineEditActivation'
 import { PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  buildCardInlineTextMediaEmbed,
+  clearActiveCardInlineTextExternalCommandTarget,
+  setActiveCardInlineTextExternalCommandTarget,
+  type CardInlineTextExternalMediaCandidate,
+} from '@/lib/cards/cardInlineTextExternalCommands'
 
 type CardInlineTextEditActivation = 'doubleClick' | 'click'
 
@@ -61,6 +67,19 @@ function focusInputSelectionSoon(input: HTMLInputElement | HTMLTextAreaElement |
       void 0
     }
   })
+}
+
+function replaceTextRange(args: {
+  text: string
+  start: number
+  end: number
+  replacement: string
+}): { text: string; cursor: number } {
+  const text = normalizeEditorValue(args.text)
+  const start = Math.max(0, Math.min(text.length, args.start))
+  const end = Math.max(start, Math.min(text.length, args.end))
+  const next = `${text.slice(0, start)}${args.replacement}${text.slice(end)}`
+  return { text: next, cursor: start + args.replacement.length }
 }
 
 export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {
@@ -262,6 +281,53 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     focusInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
   }, [])
 
+  const activateExternalCommandTarget = React.useCallback(() => {
+    const targetId = id || ariaLabel
+    setActiveCardInlineTextExternalCommandTarget({
+      id: targetId,
+      insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => {
+        if (!canEdit || multiline !== true) return false
+        const replacement = buildCardInlineTextMediaEmbed(candidate)
+        if (editing) {
+          const input = inputRef.current
+          const text = normalizeEditorValue(input?.value ?? draft)
+          const selection = readInputSelection(input)
+          const lineStartIdx = text.lastIndexOf('\n', Math.max(0, selection.end) - 1) + 1
+          const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, selection.end)))
+          const atQueryMatch = /@([A-Za-z0-9_.-]{0,96})$/.exec(preceding)
+          const rangeStart = selection.start !== selection.end
+            ? selection.start
+            : atQueryMatch
+              ? selection.end - atQueryMatch[0].length
+              : selection.end
+          const { text: next, cursor } = replaceTextRange({
+            text,
+            start: rangeStart,
+            end: selection.start !== selection.end ? selection.end : selection.end,
+            replacement,
+          })
+          setDraft(next)
+          persistCommandDraft(next)
+          focusInputSelectionSoon(input, cursor)
+          return true
+        }
+        const current = normalizeEditorValue(value)
+        const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
+        const next = `${current}${separator}${replacement}`
+        setDraft(next)
+        lastCommandPersistedDraftRef.current = next
+        onCommit?.(next)
+        return true
+      },
+    })
+  }, [ariaLabel, canEdit, draft, editing, id, multiline, onCommit, persistCommandDraft, value])
+
+  React.useEffect(() => {
+    return () => {
+      clearActiveCardInlineTextExternalCommandTarget(id || ariaLabel)
+    }
+  }, [ariaLabel, id])
+
   if (editing && canEdit) {
     const commonEditorProps = {
       id,
@@ -275,6 +341,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       className: editorClassName,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setDraft(event.currentTarget.value)
+      },
+      onFocus: () => {
+        activateExternalCommandTarget()
       },
       onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const relatedTarget = event.relatedTarget
@@ -376,6 +445,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       }}
       onPointerDown={event => {
         if (!canEdit) return
+        activateExternalCommandTarget()
         const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
         if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
         if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
@@ -385,6 +455,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       }}
       onMouseDown={event => {
         if (!canEdit) return
+        activateExternalCommandTarget()
         const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
         if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
         if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
@@ -394,6 +465,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       }}
       onClick={event => {
         if (!canEdit) return
+        activateExternalCommandTarget()
         const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
         if (editActivation !== 'click') {
           if (!useMarkdownViewerActivation) return
