@@ -9,6 +9,8 @@ import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline
 type SetGraph = StoreApi<GraphState>['setState']
 
 const readMarkdownViewerMediaMode = (raw: unknown): 'chip' | 'image' => String(raw || '').trim() === 'image' ? 'image' : 'chip'
+const readStoryboardCardAspectMode = (raw: unknown): '16:9' | '9:16' => String(raw || '').trim() === '9:16' ? '9:16' : '16:9'
+const readStoryboardBoardLayoutMode = (raw: unknown): 'flex' | 'fixed' => String(raw || '').trim() === 'fixed' ? 'fixed' : 'flex'
 
 export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageReaders)=> {
   const { lsBool, readMonacoLoadMode, writeLsString } = readers
@@ -31,6 +33,18 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
+  strybldrStoryboardCardAspectMode: readStoryboardCardAspectMode(readers.readLsString(LS_KEYS.strybldrStoryboardCardAspectMode, '16:9')),
+  setStrybldrStoryboardCardAspectMode: (v: '16:9' | '9:16') => {
+    const next = v === '9:16' ? '9:16' : '16:9'
+    writeLsString(LS_KEYS.strybldrStoryboardCardAspectMode, next)
+    set({ strybldrStoryboardCardAspectMode: next })
+  },
+  strybldrStoryboardBoardLayoutMode: readStoryboardBoardLayoutMode(readers.readLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, 'flex')),
+  setStrybldrStoryboardBoardLayoutMode: (v: 'flex' | 'fixed') => {
+    const next = v === 'fixed' ? 'fixed' : 'flex'
+    writeLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, next)
+    set({ strybldrStoryboardBoardLayoutMode: next })
+  },
   monacoLanguageJsonEnabled: lsBool(LS_KEYS.monacoLanguageJsonEnabled, true),
   setMonacoLanguageJsonEnabled: (v: boolean) => set({ monacoLanguageJsonEnabled: lsSetBool(LS_KEYS.monacoLanguageJsonEnabled, !!v) }),
   monacoLanguageJsonLoadMode: readMonacoLoadMode(LS_KEYS.monacoLanguageJsonLoadMode, 'lazy'),

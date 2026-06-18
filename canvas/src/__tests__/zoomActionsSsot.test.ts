@@ -5,6 +5,10 @@ import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import {
+  GRAPH_ELEMENT_FIT_ROLE_BOUNDS_ONLY,
+  GRAPH_ELEMENT_FIT_ROLE_PROPERTY,
+} from '@/lib/canvas/graph-elements/fitRoles'
 
 function buildOutlierGraphData(): GraphData {
   const nodes: GraphNode[] = []
@@ -67,6 +71,65 @@ export function testZoomActionsFitTransformIsCachedAcrossRequests() {
   if (!r1 || !r2) throw new Error('expected fit transform result')
   if (r1.nextTransform !== r2.nextTransform) {
     throw new Error('expected fit transform to be cached and reused by reference')
+  }
+
+  const boundsOnlyGraphData: GraphData = {
+    type: 'graph',
+    nodes: [
+      {
+        id: 'bounds',
+        label: 'Bounds',
+        type: 'Entity',
+        x: 1200,
+        y: 400,
+        vx: 0,
+        vy: 0,
+        properties: {
+          'visual:height': 1200,
+          [GRAPH_ELEMENT_FIT_ROLE_PROPERTY]: GRAPH_ELEMENT_FIT_ROLE_BOUNDS_ONLY,
+          'visual:width': 2400,
+        },
+      },
+      {
+        id: 'left',
+        label: 'Left',
+        type: 'Entity',
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        properties: { 'visual:height': 80, 'visual:width': 120 },
+      },
+      {
+        id: 'right',
+        label: 'Right',
+        type: 'Entity',
+        x: 200,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        properties: { 'visual:height': 80, 'visual:width': 120 },
+      },
+    ],
+    edges: [],
+  }
+  const semanticFit = computeZoomTransformFromRequest(
+    { type: 'reset', at: 3 },
+    {
+      ...ctx,
+      graphData: boundsOnlyGraphData,
+      graphDataRevision: 3,
+      cacheKeyBase: '2d-bounds-only',
+    },
+  )
+  if (!semanticFit) throw new Error('expected bounds-only reset fit transform result')
+  const screenCentroidX = semanticFit.nextTransform.k * 100 + semanticFit.nextTransform.x
+  const screenCentroidY = semanticFit.nextTransform.y
+  if (Math.abs(screenCentroidX - ctx.viewportW / 2) > 1) {
+    throw new Error('expected reset fit to center the semantic graph centroid X')
+  }
+  if (Math.abs(screenCentroidY - ctx.viewportH / 2) > 1) {
+    throw new Error('expected reset fit to center the semantic graph centroid Y')
   }
 }
 

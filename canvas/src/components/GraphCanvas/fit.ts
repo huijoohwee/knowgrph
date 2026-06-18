@@ -21,6 +21,7 @@ import {
   measureGraphElementCenterSet,
   readGraphElementCenterPoint,
 } from '@/lib/canvas/graph-elements/centroid'
+import { excludesGraphElementFromFitCentroid } from '@/lib/canvas/graph-elements/fitRoles'
 
 export const fitNodeTransform = (n: GraphNode, width: number, height: number) => {
   const s = 1.5;
@@ -402,7 +403,13 @@ export const fitAllTransform = (
     }
   }
 
-  const elementCentroidMetrics = useCentroidCentering ? measureGraphElementCenterSet(validNodes) : null
+  const nodesForCentroid = useCentroidCentering
+    ? (() => {
+        const semanticNodes = validNodes.filter(n => !excludesGraphElementFromFitCentroid(n))
+        return semanticNodes.length > 0 ? semanticNodes : validNodes
+      })()
+    : validNodes
+  const elementCentroidMetrics = useCentroidCentering ? measureGraphElementCenterSet(nodesForCentroid) : null
   const centroid = elementCentroidMetrics
     ? { x: elementCentroidMetrics.centroidX, y: elementCentroidMetrics.centroidY }
     : null

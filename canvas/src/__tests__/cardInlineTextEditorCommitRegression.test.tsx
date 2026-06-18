@@ -476,6 +476,48 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     if (!(mediaName instanceof dom.window.HTMLElement)) throw new Error('expected uploaded media name text to be the primary insert target')
     const renameButton = container.querySelector('[data-kg-media-upload-rename="cloudflare-media:sha256:uploaded-demo"]')
     if (!(renameButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media rename to stay an explicit row control')
+    const downloadLink = container.querySelector('[data-kg-media-download-overlay="1"]')
+    if (!(downloadLink instanceof dom.window.HTMLAnchorElement)) throw new Error('expected uploaded media row to expose Download Media overlay')
+    const downloadHref = String(downloadLink.getAttribute('href') || '')
+    if (!downloadHref.includes('__chat_asset_proxy') || !downloadHref.includes('airvio-demo.jpg')) {
+      throw new Error(`expected Download Media to reuse the shared media download proxy, got ${downloadHref}`)
+    }
+    const previewButton = container.querySelector('[data-kg-media-thumbnail-fullscreen="cloudflare-media:sha256:uploaded-demo"]')
+    if (!(previewButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media thumbnail to open fullscreen preview')
+
+    await act(async () => {
+      previewButton.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      previewButton.click()
+      await waitForFrames(dom.window, 4)
+    })
+
+    const lightbox = dom.window.document.querySelector('[data-kg-media-lightbox="1"]')
+    if (!(lightbox instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open the shared media lightbox')
+    if (lightbox.getAttribute('data-kg-media-lightbox-kind') !== 'image') {
+      throw new Error(`expected image lightbox kind, got ${String(lightbox.getAttribute('data-kg-media-lightbox-kind') || '')}`)
+    }
+    const lightboxImage = dom.window.document.querySelector('[data-kg-media-lightbox-image="1"]')
+    if (!(lightboxImage instanceof dom.window.HTMLImageElement)) throw new Error('expected lightbox to render an image element')
+    const lightboxSrc = String(lightboxImage.getAttribute('src') || '')
+    if (!lightboxSrc.startsWith(`${mediaUrl}?kg_media_token=`)) {
+      throw new Error(`expected lightbox image to use uploaded access URL, got ${lightboxSrc}`)
+    }
+    if (!dom.window.document.querySelector('[data-kg-media-lightbox-fullscreen="1"]')) {
+      throw new Error('expected media lightbox to expose an Enter fullscreen action')
+    }
+    const closeLightbox = dom.window.document.querySelector('[data-kg-media-lightbox-close="1"]')
+    if (!(closeLightbox instanceof dom.window.HTMLButtonElement)) throw new Error('expected media lightbox to expose a Close action')
+    if (committedValues.length !== 0) {
+      throw new Error(`expected thumbnail preview to avoid invoking active card insertion, got ${JSON.stringify(committedValues)}`)
+    }
+
+    await act(async () => {
+      closeLightbox.click()
+      await waitForFrames(dom.window, 2)
+    })
+    if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]')) {
+      throw new Error('expected Close to dismiss the media lightbox')
+    }
 
     await act(async () => {
       mediaName.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))

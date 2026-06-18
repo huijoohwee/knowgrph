@@ -183,14 +183,9 @@ export default function CanvasPage() {
     markdownDocumentText,
   ])
 
-  const makeZoomHandler = (type: 'in' | 'out' | 'reset' | 'selection') => () => {
-    void dispatchRuntimeZoomAction(type)
-  }
-
-  const handleZoomIn = makeZoomHandler('in')
-  const handleZoomOut = makeZoomHandler('out')
-  const handleReset = makeZoomHandler('reset')
-  const handleZoomSelection = makeZoomHandler('selection')
+  const handleZoomSelection = React.useCallback(() => {
+    void dispatchRuntimeZoomAction('selection')
+  }, [])
 
   return (
     <>
@@ -275,7 +270,7 @@ export default function CanvasPage() {
                       </section>
                     ) : null}
                     <React.Suspense fallback={null}>
-                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                      <ToolbarLazy onZoomSelection={handleZoomSelection} />
                     </React.Suspense>
                   </section>
                 </nav>
@@ -309,7 +304,7 @@ export default function CanvasPage() {
                             </section>
                           ) : null}
                           <React.Suspense fallback={null}>
-                            <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                            <ToolbarLazy onZoomSelection={handleZoomSelection} />
                           </React.Suspense>
                         </section>
                       </nav>

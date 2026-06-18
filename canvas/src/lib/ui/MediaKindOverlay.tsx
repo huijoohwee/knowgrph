@@ -1,8 +1,11 @@
 import React from 'react'
-import { ExternalLink, Info } from 'lucide-react'
+import { Download, ExternalLink, Info, PencilLine } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
+import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename } from '@/lib/markdown-core/ui/mediaDownload'
 import { cn } from '@/lib/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { getMediaOverlayAppearanceClassName, type MediaOverlayAppearance } from '@/lib/ui/mediaOverlayAppearance'
 
 const MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME = [
   'absolute z-10 inline-flex h-5 w-5 items-center justify-center rounded border shadow-sm backdrop-blur-sm',
@@ -14,10 +17,12 @@ const MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME = [
 export function MediaKindOverlay({
   Icon,
   label,
+  appearance,
   className,
 }: {
   Icon: LucideIcon
   label: string
+  appearance?: MediaOverlayAppearance
   className?: string
 }) {
   return (
@@ -25,6 +30,7 @@ export function MediaKindOverlay({
       className={cn(
         MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME,
         'pointer-events-none left-1 top-1',
+        getMediaOverlayAppearanceClassName(appearance),
         className,
       )}
       title={label}
@@ -39,10 +45,12 @@ export function MediaKindOverlay({
 export function MediaOpenLinkOverlay({
   href,
   label = 'Open media link',
+  appearance,
   className,
 }: {
   href: string
   label?: string
+  appearance?: MediaOverlayAppearance
   className?: string
 }) {
   const normalizedHref = String(href || '').trim()
@@ -54,7 +62,8 @@ export function MediaOpenLinkOverlay({
       rel="noreferrer"
       className={cn(
         MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME,
-        'pointer-events-auto bottom-1 right-1',
+        'pointer-events-auto right-1 top-1',
+        getMediaOverlayAppearanceClassName(appearance),
         className,
       )}
       title={label}
@@ -69,11 +78,50 @@ export function MediaOpenLinkOverlay({
   )
 }
 
+export function MediaDownloadOverlay({
+  href,
+  kind,
+  label = 'Download media',
+  appearance,
+  className,
+}: {
+  href: string
+  kind: MarkdownMediaDownloadKind
+  label?: string
+  appearance?: MediaOverlayAppearance
+  className?: string
+}) {
+  const downloadHref = buildMarkdownMediaDownloadHref(href)
+  if (!downloadHref) return null
+  return (
+    <a
+      href={downloadHref}
+      download={deriveMarkdownMediaDownloadFilename(href, kind) || undefined}
+      className={cn(
+        MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME,
+        'pointer-events-auto bottom-1 right-1',
+        getMediaOverlayAppearanceClassName(appearance),
+        className,
+      )}
+      title={label}
+      aria-label={label}
+      data-kg-media-download-overlay="1"
+      data-kg-media-row-control="1"
+      onClick={event => event.stopPropagation()}
+      onPointerDown={event => event.stopPropagation()}
+    >
+      <Download className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+    </a>
+  )
+}
+
 export function MediaInfoOverlay({
   label = 'Media info',
+  appearance,
   className,
 }: {
   label?: string
+  appearance?: MediaOverlayAppearance
   className?: string
 }) {
   return (
@@ -81,6 +129,7 @@ export function MediaInfoOverlay({
       className={cn(
         MEDIA_TRANSLUCENT_OVERLAY_CLASSNAME,
         'group pointer-events-auto bottom-1 left-1',
+        getMediaOverlayAppearanceClassName(appearance),
         className,
       )}
       title={label}
@@ -101,5 +150,43 @@ export function MediaInfoOverlay({
         {label}
       </span>
     </span>
+  )
+}
+
+export function MediaPromptActionOverlay({
+  label = 'Modify prompt',
+  appearance,
+  className,
+  onClick,
+}: {
+  label?: string
+  appearance?: MediaOverlayAppearance
+  className?: string
+  onClick?: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'absolute left-1/2 top-1/2 z-20 inline-flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded border px-2 text-[11px] font-semibold shadow-sm backdrop-blur-sm',
+        UI_THEME_TOKENS.panel.border,
+        'bg-[color:var(--kg-panel-bg)]/90',
+        UI_THEME_TOKENS.text.secondary,
+        getMediaOverlayAppearanceClassName(appearance),
+        className,
+      )}
+      aria-label={label}
+      title={label}
+      data-kg-media-prompt-action-overlay="1"
+      onPointerDown={event => event.stopPropagation()}
+      onMouseDown={event => event.stopPropagation()}
+      onClick={event => {
+        event.stopPropagation()
+        onClick?.()
+      }}
+    >
+      <PencilLine className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+      <span>{label}</span>
+    </button>
   )
 }

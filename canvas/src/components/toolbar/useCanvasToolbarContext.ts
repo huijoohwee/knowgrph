@@ -33,9 +33,6 @@ import {
 } from '@/lib/canvas/canvasGridConfig'
 
 export type CanvasToolbarCallbacks = {
-  onZoomIn?: () => void
-  onZoomOut?: () => void
-  onReset?: () => void
   onZoomSelection?: () => void
 }
 
@@ -43,7 +40,7 @@ type MainPanelOpenReadyWindow = Window & {
   __KG_MAIN_PANEL_OPEN_READY__?: boolean
 }
 
-export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasToolbarCallbacks) {
+export function useCanvasToolbarContext({ onZoomSelection }: CanvasToolbarCallbacks) {
   const {
     canvasRenderMode,
     setCanvasRenderMode,
@@ -197,7 +194,6 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     setThemeMode,
     launchSpotlight,
     openMainPanel,
-    onReset,
     onZoomSelection,
     setZoomToSelectionMode,
     setFitToScreenMode,

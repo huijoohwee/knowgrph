@@ -48,6 +48,9 @@ import type {
   WorkspaceViewMode,
 } from './core'
 
+export type StoryboardCardAspectMode = '16:9' | '9:16'
+export type StoryboardBoardLayoutMode = 'flex' | 'fixed'
+
 export interface GraphStateEditorUi {
   codeHighlightDurationMs: number;
   codeSelectThrottleMs: number;
@@ -70,6 +73,10 @@ export interface GraphStateEditorUi {
   setTimelineEnabled: (v: boolean) => void;
   setMediaPanelDensity: (v: 'default' | 'compact') => void;
   mediaPanelDensity: 'default' | 'compact';
+  strybldrStoryboardCardAspectMode: StoryboardCardAspectMode;
+  setStrybldrStoryboardCardAspectMode: (v: StoryboardCardAspectMode) => void;
+  strybldrStoryboardBoardLayoutMode: StoryboardBoardLayoutMode;
+  setStrybldrStoryboardBoardLayoutMode: (v: StoryboardBoardLayoutMode) => void;
   monacoLanguageJsonEnabled: boolean;
   setMonacoLanguageJsonEnabled: (v: boolean) => void;
   monacoLanguageJsonLoadMode: MonacoCapabilityLoadMode;

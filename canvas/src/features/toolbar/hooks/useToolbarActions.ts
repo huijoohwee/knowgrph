@@ -16,7 +16,6 @@ export function useToolbarActions(
   setThemeMode: (mode: ThemeMode) => void,
   launchSpotlight: (mode?: 'tour' | 'stats') => void,
   openMainPanel: (tab: MainPanelTabKey) => void,
-  onReset?: () => void,
   onZoomSelection?: () => void,
   setZoomToSelectionMode?: (v: boolean) => void,
   setFitToScreenMode?: (v: boolean) => void,
@@ -130,16 +129,12 @@ export function useToolbarActions(
   }, [])
 
   const handleReset = useCallback(() => {
-    if (onReset) {
-      onReset()
-    } else {
-      try {
-        useGraphStore.getState().resetAll()
-      } catch {
-        void 0
-      }
+    try {
+      useGraphStore.getState().resetAll()
+    } catch {
+      void 0
     }
-  }, [onReset])
+  }, [])
 
   const handleToggleFitToScreen = useCallback(() => {
     if (!toggleFitToScreenMode) return

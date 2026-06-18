@@ -227,6 +227,10 @@ export function StrybldrFloatingPanelView({
     chatModel,
     chatApiKey,
     chatAuthMode,
+    strybldrStoryboardCardAspectMode,
+    setStrybldrStoryboardCardAspectMode,
+    strybldrStoryboardBoardLayoutMode,
+    setStrybldrStoryboardBoardLayoutMode,
   } = useGraphStore(
     useShallow(s => ({
       graphData: s.graphData,
@@ -248,6 +252,10 @@ export function StrybldrFloatingPanelView({
       chatModel: s.chatModel,
       chatApiKey: s.chatApiKey,
       chatAuthMode: s.chatAuthMode,
+      strybldrStoryboardCardAspectMode: s.strybldrStoryboardCardAspectMode,
+      setStrybldrStoryboardCardAspectMode: s.setStrybldrStoryboardCardAspectMode,
+      strybldrStoryboardBoardLayoutMode: s.strybldrStoryboardBoardLayoutMode,
+      setStrybldrStoryboardBoardLayoutMode: s.setStrybldrStoryboardBoardLayoutMode,
     })),
   )
   const activeGraphData = useActiveGraphRenderData(true)
@@ -841,6 +849,34 @@ export function StrybldrFloatingPanelView({
           <section className={cn('py-3 text-xs', UI_THEME_TOKENS.text.secondary)}>No Strybldr graph loaded.</section>
         ) : (
           <section className="space-y-2 py-1">
+            <section className={cn('grid grid-cols-2 gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr storyboard layout controls">
+              <PanelField label="Layout">
+                <PanelSelect
+                  className="mt-1"
+                  value={strybldrStoryboardCardAspectMode}
+                  aria-label="Strybldr storyboard card aspect ratio"
+                  onChange={event => {
+                    setStrybldrStoryboardCardAspectMode(event.target.value === '9:16' ? '9:16' : '16:9')
+                  }}
+                >
+                  <option value="16:9">16:9</option>
+                  <option value="9:16">9:16</option>
+                </PanelSelect>
+              </PanelField>
+              <PanelField label="Board">
+                <PanelSelect
+                  className="mt-1"
+                  value={strybldrStoryboardBoardLayoutMode}
+                  aria-label="Strybldr storyboard board layout"
+                  onChange={event => {
+                    setStrybldrStoryboardBoardLayoutMode(event.target.value === 'fixed' ? 'fixed' : 'flex')
+                  }}
+                >
+                  <option value="flex">Flex</option>
+                  <option value="fixed">Fixed</option>
+                </PanelSelect>
+              </PanelField>
+            </section>
             {storytreeCards.length > 0 ? (
               <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr storytree workflow">
                 <section className="flex items-center justify-between gap-2">

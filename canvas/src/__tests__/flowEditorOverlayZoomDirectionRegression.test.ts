@@ -239,19 +239,26 @@ export function testFlowEditorLiveCollectiveScaleFollowsZoomWithoutViewportFitCl
 export function testFlowEditorToolbarExposesRuntimeZoomActions() {
   const srcRoot = path.resolve(process.cwd(), 'src')
   const toolbarText = fs.readFileSync(path.join(srcRoot, 'components', 'Toolbar.tsx'), 'utf8')
+  const zoomModeSelectText = fs.readFileSync(path.join(srcRoot, 'components', 'toolbar', 'ZoomModeSelect.tsx'), 'utf8')
+  const zoomMenuModelText = fs.readFileSync(path.join(srcRoot, 'components', 'toolbar', 'toolbarZoomMenuModel.ts'), 'utf8')
   assertTextIncludes(toolbarText, [
-    'RotateCcw, ZoomIn, ZoomOut',
-    'const handleToolbarZoomIn = React.useCallback',
-    "useGraphStore.getState().requestZoom('in')",
-    'const handleToolbarZoomOut = React.useCallback',
-    "useGraphStore.getState().requestZoom('out')",
-    'const handleToolbarZoomReset = React.useCallback',
-    "useGraphStore.getState().requestZoom('reset')",
-    'title={UI_LABELS.zoomIn}',
-    'title={UI_LABELS.zoomOut}',
-    'title={UI_LABELS.reset}',
     '<ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />',
-  ], 'expected toolbar Zoom owner to expose direct runtime zoom actions and keep mode selection')
+  ], 'expected toolbar Zoom owner to route zoom controls through the shared Zoom menu')
+  assertTextIncludes(zoomModeSelectText, [
+    "key: 'action:out' as const",
+    "key: 'action:in' as const",
+    "requestZoom('in')",
+    "requestZoom('out')",
+    'computeToolbarZoomPresetTransform({ state, preset: presetValue })',
+    'disableAutoZoomModesForUserGesture({',
+  ], 'expected Zoom menu to own in/out actions and center-preserving preset dispatch')
+  assertTextIncludes(zoomMenuModelText, [
+    'TOOLBAR_ZOOM_PRESETS',
+    'readToolbarZoomScale',
+    'computeTransformScaleAboutViewportCenter',
+    'buildActive2dZoomViewKey',
+    'getEffectiveZoomStateForKey',
+  ], 'expected Zoom menu model to reuse shared zoom key and viewport transform helpers')
 }
 
 export function testFlowEditorRichMediaZoomCoercionMaintainsIndividualAspectRatio() {

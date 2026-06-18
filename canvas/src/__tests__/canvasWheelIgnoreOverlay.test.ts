@@ -1,6 +1,7 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
+import { readFileSync } from 'node:fs'
 
 export async function testCanvasWheelIgnoreOverlayPreventsZoom() {
   const { dom, restore } = initJsdomHarness()
@@ -31,6 +32,11 @@ export async function testCanvasWheelIgnoreOverlayPreventsZoom() {
     const event2 = new dom.window.WheelEvent('wheel', { clientX: 500, clientY: 500, deltaY: 10 })
     const ignored2 = shouldIgnoreCanvasWheelEvent({ event: event2 as unknown as WheelEvent, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     if (ignored2 !== false) throw new Error('expected wheel guard to allow wheel outside overlay region')
+
+    const controllerSource = readFileSync(new URL('../lib/canvas/infinite-canvas-engine/controller.ts', import.meta.url), 'utf8')
+    if (!controllerSource.includes('if (args.shouldIgnoreWheelEvent(e)) return false')) {
+      throw new Error('expected infinite canvas ignored wheel targets to pass through to native nested scrolling')
+    }
   } finally {
     restore()
   }

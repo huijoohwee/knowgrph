@@ -2,11 +2,23 @@ import { readFileSync } from 'node:fs'
 
 export function testStoryboardCanvasKeepsNativeRendererContract() {
   const source = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
+  const infiniteZoomSource = readFileSync(new URL('../components/StoryboardCanvas/useStoryboardInfiniteZoom.ts', import.meta.url), 'utf8')
+  const infiniteMetricsSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomMetrics.ts', import.meta.url), 'utf8')
+  const infiniteRequestSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomRequest.ts', import.meta.url), 'utf8')
+  const mediaSelectionSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardMediaSelectionPanel.tsx', import.meta.url), 'utf8')
+  const mediaLightboxSource = readFileSync(new URL('../lib/ui/MediaLightbox.tsx', import.meta.url), 'utf8')
+  const mediaKindOverlaySource = readFileSync(new URL('../lib/ui/MediaKindOverlay.tsx', import.meta.url), 'utf8')
   for (const snippet of [
     'Visual Brief',
-    'Reference Pack',
-    'buildMarkdownMediaDownloadHref',
-    'data-kg-storyboard-reference-download="1"',
+    'STORYBOARD_CARD_RATIO_CLASS_BY_MODE',
+    "'9:16': 'aspect-[9/16] w-[min(22rem,calc(100vw-2rem))]'",
+    'data-kg-storyboard-card-aspect={strybldrStoryboardCardAspectMode}',
+    'data-kg-storyboard-board-layout={strybldrStoryboardBoardLayoutMode}',
+    "const shouldUseFullHeightFixedLanes = strybldrStoryboardBoardLayoutMode === 'fixed' && !isWideStoryboardLayout",
+    'shouldUseFullHeightFixedLanes ? `h-full ${UI_RESPONSIVE_KANBAN_LANE_CLASSNAME}` : `max-h-full ${storyboardLaneWidthClassName}`',
+    "grid-cols-[minmax(0,1fr)_minmax(13rem,0.86fr)]",
+    'StoryboardMediaSelectionPanel',
+    "emitFloatingPanelOpen({ tab: 'media', open: true })",
     'StoryboardMentionPill',
     'CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME',
     'CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME',
@@ -48,6 +60,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'",
     "from '@/components/StoryboardCanvas/storyboardDuplicateRouting'",
     'runCard: runStoryboardCard',
+    'const generateStoryboardCardMediaFromPrompt = React.useCallback((card: StoryboardCardModel, prompt: string, parameters?: MediaLightboxPromptParameters) => {',
+    'parameters?: MediaLightboxPromptParameters',
+    'STORYBOARD_PROMPT_PROPERTY_KEYS',
+    'updateStoryboardCardModel(card.id, nextModel)',
+    'window.setTimeout(runWithCommittedPrompt, 0)',
     'runStoryboardWorkflowNode',
     'duplicateCard: duplicateStoryboardCard',
     'hasStrybldrStoryboardDuplicatePath',
@@ -71,6 +88,15 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'openCardInSidepane: openStoryboardCardInSidepane',
     "from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'",
     "from '@/components/StoryboardCanvas/storyboardToolbarProps'",
+    "from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'",
+    'const storyboardZoom = useStoryboardInfiniteZoom({',
+    'data-kg-storyboard-infinite-canvas="1"',
+    'data-kg-storyboard-zoom-scale={storyboardZoom.zoomScale}',
+    'data-kg-storyboard-zoom-content="1"',
+    'data-kg-storyboard-card-id={resolvedCardNodeId}',
+    'data-kg-storyboard-card-scroll-root="1"',
+    'data-kg-storyboard-card-sticky-header="1"',
+    'data-kg-canvas-wheel-ignore="true"',
     'const toolbarProps = buildStoryboardToolbarProps({',
     'const toolbarActionBindings = buildStoryboardToolbarActionBindings({',
     '{...toolbarProps}',
@@ -170,7 +196,157 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   if (source.includes('grid grid-cols-4 gap-1.5') || source.includes('grid grid-cols-2 gap-1.5 text-[11px]')) {
     throw new Error('expected StoryboardCanvas to avoid fixed mobile storytree and scorecard grid literals')
   }
-  for (const forbidden of ['boords', 'peacock.boords.com', 'app.boords.com']) {
+  for (const snippet of [
+    'export function StoryboardMediaSelectionPanel',
+    'Reference Pack',
+    'data-kg-storyboard-media-selection-panel="1"',
+    'data-kg-storyboard-media-slot="1"',
+    'data-kg-storyboard-media-lightbox-trigger="1"',
+    'data-kg-storyboard-add-media="1"',
+    "from '@/lib/cards/CardMediaPreview'",
+    "from '@/lib/ui/MediaKindOverlay'",
+    "from '@/lib/ui/MediaLightbox'",
+    'CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS',
+    'CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS',
+    "from '@/lib/ui/mediaKindOverlayIcon'",
+    'MediaPromptActionOverlay',
+    '<figure',
+    '<figcaption',
+    '<button',
+    'CardMediaLoadingSkeleton',
+    'CardMediaPreview',
+    'MediaDownloadOverlay',
+    'MediaInfoOverlay',
+    'MediaOpenLinkOverlay',
+    'resolveMediaKindOverlayIcon',
+    'data-kg-storyboard-media-overlay-root="1"',
+    'readStoryboardMediaLightboxDescription(props.card)',
+    'descriptionLabel="Prompt"',
+    'promptSubmitLabel="Regenerate media"',
+    'promptParameters={promptParameters}',
+    'onGenerateMediaPrompt',
+    'buildStoryboardMediaPromptParameters({ kind: lightboxKind, model: props.model })',
+    "id: 'model'",
+    "id: 'aspectRatio'",
+    "id: 'resolution'",
+    "id: 'duration'",
+    "id: 'count'",
+    'const [lightboxSlotId, setLightboxSlotId] = React.useState<string | null>(null)',
+    'const lightboxSlot = lightboxSlotId ? slots.find(slot => slot.id === lightboxSlotId) || null : null',
+    'onPromptSubmit={props.onGenerateMediaPrompt ? (prompt, parameters) => props.onGenerateMediaPrompt?.(props.card, prompt, parameters) : undefined}',
+    'label="Modify prompt"',
+    'appearance="hover"',
+    '<MediaDownloadOverlay href={reference.url} kind="image"',
+  ]) {
+    if (!mediaSelectionSource.includes(snippet)) {
+      throw new Error(`expected Storyboard media selection panel to retain shared media slot snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'export function MediaPromptActionOverlay',
+    'data-kg-media-prompt-action-overlay="1"',
+    'PencilLine',
+    'Modify prompt',
+  ]) {
+    if (!mediaKindOverlaySource.includes(snippet)) {
+      throw new Error(`expected shared media overlay utilities to retain prompt action snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'descriptionLabel?: string',
+    'MediaLightboxPromptParameter',
+    'promptParameters?: readonly MediaLightboxPromptParameter[]',
+    'onPromptSubmit?: (value: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>',
+    "from '@/lib/ui/panelFormControls'",
+    'data-kg-media-lightbox-media-panel="1"',
+    'data-kg-media-lightbox-prompt-panel="1"',
+    'data-kg-media-lightbox-prompt="1"',
+    'data-kg-media-lightbox-prompt-form="1"',
+    'data-kg-media-lightbox-prompt-input="1"',
+    "event.key === 'Enter' && !event.shiftKey",
+    'data-kg-media-lightbox-prompt-submit="1"',
+    'data-kg-media-lightbox-parameter-row="1"',
+    'data-kg-media-lightbox-parameter={parameter.id}',
+    'aria-label={promptSubmitLabel || \'Generate media\'}',
+    'title={promptSubmitLabel || \'Generate media\'}',
+    '<span className="sr-only">{promptSubmitLabel || \'Generate media\'}</span>',
+    'className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto"',
+    "parameter.id === 'model' ? 'w-[13.25rem]' : 'w-[5.25rem]'",
+    '<PanelTextarea',
+    '<PanelSelect',
+  ]) {
+    if (!mediaLightboxSource.includes(snippet)) {
+      throw new Error(`expected shared media lightbox to retain prompt/media panel snippet: ${snippet}`)
+    }
+  }
+  if (mediaSelectionSource.includes('buildStoryboardMediaLightboxMetadata') || mediaLightboxSource.includes('data-kg-media-lightbox-metadata') || mediaLightboxSource.includes('data-kg-media-lightbox-prompt-label="1"')) {
+    throw new Error('expected media lightbox prompt panel to avoid redundant visible prompt headers and meaningless metadata footers')
+  }
+  if (source.includes('useStoryboardScrollZoom') || source.includes('data-kg-storyboard-zoom-shell="1"')) {
+    throw new Error('expected StoryboardCanvas to use infinite-canvas zoom ownership instead of scroll-surface zoom wrappers')
+  }
+  if (!source.includes("'sticky top-0 z-10 border-b border-black/5 bg-white/95 px-3 py-2.5 backdrop-blur-sm cursor-grab active:cursor-grabbing select-none'")) {
+    throw new Error('expected Storyboard card header to reuse the sticky header pattern inside the card scroll root')
+  }
+  for (const snippet of [
+    "from '@/lib/canvas/infinite-canvas-engine'",
+    "from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'",
+    "from '@/components/StoryboardCanvas/storyboardInfiniteZoomRequest'",
+    'createInfiniteCanvasViewportController({',
+    'resolveStoryboardInfiniteZoomRequestTransform({',
+    "zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 }",
+    'lastInitialFitKeyRef.current = fitKey',
+    'cacheKeyBase: `storyboard:${metrics.signatureKey}`',
+    'const requestState = useGraphStore.getState()',
+    'commitZoomTransformToStore({',
+    'interactionSnapshotRef.current',
+    'transformRenderFrameRef',
+    'requestAnimationFrame',
+  ]) {
+    if (!infiniteZoomSource.includes(snippet)) {
+      throw new Error(`expected Storyboard infinite zoom hook to reuse shared zoom owner snippet: ${snippet}`)
+    }
+  }
+  if (infiniteZoomSource.includes('scrollSurfaceZoom') || infiniteZoomSource.includes('computeScrollSurfaceZoomScaleFromRequest')) {
+    throw new Error('expected Storyboard infinite zoom hook to avoid scroll-surface zoom helpers')
+  }
+  const hookStoreSelectorSource = infiniteZoomSource.slice(
+    infiniteZoomSource.indexOf('useGraphStore('),
+    infiniteZoomSource.indexOf('const effectiveSchema'),
+  )
+  for (const forbidden of ['selectedNodeId', 'selectedNodeIds', 'selectedEdgeId', 'selectedEdgeIds', 'selectedGroupId', 'selectedGroupIds']) {
+    if (hookStoreSelectorSource.includes(forbidden)) {
+      throw new Error(`expected Storyboard infinite zoom hook to avoid live selection subscription churn: ${forbidden}`)
+    }
+  }
+  for (const snippet of [
+    "from '@/lib/zoom/resolveZoomRequest2d'",
+    'readZoomScaleExtent(args.schema)',
+    'DEFAULT_TOOLBAR_ZOOM_CONFIG',
+    'selectionState: StoryboardZoomSelectionState',
+    'selectedNodeIds: readStringArray(args.selectionState.selectedNodeIds)',
+    "cacheKeyBase: args.cacheKeyBase || 'storyboard'",
+  ]) {
+    if (!infiniteRequestSource.includes(snippet)) {
+      throw new Error(`expected Storyboard zoom-request helper to retain lazy request resolution snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'readStoryboardInfiniteMetrics',
+    'buildStoryboardTransformCss',
+    'buildStoryboardTransformKey',
+    'signatureParts',
+    'GRAPH_ELEMENT_FIT_ROLE_BOUNDS_ONLY',
+    'GRAPH_ELEMENT_FIT_ROLE_PROPERTY',
+    'signatureKey: hashStoryboardMetricSignature(signature)',
+    'offsetParent',
+    'readContentRect',
+  ]) {
+    if (!infiniteMetricsSource.includes(snippet)) {
+      throw new Error(`expected Storyboard infinite zoom metrics helper to retain cached metric snippet: ${snippet}`)
+    }
+  }
+  for (const forbidden of ['boords', 'peacock.boords.com', 'app.boords.com', 'dreamina.capcut.com', 'dreamina octo']) {
     if (source.toLowerCase().includes(forbidden)) {
       throw new Error(`expected StoryboardCanvas to avoid copied vendor reference: ${forbidden}`)
     }

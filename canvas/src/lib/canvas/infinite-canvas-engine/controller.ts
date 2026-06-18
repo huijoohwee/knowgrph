@@ -320,14 +320,7 @@ export function createInfiniteCanvasViewportController(args: {
 
   const handleWheel: InfiniteCanvasViewportController['handleWheel'] = (e) => {
     if (!args.active()) return false
-    if (args.shouldIgnoreWheelEvent(e)) {
-      try {
-        e.preventDefault()
-      } catch {
-        void 0
-      }
-      return true
-    }
+    if (args.shouldIgnoreWheelEvent(e)) return false
     if (drag && drag.type !== 'pan') {
       try {
         e.preventDefault()

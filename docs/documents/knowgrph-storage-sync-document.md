@@ -136,11 +136,11 @@ Generated artifact publication remains explicitly opt-in through the runtime sto
 
 #### Media Upload And `@` Command Runtime
 
-FloatingPanel Media is the rich-media catalog, not a storage settings panel. Upload Media from the panel and `@ Upload Media` from an active card field must call the same shared upload helper, produce the same image/audio/video asset record, and refresh the same Media inventory. The `@` insertion path adds an inline media chip to the selected card field without changing the surrounding text typography or recomputing the card surface.
+FloatingPanel Media is the rich-media catalog, not a storage settings panel. Upload Media from the panel and `@ Upload Media` from an active card field must call the same shared upload helper, produce the same image/audio/video asset record, and refresh the same Media inventory. The `@` insertion path adds an inline media chip to the selected card field without changing the surrounding text typography or recomputing the card surface. Uploaded media thumbnails open the shared preview lightbox, while the thumbnail Download Media action uses the shared download helper without changing the insert, rename, delete, or open-link contracts. Storyboard card media previews and Storyboard reference thumbnails must reuse the same shared hover/focus-appearing translucent kind, info, open-link, and download overlays instead of a Storyboard-local overlay stack.
 
 | Runtime surface | Storage responsibility |
 |---|---|
-| FloatingPanel Media | List, rename, delete, open, and insert persisted media records through shared media inventory helpers. |
+| FloatingPanel Media | List, rename, delete, open, preview, download, and insert persisted media records through shared media inventory helpers. |
 | `@ Upload Media` | Reuse FloatingPanel Media upload logic, then insert the resulting media record into the active card field as an inline chip. |
 | R2 | Store image/audio/video binary blobs under the configured workspace/object prefix. |
 | D1 | Store media asset metadata, provenance, content type, source action, and workspace/card/run context. |

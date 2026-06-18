@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, FileAudio, FileCode2, Grid2X2, Hash, ImageIcon, List, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, Grid2X2, Hash, ImageIcon, List, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
@@ -46,7 +46,9 @@ import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPane
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { ResponsiveInlineIconBadge } from '@/lib/ui/ResponsiveInlineIconBadge'
-import { MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
+import { MediaLightbox } from '@/lib/ui/MediaLightbox'
+import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
+import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { cn } from '@/lib/utils'
@@ -186,13 +188,6 @@ function CommandCatalogRow({
   )
 }
 
-function getMediaIcon(kind: CommandMenuRichMediaItem['kind']): LucideIcon {
-  if (kind === 'audio') return FileAudio
-  if (kind === 'image') return ImageIcon
-  if (kind === 'iframe' || kind === 'webpage' || kind === 'tweet') return FileCode2
-  return Video
-}
-
 const isMediaRowControlTarget = (target: EventTarget | null): boolean => {
   if (typeof Element === 'undefined' || !(target instanceof Element)) return false
   return !!target.closest('a, button, input, textarea, select, [data-kg-media-row-control="1"]')
@@ -223,7 +218,7 @@ function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
 }
 
 const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
-const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
+const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
 
 function mediaListThumbnailFrameClassName(extraClassName?: string): string {
   return cn(
@@ -237,8 +232,8 @@ function mediaListThumbnailFrameClassName(extraClassName?: string): string {
 function MediaListThumbnailIconFrame({ Icon, label, infoLabel }: { Icon: LucideIcon; label: string; infoLabel?: string }) {
   return (
     <span className={mediaListThumbnailFrameClassName('items-center justify-center')}>
-      <MediaKindOverlay Icon={Icon} label={label} />
-      <MediaInfoOverlay label={infoLabel || label} />
+      <MediaKindOverlay Icon={Icon} label={label} appearance="hover" />
+      <MediaInfoOverlay label={infoLabel || label} appearance="hover" />
       <Icon className={cn('h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
     </span>
   )
@@ -250,54 +245,75 @@ function MediaCandidateThumb({ item }: { item: CommandMenuRichMediaItem }) {
   if (thumbnail) {
     return (
       <span className={mediaListThumbnailFrameClassName()}>
-        <MediaKindOverlay Icon={getMediaIcon(item.kind)} label={item.kind} />
-        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
-        <MediaOpenLinkOverlay href={openHref} />
+        <MediaKindOverlay Icon={resolveMediaKindOverlayIcon(item.kind)} label={item.kind} appearance="hover" />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaOpenLinkOverlay href={openHref} appearance="hover" />
         <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
       </span>
     )
   }
-  const Icon = getMediaIcon(item.kind)
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
   return <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
 }
 
 function MediaCandidatePreview({ item }: { item: CommandMenuRichMediaItem }) {
   const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
-  const Icon = getMediaIcon(item.kind)
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
   const openHref = readRichMediaOpenHref(item)
   if (thumbnail) {
     return (
-      <figure className={cn('relative m-0 aspect-[16/9] w-full overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-        <MediaKindOverlay Icon={Icon} label={item.kind} />
-        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
-        <MediaOpenLinkOverlay href={openHref} />
+      <figure className={cn('group relative m-0 aspect-[16/9] w-full overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+        <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaOpenLinkOverlay href={openHref} appearance="hover" />
         <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
       </figure>
     )
   }
   return (
-    <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-      <MediaKindOverlay Icon={Icon} label={item.kind} />
-      <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
-      <MediaOpenLinkOverlay href={openHref} />
+    <figure className={cn('group relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+      <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+      <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+      <MediaOpenLinkOverlay href={openHref} appearance="hover" />
       <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
     </figure>
   )
 }
 
-function UploadedMediaPreview({ item, infoLabel }: { item: UploadedMediaPanelItem; infoLabel: string }) {
-  const Icon = getMediaIcon(item.kind)
+function UploadedMediaPreview({
+  item,
+  infoLabel,
+  onPreview,
+}: {
+  item: UploadedMediaPanelItem
+  infoLabel: string
+  onPreview: (item: UploadedMediaPanelItem) => void
+}) {
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
   return (
-    <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-      <MediaKindOverlay Icon={Icon} label={item.kind} />
-      <MediaInfoOverlay label={infoLabel} />
-      <MediaOpenLinkOverlay href={item.linkUrl} />
+    <button
+      type="button"
+      className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-zoom-in place-items-center overflow-hidden border-x-0 border-b border-t-0 p-0 text-left', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+      title={`Preview ${item.name}`}
+      aria-label={`Preview ${item.name}`}
+      data-kg-media-thumbnail-fullscreen={item.id}
+      data-kg-media-row-control="1"
+      onPointerDown={event => event.stopPropagation()}
+      onClick={event => {
+        event.stopPropagation()
+        onPreview(item)
+      }}
+    >
+      <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+      <MediaInfoOverlay label={infoLabel} appearance="hover" />
+      <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
+      <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
       {item.kind === 'image' ? (
         <img src={item.linkUrl} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
       ) : (
         <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
       )}
-    </figure>
+    </button>
   )
 }
 
@@ -575,7 +591,7 @@ function MediaCandidateCard({
   onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
 }) {
-  const Icon = getMediaIcon(item.kind)
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
   const source = getCommandMenuMediaSourceLabel(item)
   const description = getCommandMenuMediaDescription(item)
   return (
@@ -797,9 +813,9 @@ function MediaActionCard({
         onSelect(action)
       }}
     >
-      <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-        <MediaKindOverlay Icon={Icon} label={mediaKind || 'media'} />
-        <MediaInfoOverlay label={action.description} />
+      <figure className={cn('group relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+        <MediaKindOverlay Icon={Icon} label={mediaKind || 'media'} appearance="hover" />
+        <MediaInfoOverlay label={action.description} appearance="hover" />
         <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
       </figure>
       <header className="flex min-w-0 items-start justify-between gap-2 px-2 pt-2">
@@ -849,6 +865,7 @@ function UploadedMediaRow({
   onNameChange,
   onRename,
   onSelect,
+  onPreview,
 }: {
   item: UploadedMediaPanelItem
   description: string
@@ -860,9 +877,10 @@ function UploadedMediaRow({
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
   onSelect: (item: UploadedMediaPanelItem) => void
+  onPreview: (item: UploadedMediaPanelItem) => void
 }) {
   const [editingName, setEditingName] = React.useState(false)
-  const Icon = getMediaIcon(item.kind)
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
   const commitName = (value: string) => {
     const nextName = String(value || '').trim()
     if (!nextName) {
@@ -898,16 +916,29 @@ function UploadedMediaRow({
         onSelect(item)
       }}
     >
-      <span className={mediaListThumbnailFrameClassName()}>
-        <MediaKindOverlay Icon={Icon} label={item.kind} />
-        <MediaInfoOverlay label={infoLabel} />
-        <MediaOpenLinkOverlay href={item.linkUrl} />
+      <button
+        type="button"
+        className={cn(mediaListThumbnailFrameClassName(), 'cursor-zoom-in')}
+        title={`Preview ${item.name}`}
+        aria-label={`Preview ${item.name}`}
+        data-kg-media-thumbnail-fullscreen={item.id}
+        data-kg-media-row-control="1"
+        onPointerDown={event => event.stopPropagation()}
+        onClick={event => {
+          event.stopPropagation()
+          onPreview(item)
+        }}
+      >
+        <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+        <MediaInfoOverlay label={infoLabel} appearance="hover" />
+        <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
+        <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
         {item.kind === 'image' ? (
           <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
         ) : (
           <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
         )}
-      </span>
+      </button>
       <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${item.name} uploaded media summary`}>
         <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
           {editingName ? (
@@ -1012,6 +1043,7 @@ function UploadedMediaCard({
   onNameChange,
   onRename,
   onSelect,
+  onPreview,
 }: {
   item: UploadedMediaPanelItem
   description: string
@@ -1023,6 +1055,7 @@ function UploadedMediaCard({
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
   onSelect: (item: UploadedMediaPanelItem) => void
+  onPreview: (item: UploadedMediaPanelItem) => void
 }) {
   const [editingName, setEditingName] = React.useState(false)
   const commitName = (value: string) => {
@@ -1059,7 +1092,7 @@ function UploadedMediaCard({
         onSelect(item)
       }}
     >
-      <UploadedMediaPreview item={item} infoLabel={infoLabel} />
+      <UploadedMediaPreview item={item} infoLabel={infoLabel} onPreview={onPreview} />
       <header className="min-w-0 px-2 pt-2">
         {editingName ? (
           <input
@@ -1216,6 +1249,7 @@ export function MediaCatalogPanel() {
   const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
   const [mediaDescriptionDrafts, setMediaDescriptionDrafts] = React.useState<UploadedMediaDescriptionDrafts>(readStoredMediaDescriptionDrafts)
   const [mediaFieldDrafts, setMediaFieldDrafts] = React.useState<UploadedMediaFieldDrafts>(readStoredMediaFieldDrafts)
+  const [lightboxItem, setLightboxItem] = React.useState<UploadedMediaPanelItem | null>(null)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -1464,6 +1498,9 @@ export function MediaCatalogPanel() {
     setMermaidFocus(null)
     setActiveMediaKey(`media-upload:${item.storage.contentHash}`)
   }, [appendSyncedUploadedMediaSource, setActiveMediaKey, setMermaidFocus])
+  const handlePreviewUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
+    setLightboxItem(item)
+  }, [])
   const handleSelectMediaAction = React.useCallback((action: InlineCommandMenuActionSpec) => {
     const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
     if (!mediaKind) return
@@ -1524,6 +1561,13 @@ export function MediaCatalogPanel() {
 
   return (
     <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1">
+      <MediaLightbox
+        open={!!lightboxItem}
+        src={lightboxItem?.linkUrl || ''}
+        alt={lightboxItem?.name || 'Uploaded media'}
+        kind={lightboxItem?.kind || 'media'}
+        onClose={() => setLightboxItem(null)}
+      />
       <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.bg)}>
         <section className="min-w-0">
           <h2 className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Media</h2>
@@ -1603,6 +1647,7 @@ export function MediaCatalogPanel() {
                 onNameChange={handleUploadedMediaNameChange}
                 onRename={handleRenameUploadedMedia}
                 onSelect={handleSelectUploadedMedia}
+                onPreview={handlePreviewUploadedMedia}
               />
             ))}
             {mediaItems.map(item => (
@@ -1638,6 +1683,7 @@ export function MediaCatalogPanel() {
                 onNameChange={handleUploadedMediaNameChange}
                 onRename={handleRenameUploadedMedia}
                 onSelect={handleSelectUploadedMedia}
+                onPreview={handlePreviewUploadedMedia}
               />
             ))}
             {mediaItems.map(item => (

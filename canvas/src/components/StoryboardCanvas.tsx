@@ -2,7 +2,6 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   Check,
-  Download,
   ExternalLink,
   FileText,
   GitBranch,
@@ -58,6 +57,9 @@ import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
+import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
+import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
+import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -83,17 +85,13 @@ import {
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { buildGraphNodeCanonicalTextPatch } from '@/lib/cards/graphNodeCardFields'
-import { buildMarkdownMediaDownloadHref, deriveMarkdownMediaDownloadFilename } from '@/lib/markdown-core/ui/mediaDownload'
 import {
   UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
   UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
   UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
-  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME,
-  UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME,
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME,
-  UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import {
   createStrytreeCandidateRunAction,
@@ -117,8 +115,6 @@ import { createFlowEditorWorkflowNodeRunner, resolveFlowEditorBaseGraphKind } fr
 import { openWorkflowManagerMappingForNode } from '@/features/flow-editor-manager/openWorkflowManagerMappingForNode'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
-
-type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
 
 const isStoryboardDisplayReference = (
   reference: StoryboardCardReference,
@@ -155,13 +151,14 @@ const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 t
 const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { propertyKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { propertyKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { propertyKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
 const STORYBOARD_NEW_CARD_NODE_TYPE = 'Storyboard'
 const STORYBOARD_NEW_CARD_LABEL = 'New storyboard card'
-const STORYBOARD_REFERENCE_DOWNLOAD_CLASS_NAME = [
-  `${UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_SMALL_CLASSNAME} absolute right-1 top-1 z-10 rounded border shadow-sm`,
-  UI_THEME_TOKENS.panel.border,
-  UI_THEME_TOKENS.panel.bg,
-  UI_THEME_TOKENS.text.primary,
-  'opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100',
-].join(' ')
+const STORYBOARD_CARD_RATIO_CLASS_BY_MODE = {
+  '16:9': 'aspect-video w-[min(44rem,calc(100vw-2rem))]',
+  '9:16': 'aspect-[9/16] w-[min(22rem,calc(100vw-2rem))]',
+} as const
+const STORYBOARD_LANE_WIDTH_CLASS_BY_MODE = {
+  '16:9': 'w-[min(46rem,calc(100vw-2rem))]',
+  '9:16': 'w-[min(24rem,calc(100vw-2rem))]',
+} as const
 
 const STORYTREE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -259,29 +256,6 @@ function resolveStoryboardDisplayMedia(card: StoryboardCardModel): StoryboardDis
   }
 }
 
-function StoryboardMediaPreview(props: {
-  title: string
-  href: string
-  media: StoryboardDisplayMedia | null
-}) {
-  const { title, href, media } = props
-  const interactive = media?.kind === 'video' || media?.kind === 'audio' || media?.kind === 'iframe'
-  return (
-    <CardMediaPreview
-      kind={media?.kind || null}
-      url={media?.url || ''}
-      srcDoc={media?.srcDoc || undefined}
-      title={title}
-      href={href}
-      interactive={interactive}
-      fit="cover"
-      videoControls={interactive}
-      iframeScriptPolicy="allow"
-      mediaClassName="h-full w-full"
-    />
-  )
-}
-
 function StoryboardMentionPill(props: {
   label: string
   title?: string
@@ -358,94 +332,6 @@ function StoryboardDetailRow(props: {
   )
 }
 
-function StoryboardReferenceStrip(props: {
-  cardId: string
-  references: StoryboardCardReference[]
-}) {
-  if (props.references.length === 0) return null
-  const visible = props.references.slice(0, 3)
-  return (
-    <section className="rounded-lg border border-black/5 bg-black/[0.025] px-2.5 py-2" aria-label="Reference pack">
-      <section className="mb-2 flex items-center justify-between gap-2">
-        <section className="flex items-center gap-2">
-          <ImageIcon className={['h-3.5 w-3.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')} aria-hidden="true" />
-          <span className={['text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
-            Reference Pack
-          </span>
-        </section>
-        <span className={['inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
-          {props.references.length}
-        </span>
-      </section>
-      <section className="flex gap-2 overflow-x-auto pb-1">
-        {visible.map((reference, index) => {
-          const key = `${props.cardId}:reference:${index}`
-          if (reference.kind === 'image' || reference.kind === 'svg') {
-            const downloadHref = buildMarkdownMediaDownloadHref(reference.url)
-            return (
-              <span key={key} className="group relative block h-14 w-14 shrink-0">
-                <a
-                  href={reference.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block h-14 w-14 overflow-hidden rounded-lg border border-black/10 bg-white"
-                  title={reference.url}
-                  draggable={false}
-                  onDragStart={event => {
-                    event.preventDefault()
-                  }}
-                >
-                  <CardMediaPreview
-                    kind={reference.kind}
-                    url={reference.url}
-                    title="Reference"
-                    href={reference.url}
-                    interactive={false}
-                    fit="cover"
-                    className="h-full w-full"
-                    mediaClassName="h-full w-full"
-                  />
-                </a>
-                {downloadHref ? (
-                  <a
-                    href={downloadHref}
-                    download={deriveMarkdownMediaDownloadFilename(reference.url, 'image') || undefined}
-                    title="Download media"
-                    aria-label="Download media"
-                    className={STORYBOARD_REFERENCE_DOWNLOAD_CLASS_NAME}
-                    data-kg-storyboard-reference-download="1"
-                    onClick={event => {
-                      try { event.stopPropagation() } catch { void 0 }
-                    }}
-                  >
-                    <Download className={UI_RESPONSIVE_MEDIA_OVERLAY_ACTION_ICON_CLASSNAME} strokeWidth={1.8} aria-hidden="true" />
-                  </a>
-                ) : null}
-              </span>
-            )
-          }
-          return (
-            <a
-              key={key}
-              href={reference.url}
-              target="_blank"
-              rel="noreferrer"
-              className={[UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME, 'rounded-lg border px-2 text-center text-[11px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
-              title={reference.url}
-              draggable={false}
-              onDragStart={event => {
-                event.preventDefault()
-              }}
-            >
-              {reference.kind === 'video' ? 'Video ref' : 'Open ref'}
-            </a>
-          )
-        })}
-      </section>
-    </section>
-  )
-}
-
 function resolveStoryboardCardPrimaryReferenceUrl(card: Pick<StoryboardCardModel, 'href' | 'references'>): string {
   const directHref = readStoryboardScalar(card.href)
   if (directHref) return directHref
@@ -462,7 +348,7 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass } = useGraphStore(
+  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass, strybldrStoryboardCardAspectMode, strybldrStoryboardBoardLayoutMode } = useGraphStore(
     useShallow(s => ({
       storeGraphData: (s.graphData as GraphData | null) || null,
       graphRevision: s.graphDataRevision || 0,
@@ -489,6 +375,8 @@ export default function StoryboardCanvas({
       setChatApiKey: s.setChatApiKey,
       chatModel: s.chatModel,
       uiPanelMicroLabelTextSizeClass: s.uiPanelMicroLabelTextSizeClass || 'text-xs',
+      strybldrStoryboardCardAspectMode: s.strybldrStoryboardCardAspectMode === '9:16' ? '9:16' : '16:9',
+      strybldrStoryboardBoardLayoutMode: s.strybldrStoryboardBoardLayoutMode === 'fixed' ? 'fixed' : 'flex',
     })),
   )
   const boardScrollRef = React.useRef<HTMLElement>(null)
@@ -499,6 +387,11 @@ export default function StoryboardCanvas({
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const widgetRegistry = React.useMemo(() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }), [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
+  const storyboardZoom = useStoryboardInfiniteZoom({
+    active,
+    boardViewportRef: boardScrollRef,
+    graphData,
+  })
   React.useEffect(() => {
     storyboardRunGraphRef.current = storeGraphData || graphData || null
   }, [graphData, storeGraphData])
@@ -845,6 +738,33 @@ export default function StoryboardCanvas({
       return
     }
   }, [currentPropertiesByCardId, openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, selectNode, setSelectionSource, upsertUiToast])
+  const generateStoryboardCardMediaFromPrompt = React.useCallback((card: StoryboardCardModel, prompt: string, parameters?: MediaLightboxPromptParameters) => {
+    const cleanPrompt = readStoryboardScalar(prompt)
+    if (!cleanPrompt) {
+      upsertUiToast({
+        id: 'storyboard:media-prompt:empty',
+        kind: 'warning',
+        message: 'Add a prompt before generating media.',
+      })
+      return
+    }
+    const nextModel = readStoryboardScalar(parameters?.model)
+    if (nextModel) updateStoryboardCardModel(card.id, nextModel)
+    if (readStoryboardScalar(card.prompt) !== cleanPrompt) {
+      updateStoryboardCanonicalProperty({
+        cardId: card.id,
+        propertyKeys: STORYBOARD_PROMPT_PROPERTY_KEYS,
+        canonicalKey: 'prompt',
+        nextValue: cleanPrompt,
+      })
+    }
+    const runWithCommittedPrompt = () => runStoryboardCard({ ...card, prompt: cleanPrompt })
+    if (typeof window === 'undefined') {
+      runWithCommittedPrompt()
+      return
+    }
+    window.setTimeout(runWithCommittedPrompt, 0)
+  }, [runStoryboardCard, updateStoryboardCanonicalProperty, updateStoryboardCardModel, upsertUiToast])
   const hasStrybldrStoryboardDuplicatePath = React.useMemo(
     () => Boolean(createNextStrybldrStoryboardMarkdownNodeId({ text: markdownDocumentText || '' })),
     [markdownDocumentText],
@@ -1030,7 +950,7 @@ export default function StoryboardCanvas({
       graphMetaKind: storyboardRunBaseGraphKind,
       openMappingForNode: openWorkflowManagerMappingForNode,
     })
-  }, [openWorkflowManagerMappingForNode, resolveStoryboardActionTarget, storyboardRunBaseGraphKind, widgetRegistry])
+  }, [resolveStoryboardActionTarget, storyboardRunBaseGraphKind, widgetRegistry])
   const registerCardElement = React.useCallback((cardId: string, element: HTMLElement | null) => {
     if (element) {
       cardElementsRef.current.set(cardId, element)
@@ -1115,7 +1035,7 @@ export default function StoryboardCanvas({
       window.removeEventListener('resize', schedule)
       observer?.disconnect()
     }
-  }, [graphData?.edges, visibleCardIds, visibleCardKey])
+  }, [graphData?.edges, storyboardZoom.transformKey, visibleCardIds, visibleCardKey])
   const commitStrytreeWorkflowResult = React.useCallback((args: {
     result: ReturnType<typeof toggleStrytreeLikeAction>
     history: string
@@ -1325,6 +1245,11 @@ export default function StoryboardCanvas({
   const laneCount = board.lanes.length
   const mediaCount = board.lanes.reduce((sum, lane) => sum + lane.cards.filter(card => card.media !== null).length, 0)
   const referenceCount = board.lanes.reduce((sum, lane) => sum + lane.cards.reduce((laneSum, card) => laneSum + card.references.length, 0), 0)
+  const isWideStoryboardLayout = strybldrStoryboardCardAspectMode === '16:9'
+  const isFlexibleStoryboardBoard = strybldrStoryboardBoardLayoutMode === 'flex'
+  const shouldUseFullHeightFixedLanes = strybldrStoryboardBoardLayoutMode === 'fixed' && !isWideStoryboardLayout
+  const storyboardCardRatioClassName = STORYBOARD_CARD_RATIO_CLASS_BY_MODE[strybldrStoryboardCardAspectMode]
+  const storyboardLaneWidthClassName = STORYBOARD_LANE_WIDTH_CLASS_BY_MODE[strybldrStoryboardCardAspectMode]
   const activeDragStatusText = buildKanbanDragStatusText({
     sourceLaneLabel: storyboardDrag.dragSourceGroupKey,
     targetLaneLabel: storyboardDrag.dragOverGroupKey,
@@ -1386,7 +1311,15 @@ export default function StoryboardCanvas({
       </header>
 
       {board.totalCards > 0 ? (
-        <section ref={boardScrollRef} className="relative flex-1 overflow-x-auto overflow-y-hidden p-4" aria-label="Storyboard lanes">
+        <section
+          ref={boardScrollRef}
+          className="relative flex-1 touch-none overflow-hidden"
+          aria-label="Storyboard lanes"
+          data-kg-storyboard-infinite-canvas="1"
+          data-kg-storyboard-card-aspect={strybldrStoryboardCardAspectMode}
+          data-kg-storyboard-board-layout={strybldrStoryboardBoardLayoutMode}
+          data-kg-storyboard-zoom-scale={storyboardZoom.zoomScale}
+        >
           {storyboardEdgeLayer.edges.length > 0 ? (
             <svg
               className="pointer-events-none absolute left-0 top-0 z-20 overflow-visible"
@@ -1417,7 +1350,16 @@ export default function StoryboardCanvas({
               ))}
             </svg>
           ) : null}
-          <section className="relative z-10 flex h-full min-w-fit items-start gap-4">
+          <section
+            ref={storyboardZoom.contentRef}
+            className={[
+              'absolute left-0 top-0 z-10 inline-flex min-w-fit items-start gap-4',
+              shouldUseFullHeightFixedLanes ? 'h-full' : 'min-h-full',
+              isFlexibleStoryboardBoard ? 'flex-wrap content-start' : '',
+            ].join(' ')}
+            style={storyboardZoom.contentStyle}
+            data-kg-storyboard-zoom-content="1"
+          >
             {visibleLanes.map(lane => (
               (() => {
                 const laneDropProps = storyboardDrag.createLaneDropProps(lane.id)
@@ -1426,8 +1368,8 @@ export default function StoryboardCanvas({
                 key={lane.id}
                 data-kg-kanban-group="1"
                 className={[
-                  'flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
-                  UI_RESPONSIVE_KANBAN_LANE_CLASSNAME,
+                  'flex shrink-0 flex-col overflow-hidden rounded-2xl border shadow-sm',
+                  shouldUseFullHeightFixedLanes ? `h-full ${UI_RESPONSIVE_KANBAN_LANE_CLASSNAME}` : `max-h-full ${storyboardLaneWidthClassName}`,
                   getKanbanLaneDragVisualState({
                     hasActiveDrag: storyboardDrag.draggingRowId !== null,
                     isDragOver: storyboardDrag.dragOverGroupKey === lane.id && storyboardDrag.dragSourceGroupKey !== lane.id,
@@ -1512,7 +1454,10 @@ export default function StoryboardCanvas({
                     laneScrollElementsRef.current.delete(lane.id)
                   }}
                   data-kg-kanban-group-list="1"
-                  className="flex-1 space-y-3 overflow-y-auto p-3 list-none m-0"
+                  className={[
+                    'm-0 list-none overflow-y-auto p-3',
+                    shouldUseFullHeightFixedLanes ? 'flex-1 space-y-3' : 'grid content-start gap-3',
+                  ].join(' ')}
                   aria-label={`${readMarkdownSigilDisplayText(lane.label)} cards`}
                   {...laneDropProps}
                 >
@@ -1524,6 +1469,10 @@ export default function StoryboardCanvas({
                       setSelectionSource,
                       selectNode,
                     })
+                    const openStoryboardCardMediaPanel = () => {
+                      selectStoryboardCardFromCanvas()
+                      emitFloatingPanelOpen({ tab: 'media', open: true })
+                    }
                     const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
@@ -1606,7 +1555,7 @@ export default function StoryboardCanvas({
                     return (
                       <React.Fragment key={card.id}>
                         <li
-                          className="relative list-none"
+                          className={['relative list-none', shouldUseFullHeightFixedLanes ? '' : 'w-full'].join(' ')}
                           style={isStorytreeBranch ? { paddingLeft: `${Math.min(storytreeDepth, 5) * 14}px` } : undefined}
                         >
                           {selected ? (
@@ -1629,6 +1578,8 @@ export default function StoryboardCanvas({
                           <article
                           className={[
                             'group overflow-hidden rounded-2xl border bg-white shadow-sm transition-transform duration-150 select-none',
+                            storyboardCardRatioClassName,
+                            shouldUseFullHeightFixedLanes ? '' : 'max-w-full',
                             UI_THEME_TOKENS.kanban.cardHoverBg,
                             selected ? 'border-black/30 ring-1 ring-black/10' : UI_THEME_TOKENS.panel.border,
                             isStorytreeBranch ? 'border-l-4 border-l-black/20' : '',
@@ -1649,6 +1600,7 @@ export default function StoryboardCanvas({
                           aria-pressed={selected}
                           aria-grabbed={cardDragProps.draggable ? storyboardDrag.draggingRowId === card.id : undefined}
                           aria-label={`Select storyboard card ${displayTitle}`}
+                          data-kg-storyboard-card-id={resolvedCardNodeId}
                           {...storyboardDrag.createCardDropProps({ rowId: card.id, groupKey: lane.id })}
                           draggable={cardDragProps.draggable}
                           onDragStart={cardDragProps.onDragStart}
@@ -1679,10 +1631,22 @@ export default function StoryboardCanvas({
                               })}
                             />
                           ) : null}
-                          <section className="block w-full cursor-pointer text-left">
+                          <section className={[
+                            'w-full cursor-pointer text-left',
+                            isWideStoryboardLayout
+                              ? 'grid h-full grid-cols-[minmax(0,1fr)_minmax(13rem,0.86fr)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden'
+                              : 'block h-full overflow-y-auto',
+                          ].join(' ')}
+                          data-kg-storyboard-card-scroll-root="1"
+                          data-kg-canvas-wheel-ignore="true"
+                          >
                             <section
                               data-kg-kanban-card-drag-region="1"
-                              className="border-b border-black/5 px-3 py-2.5 cursor-grab active:cursor-grabbing select-none"
+                              data-kg-storyboard-card-sticky-header="1"
+                              className={[
+                                'sticky top-0 z-10 border-b border-black/5 bg-white/95 px-3 py-2.5 backdrop-blur-sm cursor-grab active:cursor-grabbing select-none',
+                                isWideStoryboardLayout ? 'col-span-2' : '',
+                              ].join(' ')}
                             >
                               <section className="flex items-start justify-between gap-3">
                                 <section className="min-w-0 flex-1">
@@ -1763,21 +1727,41 @@ export default function StoryboardCanvas({
 
                             <section
                               data-kg-kanban-card-drag-region="1"
-                              className={['aspect-[16/9] overflow-hidden border-b border-black/5 cursor-grab active:cursor-grabbing select-none', selected ? 'bg-black/10' : 'bg-black/5'].join(' ')}
+                              className={[
+                                'overflow-hidden border-b border-black/5 cursor-grab active:cursor-grabbing select-none',
+                                isWideStoryboardLayout ? 'col-start-2 row-start-2 min-h-0 border-l' : 'aspect-[16/9]',
+                                selected ? 'bg-black/10' : 'bg-black/5',
+                              ].join(' ')}
                             >
-                              {mediaLoadingState ? (
-                                <CardMediaLoadingSkeleton
-                                  label={mediaLoadingState.label}
-                                  variant={mediaLoadingState.variant}
-                                />
-                              ) : (
-                                <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
-                              )}
+                              <section className="h-full min-h-0">
+                                {isWideStoryboardLayout ? (
+                                  <StoryboardMediaSelectionPanel
+                                    card={card}
+                                    title={displayTitle}
+                                    media={displayMedia}
+                                    loadingState={mediaLoadingState}
+                                    model={storyboardCardModelSelect.modelId}
+                                    onAddMedia={openStoryboardCardMediaPanel}
+                                    onGenerateMediaPrompt={generateStoryboardCardMediaFromPrompt}
+                                  />
+                                ) : mediaLoadingState ? (
+                                  <CardMediaLoadingSkeleton
+                                    label={mediaLoadingState.label}
+                                    variant={mediaLoadingState.variant}
+                                  />
+                                ) : (
+                                  <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
+                                )}
+                              </section>
                             </section>
 
                             <section
                               data-kg-kanban-card-drag-region="1"
-                              className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
+                              data-kg-canvas-wheel-ignore="true"
+                              className={[
+                                'space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none',
+                                isWideStoryboardLayout ? 'col-start-1 row-start-2 min-h-0 overflow-y-auto' : '',
+                              ].join(' ')}
                             >
                               <section
                                 className="space-y-1"
@@ -2013,7 +1997,7 @@ export default function StoryboardCanvas({
                                 </section>
                               ) : null}
 
-                              <StoryboardReferenceStrip cardId={card.id} references={card.references} />
+                              {!isWideStoryboardLayout ? <StoryboardReferenceStrip cardId={card.id} references={card.references} /> : null}
 
                               {card.tags.length > 0 ? (
                                 <section className="flex flex-wrap gap-1">

@@ -203,7 +203,7 @@ export const UI_COPY = {
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
-  zoomMenuTooltip: 'Zoom: Pin to View, Fit to View, Fit to Screen, and Zoom to Selection controls.',
+  zoomMenuTooltip: 'Zoom: zoom in or out, set a percentage, pin the view, fit the graph, or focus the active selection.',
   interactionModeTooltip: 'Interaction: Navigate (clear selection), View Lock (drag/edit gate), and multi-select controls.',
   canvasGridTooltip: 'Grid: toggle grid visibility. Snap to Grid controls drag and keyboard snapping separately. Configure variant/size in Settings; hold Alt while dragging to temporarily disable snapping.',
   renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
