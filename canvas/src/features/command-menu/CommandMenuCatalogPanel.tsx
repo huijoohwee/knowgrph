@@ -224,6 +224,14 @@ function getMediaIcon(kind: CommandMenuRichMediaItem['kind']): LucideIcon {
   return Video
 }
 
+const isMediaRowControlTarget = (target: EventTarget | null): boolean => {
+  if (typeof Element === 'undefined' || !(target instanceof Element)) return false
+  return !!target.closest('a, button, input, textarea, select, [data-kg-media-row-control="1"]')
+}
+
+const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): boolean =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && !isMediaRowControlTarget(event.target)
+
 function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
   const owner = item.renameOwner
   if (owner?.type === 'markdownLine') return String(owner.href || '').trim()
@@ -271,7 +279,16 @@ function MediaCandidateRow({
   return (
     <section
       className="block w-full cursor-pointer text-left"
-      onClick={() => onSelect(item)}
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(item)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(item)
+      }}
       data-kg-command-menu-media-candidate={item.key}
       data-kg-command-menu-media-kind={item.kind}
       data-kg-command-menu-media-source={item.source}
@@ -339,6 +356,7 @@ function MediaCandidateNameInput({
         'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
       )}
       data-kg-command-menu-media-name-input={item.key}
+      data-kg-media-row-control="1"
       onClick={event => event.stopPropagation()}
       onPointerDown={event => event.stopPropagation()}
       onChange={event => onDraftChange(item, event.target.value)}
@@ -381,7 +399,16 @@ function MediaActionRow({
       tabIndex={0}
       data-kg-command-menu-media-action={action.id}
       data-kg-command-menu-prefix="@"
-      onClick={() => onSelect(action)}
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(action)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(action)
+      }}
       onKeyDown={event => {
         if (event.key !== 'Enter' && event.key !== ' ') return
         event.preventDefault()
@@ -472,7 +499,16 @@ function UploadedMediaRow({
       data-kg-media-upload-item={item.id}
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
-      onClick={() => onSelect(item)}
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(item)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(item)
+      }}
       onKeyDown={event => {
         if (event.key !== 'Enter' && event.key !== ' ') return
         event.preventDefault()
@@ -502,6 +538,7 @@ function UploadedMediaRow({
                   'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
                 )}
                 data-kg-media-upload-name-input={item.id}
+                data-kg-media-row-control="1"
                 onClick={event => event.stopPropagation()}
                 onPointerDown={event => event.stopPropagation()}
                 onChange={event => onNameChange(item, event.target.value)}
@@ -535,6 +572,7 @@ function UploadedMediaRow({
                 rel="noreferrer"
                 className={cn('min-w-0 truncate text-[11px] underline-offset-2 hover:underline', UI_THEME_TOKENS.text.secondary)}
                 title={item.linkUrl}
+                data-kg-media-row-control="1"
                 onClick={event => event.stopPropagation()}
               >
                 {item.status === 'synced' ? 'Open Cloudflare media link' : 'Open local media link'}
@@ -545,6 +583,7 @@ function UploadedMediaRow({
                 title="Delete media"
                 aria-label={`Delete ${item.name}`}
                 data-kg-media-upload-delete={item.id}
+                data-kg-media-row-control="1"
                 onClick={event => {
                   event.stopPropagation()
                   onDelete(item)

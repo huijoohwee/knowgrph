@@ -339,6 +339,60 @@ export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
   }
 }
 
+export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null,
+          React.createElement(CardInlineTextEditor, {
+            value: 'Review source evidence.',
+            ariaLabel: 'Action text',
+            placeholder: 'Add action',
+            canEdit: true,
+            multiline: true,
+            rows: 3,
+            onCommit: value => committedValues.push(value),
+          }),
+          React.createElement(CommandMenuCatalogPanel),
+        ),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 1)
+    })
+
+    const imageAction = container.querySelector('[data-kg-command-menu-media-action="insert-image"]')
+    if (!(imageAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media image action row')
+
+    await act(async () => {
+      imageAction.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 2)
+    })
+
+    const latest = committedValues.at(-1) || ''
+    if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
+      throw new Error(`expected FloatingPanel Media pointer-down invoke to insert before blur/click cleanup, got ${latest}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
 export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
