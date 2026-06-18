@@ -363,9 +363,11 @@ function MediaCandidateNameInput({
 
 function MediaActionRow({
   action,
+  onSelect,
   compactStaticRowProps,
 }: {
   action: InlineCommandMenuActionSpec
+  onSelect: (action: InlineCommandMenuActionSpec) => void
   compactStaticRowProps: Pick<
     React.ComponentProps<typeof KeyTypeValueStaticRow>,
     'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
@@ -375,8 +377,16 @@ function MediaActionRow({
   const Icon = mediaKind === 'video' ? Video : ImageIcon
   return (
     <section
+      role="button"
+      tabIndex={0}
       data-kg-command-menu-media-action={action.id}
       data-kg-command-menu-prefix="@"
+      onClick={() => onSelect(action)}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect(action)
+      }}
     >
       <KeyTypeValueStaticRow
         {...compactStaticRowProps}
@@ -851,6 +861,18 @@ export function MediaCatalogPanel() {
     setMermaidFocus(null)
     setActiveMediaKey(`media-upload:${item.storage.contentHash}`)
   }, [appendSyncedUploadedMediaSource, setActiveMediaKey, setMermaidFocus])
+  const handleSelectMediaAction = React.useCallback((action: InlineCommandMenuActionSpec) => {
+    const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
+    if (!mediaKind) return
+    const inserted = insertMediaIntoActiveCardInlineTextEditor({
+      kind: mediaKind,
+      url: '',
+      label: action.label,
+      sourceKey: action.id,
+    })
+    if (inserted) return
+    setMermaidFocus(null)
+  }, [setMermaidFocus])
   const handleRenameMedia = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
     const owner = item.renameOwner
     const name = String(nextName || '').trim()
@@ -962,7 +984,12 @@ export function MediaCatalogPanel() {
             />
           ))}
           {mediaActions.map(action => (
-            <MediaActionRow key={action.id} action={action} compactStaticRowProps={compactStaticRowProps} />
+            <MediaActionRow
+              key={action.id}
+              action={action}
+              onSelect={handleSelectMediaAction}
+              compactStaticRowProps={compactStaticRowProps}
+            />
           ))}
         </KeyTypeValueSectionStack>
       </section>

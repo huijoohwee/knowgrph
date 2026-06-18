@@ -189,6 +189,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.inlineCardEditor.markdownCommandMenus.genericMediaPlaceholderStaysEditable","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorGenericMediaPlaceholderStaysEditable"],
   ["ui.inlineCardEditor.markdownCommandMenus.mediaRenameDraftSync","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorMediaCommandsUseSharedCommandMenuRenameDraft"],
   ["ui.inlineCardEditor.externalMediaInvoke.targetsActiveField","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorExternalMediaInvokeTargetsActiveField"],
+  ["ui.floatingPanel.mediaActionInvoke.targetsActiveCardField","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCommandMenuMediaPanelActionInvokesActiveCardField"],
   ["ui.inlineCardEditor.markdownCommandMenus.completeDashboardKeywordContext","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testInlineKeywordCommandsReuseCompleteDashboardKeywordContext"],
   ["ui.inlineCardEditor.markdownCommandMenus.keywordTokenUsesInlineChipDisplay","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay"],
   ["ui.inlineCardEditor.markdownPreview.inlineVideoChipKeepsParagraphFlow","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow"],

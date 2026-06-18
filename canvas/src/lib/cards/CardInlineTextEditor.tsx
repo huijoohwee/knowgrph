@@ -154,6 +154,15 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const lastEditingRef = React.useRef(editing)
   const lastCommandPersistedDraftRef = React.useRef('')
   const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
+  const externalCommandStateRef = React.useRef({
+    canEdit,
+    draft,
+    editing,
+    multiline,
+    onCommit,
+    persistCommandDraft: (_nextValue: string) => void 0,
+    value,
+  })
   const editorDensity = useWorkspaceDataViewFloatingDensity()
 
   const isCommandMenuTarget = React.useCallback((target: EventTarget | null): boolean => {
@@ -236,6 +245,16 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     onCommit?.(next)
   }, [onCommit, value])
 
+  externalCommandStateRef.current = {
+    canEdit,
+    draft,
+    editing,
+    multiline,
+    onCommit,
+    persistCommandDraft,
+    value,
+  }
+
   const finishCommandDraft = React.useCallback((nextValue: string) => {
     persistCommandDraft(nextValue)
     setEditing(false)
@@ -286,11 +305,12 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setActiveCardInlineTextExternalCommandTarget({
       id: targetId,
       insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => {
-        if (!canEdit || multiline !== true) return false
+        const latest = externalCommandStateRef.current
+        if (!latest.canEdit || latest.multiline !== true) return false
         const replacement = buildCardInlineTextMediaEmbed(candidate)
-        if (editing) {
+        if (latest.editing && inputRef.current) {
           const input = inputRef.current
-          const text = normalizeEditorValue(input?.value ?? draft)
+          const text = normalizeEditorValue(input.value ?? latest.draft)
           const selection = readInputSelection(input)
           const lineStartIdx = text.lastIndexOf('\n', Math.max(0, selection.end) - 1) + 1
           const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, selection.end)))
@@ -307,20 +327,20 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
             replacement,
           })
           setDraft(next)
-          persistCommandDraft(next)
+          latest.persistCommandDraft(next)
           focusInputSelectionSoon(input, cursor)
           return true
         }
-        const current = normalizeEditorValue(value)
+        const current = normalizeEditorValue(latest.editing ? latest.draft : latest.value)
         const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
         const next = `${current}${separator}${replacement}`
         setDraft(next)
         lastCommandPersistedDraftRef.current = next
-        onCommit?.(next)
+        latest.onCommit?.(next)
         return true
       },
     })
-  }, [ariaLabel, canEdit, draft, editing, id, multiline, onCommit, persistCommandDraft, value])
+  }, [ariaLabel, id])
 
   React.useEffect(() => {
     return () => {

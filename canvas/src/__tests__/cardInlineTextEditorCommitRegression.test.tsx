@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
+import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
 import {
   clearWorkspaceDataViewFloatingBinding,
   setWorkspaceDataViewFloatingBinding,
@@ -274,6 +275,61 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token)')) {
       throw new Error(`expected external Media invoke to append image markdown to Action field, got ${latest}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null,
+          React.createElement(CardInlineTextEditor, {
+            value: 'Review source evidence.',
+            ariaLabel: 'Action text',
+            placeholder: 'Add action',
+            canEdit: true,
+            multiline: true,
+            rows: 3,
+            onCommit: value => committedValues.push(value),
+          }),
+          React.createElement(CommandMenuCatalogPanel),
+        ),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+
+    const display = container.querySelector('[data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
+
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+
+    const imageAction = container.querySelector('[data-kg-command-menu-media-action="insert-image"]')
+    if (!(imageAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media image action row')
+
+    await act(async () => {
+      imageAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 2)
+    })
+
+    const latest = committedValues.at(-1) || ''
+    if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
+      throw new Error(`expected FloatingPanel Media image action to insert into active Action field, got ${latest}`)
     }
   } finally {
     await act(async () => {
