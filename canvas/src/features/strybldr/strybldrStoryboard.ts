@@ -51,7 +51,7 @@ const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
 
-const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt'] as const
+const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
@@ -85,6 +85,75 @@ const htmlText = (value: string): string => String(value || '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
+
+const SVG_TEXT_LINE_LENGTH = 42
+
+const wrapSvgTextLines = (value: unknown, maxLines = 5): string[] => {
+  const words = cleanText(value).split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let line = ''
+  for (const word of words) {
+    const nextLine = line ? `${line} ${word}` : word
+    if (nextLine.length > SVG_TEXT_LINE_LENGTH && line) {
+      lines.push(line)
+      line = word
+    } else {
+      line = nextLine
+    }
+    if (lines.length >= maxLines) break
+  }
+  if (line && lines.length < maxLines) lines.push(line)
+  return lines.length > 0 ? lines : ['Strybldr generated image']
+}
+
+export const isStrybldrImageGenerationIntent = (value: unknown): boolean => {
+  const text = cleanText(value).toLowerCase()
+  if (!text) return false
+  const hasImageTerm = /\b(image|picture|photo|poster|portrait|illustration|thumbnail|cover|frame|visual|wukong|seedream|dall[- ]?e|gpt[- ]?image|png|jpeg|jpg)\b/.test(text)
+  const hasGenerationTerm = /\b(generate|create|render|draw|make|produce|compose)\b/.test(text)
+  return hasImageTerm && (hasGenerationTerm || /\b(wukong|seedream|dall[- ]?e|gpt[- ]?image)\b/.test(text))
+}
+
+export const buildStrybldrLocalImageDataUri = (args: {
+  title?: unknown
+  prompt?: unknown
+  action?: unknown
+  provider?: unknown
+  model?: unknown
+}): string => {
+  const title = cleanText(args.title) || 'Strybldr generated image'
+  const prompt = cleanMultilineText(args.prompt) || cleanMultilineText(args.action) || title
+  const provider = cleanText(args.provider) || 'knowgrph-local-image'
+  const model = cleanText(args.model) || 'strybldr-local-image-v1'
+  const titleLines = wrapSvgTextLines(title, 2)
+  const promptLines = wrapSvgTextLines(prompt, 5)
+  const titleText = titleLines.map((line, index) => `<text x="64" y="${96 + index * 36}" class="title">${htmlText(line)}</text>`).join('')
+  const promptText = promptLines.map((line, index) => `<text x="64" y="${220 + index * 28}" class="body">${htmlText(line)}</text>`).join('')
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">',
+    '<defs>',
+    '<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="0.55" stop-color="#dbeafe"/><stop offset="1" stop-color="#fef3c7"/></linearGradient>',
+    '<style>',
+    '.eyebrow{font:700 24px Inter,Arial,sans-serif;letter-spacing:0;fill:#475569}',
+    '.title{font:800 42px Inter,Arial,sans-serif;letter-spacing:0;fill:#0f172a}',
+    '.body{font:500 27px Inter,Arial,sans-serif;letter-spacing:0;fill:#1f2937}',
+    '.meta{font:600 21px Inter,Arial,sans-serif;letter-spacing:0;fill:#475569}',
+    '</style>',
+    '</defs>',
+    '<rect width="1280" height="720" fill="url(#bg)"/>',
+    '<rect x="42" y="42" width="1196" height="636" rx="28" fill="rgba(255,255,255,0.74)" stroke="#cbd5e1" stroke-width="2"/>',
+    '<rect x="64" y="496" width="1152" height="126" rx="18" fill="#0f172a" opacity="0.92"/>',
+    '<text x="64" y="72" class="eyebrow">STRYBLDR IMAGE GENERATOR</text>',
+    titleText,
+    '<text x="64" y="184" class="eyebrow">PROMPT</text>',
+    promptText,
+    `<text x="96" y="550" class="meta" fill="#e2e8f0">Provider: ${htmlText(provider)}</text>`,
+    `<text x="96" y="586" class="meta" fill="#e2e8f0">Model: ${htmlText(model)}</text>`,
+    '<text x="96" y="622" class="meta" fill="#e2e8f0">Generated locally when no compatible live image provider is active.</text>',
+    '</svg>',
+  ].join('')
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
 
 const readCorpusMediaKind = (value: unknown): CorpusSourceUnit['mediaKind'] => {
   const raw = cleanText(value)
@@ -565,6 +634,7 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
             evidenceKind: el.evidenceKind || 'source-metadata',
             provider: el.provider || 'fallback',
             order: Number.isFinite(Number(el.order)) ? Number(el.order) : index,
+            lane: cleanText(el.lane) || null,
             prompt: cleanText(el.prompt) || null,
             action: cleanText(el.action) || null,
             summary: cleanText(el.summary) || null,
@@ -694,6 +764,8 @@ const resolveStrybldrElementLane = (args: {
   workflow: StrybldrWorkflow | null | undefined
 }): string => {
   const element = args.element
+  const authoredLane = cleanText(element.lane)
+  if (authoredLane) return authoredLane
   const primaryText = [
     element.id,
     element.label,
@@ -1444,6 +1516,7 @@ const readStrybldrElementFromNode = (node: GraphNode, index: number): StrybldrEl
     evidenceKind: readStrybldrEvidenceKind(props.evidenceKind),
     provider: readStrybldrProvider(props.provider),
     order: readNumber(props.order, index),
+    lane: cleanText(props.lane) || null,
     prompt: cleanText(props.prompt) || null,
     action: cleanText(props.action) || null,
     summary: cleanText(props.summary) || null,
@@ -1865,6 +1938,162 @@ export const buildStrybldrLocalAnimaticHtml = (handoff: Pick<StrybldrVideoHandof
   ].filter(Boolean).join('')
 }
 
+const isStrybldrRuntimeNode = (node: GraphNode): boolean => {
+  const props = node.properties || {}
+  const lane = cleanText(props.lane || props.status || props.group)
+  const type = cleanText(node.type || props.type || props.kind)
+  const title = cleanText(node.label || props.title || props.name)
+  return /\bruntime\b/i.test([lane, type, title, cleanText(node.id)].join(' '))
+}
+
+const isStrybldrStoryboardNode = (node: GraphNode): boolean => {
+  const props = node.properties || {}
+  return Boolean(
+    cleanText(props.strybldrRunId)
+    || cleanText(props.strybldrSourceUnitId)
+    || cleanText(props.strybldrElementId)
+    || cleanText(props.kgStrybldrStoryboardPayload)
+    || /strybldr/i.test(cleanText(node.id))
+    || /strybldr/i.test(cleanText(node.type)),
+  )
+}
+
+const resolveStrybldrVideoArtifactTargetNodeId = (args: {
+  graphData: GraphData
+  targetNodeId?: string | null
+}): string => {
+  const nodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
+  const targetNodeId = cleanText(args.targetNodeId)
+  if (targetNodeId && nodes.some(node => cleanText(node.id) === targetNodeId && isStrybldrStoryboardNode(node))) return targetNodeId
+  const runtimeNode = nodes.find(node => isStrybldrStoryboardNode(node) && isStrybldrRuntimeNode(node))
+  if (runtimeNode?.id) return cleanText(runtimeNode.id)
+  const firstStrybldrNode = nodes.find(isStrybldrStoryboardNode)
+  return cleanText(firstStrybldrNode?.id)
+}
+
+export const applyStrybldrVideoArtifactToGraphData = (args: {
+  graphData: GraphData | null | undefined
+  targetNodeId?: string | null
+  handoff: StrybldrVideoHandoff
+  status: 'generated' | 'copied' | 'fallback'
+  artifactPath: string
+  artifactText: string
+  provider: string
+  model?: string | null
+  renderUrl?: string | null
+  sourceUrl?: string | null
+}): GraphData | null => {
+  const graphData = args.graphData
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  if (!graphData || nodes.length === 0) return null
+  const targetNodeId = resolveStrybldrVideoArtifactTargetNodeId({ graphData, targetNodeId: args.targetNodeId })
+  if (!targetNodeId) return null
+  const localAnimaticHtml = cleanMultilineText(args.handoff.localAnimaticHtml)
+  const renderUrl = cleanText(args.renderUrl)
+  const sourceUrl = cleanText(args.sourceUrl)
+  const artifactPath = cleanText(args.artifactPath)
+  const safeStatus = args.status === 'generated' || args.status === 'copied' ? args.status : 'fallback'
+  const output = [
+    safeStatus === 'generated'
+      ? 'Generated Strybldr local animatic handoff.'
+      : safeStatus === 'copied'
+        ? 'Generated Strybldr source video copy handoff.'
+        : 'Generated Strybldr fallback handoff.',
+    artifactPath ? `Artifact: ${artifactPath}` : '',
+    renderUrl ? `Render: ${renderUrl}` : '',
+    sourceUrl ? `Source: ${sourceUrl}` : '',
+  ].filter(Boolean).join('\n')
+  const references = [artifactPath, renderUrl, sourceUrl].filter(Boolean)
+  return {
+    ...graphData,
+    nodes: nodes.map(node => {
+      if (cleanText(node.id) !== targetNodeId) return node
+      const props = node.properties || {}
+      const nextReferences = uniqueCleanTexts([
+        ...readNodeReferences(props.references),
+        ...references,
+      ])
+      return {
+        ...node,
+        properties: {
+          ...props,
+          output: asJson(output),
+          outputSrcDoc: asJson(localAnimaticHtml || null),
+          strybldrVideoArtifactPath: asJson(artifactPath || null),
+          strybldrVideoArtifactText: asJson(args.artifactText || null),
+          strybldrVideoStatus: asJson(safeStatus),
+          provider: asJson(cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-animatic'),
+          model: asJson(cleanText(args.model) || cleanText(props.model) || 'strybldr-local-animatic-v1'),
+          mediaKind: asJson(localAnimaticHtml ? 'iframe' : inferMediaKindFromResourceUrl(renderUrl || sourceUrl) || cleanText(props.mediaKind) || 'iframe'),
+          mediaUrl: asJson(renderUrl || sourceUrl || artifactPath || null),
+          renderUrl: asJson(renderUrl || null),
+          sourceUrl: asJson(sourceUrl || null),
+          references: asJson(nextReferences),
+        },
+      }
+    }),
+  }
+}
+
+export const applyStrybldrImageArtifactToGraphData = (args: {
+  graphData: GraphData | null | undefined
+  targetNodeId?: string | null
+  artifactPath: string
+  artifactText: string
+  provider: string
+  model?: string | null
+  imageUrl: string
+  prompt?: string | null
+}): GraphData | null => {
+  const graphData = args.graphData
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  if (!graphData || nodes.length === 0) return null
+  const targetNodeId = resolveStrybldrVideoArtifactTargetNodeId({ graphData, targetNodeId: args.targetNodeId })
+  if (!targetNodeId) return null
+  const imageUrl = cleanText(args.imageUrl)
+  const artifactPath = cleanText(args.artifactPath)
+  if (!imageUrl) return null
+  const output = [
+    'Generated Strybldr image handoff.',
+    artifactPath ? `Artifact: ${artifactPath}` : '',
+    `Image: ${imageUrl}`,
+    cleanMultilineText(args.prompt) ? `Prompt: ${cleanMultilineText(args.prompt)}` : '',
+  ].filter(Boolean).join('\n')
+  const references = [artifactPath, imageUrl].filter(Boolean)
+  return {
+    ...graphData,
+    nodes: nodes.map(node => {
+      if (cleanText(node.id) !== targetNodeId) return node
+      const props = node.properties || {}
+      const nextReferences = uniqueCleanTexts([
+        ...readNodeReferences(props.references),
+        ...references,
+      ])
+      return {
+        ...node,
+        properties: {
+          ...props,
+          output: asJson(output),
+          outputSrcDoc: asJson(null),
+          outputLoading: asJson(false),
+          outputLoadingKind: asJson(null),
+          imageUrl: asJson(imageUrl),
+          strybldrImageArtifactPath: asJson(artifactPath || null),
+          strybldrImageArtifactText: asJson(args.artifactText || null),
+          strybldrImageStatus: asJson('generated'),
+          provider: asJson(cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-image'),
+          model: asJson(cleanText(args.model) || cleanText(props.model) || 'strybldr-local-image-v1'),
+          mediaKind: asJson('image'),
+          mediaUrl: asJson(imageUrl),
+          renderUrl: asJson(imageUrl),
+          sourceUrl: asJson(null),
+          references: asJson(nextReferences),
+        },
+      }
+    }),
+  }
+}
+
 export const buildStrybldrVideoHandoffMarkdown = (args: {
   handoff: StrybldrVideoHandoff
   status: 'generated' | 'copied' | 'fallback'
@@ -1944,6 +2173,45 @@ export const buildStrybldrVideoHandoffMarkdown = (args: {
     '',
     '```json',
     JSON.stringify(args.handoff.cards, null, 2),
+    '```',
+    '',
+  ].filter(line => line !== '').join('\n')
+}
+
+export const buildStrybldrImageHandoffMarkdown = (args: {
+  title?: string | null
+  prompt: string
+  provider: string
+  model?: string | null
+  imageUrl: string
+  errorReason?: string | null
+  elapsedMs: number
+  paidCallCount: number
+  cacheHit?: boolean
+}): string => {
+  const title = cleanText(args.title) || 'Strybldr Image Handoff'
+  const imageUrl = cleanText(args.imageUrl)
+  return [
+    '---',
+    'kgStrybldrImageHandoff: true',
+    'status: "generated"',
+    `provider: ${yamlQuote(cleanText(args.provider) || 'knowgrph-local-image')}`,
+    args.model ? `model: ${yamlQuote(cleanText(args.model))}` : '',
+    `elapsedMs: ${Math.max(0, Math.round(args.elapsedMs))}`,
+    `paidCallCount: ${Math.max(0, Math.round(args.paidCallCount))}`,
+    `cacheHit: ${args.cacheHit === true ? 'true' : 'false'}`,
+    imageUrl ? `imageUrl: ${yamlQuote(imageUrl)}` : '',
+    args.errorReason ? `fallbackReason: ${yamlQuote(cleanText(args.errorReason))}` : '',
+    '---',
+    '',
+    `# ${title}`,
+    '',
+    imageUrl ? `![Generated Strybldr image](${imageUrl})` : 'No image URL was generated.',
+    '',
+    '## Prompt',
+    '',
+    '```text',
+    args.prompt || 'No Strybldr image prompt was available.',
     '```',
     '',
   ].filter(line => line !== '').join('\n')

@@ -42,6 +42,7 @@ export type StrybldrElement = {
   evidenceKind: StrybldrEvidenceKind
   provider: StrybldrDetectionProvider
   order: number
+  lane?: string | null
   prompt?: string | null
   action?: string | null
   summary?: string | null
@@ -58,6 +59,13 @@ export type StrybldrCardOverride = {
   action?: string | null
   dialogue?: string | null
   prompt?: string | null
+  chatModel?: string | null
+  outputSrcDoc?: string | null
+  imageUrl?: string | null
+  mediaKind?: string | null
+  mediaUrl?: string | null
+  renderUrl?: string | null
+  sourceUrl?: string | null
 }
 
 export type StrybldrWorkflowEdge = {

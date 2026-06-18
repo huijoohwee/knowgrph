@@ -16,12 +16,9 @@ import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspac
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
-  getDefaultChatModelForProvider,
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getChatRecommendedModelHint,
-  getSharedChatModelCatalogOptions,
-  normalizeChatModelIdForProvider,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
 import { parseIntegrationConfigsJson } from '@/features/integrations/config'
@@ -75,6 +72,7 @@ import {
 import {
   parseChatSkillSlashInvocation,
 } from './chatSkillRegistry'
+import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -482,15 +480,7 @@ export default function FloatingPanelChat() {
   ])
 
   const chatModelSelect = React.useMemo(() => {
-    const normalizedProvider = normalizeChatProviderId(chatProvider)
-    const options = getSharedChatModelCatalogOptions(normalizedProvider)
-    const normalizedModel = normalizeChatModelIdForProvider(chatModel, normalizedProvider)
-    const fallbackModel = normalizedModel || getDefaultChatModelForProvider(normalizedProvider)
-    const selected = fallbackModel || (options[0] || '')
-    const combined = options.includes(selected)
-      ? options
-      : [selected, ...options].filter(Boolean)
-    return { modelId: selected, options: combined }
+    return resolveSharedChatModelSelect({ chatModel, chatProvider })
   }, [chatModel, chatProvider])
 
   const sourceFilesSignature = React.useMemo(() => {

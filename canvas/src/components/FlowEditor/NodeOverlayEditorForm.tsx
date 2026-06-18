@@ -1,4 +1,5 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
@@ -77,6 +78,11 @@ import {
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
 import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
+import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
+import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
+import { getChatProviderLabel } from '@/lib/chatEndpoint'
 
 const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
 
@@ -230,6 +236,15 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
+  const { chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel } = useGraphStore(
+    useShallow(s => ({
+      chatProvider: s.chatProvider,
+      chatAuthMode: s.chatAuthMode,
+      chatApiKey: s.chatApiKey,
+      setChatApiKey: s.setChatApiKey,
+      chatModel: s.chatModel,
+    })),
+  )
   void onSetType
   void onValidate
   const properties = readNodeProperties(node)
@@ -320,6 +335,18 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }
   const connectedValuesSnapshot = connectedValuesSnapshotRef.current.value
   const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
+  const widgetModelSelect = React.useMemo(() => resolveSharedChatModelSelect({
+    chatProvider,
+    chatModel: pickString(propertiesSnapshot.chatModel).trim() || chatModel,
+  }), [chatModel, chatProvider, propertiesSnapshot.chatModel])
+  const widgetApiKeyPrompt = React.useMemo(() => {
+    if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
+    return {
+      providerLabel: getChatProviderLabel(chatProvider),
+      value: chatApiKey || '',
+      onChange: setChatApiKey,
+    }
+  }, [chatApiKey, chatAuthMode, chatProvider, setChatApiKey])
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(nodeHelperSnapshot.id) || 'node'
     return `flow-node-quick-${nodeId}`
@@ -827,6 +854,23 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               ),
             },
           ]}
+        />
+      </section>
+
+      <section
+        className="min-w-0 mt-4 space-y-1"
+        aria-label={`Model for flow widget ${String(nodeHelperSnapshot.label || nodeHelperSnapshot.id || '')}`}
+      >
+        <p className={cn('m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary)}>
+          {UI_COPY.chatModelSelectLabel}
+        </p>
+        <ChatModelCredentialControls
+          apiKeyPrompt={widgetApiKeyPrompt}
+          modelId={widgetModelSelect.modelId}
+          modelOptions={widgetModelSelect.options}
+          onModelChanged={nextModel => onPatchProperties({ chatModel: nextModel })}
+          disabled={!active}
+          uiPanelMicroLabelTextSizeClass={microLabelClass}
         />
       </section>
 

@@ -640,31 +640,32 @@ export async function testStoryboardConvertLoopActionClassifiesMixedBoardGraphBa
 }
 
 export function testStoryboardClearOutputActionClassifiesEmptyAndClearedStates() {
-  let clearCount: number = 0
+  const clearCalls: string[] = []
+  const readClearCallCount = () => clearCalls.length
   const emptyResult = runStoryboardClearOutputAction({
     output: '   ',
     clearOutput: () => {
-      clearCount += 1
+      clearCalls.push('clear')
     },
   })
   if (emptyResult.status !== 'empty' || emptyResult.changed) {
     throw new Error('expected storyboard clear-output action to stay empty when there is no output to clear')
   }
-  if (clearCount !== 0) {
-    throw new Error(`expected storyboard clear-output action to avoid clearing empty output, got ${clearCount}`)
+  if (readClearCallCount() !== 0) {
+    throw new Error(`expected storyboard clear-output action to avoid clearing empty output, got ${readClearCallCount()}`)
   }
 
   const clearedResult = runStoryboardClearOutputAction({
     output: 'Rendered storyboard output',
     clearOutput: () => {
-      clearCount += 1
+      clearCalls.push('clear')
     },
   })
   if (clearedResult.status !== 'cleared' || !clearedResult.changed) {
     throw new Error('expected storyboard clear-output action to clear non-empty storyboard output')
   }
-  if (clearCount !== 1) {
-    throw new Error(`expected storyboard clear-output action to invoke the clear callback exactly once, got ${clearCount}`)
+  if (readClearCallCount() !== 1) {
+    throw new Error(`expected storyboard clear-output action to invoke the clear callback exactly once, got ${readClearCallCount()}`)
   }
 }
 
@@ -790,6 +791,32 @@ export function testStoryboardRunActionOpensBeforeClassifyingAvailability() {
   }
 }
 
+export function testStoryboardRunActionRoutesStrybldrCardsToStrybldrPanel() {
+  const calls: string[] = []
+  const result = runStoryboardRunAction({
+    cardId: 'starter-source-brief-card',
+    hasSourceNode: true,
+    isStrybldrStoryboardCard: true,
+    resolvedCardNodeId: 'starter-source-brief-card',
+    openInSidepane: () => {
+      calls.push('open-sidepane')
+      return { selectedNodeId: 'starter-source-brief-card' }
+    },
+    openStrybldrPanel: () => {
+      calls.push('open-strybldr')
+    },
+    runNode: nodeId => {
+      calls.push(`run-flow:${nodeId}`)
+    },
+  })
+  if (result.status !== 'started' || !result.ran || result.runNodeId !== 'starter-source-brief-card') {
+    throw new Error(`expected Strybldr storyboard card Run to start through the Strybldr panel branch, got ${JSON.stringify(result)}`)
+  }
+  if (calls.join(',') !== 'open-strybldr') {
+    throw new Error(`expected Strybldr card Run to avoid sidepane and Flow Editor runner, got ${JSON.stringify(calls)}`)
+  }
+}
+
 export function testStoryboardUpdateKvEntryActionBridgesResolvedNodeIntoWorkflowManager() {
   const calls: Array<{
     nodeId: string | null
@@ -826,7 +853,7 @@ export function testStoryboardUpdateKvEntryActionBridgesResolvedNodeIntoWorkflow
 
 export function testStoryboardToolbarActionBindingsForwardCardScopedCallbacks() {
   const calls: string[] = []
-  const card: StoryboardCardModel = {
+  const card = {
     id: 'card-bind',
     lane: 'Runtime',
     title: 'Bound Card',
@@ -836,7 +863,7 @@ export function testStoryboardToolbarActionBindingsForwardCardScopedCallbacks() 
     action: '',
     dialogue: '',
     references: [],
-  }
+  } as StoryboardCardModel
   const helpHandler = () => {
     calls.push('help')
   }

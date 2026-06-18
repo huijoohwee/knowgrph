@@ -5,9 +5,14 @@ import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } f
 import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
   appendStrybldrStoryboardMarkdownElement,
+  applyStrybldrImageArtifactToGraphData,
   buildStrybldrStoryboardDocument,
+  buildStrybldrImageHandoffMarkdown,
+  buildStrybldrLocalImageDataUri,
   buildStrybldrVideoHandoffFromGraphData,
   buildStrybldrVideoHandoffMarkdown,
+  applyStrybldrVideoArtifactToGraphData,
+  isStrybldrImageGenerationIntent,
   mergeStrybldrElementsIntoGraphData,
   removeStrybldrStoryboardMarkdownElement,
   serializeStrybldrStoryboardMarkdown,
@@ -183,6 +188,33 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   const updatedBoard = buildStoryboardBoardModel({ graphData: updatedParsed.graphData, graphRevision: 2 })
   const updatedSourceCard = updatedBoard.lanes.find(lane => lane.id === 'Source')?.cards.find(card => card.id === sourceCard.id)
   assert(updatedSourceCard?.action === nextSourceAction, 'expected updated Strybldr markdown payload to regenerate the Source card action')
+}
+
+export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
+  const starterName = 'knowgrph-strybldr-starter-template.md'
+  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
+  const text = fs.readFileSync(starterPath, 'utf8')
+  const frontmatter = extractYamlFrontmatterHeaderBlock(text)
+  assert(frontmatter, 'expected starter template to keep byte-zero YAML frontmatter')
+  assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgCanvas2dRenderer').trim() === 'storyboard', 'expected starter template to route to the shared Storyboard renderer')
+  assert(!text.includes('localhost:'), 'expected starter template not to store localhost media URLs')
+  assert(!text.includes('kg_media_token='), 'expected starter template not to store local media access tokens')
+  assert(!text.includes('upload-730fe6850f0fc26f'), 'expected starter template not to store copied upload ids')
+  assert(!text.includes('New storyboard card'), 'expected starter template not to store ad hoc duplicated storyboard cards')
+  const parsed = await loadGraphDataFromTextViaParser(starterName, text, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  assert(parsed?.parserId === 'strybldr-storyboard', `expected Strybldr starter to use Strybldr parser, got ${parsed?.parserId}`)
+  const graph = parsed.graphData
+  assert(graph, 'expected parsed starter graph')
+  const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
+  const laneIds = new Set(board.lanes.map(lane => lane.id))
+  for (const laneId of ['Source', 'Storyboard', 'Elements', 'Runtime', 'Review', 'Publish']) {
+    assert(laneIds.has(laneId), `expected starter board to expose ${laneId} lane, got ${Array.from(laneIds).join(', ')}`)
+  }
+  assert(board.totalCards === 8, `expected neutral starter to render 8 source-owned cards, got ${board.totalCards}`)
+  assert(!board.lanes.some(lane => lane.cards.some(card => card.title === 'New storyboard card')), 'expected board not to render ad hoc duplicated cards')
 }
 
 export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload() {
@@ -868,7 +900,10 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
   assert(handoffArtifactText.includes('publishGeneratedWorkspaceEntriesToKnowgrphStorage'), 'expected generated Strybldr handoff artifacts to publish through the shared storage helper when runtime sync is enabled')
   assert(handoffArtifactText.includes('readKnowgrphStorageRuntimeSyncEnabled'), 'expected generated Strybldr handoff storage publication to stay runtime-sync gated')
   assert(panelText.includes('generateRunVideoWithBytePlus'), 'expected Strybldr panel to reuse the BytePlus video owner')
+  assert(panelText.includes('generateRunImageWithBytePlus'), 'expected Strybldr image intent to reuse the BytePlus image owner when compatible')
   assert(panelText.includes('runStrybldrProviderWithTimeout'), 'expected Strybldr Run All to bound external provider calls before writing fallback')
+  assert(panelText.includes('const targetNodeId = readString(selectedNodeId || selectedCard?.id)'), 'expected Strybldr Markdown output override to prefer the clicked canvas card')
+  assert(panelText.includes('targetNodeId,'), 'expected Strybldr artifact application to use the clicked canvas card target id')
   assert(panelText.includes('notifyWorkspaceFsChanged'), 'expected Strybldr handoff artifacts to refresh Source Files')
   assert(panelText.includes('buildStrybldrVideoHandoffMarkdown'), 'expected Strybldr panel to write structured fallback artifacts')
 
@@ -1047,6 +1082,184 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
   })
   assert(youtubeCopiedMarkdown.includes(`<iframe src="${youtubeRenderUrl}"`), 'expected copied YouTube handoff to render the embeddable source video')
   assert(youtubeCopiedMarkdown.includes(`[Open source video](${youtubeSourceUrl})`), 'expected copied YouTube handoff to retain the source link')
+}
+
+export async function testStrybldrRunGeneratedVideoUpdatesStoryboardCardOutputAndMedia() {
+  const doc = buildStrybldrStoryboardDocument({
+    createdAtMs: 1,
+    sourceUnits: [
+      {
+        id: 'source-run-output',
+        workspacePath: '/source-run-output.png.source.md',
+        relativePath: 'source-run-output.png',
+        originalName: 'source-run-output.png',
+        mediaKind: 'image',
+        mimeHint: 'image/png',
+        byteSize: 128,
+        textHash: 'source-run-output',
+        status: 'unsupported',
+        provenance: { importMode: 'file', importedAtMs: 1 },
+      },
+    ],
+  })
+  const parsed = await loadGraphDataFromTextViaParser('run-output.strybldr.md', serializeStrybldrStoryboardMarkdown(doc), { applyToStore: false })
+  assert(parsed?.graphData, 'expected Strybldr graph for generated output regression')
+  const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
+  const targetCard = handoff.cards[0]
+  assert(targetCard?.id, 'expected handoff to expose a target storyboard card')
+  const artifactText = buildStrybldrVideoHandoffMarkdown({
+    handoff,
+    status: 'generated',
+    provider: 'knowgrph-local-animatic',
+    model: 'strybldr-local-animatic-v1',
+    renderUrl: handoff.renderVideoUrl,
+    sourceUrl: handoff.sourceVideoUrl,
+    elapsedMs: 12,
+    paidCallCount: 0,
+    cacheHit: false,
+  })
+  const updated = applyStrybldrVideoArtifactToGraphData({
+    graphData: parsed.graphData,
+    targetNodeId: targetCard.id,
+    handoff,
+    status: 'generated',
+    artifactPath: '/strybldr-video-test.md',
+    artifactText,
+    provider: 'knowgrph-local-animatic',
+    model: 'strybldr-local-animatic-v1',
+    renderUrl: handoff.renderVideoUrl,
+    sourceUrl: handoff.sourceVideoUrl,
+  })
+  assert(updated, 'expected Strybldr generated video artifact to update graph data')
+  const board = buildStoryboardBoardModel({ graphData: updated, graphRevision: 1 })
+  const card = board.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  assert(card, 'expected generated artifact target card to remain visible on the storyboard')
+  assert(card.output.includes('Generated Strybldr local animatic handoff.'), `expected generated artifact output on target card, got ${JSON.stringify(card.output)}`)
+  assert(card.output.includes('/strybldr-video-test.md'), 'expected generated artifact output to link the workspace handoff path')
+  assert(card.media?.kind === 'iframe' && card.media.srcDoc, 'expected generated local animatic to render as card media via outputSrcDoc')
+  assert(card.references.some(reference => reference.url === '/strybldr-video-test.md'), 'expected generated artifact path to be preserved as a card reference')
+
+  const updatedMarkdown = updateStrybldrStoryboardMarkdownCardOverride({
+    text: serializeStrybldrStoryboardMarkdown(doc),
+    nodeId: targetCard.id,
+    patch: {
+      output: 'Generated Strybldr local animatic handoff.\nArtifact: /strybldr-video-test.md',
+      outputSrcDoc: handoff.localAnimaticHtml,
+      mediaKind: 'iframe',
+      mediaUrl: '/strybldr-video-test.md',
+    },
+  })
+  assert(updatedMarkdown, 'expected generated output/media fields to persist through Strybldr Markdown card overrides')
+  const reparsed = await loadGraphDataFromTextViaParser('run-output-updated.strybldr.md', updatedMarkdown, { applyToStore: false })
+  const reparsedBoard = buildStoryboardBoardModel({ graphData: reparsed?.graphData || null, graphRevision: 1 })
+  const reparsedCard = reparsedBoard.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  assert(reparsedCard?.output.includes('/strybldr-video-test.md'), 'expected generated output to survive Strybldr Markdown reparse')
+  assert(reparsedCard?.media?.kind === 'iframe' && reparsedCard.media.srcDoc, 'expected generated outputSrcDoc media to survive Strybldr Markdown reparse')
+}
+
+export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia() {
+  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  assert(panelText.includes('persistStrybldrGeneratedImageMediaAsset'), 'expected Strybldr image runs to persist generated image bytes before card writeback')
+  assert(panelText.includes('uploadMediaFileToKnowgrphStorage'), 'expected Strybldr generated images to reuse the shared Cloudflare uploaded-media storage owner')
+  assert(panelText.includes('buildUploadedMediaPanelItemFromStorage') && panelText.includes('writeStoredUploadedMediaPanelItems'), 'expected Strybldr generated images to appear through the shared synced media panel item path')
+  assert(panelText.includes('uploadNow: true'), 'expected Strybldr generated images to force the user-requested storage upload path')
+  assert(!panelText.includes('uploadGeneratedWorkspaceBlobToKnowgrphStorage'), 'expected Strybldr generated images to stop using inaccessible workspace blob URLs')
+  assert(panelText.includes("outputLoadingKind: 'image'") && panelText.includes("strybldrImageStatus: 'generating'"), 'expected Strybldr image runs to mark cards with the shared media loading state while generation is pending')
+  assert(panelText.includes('const visibleImageUrl = imageStorage.storageUrl || imageStorage.outputPath || imageUrl'), 'expected Strybldr generated image cards to prefer storage or airvio/runs URLs over inline data URLs')
+  assert(storyboardCanvasText.includes('CardMediaLoadingSkeleton') && storyboardCanvasText.includes('readStoryboardCardMediaLoadingState'), 'expected storyboard cards to reuse the shared in-progress media loading visuals')
+  const doc = buildStrybldrStoryboardDocument({
+    createdAtMs: 1,
+    sourceUnits: [
+      {
+        id: 'source-run-image',
+        workspacePath: '/source-run-image.png.source.md',
+        relativePath: 'source-run-image.png',
+        originalName: 'source-run-image.png',
+        mediaKind: 'image',
+        mimeHint: 'image/png',
+        byteSize: 128,
+        textHash: 'source-run-image',
+        status: 'unsupported',
+        provenance: { importMode: 'file', importedAtMs: 1 },
+      },
+    ],
+  })
+  const serialized = serializeStrybldrStoryboardMarkdown(doc)
+  const parsed = await loadGraphDataFromTextViaParser('run-image.strybldr.md', serialized, { applyToStore: false })
+  assert(parsed?.graphData, 'expected Strybldr graph for generated image regression')
+  const handoff = buildStrybldrVideoHandoffFromGraphData(parsed.graphData)
+  const targetCard = handoff.cards[0]
+  assert(targetCard?.id, 'expected handoff to expose a target storyboard card')
+  const prompt = 'Generate image on wukong as a clean storyboard source frame.'
+  assert(isStrybldrImageGenerationIntent(prompt), 'expected Wukong image action to route to image generation')
+  const imageUrl = buildStrybldrLocalImageDataUri({
+    title: targetCard.title,
+    prompt,
+    provider: 'mirothinker',
+    model: 'agnes-2.0-flash',
+  })
+  const artifactText = buildStrybldrImageHandoffMarkdown({
+    title: targetCard.title,
+    prompt,
+    provider: 'knowgrph-local-image',
+    model: 'agnes-2.0-flash',
+    imageUrl,
+    elapsedMs: 12,
+    paidCallCount: 0,
+    cacheHit: false,
+  })
+  const updated = applyStrybldrImageArtifactToGraphData({
+    graphData: parsed.graphData,
+    targetNodeId: targetCard.id,
+    artifactPath: '/strybldr-image-test.md',
+    artifactText,
+    provider: 'knowgrph-local-image',
+    model: 'agnes-2.0-flash',
+    imageUrl,
+    prompt,
+  })
+  assert(updated, 'expected Strybldr generated image artifact to update graph data')
+  const board = buildStoryboardBoardModel({ graphData: updated, graphRevision: 1 })
+  const card = board.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  assert(card, 'expected generated image target card to remain visible on the storyboard')
+  assert(card.output.includes('Generated Strybldr image handoff.'), `expected image artifact output on target card, got ${JSON.stringify(card.output)}`)
+  assert((card.media?.kind === 'image' || card.media?.kind === 'svg') && card.media.url === imageUrl, 'expected image intent to render as image media, not local animatic iframe')
+  assert(!card.media?.srcDoc, 'expected image run to clear stale outputSrcDoc iframe media')
+  assert(card.references.some(reference => reference.url === '/strybldr-image-test.md'), 'expected generated image artifact path to be preserved as a card reference')
+
+  const staleAnimatic = '<main>stale local animatic</main>'
+  const staleMarkdown = updateStrybldrStoryboardMarkdownCardOverride({
+    text: serialized,
+    nodeId: targetCard.id,
+    patch: {
+      output: 'Generated Strybldr local animatic handoff.',
+      outputSrcDoc: staleAnimatic,
+      mediaKind: 'iframe',
+      mediaUrl: '/strybldr-video-test.md',
+    },
+  })
+  assert(staleMarkdown, 'expected stale animatic fixture to persist before image replacement')
+  const updatedMarkdown = updateStrybldrStoryboardMarkdownCardOverride({
+    text: staleMarkdown,
+    nodeId: targetCard.id,
+    patch: {
+      output: 'Generated Strybldr image handoff.\nArtifact: /strybldr-image-test.md',
+      outputSrcDoc: null,
+      imageUrl,
+      mediaKind: 'image',
+      mediaUrl: imageUrl,
+      renderUrl: imageUrl,
+      sourceUrl: null,
+    },
+  })
+  assert(updatedMarkdown, 'expected generated image fields to persist through Strybldr Markdown card overrides')
+  assert(!updatedMarkdown.includes(staleAnimatic), 'expected image override to remove stale local animatic srcdoc')
+  const reparsed = await loadGraphDataFromTextViaParser('run-image-updated.strybldr.md', updatedMarkdown, { applyToStore: false })
+  const reparsedBoard = buildStoryboardBoardModel({ graphData: reparsed?.graphData || null, graphRevision: 1 })
+  const reparsedCard = reparsedBoard.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  assert((reparsedCard?.media?.kind === 'image' || reparsedCard?.media?.kind === 'svg') && reparsedCard.media.url === imageUrl, 'expected generated image media to survive Strybldr Markdown reparse')
+  assert(!reparsedCard?.media?.srcDoc, 'expected generated image reparse not to resurrect stale iframe srcdoc')
 }
 
 export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic() {

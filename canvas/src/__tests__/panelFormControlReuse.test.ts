@@ -41,6 +41,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const settingsChatProviderInputText = readUtf8('src/features/settings/chatProviderSettingInput.tsx')
   const rightAlignedTooltipInputText = readUtf8('src/features/panels/ui/RightAlignedTooltipInput.tsx')
   const floatingPanelChatSectionsText = readUtf8('src/features/chat/FloatingPanelChatSections.tsx')
+  const chatModelCredentialControlsText = readUtf8('src/features/chat/ChatModelCredentialControls.tsx')
   const workspaceActionsPanelText = readUtf8('src/features/workspace-actions/WorkspaceActionsPanel.tsx')
   const flowEditorMappingTabLayoutText = readUtf8('src/features/flow-editor-manager/FlowEditorMappingTabLayout.tsx')
   const flowEditorMappingSettingsPanelText = readUtf8('src/features/flow-editor-manager/FlowEditorMappingSettingsPanel.tsx')
@@ -464,11 +465,12 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   }
 
   if (
-    !floatingPanelChatSectionsText.includes("from '@/lib/ui/panelFormControls'") ||
-    !floatingPanelChatSectionsText.includes('PanelTextInput') ||
-    !floatingPanelChatSectionsText.includes('PanelSelect') ||
-    floatingPanelChatSectionsText.includes('<input') ||
-    floatingPanelChatSectionsText.includes('<select')
+    !floatingPanelChatSectionsText.includes("from '@/features/chat/ChatModelCredentialControls'") ||
+    !chatModelCredentialControlsText.includes("from '@/lib/ui/panelFormControls'") ||
+    !chatModelCredentialControlsText.includes('PanelTextInput') ||
+    !chatModelCredentialControlsText.includes('PanelSelect') ||
+    chatModelCredentialControlsText.includes('<input') ||
+    chatModelCredentialControlsText.includes('<select')
   ) {
     throw new Error('expected FloatingPanel chat footer single-line controls to reuse shared panel text and select primitives')
   }
@@ -866,5 +868,62 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     schemaEditorLayoutRoutingText.includes('<select')
   ) {
     throw new Error('expected schema editor layout and routing controls to reuse the shared panel select and text input primitives instead of raw form controls')
+  }
+}
+
+export function testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialControls() {
+  const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
+  const nodeOverlayEditorFormText = readUtf8('src/components/FlowEditor/NodeOverlayEditorForm.tsx')
+  const floatingPanelChatSectionsText = readUtf8('src/features/chat/FloatingPanelChatSections.tsx')
+  const chatModelCredentialControlsText = readUtf8('src/features/chat/ChatModelCredentialControls.tsx')
+  const chatModelCredentialResolverText = readUtf8('src/features/chat/chatModelCredentialResolver.ts')
+  const strybldrTypesText = readUtf8('src/features/strybldr/strybldrTypes.ts')
+  const strybldrStoryboardText = readUtf8('src/features/strybldr/strybldrStoryboard.ts')
+
+  for (const [name, text] of [
+    ['StoryboardCanvas', storyboardCanvasText],
+    ['NodeOverlayEditorForm', nodeOverlayEditorFormText],
+    ['FloatingPanelChatSections', floatingPanelChatSectionsText],
+  ] as const) {
+    if (!text.includes("from '@/features/chat/ChatModelCredentialControls'") || !text.includes('ChatModelCredentialControls')) {
+      throw new Error(`expected ${name} to reuse the shared chat model/password component`)
+    }
+  }
+
+  for (const [name, text] of [
+    ['StoryboardCanvas', storyboardCanvasText],
+    ['NodeOverlayEditorForm', nodeOverlayEditorFormText],
+    ['FloatingPanelChat', readUtf8('src/features/chat/FloatingPanelChat.tsx')],
+  ] as const) {
+    if (!text.includes("from '@/features/chat/chatModelCredentialResolver'") || !text.includes('resolveSharedChatModelSelect')) {
+      throw new Error(`expected ${name} to reuse the shared provider-scoped chat model resolver`)
+    }
+  }
+
+  if (
+    !chatModelCredentialControlsText.includes('PanelSelect') ||
+    !chatModelCredentialControlsText.includes('PanelTextInput') ||
+    !chatModelCredentialControlsText.includes('data-kg-chat-model-select="true"') ||
+    !chatModelCredentialControlsText.includes('data-kg-chat-api-key-input="true"') ||
+    chatModelCredentialControlsText.includes('resolveSharedChatModelSelect')
+  ) {
+    throw new Error('expected chat model/password UI to stay in the shared component and keep resolver logic in the headless helper')
+  }
+
+  if (
+    !storyboardCanvasText.includes('updateStoryboardCardModel') ||
+    !storyboardCanvasText.includes('patch: { chatModel: cleanModel }') ||
+    !strybldrTypesText.includes('chatModel?: string | null') ||
+    !strybldrStoryboardText.includes("'chatModel'")
+  ) {
+    throw new Error('expected Storyboard card model selection to persist through the canonical Strybldr card override path')
+  }
+
+  if (
+    !nodeOverlayEditorFormText.includes('onPatchProperties({ chatModel: nextModel })') ||
+    nodeOverlayEditorFormText.includes('apiKey: next') ||
+    storyboardCanvasText.includes('apiKey: cleanModel')
+  ) {
+    throw new Error('expected Flow widgets to persist only chatModel while shared BYOK password stays in the chat credential store')
   }
 }

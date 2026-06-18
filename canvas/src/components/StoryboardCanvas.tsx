@@ -68,9 +68,13 @@ import { KanbanCardDropPreview, KanbanLaneDropPreview } from '@/features/markdow
 import { KanbanNewRecordDividerRow } from '@/features/markdown/ui/kanban/KanbanNewRecordDividerRow'
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
-import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { CardMediaLoadingSkeleton, CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
+import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
+import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
+import { getChatProviderLabel } from '@/lib/chatEndpoint'
 import {
   CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
@@ -181,6 +185,17 @@ function readStoryboardScalar(value: unknown): string {
 
 function readStoryboardBool(value: unknown): boolean {
   return value === true || String(value || '').trim().toLowerCase() === 'true'
+}
+
+function readStoryboardCardMediaLoadingState(props: Record<string, unknown>): { label: string; variant: 'text' | 'image' | 'video' | 'audio' | 'iframe' } | null {
+  if (!readStoryboardBool(props.outputLoading)) return null
+  if (!readStoryboardScalar(props.lastRunAt)) return null
+  const kind = readStoryboardScalar(props.outputLoadingKind).toLowerCase()
+  if (kind === 'image') return { label: 'Generating image...', variant: 'image' }
+  if (kind === 'video') return { label: 'Generating video...', variant: 'video' }
+  if (kind === 'audio') return { label: 'Generating audio...', variant: 'audio' }
+  if (kind === 'text') return { label: 'Generating text...', variant: 'text' }
+  return { label: 'Generating output...', variant: 'iframe' }
 }
 
 function shouldRenderStoryboardEdge(edge: unknown, label: string): boolean {
@@ -447,7 +462,7 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry } = useGraphStore(
+  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass } = useGraphStore(
     useShallow(s => ({
       storeGraphData: (s.graphData as GraphData | null) || null,
       graphRevision: s.graphDataRevision || 0,
@@ -468,6 +483,12 @@ export default function StoryboardCanvas({
       documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
       effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
       baseWidgetRegistry: Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_STORYBOARD_WIDGET_REGISTRY,
+      chatProvider: s.chatProvider,
+      chatAuthMode: s.chatAuthMode,
+      chatApiKey: s.chatApiKey,
+      setChatApiKey: s.setChatApiKey,
+      chatModel: s.chatModel,
+      uiPanelMicroLabelTextSizeClass: s.uiPanelMicroLabelTextSizeClass || 'text-xs',
     })),
   )
   const boardScrollRef = React.useRef<HTMLElement>(null)
@@ -663,6 +684,47 @@ export default function StoryboardCanvas({
     }
     updateNode(args.cardId, { properties: nextProperties as never })
   }, [addHistory, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, setGraphDataPreservingLayout, updateNode])
+  const updateStoryboardCardModel = React.useCallback((cardId: string, nextModel: string) => {
+    const cleanModel = readStoryboardScalar(nextModel)
+    if (!cleanModel) return
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: cardId,
+      patch: { chatModel: cleanModel },
+    })
+    if (commitStoryboardMarkdownMutation({
+      nextMarkdownText,
+      historyLabel: 'Storyboard model',
+    })) {
+      return
+    }
+    const currentProperties = currentPropertiesByCardId.get(cardId) || {}
+    const nextProperties = {
+      ...currentProperties,
+      chatModel: cleanModel,
+    }
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === cardId
+            ? { ...node, properties: nextProperties as never }
+            : node
+        )),
+      })
+      addHistory('Storyboard model')
+      return
+    }
+    updateNode(cardId, { properties: nextProperties as never })
+  }, [addHistory, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, setGraphDataPreservingLayout, updateNode])
+  const sharedCardApiKeyPrompt = React.useMemo(() => {
+    if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
+    return {
+      providerLabel: getChatProviderLabel(chatProvider),
+      value: chatApiKey || '',
+      onChange: setChatApiKey,
+    }
+  }, [chatApiKey, chatAuthMode, chatProvider, setChatApiKey])
   const handleNewStoryboardRecord = React.useCallback((preferredLane?: string) => {
     const storeGraphData = useGraphStore.getState().graphData as GraphData | null
     const baseGraphData = (storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }) as GraphData
@@ -752,18 +814,37 @@ export default function StoryboardCanvas({
   }, [resolveStoryboardActionTarget, selectNode, setSelectionSource, updateOpenWidgetNodeIds])
   const runStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
     const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
+    const sourceProperties = (sourceNode?.properties || {}) as Record<string, unknown>
+    const currentProperties = currentPropertiesByCardId.get(card.id) || {}
+    const isStrybldrStoryboardCard = Boolean(
+      readStoryboardScalar(sourceProperties.strybldrRunId)
+      || readStoryboardScalar(sourceProperties.strybldrSourceUnitId)
+      || readStoryboardScalar(sourceProperties.strybldrElementId)
+      || readStoryboardScalar(currentProperties.strybldrRunId)
+      || readStoryboardScalar(currentProperties.strybldrSourceUnitId)
+      || readStoryboardScalar(currentProperties.strybldrElementId),
+    )
     const runResult = runStoryboardRunAction({
       cardId: card.id,
       hasSourceNode: Boolean(sourceNode),
+      isStrybldrStoryboardCard,
       resolvedCardNodeId,
       openInSidepane: () => openStoryboardCardInSidepane(card),
+      openStrybldrPanel: () => {
+        const graphStore = useGraphStore.getState()
+        setSelectionSource('canvas')
+        selectNode(resolvedCardNodeId)
+        graphStore.setFloatingPanelView('strybldr')
+        graphStore.setFloatingPanelOpen(true)
+        emitFloatingPanelOpen({ tab: 'strybldr', open: true, runAllOnOpen: true })
+      },
       runNode: runStoryboardWorkflowNode,
     })
     if (runResult.status === 'unavailable') {
       upsertUiToast(runResult.toast)
       return
     }
-  }, [openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, upsertUiToast])
+  }, [currentPropertiesByCardId, openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, selectNode, setSelectionSource, upsertUiToast])
   const hasStrybldrStoryboardDuplicatePath = React.useMemo(
     () => Boolean(createNextStrybldrStoryboardMarkdownNodeId({ text: markdownDocumentText || '' })),
     [markdownDocumentText],
@@ -1443,9 +1524,11 @@ export default function StoryboardCanvas({
                       setSelectionSource,
                       selectNode,
                     })
+                    const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const mediaLoadingState = readStoryboardCardMediaLoadingState(currentCardProperties)
                     const primaryReferenceUrl = resolveStoryboardCardPrimaryReferenceUrl(card)
                     const toolbarProps = buildStoryboardToolbarProps({
                       active,
@@ -1498,7 +1581,6 @@ export default function StoryboardCanvas({
                       isDropTarget: storyboardDrag.dragOverRowId === card.id,
                       isCommitFlash: storyboardDrag.commitFlashRowId === card.id,
                     })
-                    const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
                     const isStorytreeBranch = card.lane === 'Storytree' && !!readStoryboardScalar(currentCardProperties.strytreeNodeId)
                     const isForkCompareCandidate = card.lane === 'ForkCompare' && !!readStoryboardScalar(currentCardProperties.strytreeCandidateId)
                     const storytreeDepth = Math.max(0, Number(currentCardProperties.depth || 0))
@@ -1517,6 +1599,10 @@ export default function StoryboardCanvas({
                     const candidateCreditCost = Number(currentCardProperties.creditCost || 0)
                     const candidateElapsedMs = Number(currentCardProperties.elapsedMs || 0)
                     const candidatePublishEligible = readStoryboardBool(currentCardProperties.publishEligible)
+                    const storyboardCardModelSelect = resolveSharedChatModelSelect({
+                      chatProvider,
+                      chatModel: readStoryboardScalar(currentCardProperties.chatModel) || chatModel,
+                    })
                     return (
                       <React.Fragment key={card.id}>
                         <li
@@ -1669,7 +1755,7 @@ export default function StoryboardCanvas({
                                   <Video className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : displayMedia?.kind === 'audio' ? (
                                   <Volume2 className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
-                                ) : displayMedia ? (
+                                ) : displayMedia || mediaLoadingState?.variant === 'image' ? (
                                   <ImageIcon className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
                                 ) : null}
                               </section>
@@ -1679,13 +1765,39 @@ export default function StoryboardCanvas({
                               data-kg-kanban-card-drag-region="1"
                               className={['aspect-[16/9] overflow-hidden border-b border-black/5 cursor-grab active:cursor-grabbing select-none', selected ? 'bg-black/10' : 'bg-black/5'].join(' ')}
                             >
-                              <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
+                              {mediaLoadingState ? (
+                                <CardMediaLoadingSkeleton
+                                  label={mediaLoadingState.label}
+                                  variant={mediaLoadingState.variant}
+                                />
+                              ) : (
+                                <StoryboardMediaPreview title={displayTitle} href={card.href} media={displayMedia} />
+                              )}
                             </section>
 
                             <section
                               data-kg-kanban-card-drag-region="1"
                               className="space-y-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
                             >
+                              <section
+                                className="space-y-1"
+                                aria-label={`Model for storyboard card ${displayTitle}`}
+                                onClick={event => event.stopPropagation()}
+                                onPointerDown={event => event.stopPropagation()}
+                              >
+                                <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
+                                  {UI_COPY.chatModelSelectLabel}
+                                </p>
+                                <ChatModelCredentialControls
+                                  apiKeyPrompt={sharedCardApiKeyPrompt}
+                                  modelId={storyboardCardModelSelect.modelId}
+                                  modelOptions={storyboardCardModelSelect.options}
+                                  onModelChanged={nextModel => updateStoryboardCardModel(card.id, nextModel)}
+                                  disabled={!canEditCard}
+                                  uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+                                />
+                              </section>
+
                               {summaryEntry || canEditCard ? (
                                 <section>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>

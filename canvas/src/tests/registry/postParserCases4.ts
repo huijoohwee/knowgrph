@@ -13,6 +13,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["floatingPanel.flowEditor.portRows.typedHandles","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorFloatingPanelPortRowsUseTypedHandles"],
   ["floatingPanel.flowEditor.reusesSharedChrome","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome"],
   ["floatingPanel.formControls.sharedDensity","@/__tests__/panelFormControlReuse.test","testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity"],
+  ["floatingPanel.formControls.chatModelCredentials.sharedStoryboardFlow","@/__tests__/panelFormControlReuse.test","testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialControls"],
   ["flow.widget.seed.groupSpread.deterministicLayout","@/__tests__/flowEditorWidgetSeedGroupSpread.test","testFlowEditorWidgetSeedGroupSpreadDeterministicLayout"],
   ["flow.widget.seed.groupSpread.centeredOnTinyBounds","@/__tests__/flowEditorWidgetSeedGroupSpread.test","testFlowEditorWidgetSeedGroupSpreadStaysCenteredOnTinyGroupBounds"],
   ["flow.widget.seed.groupSpread.avoidsSingleRowWideStripAfterReseed","@/__tests__/flowEditorWidgetSeedGroupSpread.test","testFlowEditorWidgetSeedGroupSpreadAvoidsSingleRowWideStripAfterReseed"],
