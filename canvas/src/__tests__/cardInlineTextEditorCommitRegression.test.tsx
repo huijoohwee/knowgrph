@@ -18,7 +18,11 @@ import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlin
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { UPLOADED_MEDIA_PANEL_STORAGE_KEY } from '@/lib/storage/uploadedMediaPanelItems'
-import { DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
+import {
+  DATA_VIEW_CHIP_ROW_CLASSNAME,
+  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  resolveDataViewChipClass,
+} from '@/features/markdown/ui/dataViewChipStyles'
 import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
@@ -1550,7 +1554,7 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
     await act(async () => {
       root.render(
         React.createElement(CardMarkdownPreview, {
-          markdownText: 'Review the ![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) source evidence into editable storyboard elements.',
+          markdownText: 'Review the ![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) #image source evidence into editable storyboard elements.',
           activeDocumentPath: '/__card_inline_text_editor/preview.md',
           className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
         }),
@@ -1564,8 +1568,35 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
     if (attachments) throw new Error(`expected inline image media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
     const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
     if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected inline image media to render as an inline chip, html=${container.innerHTML}`)
+    if (!inlineChip.className.includes('[font-size:inherit]') || !inlineChip.className.includes('[line-height:inherit]')) {
+      throw new Error(`expected inline image media chip to inherit surrounding card preview text metrics, got ${inlineChip.className}`)
+    }
+    for (const staleClass of ['text-[11px]', 'leading-4', 'align-middle', 'gap-1', 'px-2']) {
+      if (inlineChip.className.includes(staleClass)) {
+        throw new Error(`expected inline image media chip to avoid stale card preview spacing or text metrics ${staleClass}, got ${inlineChip.className}`)
+      }
+    }
+    for (const expectedClass of ['align-baseline', 'gap-0.5', 'pl-1', 'pr-1.5', 'py-0']) {
+      if (!inlineChip.className.includes(expectedClass)) {
+        throw new Error(`expected inline image media chip to keep compact baseline-aligned spacing ${expectedClass}, got ${inlineChip.className}`)
+      }
+    }
+    const keywordChip = previewRoot.querySelector('[data-kg-card-inline-keyword-pill="1"]')
+    if (!(keywordChip instanceof dom.window.HTMLElement)) throw new Error(`expected #keyword token to reuse the shared inline chip renderer in card preview text, html=${container.innerHTML}`)
+    if (String(keywordChip.textContent || '').trim() !== 'image') {
+      throw new Error(`expected #image chip to preserve readable keyword text, got ${JSON.stringify(keywordChip.textContent)}`)
+    }
+    for (const expectedClass of DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.split(' ')) {
+      if (expectedClass && !keywordChip.className.includes(expectedClass)) {
+        throw new Error(`expected card preview #keyword chip to reuse DataView inline-text chip class ${expectedClass}, got ${keywordChip.className}`)
+      }
+    }
+    if (keywordChip.className.includes('text-[10px]') || keywordChip.className.includes('leading-[15px]')) {
+      throw new Error(`expected card preview #keyword chip to inherit surrounding text metrics, got ${keywordChip.className}`)
+    }
     const proseText = String(previewRoot.textContent || '')
       .replace(String(inlineChip.textContent || ''), '')
+      .replace(String(keywordChip.textContent || ''), '')
       .replace(/\s+/g, ' ')
       .trim()
     if (proseText !== 'Review the source evidence into editable storyboard elements.') {
@@ -1593,7 +1624,7 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
     await act(async () => {
       root.render(
         React.createElement(CardInlineTextEditor, {
-          value: '#storyboard',
+          value: '#storyboard #180kb',
           ariaLabel: 'Output text',
           placeholder: 'Add output',
           canEdit: true,
@@ -1606,14 +1637,22 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
       await waitForFrames(dom.window, 8)
     })
 
-    const chip = container.querySelector('[data-kg-card-inline-keyword-pill="1"]')
+    const chips = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-card-inline-keyword-pill="1"]'))
+    const chip = chips[0]
     if (!(chip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected #keyword token to render as inline chip on the shared card display path, html=${container.innerHTML}`)
+    }
+    const numericChip = chips.find(candidate => String(candidate.textContent || '').trim() === '180kb')
+    if (!(numericChip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected numeric-leading #keyword token to render as the same inline chip path, html=${container.innerHTML}`)
     }
     for (const expectedClass of DATA_VIEW_CHIP_ROW_CLASSNAME.split(' ')) {
       if (expectedClass && !chip.className.includes(expectedClass)) {
         throw new Error(`expected inline keyword chip to reuse DataView chip class ${expectedClass}, got ${chip.className}`)
       }
+    }
+    if (!DATA_VIEW_CHIP_ROW_CLASSNAME.includes('leading-[15px]')) {
+      throw new Error(`expected shared DataView chip utility to own fixed # tag line-height, got ${DATA_VIEW_CHIP_ROW_CLASSNAME}`)
     }
     for (const expectedClass of resolveDataViewChipClass('storyboard').split(' ')) {
       if (expectedClass && !chip.className.includes(expectedClass)) {
@@ -1624,7 +1663,7 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
       throw new Error(`expected inline keyword chip to restore rectangular chip radius, got ${chip.className}`)
     }
     const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
-    if (text !== 'storyboard') {
+    if (text !== 'storyboard 180kb') {
       throw new Error(`expected inline keyword chip preview to preserve token text, got ${JSON.stringify(text)}`)
     }
   } finally {

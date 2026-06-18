@@ -184,6 +184,76 @@ export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
   }
 }
 
+export async function testCommandMenuMediaLayoutSelectorTogglesGridAndList() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const state = useGraphStore.getState()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [] })
+    state.setMarkdownDocument('doc.md', buildMarkdown())
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(null)
+
+    await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
+
+    const panel = doc.querySelector('[data-kg-media-panel="1"]') as HTMLElement | null
+    if (!panel) throw new Error('expected FloatingPanel Media root')
+    if (panel.getAttribute('data-kg-media-layout') !== 'grid') {
+      throw new Error(`expected Media layout to default to grid, got ${String(panel.getAttribute('data-kg-media-layout'))}`)
+    }
+    if (!doc.querySelector('[data-kg-media-layout-selector="1"]')) throw new Error('expected Media layout selector')
+    if (!doc.querySelector('[data-kg-media-grid="1"]')) throw new Error('expected Media grid surface')
+    if (!doc.querySelector('article[data-kg-command-menu-media-candidate]')) throw new Error('expected media candidates to render as semantic grid articles')
+
+    const listButton = doc.querySelector('[data-kg-media-layout-toggle="list"]') as HTMLButtonElement | null
+    const gridButton = doc.querySelector('[data-kg-media-layout-toggle="grid"]') as HTMLButtonElement | null
+    if (!listButton || !gridButton) throw new Error('expected list and grid layout buttons')
+
+    await act(async () => {
+      listButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+
+    if (panel.getAttribute('data-kg-media-layout') !== 'list') {
+      throw new Error(`expected Media layout to switch to list, got ${String(panel.getAttribute('data-kg-media-layout'))}`)
+    }
+    if (doc.querySelector('[data-kg-media-ktv-layout="1"]')) throw new Error('expected list layout to avoid legacy KTV three-column surface')
+    if (doc.querySelector('[data-kg-media-list="1"] [role="columnheader"]')) throw new Error('expected media list layout to avoid column headers')
+    if (!doc.querySelector('[data-kg-media-list-layout="3-rows"]')) throw new Error('expected Media list layout to expose the 3-row marker')
+    const listRows = Array.from(doc.querySelectorAll('[data-kg-media-list-row-layout="3-rows"]')) as HTMLElement[]
+    if (listRows.length === 0) throw new Error('expected media candidates to render as semantic 3-row list items')
+    const rowSectionCounts = listRows.map(row => row.querySelectorAll('[data-kg-media-list-row-section]').length)
+    if (rowSectionCounts.some(count => count !== 3)) {
+      throw new Error(`expected every media list item to expose exactly 3 rows, got ${JSON.stringify(rowSectionCounts)}`)
+    }
+
+    await act(async () => {
+      gridButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+
+    if (panel.getAttribute('data-kg-media-layout') !== 'grid') {
+      throw new Error(`expected Media layout to switch back to grid, got ${String(panel.getAttribute('data-kg-media-layout'))}`)
+    }
+    if (storage.getItem('kg.media.catalog.layout') !== 'grid') {
+      throw new Error(`expected Media layout preference to persist, got ${String(storage.getItem('kg.media.catalog.layout'))}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() {
   const storage = new MemoryStorage()
   const { dom, restore: restoreDom } = initJsdomHarness()

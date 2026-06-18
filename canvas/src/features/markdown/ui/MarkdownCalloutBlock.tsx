@@ -129,6 +129,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       markdownPresentationMode={opts.markdownPresentationMode}
       uiPanelTextFontClass={opts.uiPanelTextFontClass}
       uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
+      markdownViewerMediaMode={opts.markdownViewerMediaMode}
       mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
       rootThemeMode={opts.rootThemeMode}
       previewOverlayScope={opts.previewOverlayScope}

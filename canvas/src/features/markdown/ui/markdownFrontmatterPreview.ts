@@ -136,6 +136,7 @@ export function buildMarkdownFrontmatterPreviewRenderOpts(args: {
   geoDatasetIntegration?: RenderOpts['geoDatasetIntegration']
   forbidCopy?: boolean
   deferMermaidRender?: boolean
+  markdownViewerMediaMode?: RenderOpts['markdownViewerMediaMode']
 }): RenderOpts {
   return {
     activeDocumentPath: args.activeDocumentPath,
@@ -156,5 +157,6 @@ export function buildMarkdownFrontmatterPreviewRenderOpts(args: {
     geoDatasetIntegration: args.geoDatasetIntegration,
     forbidCopy: args.forbidCopy,
     deferMermaidRender: args.deferMermaidRender,
+    markdownViewerMediaMode: args.markdownViewerMediaMode,
   }
 }

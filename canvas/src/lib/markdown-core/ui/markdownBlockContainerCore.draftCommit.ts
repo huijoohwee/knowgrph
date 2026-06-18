@@ -7,6 +7,7 @@ import { rewriteInlineCodeSigilsToStyledSpansHtml, rewriteSigilSpansToInlineCode
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { getSelectionOffsetsWithin, setSelectionByOffsetsWithin } from './markdownBlockContainerCore.selection'
 import { buildReplacementLinesFromDraftWithPrefixes, HTML_TO_MARKDOWN_UNIFIED_DEFAULTS } from './markdownBlockContainerCore.commit'
+import { restoreInlineMediaEditTokensInPlace, rewriteRenderedInlineMediaForEditorHtml } from './markdownBlockContainerCore.inlineMediaEditHtml'
 
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
 
@@ -219,6 +220,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
           || element.hasAttribute('data-kg-inline-code-token')
           || element.hasAttribute('data-kg-footnote-ref')
           || element.hasAttribute('data-kg-comment')
+          || element.hasAttribute('data-kg-inline-media-edit-token')
           || element.hasAttribute('data-kg-sigil-color')
           || element.hasAttribute('data-kg-sigil-bg')
           || String(element.getAttribute('style') || '').trim().length > 0
@@ -322,6 +324,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     const preservedHighlights: string[] = []
     const preservedUnderlines: string[] = []
     const workingRoot = root.cloneNode(true) as HTMLElement
+    restoreInlineMediaEditTokensInPlace(workingRoot)
     const underlineNodes = Array.from(workingRoot.querySelectorAll('u'))
     underlineNodes.forEach(node => {
       const token = `KGUNDERLINETOKEN${preservedUnderlines.length}KG`
@@ -462,7 +465,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
           .map(line => (line ? md.renderInline(line) : ''))
           .map((html, i) => (i === 0 ? html : `<br/>${html}`))
           .join('')
-        el.innerHTML = rewriteInlineEditorAnnotationsToStyledHtml(renderedInlineHtml)
+        el.innerHTML = rewriteRenderedInlineMediaForEditorHtml(rewriteInlineEditorAnnotationsToStyledHtml(renderedInlineHtml))
       }
       args.lastSerializedEditorHtmlRef.current = el.innerHTML
     } else {

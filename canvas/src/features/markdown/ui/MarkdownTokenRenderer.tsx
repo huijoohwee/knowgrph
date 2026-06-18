@@ -13,7 +13,7 @@ import { MarkdownParagraphBlock } from './MarkdownParagraphBlock'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { MarkdownFootnoteBlock } from './MarkdownFootnoteBlock'
 import { buildStandaloneMediaRenderLineSetFromTokens } from './standaloneMediaBudget'
-import type { MarkdownGeoDatasetIntegration, RenderOpts } from './MarkdownRendererTypes'
+import type { MarkdownGeoDatasetIntegration, MarkdownViewerMediaMode, RenderOpts } from './MarkdownRendererTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { applyMediaProxySrc, isSafeMediaSrc, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
@@ -71,6 +71,7 @@ export type MarkdownTokenRendererProps = {
   deferMermaidRender?: boolean
   markdownLargeDocumentMode?: boolean
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: MarkdownViewerMediaMode
 }
 
 export const MARKDOWN_IMAGE_GRID_BASE_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 items-start'
@@ -139,11 +140,13 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     deferMermaidRender,
     markdownLargeDocumentMode,
     markdownCardPreviewMode,
+    markdownViewerMediaMode = 'chip',
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
   const topLevelBlock = nestingLevel <= 0
   const cardPreviewMode = markdownCardPreviewMode === true
+  const standaloneMediaEnabled = markdownPresentationMode || cardPreviewMode || markdownViewerMediaMode === 'image'
   const blockControlsEnabled = topLevelBlock && !cardPreviewMode
   const blockChromeEnabled = topLevelBlock && !markdownLargeDocumentMode && !cardPreviewMode
   const standaloneMediaRenderLineSet = React.useMemo(() => buildStandaloneMediaRenderLineSetFromTokens({
@@ -189,6 +192,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownBlockControlsEnabled: blockControlsEnabled,
       markdownBlockGutterEnabled: blockChromeEnabled,
       markdownCardPreviewMode: cardPreviewMode,
+      markdownViewerMediaMode,
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
       standaloneMediaRenderLineSet,
@@ -217,6 +221,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       onInlineDraftTextChange,
       deferMermaidRender,
       markdownLargeDocumentMode,
+      markdownViewerMediaMode,
       mermaidFrontmatterConfig,
       onInsertLineAfter,
       onMoveHeadingSection,
@@ -310,7 +315,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
         }
       }
 
-      const singleImage = extractSingleImageParagraph(t)
+      const singleImage = standaloneMediaEnabled ? extractSingleImageParagraph(t) : null
       if (singleImage) {
         const images: Array<{ href: string; alt: string }> = [singleImage]
         const consumed: TokenWithLines[] = [t]

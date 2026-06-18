@@ -19,6 +19,7 @@ type MarkdownSigilTextOptions = {
   maxAnnotations?: number
   maxScanChars?: number
   highlightClassName?: string
+  keywordChipClassName?: string
 }
 
 type MarkdownSigilTextProps = MarkdownSigilTextOptions & {
@@ -56,7 +57,10 @@ export const renderMarkdownSigilInlineText = (
       return (
         <span
           key={`keyword-${index}`}
-          className={[DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value))].join(' ')}
+          className={[
+            options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
+            resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value)),
+          ].join(' ')}
           title={segment.value}
           data-kg-card-inline-keyword-pill="1"
         >
@@ -100,8 +104,9 @@ export const MarkdownSigilText = React.memo(function MarkdownSigilText(props: Ma
       maxAnnotations: props.maxAnnotations,
       maxScanChars: props.maxScanChars,
       highlightClassName: props.highlightClassName,
+      keywordChipClassName: props.keywordChipClassName,
     }),
-    [props.highlightClassName, props.maxAnnotations, props.maxScanChars, props.text],
+    [props.highlightClassName, props.keywordChipClassName, props.maxAnnotations, props.maxScanChars, props.text],
   )
   return (
     <Tag className={props.className} title={props.title}>

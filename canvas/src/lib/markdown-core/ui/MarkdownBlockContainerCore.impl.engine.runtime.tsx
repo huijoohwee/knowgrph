@@ -134,6 +134,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   }, [editing, inlineEditStateScheduleKey, onInlineEditStateChange])
   React.useEffect(() => {
     if (editing) return
+    lastSelectionOffsetsRef.current = null
     lastNonCollapsedSelectionOffsetsRef.current = null
     lastNonCollapsedDomRangeRef.current = null
     if (!sessionEditLineRange) return
@@ -172,6 +173,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const selectionSyncSuspendUntilRef = React.useRef(0)
   const {
     linkRangeRef,
+    lastSelectionOffsetsRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
     liveSelectionSnapshotRef,
@@ -270,6 +272,14 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setSessionEditLineRange,
     onDraftTextChange: onInlineDraftTextChange,
   })
+  const readSelectionOffsetsForInlineCommand = React.useCallback(() => {
+    const current = getSelectionOffsets()
+    if (current) {
+      lastSelectionOffsetsRef.current = current
+      return current
+    }
+    return lastSelectionOffsetsRef.current
+  }, [getSelectionOffsets, lastSelectionOffsetsRef])
   const {
     readSelectionOffsetsForFormatting,
     execInline,
@@ -468,6 +478,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setSlashMenuStable,
     getDraft,
     getSelectionOffsets,
+    getCommandSelectionOffsets: readSelectionOffsetsForInlineCommand,
     setDraftToDom,
     setEditing,
     setSessionEditLineRange,
@@ -602,6 +613,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setLinkPopover,
     toolbarInteractingRef,
     toolbarInteractionUntilRef,
+    lastSelectionOffsetsRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
     liveSelectionSnapshotRef,
@@ -666,6 +678,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     editTrimEmptyBlockEdges,
     scheduleEdgeTrimBurst,
     edgeTrimRafRef,
+    lastSelectionOffsetsRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
     toolbarInteractingRef,

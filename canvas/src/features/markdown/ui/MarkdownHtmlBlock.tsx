@@ -18,11 +18,13 @@ import {
 import { extractScriptEmbedAnchorHref, normalizeHtmlHrefLikeValue } from 'grph-shared/markdown/mediaHtml'
 import { MediaWrapper, MediaIframe, MediaVideo, MediaVideoSnapshot, MediaImage, MediaWebpageSnapshot } from './MarkdownMediaUi'
 import type { RenderOpts } from './MarkdownRendererTypes'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from './dataViewChipStyles'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -87,7 +89,12 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
       markdownPresentationMode: opts.markdownPresentationMode,
       markdownCardPreviewMode: opts.markdownCardPreviewMode,
-      renderNodeText: (text, key) => <React.Fragment key={key}>{text}</React.Fragment>,
+      markdownViewerMediaMode: opts.markdownViewerMediaMode,
+      renderNodeText: (text, key) => (
+        <React.Fragment key={key}>
+          {renderMarkdownSigilInlineText(text, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME })}
+        </React.Fragment>
+      ),
       fragmentOptions:
         opts.markdownPresentationMode && fragmentsEnabled
           ? {
@@ -107,6 +114,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     opts.activeDocumentPath,
     opts.markdownCardPreviewMode,
     opts.markdownPresentationMode,
+    opts.markdownViewerMediaMode,
     opts.uiPanelMonospaceTextClass,
     opts.uiPanelTextFontClass,
   ])
@@ -402,7 +410,10 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     const raw = String(rawHtml || '').trim()
     if (!raw) return ''
     const m = raw.match(/<a\b[^>]*\bhref\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i)
-    const href = normalizeHtmlHrefLikeValue(String(m?.[2] ?? m?.[3] ?? m?.[4] ?? '').trim())
+    const hrefRaw = String(m?.[2] ?? m?.[3] ?? m?.[4] ?? '').trim()
+    const href =
+      normalizeHtmlHrefLikeValue(hrefRaw) ||
+      normalizeHtmlHrefLikeValue(hrefRaw.replace(/`/g, '').trim())
     if (!href) return ''
     if (/^https?:\/\//i.test(href)) return href
     if (/^\/\//.test(href)) return `https:${href}`

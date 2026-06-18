@@ -437,6 +437,21 @@ function normalizeInlineMediaUrl(raw: string): string {
     .replace(/[.,;:]+$/g, '')
 }
 
+function escapeInlineMediaHtmlAttr(raw: string): string {
+  return String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function buildInlineMediaMarkdownDestination(raw: string): string {
+  const url = String(raw || '').trim()
+  if (!url) return 'image-url'
+  if (!/[\s<>]/.test(url)) return url
+  return `<${url.replace(/\\/g, '\\\\').replace(/>/g, '%3E').replace(/\r?\n/g, ' ')}>`
+}
+
 const INLINE_KEYWORD_STOP_WORDS = new Set([
   'a',
   'an',
@@ -582,18 +597,18 @@ export function buildInlineMediaEmbed(args: {
     const alt = (label || (sourceKey ? sourceKey.replace(/Url$/i, '') : 'Image alt'))
       .replace(/[[\]\n\r]/g, ' ')
       .trim() || 'Image alt'
-    return `![${alt}](${url || 'image-url'})`
+    return `![${alt}](${buildInlineMediaMarkdownDestination(url)})`
   }
   if (args.kind === 'audio') {
     const title = label.replace(/[\n\r<>]/g, ' ').replace(/"/g, '&quot;').trim()
     const titleAttr = title ? ` title="${title}"` : ''
-    return `<audio src="${url || selected || 'audio-url'}"${titleAttr} controls></audio>`
+    return `<audio src="${escapeInlineMediaHtmlAttr(url || selected || 'audio-url')}"${titleAttr} controls></audio>`
   }
   const poster = String(args.thumbnailUrl || '').trim()
-  const posterAttr = poster ? ` poster="${poster.replace(/"/g, '&quot;')}"` : ''
+  const posterAttr = poster ? ` poster="${escapeInlineMediaHtmlAttr(poster)}"` : ''
   const title = label.replace(/[\n\r<>]/g, ' ').replace(/"/g, '&quot;').trim()
   const titleAttr = title ? ` title="${title}"` : ''
-  return `<video src="${url || selected || 'video-url'}"${posterAttr}${titleAttr} controls></video>`
+  return `<video src="${escapeInlineMediaHtmlAttr(url || selected || 'video-url')}"${posterAttr}${titleAttr} controls></video>`
 }
 
 export function getInlineCommandMenuCatalog() {

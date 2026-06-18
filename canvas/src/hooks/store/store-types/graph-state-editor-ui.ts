@@ -7,6 +7,7 @@ import type {
 } from '@/features/graph-data-table/graphDataTable'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import type { MarkdownViewerMediaMode } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -63,6 +64,8 @@ export interface GraphStateEditorUi {
   uiPanelMicroLabelTextSizeClass: string;
   renderMediaAsNodes: boolean;
   setRenderMediaAsNodes: (v: boolean) => void;
+  markdownViewerMediaMode: MarkdownViewerMediaMode;
+  setMarkdownViewerMediaMode: (v: MarkdownViewerMediaMode) => void;
   timelineEnabled: boolean;
   setTimelineEnabled: (v: boolean) => void;
   setMediaPanelDensity: (v: 'default' | 'compact') => void;

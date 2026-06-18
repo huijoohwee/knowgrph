@@ -257,6 +257,7 @@ export const renderSafeHtmlBlock = (
     uiPanelMonospaceTextClass: string
     markdownPresentationMode: boolean
     markdownCardPreviewMode?: boolean
+    markdownViewerMediaMode?: 'chip' | 'image'
     renderNodeText: (text: string, key: React.Key) => React.ReactNode
     fragmentOptions?: {
       enabled: boolean

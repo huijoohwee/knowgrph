@@ -4,13 +4,13 @@ export const CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME = 'overflow-y-auto overflow-
 export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
 export const CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME =
-  'inline-flex items-center align-middle gap-1 rounded-full border border-[color:var(--kg-border)] px-2 py-0.5 text-[11px] leading-4 text-[color:var(--kg-text-secondary)]'
+  'inline-flex items-center align-baseline gap-0.5 rounded-full border border-[color:var(--kg-border)] pl-1 pr-1.5 py-0 [font-size:inherit] [line-height:inherit] text-[color:var(--kg-text-secondary)]'
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME =
   'inline-block !h-3 !w-3 shrink-0 rounded-full object-cover'
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME =
   `${CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME} mr-1 max-w-full overflow-hidden`
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME =
-  'min-w-0 max-w-[9rem] truncate leading-4'
+  'min-w-0 max-w-[9rem] truncate [line-height:inherit]'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME = 'bg-transparent'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-frame'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-embed-frame'
@@ -36,7 +36,11 @@ export function hasCardMarkdownPreviewSyntax(raw: string): boolean {
 }
 
 export function readCardMarkdownPreviewMediaLabel(raw: unknown, fallback: string): string {
-  const compact = String(raw ?? '').replace(/\s+/g, ' ').trim()
+  const compact = String(raw ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(?:image|video|audio|media)\s*:\s*/i, '')
+    .trim()
   if (compact && !/^(?:thumbnail|preview|media)$/i.test(compact)) return compact.slice(0, 80)
   return fallback
 }

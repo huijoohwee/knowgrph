@@ -27,7 +27,11 @@ const fixedChipClasses: Record<string, string> = {
   '3': UI_THEME_TOKENS.status.pink,
 }
 
-export const DATA_VIEW_CHIP_ROW_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} px-2 py-0.5 rounded border text-[10px] font-medium`
+const DATA_VIEW_CHIP_BASE_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} px-2 py-0.5 rounded border font-medium`
+
+export const DATA_VIEW_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} text-[10px] leading-[15px]`
+
+export const DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} [font-size:inherit] [line-height:inherit]`
 
 const hashPick = (key: string): string => {
   const s = String(key || '').trim().toLowerCase()
@@ -42,7 +46,7 @@ export const resolveDataViewChipClass = (value: string): string => {
   return fixedChipClasses[key] || hashPick(key)
 }
 
-export const INLINE_KEYWORD_CHIP_TOKEN_RE = /#[A-Za-z][A-Za-z0-9-]{1,47}/g
+export const INLINE_KEYWORD_CHIP_TOKEN_RE = /#[A-Za-z0-9][A-Za-z0-9-]{0,47}/g
 
 export const splitInlineKeywordChipTokens = (text: string): Array<
   | { kind: 'text'; value: string }

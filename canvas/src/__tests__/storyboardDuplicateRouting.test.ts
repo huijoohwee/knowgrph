@@ -14,7 +14,7 @@ import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/
 import { commitStoryboardMarkdownDuplicate, runStoryboardMarkdownDuplicateAction } from '@/components/StoryboardCanvas/storyboardMarkdownDuplicate'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { runStoryboardStrybldrDuplicateAction } from '@/components/StoryboardCanvas/storyboardStrybldrDuplicate'
-import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardTypes'
+import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { findDuplicatedMarkdownNodeId } from '@/components/StoryboardCanvas/storyboardDuplicateSelection'
 import { buildStrybldrStoryboardDocument, serializeStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
@@ -640,7 +640,7 @@ export async function testStoryboardConvertLoopActionClassifiesMixedBoardGraphBa
 }
 
 export function testStoryboardClearOutputActionClassifiesEmptyAndClearedStates() {
-  let clearCount = 0
+  let clearCount: number = 0
   const emptyResult = runStoryboardClearOutputAction({
     output: '   ',
     clearOutput: () => {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
@@ -7,6 +8,7 @@ import {
   hasCardMarkdownPreviewSyntax,
   readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
 const MarkdownPreviewLazy = React.lazy(() => import('@/features/markdown/ui/MarkdownPreview'))
 
@@ -127,7 +129,13 @@ function renderCardMarkdownPreviewText(text: string, keyPrefix: string): React.R
   const lines = String(text || '').split('\n')
   lines.forEach((line, index) => {
     if (index > 0) nodes.push(<br key={`${keyPrefix}:br:${index}`} />)
-    if (line) nodes.push(<React.Fragment key={`${keyPrefix}:text:${index}`}>{line}</React.Fragment>)
+    if (line) {
+      nodes.push(
+        <React.Fragment key={`${keyPrefix}:text:${index}`}>
+          {renderMarkdownSigilInlineText(line, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME })}
+        </React.Fragment>,
+      )
+    }
   })
   return nodes
 }

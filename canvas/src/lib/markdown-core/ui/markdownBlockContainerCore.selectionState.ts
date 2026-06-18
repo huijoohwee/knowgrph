@@ -3,12 +3,14 @@ import type { LiveSelectionSnapshot } from './markdownBlockContainerCore.interac
 
 export const useMarkdownBlockContainerSelectionState = () => {
   const linkRangeRef = React.useRef<Range | null>(null)
+  const lastSelectionOffsetsRef = React.useRef<{ startOffset: number; endOffset: number } | null>(null)
   const lastNonCollapsedSelectionOffsetsRef = React.useRef<{ startOffset: number; endOffset: number } | null>(null)
   const lastNonCollapsedDomRangeRef = React.useRef<Range | null>(null)
   const liveSelectionSnapshotRef = React.useRef<LiveSelectionSnapshot | null>(null)
 
   return {
     linkRangeRef,
+    lastSelectionOffsetsRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
     liveSelectionSnapshotRef,

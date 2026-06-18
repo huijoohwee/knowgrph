@@ -8,11 +8,19 @@ import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline
 
 type SetGraph = StoreApi<GraphState>['setState']
 
+const readMarkdownViewerMediaMode = (raw: unknown): 'chip' | 'image' => String(raw || '').trim() === 'image' ? 'image' : 'chip'
+
 export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageReaders)=> {
   const { lsBool, readMonacoLoadMode, writeLsString } = readers
   return {
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
+  markdownViewerMediaMode: readMarkdownViewerMediaMode(readers.readLsString(LS_KEYS.markdownViewerMediaMode, 'chip')),
+  setMarkdownViewerMediaMode: (v: 'chip' | 'image') => {
+    const next = v === 'image' ? 'image' : 'chip'
+    writeLsString(LS_KEYS.markdownViewerMediaMode, next)
+    set({ markdownViewerMediaMode: next })
+  },
   timelineEnabled: lsBool(LS_KEYS.timelineEnabled, TIMELINE_ENABLED_DEFAULT),
   setTimelineEnabled: (v: boolean) => set({ timelineEnabled: lsSetBool(LS_KEYS.timelineEnabled, resolveTimelineEnabled(v)) }),
   mediaNodeOpacity: 0.9,

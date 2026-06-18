@@ -23,6 +23,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   setLinkPopover: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number; href: string }>>
   toolbarInteractingRef: React.MutableRefObject<boolean>
   toolbarInteractionUntilRef: React.MutableRefObject<number>
+  lastSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
   liveSelectionSnapshotRef: React.MutableRefObject<LiveSelectionSnapshot | null>
@@ -45,6 +46,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     setLinkPopover,
     toolbarInteractingRef,
     toolbarInteractionUntilRef,
+    lastSelectionOffsetsRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
     liveSelectionSnapshotRef,
@@ -63,10 +65,11 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   const captureSelectionForToolbarAction = React.useCallback(() => {
     captureSelectionForFloatingToolbar({
       getSelectionOffsets,
+      lastSelectionOffsetsRef,
       lastNonCollapsedSelectionOffsetsRef,
       lastNonCollapsedDomRangeRef,
     })
-  }, [getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef])
+  }, [getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, lastSelectionOffsetsRef])
 
   const holdToolbarInteraction = React.useCallback(() => {
     if (blurCommitTimerRef.current) {
@@ -89,6 +92,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     liveSelectionSnapshotRef.current = liveSelectionSnapshot
     const selectionSyncSignature = readSelectionSyncSignature({ root, selection: domSelection }) || ''
     const selection = getSelectionOffsets()
+    if (selection) lastSelectionOffsetsRef.current = selection
     const selectionSignature = selectionSyncSignature || (selection ? `${selection.startOffset}:${selection.endOffset}` : '')
     const hostRect = getEditorHostRect(root)
     const hostRectSignature = `${Math.round(hostRect.left)}:${Math.round(hostRect.top)}:${Math.round(hostRect.width)}:${Math.round(hostRect.height)}`
@@ -140,7 +144,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     }
     setSlashMenu(prev => (prev.show ? { ...prev, show: false } : prev))
     setLinkPopover(prev => (prev.show ? { ...prev, show: false, href: '' } : prev))
-  }, [editDisableRichUi, editing, editorRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, lastBubbleProbeRef, liveSelectionSnapshotRef, probe, setBubble, setLinkPopover, setSlashMenu, toolbarInteractingRef])
+  }, [editDisableRichUi, editing, editorRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, lastBubbleProbeRef, lastSelectionOffsetsRef, liveSelectionSnapshotRef, probe, setBubble, setLinkPopover, setSlashMenu, toolbarInteractingRef])
 
   const syncSelectionToolbarState = React.useCallback(() => {
     if (!editDisableRichUi) updateBubble()

@@ -8,6 +8,8 @@ export type MarkdownInlineDraftTextChangeOptions = {
   reflectInViewer?: boolean
 }
 
+export type MarkdownViewerMediaMode = 'chip' | 'image'
+
 export type InlineRenderOpts = {
   activeDocumentPath: string
   uiPanelTextFontClass: string
@@ -15,6 +17,7 @@ export type InlineRenderOpts = {
   markdownPresentationMode: boolean
   markdownLargeDocumentMode?: boolean
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: MarkdownViewerMediaMode
   fragmentOptions?: {
     enabled: boolean
     currentStep: number
@@ -62,6 +65,7 @@ export type RenderOpts = InlineRenderOpts & {
   markdownBlockControlsEnabled?: boolean
   markdownBlockGutterEnabled?: boolean
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: MarkdownViewerMediaMode
   markdownForcePlainTables?: boolean
   webpageLayoutWireframeAscii?: string | null
   markdownSourceLines?: string[]

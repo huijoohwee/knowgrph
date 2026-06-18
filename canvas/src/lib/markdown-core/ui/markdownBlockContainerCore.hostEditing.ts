@@ -10,6 +10,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
   editTrimEmptyBlockEdges: boolean
   scheduleEdgeTrimBurst: () => void
   edgeTrimRafRef: React.MutableRefObject<number>
+  lastSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
   toolbarInteractingRef: React.MutableRefObject<boolean>
@@ -82,10 +83,11 @@ export const useMarkdownBlockContainerHostEditing = (args: {
     args.toolbarInteractingRef.current = true
     captureSelectionForFloatingToolbar({
       getSelectionOffsets: args.getSelectionOffsets,
+      lastSelectionOffsetsRef: args.lastSelectionOffsetsRef,
       lastNonCollapsedSelectionOffsetsRef: args.lastNonCollapsedSelectionOffsetsRef,
       lastNonCollapsedDomRangeRef: args.lastNonCollapsedDomRangeRef,
     })
-  }, [args.getSelectionOffsets, args.lastNonCollapsedDomRangeRef, args.lastNonCollapsedSelectionOffsetsRef, args.toolbarInteractingRef])
+  }, [args.getSelectionOffsets, args.lastNonCollapsedDomRangeRef, args.lastNonCollapsedSelectionOffsetsRef, args.lastSelectionOffsetsRef, args.toolbarInteractingRef])
 
   const linkPopoverState = useMarkdownBlockContainerLinkPopover({
     editorPresentation: args.editorPresentation,
@@ -113,6 +115,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
     emitParityProbe: args.emitParityProbe,
     editDisableRichUi: args.editDisableRichUi,
     getSelectionOffsets: args.getSelectionOffsets,
+    lastSelectionOffsetsRef: args.lastSelectionOffsetsRef,
     setVariableMenuStable: args.setVariableMenuStable,
     variableMenu: args.variableMenu,
     setSlashMenuStable: args.setSlashMenuStable,

@@ -152,6 +152,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                       markdownPresentationMode: opts.markdownPresentationMode,
                       markdownCardPreviewMode: opts.markdownCardPreviewMode,
+                      markdownViewerMediaMode: opts.markdownViewerMediaMode,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -180,6 +181,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                         markdownPresentationMode: opts.markdownPresentationMode,
                         markdownCardPreviewMode: opts.markdownCardPreviewMode,
+                        markdownViewerMediaMode: opts.markdownViewerMediaMode,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {
@@ -267,6 +269,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                       markdownPresentationMode: opts.markdownPresentationMode,
                       markdownCardPreviewMode: opts.markdownCardPreviewMode,
+                      markdownViewerMediaMode: opts.markdownViewerMediaMode,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -295,6 +298,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
                         markdownPresentationMode: opts.markdownPresentationMode,
                         markdownCardPreviewMode: opts.markdownCardPreviewMode,
+                        markdownViewerMediaMode: opts.markdownViewerMediaMode,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {

@@ -416,6 +416,10 @@ html, body, #root {
 }
 
 @layer components {
+  [data-kg-media-description-input] {
+    display: inline-block !important;
+  }
+
   [data-testid="markdown-preview-root"] h1,
   [data-testid="markdown-preview-root"] h2,
   [data-testid="markdown-preview-root"] h3,

@@ -1,6 +1,8 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
+import { buildInlineMediaEmbed } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe() {
@@ -85,6 +87,7 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
         previewOverlayPortalTarget: null,
         previewScrollable: false,
         showSidebar: false,
+        markdownViewerMediaMode: 'image',
       }),
     )
 
@@ -197,6 +200,268 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
     root.unmount()
   } finally {
     ;(globalThis as unknown as { fetch?: unknown }).fetch = originalFetch
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewViewerMediaDefaultsToInlineChip() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const markdownText = [
+      '1. Approve the storyboard cards before any paid or mutating provider call.',
+      '',
+      '![buddydrone.jpg](https://example.com/buddydrone.jpg)',
+      '',
+      'Review #image source.',
+    ].join('\n')
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 8; i += 1) await tick()
+
+    const mediaChip = container.querySelector('[data-kg-card-inline-media-pill="1"]') as HTMLElement | null
+    if (!mediaChip) throw new Error(`expected default Viewer media to render as inline chip, html=${container.innerHTML}`)
+    if (!String(mediaChip.textContent || '').includes('buddydrone.jpg')) {
+      throw new Error(`expected Viewer media chip to preserve media label, got ${JSON.stringify(mediaChip.textContent)}`)
+    }
+    const download = container.querySelector('a[download][aria-label="Download media"]')
+    if (download) throw new Error(`expected default Viewer chip media to omit full-media download chrome, html=${container.innerHTML}`)
+
+    const keywordChip = container.querySelector('[data-kg-card-inline-keyword-pill="1"]') as HTMLElement | null
+    if (!keywordChip) throw new Error(`expected # keyword to reuse shared inline chip utility in Viewer, html=${container.innerHTML}`)
+    for (const expectedClass of DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.split(/\s+/).filter(Boolean)) {
+      if (!keywordChip.className.includes(expectedClass)) {
+        throw new Error(`expected Viewer # chip to include shared inline class ${expectedClass}, got ${keywordChip.className}`)
+      }
+    }
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewViewerMediaImageModeRendersFullMedia() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: '![buddydrone.jpg](https://example.com/buddydrone.jpg)',
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+        markdownViewerMediaMode: 'image',
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 8; i += 1) await tick()
+
+    const mediaChip = container.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (mediaChip) throw new Error(`expected image mode to render full media, not inline chip, html=${container.innerHTML}`)
+    const img = container.querySelector('img[data-kg-card-media-kind="image"]') as HTMLImageElement | null
+    if (!img) throw new Error(`expected image mode to render full image media, html=${container.innerHTML}`)
+    const download = container.querySelector('a[download][aria-label="Download media"]')
+    if (!download) throw new Error(`expected image mode to preserve full-media download chrome, html=${container.innerHTML}`)
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewViewerMediaChipHoverToggleRendersFullMedia() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: '4. Approve the @storyboard cards before any paid or mutating provider call. ![Image: image-088c7665f3bdba06.jpg](https://example.com/image-088c7665f3bdba06.jpg)',
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 8; i += 1) await tick()
+
+    const mediaChip = container.querySelector('[data-kg-card-inline-media-pill="1"]') as HTMLElement | null
+    if (!mediaChip) throw new Error(`expected default Viewer media to render as inline chip, html=${container.innerHTML}`)
+    const mediaChipText = String(mediaChip.textContent || '')
+    if (!mediaChipText.includes('image-088c7665f3bdba06.jpg')) {
+      throw new Error(`expected media chip to preserve asset label, got ${JSON.stringify(mediaChipText)}`)
+    }
+    if (mediaChipText.includes('Image:')) {
+      throw new Error(`expected media chip to strip prose-like Image: prefix, got ${JSON.stringify(mediaChipText)}`)
+    }
+    const toggle = container.querySelector('[data-kg-card-inline-media-toggle="1"]') as HTMLButtonElement | null
+    if (!toggle) throw new Error(`expected Viewer media chip to expose hover/focus full-media toggle, html=${container.innerHTML}`)
+    const initialFullImage = container.querySelector('[data-kg-card-inline-media-expanded="1"] img[data-kg-card-media-kind="image"]')
+    if (initialFullImage) throw new Error(`expected full media to stay hidden until the user toggles it, html=${container.innerHTML}`)
+
+    await act(async () => {
+      toggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    for (let i = 0; i < 4; i += 1) await tick()
+
+    const expanded = container.querySelector('[data-kg-card-inline-media-expanded="1"]') as HTMLElement | null
+    if (!expanded) throw new Error(`expected chip toggle to render full media, html=${container.innerHTML}`)
+    const img = expanded.querySelector('img[data-kg-card-media-kind="image"]') as HTMLImageElement | null
+    if (!img) throw new Error(`expected expanded media to render full image, html=${container.innerHTML}`)
+    if (String(img.className || '').includes('!h-3')) {
+      throw new Error(`expected expanded media to avoid inline thumbnail sizing, class=${img.className}`)
+    }
+
+    const collapse = container.querySelector('[data-kg-card-inline-media-collapse="1"]') as HTMLButtonElement | null
+    if (!collapse) throw new Error(`expected expanded media to expose inline-chip collapse, html=${container.innerHTML}`)
+    await act(async () => {
+      collapse.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    for (let i = 0; i < 4; i += 1) await tick()
+
+    const restoredChip = container.querySelector('[data-kg-card-inline-media-pill="1"]') as HTMLElement | null
+    if (!restoredChip) throw new Error(`expected collapse to restore inline media chip, html=${container.innerHTML}`)
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testMarkdownPreviewViewerMediaCommandEmbedWithWhitespaceUrlUsesSharedInlineChip() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const embed = buildInlineMediaEmbed({
+      kind: 'image',
+      url: 'http://localhost:5173/api/storage/media/airvio/runs/upload-730fe/image/buddydrone-730fe 6850f 0fc 26f.jpg?kg_media_token=abc',
+      label: 'Image: buddydrone-730fe 6850f 0fc 26f.jpg',
+    })
+
+    root.render(
+      React.createElement(MarkdownPreview, {
+        markdownText: `The ${embed} template is intentionally neutral.`,
+        activeDocumentPath: '/test.md',
+        highlightedLineRange: null,
+        markdownWordWrap: true,
+        markdownPresentationMode: false,
+        markdownTextHighlight: false,
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        previewOverlayScope: 'container',
+        previewOverlayPortalTarget: null,
+        previewScrollable: false,
+        showSidebar: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 8; i += 1) await tick()
+
+    const text = String(container.textContent || '')
+    if (text.includes('![') || text.includes('](')) {
+      throw new Error(`expected whitespace media URL to render through shared inline chip, not raw markdown; text=${JSON.stringify(text)} html=${container.innerHTML}`)
+    }
+    const mediaChip = container.querySelector('[data-kg-card-inline-media-pill="1"]') as HTMLElement | null
+    if (!mediaChip) throw new Error(`expected shared inline media chip for whitespace URL embed, html=${container.innerHTML}`)
+    const image = container.querySelector('img[data-kg-card-media-kind="image"]') as HTMLImageElement | null
+    if (image && String(image.getAttribute('src') || '').includes(' ')) {
+      throw new Error(`expected media src to avoid raw spaces, got ${image.getAttribute('src')}`)
+    }
+
+    root.unmount()
+  } finally {
     restoreDom()
   }
 }

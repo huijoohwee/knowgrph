@@ -1,4 +1,4 @@
-import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardTypes'
+import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 
 export type StoryboardToolbarActionBindings = {
   onRun: () => void

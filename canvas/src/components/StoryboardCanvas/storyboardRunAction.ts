@@ -39,8 +39,10 @@ export function runStoryboardRunAction(args: {
   openInSidepane: () => { selectedNodeId?: string | null } | void
   runNode: (nodeId: string) => Promise<void> | void
 }): StoryboardRunActionResult {
+  const sidepaneResult = args.openInSidepane()
+  const selectedNodeId = sidepaneResult && typeof sidepaneResult === 'object' ? sidepaneResult.selectedNodeId : ''
   const openedNodeId = String(
-    args.openInSidepane()?.selectedNodeId || args.resolvedCardNodeId || '',
+    selectedNodeId || args.resolvedCardNodeId || '',
   ).trim()
   if (!args.hasSourceNode) {
     return {

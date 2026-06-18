@@ -2,6 +2,7 @@ import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
 import { normalizeInlineCommentRangeIndicatorsInPlace, rewriteInlineCodeSigilsToPlainTextHtml, rewriteInlineCodeSigilsToStyledSpansHtml } from '@/features/markdown/ui/markdownSigil'
 import { rewriteInlineEditorCommentIndicatorsHtml } from './markdownBlockContainerCore.draftCommit'
+import { rewriteRenderedInlineMediaForEditorHtml } from './markdownBlockContainerCore.inlineMediaEditHtml'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 
 const EDIT_HTML_CACHE_MAX_ENTRIES = 12
@@ -38,8 +39,10 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
     syncSelectionToolbarStateRef.current = args.syncSelectionToolbarState
   }, [args.syncSelectionToolbarState])
   const rewriteInlineSigilsForEditHtml = React.useCallback((html: string): string => {
-    if (args.editSigilRenderMode === 'plain') return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToPlainTextHtml(html))
-    return rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToStyledSpansHtml(html))
+    const sigilHtml = args.editSigilRenderMode === 'plain'
+      ? rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToPlainTextHtml(html))
+      : rewriteInlineEditorCommentIndicatorsHtml(rewriteInlineCodeSigilsToStyledSpansHtml(html))
+    return rewriteRenderedInlineMediaForEditorHtml(sigilHtml)
   }, [args.editSigilRenderMode])
   const normalizeLiveEditHtmlRoot = React.useCallback((el: HTMLElement) => {
     normalizeInlineCommentRangeIndicatorsInPlace(el, el.ownerDocument)

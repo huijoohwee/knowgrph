@@ -125,6 +125,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     markdownPresentationMode: opts.markdownPresentationMode,
     markdownLargeDocumentMode: opts.markdownLargeDocumentMode,
     markdownCardPreviewMode: opts.markdownCardPreviewMode,
+    markdownViewerMediaMode: opts.markdownViewerMediaMode,
     fragmentOptions:
       opts.markdownPresentationMode && fragmentsEnabled
         ? {

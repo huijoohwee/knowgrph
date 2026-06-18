@@ -1463,6 +1463,10 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
+  const responsiveInlineIconBadgePath = path.resolve(root, 'src', 'lib', 'ui', 'ResponsiveInlineIconBadge.tsx')
+  const mediaKindOverlayPath = path.resolve(root, 'src', 'lib', 'ui', 'MediaKindOverlay.tsx')
+  const uiBarrelPath = path.resolve(root, 'src', 'lib', 'ui', 'index.ts')
+  const indexCssPath = path.resolve(root, 'src', 'index.css')
   const uploadedMediaPanelUploadPath = path.resolve(root, 'src', 'lib', 'storage', 'uploadedMediaPanelUpload.ts')
   const helpSectionsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpSections.tsx')
   const helpCommandMenuSectionPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpCommandMenuSection.tsx')
@@ -1474,6 +1478,10 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
   const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
   const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
+  const responsiveInlineIconBadgeText = readUtf8(responsiveInlineIconBadgePath)
+  const mediaKindOverlayText = readUtf8(mediaKindOverlayPath)
+  const uiBarrelText = readUtf8(uiBarrelPath)
+  const indexCssText = readUtf8(indexCssPath)
   const uploadedMediaPanelUploadText = readUtf8(uploadedMediaPanelUploadPath)
   const helpSectionsText = readUtf8(helpSectionsPath)
   const helpCommandMenuSectionText = readUtf8(helpCommandMenuSectionPath)
@@ -1516,11 +1524,135 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-media-panel') || !commandCatalogPanelText.includes('data-kg-media-list')) {
     throw new Error('Expected FloatingPanel Media to own the shared @ rich-media candidate list')
   }
+  if (
+    !commandCatalogPanelText.includes('data-kg-media-layout-selector')
+    || !commandCatalogPanelText.includes('data-kg-media-layout-toggle')
+    || !commandCatalogPanelText.includes('data-kg-media-grid')
+    || !commandCatalogPanelText.includes('data-kg-media-list-layout')
+    || !commandCatalogPanelText.includes('data-kg-media-list-row-layout="3-rows"')
+    || !commandCatalogPanelText.includes('data-kg-media-list-row-section="title"')
+    || !commandCatalogPanelText.includes('data-kg-media-list-row-section="meta"')
+    || !commandCatalogPanelText.includes('data-kg-media-list-row-section="description"')
+    || !commandCatalogPanelText.includes('MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME')
+    || !commandCatalogPanelText.includes('MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME')
+    || !commandCatalogPanelText.includes('grid-cols-[6.875rem_minmax(0,1fr)]')
+    || !commandCatalogPanelText.includes('relative inline-flex h-[4.625rem] w-[6.475rem]')
+    || !commandCatalogPanelText.includes('overflow-visible')
+    || !commandCatalogPanelText.includes('MediaListThumbnailIconFrame')
+    || !commandCatalogPanelText.includes("MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'")
+    || !commandCatalogPanelText.includes("className={cn('relative m-0 aspect-[16/9]")
+    || !commandCatalogPanelText.includes("className={cn('relative m-0 grid aspect-[16/9]")
+    || !commandCatalogPanelText.includes('isOpenableMediaHref')
+    || !commandCatalogPanelText.includes('readRichMediaOpenHref')
+    || !commandCatalogPanelText.includes('MediaCandidateCard')
+    || !commandCatalogPanelText.includes('UploadedMediaCard')
+    || !commandCatalogPanelText.includes('<article')
+    || !commandCatalogPanelText.includes('<figure')
+  ) {
+    throw new Error('Expected FloatingPanel Media to own a semantic grid/list layout selector, proportional media thumbnail lane, card layout, and 3-row list layout')
+  }
+  if (commandCatalogPanelText.includes('inline-flex h-8 w-14') || commandCatalogPanelText.includes('grid h-10 w-14')) {
+    throw new Error('Expected FloatingPanel Media list thumbnails and command icons to reuse the shared proportional thumbnail lane')
+  }
+  if (
+    commandCatalogPanelText.includes('<ResponsiveInlineIconBadge Icon={Icon} label={mediaKind')
+    || commandCatalogPanelText.includes('<ResponsiveInlineIconBadge Icon={Icon} label={item.kind} />\n          <a')
+    || commandCatalogPanelText.includes('<ResponsiveInlineIconBadge Icon={Icon} label={item.kind} />\n          <span')
+    || commandCatalogPanelText.includes('<ResponsiveInlineIconBadge Icon={Icon} label={item.kind} />')
+  ) {
+    throw new Error('Expected FloatingPanel Media kind labels to consolidate into the shared thumbnail overlay icon instead of text chips')
+  }
+  if (
+    commandCatalogPanelText.includes('function MediaKindBadge')
+    || !commandCatalogPanelText.includes("ResponsiveInlineIconBadge } from '@/lib/ui/ResponsiveInlineIconBadge'")
+    || !responsiveInlineIconBadgeText.includes('getChipClass')
+    || !responsiveInlineIconBadgeText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')
+    || !responsiveInlineIconBadgeText.includes("className={cn('h-3 w-3 shrink-0'")
+    || !responsiveInlineIconBadgeText.includes('data-kg-responsive-inline-icon-badge')
+  ) {
+    throw new Error('Expected FloatingPanel Media kind chips to reuse the shared responsive inline icon badge while keeping tiny icons')
+  }
+  if (
+    !mediaKindOverlayText.includes('export function MediaKindOverlay')
+    || !mediaKindOverlayText.includes('export function MediaOpenLinkOverlay')
+    || !mediaKindOverlayText.includes('export function MediaInfoOverlay')
+    || !mediaKindOverlayText.includes('data-kg-media-kind-overlay-icon')
+    || !mediaKindOverlayText.includes('data-kg-media-open-link-overlay')
+    || !mediaKindOverlayText.includes('data-kg-media-info-overlay')
+    || !mediaKindOverlayText.includes('data-kg-media-info-overlay-tooltip')
+    || !mediaKindOverlayText.includes('group-hover:block')
+    || !mediaKindOverlayText.includes('group-focus:block')
+    || !mediaKindOverlayText.includes('bottom-1 right-1')
+    || !mediaKindOverlayText.includes('bottom-1 left-1')
+    || !mediaKindOverlayText.includes('pointer-events-auto')
+    || !mediaKindOverlayText.includes('ExternalLink')
+    || !mediaKindOverlayText.includes('Info')
+    || !mediaKindOverlayText.includes('bg-[color:var(--kg-panel-bg)]/80')
+    || !mediaKindOverlayText.includes('backdrop-blur-sm')
+    || !mediaKindOverlayText.includes("Icon className=\"h-3 w-3\"")
+    || !uiBarrelText.includes("export * from './MediaKindOverlay'")
+  ) {
+    throw new Error('Expected Media kind and open-link overlays to be shared translucent UI utilities exported across knowgrph')
+  }
   if (!commandCatalogPanelText.includes('data-kg-media-upload-button') || !commandCatalogPanelText.includes('data-kg-media-upload-input') || !commandCatalogPanelText.includes('accept="image/*,audio/*,video/*"')) {
     throw new Error('Expected FloatingPanel Media to expose an Upload Media control for image, audio, and video files')
   }
-  if (!commandCatalogPanelText.includes('uploadFilesToUploadedMediaPanel') || !uploadedMediaPanelUploadText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('Open Cloudflare media link')) {
+  if (!commandCatalogPanelText.includes('uploadFilesToUploadedMediaPanel') || !uploadedMediaPanelUploadText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('MediaOpenLinkOverlay')) {
     throw new Error('Expected FloatingPanel Media upload rows to reuse the Cloudflare media storage helper and expose synced links')
+  }
+  if (
+    commandCatalogPanelText.includes('Open Cloudflare media link')
+    || commandCatalogPanelText.includes('Open local media link')
+    || commandCatalogPanelText.includes('Cloudflare media link')
+    || commandCatalogPanelText.includes('Local media link')
+    || commandCatalogPanelText.includes('>Open</a>')
+  ) {
+    throw new Error('Expected FloatingPanel Media open-link actions to consolidate into the shared thumbnail overlay instead of text links')
+  }
+  if (
+    commandCatalogPanelText.includes('Cloudflare storage')
+    || commandCatalogPanelText.includes('Local storage')
+  ) {
+    throw new Error('Expected FloatingPanel Media to remove stale storage status copy from uploaded media rows')
+  }
+  if (
+    !commandCatalogPanelText.includes('MEDIA_DESCRIPTION_STORAGE_KEY')
+    || !commandCatalogPanelText.includes('MEDIA_FIELDS_STORAGE_KEY')
+    || !commandCatalogPanelText.includes('readUploadedMediaDescription')
+    || !commandCatalogPanelText.includes('readUploadedMediaFieldText')
+    || !commandCatalogPanelText.includes('buildUploadedMediaInfoLabel')
+    || !commandCatalogPanelText.includes('handleUploadedMediaDescriptionChange')
+    || !commandCatalogPanelText.includes('handleUploadedMediaFieldChange')
+    || !commandCatalogPanelText.includes('data-kg-media-description-input')
+    || !commandCatalogPanelText.includes('buildUploadedMediaDefaultFieldTokens')
+    || !commandCatalogPanelText.includes('data-kg-media-field-tags-inline')
+    || !commandCatalogPanelText.includes('data-kg-media-field-input')
+    || !commandCatalogPanelText.includes('renderMarkdownSigilInlineText(normalizedValue)')
+    || !commandCatalogPanelText.includes('UI_INLINE_CHIP_GROUP_CLASSNAME')
+    || !indexCssText.includes('[data-kg-media-description-input]')
+    || !indexCssText.includes('display: inline-block !important;')
+    || !commandCatalogPanelText.includes('MediaInfoOverlay')
+  ) {
+    throw new Error('Expected FloatingPanel Media uploaded rows to expose editable descriptions, # metadata fields, and the shared info overlay')
+  }
+  if (
+    commandCatalogPanelText.includes('data-kg-media-field-tags="1"')
+    || commandCatalogPanelText.includes('data-kg-media-field-tag={')
+    || commandCatalogPanelText.includes('data-kg-media-field-tag=')
+    || commandCatalogPanelText.includes('DATA_VIEW_CHIP_ROW_CLASSNAME')
+    || commandCatalogPanelText.includes('readInlineKeywordChipLabel')
+    || commandCatalogPanelText.includes('readInlineKeywordChipToneValue')
+    || commandCatalogPanelText.includes('UI_TEXT_TRUNCATE_CHIP')
+    || commandCatalogPanelText.includes('splitInlineKeywordChipTokens')
+    || commandCatalogPanelText.includes('resolveDataViewChipClass(tag)')
+    || commandCatalogPanelText.includes('text-[11px] font-normal leading-5')
+    || commandCatalogPanelText.includes("style={{ display: 'inline-flex' }}")
+    || indexCssText.includes('[data-kg-media-field-tags-inline]')
+  ) {
+    throw new Error('Expected FloatingPanel Media uploaded # fields to delegate to the shared Markdown sigil utility without local chip/font/display overrides')
+  }
+  if (commandCatalogPanelText.includes('UploadedMediaFieldTags')) {
+    throw new Error('Expected FloatingPanel Media uploaded # fields to inline-edit through the metadata row instead of a separate section')
   }
   if (
     commandCatalogPanelText.includes('data-kg-command-menu-cloudflare-media-service')
@@ -1533,12 +1665,13 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   }
   if (
     !commandCatalogPanelText.includes('data-kg-command-menu-media-thumbnail')
-    || !commandCatalogPanelText.includes('rounded-full')
+    || !commandCatalogPanelText.includes('mediaListThumbnailFrameClassName')
+    || !commandCatalogPanelText.includes('rounded border')
     || !commandCatalogPanelText.includes('UI_THEME_TOKENS.panel.border')
     || !commandCatalogPanelText.includes('UI_THEME_TOKENS.input.bg')
     || !commandCatalogPanelText.includes('shadow-sm')
   ) {
-    throw new Error('Expected FloatingPanel Media thumbnails to use tokenized mention-style pill chrome')
+    throw new Error('Expected FloatingPanel Media thumbnails to use the shared tokenized proportional thumbnail frame')
   }
   if (
     !commandCatalogPanelText.includes('data-kg-command-menu-media-name-input')
@@ -1549,10 +1682,10 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
     throw new Error('Expected FloatingPanel Media names to be inline-editable through graph and markdown owners')
   }
   if (!commandCatalogPanelText.includes('KeyTypeValueHeader') || !commandCatalogPanelText.includes('KeyTypeValueStaticRow') || !commandCatalogPanelText.includes('KeyTypeValueSectionStack')) {
-    throw new Error('Expected Media panel to reuse the FloatingPanel KTV layout primitives')
+    throw new Error('Expected MainPanel Help Command Menu catalog to keep using shared KTV primitives')
   }
-  if (!commandCatalogPanelText.includes('data-kg-media-ktv-layout')) {
-    throw new Error('Expected Media panel to expose the KTV layout verification marker')
+  if (commandCatalogPanelText.includes('data-kg-media-ktv-layout')) {
+    throw new Error('Expected Media panel list mode to remove the legacy KTV three-column layout marker')
   }
   if (text.includes("floatingPanelView === 'designLayers'")) {
     throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')

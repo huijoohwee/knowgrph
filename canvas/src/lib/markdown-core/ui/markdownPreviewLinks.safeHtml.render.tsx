@@ -1,5 +1,5 @@
 import React from 'react'
-import { Download } from 'lucide-react'
+import { Download, Volume2 } from 'lucide-react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
@@ -8,11 +8,8 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
-  readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CardPreviewInlineMediaPill } from '@/lib/cards/CardPreviewInlineMediaPill'
 import {
   UI_RESPONSIVE_MARKDOWN_SAFE_HTML_EMBED_FRAME_CLASSNAME,
   UI_RESPONSIVE_MARKDOWN_SAFE_HTML_PRESENTATION_EMBED_FRAME_CLASSNAME,
@@ -37,15 +34,20 @@ function renderCardPreviewInlineMediaPill(args: {
   child: React.ReactElement
   label: string
   fallbackLabel: string
-  cardPreviewMode?: boolean
+  fullMedia?: React.ReactElement | null
+  inlineMediaChipMode?: boolean
+  toggleEnabled?: boolean
 }): React.ReactElement {
-  if (args.cardPreviewMode !== true) return args.child
-  const label = readCardMarkdownPreviewMediaLabel(args.label, args.fallbackLabel)
+  if (args.inlineMediaChipMode !== true) return args.child
   return (
-    <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} title={label} data-kg-card-inline-media-pill="1">
+    <CardPreviewInlineMediaPill
+      label={args.label}
+      fallbackLabel={args.fallbackLabel}
+      fullMedia={args.fullMedia}
+      toggleEnabled={args.toggleEnabled}
+    >
       {args.child}
-      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{label}</span>
-    </span>
+    </CardPreviewInlineMediaPill>
   )
 }
 
@@ -55,6 +57,7 @@ type RenderOpts = {
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: 'chip' | 'image'
   renderNodeText: (text: string, key: React.Key) => React.ReactNode
   fragmentOptions?: {
     enabled: boolean
@@ -172,6 +175,10 @@ export const renderSafeHtmlBlockImpl = (
   if (!win) return null
   const raw = String(html || '').trim()
   const cardPreviewMode = opts.markdownCardPreviewMode === true
+  const inlineMediaChipMode =
+    cardPreviewMode ||
+    (!opts.markdownPresentationMode && opts.markdownViewerMediaMode !== 'image')
+  const inlineMediaToggleEnabled = inlineMediaChipMode && !cardPreviewMode
   if (!raw || !raw.includes('<')) return null
   try {
     const NodeRef = (globalThis as unknown as { Node?: typeof Node }).Node || (win as unknown as { Node?: typeof Node }).Node
@@ -288,19 +295,41 @@ export const renderSafeHtmlBlockImpl = (
             url={src}
             title={label}
             interactive={false}
-            fit={cardPreviewMode ? 'cover' : 'contain'}
+            fit={inlineMediaChipMode ? 'cover' : 'contain'}
             mediaThumbnailDataAttr
             mediaStyle={Object.keys(style).length ? style : undefined}
             mediaClassName={[
-              cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
-              getMediaFrameClassName(cardPreviewMode),
+              inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
+              inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : getMediaFrameClassName(cardPreviewMode),
             ].filter(Boolean).join(' ')}
           />
         )
+        const fullMedia = inlineMediaToggleEnabled ? (
+          <CardMediaPreview
+            kind={/\.svg(?:[?#]|$)|^data:image\/svg\+xml/i.test(src) ? 'svg' : 'image'}
+            url={src}
+            title={label}
+            interactive={false}
+            fit="contain"
+            mediaThumbnailDataAttr
+            mediaStyle={Object.keys(style).length ? style : undefined}
+            mediaClassName={[
+              'inline-block max-w-full h-auto',
+              getMediaFrameClassName(cardPreviewMode),
+            ].filter(Boolean).join(' ')}
+          />
+        ) : null
         return (
-          <span key={key} className="relative inline-block group align-middle">
-            {renderCardPreviewInlineMediaPill({ child: media, label, fallbackLabel: 'Image', cardPreviewMode })}
-            {renderDownloadControl(srcCandidate, 'image', `${key}-download`, cardPreviewMode)}
+          <span key={key} className={inlineMediaChipMode ? 'relative inline-block group align-baseline' : 'relative inline-block group align-middle'}>
+            {renderCardPreviewInlineMediaPill({
+              child: media,
+              label,
+              fallbackLabel: 'Image',
+              fullMedia,
+              inlineMediaChipMode,
+              toggleEnabled: inlineMediaToggleEnabled,
+            })}
+            {renderDownloadControl(srcCandidate, 'image', `${key}-download`, inlineMediaChipMode)}
           </span>
         )
       }
@@ -320,14 +349,27 @@ export const renderSafeHtmlBlockImpl = (
         const label = img?.getAttribute('alt') || ''
         const picture = (
           <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={label} loading="lazy" decoding="async" className={[
-            cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
-            getMediaFrameClassName(cardPreviewMode),
+            inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'inline-block max-w-full h-auto',
+            inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : getMediaFrameClassName(cardPreviewMode),
           ].filter(Boolean).join(' ')} /></picture>
         )
+        const fullPicture = inlineMediaToggleEnabled ? (
+          <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={label} loading="lazy" decoding="async" className={[
+            'inline-block max-w-full h-auto',
+            getMediaFrameClassName(cardPreviewMode),
+          ].filter(Boolean).join(' ')} /></picture>
+        ) : null
         return (
-          <span key={key} className="relative inline-block group align-middle">
-            {renderCardPreviewInlineMediaPill({ child: picture, label, fallbackLabel: 'Image', cardPreviewMode })}
-            {renderDownloadControl(imgCandidate, 'image', `${key}-download`, cardPreviewMode)}
+          <span key={key} className={inlineMediaChipMode ? 'relative inline-block group align-baseline' : 'relative inline-block group align-middle'}>
+            {renderCardPreviewInlineMediaPill({
+              child: picture,
+              label,
+              fallbackLabel: 'Image',
+              fullMedia: fullPicture,
+              inlineMediaChipMode,
+              toggleEnabled: inlineMediaToggleEnabled,
+            })}
+            {renderDownloadControl(imgCandidate, 'image', `${key}-download`, inlineMediaChipMode)}
           </span>
         )
       }
@@ -345,11 +387,41 @@ export const renderSafeHtmlBlockImpl = (
           return <source key={`${key}-src-${i}`} src={deps.applyMediaProxySrc(deps.resolveHref(rawSrc, opts.activeDocumentPath))} type={typeRaw && typeRaw.length <= 80 ? typeRaw : undefined} />
         }).filter(Boolean)
         if (tag === 'audio') {
+          if (inlineMediaChipMode) {
+            const label = el.getAttribute('title') || el.getAttribute('aria-label') || ''
+            const media = (
+              <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
+                <Volume2 className="h-2.5 w-2.5" aria-hidden="true" />
+              </span>
+            )
+            const fullMedia = inlineMediaToggleEnabled ? (
+              <audio
+                controls
+                src={src}
+                className={[CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME, safeClass].filter(Boolean).join(' ') || undefined}
+                style={safeStyle}
+              >
+                {renderedSources as unknown as React.ReactNode}
+              </audio>
+            ) : null
+            return (
+              <React.Fragment key={key}>
+                {renderCardPreviewInlineMediaPill({
+                  child: media,
+                  label,
+                  fallbackLabel: 'Audio',
+                  fullMedia,
+                  inlineMediaChipMode,
+                  toggleEnabled: inlineMediaToggleEnabled,
+                })}
+              </React.Fragment>
+            )
+          }
           return <audio key={key} controls src={src} className={[CARD_MARKDOWN_PREVIEW_MEDIA_WIDE_AUDIO_CLASS_NAME, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>{renderedSources as unknown as React.ReactNode}</audio>
         }
         const posterRaw = el.getAttribute('poster') || el.getAttribute('data-poster') || ''
         const poster = posterRaw && deps.isSafeHref(posterRaw) && deps.isSafeMediaSrc(posterRaw) ? deps.applyMediaProxySrc(deps.resolveHref(posterRaw, opts.activeDocumentPath)) : undefined
-        const controls = cardPreviewMode ? false : el.hasAttribute('controls') ? true : el.hasAttribute('autoplay') || el.hasAttribute('loop') ? false : true
+        const controls = inlineMediaChipMode ? false : el.hasAttribute('controls') ? true : el.hasAttribute('autoplay') || el.hasAttribute('loop') ? false : true
         const label = el.getAttribute('title') || 'Video'
         const media = (
           <CardMediaPreview
@@ -357,7 +429,7 @@ export const renderSafeHtmlBlockImpl = (
             url={src}
             title={label}
             interactive={controls}
-            fit={cardPreviewMode ? 'cover' : 'contain'}
+            fit={inlineMediaChipMode ? 'cover' : 'contain'}
             videoControls={controls}
             videoMuted={el.hasAttribute('muted')}
             videoAutoPlay={el.hasAttribute('autoplay')}
@@ -365,17 +437,45 @@ export const renderSafeHtmlBlockImpl = (
             videoPoster={poster}
             mediaThumbnailDataAttr
             mediaClassName={[
-              cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'max-w-full',
-              getMediaFrameClassName(cardPreviewMode),
+              inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'max-w-full',
+              inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : getMediaFrameClassName(cardPreviewMode),
               safeClass,
             ].filter(Boolean).join(' ') || undefined}
             mediaStyle={safeStyle}
           />
         )
+        const fullMedia = inlineMediaToggleEnabled ? (
+          <CardMediaPreview
+            kind="video"
+            url={src}
+            title={label}
+            interactive
+            fit="contain"
+            videoControls
+            videoMuted={el.hasAttribute('muted')}
+            videoAutoPlay={el.hasAttribute('autoplay')}
+            videoLoop={el.hasAttribute('loop')}
+            videoPoster={poster}
+            mediaThumbnailDataAttr
+            mediaClassName={[
+              'max-w-full',
+              getMediaFrameClassName(cardPreviewMode),
+              safeClass,
+            ].filter(Boolean).join(' ') || undefined}
+            mediaStyle={safeStyle}
+          />
+        ) : null
         return (
-          <span key={key} className="relative inline-block group max-w-full align-middle">
-            {renderCardPreviewInlineMediaPill({ child: media, label, fallbackLabel: 'Video', cardPreviewMode })}
-            {renderDownloadControl(sourceCandidate, 'video', `${key}-download`, cardPreviewMode)}
+          <span key={key} className={inlineMediaChipMode ? 'relative inline-block group max-w-full align-baseline' : 'relative inline-block group max-w-full align-middle'}>
+            {renderCardPreviewInlineMediaPill({
+              child: media,
+              label,
+              fallbackLabel: 'Video',
+              fullMedia,
+              inlineMediaChipMode,
+              toggleEnabled: inlineMediaToggleEnabled,
+            })}
+            {renderDownloadControl(sourceCandidate, 'video', `${key}-download`, inlineMediaChipMode)}
           </span>
         )
       }

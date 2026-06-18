@@ -13,6 +13,12 @@ import {
   applyCommandMenuMediaNameDraftsToInlineCandidates,
   useCommandMenuMediaNameDrafts,
 } from '@/lib/command-menu/commandMenuMediaNameSync'
+import {
+  getInlineMediaEditorMarkdownSelectionOffsets,
+  INLINE_MEDIA_EDIT_TOKEN_SELECTOR,
+  mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets,
+  readInlineMediaEditorMarkdownText,
+} from './markdownBlockContainerCore.inlineMediaEditHtml'
 
 export const useMarkdownBlockContainerVariableActions = (args: {
   editable: boolean
@@ -40,12 +46,36 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
   getDraft: () => string
   getSelectionOffsets: () => { startOffset: number; endOffset: number } | null
+  getCommandSelectionOffsets?: () => { startOffset: number; endOffset: number } | null
   setDraftToDom: (nextText: string, selection?: { startOffset: number; endOffset: number }) => void
   setEditing: (next: boolean) => void
   setSessionEditLineRange: (next: { startLine: number; endLine: number } | null) => void
   editorRef: React.RefObject<HTMLElement | null>
 }) => {
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
+  const readCommandDraft = React.useCallback(() => {
+    const el = args.editorRef.current
+    const hasInlineMediaTokens = !!el?.querySelector(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)
+    const visibleSelection = args.getCommandSelectionOffsets?.() || args.getSelectionOffsets()
+    if (el && hasInlineMediaTokens) {
+      const text = readInlineMediaEditorMarkdownText(el)
+      const selection = getInlineMediaEditorMarkdownSelectionOffsets(el)
+        || mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets(el, visibleSelection)
+      return { text: text || args.getDraft(), selection }
+    }
+    const text = (() => {
+      if (el) {
+        const rawText = typeof (el as HTMLElement).innerText === 'string'
+          ? (el as HTMLElement).innerText
+          : String(el.textContent || '')
+        const normalized = rawText.replace(/\r/g, '')
+        if (normalized) return normalized
+      }
+      return args.getDraft()
+    })()
+    return { text, selection: visibleSelection }
+  }, [args])
+
   const applyVariableFrontmatterCrud = React.useCallback((mode: 'create' | 'update' | 'delete', keyRaw: string, valueRaw?: string) => {
     if (!args.editable || !args.onReplaceLineRange || !Array.isArray(args.sourceLines)) return false
     const key = String(keyRaw || '').trim()
@@ -115,18 +145,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
       if (!applyVariableFrontmatterCrud(mode, keyFromState, args.variableMenu.valueInput)) return
       return
     }
-    const text = (() => {
-      const el = args.editorRef.current
-      if (el) {
-        const rawText = typeof (el as HTMLElement).innerText === 'string'
-          ? (el as HTMLElement).innerText
-          : String(el.textContent || '')
-        const normalized = rawText.replace(/\r/g, '')
-        if (normalized) return normalized
-      }
-      return args.getDraft()
-    })()
-    const selection = args.getSelectionOffsets()
+    const { text, selection } = readCommandDraft()
     const fallbackOffset = Math.max(0, String(text || '').length)
     const startOffset = selection?.startOffset ?? fallbackOffset
     const endOffset = selection?.endOffset ?? fallbackOffset
@@ -177,21 +196,10 @@ export const useMarkdownBlockContainerVariableActions = (args: {
     args.setVariableMenu(prev => ({ ...prev, show: false, query: '', keyInput: key, mode: 'ref' }))
     args.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [applyVariableFrontmatterCrud, args])
+  }, [applyVariableFrontmatterCrud, args, readCommandDraft])
 
   const applyMediaCommandCandidate = React.useCallback((candidate: InlineMediaCommandCandidate) => {
-    const text = (() => {
-      const el = args.editorRef.current
-      if (el) {
-        const rawText = typeof (el as HTMLElement).innerText === 'string'
-          ? (el as HTMLElement).innerText
-          : String(el.textContent || '')
-        const normalized = rawText.replace(/\r/g, '')
-        if (normalized) return normalized
-      }
-      return args.getDraft()
-    })()
-    const selection = args.getSelectionOffsets()
+    const { text, selection } = readCommandDraft()
     const fallbackOffset = Math.max(0, String(text || '').length)
     const startOffset = selection?.startOffset ?? fallbackOffset
     const endOffset = selection?.endOffset ?? fallbackOffset
@@ -215,19 +223,11 @@ export const useMarkdownBlockContainerVariableActions = (args: {
       sourceKey: candidate.sourceKey,
     })
     const nextText = `${text.slice(0, Math.max(0, rangeStart))}${replacement}${text.slice(Math.max(0, rangeEnd))}`
-    const cursor = Math.max(0, rangeStart) + replacement.length
-    args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
-    queueMicrotask(() => {
-      const el = args.editorRef.current
-      if (!el) return
-      const renderedNow = String(el.textContent || '').replace(/\r/g, '')
-      if (renderedNow.includes(replacement)) return
-      el.textContent = nextText
-    })
+    args.setDraftToDom(nextText)
     args.setVariableMenu(prev => ({ ...prev, show: false, query: '', keyInput: '', mode: 'ref' }))
     args.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
     queueMicrotask(() => args.editorRef.current?.focus())
-  }, [args])
+  }, [args, readCommandDraft])
 
   const variableSuggestions = React.useMemo(() => {
     if (!args.variableMenu.show) return []

@@ -253,6 +253,15 @@ const looksLikeImageHref = (href: string): boolean => {
   return isLikelyImageUrl(inner)
 }
 
+const looksLikeStandaloneBinaryMediaHref = (href: string): boolean => {
+  const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())
+  if (!raw) return false
+  if (looksLikeImageHref(raw)) return true
+  if (isVideoUrl(raw) || /\.(mov)(\?|#|$)/i.test(raw)) return true
+  if (/\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(raw)) return true
+  return false
+}
+
 const getStandaloneMediaImageHref = (
   tokens: Token[] | undefined,
 ): { kind: 'image' | 'video' | 'audio' | 'iframe'; href: string; alt: string } | null => {
@@ -344,6 +353,10 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && Number.isFinite(endLine)
   const canReorder = blockControlsAllowed && !!opts.onReorderLineBlock && Number.isFinite(t.startLine)
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
+  const standaloneMediaEnabled =
+    opts.markdownPresentationMode ||
+    opts.markdownCardPreviewMode === true ||
+    opts.markdownViewerMediaMode === 'image'
 
   const dnd = useMarkdownLineBlockDnD({
     enabled: canReorder,
@@ -353,7 +366,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   })
 
   const standaloneLinkedImage = getStandaloneLinkedImageParagraph(t as unknown as Token)
-  if (standaloneLinkedImage) {
+  if (standaloneMediaEnabled && standaloneLinkedImage) {
     const resolvedImageHref = resolveHref(standaloneLinkedImage.imageHref, opts.activeDocumentPath)
     return (
       <MediaWrapper
@@ -369,7 +382,11 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       </MediaWrapper>
     )
   }
-  const standaloneHrefRaw = readStandaloneParagraphUrlToken(t as unknown as Token, { rejectLinkedMedia: true })
+  const standaloneHrefCandidate = readStandaloneParagraphUrlToken(t as unknown as Token, { rejectLinkedMedia: true })
+  const standaloneHrefRaw =
+    standaloneHrefCandidate && (standaloneMediaEnabled || !looksLikeStandaloneBinaryMediaHref(standaloneHrefCandidate))
+      ? standaloneHrefCandidate
+      : null
   const standaloneHref = standaloneHrefRaw && shouldRenderStandaloneMediaForLine({ href: standaloneHrefRaw, startLine: t.startLine, markdownLargeDocumentMode: opts.markdownLargeDocumentMode, standaloneMediaRenderLineSet: opts.standaloneMediaRenderLineSet }) ? standaloneHrefRaw : null
   if (standaloneHref && isSafeHref(standaloneHref) && isAbsoluteWebUrl(standaloneHref)) {
     const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
@@ -474,7 +491,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     )
   }
 
-  const standaloneWebpageHref = opts.markdownLargeDocumentMode ? null : getStandaloneWebpageHrefFromImageToken(p.tokens)
+  const standaloneWebpageHref = !opts.markdownLargeDocumentMode ? getStandaloneWebpageHrefFromImageToken(p.tokens) : null
   if (standaloneWebpageHref && isSafeHref(standaloneWebpageHref) && isAbsoluteWebUrl(standaloneWebpageHref)) {
     const normalizedHref = normalizeWebpageLikeUrl(standaloneWebpageHref)
     const youtube = buildYouTubeEmbedUrl(normalizedHref)
@@ -562,7 +579,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       </MediaWrapper>
     )
   }
-  const standaloneMedia = getStandaloneMediaImageHref(p.tokens)
+  const standaloneMedia = standaloneMediaEnabled ? getStandaloneMediaImageHref(p.tokens) : null
   if (standaloneMedia && isSafeMediaSrc(standaloneMedia.href)) {
     const resolved = resolveHref(standaloneMedia.href, opts.activeDocumentPath)
     const renderStandaloneMedia = (type: string, children: React.ReactNode) => (
@@ -664,6 +681,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
         markdownPresentationMode: opts.markdownPresentationMode,
         markdownCardPreviewMode: opts.markdownCardPreviewMode,
+        markdownViewerMediaMode: opts.markdownViewerMediaMode,
         fragmentOptions:
           opts.markdownPresentationMode && fragmentsEnabled
             ? {

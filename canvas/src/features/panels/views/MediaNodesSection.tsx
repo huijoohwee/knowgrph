@@ -41,6 +41,8 @@ export default function MediaNodesSection({
   )
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
+  const markdownViewerMediaMode = useGraphStore(s => s.markdownViewerMediaMode || 'chip')
+  const setMarkdownViewerMediaMode = useGraphStore(s => s.setMarkdownViewerMediaMode)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -235,6 +237,46 @@ export default function MediaNodesSection({
                 `${UI_THEME_TOKENS.text.primary} w-10 text-right`,
               ].join(' ')}
             />
+          </section>
+
+          <section className="mt-2 flex items-center justify-between gap-2">
+            <span
+              className={[
+                uiPanelMicroLabelTextSizeClass,
+                uiPanelTextFontClass,
+                UI_THEME_TOKENS.text.secondary,
+              ].join(' ')}
+            >
+              Viewer @ media
+            </span>
+            <section className={mediaToggleShellClassName} aria-label="Viewer media display mode">
+              <button
+                type="button"
+                onClick={() => setMarkdownViewerMediaMode('chip')}
+                className={[
+                  `px-2 py-1 ${uiPanelMicroLabelTextSizeClass}`,
+                  uiPanelTextFontClass,
+                  markdownViewerMediaMode === 'chip'
+                    ? UI_THEME_TOKENS.button.primarySolid
+                    : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`,
+                ].join(' ')}
+              >
+                Chip
+              </button>
+              <button
+                type="button"
+                onClick={() => setMarkdownViewerMediaMode('image')}
+                className={[
+                  `px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.input.border}`,
+                  uiPanelTextFontClass,
+                  markdownViewerMediaMode === 'image'
+                    ? UI_THEME_TOKENS.button.primarySolid
+                    : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`,
+                ].join(' ')}
+              >
+                Image
+              </button>
+            </section>
           </section>
 
           <section className="mt-2 flex flex-col gap-1">

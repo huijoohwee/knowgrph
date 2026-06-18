@@ -29,17 +29,14 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { InlineRenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
+import { Volume2 } from 'lucide-react'
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
 import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
 import {
-  DATA_VIEW_CHIP_ROW_CLASSNAME,
-  readInlineKeywordChipLabel,
-  readInlineKeywordChipToneValue,
-  resolveDataViewChipClass,
-  splitInlineKeywordChipTokens,
+  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import {
   buildMarkdownVariableSsotAnchorId,
@@ -53,29 +50,12 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME,
-  readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CardPreviewInlineMediaPill } from '@/lib/cards/CardPreviewInlineMediaPill'
 import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
-
-function CardPreviewInlineMediaPill(props: {
-  children: React.ReactElement
-  label: string
-  fallbackLabel: string
-}) {
-  const label = readCardMarkdownPreviewMediaLabel(props.label, props.fallbackLabel)
-  return (
-    <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} title={label} data-kg-card-inline-media-pill="1">
-      {props.children}
-      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{label}</span>
-    </span>
-  )
-}
 
 const loadKatexModule = async (): Promise<KatexModule> => {
   if (!katexModulePromise) {
@@ -298,6 +278,8 @@ const renderInlineCodeSemanticToken = (
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const cardPreviewMode = opts.markdownCardPreviewMode === true
+  const inlineMediaChipMode = cardPreviewMode || (!markdownPresentationMode && opts.markdownViewerMediaMode !== 'image')
+  const inlineMediaToggleEnabled = inlineMediaChipMode && !cardPreviewMode
   const fragmentOpts = opts.fragmentOptions || null
   const fragmentIndexRef = { current: 0 }
   const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS
@@ -409,24 +391,16 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
                 </a>
               )
             }
-            return splitInlineKeywordChipTokens(segment.value).map((keywordSegment, keywordIndex) => {
-              const keywordKey = `${baseKey}:keyword:${keywordIndex}`
-              if (keywordSegment.kind === 'keyword') {
+            const parts = splitPlainUrls(segment.value)
+            return parts.map((p, j) => {
+              const k = `${baseKey}:plain:${j}`
+              if (p.kind !== 'url') {
                 return (
-                  <span
-                    key={keywordKey}
-                    className={[DATA_VIEW_CHIP_ROW_CLASSNAME, resolveDataViewChipClass(readInlineKeywordChipToneValue(keywordSegment.value))].join(' ')}
-                    title={keywordSegment.value}
-                    data-kg-card-inline-keyword-pill="1"
-                  >
-                    <span className={UI_TEXT_TRUNCATE_CHIP}>{readInlineKeywordChipLabel(keywordSegment.value)}</span>
-                  </span>
+                  <React.Fragment key={k}>
+                    {renderMarkdownSigilInlineText(p.value, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME })}
+                  </React.Fragment>
                 )
               }
-              const parts = splitPlainUrls(keywordSegment.value)
-              return parts.map((p, j) => {
-                const k = `${keywordKey}:${j}`
-                if (p.kind !== 'url') return <React.Fragment key={k}>{p.value}</React.Fragment>
                 const hrefRaw = p.value.trim()
                 if (!hrefRaw || !isAbsoluteWebUrl(hrefRaw) || !isSafeHref(hrefRaw)) {
                   return <React.Fragment key={k}>{p.value}</React.Fragment>
@@ -452,7 +426,6 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
                   </a>
                 )
               })
-            })
           })}
         </React.Fragment>
       )
@@ -583,15 +556,33 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         const videoNode = (
           <MediaVideo
             src={src}
-            controls={!cardPreviewMode}
-            cardPreviewMode={cardPreviewMode}
-            className={cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : undefined}
+            controls={!inlineMediaChipMode}
+            cardPreviewMode={inlineMediaChipMode}
+            className={inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : undefined}
           />
         )
+        const fullVideoNode = inlineMediaToggleEnabled ? (
+          <MediaVideo
+            src={src}
+            controls
+            cardPreviewMode={false}
+          />
+        ) : null
+        const children = inlineMediaChipMode
+          ? (
+            <CardPreviewInlineMediaPill
+              label={alt}
+              fallbackLabel="Video"
+              fullMedia={fullVideoNode}
+              toggleEnabled={inlineMediaToggleEnabled}
+            >
+              {videoNode}
+            </CardPreviewInlineMediaPill>
+          )
+          : videoNode
+        if (inlineMediaChipMode) return <React.Fragment key={key}>{children}</React.Fragment>
         return renderInlineMediaWithDownload({
-          children: cardPreviewMode
-            ? <CardPreviewInlineMediaPill label={alt} fallbackLabel="Video">{videoNode}</CardPreviewInlineMediaPill>
-            : videoNode,
+          children,
           insideLink,
           kind: 'video',
           nodeKey: key,
@@ -603,6 +594,28 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
         const audioClassName = cardPreviewMode
           ? `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
           : `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} rounded border ${UI_THEME_TOKENS.panel.border}`
+        if (inlineMediaChipMode) {
+          const fullAudioNode = inlineMediaToggleEnabled ? (
+            <audio
+              controls
+              src={src || undefined}
+              className={audioClassName}
+            />
+          ) : null
+          return (
+            <CardPreviewInlineMediaPill
+              key={key}
+              label={alt}
+              fallbackLabel="Audio"
+              fullMedia={fullAudioNode}
+              toggleEnabled={inlineMediaToggleEnabled}
+            >
+              <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
+                <Volume2 className="h-2.5 w-2.5" aria-hidden="true" />
+              </span>
+            </CardPreviewInlineMediaPill>
+          )
+        }
         return (
           <audio
             key={key}
@@ -621,22 +634,52 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           url={src}
           title={alt}
           interactive={false}
-          fit={cardPreviewMode ? 'cover' : 'contain'}
+          fit={inlineMediaChipMode ? 'cover' : 'contain'}
           mediaThumbnailDataAttr
           mediaClassName={[
-            cardPreviewMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
+            inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME : 'max-w-full h-auto rounded border object-contain',
             isViewportBoundedImage ? UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME : '',
-            isSvgImage && !cardPreviewMode ? 'bg-black/5 dark:bg-white/5' : '',
-            cardPreviewMode ? '' : UI_THEME_TOKENS.panel.border,
+            isSvgImage && !inlineMediaChipMode ? 'bg-black/5 dark:bg-white/5' : '',
+            inlineMediaChipMode ? '' : UI_THEME_TOKENS.panel.border,
           ]
             .filter(Boolean)
             .join(' ')}
         />
       )
+      const fullImageNode = inlineMediaToggleEnabled ? (
+        <CardMediaPreview
+          key={`${key}-image-full`}
+          kind={isSvgImage ? 'svg' : 'image'}
+          url={src}
+          title={alt}
+          interactive={false}
+          fit="contain"
+          mediaThumbnailDataAttr
+          mediaClassName={[
+            'max-w-full h-auto rounded border object-contain',
+            isViewportBoundedImage ? UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME : '',
+            isSvgImage ? 'bg-black/5 dark:bg-white/5' : '',
+            UI_THEME_TOKENS.panel.border,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        />
+      ) : null
+      const children = inlineMediaChipMode
+        ? (
+          <CardPreviewInlineMediaPill
+            label={alt}
+            fallbackLabel="Image"
+            fullMedia={fullImageNode}
+            toggleEnabled={inlineMediaToggleEnabled}
+          >
+            {imageNode}
+          </CardPreviewInlineMediaPill>
+        )
+        : imageNode
+      if (inlineMediaChipMode) return <React.Fragment key={key}>{children}</React.Fragment>
       return renderInlineMediaWithDownload({
-        children: cardPreviewMode
-          ? <CardPreviewInlineMediaPill label={alt} fallbackLabel="Image">{imageNode}</CardPreviewInlineMediaPill>
-          : imageNode,
+        children,
         insideLink,
         kind: 'image',
         nodeKey: key,

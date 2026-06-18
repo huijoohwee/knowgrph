@@ -104,7 +104,7 @@ type WorkspacePaneToggleProps = {
   ariaDisabled?: boolean | 'true'
   onChange?: React.ChangeEventHandler<HTMLInputElement>
   icon?: React.ReactNode
-  labelProps?: Omit<React.LabelHTMLAttributes<HTMLLabelElement>, 'className' | 'title'>
+  labelProps?: Omit<React.LabelHTMLAttributes<HTMLLabelElement>, 'className' | 'title'> & Record<`data-${string}`, string | undefined>
 }
 
 function WorkspacePaneToggle({

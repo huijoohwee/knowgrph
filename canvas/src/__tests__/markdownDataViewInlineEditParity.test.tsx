@@ -185,7 +185,9 @@ export async function testMarkdownDataViewInlineEditAppliesDensityClassesFromVie
     await tick()
     await tick()
 
-    const noteCell = Array.from(dom.window.document.querySelectorAll('tbody td')).find(td => String(td.textContent || '').includes('longer note')) as HTMLTableCellElement | null
+    const noteCell = Array.from(dom.window.document.querySelectorAll<HTMLTableCellElement>('tbody td')).find(td =>
+      String(td.textContent || '').includes('longer note'),
+    ) || null
     if (!noteCell) throw new Error('expected note cell')
     if (!noteCell.className.includes('py-1.5')) {
       throw new Error(`expected compact row-height class, got ${noteCell.className}`)

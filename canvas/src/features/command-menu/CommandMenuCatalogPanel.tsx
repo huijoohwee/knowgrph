@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, FileAudio, FileCode2, Hash, ImageIcon, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, FileAudio, FileCode2, Grid2X2, Hash, ImageIcon, List, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
@@ -45,6 +45,10 @@ import {
 import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { ResponsiveInlineIconBadge } from '@/lib/ui/ResponsiveInlineIconBadge'
+import { MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { cn } from '@/lib/utils'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 
@@ -53,6 +57,67 @@ const commandMenuCatalogGroups = [
   { key: 'variable', label: '@', title: 'Variable commands', Icon: AtSign, actions: INLINE_VARIABLE_COMMAND_ACTIONS },
   { key: 'keyword', label: '#', title: 'Keyword commands', Icon: Hash, actions: INLINE_KEYWORD_COMMAND_ACTIONS },
 ] as const
+
+type MediaCatalogLayout = 'grid' | 'list'
+type UploadedMediaDescriptionDrafts = Record<string, string>
+type UploadedMediaFieldDrafts = Record<string, string>
+
+const MEDIA_CATALOG_LAYOUT_STORAGE_KEY = 'kg.media.catalog.layout'
+const MEDIA_DESCRIPTION_STORAGE_KEY = 'kg.media.descriptions'
+const MEDIA_FIELDS_STORAGE_KEY = 'kg.media.fields'
+
+function readStoredMediaCatalogLayout(): MediaCatalogLayout {
+  try {
+    const raw = globalThis.localStorage?.getItem(MEDIA_CATALOG_LAYOUT_STORAGE_KEY)
+    return raw === 'list' ? 'list' : 'grid'
+  } catch {
+    return 'grid'
+  }
+}
+
+function writeStoredMediaCatalogLayout(layout: MediaCatalogLayout): void {
+  try {
+    globalThis.localStorage?.setItem(MEDIA_CATALOG_LAYOUT_STORAGE_KEY, layout)
+  } catch {
+    void 0
+  }
+}
+
+function readStoredMediaDescriptionDrafts(): UploadedMediaDescriptionDrafts {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(MEDIA_DESCRIPTION_STORAGE_KEY) || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, String(value || '')]))
+  } catch {
+    return {}
+  }
+}
+
+function writeStoredMediaDescriptionDrafts(drafts: UploadedMediaDescriptionDrafts): void {
+  try {
+    globalThis.localStorage?.setItem(MEDIA_DESCRIPTION_STORAGE_KEY, JSON.stringify(drafts))
+  } catch {
+    void 0
+  }
+}
+
+function readStoredMediaFieldDrafts(): UploadedMediaFieldDrafts {
+  try {
+    const parsed = JSON.parse(globalThis.localStorage?.getItem(MEDIA_FIELDS_STORAGE_KEY) || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, String(value || '')]))
+  } catch {
+    return {}
+  }
+}
+
+function writeStoredMediaFieldDrafts(drafts: UploadedMediaFieldDrafts): void {
+  try {
+    globalThis.localStorage?.setItem(MEDIA_FIELDS_STORAGE_KEY, JSON.stringify(drafts))
+  } catch {
+    void 0
+  }
+}
 
 function CommandPrefixType({
   Icon,
@@ -139,26 +204,299 @@ const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): bo
 const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
   String(item.openUrl || item.src || item.thumbnailUrl || '').trim()
 
+const isOpenableMediaHref = (value: string): boolean =>
+  /^(https?:|blob:|data:|\/|\.\/|\.\.\/|docs\/)/i.test(value.trim())
+
+function readRichMediaOpenHref(item: CommandMenuRichMediaItem): string {
+  const candidates = [item.openUrl, item.src, item.thumbnailUrl]
+  for (const candidate of candidates) {
+    const href = String(candidate || '').trim()
+    if (href && isOpenableMediaHref(href)) return href
+  }
+  return ''
+}
+
 function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
   const owner = item.renameOwner
   if (owner?.type === 'markdownLine') return String(owner.href || '').trim()
   return String(item.openUrl || item.src || '').trim()
 }
 
+const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
+const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
+
+function mediaListThumbnailFrameClassName(extraClassName?: string): string {
+  return cn(
+    MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.input.bg,
+    extraClassName,
+  )
+}
+
+function MediaListThumbnailIconFrame({ Icon, label, infoLabel }: { Icon: LucideIcon; label: string; infoLabel?: string }) {
+  return (
+    <span className={mediaListThumbnailFrameClassName('items-center justify-center')}>
+      <MediaKindOverlay Icon={Icon} label={label} />
+      <MediaInfoOverlay label={infoLabel || label} />
+      <Icon className={cn('h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+    </span>
+  )
+}
+
 function MediaCandidateThumb({ item }: { item: CommandMenuRichMediaItem }) {
   const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const openHref = readRichMediaOpenHref(item)
   if (thumbnail) {
     return (
-      <span className={cn('inline-flex h-8 w-14 shrink-0 overflow-hidden rounded-full border p-[2px] shadow-sm', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-        <img src={thumbnail} alt="" className="h-full w-full rounded-full object-cover" data-kg-command-menu-media-thumbnail="1" />
+      <span className={mediaListThumbnailFrameClassName()}>
+        <MediaKindOverlay Icon={getMediaIcon(item.kind)} label={item.kind} />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
+        <MediaOpenLinkOverlay href={openHref} />
+        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
       </span>
     )
   }
   const Icon = getMediaIcon(item.kind)
+  return <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
+}
+
+function MediaCandidatePreview({ item }: { item: CommandMenuRichMediaItem }) {
+  const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const Icon = getMediaIcon(item.kind)
+  const openHref = readRichMediaOpenHref(item)
+  if (thumbnail) {
+    return (
+      <figure className={cn('relative m-0 aspect-[16/9] w-full overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+        <MediaKindOverlay Icon={Icon} label={item.kind} />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
+        <MediaOpenLinkOverlay href={openHref} />
+        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
+      </figure>
+    )
+  }
   return (
-    <span className={cn('inline-flex h-8 w-14 shrink-0 items-center justify-center rounded-full border shadow-sm', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-      <Icon className={cn('h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
-    </span>
+    <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+      <MediaKindOverlay Icon={Icon} label={item.kind} />
+      <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} />
+      <MediaOpenLinkOverlay href={openHref} />
+      <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+    </figure>
+  )
+}
+
+function UploadedMediaPreview({ item, infoLabel }: { item: UploadedMediaPanelItem; infoLabel: string }) {
+  const Icon = getMediaIcon(item.kind)
+  return (
+    <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+      <MediaKindOverlay Icon={Icon} label={item.kind} />
+      <MediaInfoOverlay label={infoLabel} />
+      <MediaOpenLinkOverlay href={item.linkUrl} />
+      {item.kind === 'image' ? (
+        <img src={item.linkUrl} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
+      ) : (
+        <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+      )}
+    </figure>
+  )
+}
+
+function mediaCardClassName(): string {
+  return cn(
+    'min-w-0 overflow-hidden rounded border text-left shadow-sm transition-colors',
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.panel.bg,
+    UI_THEME_TOKENS.button.hoverBg,
+  )
+}
+
+function mediaListItemClassName(): string {
+  return cn(
+    'grid min-w-0 cursor-pointer gap-2 rounded border p-2 text-left shadow-sm transition-colors',
+    MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.panel.bg,
+    UI_THEME_TOKENS.button.hoverBg,
+  )
+}
+
+function getCommandMenuMediaSourceLabel(item: CommandMenuRichMediaItem): string {
+  return item.source === 'graph' ? (item.panelTitle || 'Graph node media') : 'Markdown media'
+}
+
+function getCommandMenuMediaDescription(item: CommandMenuRichMediaItem): string {
+  return item.openUrl || item.src || item.srcDoc || item.label
+}
+
+function getUploadedMediaDescriptionKey(item: UploadedMediaPanelItem): string {
+  return String(item.storage?.contentHash || item.id || readUploadedMediaPanelDedupeKey(item)).trim()
+}
+
+function buildUploadedMediaDescriptionFallback(item: UploadedMediaPanelItem): string {
+  const name = String(item.name || '').trim()
+  const kind = item.kind.charAt(0).toUpperCase() + item.kind.slice(1)
+  return name ? `${kind} media: ${name}` : `${kind} media description`
+}
+
+function readUploadedMediaDescription(
+  drafts: UploadedMediaDescriptionDrafts,
+  item: UploadedMediaPanelItem,
+): string {
+  return String(drafts[getUploadedMediaDescriptionKey(item)] || '').trim() || buildUploadedMediaDescriptionFallback(item)
+}
+
+function readUploadedMediaFieldText(
+  drafts: UploadedMediaFieldDrafts,
+  item: UploadedMediaPanelItem,
+): string {
+  return String(drafts[getUploadedMediaDescriptionKey(item)] || '').trim() || buildUploadedMediaDefaultFieldTokens(item).join(' ')
+}
+
+function normalizeUploadedMediaFieldText(value: string): string {
+  return String(value || '')
+    .split(/\s+/)
+    .map(token => token.trim())
+    .filter(Boolean)
+    .map(token => {
+      const normalized = token.startsWith('#') ? token : `#${token}`
+      return normalized.replace(/[^#A-Za-z0-9-]/g, '-').replace(/-{2,}/g, '-')
+    })
+    .filter(token => /^#[A-Za-z0-9][A-Za-z0-9-]*$/.test(token))
+    .join(' ')
+}
+
+function buildUploadedMediaInfoLabel(item: UploadedMediaPanelItem): string {
+  const storage = item.storage?.response.storage
+  if (storage) return `R2 ${storage.r2}; D1 ${storage.d1}; KV ${storage.kv}; DO ${storage.durableObject}`
+  if (item.status === 'uploading') return 'Uploading to runtime storage'
+  return item.error || 'Local preview; runtime sync disabled or unavailable'
+}
+
+function buildUploadedMediaDefaultFieldTokens(item: UploadedMediaPanelItem): string[] {
+  const tags = new Set<string>([`#${item.kind}`])
+  const contentType = String(item.contentType || '').toLowerCase()
+  const extension = String(item.name || '').split('.').pop()?.toLowerCase() || ''
+  const format = extension && extension !== item.name.toLowerCase()
+    ? extension
+    : contentType.split('/').pop() || ''
+  if (format) tags.add(`#${format.replace(/[^a-z0-9-]/g, '-')}`)
+  tags.add(item.status === 'synced' ? '#synced' : item.status === 'uploading' ? '#uploading' : '#local')
+  const storage = item.storage?.response.storage
+  if (storage?.r2 === 'confirmed') tags.add('#r2')
+  if (storage?.d1 === 'persisted') tags.add('#d1')
+  if (item.sizeBytes > 0) tags.add(`#${Math.ceil(item.sizeBytes / 1024)}kb`)
+  return Array.from(tags).slice(0, 6)
+}
+
+function UploadedMediaDescriptionInput({
+  item,
+  description,
+  onDescriptionChange,
+  className,
+}: {
+  item: UploadedMediaPanelItem
+  description: string
+  onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
+  className?: string
+}) {
+  return (
+    <input
+      type="text"
+      value={description}
+      placeholder="Add media description"
+      aria-label={`Describe ${item.name}`}
+      className={cn(
+        'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-[11px] outline-none',
+        '!inline-block',
+        UI_THEME_TOKENS.text.secondary,
+        'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
+        className,
+      )}
+      data-kg-media-description-input={item.id}
+      data-kg-media-row-control="1"
+      style={{ display: 'inline-block' }}
+      onClick={event => event.stopPropagation()}
+      onPointerDown={event => event.stopPropagation()}
+      onChange={event => onDescriptionChange(item, event.target.value)}
+      onInput={event => onDescriptionChange(item, event.currentTarget.value)}
+    />
+  )
+}
+
+function UploadedMediaInlineFieldEditor({
+  item,
+  value,
+  onChange,
+  className,
+}: {
+  item: UploadedMediaPanelItem
+  value: string
+  onChange: (item: UploadedMediaPanelItem, nextValue: string) => void
+  className?: string
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const normalizedValue = normalizeUploadedMediaFieldText(value)
+  const commit = (nextValue: string) => {
+    onChange(item, normalizeUploadedMediaFieldText(nextValue))
+    setEditing(false)
+  }
+  if (editing) {
+    return (
+      <input
+        type="text"
+        value={value}
+        aria-label={`Edit # metadata for ${item.name}`}
+        className={cn(
+          'min-w-[7rem] max-w-full flex-1 truncate rounded border border-transparent bg-transparent px-1 py-0 font-mono text-[10px] outline-none',
+          UI_THEME_TOKENS.text.tertiary,
+          'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
+          className,
+        )}
+        data-kg-media-field-input={item.id}
+        data-kg-media-row-control="1"
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => event.stopPropagation()}
+        onChange={event => onChange(item, event.target.value)}
+        onInput={event => onChange(item, event.currentTarget.value)}
+        onBlur={event => commit(event.currentTarget.value)}
+        onKeyDown={event => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            commit(event.currentTarget.value)
+            event.currentTarget.blur()
+            return
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            setEditing(false)
+            event.currentTarget.blur()
+          }
+        }}
+        autoFocus
+      />
+    )
+  }
+  return (
+    <button
+      type="button"
+      className={cn(
+        UI_INLINE_CHIP_GROUP_CLASSNAME,
+        'border-0 bg-transparent p-0 text-left align-baseline',
+        UI_THEME_TOKENS.text.tertiary,
+        className,
+      )}
+      title={`Edit # metadata: ${normalizedValue}`}
+      aria-label={`Edit # metadata for ${item.name}`}
+      data-kg-media-field-tags-inline="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => event.stopPropagation()}
+      onClick={event => {
+        event.stopPropagation()
+        setEditing(true)
+      }}
+    >
+      {renderMarkdownSigilInlineText(normalizedValue)}
+    </button>
   )
 }
 
@@ -168,24 +506,20 @@ function MediaCandidateRow({
   onSelect,
   onNameDraftChange,
   onRename,
-  compactStaticRowProps,
 }: {
   item: CommandMenuRichMediaItem
   displayName: string
   onSelect: (item: CommandMenuRichMediaItem) => void
   onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
-  compactStaticRowProps: Pick<
-    React.ComponentProps<typeof KeyTypeValueStaticRow>,
-    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-  >
 }) {
-  const Icon = getMediaIcon(item.kind)
-  const source = item.source === 'graph' ? (item.panelTitle || 'Graph node media') : 'Markdown media'
-  const description = item.openUrl || item.src || item.srcDoc || item.label
+  const source = getCommandMenuMediaSourceLabel(item)
+  const description = getCommandMenuMediaDescription(item)
   return (
-    <section
-      className="block w-full cursor-pointer text-left"
+    <article
+      role="button"
+      tabIndex={0}
+      className={mediaListItemClassName()}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()
@@ -196,38 +530,96 @@ function MediaCandidateRow({
         if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
         onSelect(item)
       }}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect(item)
+      }}
+      data-kg-command-menu-media-candidate={item.key}
+      data-kg-command-menu-media-kind={item.kind}
+      data-kg-command-menu-media-source={item.source}
+      data-kg-media-list-row-layout="3-rows"
+    >
+      <MediaCandidateThumb item={item} />
+      <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${displayName} media summary`}>
+        <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
+          <MediaCandidateNameEditor
+            item={item}
+            displayName={displayName}
+            onDraftChange={onNameDraftChange}
+            onRename={onRename}
+          />
+          <span className={cn('shrink-0 font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@</span>
+        </header>
+        <section className="flex min-w-0 items-center gap-1" data-kg-media-list-row-section="meta">
+          <span className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)} title={source}>{source}</span>
+        </section>
+        <p className={cn('m-0 truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={description} data-kg-media-list-row-section="description">
+          {description}
+        </p>
+      </section>
+    </article>
+  )
+}
+
+function MediaCandidateCard({
+  item,
+  displayName,
+  onSelect,
+  onNameDraftChange,
+  onRename,
+}: {
+  item: CommandMenuRichMediaItem
+  displayName: string
+  onSelect: (item: CommandMenuRichMediaItem) => void
+  onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
+  onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
+}) {
+  const Icon = getMediaIcon(item.kind)
+  const source = getCommandMenuMediaSourceLabel(item)
+  const description = getCommandMenuMediaDescription(item)
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      className={mediaCardClassName()}
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(item)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(item)
+      }}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect(item)
+      }}
       data-kg-command-menu-media-candidate={item.key}
       data-kg-command-menu-media-kind={item.kind}
       data-kg-command-menu-media-source={item.source}
     >
-      <KeyTypeValueStaticRow
-        {...compactStaticRowProps}
-        align="start"
-        keyNode={(
-          <span className="flex min-w-0 items-center gap-2">
-            <MediaCandidateThumb item={item} />
-            <span className="flex min-w-0 flex-col leading-4">
-              <MediaCandidateNameEditor
-                item={item}
-                displayName={displayName}
-                onDraftChange={onNameDraftChange}
-                onRename={onRename}
-              />
-              <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{item.kind}</span>
-            </span>
-          </span>
-        )}
-        typeNode={<CommandPrefixType Icon={Icon} label="@" title={`${item.kind} media`} />}
-        valueNode={(
-          <span className="flex min-w-0 flex-col leading-4">
-            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.secondary)}>{source}</span>
-            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={description}>
-              {description}
-            </span>
-          </span>
-        )}
-      />
-    </section>
+      <MediaCandidatePreview item={item} />
+      <header className="min-w-0 px-2 pt-2">
+        <MediaCandidateNameEditor
+          item={item}
+          displayName={displayName}
+          onDraftChange={onNameDraftChange}
+          onRename={onRename}
+        />
+      </header>
+      <section className="min-w-0 px-2 pt-1">
+        <p className={cn('m-0 mt-2 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)} title={source}>{source}</p>
+        <p className={cn('m-0 mt-1 line-clamp-2 text-[11px] leading-4', UI_THEME_TOKENS.text.tertiary)} title={description}>{description}</p>
+      </section>
+      <footer className={cn('mt-2 flex items-center justify-between gap-2 border-t px-2 py-2', UI_THEME_TOKENS.panel.border)}>
+        <span className={cn('truncate font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{item.source}</span>
+        <span className={cn('font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@</span>
+      </footer>
+    </article>
   )
 }
 
@@ -326,21 +718,67 @@ function MediaCandidateNameEditor({
 function MediaActionRow({
   action,
   onSelect,
-  compactStaticRowProps,
 }: {
   action: InlineCommandMenuActionSpec
   onSelect: (action: InlineCommandMenuActionSpec) => void
-  compactStaticRowProps: Pick<
-    React.ComponentProps<typeof KeyTypeValueStaticRow>,
-    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-  >
 }) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
   const Icon = mediaKind === 'video' ? Video : ImageIcon
   return (
-    <section
+    <article
       role="button"
       tabIndex={0}
+      className={mediaListItemClassName()}
+      data-kg-command-menu-media-action={action.id}
+      data-kg-command-menu-prefix="@"
+      data-kg-media-list-row-layout="3-rows"
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(action)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(action)
+      }}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect(action)
+      }}
+    >
+      <MediaListThumbnailIconFrame Icon={Icon} label={mediaKind || 'media'} infoLabel={action.description} />
+      <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${action.label} action summary`}>
+        <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
+          <span className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</span>
+          <span className={cn('shrink-0 font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@</span>
+        </header>
+        <section className="flex min-w-0 items-center gap-1" data-kg-media-list-row-section="meta">
+          <span className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)}>{action.group}</span>
+        </section>
+        <p className={cn('m-0 truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={action.description} data-kg-media-list-row-section="description">
+          {action.description}
+        </p>
+      </section>
+    </article>
+  )
+}
+
+function MediaActionCard({
+  action,
+  onSelect,
+}: {
+  action: InlineCommandMenuActionSpec
+  onSelect: (action: InlineCommandMenuActionSpec) => void
+}) {
+  const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
+  const Icon = mediaKind === 'video' ? Video : ImageIcon
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      className={mediaCardClassName()}
       data-kg-command-menu-media-action={action.id}
       data-kg-command-menu-prefix="@"
       onPointerDownCapture={event => {
@@ -359,26 +797,23 @@ function MediaActionRow({
         onSelect(action)
       }}
     >
-      <KeyTypeValueStaticRow
-        {...compactStaticRowProps}
-        align="start"
-        keyNode={(
-          <span className="flex min-w-0 flex-col leading-4">
-            <span className={cn('truncate font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</span>
-            <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{action.id}</span>
-          </span>
-        )}
-        typeNode={<CommandPrefixType Icon={Icon} label="@" title="@ media command" />}
-        valueNode={(
-          <span className="flex min-w-0 flex-col leading-4">
-            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.secondary)}>{action.group}</span>
-            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={action.description}>
-              {action.description}
-            </span>
-          </span>
-        )}
-      />
-    </section>
+      <figure className={cn('relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+        <MediaKindOverlay Icon={Icon} label={mediaKind || 'media'} />
+        <MediaInfoOverlay label={action.description} />
+        <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+      </figure>
+      <header className="flex min-w-0 items-start justify-between gap-2 px-2 pt-2">
+        <section className="min-w-0">
+          <h3 className={cn('m-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</h3>
+          <p className={cn('m-0 mt-1 truncate font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{action.id}</p>
+        </section>
+        <ResponsiveInlineIconBadge Icon={Icon} label="@" />
+      </header>
+      <p className={cn('m-0 mt-2 truncate px-2 text-[11px]', UI_THEME_TOKENS.text.secondary)}>{action.group}</p>
+      <p className={cn('m-0 mt-1 line-clamp-2 px-2 pb-2 text-[11px] leading-4', UI_THEME_TOKENS.text.tertiary)} title={action.description}>
+        {action.description}
+      </p>
+    </article>
   )
 }
 
@@ -405,30 +840,29 @@ function buildUploadedMediaMarkdown(args: {
 
 function UploadedMediaRow({
   item,
+  description,
+  fieldText,
+  infoLabel,
   onDelete,
+  onDescriptionChange,
+  onFieldChange,
   onNameChange,
   onRename,
   onSelect,
-  compactStaticRowProps,
 }: {
   item: UploadedMediaPanelItem
+  description: string
+  fieldText: string
+  infoLabel: string
   onDelete: (item: UploadedMediaPanelItem) => void
+  onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
+  onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
   onSelect: (item: UploadedMediaPanelItem) => void
-  compactStaticRowProps: Pick<
-    React.ComponentProps<typeof KeyTypeValueStaticRow>,
-    'textSizeClassName' | 'fontClassName' | 'densityClassName' | 'activeClassName'
-  >
 }) {
   const [editingName, setEditingName] = React.useState(false)
   const Icon = getMediaIcon(item.kind)
-  const storage = item.storage?.response.storage
-  const storageLabel = storage
-    ? `R2 ${storage.r2}; D1 ${storage.d1}; KV ${storage.kv}; DO ${storage.durableObject}`
-    : item.status === 'uploading'
-      ? 'Uploading to runtime storage'
-      : item.error || 'Local preview; runtime sync disabled or unavailable'
   const commitName = (value: string) => {
     const nextName = String(value || '').trim()
     if (!nextName) {
@@ -440,9 +874,172 @@ function UploadedMediaRow({
     setEditingName(false)
   }
   return (
-    <section
+    <article
       role="button"
       tabIndex={0}
+      className={mediaListItemClassName()}
+      data-kg-media-upload-item={item.id}
+      data-kg-media-upload-kind={item.kind}
+      data-kg-media-upload-status={item.status}
+      data-kg-media-list-row-layout="3-rows"
+      onPointerDownCapture={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect(item)
+      }}
+      onClick={event => {
+        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        onSelect(item)
+      }}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        onSelect(item)
+      }}
+    >
+      <span className={mediaListThumbnailFrameClassName()}>
+        <MediaKindOverlay Icon={Icon} label={item.kind} />
+        <MediaInfoOverlay label={infoLabel} />
+        <MediaOpenLinkOverlay href={item.linkUrl} />
+        {item.kind === 'image' ? (
+          <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
+        ) : (
+          <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+        )}
+      </span>
+      <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${item.name} uploaded media summary`}>
+        <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
+          {editingName ? (
+            <input
+              type="text"
+              value={item.name}
+              aria-label={`Rename ${item.name}`}
+              className={cn(
+                'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
+                UI_THEME_TOKENS.text.primary,
+                'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
+              )}
+              data-kg-media-upload-name-input={item.id}
+              data-kg-media-row-control="1"
+              onClick={event => event.stopPropagation()}
+              onPointerDown={event => event.stopPropagation()}
+              onChange={event => onNameChange(item, event.target.value)}
+              onInput={event => onNameChange(item, event.currentTarget.value)}
+              onBlur={event => commitName(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  commitName(event.currentTarget.value)
+                  event.currentTarget.blur()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  onNameChange(item, item.storage ? readUploadedMediaFileName(item.storage) : item.name)
+                  setEditingName(false)
+                  event.currentTarget.blur()
+                }
+              }}
+              autoFocus
+            />
+          ) : (
+            <span className="flex min-w-0 items-center gap-1">
+              <span
+                className={cn('min-w-0 truncate px-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}
+                title={item.name}
+                data-kg-media-upload-name-text={item.id}
+              >
+                {item.name}
+              </span>
+              <button
+                type="button"
+                className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border opacity-70 hover:opacity-100', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+                title={`Rename ${item.name}`}
+                aria-label={`Rename ${item.name}`}
+                data-kg-media-upload-rename={item.id}
+                data-kg-media-row-control="1"
+                onPointerDown={event => event.stopPropagation()}
+                onClick={event => {
+                  event.stopPropagation()
+                  setEditingName(true)
+                }}
+              >
+                <Pencil className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+              </button>
+            </span>
+          )}
+          <button
+            type="button"
+            className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+            title="Delete media"
+            aria-label={`Delete ${item.name}`}
+            data-kg-media-upload-delete={item.id}
+            data-kg-media-row-control="1"
+            onClick={event => {
+              event.stopPropagation()
+              onDelete(item)
+            }}
+          >
+            <Trash2 className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+          </button>
+        </header>
+        <section className="flex min-w-0 flex-wrap items-center gap-1" data-kg-media-list-row-section="meta">
+          <UploadedMediaDescriptionInput
+            item={item}
+            description={description}
+            onDescriptionChange={onDescriptionChange}
+          />
+          <UploadedMediaInlineFieldEditor
+            item={item}
+            value={fieldText}
+            onChange={onFieldChange}
+          />
+        </section>
+      </section>
+    </article>
+  )
+}
+
+function UploadedMediaCard({
+  item,
+  description,
+  fieldText,
+  infoLabel,
+  onDelete,
+  onDescriptionChange,
+  onFieldChange,
+  onNameChange,
+  onRename,
+  onSelect,
+}: {
+  item: UploadedMediaPanelItem
+  description: string
+  fieldText: string
+  infoLabel: string
+  onDelete: (item: UploadedMediaPanelItem) => void
+  onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
+  onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
+  onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
+  onRename: (item: UploadedMediaPanelItem, nextName: string) => void
+  onSelect: (item: UploadedMediaPanelItem) => void
+}) {
+  const [editingName, setEditingName] = React.useState(false)
+  const commitName = (value: string) => {
+    const nextName = String(value || '').trim()
+    if (!nextName) {
+      onNameChange(item, item.name)
+      setEditingName(false)
+      return
+    }
+    if (nextName !== item.name) onRename(item, nextName)
+    setEditingName(false)
+  }
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      className={mediaCardClassName()}
       data-kg-media-upload-item={item.id}
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
@@ -462,119 +1059,99 @@ function UploadedMediaRow({
         onSelect(item)
       }}
     >
-      <KeyTypeValueStaticRow
-        {...compactStaticRowProps}
-        align="start"
-        keyNode={(
-          <span className="flex min-w-0 items-center gap-2">
-            <span className={cn('inline-flex h-8 w-14 shrink-0 overflow-hidden rounded-full border p-[2px] shadow-sm', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-              {item.kind === 'image' ? (
-                <img src={item.linkUrl} alt="" className="h-full w-full rounded-full object-cover" data-kg-command-menu-media-thumbnail="1" />
-              ) : (
-                <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
-              )}
+      <UploadedMediaPreview item={item} infoLabel={infoLabel} />
+      <header className="min-w-0 px-2 pt-2">
+        {editingName ? (
+          <input
+            type="text"
+            value={item.name}
+            aria-label={`Rename ${item.name}`}
+            className={cn(
+              'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
+              UI_THEME_TOKENS.text.primary,
+              'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
+            )}
+            data-kg-media-upload-name-input={item.id}
+            data-kg-media-row-control="1"
+            onClick={event => event.stopPropagation()}
+            onPointerDown={event => event.stopPropagation()}
+            onChange={event => onNameChange(item, event.target.value)}
+            onInput={event => onNameChange(item, event.currentTarget.value)}
+            onBlur={event => commitName(event.currentTarget.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                commitName(event.currentTarget.value)
+                event.currentTarget.blur()
+                return
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                onNameChange(item, item.storage ? readUploadedMediaFileName(item.storage) : item.name)
+                setEditingName(false)
+                event.currentTarget.blur()
+              }
+            }}
+            autoFocus
+          />
+        ) : (
+          <span className="flex min-w-0 items-center gap-1">
+            <span
+              className={cn('min-w-0 truncate px-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}
+              title={item.name}
+              data-kg-media-upload-name-text={item.id}
+            >
+              {item.name}
             </span>
-            <span className="flex min-w-0 flex-col leading-4">
-              {editingName ? (
-                <input
-                  type="text"
-                  value={item.name}
-                  aria-label={`Rename ${item.name}`}
-                  className={cn(
-                    'min-w-0 max-w-full truncate rounded border border-transparent bg-transparent px-1 py-0 text-xs font-semibold outline-none',
-                    UI_THEME_TOKENS.text.primary,
-                    'focus:border-[color:var(--kg-border)] focus:bg-[color:var(--kg-panel-bg)]',
-                  )}
-                  data-kg-media-upload-name-input={item.id}
-                  data-kg-media-row-control="1"
-                  onClick={event => event.stopPropagation()}
-                  onPointerDown={event => event.stopPropagation()}
-                  onChange={event => onNameChange(item, event.target.value)}
-                  onInput={event => onNameChange(item, event.currentTarget.value)}
-                  onBlur={event => commitName(event.currentTarget.value)}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault()
-                      commitName(event.currentTarget.value)
-                      event.currentTarget.blur()
-                      return
-                    }
-                    if (event.key === 'Escape') {
-                      event.preventDefault()
-                      onNameChange(item, item.storage ? readUploadedMediaFileName(item.storage) : item.name)
-                      setEditingName(false)
-                      event.currentTarget.blur()
-                    }
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <span className="flex min-w-0 items-center gap-1">
-                  <span
-                    className={cn('min-w-0 truncate px-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}
-                    title={item.name}
-                    data-kg-media-upload-name-text={item.id}
-                  >
-                    {item.name}
-                  </span>
-                  <button
-                    type="button"
-                    className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border opacity-70 hover:opacity-100', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-                    title={`Rename ${item.name}`}
-                    aria-label={`Rename ${item.name}`}
-                    data-kg-media-upload-rename={item.id}
-                    data-kg-media-row-control="1"
-                    onPointerDown={event => event.stopPropagation()}
-                    onClick={event => {
-                      event.stopPropagation()
-                      setEditingName(true)
-                    }}
-                  >
-                    <Pencil className="h-3 w-3" strokeWidth={1.7} aria-hidden />
-                  </button>
-                </span>
-              )}
-              <span className={cn('truncate font-mono text-[11px] font-normal', UI_THEME_TOKENS.text.tertiary)}>{item.kind}</span>
-            </span>
+            <button
+              type="button"
+              className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border opacity-70 hover:opacity-100', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+              title={`Rename ${item.name}`}
+              aria-label={`Rename ${item.name}`}
+              data-kg-media-upload-rename={item.id}
+              data-kg-media-row-control="1"
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => {
+                event.stopPropagation()
+                setEditingName(true)
+              }}
+            >
+              <Pencil className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+            </button>
           </span>
         )}
-        typeNode={<CommandPrefixType Icon={Icon} label="@" title={`${item.kind} upload`} />}
-        valueNode={(
-          <span className="flex min-w-0 flex-col leading-4">
-            <span className="flex min-w-0 items-center gap-1">
-              <a
-                href={item.linkUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={cn('min-w-0 truncate text-[11px] underline-offset-2 hover:underline', UI_THEME_TOKENS.text.secondary)}
-                title={item.linkUrl}
-                data-kg-media-row-control="1"
-                onClick={event => event.stopPropagation()}
-              >
-                {item.status === 'synced' ? 'Open Cloudflare media link' : 'Open local media link'}
-              </a>
-              <button
-                type="button"
-                className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-                title="Delete media"
-                aria-label={`Delete ${item.name}`}
-                data-kg-media-upload-delete={item.id}
-                data-kg-media-row-control="1"
-                onClick={event => {
-                  event.stopPropagation()
-                  onDelete(item)
-                }}
-              >
-                <Trash2 className="h-3 w-3" strokeWidth={1.7} aria-hidden />
-              </button>
-            </span>
-            <span className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={storageLabel}>
-              {storageLabel}
-            </span>
-          </span>
-        )}
-      />
-    </section>
+      </header>
+      <section className="flex min-w-0 flex-wrap items-center gap-1 px-2 pt-1" data-kg-media-list-row-section="meta">
+        <UploadedMediaDescriptionInput
+          item={item}
+          description={description}
+          onDescriptionChange={onDescriptionChange}
+        />
+        <UploadedMediaInlineFieldEditor
+          item={item}
+          value={fieldText}
+          onChange={onFieldChange}
+        />
+      </section>
+      <menu className={cn('m-0 mt-2 flex list-none items-center justify-end gap-2 border-t px-2 py-2', UI_THEME_TOKENS.panel.border)} aria-label={`${item.name} media actions`}>
+        <li className="list-none">
+          <button
+            type="button"
+            className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+            title="Delete media"
+            aria-label={`Delete ${item.name}`}
+            data-kg-media-upload-delete={item.id}
+            data-kg-media-row-control="1"
+            onClick={event => {
+              event.stopPropagation()
+              onDelete(item)
+            }}
+          >
+            <Trash2 className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+          </button>
+        </li>
+      </menu>
+    </article>
   )
 }
 
@@ -633,10 +1210,12 @@ export function CommandMenuReferenceCatalog({
 
 export function MediaCatalogPanel() {
   const panelTypography = usePanelTypography()
-  const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
   const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
+  const [catalogLayout, setCatalogLayoutState] = React.useState<MediaCatalogLayout>(readStoredMediaCatalogLayout)
   const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
+  const [mediaDescriptionDrafts, setMediaDescriptionDrafts] = React.useState<UploadedMediaDescriptionDrafts>(readStoredMediaDescriptionDrafts)
+  const [mediaFieldDrafts, setMediaFieldDrafts] = React.useState<UploadedMediaFieldDrafts>(readStoredMediaFieldDrafts)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -672,6 +1251,10 @@ export function MediaCatalogPanel() {
     () => INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
     [],
   )
+  const setCatalogLayout = React.useCallback((layout: MediaCatalogLayout) => {
+    setCatalogLayoutState(layout)
+    writeStoredMediaCatalogLayout(layout)
+  }, [])
   React.useEffect(() => () => {
     objectUrlsRef.current.forEach(url => {
       try {
@@ -804,6 +1387,34 @@ export function MediaCatalogPanel() {
   const handleUploadedMediaNameChange = React.useCallback((item: UploadedMediaPanelItem, nextName: string) => {
     setUploadedMediaItems(prev => prev.map(candidate => candidate.id === item.id ? { ...candidate, name: nextName } : candidate))
   }, [])
+  const handleUploadedMediaDescriptionChange = React.useCallback((item: UploadedMediaPanelItem, nextDescription: string) => {
+    const descriptionKey = getUploadedMediaDescriptionKey(item)
+    const description = String(nextDescription || '')
+    setMediaDescriptionDrafts(prev => {
+      const next = { ...prev }
+      if (description.trim()) {
+        next[descriptionKey] = description
+      } else {
+        delete next[descriptionKey]
+      }
+      writeStoredMediaDescriptionDrafts(next)
+      return next
+    })
+  }, [])
+  const handleUploadedMediaFieldChange = React.useCallback((item: UploadedMediaPanelItem, nextFieldText: string) => {
+    const fieldKey = getUploadedMediaDescriptionKey(item)
+    const fieldText = String(nextFieldText || '')
+    setMediaFieldDrafts(prev => {
+      const next = { ...prev }
+      if (fieldText.trim()) {
+        next[fieldKey] = fieldText
+      } else {
+        delete next[fieldKey]
+      }
+      writeStoredMediaFieldDrafts(next)
+      return next
+    })
+  }, [])
   const handleRenameUploadedMedia = React.useCallback((item: UploadedMediaPanelItem, nextName: string) => {
     const name = String(nextName || '').trim()
     if (!name || !item.storage) return
@@ -912,7 +1523,7 @@ export function MediaCatalogPanel() {
   }, [markdownDocumentName, markdownDocumentText, setMarkdownDocument, setSourceFiles, sourceFiles, updateNode])
 
   return (
-    <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-ktv-layout="1" data-kg-media-panel="1">
+    <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1">
       <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.bg)}>
         <section className="min-w-0">
           <h2 className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Media</h2>
@@ -942,6 +1553,32 @@ export function MediaCatalogPanel() {
           >
             <Upload className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
           </button>
+          <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
+            {([
+              { layout: 'list' as const, label: 'List layout', Icon: List },
+              { layout: 'grid' as const, label: 'Grid layout', Icon: Grid2X2 },
+            ]).map(option => {
+              const Icon = option.Icon
+              return (
+                <button
+                  key={option.layout}
+                  type="button"
+                  className={cn(
+                    'inline-flex h-full w-6 items-center justify-center border-0 px-0',
+                    catalogLayout === option.layout ? 'bg-black/10 dark:bg-white/15' : UI_THEME_TOKENS.button.hoverBg,
+                    UI_THEME_TOKENS.text.secondary,
+                  )}
+                  title={option.label}
+                  aria-label={option.label}
+                  aria-pressed={catalogLayout === option.layout}
+                  data-kg-media-layout-toggle={option.layout}
+                  onClick={() => setCatalogLayout(option.layout)}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+                </button>
+              )
+            })}
+          </section>
           <span
             className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
             title="@ media commands"
@@ -951,39 +1588,77 @@ export function MediaCatalogPanel() {
         </section>
       </header>
       <section data-kg-media-list="1">
-        <KeyTypeValueHeader keyLabel="Media" typeLabel="Prefix" valueLabel="Source / action" stickyOffsetClassName="top-0" />
-        <KeyTypeValueSectionStack>
-          {uploadedMediaItems.map(item => (
-            <UploadedMediaRow
-              key={item.id}
-              item={item}
-              onDelete={handleDeleteUploadedMedia}
-              onNameChange={handleUploadedMediaNameChange}
-              onRename={handleRenameUploadedMedia}
-              onSelect={handleSelectUploadedMedia}
-              compactStaticRowProps={compactStaticRowProps}
-            />
-          ))}
-          {mediaItems.map(item => (
-            <MediaCandidateRow
-              key={item.key}
-              item={item}
-              displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
-              onSelect={handleSelectMedia}
-              onNameDraftChange={handleMediaNameDraftChange}
-              onRename={handleRenameMedia}
-              compactStaticRowProps={compactStaticRowProps}
-            />
-          ))}
-          {mediaActions.map(action => (
-            <MediaActionRow
-              key={action.id}
-              action={action}
-              onSelect={handleSelectMediaAction}
-              compactStaticRowProps={compactStaticRowProps}
-            />
-          ))}
-        </KeyTypeValueSectionStack>
+        {catalogLayout === 'list' ? (
+          <section className="grid min-w-0 gap-2" aria-label="Media list" data-kg-media-list-rows="3">
+            {uploadedMediaItems.map(item => (
+              <UploadedMediaRow
+                key={item.id}
+                item={item}
+                description={readUploadedMediaDescription(mediaDescriptionDrafts, item)}
+                fieldText={readUploadedMediaFieldText(mediaFieldDrafts, item)}
+                infoLabel={buildUploadedMediaInfoLabel(item)}
+                onDelete={handleDeleteUploadedMedia}
+                onDescriptionChange={handleUploadedMediaDescriptionChange}
+                onFieldChange={handleUploadedMediaFieldChange}
+                onNameChange={handleUploadedMediaNameChange}
+                onRename={handleRenameUploadedMedia}
+                onSelect={handleSelectUploadedMedia}
+              />
+            ))}
+            {mediaItems.map(item => (
+              <MediaCandidateRow
+                key={item.key}
+                item={item}
+                displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                onSelect={handleSelectMedia}
+                onNameDraftChange={handleMediaNameDraftChange}
+                onRename={handleRenameMedia}
+              />
+            ))}
+            {mediaActions.map(action => (
+              <MediaActionRow
+                key={action.id}
+                action={action}
+                onSelect={handleSelectMediaAction}
+              />
+            ))}
+          </section>
+        ) : (
+          <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
+            {uploadedMediaItems.map(item => (
+              <UploadedMediaCard
+                key={item.id}
+                item={item}
+                description={readUploadedMediaDescription(mediaDescriptionDrafts, item)}
+                fieldText={readUploadedMediaFieldText(mediaFieldDrafts, item)}
+                infoLabel={buildUploadedMediaInfoLabel(item)}
+                onDelete={handleDeleteUploadedMedia}
+                onDescriptionChange={handleUploadedMediaDescriptionChange}
+                onFieldChange={handleUploadedMediaFieldChange}
+                onNameChange={handleUploadedMediaNameChange}
+                onRename={handleRenameUploadedMedia}
+                onSelect={handleSelectUploadedMedia}
+              />
+            ))}
+            {mediaItems.map(item => (
+              <MediaCandidateCard
+                key={item.key}
+                item={item}
+                displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                onSelect={handleSelectMedia}
+                onNameDraftChange={handleMediaNameDraftChange}
+                onRename={handleRenameMedia}
+              />
+            ))}
+            {mediaActions.map(action => (
+              <MediaActionCard
+                key={action.id}
+                action={action}
+                onSelect={handleSelectMediaAction}
+              />
+            ))}
+          </section>
+        )}
       </section>
     </section>
   )

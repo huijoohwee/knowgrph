@@ -1,6 +1,6 @@
 import React from 'react'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
-import type { HighlightedLineRange, MarkdownGeoDatasetIntegration, RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
+import type { HighlightedLineRange, MarkdownGeoDatasetIntegration, MarkdownViewerMediaMode, RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownPanelLayout } from '@/features/markdown/ui/MarkdownPanelLayout'
 import {
@@ -113,6 +113,7 @@ export type MarkdownPreviewViewerProps = {
   onInlineEditStateChange?: (active: boolean) => void
   onInlineDraftTextChange?: (nextText: string, options?: import('@/features/markdown/ui/MarkdownRendererTypes').MarkdownInlineDraftTextChangeOptions) => void
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: MarkdownViewerMediaMode
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -176,6 +177,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     onInlineEditStateChange,
     onInlineDraftTextChange,
     markdownCardPreviewMode = false,
+    markdownViewerMediaMode = 'chip',
   } = props
   const blockCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
     if (!forbidCopy) return
@@ -519,6 +521,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         deferMermaidRender={deferMermaidRender}
         markdownLargeDocumentMode={markdownLargeDocumentMode}
         markdownCardPreviewMode={markdownCardPreviewMode}
+        markdownViewerMediaMode={markdownViewerMediaMode}
       />
     ),
     [
@@ -559,6 +562,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       deferMermaidRender,
       markdownLargeDocumentMode,
       markdownCardPreviewMode,
+      markdownViewerMediaMode,
     ],
   )
 
@@ -582,6 +586,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       geoDatasetIntegration,
       forbidCopy,
       deferMermaidRender,
+      markdownViewerMediaMode,
     })
   }, [
     activeDocumentPath,
@@ -602,6 +607,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     uiPanelMonospaceTextClass,
     uiPanelTextFontClass,
     deferMermaidRender,
+    markdownViewerMediaMode,
   ])
 
   const previewContent = (

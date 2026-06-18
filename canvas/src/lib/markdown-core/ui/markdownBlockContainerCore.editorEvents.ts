@@ -44,6 +44,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   emitParityProbe: () => void
   editDisableRichUi: boolean
   getSelectionOffsets: () => { startOffset: number; endOffset: number } | null
+  lastSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   setVariableMenuStable: (next: { show: boolean; leftPx: number; topPx: number; query?: string; keyInput?: string }) => void
   variableMenu: { show: boolean; keyInput: string; mode: VariableMode }
   setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
@@ -118,6 +119,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     if (!rect) return
     const { leftPx, topPx } = computeFloatingMenuPosition({ rangeRect: rect, root: el })
     const offsets = args.getSelectionOffsets()
+    if (offsets) args.lastSelectionOffsetsRef.current = offsets
     const caretOffset = offsets?.startOffset ?? 0
     const lineStartIdx = text.lastIndexOf('\n', Math.max(0, caretOffset) - 1) + 1
     const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, caretOffset)))
@@ -271,6 +273,8 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
 
   const onMouseUp = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     args.lastEditorPointerUpAtRef.current = Date.now()
+    const pointerSelection = args.getSelectionOffsets()
+    if (pointerSelection) args.lastSelectionOffsetsRef.current = pointerSelection
     const selNow = typeof window !== 'undefined' ? window.getSelection() : null
     let capturedNonCollapsedSelection = false
     if (selNow && selNow.rangeCount > 0) {
@@ -279,6 +283,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
         capturedNonCollapsedSelection = true
         args.liveSelectionSnapshotRef.current = { range: rr, rect: getRangeRectSafe(rr) }
         const selection = args.getSelectionOffsets()
+        if (selection) args.lastSelectionOffsetsRef.current = selection
         if (selection && selection.startOffset !== selection.endOffset) args.lastNonCollapsedSelectionOffsetsRef.current = selection
         try {
           args.lastNonCollapsedDomRangeRef.current = rr.cloneRange()
@@ -297,6 +302,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
           if (!rr.collapsed) {
             args.liveSelectionSnapshotRef.current = { range: rr, rect: getRangeRectSafe(rr) }
             const selection = args.getSelectionOffsets()
+            if (selection) args.lastSelectionOffsetsRef.current = selection
             if (selection && selection.startOffset !== selection.endOffset) args.lastNonCollapsedSelectionOffsetsRef.current = selection
             try {
               args.lastNonCollapsedDomRangeRef.current = rr.cloneRange()

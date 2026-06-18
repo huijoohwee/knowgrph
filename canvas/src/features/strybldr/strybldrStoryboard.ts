@@ -511,7 +511,7 @@ export const removeStrybldrStoryboardMarkdownElement = (args: {
   const nextElements = doc.elements.filter(element => cleanText(element.id) !== nodeId)
   const nextCards = (doc.cards || []).filter(card => cleanText(card.nodeId) !== nodeId)
   if (nextElements.length === doc.elements.length && nextCards.length === (doc.cards || []).length) return null
-  const nextPayload = {
+  const nextPayload: Record<string, unknown> & { elements: typeof nextElements; cards?: typeof nextCards } = {
     ...rawPayload,
     elements: nextElements,
   }

@@ -17,10 +17,14 @@ export const toggleParentDetailsOpenFromSummaryClick = (event: {
 
 export const captureSelectionForFloatingToolbar = (args: {
   getSelectionOffsets: () => { startOffset: number; endOffset: number } | null
+  lastSelectionOffsetsRef?: { current: { startOffset: number; endOffset: number } | null }
   lastNonCollapsedSelectionOffsetsRef: { current: { startOffset: number; endOffset: number } | null }
   lastNonCollapsedDomRangeRef: { current: Range | null }
 }) => {
   const selection = args.getSelectionOffsets()
+  if (selection) {
+    args.lastSelectionOffsetsRef && (args.lastSelectionOffsetsRef.current = selection)
+  }
   if (selection && selection.startOffset !== selection.endOffset) {
     args.lastNonCollapsedSelectionOffsetsRef.current = selection
   }
@@ -34,4 +38,3 @@ export const captureSelectionForFloatingToolbar = (args: {
     void 0
   }
 }
-

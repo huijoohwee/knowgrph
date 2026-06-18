@@ -14,6 +14,7 @@ import type {
   HighlightedLineRange,
   MarkdownGeoDatasetIntegration,
   MarkdownInlineDraftTextChangeOptions,
+  MarkdownViewerMediaMode,
 } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
@@ -106,6 +107,7 @@ type MarkdownPreviewProps = {
   markdownTokenStoreSync?: boolean
   contentClassName?: string
   markdownCardPreviewMode?: boolean
+  markdownViewerMediaMode?: MarkdownViewerMediaMode
   galleryZoomScale?: number
 }
 
@@ -169,10 +171,13 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
     markdownTokenStoreSync = true,
     contentClassName,
     markdownCardPreviewMode,
+    markdownViewerMediaMode: markdownViewerMediaModeProp,
     galleryZoomScale,
   },
   ref,
 ) {
+  const persistedMarkdownViewerMediaMode = useGraphStore(s => s.markdownViewerMediaMode || 'chip')
+  const markdownViewerMediaMode = markdownViewerMediaModeProp || persistedMarkdownViewerMediaMode
   const { flashSelectionId, flashAlpha } = useSelectionFlash(selectionId)
   const rootThemeMode = useRootThemeMode()
 
@@ -595,6 +600,7 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
       onInlineDraftTextChange={onInlineDraftTextChange}
       contentClassName={contentClassName}
       markdownCardPreviewMode={markdownCardPreviewMode}
+      markdownViewerMediaMode={markdownViewerMediaMode}
       />
     </MarkdownInlineSelectionActionsContext.Provider>
   )
