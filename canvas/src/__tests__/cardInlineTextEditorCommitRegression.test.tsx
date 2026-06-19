@@ -1237,10 +1237,10 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
     })
 
     const mediaButtons = Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]
-    const uploadMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('Upload Media') && String(button.textContent || '').includes('Upload image, audio, or video through the shared Media storage flow'))
+    const uploadMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('New Media') && String(button.textContent || '').includes('Create or upload image, audio, or video through the shared Media storage flow'))
     if (!(uploadMediaButton instanceof dom.window.HTMLButtonElement)) {
       const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
-      throw new Error(`expected @ command menu to include shared Upload Media action, got ${buttonText}`)
+      throw new Error(`expected @ command menu to include shared New Media action, got ${buttonText}`)
     }
     const uploadedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('airvio_.JPEG') && String(button.textContent || '').includes('Uploaded media from Cloudflare storage'))
     if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) {

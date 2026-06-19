@@ -270,15 +270,16 @@ export function CardInlineTextCommandMenus(props: {
   const uploadedMediaCommandCandidates = useUploadedMediaInlineCommandCandidates()
 
   React.useEffect(() => {
+    const uploadObjectUrls = uploadObjectUrlsRef.current
     return () => {
-      for (const url of uploadObjectUrlsRef.current) {
+      for (const url of uploadObjectUrls) {
         try {
           URL.revokeObjectURL(url)
         } catch {
           void 0
         }
       }
-      uploadObjectUrlsRef.current.clear()
+      uploadObjectUrls.clear()
     }
   }, [])
 
@@ -617,7 +618,7 @@ export function CardInlineTextCommandMenus(props: {
         accept="image/*,audio/*,video/*"
         multiple
         className="sr-only"
-        aria-label="Upload Media"
+        aria-label="New Media upload"
         data-kg-inline-media-upload-input="1"
         onChange={event => {
           void uploadMediaCommand(event.currentTarget.files)

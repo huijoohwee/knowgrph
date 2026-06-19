@@ -1,5 +1,5 @@
 import React from 'react'
-import { AtSign, Grid2X2, Hash, ImageIcon, List, Pencil, Slash, Trash2, Upload, Video, type LucideIcon } from 'lucide-react'
+import { AtSign, Grid2X2, Hash, ImageIcon, Link, List, Pencil, Plus, Slash, Trash2, Upload, Video, Wand2, type LucideIcon } from 'lucide-react'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import {
   KeyTypeValueHeader,
@@ -8,6 +8,7 @@ import {
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import {
   INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID,
+  INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
   INLINE_KEYWORD_COMMAND_ACTIONS,
   INLINE_SLASH_COMMAND_ACTIONS,
   INLINE_VARIABLE_COMMAND_ACTIONS,
@@ -43,16 +44,22 @@ import {
   type UploadedMediaPanelItem,
 } from '@/lib/storage/uploadedMediaPanelItems'
 import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
+import { importUrlToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelImportUrl'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { ResponsiveInlineIconBadge } from '@/lib/ui/ResponsiveInlineIconBadge'
 import { MediaLightbox } from '@/lib/ui/MediaLightbox'
+import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
+import { beginMediaPointerDragPayload, writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { cn } from '@/lib/utils'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
+import { MEDIA_LIBRARY_OPEN_TOP_EVENT } from '@/features/canvas/utils'
+import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 
 const commandMenuCatalogGroups = [
   { key: 'slash', label: '/', title: 'Slash commands', Icon: Slash, actions: INLINE_SLASH_COMMAND_ACTIONS },
@@ -61,12 +68,41 @@ const commandMenuCatalogGroups = [
 ] as const
 
 type MediaCatalogLayout = 'grid' | 'list'
+type MediaPanelActionSpec = InlineCommandMenuActionSpec
 type UploadedMediaDescriptionDrafts = Record<string, string>
 type UploadedMediaFieldDrafts = Record<string, string>
 
 const MEDIA_CATALOG_LAYOUT_STORAGE_KEY = 'kg.media.catalog.layout'
 const MEDIA_DESCRIPTION_STORAGE_KEY = 'kg.media.descriptions'
 const MEDIA_FIELDS_STORAGE_KEY = 'kg.media.fields'
+const MEDIA_GENERATE_MEDIA_ACTION_ID = 'generate-media' as const
+const MEDIA_IMPORT_URL_ACTION_ID = 'import-media-url' as const
+const MEDIA_NEW_ACTIONS: readonly MediaPanelActionSpec[] = [
+  {
+    id: INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
+    kind: 'variable',
+    label: 'Upload Media',
+    group: 'New Media',
+    description: 'Upload image, audio, or video into the shared Media storage flow',
+    keywords: ['new', 'upload', 'media', 'image', 'audio', 'video', 'r2', 'storage'],
+  },
+  {
+    id: MEDIA_IMPORT_URL_ACTION_ID,
+    kind: 'variable',
+    label: 'Import URL',
+    group: 'New Media',
+    description: 'Import image, audio, or video from an http(s) URL into shared Media storage',
+    keywords: ['new', 'import', 'url', 'media', 'image', 'audio', 'video', 'r2', 'storage'],
+  },
+  {
+    id: MEDIA_GENERATE_MEDIA_ACTION_ID,
+    kind: 'variable',
+    label: 'Generate Media',
+    group: 'New Media',
+    description: 'Open the prompt panel to generate image, audio, or video media',
+    keywords: ['new', 'generate', 'media', 'prompt', 'image', 'audio', 'video'],
+  },
+]
 
 function readStoredMediaCatalogLayout(): MediaCatalogLayout {
   try {
@@ -239,30 +275,75 @@ function MediaListThumbnailIconFrame({ Icon, label, infoLabel }: { Icon: LucideI
   )
 }
 
-function MediaCandidateThumb({ item }: { item: CommandMenuRichMediaItem }) {
+function MediaCandidateThumb({
+  item,
+  onDragStart,
+}: {
+  item: CommandMenuRichMediaItem
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
+}) {
   const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
   const openHref = readRichMediaOpenHref(item)
   if (thumbnail) {
     return (
-      <span className={mediaListThumbnailFrameClassName()}>
+      <span
+        className={mediaListThumbnailFrameClassName('cursor-grab active:cursor-grabbing')}
+        draggable={true}
+        data-kg-media-draggable="1"
+        data-kg-media-row-control="1"
+        onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onDragStart={event => onDragStart(event, item)}
+      >
         <MediaKindOverlay Icon={resolveMediaKindOverlayIcon(item.kind)} label={item.kind} appearance="hover" />
         <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
-        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
+        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" draggable={false} />
       </span>
     )
   }
   const Icon = resolveMediaKindOverlayIcon(item.kind)
-  return <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
+  return (
+    <span
+      draggable={true}
+      data-kg-media-draggable="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
+    >
+      <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
+    </span>
+  )
 }
 
-function MediaCandidatePreview({ item }: { item: CommandMenuRichMediaItem }) {
+function MediaCandidatePreview({
+  item,
+  onDragStart,
+}: {
+  item: CommandMenuRichMediaItem
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
+}) {
   const thumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
   const Icon = resolveMediaKindOverlayIcon(item.kind)
   const openHref = readRichMediaOpenHref(item)
   if (thumbnail) {
     return (
-      <figure className={cn('group relative m-0 aspect-[16/9] w-full overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+      <figure
+        className={cn('group relative m-0 aspect-[16/9] w-full cursor-grab overflow-hidden border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+        draggable={true}
+        data-kg-media-draggable="1"
+        data-kg-media-row-control="1"
+        onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onDragStart={event => onDragStart(event, item)}
+      >
         <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
         <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
@@ -271,7 +352,17 @@ function MediaCandidatePreview({ item }: { item: CommandMenuRichMediaItem }) {
     )
   }
   return (
-    <figure className={cn('group relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+    <figure
+      className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-grab place-items-center border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+      draggable={true}
+      data-kg-media-draggable="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
+    >
       <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
       <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
       <MediaOpenLinkOverlay href={openHref} appearance="hover" />
@@ -283,10 +374,12 @@ function MediaCandidatePreview({ item }: { item: CommandMenuRichMediaItem }) {
 function UploadedMediaPreview({
   item,
   infoLabel,
+  onDragStart,
   onPreview,
 }: {
   item: UploadedMediaPanelItem
   infoLabel: string
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
   onPreview: (item: UploadedMediaPanelItem) => void
 }) {
   const Icon = resolveMediaKindOverlayIcon(item.kind)
@@ -296,9 +389,15 @@ function UploadedMediaPreview({
       className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-zoom-in place-items-center overflow-hidden border-x-0 border-b border-t-0 p-0 text-left', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
       title={`Preview ${item.name}`}
       aria-label={`Preview ${item.name}`}
+      draggable={true}
       data-kg-media-thumbnail-fullscreen={item.id}
+      data-kg-media-draggable="1"
       data-kg-media-row-control="1"
-      onPointerDown={event => event.stopPropagation()}
+      onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
       onClick={event => {
         event.stopPropagation()
         onPreview(item)
@@ -346,6 +445,62 @@ function getCommandMenuMediaDescription(item: CommandMenuRichMediaItem): string 
 
 function getUploadedMediaDescriptionKey(item: UploadedMediaPanelItem): string {
   return String(item.storage?.contentHash || item.id || readUploadedMediaPanelDedupeKey(item)).trim()
+}
+
+function buildCommandMenuMediaDragPayload(item: CommandMenuRichMediaItem): MediaDragPayload | null {
+  if (item.kind !== 'image' && item.kind !== 'audio' && item.kind !== 'video') return null
+  const url = readRichMediaInsertUrl(item)
+  if (!url) return null
+  return {
+    kind: item.kind,
+    url,
+    label: item.label || item.kind,
+    thumbnailUrl: item.thumbnailUrl || undefined,
+    sourceKey: item.key,
+  }
+}
+
+function buildUploadedMediaDragPayload(item: UploadedMediaPanelItem): MediaDragPayload | null {
+  if (item.kind !== 'image' && item.kind !== 'audio' && item.kind !== 'video') return null
+  const url = String(item.storage?.accessUrl || item.linkUrl || '').trim()
+  if (!url) return null
+  return {
+    kind: item.kind,
+    url,
+    label: item.name || item.kind,
+    sourceKey: item.storage?.contentHash || item.id,
+  }
+}
+
+function startMediaDrag(event: React.DragEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  writeMediaDragPayload(event.dataTransfer, payload)
+  beginMediaPointerDragPayload(payload)
+}
+
+function startMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+function startMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+function continueMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload || event.buttons !== 1) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+function continueMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload || event.buttons !== 1) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
 }
 
 function buildUploadedMediaDescriptionFallback(item: UploadedMediaPanelItem): string {
@@ -519,12 +674,14 @@ function UploadedMediaInlineFieldEditor({
 function MediaCandidateRow({
   item,
   displayName,
+  onDragStart,
   onSelect,
   onNameDraftChange,
   onRename,
 }: {
   item: CommandMenuRichMediaItem
   displayName: string
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
   onSelect: (item: CommandMenuRichMediaItem) => void
   onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
@@ -535,7 +692,9 @@ function MediaCandidateRow({
     <article
       role="button"
       tabIndex={0}
+      draggable={true}
       className={mediaListItemClassName()}
+      onDragStart={event => onDragStart(event, item)}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()
@@ -552,11 +711,12 @@ function MediaCandidateRow({
         onSelect(item)
       }}
       data-kg-command-menu-media-candidate={item.key}
+      data-kg-media-draggable="1"
       data-kg-command-menu-media-kind={item.kind}
       data-kg-command-menu-media-source={item.source}
       data-kg-media-list-row-layout="3-rows"
     >
-      <MediaCandidateThumb item={item} />
+      <MediaCandidateThumb item={item} onDragStart={onDragStart} />
       <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${displayName} media summary`}>
         <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
           <MediaCandidateNameEditor
@@ -581,12 +741,14 @@ function MediaCandidateRow({
 function MediaCandidateCard({
   item,
   displayName,
+  onDragStart,
   onSelect,
   onNameDraftChange,
   onRename,
 }: {
   item: CommandMenuRichMediaItem
   displayName: string
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
   onSelect: (item: CommandMenuRichMediaItem) => void
   onNameDraftChange: (item: CommandMenuRichMediaItem, nextName: string) => void
   onRename: (item: CommandMenuRichMediaItem, nextName: string) => void
@@ -598,7 +760,9 @@ function MediaCandidateCard({
     <article
       role="button"
       tabIndex={0}
+      draggable={true}
       className={mediaCardClassName()}
+      onDragStart={event => onDragStart(event, item)}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()
@@ -615,10 +779,11 @@ function MediaCandidateCard({
         onSelect(item)
       }}
       data-kg-command-menu-media-candidate={item.key}
+      data-kg-media-draggable="1"
       data-kg-command-menu-media-kind={item.kind}
       data-kg-command-menu-media-source={item.source}
     >
-      <MediaCandidatePreview item={item} />
+      <MediaCandidatePreview item={item} onDragStart={onDragStart} />
       <header className="min-w-0 px-2 pt-2">
         <MediaCandidateNameEditor
           item={item}
@@ -735,11 +900,17 @@ function MediaActionRow({
   action,
   onSelect,
 }: {
-  action: InlineCommandMenuActionSpec
-  onSelect: (action: InlineCommandMenuActionSpec) => void
+  action: MediaPanelActionSpec
+  onSelect: (action: MediaPanelActionSpec) => void
 }) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
-  const Icon = mediaKind === 'video' ? Video : ImageIcon
+  const Icon = action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID
+    ? Upload
+    : action.id === MEDIA_IMPORT_URL_ACTION_ID
+      ? Link
+      : action.id === MEDIA_GENERATE_MEDIA_ACTION_ID
+        ? Wand2
+        : mediaKind === 'video' ? Video : ImageIcon
   return (
     <article
       role="button"
@@ -764,7 +935,7 @@ function MediaActionRow({
         onSelect(action)
       }}
     >
-      <MediaListThumbnailIconFrame Icon={Icon} label={mediaKind || 'media'} infoLabel={action.description} />
+      <MediaListThumbnailIconFrame Icon={Icon} label={mediaKind || action.label} infoLabel={action.description} />
       <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${action.label} action summary`}>
         <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
           <span className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</span>
@@ -785,11 +956,17 @@ function MediaActionCard({
   action,
   onSelect,
 }: {
-  action: InlineCommandMenuActionSpec
-  onSelect: (action: InlineCommandMenuActionSpec) => void
+  action: MediaPanelActionSpec
+  onSelect: (action: MediaPanelActionSpec) => void
 }) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
-  const Icon = mediaKind === 'video' ? Video : ImageIcon
+  const Icon = action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID
+    ? Upload
+    : action.id === MEDIA_IMPORT_URL_ACTION_ID
+      ? Link
+      : action.id === MEDIA_GENERATE_MEDIA_ACTION_ID
+        ? Wand2
+        : mediaKind === 'video' ? Video : ImageIcon
   return (
     <article
       role="button"
@@ -814,7 +991,7 @@ function MediaActionCard({
       }}
     >
       <figure className={cn('group relative m-0 grid aspect-[16/9] w-full place-items-center border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
-        <MediaKindOverlay Icon={Icon} label={mediaKind || 'media'} appearance="hover" />
+        <MediaKindOverlay Icon={Icon} label={mediaKind || action.label} appearance="hover" />
         <MediaInfoOverlay label={action.description} appearance="hover" />
         <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
       </figure>
@@ -861,6 +1038,7 @@ function UploadedMediaRow({
   infoLabel,
   onDelete,
   onDescriptionChange,
+  onDragStart,
   onFieldChange,
   onNameChange,
   onRename,
@@ -873,6 +1051,7 @@ function UploadedMediaRow({
   infoLabel: string
   onDelete: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
@@ -895,8 +1074,11 @@ function UploadedMediaRow({
     <article
       role="button"
       tabIndex={0}
+      draggable={true}
       className={mediaListItemClassName()}
+      onDragStart={event => onDragStart(event, item)}
       data-kg-media-upload-item={item.id}
+      data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
       data-kg-media-list-row-layout="3-rows"
@@ -921,9 +1103,15 @@ function UploadedMediaRow({
         className={cn(mediaListThumbnailFrameClassName(), 'cursor-zoom-in')}
         title={`Preview ${item.name}`}
         aria-label={`Preview ${item.name}`}
+        draggable={true}
         data-kg-media-thumbnail-fullscreen={item.id}
+        data-kg-media-draggable="1"
         data-kg-media-row-control="1"
-        onPointerDown={event => event.stopPropagation()}
+        onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+        onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+        onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+        onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+        onDragStart={event => onDragStart(event, item)}
         onClick={event => {
           event.stopPropagation()
           onPreview(item)
@@ -934,7 +1122,7 @@ function UploadedMediaRow({
         <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
         <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
         {item.kind === 'image' ? (
-          <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" />
+          <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" draggable={false} />
         ) : (
           <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
         )}
@@ -1039,6 +1227,7 @@ function UploadedMediaCard({
   infoLabel,
   onDelete,
   onDescriptionChange,
+  onDragStart,
   onFieldChange,
   onNameChange,
   onRename,
@@ -1051,6 +1240,7 @@ function UploadedMediaCard({
   infoLabel: string
   onDelete: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
@@ -1072,8 +1262,11 @@ function UploadedMediaCard({
     <article
       role="button"
       tabIndex={0}
+      draggable={true}
       className={mediaCardClassName()}
+      onDragStart={event => onDragStart(event, item)}
       data-kg-media-upload-item={item.id}
+      data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
       onPointerDownCapture={event => {
@@ -1092,7 +1285,7 @@ function UploadedMediaCard({
         onSelect(item)
       }}
     >
-      <UploadedMediaPreview item={item} infoLabel={infoLabel} onPreview={onPreview} />
+      <UploadedMediaPreview item={item} infoLabel={infoLabel} onDragStart={onDragStart} onPreview={onPreview} />
       <header className="min-w-0 px-2 pt-2">
         {editingName ? (
           <input
@@ -1243,6 +1436,8 @@ export function CommandMenuReferenceCatalog({
 
 export function MediaCatalogPanel() {
   const panelTypography = usePanelTypography()
+  const panelRef = React.useRef<HTMLElement | null>(null)
+  const mediaListRef = React.useRef<HTMLElement | null>(null)
   const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
   const [catalogLayout, setCatalogLayoutState] = React.useState<MediaCatalogLayout>(readStoredMediaCatalogLayout)
@@ -1250,6 +1445,11 @@ export function MediaCatalogPanel() {
   const [mediaDescriptionDrafts, setMediaDescriptionDrafts] = React.useState<UploadedMediaDescriptionDrafts>(readStoredMediaDescriptionDrafts)
   const [mediaFieldDrafts, setMediaFieldDrafts] = React.useState<UploadedMediaFieldDrafts>(readStoredMediaFieldDrafts)
   const [lightboxItem, setLightboxItem] = React.useState<UploadedMediaPanelItem | null>(null)
+  const [generateLightboxOpen, setGenerateLightboxOpen] = React.useState(false)
+  const [generateMediaPrompt, setGenerateMediaPrompt] = React.useState('')
+  const [importUrlPromptOpen, setImportUrlPromptOpen] = React.useState(false)
+  const [importUrlDraft, setImportUrlDraft] = React.useState('')
+  const [importUrlBusy, setImportUrlBusy] = React.useState(false)
   const setActiveMediaKey = useGraphStore(s => s.setMarkdownPreviewActiveMediaKey)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
   const selectNode = useGraphStore(s => s.selectNode)
@@ -1260,6 +1460,7 @@ export function MediaCatalogPanel() {
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const setSourceFiles = useGraphStore(s => s.setSourceFiles)
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
   const { items } = useCommandMenuRichMediaInventory()
   const uploadedMediaKeys = React.useMemo(() => new Set(uploadedMediaItems.flatMap(item => {
     const storage = item.storage
@@ -1282,9 +1483,32 @@ export function MediaCatalogPanel() {
   )
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
   const mediaActions = React.useMemo(
-    () => INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
+    () => [
+      ...MEDIA_NEW_ACTIONS,
+      ...INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
+    ],
     [],
   )
+  const generatePromptParameters = React.useMemo(
+    () => buildMediaLightboxPromptParameters({ kind: 'image' }),
+    [],
+  )
+  const openMediaLibraryTop = React.useCallback(() => {
+    const run = () => {
+      try {
+        panelRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' })
+      } catch {
+        if (panelRef.current) panelRef.current.scrollTop = 0
+      }
+      mediaListRef.current?.focus?.({ preventScroll: true })
+      mediaListRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+    }
+    if (typeof window === 'undefined') {
+      run()
+      return
+    }
+    window.requestAnimationFrame(run)
+  }, [])
   const setCatalogLayout = React.useCallback((layout: MediaCatalogLayout) => {
     setCatalogLayoutState(layout)
     writeStoredMediaCatalogLayout(layout)
@@ -1328,6 +1552,13 @@ export function MediaCatalogPanel() {
       window.removeEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
     }
   }, [])
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.addEventListener(MEDIA_LIBRARY_OPEN_TOP_EVENT, openMediaLibraryTop)
+    return () => {
+      window.removeEventListener(MEDIA_LIBRARY_OPEN_TOP_EVENT, openMediaLibraryTop)
+    }
+  }, [openMediaLibraryTop])
   const appendSyncedUploadedMediaSource = React.useCallback((args: {
     itemId: string
     name: string
@@ -1369,6 +1600,49 @@ export function MediaCatalogPanel() {
       },
     })
   }, [appendSyncedUploadedMediaSource])
+  const handleImportMediaUrl = React.useCallback(async (urlRaw: string) => {
+    const url = String(urlRaw || '').trim()
+    if (!url || importUrlBusy) return
+    setImportUrlBusy(true)
+    pushUiToast({
+      id: 'media:import-url',
+      kind: 'neutral',
+      message: 'Importing media URL…',
+      ttlMs: null,
+      dismissible: false,
+      busy: true,
+    })
+    try {
+      const results = await importUrlToUploadedMediaPanel({
+        urlRaw: url,
+        setItems: setUploadedMediaItems,
+        registerObjectUrl: objectUrl => objectUrlsRef.current.add(objectUrl),
+        onSynced: ({ item, storage }) => {
+          appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage })
+        },
+      })
+      if (results.length === 0) throw new Error('URL did not resolve to image, audio, or video media')
+      setImportUrlDraft('')
+      setImportUrlPromptOpen(false)
+      pushUiToast({
+        id: 'media:import-url',
+        kind: 'success',
+        message: `Imported ${results.length} media URL${results.length === 1 ? '' : 's'}`,
+        ttlMs: UI_TOAST_TTL_MS.actionFeedback,
+        dismissible: false,
+      })
+    } catch (error) {
+      pushUiToast({
+        id: 'media:import-url',
+        kind: 'error',
+        message: `Import failed: ${error instanceof Error ? error.message : 'Request failed'}`,
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+    } finally {
+      setImportUrlBusy(false)
+    }
+  }, [appendSyncedUploadedMediaSource, importUrlBusy, pushUiToast])
   const handleSelectMedia = React.useCallback((item: CommandMenuRichMediaItem) => {
     if (item.kind === 'image' || item.kind === 'audio' || item.kind === 'video') {
       const inserted = insertMediaIntoActiveCardInlineTextEditor({
@@ -1501,7 +1775,25 @@ export function MediaCatalogPanel() {
   const handlePreviewUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
     setLightboxItem(item)
   }, [])
-  const handleSelectMediaAction = React.useCallback((action: InlineCommandMenuActionSpec) => {
+  const handleDragCommandMenuMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => {
+    startMediaDrag(event, buildCommandMenuMediaDragPayload(item))
+  }, [])
+  const handleDragUploadedMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => {
+    startMediaDrag(event, buildUploadedMediaDragPayload(item))
+  }, [])
+  const handleSelectMediaAction = React.useCallback((action: MediaPanelActionSpec) => {
+    if (action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID) {
+      uploadInputRef.current?.click()
+      return
+    }
+    if (action.id === MEDIA_IMPORT_URL_ACTION_ID) {
+      setImportUrlPromptOpen(true)
+      return
+    }
+    if (action.id === MEDIA_GENERATE_MEDIA_ACTION_ID) {
+      setGenerateLightboxOpen(true)
+      return
+    }
     const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
     if (!mediaKind) return
     const inserted = insertMediaIntoActiveCardInlineTextEditor({
@@ -1560,13 +1852,30 @@ export function MediaCatalogPanel() {
   }, [markdownDocumentName, markdownDocumentText, setMarkdownDocument, setSourceFiles, sourceFiles, updateNode])
 
   return (
-    <section className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1">
+    <section ref={panelRef} className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTypography.panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1">
       <MediaLightbox
         open={!!lightboxItem}
         src={lightboxItem?.linkUrl || ''}
         alt={lightboxItem?.name || 'Uploaded media'}
         kind={lightboxItem?.kind || 'media'}
         onClose={() => setLightboxItem(null)}
+      />
+      <MediaLightbox
+        open={generateLightboxOpen}
+        src=""
+        alt="Generated media output"
+        kind="image"
+        title="Generate Media"
+        descriptionLabel="Prompt"
+        promptValue={generateMediaPrompt}
+        promptPlaceholder="Describe the media to generate"
+        promptSubmitLabel="Generate media"
+        promptParameters={generatePromptParameters}
+        onPromptChange={setGenerateMediaPrompt}
+        onPromptSubmit={nextPrompt => {
+          setGenerateMediaPrompt(nextPrompt)
+        }}
+        onClose={() => setGenerateLightboxOpen(false)}
       />
       <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.bg)}>
         <section className="min-w-0">
@@ -1580,7 +1889,7 @@ export function MediaCatalogPanel() {
             accept="image/*,audio/*,video/*"
             multiple
             className="sr-only"
-            aria-label="Upload Media"
+            aria-label="New Media upload"
             data-kg-media-upload-input="1"
             onChange={event => {
               void handleUploadMediaFiles(event.currentTarget.files)
@@ -1590,12 +1899,12 @@ export function MediaCatalogPanel() {
           <button
             type="button"
             className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-            title="Upload Media"
-            aria-label="Upload Media"
-            data-kg-media-upload-button="1"
-            onClick={() => uploadInputRef.current?.click()}
+            title="New Media"
+            aria-label="New Media"
+            data-kg-media-new-button="1"
+            onClick={openMediaLibraryTop}
           >
-            <Upload className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
           </button>
           <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
             {([
@@ -1631,9 +1940,37 @@ export function MediaCatalogPanel() {
           </span>
         </section>
       </header>
-      <section data-kg-media-list="1">
+      {importUrlPromptOpen ? (
+        <section
+          className={cn('mb-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
+          aria-label="Import media URL"
+          data-kg-media-import-url-prompt="1"
+        >
+          <ImportUrlPrompt
+            urlDraft={importUrlDraft}
+            onChange={setImportUrlDraft}
+            onConfirm={url => {
+              void handleImportMediaUrl(url)
+            }}
+            onCancel={() => {
+              if (importUrlBusy) return
+              setImportUrlPromptOpen(false)
+            }}
+            confirmLabel={importUrlBusy ? 'Importing…' : 'Import URL'}
+            autoFocus
+          />
+        </section>
+      ) : null}
+      <section ref={mediaListRef} tabIndex={-1} data-kg-media-list="1">
         {catalogLayout === 'list' ? (
           <section className="grid min-w-0 gap-2" aria-label="Media list" data-kg-media-list-rows="3">
+            {mediaActions.map(action => (
+              <MediaActionRow
+                key={action.id}
+                action={action}
+                onSelect={handleSelectMediaAction}
+              />
+            ))}
             {uploadedMediaItems.map(item => (
               <UploadedMediaRow
                 key={item.id}
@@ -1643,6 +1980,7 @@ export function MediaCatalogPanel() {
                 infoLabel={buildUploadedMediaInfoLabel(item)}
                 onDelete={handleDeleteUploadedMedia}
                 onDescriptionChange={handleUploadedMediaDescriptionChange}
+                onDragStart={handleDragUploadedMedia}
                 onFieldChange={handleUploadedMediaFieldChange}
                 onNameChange={handleUploadedMediaNameChange}
                 onRename={handleRenameUploadedMedia}
@@ -1655,21 +1993,22 @@ export function MediaCatalogPanel() {
                 key={item.key}
                 item={item}
                 displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                onDragStart={handleDragCommandMenuMedia}
                 onSelect={handleSelectMedia}
                 onNameDraftChange={handleMediaNameDraftChange}
                 onRename={handleRenameMedia}
               />
             ))}
+          </section>
+        ) : (
+          <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
             {mediaActions.map(action => (
-              <MediaActionRow
+              <MediaActionCard
                 key={action.id}
                 action={action}
                 onSelect={handleSelectMediaAction}
               />
             ))}
-          </section>
-        ) : (
-          <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
             {uploadedMediaItems.map(item => (
               <UploadedMediaCard
                 key={item.id}
@@ -1679,6 +2018,7 @@ export function MediaCatalogPanel() {
                 infoLabel={buildUploadedMediaInfoLabel(item)}
                 onDelete={handleDeleteUploadedMedia}
                 onDescriptionChange={handleUploadedMediaDescriptionChange}
+                onDragStart={handleDragUploadedMedia}
                 onFieldChange={handleUploadedMediaFieldChange}
                 onNameChange={handleUploadedMediaNameChange}
                 onRename={handleRenameUploadedMedia}
@@ -1691,16 +2031,10 @@ export function MediaCatalogPanel() {
                 key={item.key}
                 item={item}
                 displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                onDragStart={handleDragCommandMenuMedia}
                 onSelect={handleSelectMedia}
                 onNameDraftChange={handleMediaNameDraftChange}
                 onRename={handleRenameMedia}
-              />
-            ))}
-            {mediaActions.map(action => (
-              <MediaActionCard
-                key={action.id}
-                action={action}
-                onSelect={handleSelectMediaAction}
               />
             ))}
           </section>

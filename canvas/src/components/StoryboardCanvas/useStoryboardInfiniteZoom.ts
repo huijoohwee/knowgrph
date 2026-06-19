@@ -27,10 +27,15 @@ import { resolveStoryboardInfiniteZoomRequestTransform } from '@/components/Stor
 
 export function useStoryboardInfiniteZoom(args: {
   active: boolean
-  boardViewportRef: React.RefObject<HTMLElement | null>
   graphData: GraphData | null
 }) {
-  const dims = useContainerDims(args.boardViewportRef)
+  const boardViewportRef = React.useRef<HTMLElement | null>(null)
+  const [viewportElement, setViewportElementState] = React.useState<HTMLElement | null>(null)
+  const setViewportElement = React.useCallback((element: HTMLElement | null) => {
+    boardViewportRef.current = element
+    setViewportElementState(prev => (prev === element ? prev : element))
+  }, [])
+  const dims = useContainerDims(boardViewportRef)
   const contentRef = React.useRef<HTMLElement | null>(null)
   const hasUserInteractedRef = React.useRef(false)
   const lastInitialFitKeyRef = React.useRef<string | null>(null)
@@ -278,7 +283,6 @@ export function useStoryboardInfiniteZoom(args: {
   }, [args.active, args.graphData])
 
   React.useEffect(() => {
-    const viewportElement = args.boardViewportRef.current
     if (!args.active || !viewportElement) return
     let wheelAnchorFallback: { sx: number; sy: number; ts: number } | null = null
     const controller = createInfiniteCanvasViewportController({
@@ -359,8 +363,8 @@ export function useStoryboardInfiniteZoom(args: {
   }, [
     applyTransform,
     args.active,
-    args.boardViewportRef,
     commitTransform,
+    viewportElement,
   ])
 
   React.useEffect(() => {
@@ -460,6 +464,7 @@ export function useStoryboardInfiniteZoom(args: {
   return {
     contentRef,
     contentStyle,
+    setViewportElement,
     transformKey,
     zoomScale: transform.k,
   }

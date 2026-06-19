@@ -1,5 +1,5 @@
 import React from 'react'
-import { FileAudio, Maximize2, Wand2, X } from 'lucide-react'
+import { FileAudio, Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
 import { LS_KEYS } from '@/lib/config'
 import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
@@ -90,6 +90,7 @@ export function MediaLightbox({
     [promptParameters],
   )
   const hasDetails = editablePrompt || !!detailText
+  const hasMediaSource = !!String(src || '').trim()
   const isImage = kind === 'image'
   const isVideo = kind === 'video'
 
@@ -132,7 +133,7 @@ export function MediaLightbox({
 
   return (
     <PreviewOverlay
-      open={open && !!src}
+      open={open && (hasMediaSource || editablePrompt)}
       onClose={onClose}
       overlayClassName="bg-black/85"
       panelClassName="relative h-[min(94dvh,58rem)] w-[min(94vw,76rem)] overflow-hidden rounded-none border-0 bg-transparent shadow-none"
@@ -189,7 +190,14 @@ export function MediaLightbox({
           </li>
         </menu>
         <section className="min-h-0" aria-label="Generated media output" data-kg-media-lightbox-media-panel="1">
-          {isImage ? (
+          {!hasMediaSource ? (
+            <section className="grid h-full w-full place-items-center p-6" data-kg-media-lightbox-empty-output="1">
+              <section className={cn('grid min-h-48 w-[min(88vw,36rem)] place-items-center gap-3 rounded border border-dashed p-6 text-center', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+                <ImageIcon className={cn('h-8 w-8', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+                <p className={cn('m-0 max-w-sm text-sm', UI_THEME_TOKENS.text.secondary)}>Generated media will appear here.</p>
+              </section>
+            </section>
+          ) : isImage ? (
             <ZoomPanViewport
               open={open}
               storageKey={LS_KEYS.previewZoomPanMedia}

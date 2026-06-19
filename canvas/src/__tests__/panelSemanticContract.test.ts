@@ -1463,11 +1463,13 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
+  const inlineCommandCatalogPath = path.resolve(root, 'src', 'lib', 'command-menu', 'inlineCommandMenuCatalog.ts')
   const responsiveInlineIconBadgePath = path.resolve(root, 'src', 'lib', 'ui', 'ResponsiveInlineIconBadge.tsx')
   const mediaKindOverlayPath = path.resolve(root, 'src', 'lib', 'ui', 'MediaKindOverlay.tsx')
   const mediaKindOverlayIconPath = path.resolve(root, 'src', 'lib', 'ui', 'mediaKindOverlayIcon.ts')
   const mediaOverlayAppearancePath = path.resolve(root, 'src', 'lib', 'ui', 'mediaOverlayAppearance.ts')
   const mediaLightboxPath = path.resolve(root, 'src', 'lib', 'ui', 'MediaLightbox.tsx')
+  const mediaLightboxPromptParametersPath = path.resolve(root, 'src', 'lib', 'ui', 'mediaLightboxPromptParameters.ts')
   const uiBarrelPath = path.resolve(root, 'src', 'lib', 'ui', 'index.ts')
   const indexCssPath = path.resolve(root, 'src', 'index.css')
   const uploadedMediaPanelUploadPath = path.resolve(root, 'src', 'lib', 'storage', 'uploadedMediaPanelUpload.ts')
@@ -1481,11 +1483,13 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
   const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
   const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
+  const inlineCommandCatalogText = readUtf8(inlineCommandCatalogPath)
   const responsiveInlineIconBadgeText = readUtf8(responsiveInlineIconBadgePath)
   const mediaKindOverlayText = readUtf8(mediaKindOverlayPath)
   const mediaKindOverlayIconText = readUtf8(mediaKindOverlayIconPath)
   const mediaOverlayAppearanceText = readUtf8(mediaOverlayAppearancePath)
   const mediaLightboxText = readUtf8(mediaLightboxPath)
+  const mediaLightboxPromptParametersText = readUtf8(mediaLightboxPromptParametersPath)
   const uiBarrelText = readUtf8(uiBarrelPath)
   const indexCssText = readUtf8(indexCssPath)
   const uploadedMediaPanelUploadText = readUtf8(uploadedMediaPanelUploadPath)
@@ -1641,8 +1645,38 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   ) {
     throw new Error('Expected FloatingPanel Media thumbnail preview and Download Media to reuse shared preview and download utilities')
   }
-  if (!commandCatalogPanelText.includes('data-kg-media-upload-button') || !commandCatalogPanelText.includes('data-kg-media-upload-input') || !commandCatalogPanelText.includes('accept="image/*,audio/*,video/*"')) {
-    throw new Error('Expected FloatingPanel Media to expose an Upload Media control for image, audio, and video files')
+  if (
+    !commandCatalogPanelText.includes('data-kg-media-new-button')
+    || !commandCatalogPanelText.includes('aria-label="New Media"')
+    || !commandCatalogPanelText.includes('data-kg-media-upload-input')
+    || !commandCatalogPanelText.includes('accept="image/*,audio/*,video/*"')
+    || !commandCatalogPanelText.includes('MEDIA_LIBRARY_OPEN_TOP_EVENT')
+    || !commandCatalogPanelText.includes('mediaListRef')
+    || !commandCatalogPanelText.includes('openMediaLibraryTop')
+    || !commandCatalogPanelText.includes('MEDIA_NEW_ACTIONS')
+    || !commandCatalogPanelText.includes("label: 'Upload Media'")
+    || !commandCatalogPanelText.includes("label: 'Import URL'")
+    || !commandCatalogPanelText.includes('data-kg-media-import-url-prompt="1"')
+    || !commandCatalogPanelText.includes("from '@/features/toolbar/ImportUrlPrompt'")
+    || !commandCatalogPanelText.includes("from '@/lib/storage/uploadedMediaPanelImportUrl'")
+    || !commandCatalogPanelText.includes("label: 'Generate Media'")
+    || !commandCatalogPanelText.includes('generateLightboxOpen')
+    || !commandCatalogPanelText.includes('buildMediaLightboxPromptParameters')
+    || !commandCatalogPanelText.includes("from '@/lib/ui/mediaDragPayload'")
+    || !commandCatalogPanelText.includes('writeMediaDragPayload(event.dataTransfer, payload)')
+    || !commandCatalogPanelText.includes('data-kg-media-draggable="1"')
+    || !inlineCommandCatalogText.includes("label: 'New Media'")
+  ) {
+    throw new Error('Expected FloatingPanel Media to expose New Media upload/generate choices while preserving shared upload and prompt-panel support')
+  }
+  if (
+    !mediaLightboxText.includes('data-kg-media-lightbox-empty-output="1"')
+    || !mediaLightboxText.includes('open={open && (hasMediaSource || editablePrompt)}')
+    || !mediaLightboxPromptParametersText.includes('buildMediaLightboxPromptParameters')
+    || !mediaLightboxPromptParametersText.includes('CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS')
+    || !mediaLightboxPromptParametersText.includes('MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS')
+  ) {
+    throw new Error('Expected shared MediaLightbox to support prompt-only generated media panels with reusable model and parameter controls')
   }
   if (!commandCatalogPanelText.includes('uploadFilesToUploadedMediaPanel') || !uploadedMediaPanelUploadText.includes('uploadMediaFileToKnowgrphStorage') || !commandCatalogPanelText.includes('data-kg-media-upload-item') || !commandCatalogPanelText.includes('MediaOpenLinkOverlay')) {
     throw new Error('Expected FloatingPanel Media upload rows to reuse the Cloudflare media storage helper and expose synced links')

@@ -199,7 +199,7 @@ export function testMainPanelCloudflareMediaAssetSyncUsesSharedRuntimeContract()
     "source: 'floatingPanel.media.upload'",
   ]) {
     if (!uploadHelperText.includes(fragment)) {
-      throw new Error(`expected Upload Media helper to reuse Cloudflare media runtime fragment: ${fragment}`)
+      throw new Error(`expected New Media upload helper to reuse Cloudflare media runtime fragment: ${fragment}`)
     }
   }
   if (!mediaAuthText.includes("searchParams.get('kg_media_token')")

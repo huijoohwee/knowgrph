@@ -3,14 +3,11 @@ import { Image as ImageIcon, Plus } from 'lucide-react'
 import { CardMediaLoadingSkeleton, CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay, MediaPromptActionOverlay } from '@/lib/ui/MediaKindOverlay'
 import { MediaLightbox, type MediaLightboxPromptParameter, type MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
+import { MEDIA_POINTER_DRAG_DROP_EVENT, clearMediaPointerDragPayload, hasMediaDragPayload, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-import {
-  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
-  CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
-  CHAT_GEMINI_VIDEO_MODEL_OPTIONS,
-} from '@/lib/chatEndpointModels'
 import type { StoryboardCardModel, StoryboardCardReference } from '@/components/StoryboardCanvas/storyboardModel'
 
 export type StoryboardDisplayMedia = { kind: 'image' | 'svg' | 'video' | 'audio' | 'iframe'; url: string; srcDoc?: string }
@@ -20,46 +17,15 @@ type StoryboardMediaLoadingState = {
   variant: 'text' | 'image' | 'video' | 'audio' | 'iframe'
 }
 
-type StoryboardMediaSelectionSlot = {
+export type StoryboardMediaSelectionSlot = {
   id: string
   label: string
+  index: number
+  kind: 'primary' | 'reference' | 'empty'
+  referenceIndex?: number
   media: StoryboardDisplayMedia | null
   href: string
 }
-
-const IMAGE_ASPECT_RATIO_PARAMETER_OPTIONS = [
-  { value: 'landscape', label: '16:9' },
-  { value: '4:3', label: '4:3' },
-  { value: 'square', label: '1:1' },
-  { value: '3:4', label: '3:4' },
-  { value: 'portrait', label: '9:16' },
-] as const
-
-const VIDEO_ASPECT_RATIO_PARAMETER_OPTIONS = [
-  { value: '16:9', label: '16:9' },
-  { value: '4:3', label: '4:3' },
-  { value: '1:1', label: '1:1' },
-  { value: '3:4', label: '3:4' },
-  { value: '9:16', label: '9:16' },
-] as const
-
-const MEDIA_RESOLUTION_PARAMETER_OPTIONS = [
-  { value: '720p', label: '720p' },
-  { value: '1080p', label: '1080p' },
-  { value: '2K', label: '2K' },
-] as const
-
-const MEDIA_DURATION_PARAMETER_OPTIONS = [
-  { value: '4', label: '4s' },
-  { value: '8', label: '8s' },
-  { value: '12', label: '12s' },
-] as const
-
-const MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS = [
-  { value: '1', label: 'x1' },
-  { value: '2', label: 'x2' },
-  { value: '4', label: 'x4' },
-] as const
 
 const isStoryboardDisplayReference = (
   reference: StoryboardCardReference,
@@ -86,6 +52,8 @@ function buildStoryboardMediaSelectionSlots(props: {
     pushSlot({
       id: `${props.card.id}:media:primary`,
       label: props.media.kind === 'audio' ? 'Audio' : props.media.kind === 'video' ? 'Video' : 'Media 1',
+      index: slots.length,
+      kind: 'primary',
       media: props.media,
       href: props.card.href,
     })
@@ -95,6 +63,9 @@ function buildStoryboardMediaSelectionSlots(props: {
     pushSlot({
       id: `${props.card.id}:media:reference:${index}`,
       label: `Media ${slots.length + 1}`,
+      index: slots.length,
+      kind: 'reference',
+      referenceIndex: index,
       media: {
         kind: reference.kind,
         url: reference.url,
@@ -116,20 +87,6 @@ function normalizeStoryboardLightboxText(value: string): string {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
-function buildUniquePromptParameterOptions(values: readonly string[], currentValue: string): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = []
-  const seen = new Set<string>()
-  const push = (value: string) => {
-    const cleanValue = normalizeStoryboardLightboxText(value)
-    if (!cleanValue || seen.has(cleanValue)) return
-    seen.add(cleanValue)
-    options.push({ value: cleanValue, label: cleanValue })
-  }
-  push(currentValue)
-  values.forEach(push)
-  return options
-}
-
 function readStoryboardMediaLightboxDescription(card: StoryboardCardModel): string {
   for (const value of [card.prompt, card.output, card.summary, card.action]) {
     const text = normalizeStoryboardLightboxText(value)
@@ -142,42 +99,7 @@ function buildStoryboardMediaPromptParameters(props: {
   kind: 'image' | 'video' | 'audio' | 'media'
   model: string
 }): readonly MediaLightboxPromptParameter[] {
-  const currentModel = normalizeStoryboardLightboxText(props.model)
-  const modelOptions = props.kind === 'image'
-    ? buildUniquePromptParameterOptions(CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS, currentModel)
-    : props.kind === 'video'
-      ? buildUniquePromptParameterOptions([...CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS, ...CHAT_GEMINI_VIDEO_MODEL_OPTIONS], currentModel)
-      : currentModel
-        ? buildUniquePromptParameterOptions([currentModel], currentModel)
-        : []
-  const parameters: MediaLightboxPromptParameter[] = []
-  if (modelOptions.length > 0) {
-    parameters.push({
-      id: 'model',
-      label: 'Model',
-      value: currentModel || modelOptions[0]?.value,
-      options: modelOptions,
-    })
-  }
-  if (props.kind === 'image') {
-    parameters.push(
-      { id: 'aspectRatio', label: 'Aspect', value: 'landscape', options: IMAGE_ASPECT_RATIO_PARAMETER_OPTIONS },
-      { id: 'resolution', label: 'Resolution', value: '2K', options: MEDIA_RESOLUTION_PARAMETER_OPTIONS },
-      { id: 'count', label: 'Count', value: '1', options: MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS },
-    )
-  } else if (props.kind === 'video') {
-    parameters.push(
-      { id: 'aspectRatio', label: 'Aspect', value: '16:9', options: VIDEO_ASPECT_RATIO_PARAMETER_OPTIONS },
-      { id: 'resolution', label: 'Resolution', value: '1080p', options: MEDIA_RESOLUTION_PARAMETER_OPTIONS },
-      { id: 'duration', label: 'Duration', value: '8', options: MEDIA_DURATION_PARAMETER_OPTIONS },
-    )
-  } else if (props.kind === 'audio') {
-    parameters.push(
-      { id: 'duration', label: 'Duration', value: '8', options: MEDIA_DURATION_PARAMETER_OPTIONS },
-      { id: 'count', label: 'Count', value: '1', options: MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS },
-    )
-  }
-  return parameters
+  return buildMediaLightboxPromptParameters(props)
 }
 
 export function StoryboardMediaPreview(props: {
@@ -293,15 +215,92 @@ function StoryboardMediaSelectionSlotView(props: {
   slot: StoryboardMediaSelectionSlot
   title: string
   onAddMedia: () => void
+  onDropMedia?: (slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => void
   onOpenMedia: (slot: StoryboardMediaSelectionSlot) => void
 }) {
-  const { slot, title } = props
+  const { onDropMedia, slot, title } = props
+  const slotRef = React.useRef<HTMLElement | null>(null)
+  const [dropActive, setDropActive] = React.useState(false)
   const media = slot.media
   const mediaHref = String(media?.url || slot.href || '').trim()
   const interactive = media?.kind === 'video' || media?.kind === 'audio' || media?.kind === 'iframe'
   const lightboxKind = readStoryboardMediaDownloadKind(media)
   const canOpenLightbox = !!mediaHref && lightboxKind !== 'media'
   const Icon = resolveMediaKindOverlayIcon(media?.kind)
+  const handleDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!onDropMedia || !hasMediaDragPayload(event.dataTransfer)) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setDropActive(true)
+  }, [onDropMedia])
+  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+  }, [])
+  const handleDrop = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (!onDropMedia) return
+    const payload = readMediaDragPayload(event.dataTransfer)
+    if (!payload) return
+    event.preventDefault()
+    event.stopPropagation()
+    setDropActive(false)
+    onDropMedia(slot, payload)
+  }, [onDropMedia, slot])
+  const handlePointerEnter = React.useCallback(() => {
+    if (!onDropMedia || !readMediaPointerDragPayload()) return
+    setDropActive(true)
+  }, [onDropMedia])
+  const handlePointerLeave = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+  }, [])
+  const handlePointerUp = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (!onDropMedia) return
+    const payload = readMediaPointerDragPayload()
+    if (!payload) return
+    event.preventDefault()
+    event.stopPropagation()
+    setDropActive(false)
+    onDropMedia(slot, payload)
+    clearMediaPointerDragPayload()
+  }, [onDropMedia, slot])
+  const handleMouseEnter = React.useCallback(() => {
+    if (!onDropMedia || !readMediaPointerDragPayload()) return
+    setDropActive(true)
+  }, [onDropMedia])
+  const handleMouseLeave = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+  }, [])
+  const handleMouseUp = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    if (!onDropMedia) return
+    const payload = readMediaPointerDragPayload()
+    if (!payload) return
+    event.preventDefault()
+    event.stopPropagation()
+    setDropActive(false)
+    onDropMedia(slot, payload)
+    clearMediaPointerDragPayload()
+  }, [onDropMedia, slot])
+  React.useEffect(() => {
+    if (!onDropMedia || typeof window === 'undefined') return
+    const handlePointerDragDrop = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return
+      const detail = event.detail as Partial<MediaPointerDragDropDetail> | null
+      const payload = detail?.payload
+      const clientX = Number(detail?.clientX)
+      const clientY = Number(detail?.clientY)
+      const element = slotRef.current
+      if (!payload || !Number.isFinite(clientX) || !Number.isFinite(clientY) || !element) return
+      const rect = element.getBoundingClientRect()
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return
+      setDropActive(false)
+      onDropMedia(slot, payload)
+      clearMediaPointerDragPayload()
+    }
+    window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handlePointerDragDrop)
+    return () => {
+      window.removeEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handlePointerDragDrop)
+    }
+  }, [onDropMedia, slot])
   const preview = media ? (
     <CardMediaPreview
       kind={media.kind}
@@ -316,13 +315,39 @@ function StoryboardMediaSelectionSlotView(props: {
       mediaClassName="h-full w-full"
     />
   ) : null
+  const dropTargetProps = {
+    ref: slotRef,
+    'data-kg-storyboard-media-slot': '1',
+    'data-kg-storyboard-media-slot-index': slot.index,
+    'data-kg-storyboard-media-drop-active': dropActive ? '1' : undefined,
+    onDragEnter: handleDragOver,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
+    onDrop: handleDrop,
+    onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
+    onPointerUp: handlePointerUp,
+    onMouseEnter: handleMouseEnter,
+    onMouseLeave: handleMouseLeave,
+    onMouseUp: handleMouseUp,
+  } satisfies React.HTMLAttributes<HTMLElement> & {
+    ref: React.RefObject<HTMLElement | null>
+    'data-kg-storyboard-media-slot': string
+    'data-kg-storyboard-media-slot-index': number
+    'data-kg-storyboard-media-drop-active': string | undefined
+  }
   return (
-    <figure className="m-0 flex min-h-0 flex-col gap-1.5" data-kg-storyboard-media-slot="1">
+    <figure
+      className="m-0 flex min-h-0 flex-col gap-1.5"
+    >
       <figcaption className={['truncate text-[11px]', UI_THEME_TOKENS.text.secondary].join(' ')}>
         {slot.label}
       </figcaption>
       {media ? (
-        <section className="group relative min-h-0 flex-1 overflow-hidden rounded-lg border border-black/5 bg-black/[0.06]" data-kg-storyboard-media-slot-frame="1">
+        <section className={[
+          'group relative min-h-0 flex-1 overflow-hidden rounded-lg border bg-black/[0.06]',
+          dropActive ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-black/5',
+        ].join(' ')} data-kg-storyboard-media-slot-frame="1" {...dropTargetProps}>
           {preview}
           {canOpenLightbox ? (
             <button
@@ -367,7 +392,8 @@ function StoryboardMediaSelectionSlotView(props: {
         <button
           type="button"
           className={[
-            'flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-black/10 bg-black/[0.035] text-black/45',
+            'flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed bg-black/[0.035] text-black/45',
+            dropActive ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-black/10',
             UI_THEME_TOKENS.button.hoverBg,
           ].join(' ')}
           aria-label={`Add media for ${title}`}
@@ -375,6 +401,7 @@ function StoryboardMediaSelectionSlotView(props: {
             event.stopPropagation()
             props.onAddMedia()
           }}
+          {...dropTargetProps}
         >
           <Plus className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
         </button>
@@ -390,6 +417,7 @@ export function StoryboardMediaSelectionPanel(props: {
   loadingState: StoryboardMediaLoadingState | null
   model: string
   onAddMedia: () => void
+  onDropMedia?: (card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => void
   onGenerateMediaPrompt?: (card: StoryboardCardModel, prompt: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>
 }) {
   const [lightboxSlotId, setLightboxSlotId] = React.useState<string | null>(null)
@@ -398,6 +426,8 @@ export function StoryboardMediaSelectionPanel(props: {
     slots.push({
       id: `${props.card.id}:media:empty:${slots.length}`,
       label: `Media ${slots.length + 1}`,
+      index: slots.length,
+      kind: 'empty',
       media: null,
       href: '',
     })
@@ -429,6 +459,7 @@ export function StoryboardMediaSelectionPanel(props: {
                 slot={slot}
                 title={props.title}
                 onAddMedia={props.onAddMedia}
+                onDropMedia={props.onDropMedia ? (slot, payload) => props.onDropMedia?.(props.card, slot, payload) : undefined}
                 onOpenMedia={slot => setLightboxSlotId(slot.id)}
               />
             ))

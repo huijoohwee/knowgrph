@@ -232,10 +232,10 @@ export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSp
   {
     id: INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
     kind: 'variable',
-    label: 'Upload Media',
+    label: 'New Media',
     group: 'Insert media',
-    description: 'Upload image, audio, or video through the shared Media storage flow',
-    keywords: ['upload', 'media', 'image', 'audio', 'video', 'r2', 'storage'],
+    description: 'Create or upload image, audio, or video through the shared Media storage flow',
+    keywords: ['new', 'upload', 'media', 'image', 'audio', 'video', 'r2', 'storage'],
   },
   {
     id: 'browse-variable',

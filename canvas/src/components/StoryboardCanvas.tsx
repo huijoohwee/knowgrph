@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { emitFloatingPanelOpen } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen, emitMediaLibraryOpenTop } from '@/features/canvas/utils'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { normalizeGraphData } from '@/lib/graph/normalize'
@@ -58,8 +58,9 @@ import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCa
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
-import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
+import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -168,6 +169,29 @@ const STORYTREE_FILTERS = [
   { id: 'draft', label: 'Draft' },
   { id: 'dropped', label: 'Dropped' },
 ] as const
+const STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS = [
+  'renderUrl',
+  'embedUrl',
+  'media_url',
+  'image',
+  'imageUrl',
+  'video',
+  'videoUrl',
+  'audio',
+  'audioUrl',
+  'audio_url',
+  'src',
+  'outputSrcDoc',
+  'thumbnailUrl',
+  'thumbnail_url',
+  'posterUrl',
+  'poster_url',
+] as const
+const STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND = {
+  image: 'referenceImages',
+  audio: 'referenceUrls',
+  video: 'referenceUrls',
+} as const
 
 function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return {}
@@ -178,6 +202,13 @@ function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
 
 function readStoryboardScalar(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function readStoryboardStringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(readStoryboardScalar).filter(Boolean)
+  const scalar = readStoryboardScalar(value)
+  if (!scalar) return []
+  return scalar.split(/[\n,|]+/g).map(readStoryboardScalar).filter(Boolean)
 }
 
 function readStoryboardBool(value: unknown): boolean {
@@ -379,7 +410,7 @@ export default function StoryboardCanvas({
       strybldrStoryboardBoardLayoutMode: s.strybldrStoryboardBoardLayoutMode === 'fixed' ? 'fixed' : 'flex',
     })),
   )
-  const boardScrollRef = React.useRef<HTMLElement>(null)
+  const boardScrollRef = React.useRef<HTMLElement | null>(null)
   const laneScrollElementsRef = React.useRef(new Map<string, HTMLOListElement>())
   const cardElementsRef = React.useRef(new Map<string, HTMLElement>())
   const storyboardRunGraphRef = React.useRef<GraphData | null>(storeGraphData || graphData || null)
@@ -389,9 +420,13 @@ export default function StoryboardCanvas({
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
   const storyboardZoom = useStoryboardInfiniteZoom({
     active,
-    boardViewportRef: boardScrollRef,
     graphData,
   })
+  const setStoryboardZoomViewportElement = storyboardZoom.setViewportElement
+  const setBoardScrollElement = React.useCallback((element: HTMLElement | null) => {
+    boardScrollRef.current = element
+    setStoryboardZoomViewportElement(element)
+  }, [setStoryboardZoomViewportElement])
   React.useEffect(() => {
     storyboardRunGraphRef.current = storeGraphData || graphData || null
   }, [graphData, storeGraphData])
@@ -610,6 +645,79 @@ export default function StoryboardCanvas({
     }
     updateNode(cardId, { properties: nextProperties as never })
   }, [addHistory, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, setGraphDataPreservingLayout, updateNode])
+  const updateStoryboardDroppedMediaProperties = React.useCallback((cardId: string, nextProperties: Record<string, unknown>) => {
+    if (graphData?.nodes?.some(node => readStoryboardScalar(node?.id) === cardId)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(node => (
+          readStoryboardScalar(node?.id) === cardId
+            ? { ...node, properties: nextProperties as never }
+            : node
+        )),
+      })
+      addHistory('Storyboard media')
+      return
+    }
+    updateNode(cardId, { properties: nextProperties as never })
+  }, [addHistory, graphData, setGraphDataPreservingLayout, updateNode])
+  const handleDropStoryboardMedia = React.useCallback((card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => {
+    const cleanUrl = readStoryboardScalar(payload.url)
+    if (!cleanUrl) return
+    const currentProperties = currentPropertiesByCardId.get(card.id) || {}
+    const writesPrimaryMedia = slot.kind === 'primary' || (slot.kind === 'empty' && slot.index === 0)
+    if (writesPrimaryMedia) {
+      const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+        text: markdownDocumentText || '',
+        nodeId: card.id,
+        patch: {
+          imageUrl: '',
+          mediaKind: payload.kind,
+          mediaUrl: cleanUrl,
+          outputSrcDoc: '',
+          renderUrl: '',
+        },
+      })
+      if (commitStoryboardMarkdownMutation({
+        nextMarkdownText,
+        historyLabel: 'Storyboard media',
+      })) {
+        return
+      }
+      const nextProperties = { ...currentProperties }
+      STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS.forEach(key => {
+        delete nextProperties[key]
+      })
+      nextProperties.mediaUrl = cleanUrl
+      nextProperties.mediaKind = payload.kind
+      if (payload.thumbnailUrl) nextProperties.thumbnailUrl = payload.thumbnailUrl
+      updateStoryboardDroppedMediaProperties(card.id, nextProperties)
+      return
+    }
+    const referenceKey = STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND[payload.kind]
+    const currentReferences = readStoryboardStringList(currentProperties[referenceKey])
+    const fallbackReferences = card.references
+      .filter(reference => (
+        payload.kind === 'image'
+          ? reference.kind === 'image' || reference.kind === 'svg'
+          : reference.kind === payload.kind
+      ))
+      .map(reference => reference.url)
+    const nextReferences = (currentReferences.length > 0 ? currentReferences : fallbackReferences).slice()
+    const replacementIndex = Number.isInteger(slot.referenceIndex) ? Number(slot.referenceIndex) : Math.max(0, slot.index - 1)
+    if (replacementIndex >= 0 && replacementIndex < nextReferences.length) nextReferences[replacementIndex] = cleanUrl
+    else nextReferences.push(cleanUrl)
+    const seenReferences = new Set<string>()
+    const uniqueReferences = nextReferences.filter(value => {
+      const key = value.toLowerCase()
+      if (!key || seenReferences.has(key)) return false
+      seenReferences.add(key)
+      return true
+    })
+    updateStoryboardDroppedMediaProperties(card.id, {
+      ...currentProperties,
+      [referenceKey]: uniqueReferences,
+    })
+  }, [commitStoryboardMarkdownMutation, currentPropertiesByCardId, markdownDocumentText, updateStoryboardDroppedMediaProperties])
   const sharedCardApiKeyPrompt = React.useMemo(() => {
     if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
     return {
@@ -1312,7 +1420,7 @@ export default function StoryboardCanvas({
 
       {board.totalCards > 0 ? (
         <section
-          ref={boardScrollRef}
+          ref={setBoardScrollElement}
           className="relative flex-1 touch-none overflow-hidden"
           aria-label="Storyboard lanes"
           data-kg-storyboard-infinite-canvas="1"
@@ -1472,6 +1580,7 @@ export default function StoryboardCanvas({
                     const openStoryboardCardMediaPanel = () => {
                       selectStoryboardCardFromCanvas()
                       emitFloatingPanelOpen({ tab: 'media', open: true })
+                      emitMediaLibraryOpenTop()
                     }
                     const currentCardProperties = currentPropertiesByCardId.get(card.id) || {}
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
@@ -1742,6 +1851,7 @@ export default function StoryboardCanvas({
                                     loadingState={mediaLoadingState}
                                     model={storyboardCardModelSelect.modelId}
                                     onAddMedia={openStoryboardCardMediaPanel}
+                                    onDropMedia={handleDropStoryboardMedia}
                                     onGenerateMediaPrompt={generateStoryboardCardMediaFromPrompt}
                                   />
                                 ) : mediaLoadingState ? (

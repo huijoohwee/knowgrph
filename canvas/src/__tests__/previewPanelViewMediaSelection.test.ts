@@ -210,8 +210,25 @@ export async function testCommandMenuMediaLayoutSelectorTogglesGridAndList() {
       throw new Error(`expected Media layout to default to grid, got ${String(panel.getAttribute('data-kg-media-layout'))}`)
     }
     if (!doc.querySelector('[data-kg-media-layout-selector="1"]')) throw new Error('expected Media layout selector')
+    const newMediaButton = doc.querySelector('[data-kg-media-new-button="1"]') as HTMLButtonElement | null
+    if (!(newMediaButton instanceof dom.window.HTMLButtonElement) || newMediaButton.getAttribute('aria-label') !== 'New Media') {
+      throw new Error('expected Media header to expose the New Media opener')
+    }
     if (!doc.querySelector('[data-kg-media-grid="1"]')) throw new Error('expected Media grid surface')
     if (!doc.querySelector('article[data-kg-command-menu-media-candidate]')) throw new Error('expected media candidates to render as semantic grid articles')
+    if (!doc.querySelector('[data-kg-media-grid="1"] [data-kg-media-draggable="1"]')) {
+      throw new Error('expected Media grid candidates to expose draggable shared media payload handles')
+    }
+    const gridActions = Array.from(doc.querySelectorAll('[data-kg-media-grid="1"] > article[data-kg-command-menu-media-action]')) as HTMLElement[]
+    if (!gridActions[0]?.matches('[data-kg-command-menu-media-action="upload-media"]') || !/Upload Media/.test(gridActions[0]?.textContent || '')) {
+      throw new Error('expected Upload Media to be the first New Media grid action')
+    }
+    if (!gridActions[1]?.matches('[data-kg-command-menu-media-action="import-media-url"]') || !/Import URL/.test(gridActions[1]?.textContent || '')) {
+      throw new Error('expected Import URL to be the second New Media grid action')
+    }
+    if (!gridActions[2]?.matches('[data-kg-command-menu-media-action="generate-media"]') || !/Generate Media/.test(gridActions[2]?.textContent || '')) {
+      throw new Error('expected Generate Media to be the third New Media grid action')
+    }
 
     const listButton = doc.querySelector('[data-kg-media-layout-toggle="list"]') as HTMLButtonElement | null
     const gridButton = doc.querySelector('[data-kg-media-layout-toggle="grid"]') as HTMLButtonElement | null
@@ -230,6 +247,18 @@ export async function testCommandMenuMediaLayoutSelectorTogglesGridAndList() {
     if (!doc.querySelector('[data-kg-media-list-layout="3-rows"]')) throw new Error('expected Media list layout to expose the 3-row marker')
     const listRows = Array.from(doc.querySelectorAll('[data-kg-media-list-row-layout="3-rows"]')) as HTMLElement[]
     if (listRows.length === 0) throw new Error('expected media candidates to render as semantic 3-row list items')
+    if (!doc.querySelector('[data-kg-media-list="1"] [data-kg-media-draggable="1"]')) {
+      throw new Error('expected Media list candidates to expose draggable shared media payload handles')
+    }
+    if (!listRows[0]?.matches('[data-kg-command-menu-media-action="upload-media"]') || !/Upload Media/.test(listRows[0]?.textContent || '')) {
+      throw new Error('expected Upload Media to be the first New Media list action')
+    }
+    if (!listRows[1]?.matches('[data-kg-command-menu-media-action="import-media-url"]') || !/Import URL/.test(listRows[1]?.textContent || '')) {
+      throw new Error('expected Import URL to be the second New Media list action')
+    }
+    if (!listRows[2]?.matches('[data-kg-command-menu-media-action="generate-media"]') || !/Generate Media/.test(listRows[2]?.textContent || '')) {
+      throw new Error('expected Generate Media to be the third New Media list action')
+    }
     const rowSectionCounts = listRows.map(row => row.querySelectorAll('[data-kg-media-list-row-section]').length)
     if (rowSectionCounts.some(count => count !== 3)) {
       throw new Error(`expected every media list item to expose exactly 3 rows, got ${JSON.stringify(rowSectionCounts)}`)

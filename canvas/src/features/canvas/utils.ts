@@ -9,6 +9,7 @@ export const PROPS_PANEL_OPEN_EVENT = 'kg:propsPanelOpen' as const
 export const RENDERER_PANEL_OPEN_EVENT = 'kg:rendererPanelOpen' as const
 export const RENDERER_FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen:renderer' as const
 export const FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen' as const
+export const MEDIA_LIBRARY_OPEN_TOP_EVENT = 'kg:mediaLibraryOpenTop' as const
 export const CHAT_INPUT_APPEND_EVENT = 'kg:chatInputAppend' as const
 export const WORKFLOW_RUN_ALL_EVENT = 'kg:workflowRunAll' as const
 
@@ -76,6 +77,10 @@ export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
 export function emitFloatingPanelOpen(detail?: FloatingPanelOpenEventDetail): void {
   requestFloatingPanelOpen(detail)
   emitCanvasCustomEvent<FloatingPanelOpenEventDetail>(FLOATING_PANEL_OPEN_EVENT, detail)
+}
+
+export function emitMediaLibraryOpenTop(): void {
+  emitCanvasEvent(MEDIA_LIBRARY_OPEN_TOP_EVENT)
 }
 
 export function emitChatInputAppend(detail?: ChatInputAppendEventDetail): void {

@@ -7,6 +7,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const infiniteRequestSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomRequest.ts', import.meta.url), 'utf8')
   const mediaSelectionSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardMediaSelectionPanel.tsx', import.meta.url), 'utf8')
   const mediaLightboxSource = readFileSync(new URL('../lib/ui/MediaLightbox.tsx', import.meta.url), 'utf8')
+  const mediaLightboxPromptParametersSource = readFileSync(new URL('../lib/ui/mediaLightboxPromptParameters.ts', import.meta.url), 'utf8')
   const mediaKindOverlaySource = readFileSync(new URL('../lib/ui/MediaKindOverlay.tsx', import.meta.url), 'utf8')
   for (const snippet of [
     'Visual Brief',
@@ -90,6 +91,9 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "from '@/components/StoryboardCanvas/storyboardToolbarProps'",
     "from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'",
     'const storyboardZoom = useStoryboardInfiniteZoom({',
+    'const setStoryboardZoomViewportElement = storyboardZoom.setViewportElement',
+    'const setBoardScrollElement = React.useCallback((element: HTMLElement | null) => {',
+    'setStoryboardZoomViewportElement(element)',
     'data-kg-storyboard-infinite-canvas="1"',
     'data-kg-storyboard-zoom-scale={storyboardZoom.zoomScale}',
     'data-kg-storyboard-zoom-content="1"',
@@ -200,14 +204,18 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'export function StoryboardMediaSelectionPanel',
     'Reference Pack',
     'data-kg-storyboard-media-selection-panel="1"',
-    'data-kg-storyboard-media-slot="1"',
+    'const dropTargetProps = {',
+    "'data-kg-storyboard-media-slot': '1'",
+    "'data-kg-storyboard-media-slot-index': slot.index",
+    "'data-kg-storyboard-media-drop-active': dropActive ? '1' : undefined",
+    '{...dropTargetProps}',
     'data-kg-storyboard-media-lightbox-trigger="1"',
     'data-kg-storyboard-add-media="1"',
     "from '@/lib/cards/CardMediaPreview'",
     "from '@/lib/ui/MediaKindOverlay'",
     "from '@/lib/ui/MediaLightbox'",
-    'CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS',
-    'CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS',
+    "from '@/lib/ui/mediaDragPayload'",
+    "from '@/lib/ui/mediaLightboxPromptParameters'",
     "from '@/lib/ui/mediaKindOverlayIcon'",
     'MediaPromptActionOverlay',
     '<figure',
@@ -225,12 +233,9 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'promptSubmitLabel="Regenerate media"',
     'promptParameters={promptParameters}',
     'onGenerateMediaPrompt',
+    'onDropMedia?: (card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => void',
+    'onDropMedia={props.onDropMedia ? (slot, payload) => props.onDropMedia?.(props.card, slot, payload) : undefined}',
     'buildStoryboardMediaPromptParameters({ kind: lightboxKind, model: props.model })',
-    "id: 'model'",
-    "id: 'aspectRatio'",
-    "id: 'resolution'",
-    "id: 'duration'",
-    "id: 'count'",
     'const [lightboxSlotId, setLightboxSlotId] = React.useState<string | null>(null)',
     'const lightboxSlot = lightboxSlotId ? slots.find(slot => slot.id === lightboxSlotId) || null : null',
     'onPromptSubmit={props.onGenerateMediaPrompt ? (prompt, parameters) => props.onGenerateMediaPrompt?.(props.card, prompt, parameters) : undefined}',
@@ -259,6 +264,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'onPromptSubmit?: (value: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>',
     "from '@/lib/ui/panelFormControls'",
     'data-kg-media-lightbox-media-panel="1"',
+    'data-kg-media-lightbox-empty-output="1"',
     'data-kg-media-lightbox-prompt-panel="1"',
     'data-kg-media-lightbox-prompt="1"',
     'data-kg-media-lightbox-prompt-form="1"',
@@ -279,6 +285,38 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
       throw new Error(`expected shared media lightbox to retain prompt/media panel snippet: ${snippet}`)
     }
   }
+  for (const snippet of [
+    'buildMediaLightboxPromptParameters',
+    'CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS',
+    'MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS',
+    "id: 'model'",
+    "id: 'aspectRatio'",
+    "id: 'resolution'",
+    "id: 'duration'",
+    "id: 'count'",
+  ]) {
+    if (!mediaLightboxPromptParametersSource.includes(snippet)) {
+      throw new Error(`expected shared media prompt parameters helper to retain snippet: ${snippet}`)
+    }
+  }
+  if (!mediaSelectionSource.includes("from '@/lib/ui/mediaLightboxPromptParameters'")) {
+    throw new Error('expected Storyboard media lightbox to reuse shared media prompt parameter helper')
+  }
+  for (const snippet of [
+    "import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'",
+    'STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS',
+    'STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND',
+    'const handleDropStoryboardMedia = React.useCallback((card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => {',
+    'mediaUrl: cleanUrl',
+    'mediaKind: payload.kind',
+    'const referenceKey = STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND[payload.kind]',
+    '[referenceKey]: uniqueReferences',
+    'onDropMedia={handleDropStoryboardMedia}',
+  ]) {
+    if (!source.includes(snippet)) {
+      throw new Error(`expected StoryboardCanvas to wire shared Media drag/drop into 2D Renderer card media: ${snippet}`)
+    }
+  }
   if (mediaSelectionSource.includes('buildStoryboardMediaLightboxMetadata') || mediaLightboxSource.includes('data-kg-media-lightbox-metadata') || mediaLightboxSource.includes('data-kg-media-lightbox-prompt-label="1"')) {
     throw new Error('expected media lightbox prompt panel to avoid redundant visible prompt headers and meaningless metadata footers')
   }
@@ -292,6 +330,9 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "from '@/lib/canvas/infinite-canvas-engine'",
     "from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'",
     "from '@/components/StoryboardCanvas/storyboardInfiniteZoomRequest'",
+    'const boardViewportRef = React.useRef<HTMLElement | null>(null)',
+    'const [viewportElement, setViewportElementState] = React.useState<HTMLElement | null>(null)',
+    'setViewportElementState(prev => (prev === element ? prev : element))',
     'createInfiniteCanvasViewportController({',
     'resolveStoryboardInfiniteZoomRequestTransform({',
     "zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 }",
