@@ -20,7 +20,7 @@ This document describes the Codex-compatible harness implemented by:
 python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
-The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop.
+The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop. MainPanel MCP and Integrations also expose a Codex-facing BytePlus ModelArk remote MCP media profile for image generation, audio-for-video generation, and video generation using an operator-supplied Streamable HTTP URL plus host-managed `ARK_API_KEY`.
 
 For research-code-create work, this harness is the local artifact loop and Codex
 goal bridge, not a deployed public mutation API. Research and review-heavy
@@ -35,7 +35,7 @@ and shared Rich Media Panel owners.
 |---|---|---|
 | Message gateway | `/goal`, `npm run goal:run`, local MCP `knowgrph.superagent.run`, MainPanel/FloatingPanel handoff docs | Local/dev only unless a separate deploy proof exists. |
 | Memory | `state.json`, `trace.jsonl`, `goal.json`, recovery events, observations, source hashes, review audits | Persist run memory as artifacts; do not create unowned global memory files. |
-| Tools | `superagent_tools.py`, `superagent_pixverse.py`, local MCP tool contract, Source Files, rich-media runtime | Register typed tools once; do not fork renderer/provider-specific tool stacks. |
+| Tools | `superagent_tools.py`, `superagent_pixverse.py`, local MCP tool contract, Source Files, rich-media runtime, BytePlus ModelArk MCP setup docs | Register typed tools once; do not fork renderer/provider-specific tool stacks. |
 | Skills | `skill.select`, current tool registry, optional frontmatter skill hints | Select progressively by task need; do not bulk-copy external skill packs or pin repo-path catalogs. |
 | Subagents | Role-scoped `AgentContract` entries for planner, research, code, text, image, video, canvas, verifier, and synthesizer workers | Keep scoped context, tools, completion signal, and artifact responsibility explicit. |
 | Sandbox/workspace | Per-run output directory under `data/outputs/*` or caller-provided output path; generated code executes with `python` argv, bounded timeout, and no shell invocation | Keep uploads/workspace/outputs separated; do not hardcode absolute repo paths. |
@@ -55,7 +55,9 @@ and shared Rich Media Panel owners.
   tree and executes it inside a bounded local sandbox directory, recording the
   code file, stdout/stderr, return code, and sandbox result artifact.
 - Create: generate Text, Image, Video, Chart, and Rich Media Panel artifacts
-  through the typed local harness and shared media owners.
+  through the typed local harness and shared media owners. Codex-facing
+  BytePlus MCP media rows are setup/readiness guidance for an external
+  operator-selected remote MCP server, not a second renderer.
 - Long horizon: keep every run bounded by explicit step, retry, wall-clock,
   tool, and review limits; resumability is checkpointed through state and trace
   artifacts.
@@ -72,6 +74,7 @@ and shared Rich Media Panel owners.
 - `superagent_plan.py`: agent contracts, task plan, and goal parsing; current task order is `inspect_goal -> select_skills -> research_goal -> code_sandbox -> generate_text -> generate_image -> generate_video -> compose_canvas -> verify_outputs -> synthesize_report`.
 - `superagent_tools.py`: workspace, skill, research, code/sandbox, text, image, video, canvas, and report tools.
 - `superagent_pixverse.py`: local PixVerse MCP stdio adapter, bounded polling, upload-safe reference-image handling, constrained `fusion_video` composition, automated local uploaded-media handoff, optional bounded `extend_video` chaining, optional `lip_sync_video` and `sound_effect_video` post-processing, and fallback-safe live video orchestration.
+- `canvas/src/features/panels/views/byteplusModelArkMcpApiDocs.ts`: BytePlus ModelArk remote MCP setup rows for MainPanel MCP and Integrations, including Codex `mcp add` placeholder command, media profile, `ARK_API_KEY` env naming, and image/audio-for-video/video documentation links.
 - `superagent_verifier.py`: deterministic artifact, graph, layout, trace, and provenance checks.
 - `superagent_renderers.py`: markdown, SVG, HTML, canvas graph, workspace, and report rendering helpers.
 - `superagent_utils.py`: trace reading, payload summaries, run ids, and goal-file loading.
@@ -231,6 +234,8 @@ The browser check opens the real Settings -> Integrations surface, verifies PixV
 ## Codex And MCP
 
 Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
+
+For BytePlus media generation, Codex should use the MainPanel MCP or Integrations row `byteplusModelArkMcp.remote_config.codex`. The row emits `codex mcp add byteplus-modelark-media --url '<REMOTE_MCP_STREAMABLE_HTTP_URL>'`; the URL comes from the operator-selected BytePlus cloud-deployed MCP or remote MCP details page, while `ARK_API_KEY` stays in the MCP host environment. The companion `byteplusModelArkMcp.media.profile` row documents image generation, audio-for-video generation through `generate_audio` and audio inputs, and video generation without claiming a standalone audio-only output API.
 
 MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md), [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md), and the planned Agentic OS dashboard contract in [knowgrph-mcp-agentic-os-prd-tad.md](knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md).
 

@@ -30,6 +30,7 @@ import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
 import { CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA } from './cloudflareAiGatewayMcpApiDocs'
+import { BYTEPLUS_MODELARK_MCP_DOC_AREA } from './byteplusModelArkMcpApiDocs'
 import { OPENAI_MCP_DOC_AREA } from './openaiMcpApiDocs'
 import { EXA_MCP_DOC_AREA } from './exaMcpApiDocs'
 import { FEISHU_BASE_MCP_DOC_AREA } from './feishuBaseMcpApiDocs'
@@ -87,6 +88,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   API_NATIVE_BROWSER_MCP_DOC_AREA,
   CRAWLER_ACCESS_MCP_DOC_AREA,
   CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA,
+  BYTEPLUS_MODELARK_MCP_DOC_AREA,
   OPENAI_MCP_DOC_AREA,
   EXA_MCP_DOC_AREA,
   FEISHU_BASE_MCP_DOC_AREA,
@@ -167,6 +169,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === OPENAI_CHAT_API_DOC_AREA
     || area === OPENAI_IMAGES_API_DOC_AREA
     || area === DEERFLOW_API_DOC_AREA
+    || area === BYTEPLUS_MODELARK_MCP_DOC_AREA
     || area === OPERATOR_DEPLOY_MCP_DOC_AREA
   ) {
     return true
@@ -199,6 +202,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
   if (area === CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA) return true
+  if (area === BYTEPLUS_MODELARK_MCP_DOC_AREA) return true
   if (area === OPENAI_MCP_DOC_AREA) return true
   if (area === EXA_MCP_DOC_AREA) return true
   if (area === FEISHU_BASE_MCP_DOC_AREA) return true

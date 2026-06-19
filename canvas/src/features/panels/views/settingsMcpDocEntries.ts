@@ -23,6 +23,17 @@ import {
   getCloudflareAiGatewayMcpApiRowAnchorId,
 } from './cloudflareAiGatewayMcpApiDocs'
 import {
+  BYTEPLUS_MODELARK_MCP_DOC_AREA,
+  BYTEPLUS_MODELARK_MCP_DOC_ENTRIES,
+  BYTEPLUS_MODELARK_MCP_CODEX_CONFIG_KEY,
+  BYTEPLUS_MODELARK_MCP_MEDIA_PROFILE_KEY,
+  BYTEPLUS_MODELARK_MCP_RESPONSES_TOOL_CONFIG_KEY,
+  buildBytePlusModelArkMcpCodexAddCommand,
+  buildBytePlusModelArkMcpMediaProfileJson,
+  buildBytePlusModelArkMcpResponsesToolConfigJson,
+  getBytePlusModelArkMcpApiRowAnchorId,
+} from './byteplusModelArkMcpApiDocs'
+import {
   OPENAI_MCP_CHATGPT_APP_CONFIG_KEY,
   OPENAI_MCP_DOC_AREA,
   OPENAI_MCP_DOC_ENTRIES,
@@ -110,6 +121,7 @@ export function buildMcpDocEntries(
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
     ...CLOUDFLARE_AI_GATEWAY_MCP_DOC_ENTRIES,
+    ...BYTEPLUS_MODELARK_MCP_DOC_ENTRIES,
     ...OPENAI_MCP_DOC_ENTRIES,
     ...EXA_MCP_DOC_ENTRIES,
     ...FEISHU_BASE_MCP_DOC_ENTRIES,
@@ -137,6 +149,8 @@ export function buildMcpVirtualEntry(
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
       : area === CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA
         ? getCloudflareAiGatewayMcpApiRowAnchorId(entry.meta.key)
+      : area === BYTEPLUS_MODELARK_MCP_DOC_AREA
+        ? getBytePlusModelArkMcpApiRowAnchorId(entry.meta.key)
       : area === OPENAI_MCP_DOC_AREA
         ? getOpenAiMcpApiRowAnchorId(entry.meta.key)
       : area === EXA_MCP_DOC_AREA
@@ -166,12 +180,18 @@ export function buildMcpVirtualEntry(
         ? buildBrowserBridgeMcpConfigJson(values)
         : entry.meta.key === CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_CONFIG_KEY
           ? buildCloudflareAiGatewayMcpRemoteConfigJson()
-        : entry.meta.key === OPENAI_MCP_RESPONSES_TOOL_CONFIG_KEY
-          ? buildOpenAiMcpResponsesToolConfigJson(values)
-          : entry.meta.key === OPENAI_MCP_RESPONSES_REQUEST_KEY
-            ? buildOpenAiMcpResponsesRequestJson(values)
-            : entry.meta.key === OPENAI_MCP_CHATGPT_APP_CONFIG_KEY
-              ? buildOpenAiMcpChatGptAppConnectionJson(values)
+        : entry.meta.key === BYTEPLUS_MODELARK_MCP_RESPONSES_TOOL_CONFIG_KEY
+          ? buildBytePlusModelArkMcpResponsesToolConfigJson()
+          : entry.meta.key === BYTEPLUS_MODELARK_MCP_CODEX_CONFIG_KEY
+            ? buildBytePlusModelArkMcpCodexAddCommand()
+            : entry.meta.key === BYTEPLUS_MODELARK_MCP_MEDIA_PROFILE_KEY
+              ? buildBytePlusModelArkMcpMediaProfileJson()
+              : entry.meta.key === OPENAI_MCP_RESPONSES_TOOL_CONFIG_KEY
+                ? buildOpenAiMcpResponsesToolConfigJson(values)
+                : entry.meta.key === OPENAI_MCP_RESPONSES_REQUEST_KEY
+                  ? buildOpenAiMcpResponsesRequestJson(values)
+                  : entry.meta.key === OPENAI_MCP_CHATGPT_APP_CONFIG_KEY
+                    ? buildOpenAiMcpChatGptAppConnectionJson(values)
         : entry.meta.key === STRIPE_MCP_REMOTE_CONFIG_KEY
           ? buildStripeRemoteMcpConfigJson(values)
           : entry.meta.key === STRIPE_MCP_LOCAL_CONFIG_KEY

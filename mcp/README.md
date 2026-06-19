@@ -101,7 +101,7 @@ Canonical local tool inventory owner:
    - Typical use: generate GraphData + A0 exports from a GraphRAG indexing run
 3. `knowgrph.superagent.run`
    - Runs: `python -m knowgrph_parser superagent ...`
-   - Typical use: run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` levels. The run uses native memory, role-scoped subagents, `skill.select`, `research.scout`, `code.write_and_run`, bounded generated-code sandbox artifacts, deterministic mock media providers, optional `providerMode="pixverse"` local PixVerse MCP stdio video execution, and mock fallback.
+   - Typical use: run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` levels. The run uses native memory, role-scoped subagents, `skill.select`, `research.scout`, `code.write_and_run`, bounded generated-code sandbox artifacts, deterministic mock media providers, optional `providerMode="pixverse"` local PixVerse MCP stdio video execution, optional Codex-facing BytePlus ModelArk remote MCP media guidance for image/audio-in-video/video generation, and mock fallback.
    - Emits: `state.json`, `trace.jsonl`, `goal.json`, `harness-proof.json`, `final-report.md`, selected-skill/research/code/sandbox artifacts, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
 4. `knowgrph.agentic_canvas_os.plan`
    - Profiles a root-allowlisted repo, or an explicit read-only sibling repo when `allowExternalRepo=true`

@@ -51,6 +51,7 @@ import {
   BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
   getBytePlusSharedTextApiRowAnchorId,
 } from './byteplusSharedTextApiDocs'
+import { BYTEPLUS_MODELARK_MCP_DOC_AREA } from './byteplusModelArkMcpApiDocs'
 import {
   OPENAI_CHAT_API_DOC_AREA,
   OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
@@ -1234,6 +1235,11 @@ export function useSettingsView({
           title: BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
           searchIndex: normalizeText('BytePlus Shared + Text API BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation shared auth api key endpoint'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
+        },
+        {
+          title: BYTEPLUS_MODELARK_MCP_DOC_AREA,
+          searchIndex: normalizeText('BytePlus ModelArk Remote MCP cloud-deployed MCP Responses API server_label server_url Streamable HTTP ARK_API_KEY beta header'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_MODELARK_MCP_DOC_AREA,
         },
         {
           title: MIROMIND_API_DOC_AREA,
