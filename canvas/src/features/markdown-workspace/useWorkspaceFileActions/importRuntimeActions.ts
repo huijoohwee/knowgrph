@@ -101,7 +101,7 @@ export async function resolveImportedCanvasDocumentApplyToGraph(args: {
   for (const path of createdPaths) {
     const text = String((await args.fs.readFileText(path).catch(() => '')) || '')
     if (shouldApplyImportedCanvasDocumentToGraph({ path, text })) return true
-    if (peekPendingWorkspaceLocalImport(path)) continue
+    if (!peekPendingWorkspaceLocalImport(path)) continue
     const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path }).catch(() => null)
     const hydratedText = String(hydrated?.text || '')
     if (shouldApplyImportedCanvasDocumentToGraph({ path, text: hydratedText })) return true

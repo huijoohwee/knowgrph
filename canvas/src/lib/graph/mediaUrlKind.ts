@@ -64,8 +64,10 @@ export function resolveRenderableMediaResource(
   rawUrl: string,
   declaredKind?: UrlMediaKind | null,
 ): RenderableMediaResource | null {
-  const sourceUrl = readCanonicalResourcePath(rawUrl)
+  const raw = String(rawUrl || '').trim()
+  const sourceUrl = readCanonicalResourcePath(raw)
   if (!sourceUrl) return null
+  const renderUrl = raw && /^(?:\/__codebase_asset\?|\/__codebase_file\?|\/@fs\/)/i.test(raw) ? raw : sourceUrl
   const thumbnailUrl = buildRenderableMediaThumbnailUrl(sourceUrl)
   const iframeUrl = buildRenderableIframeUrl(sourceUrl)
   if (iframeUrl) {
@@ -80,7 +82,7 @@ export function resolveRenderableMediaResource(
   if (!inferredKind) return null
   return {
     kind: inferredKind,
-    url: sourceUrl,
+    url: renderUrl,
     sourceUrl,
     thumbnailUrl: thumbnailUrl || null,
   }

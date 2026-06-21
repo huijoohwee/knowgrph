@@ -33,7 +33,11 @@ const INDEX_PROPERTY_KEYS = ['frame', 'frameNumber', 'sceneNumber', 'shotNumber'
 const META_PROPERTY_KEYS = ['owner', 'priority'] as const
 const MEDIA_PROPERTY_KEYS = ['renderUrl', 'embedUrl', 'media_url', 'mediaUrl', 'image', 'imageUrl', 'video', 'videoUrl', 'audio', 'audioUrl', 'audio_url', 'src', 'url'] as const
 const LINK_PROPERTY_KEYS = ['url', 'href', 'link', 'sourceUrl', 'source_url', 'briefUrl', 'assetUrl', 'documentUrl'] as const
+const MEDIA_SOURCE_PROPERTY_KEYS = ['mediaSourceUrl', 'media_source_url', 'sourceMediaUrl', 'source_media_url', 'luminaOutputPath'] as const
 const THUMBNAIL_PROPERTY_KEYS = ['thumbnailUrl', 'thumbnail_url', 'posterUrl', 'poster_url', 'poster', 'coverUrl', 'cover_url'] as const
+const TYPE_LABEL_PROPERTY_KEYS = ['cardTypeLabel', 'nodeTypeLabel', 'typeLabel', 'luminaTitle', 'luminaNodeTitle'] as const
+const SOURCE_MODEL_PROPERTY_KEYS = ['sourceModel', 'modelLabel', 'nativeModel', 'luminaModelName'] as const
+const SOURCE_PROMPT_LABEL_PROPERTY_KEYS = ['sourcePromptLabel', 'promptLabel', 'nativePromptLabel'] as const
 const SLUGLINE_PROPERTY_KEYS = ['slugline'] as const
 const LOCATION_PROPERTY_KEYS = ['location', 'setting', 'place', 'surface', 'context'] as const
 const TIME_PROPERTY_KEYS = ['timeOfDay', 'time', 'dayPart', 'moment', 'state'] as const
@@ -74,6 +78,8 @@ export type StoryboardCardModel = {
   style: string
   tags: string[]
   meta: string[]
+  sourceModelLabel: string
+  sourcePromptLabel: string
   href: string
   media: StoryboardCardMedia | null
   references: StoryboardCardReference[]
@@ -255,14 +261,15 @@ const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): 
   }
   const declaredKind = readDeclaredMediaKind(properties)
   const explicitThumbnailUrl = readFirstPropertyString(properties, THUMBNAIL_PROPERTY_KEYS)
+  const explicitMediaSourceUrl = readFirstPropertyString(properties, MEDIA_SOURCE_PROPERTY_KEYS)
   for (const key of MEDIA_PROPERTY_KEYS) {
     const url = readString(properties[key])
     if (!url) continue
     const resource = resolveRenderableMediaResource(url, declaredKind)
     if (!resource) continue
-    const sourceUrl = key === 'renderUrl' || key === 'embedUrl'
+    const sourceUrl = explicitMediaSourceUrl || (key === 'renderUrl' || key === 'embedUrl'
       ? readFirstPropertyString(properties, LINK_PROPERTY_KEYS) || readFirstPropertyString(properties, ['mediaUrl', 'media_url']) || resource.sourceUrl
-      : resource.sourceUrl
+      : resource.sourceUrl)
     return { ...resource, sourceUrl, thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null }
   }
   if (typeof node.type === 'string' && /\b(image|video)\b/i.test(node.type)) {
@@ -328,9 +335,19 @@ const readLanePropertyKey = (properties: GraphNodeProperties): string => {
   return 'stage'
 }
 
-const readTypeLabel = (node: GraphNode): string => {
+const readTypeLabel = (node: GraphNode, properties: GraphNodeProperties): string => {
+  const explicit = readFirstPropertyString(properties, TYPE_LABEL_PROPERTY_KEYS)
+  if (explicit) return explicit
   const typeLabel = readString(node.type)
   return typeLabel ? toTitleCase(typeLabel) : 'Node'
+}
+
+const readSourceModelLabel = (properties: GraphNodeProperties): string => {
+  return readFirstPropertyString(properties, SOURCE_MODEL_PROPERTY_KEYS)
+}
+
+const readSourcePromptLabel = (properties: GraphNodeProperties): string => {
+  return readFirstPropertyString(properties, SOURCE_PROMPT_LABEL_PROPERTY_KEYS)
 }
 
 const readIndexLabel = (properties: GraphNodeProperties): string => {
@@ -434,7 +451,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
   const style = readCardStyle(properties)
   const tags = readCardTags(properties)
   const meta = readCardMeta(properties)
-  const typeLabel = readTypeLabel(node)
+  const typeLabel = readTypeLabel(node, properties)
   const nodeType = readString(node.type)
   return {
     id: readString(node.id) || `node-${inputIndex}`,
@@ -452,6 +469,8 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
     style,
     tags,
     meta,
+    sourceModelLabel: readSourceModelLabel(properties),
+    sourcePromptLabel: readSourcePromptLabel(properties),
     href: readStoryboardHref(properties, media),
     media,
     references,

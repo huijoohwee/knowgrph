@@ -108,12 +108,35 @@ export function testAudioMediaUsesSharedCardPanelAndHtmlViewerOwners() {
   const richMediaPanel = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
   const richMediaOverlayLayer = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'), 'utf8')
   const webpageLayoutToGraph = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageLayoutToGraph.ts'), 'utf8')
+  const commandMenuCatalogPanel = readFileSync(resolve(process.cwd(), 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx'), 'utf8')
 
   if (!cardPreview.includes('data-kg-card-media-kind="audio"') || !cardPreview.includes('<audio')) {
     throw new Error('expected shared CardMediaPreview to render audio through the card media owner')
   }
+  if (
+    !cardPreview.includes('loading="lazy"') ||
+    !cardPreview.includes('decoding="async"') ||
+    !cardPreview.includes('data-kg-card-media-loading="lazy"') ||
+    !cardPreview.includes('data-kg-card-media-preload="metadata"') ||
+    !cardPreview.includes('preload="metadata"')
+  ) {
+    throw new Error('expected shared CardMediaPreview to keep lazy image decoding and metadata-only video/audio loading')
+  }
   if (!richMediaPanel.includes("kind === 'video' || kind === 'audio'") || !richMediaPanel.includes('kind={kind}')) {
     throw new Error('expected RichMediaPanel to render audio through shared CardMediaPreview')
+  }
+  const commandMenuThumbnailCount = (commandMenuCatalogPanel.match(/data-kg-command-menu-media-thumbnail="1"/g) || []).length
+  const commandMenuLazyCount = (commandMenuCatalogPanel.match(/loading="lazy"/g) || []).length
+  const commandMenuAsyncCount = (commandMenuCatalogPanel.match(/decoding="async"/g) || []).length
+  const commandMenuLowPriorityCount = (commandMenuCatalogPanel.match(/\{\.\.\.LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS\}/g) || []).length
+  if (
+    commandMenuThumbnailCount < 4 ||
+    commandMenuLazyCount < commandMenuThumbnailCount ||
+    commandMenuAsyncCount < commandMenuThumbnailCount ||
+    commandMenuLowPriorityCount < commandMenuThumbnailCount ||
+    !commandMenuCatalogPanel.includes("fetchpriority: 'low'")
+  ) {
+    throw new Error('expected FloatingPanel Media thumbnails to use lazy image loading, async decoding, and low fetch priority')
   }
   if (!richMediaOverlayLayer.includes("n.kind === 'audio'")) {
     throw new Error('expected D3 rich media overlay layer to preserve shared audio media kind')

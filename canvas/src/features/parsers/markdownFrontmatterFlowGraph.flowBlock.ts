@@ -324,6 +324,42 @@ function collectDeclaredFlowNodePropertyValues(args: {
   return out
 }
 
+function collectDeclaredFlowEdgePropertyValues(args: {
+  rawEdge: Record<string, unknown>
+  normalizedRawEdge: Record<string, unknown>
+  vars: Record<string, unknown>
+  pathCache: Map<string, unknown>
+  declarationCache: Map<string, unknown>
+  resolvedStringCache: Map<string, string>
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(args.rawEdge)) {
+    const fieldName = asString(k)
+    if (!fieldName) continue
+    if (
+      fieldName === 'id' ||
+      fieldName === 'source' ||
+      fieldName === 'target' ||
+      fieldName === 'sourceHandle' ||
+      fieldName === 'targetHandle' ||
+      fieldName === 'label' ||
+      fieldName === 'type' ||
+      fieldName === 'animated' ||
+      fieldName === 'layoutRoute' ||
+      fieldName === 'layoutLane'
+    ) {
+      continue
+    }
+    const rawValue = isRecord(v) && Object.prototype.hasOwnProperty.call(v, 'value')
+      ? (v as Record<string, unknown>).value
+      : (args.normalizedRawEdge as Record<string, unknown>)[fieldName]
+    const resolved = resolveTemplateValue(rawValue, args.vars, args.pathCache, args.declarationCache, args.resolvedStringCache)
+    if (typeof resolved === 'undefined') continue
+    out[fieldName] = resolved
+  }
+  return out
+}
+
 function isCanonicalLocalComputeWidgetNode(args: {
   nodeType: string
   rawNode: Record<string, unknown>
@@ -789,12 +825,21 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     if (!sourceEp || !targetEp) continue
     const labelRaw = asString(normalizedRawEdge.label), layoutRoute = asString(normalizedRawEdge.layoutRoute), layoutLane = asFiniteNumber(normalizedRawEdge.layoutLane)
     const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
+    const declaredProps = collectDeclaredFlowEdgePropertyValues({
+      rawEdge: row as Record<string, unknown>,
+      normalizedRawEdge,
+      vars: flowVars,
+      pathCache,
+      declarationCache,
+      resolvedStringCache,
+    })
     const conn: Record<string, unknown> = {
       id: asString(normalizedRawEdge.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
       from_node: sourceEp.nodeId,
       from_port: sourceEp.portKey,
       to_node: targetEp.nodeId,
       to_port: targetEp.portKey,
+      ...declaredProps,
       ...(label ? { label } : {}),
       ...(asBoolean(normalizedRawEdge.animated) === true ? { animated: true } : {}),
       ...(edgeSocketType ? { type: edgeSocketType } : {}), ...(layoutRoute ? { layoutRoute } : {}), ...(layoutLane != null ? { layoutLane: Math.floor(layoutLane) } : {}),

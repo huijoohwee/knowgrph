@@ -32,9 +32,7 @@ import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
 import { useInitialWorkspacePaneVisibility } from './useInitialWorkspacePaneVisibility'
 import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
 import { buildMarkdownPipeTableFromRowsJsonArtifact } from './viewer/markdownWorkspaceDataViewCandidates'
-import { buildFlowchartMarkdownFromJsonText } from '@/features/markdown/flowchartJsonToMarkdown'
-import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
-import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
+import { tryBuildJsonMarkdownDocumentFromText } from '@/features/markdown/jsonToMarkdownDocument'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { buildDelimitedTextJsonPreviewText } from '../workspaceImport/csvJsonConversion'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
@@ -339,16 +337,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const widgetBundleMarkdown = tryBuildWidgetBundleMarkdownFromJsonText(text)
       if (widgetBundleMarkdown) return widgetBundleMarkdown
     }
-    const flowchart = buildFlowchartMarkdownFromJsonText(text)
-    if (flowchart) return flowchart
-    try {
-      const parsed = JSON.parse(text) as unknown
-      const renderConfig = buildJsonMarkdownConfigFromPreferences()
-      return jsonToMarkdownPreferTable(parsed, { ...renderConfig, defaultMode: 'table' }, 'table')
-    } catch {
-      return null
-    }
-  }, [activeJsonSourceKey, activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
+    return tryBuildJsonMarkdownDocumentFromText(text, 'table', { documentName: activeDocumentKey || 'workspace.json' })?.markdown || null
+  }, [activeDocumentKey, activeJsonSourceKey, activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
 
   const needsMarkdownViewerText = !showWebpageHtml || markdownPaneVisible || viewerPaneVisible
   const needsSourceAttachedMarkdownTableText = documentPanePreset === 'viewer' && (markdownPaneVisible || viewerPaneVisible), needsJsonSourceAttachedMarkdownTableText = needsSourceAttachedMarkdownTableText && !!activePaneJsonPreviewText

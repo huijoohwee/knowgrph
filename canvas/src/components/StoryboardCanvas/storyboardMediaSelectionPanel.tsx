@@ -220,13 +220,20 @@ function StoryboardMediaSelectionSlotView(props: {
 }) {
   const { onDropMedia, slot, title } = props
   const slotRef = React.useRef<HTMLElement | null>(null)
+  const setSlotElement = React.useCallback((element: HTMLElement | null) => {
+    slotRef.current = element
+  }, [])
   const [dropActive, setDropActive] = React.useState(false)
+  const [mediaError, setMediaError] = React.useState(false)
   const media = slot.media
   const mediaHref = String(media?.url || slot.href || '').trim()
   const interactive = media?.kind === 'video' || media?.kind === 'audio' || media?.kind === 'iframe'
   const lightboxKind = readStoryboardMediaDownloadKind(media)
   const canOpenLightbox = !!mediaHref && lightboxKind !== 'media'
   const Icon = resolveMediaKindOverlayIcon(media?.kind)
+  React.useEffect(() => {
+    setMediaError(false)
+  }, [mediaHref, media?.kind])
   const handleDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (!onDropMedia || !hasMediaDragPayload(event.dataTransfer)) return
     event.preventDefault()
@@ -313,10 +320,12 @@ function StoryboardMediaSelectionSlotView(props: {
       videoControls={!canOpenLightbox && interactive}
       iframeScriptPolicy="allow"
       mediaClassName="h-full w-full"
+      onReady={() => setMediaError(false)}
+      onError={() => setMediaError(true)}
     />
   ) : null
   const dropTargetProps = {
-    ref: slotRef,
+    ref: setSlotElement,
     'data-kg-storyboard-media-slot': '1',
     'data-kg-storyboard-media-slot-index': slot.index,
     'data-kg-storyboard-media-drop-active': dropActive ? '1' : undefined,
@@ -331,7 +340,7 @@ function StoryboardMediaSelectionSlotView(props: {
     onMouseLeave: handleMouseLeave,
     onMouseUp: handleMouseUp,
   } satisfies React.HTMLAttributes<HTMLElement> & {
-    ref: React.RefObject<HTMLElement | null>
+    ref: React.RefCallback<HTMLElement>
     'data-kg-storyboard-media-slot': string
     'data-kg-storyboard-media-slot-index': number
     'data-kg-storyboard-media-drop-active': string | undefined
@@ -348,7 +357,16 @@ function StoryboardMediaSelectionSlotView(props: {
           'group relative min-h-0 flex-1 overflow-hidden rounded-lg border bg-black/[0.06]',
           dropActive ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-black/5',
         ].join(' ')} data-kg-storyboard-media-slot-frame="1" {...dropTargetProps}>
-          {preview}
+          {mediaError ? (
+            <section
+              className="flex h-full w-full items-center justify-center px-3 text-black/45"
+              role="status"
+              aria-label={`${slot.label} source media for ${title}`}
+              data-kg-storyboard-media-missing="1"
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </section>
+          ) : preview}
           {canOpenLightbox ? (
             <button
               type="button"

@@ -97,6 +97,33 @@ function extractConnectionEndpoints(row: Record<string, unknown>): { source: str
   return { source: pFrom.nodeId, target: pTo.nodeId, fromPort: pFrom.portKey, toPort: pTo.portKey }
 }
 
+function collectDeclaredConnectionProperties(row: Record<string, unknown>): Record<string, JSONValue> {
+  const reserved = new Set([
+    'id',
+    'from_node',
+    'from_port',
+    'to_node',
+    'to_port',
+    'from',
+    'to',
+    'label',
+    'type',
+    'animated',
+    'layoutRoute',
+    'layoutLane',
+  ])
+  const out: Record<string, JSONValue> = {}
+  const nested = row.properties
+  if (isRecord(nested)) {
+    for (const [key, value] of Object.entries(nested)) out[key] = value as JSONValue
+  }
+  for (const [key, value] of Object.entries(row)) {
+    if (reserved.has(key) || key === 'properties') continue
+    out[key] = value as JSONValue
+  }
+  return out
+}
+
 export type ParsedConnection = {
   id: string
   uniq: string
@@ -207,8 +234,10 @@ export function parseConnections(meta: Record<string, unknown>): { edges: GraphE
     seen.add(uniq)
 
     declared.push({ id, uniq, ...endpoints, socketType })
+    const declaredProperties = collectDeclaredConnectionProperties(row)
 
     const properties: Record<string, JSONValue> = {
+      ...declaredProperties,
       [FLOW_EDGE_SOURCE_PORT_KEY]: endpoints.fromPort,
       [FLOW_EDGE_TARGET_PORT_KEY]: endpoints.toPort,
       [FLOW_EDGE_DISPLAY_LABEL_KEY]: buildDisplayLabel(endpoints.fromPort, endpoints.toPort, socketType),

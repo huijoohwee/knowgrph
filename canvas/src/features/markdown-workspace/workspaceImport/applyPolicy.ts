@@ -2,6 +2,7 @@ import {
   extractYamlFrontmatterHeaderBlock,
   parseCanvasWorkspaceFrontmatterPresetBlock,
 } from '@/lib/markdown/frontmatter'
+import { isBytePlusLuminaCanvasJson } from '@/lib/graph/io/byteplusLuminaCanvas'
 
 export function shouldApplyImportedCanvasDocumentToGraph(args: {
   path: string
@@ -11,7 +12,15 @@ export function shouldApplyImportedCanvasDocumentToGraph(args: {
   const text = String(args.text || '')
   if (!text.trim()) return false
   const isMarkdownPath = path.endsWith('.md') || path.endsWith('.mdx')
+  const isJsonPath = path.endsWith('.json')
   const isModelAssetPath = path.endsWith('.glb') || path.endsWith('.gltf')
+  if (isJsonPath) {
+    try {
+      return isBytePlusLuminaCanvasJson(JSON.parse(text))
+    } catch {
+      return false
+    }
+  }
   const header = extractYamlFrontmatterHeaderBlock(text)
   if (!header) return false
   const headerText = header.rawBlock

@@ -66,6 +66,16 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'STORYBOARD_PROMPT_PROPERTY_KEYS',
     'updateStoryboardCardModel(card.id, nextModel)',
     'window.setTimeout(runWithCommittedPrompt, 0)',
+    'const shouldUseSourceModelReadout = !!sourceModelLabel && !explicitStoryboardCardChatModel',
+    'data-kg-storyboard-source-model-readout="true"',
+    'const sourcePromptLabel = readStoryboardScalar(card.sourcePromptLabel)',
+    'const usesNativeSourceFields = !!sourcePromptLabel || !!readStoryboardScalar(currentCardProperties.luminaNodeType)',
+    'const canEditCanonicalText = canEditCard && !usesNativeSourceFields',
+    'const shouldRenderSourcePromptReferenceControls = !usesNativeSourceFields && (card.references.length > 0 || !!card.href)',
+    '].filter(row => row.value || canEditCanonicalText) as {',
+    "{sourcePromptLabel || 'Visual Brief'}",
+    '{shouldRenderSourcePromptReferenceControls ? (',
+    '{card.href && !usesNativeSourceFields ? (',
     'runStoryboardWorkflowNode',
     'duplicateCard: duplicateStoryboardCard',
     'hasStrybldrStoryboardDuplicatePath',
@@ -140,6 +150,12 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   if (source.includes('const nextMarkdownId = canUseStrybldrStoryboardDuplicatePathForCard(card)')) {
     throw new Error('expected StoryboardCanvas to centralize Strybldr duplicate markdown-id allocation in the shared action helper')
   }
+  if (source.includes('chatModel: readStoryboardScalar(currentCardProperties.chatModel) || chatModel')) {
+    throw new Error('expected StoryboardCanvas source-model cards to avoid prepending global chat model options')
+  }
+  if (source.includes('{card.href ? (\n                                      <a') || source.includes('{card.href ? (\n                                <section className="flex items-center justify-end">')) {
+    throw new Error('expected StoryboardCanvas native-source cards to avoid generic Open brief/Open source actions')
+  }
   if (source.includes('runStoryboardStrybldrDuplicateAction({') || source.includes('runStoryboardMarkdownDuplicateAction({')) {
     throw new Error('expected StoryboardCanvas to route both duplicate branches through one shared duplicate action helper')
   }
@@ -210,6 +226,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "'data-kg-storyboard-media-drop-active': dropActive ? '1' : undefined",
     '{...dropTargetProps}',
     'data-kg-storyboard-media-lightbox-trigger="1"',
+    'data-kg-storyboard-media-missing="1"',
+    'onError={() => setMediaError(true)}',
     'data-kg-storyboard-add-media="1"',
     "from '@/lib/cards/CardMediaPreview'",
     "from '@/lib/ui/MediaKindOverlay'",
@@ -301,6 +319,10 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   }
   if (!mediaSelectionSource.includes("from '@/lib/ui/mediaLightboxPromptParameters'")) {
     throw new Error('expected Storyboard media lightbox to reuse shared media prompt parameter helper')
+  }
+  const starterFallbackCopy = ['Media', 'unavailable'].join(' ')
+  if (mediaSelectionSource.includes(starterFallbackCopy) || mediaSelectionSource.toLowerCase().includes(starterFallbackCopy.toLowerCase())) {
+    throw new Error('expected Storyboard media slots to avoid starter-style hardcoded missing-media copy')
   }
   for (const snippet of [
     "import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'",

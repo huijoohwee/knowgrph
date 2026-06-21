@@ -488,6 +488,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.import.localFiles.canvasFrontmatterOptInGraphLanding","@/__tests__/workspaceImportLocal.test","testWorkspaceImportCanvasFrontmatterDocsOptIntoGraphLanding"],
   ["workspace.import.localFiles.canvasPresetParsedGraphLanding","@/__tests__/workspaceImportLocal.test","testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGraphLanding"],
   ["workspace.import.localFiles.strybldrRunnableRunAllSurface","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableRunAllSurface"],
+  ["workspace.import.localFiles.bytePlusLuminaCanvasStoryboardStrybldr","@/__tests__/bytePlusLuminaCanvasImport.test","testWorkspaceImportBytePlusLuminaCanvasJsonBuildsStoryboardStrybldrSurface"],
   ["workspace.import.localFiles.largeCanvasPresetHeaderLanding","@/__tests__/workspaceImportLargeCanvasPreset.test","testWorkspaceImportLargeCanvasPresetHeaderAppliesWithoutFullParse"],
   ["workspace.import.localFiles.activateImportedDocFrontmatterLanding","@/__tests__/workspaceImportLocal.test","testActivateFirstImportedWorkspaceFilePreservesImportedFrontmatterLandingFromPreviousSelection"],
   ["workspace.import.localFiles.videoDemo.runtimeRendererIsolation","@/__tests__/workspaceImportVideoDemoRendererIsolation.test.tsx","testVideoDemoRuntimeLandingRejectsRendererWidgetSeepage"],

@@ -202,6 +202,11 @@ function resolveRichMediaThumbnailUrl(item: Pick<CommandMenuRichMediaItem, 'kind
 function getRichMediaItemDedupKey(item: CommandMenuRichMediaItem): string {
   if (item.kind === 'mermaid') return ''
   const url = canonicalMediaDedupUrl(item.openUrl || item.src || '')
+  if (item.source === 'graph' && item.nodeId) {
+    if (url) return `graph-node:${item.nodeId}:url:${url}`
+    const srcDoc = String(item.srcDoc || '').trim()
+    return srcDoc ? `graph-node:${item.nodeId}:srcdoc:${item.kind}:${srcDoc}` : ''
+  }
   if (url) return `url:${url}`
   const srcDoc = String(item.srcDoc || '').trim()
   return srcDoc ? `srcdoc:${item.kind}:${srcDoc}` : ''
@@ -222,7 +227,17 @@ function scoreRichMediaItemForDedup(item: CommandMenuRichMediaItem): number {
 export function dedupeCommandMenuRichMediaItems(items: CommandMenuRichMediaItem[]): CommandMenuRichMediaItem[] {
   const unique: CommandMenuRichMediaItem[] = []
   const indexByKey = new Map<string, number>()
+  const graphUrlKeys = new Set(
+    items
+      .filter(item => item.source === 'graph')
+      .map(item => canonicalMediaDedupUrl(item.openUrl || item.src || ''))
+      .filter(Boolean),
+  )
   for (const item of items) {
+    if (item.source !== 'graph') {
+      const url = canonicalMediaDedupUrl(item.openUrl || item.src || '')
+      if (url && graphUrlKeys.has(url)) continue
+    }
     const dedupKey = getRichMediaItemDedupKey(item)
     if (!dedupKey) {
       unique.push(item)

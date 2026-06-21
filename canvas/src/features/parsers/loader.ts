@@ -18,6 +18,8 @@ import {
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
+import { isBytePlusLuminaCanvasJson, looksLikeBytePlusLuminaCanvasText } from '@/lib/graph/io/byteplusLuminaCanvas'
+import { parseGraphFromJson } from '@/lib/graph/io/adapter'
 
 export type LoaderResult = {
   parserId?: string
@@ -221,7 +223,82 @@ export async function loadGraphDataFromTextViaParser(
     }
   }
   notifyLoaderProgress(options, 'Selecting parser')
+  const lowerName = String(name || '').trim().toLowerCase()
   const cfgKey = `reg:${getParserRegistryRevision()}`
+  if (lowerName.endsWith('.json')) {
+    const jsonParserId = toParserId('json')
+    const cachedJson = getCachedParse(jsonParserId, name, normalizedText, cfgKey)
+    if (cachedJson) {
+      const graphData = cachedJson.graphData
+      notifyLoaderProgress(options, 'Using cached parse')
+      if (options?.applyToStore !== false) {
+        notifyLoaderProgress(options, 'Applying graph')
+        try {
+          applyGraphDataCanonicalBootstrap({ graphData, rawText: normalizedText })
+        } catch {
+          void 0
+        }
+      }
+      notifyLoaderProgress(options, 'Done')
+      return finalizeLoaderResult({
+        t0: tAll,
+        parserId: 'json',
+        sourceName: name,
+        sourceText: normalizedText,
+        result: {
+          parserId: 'json',
+          name,
+          graphData,
+          counts: { n: graphData.nodes.length, e: graphData.edges.length },
+          warnings: cachedJson.warnings || [],
+          input: { name, text: normalizedText },
+        },
+        usedCache: true,
+        outcome: graphData.nodes.length > 0 || graphData.edges.length > 0 ? 'ok' : 'empty-graph',
+      })
+    }
+    try {
+      if (!looksLikeBytePlusLuminaCanvasText(normalizedText)) throw new Error('not-lumina-canvas')
+      const parsedJson = JSON.parse(normalizedText) as unknown
+      if (isBytePlusLuminaCanvasJson(parsedJson)) {
+        notifyLoaderProgress(options, 'Parsing (byteplus-lumina-canvas)')
+        const parsed = parseGraphFromJson(name, parsedJson)
+        const graphData = parsed.data
+        if (options?.applyToStore !== false) {
+          notifyLoaderProgress(options, 'Applying graph')
+          try {
+            applyGraphDataCanonicalBootstrap({ graphData, rawText: normalizedText })
+          } catch {
+            void 0
+          }
+        }
+        notifyLoaderProgress(options, 'Done')
+        const result = {
+          graphData,
+          warnings: parsed.diag.warnings || [],
+        }
+        setCachedParse(jsonParserId, name, normalizedText, result, cfgKey)
+        setCachedPreferredParser(name, normalizedText, jsonParserId, cfgKey)
+        return finalizeLoaderResult({
+          t0: tAll,
+          parserId: 'json',
+          sourceName: name,
+          sourceText: normalizedText,
+          result: {
+            parserId: 'json',
+            name,
+            graphData,
+            counts: { n: graphData.nodes.length, e: graphData.edges.length },
+            warnings: result.warnings,
+            input: { name, text: normalizedText },
+          },
+          outcome: graphData.nodes.length > 0 || graphData.edges.length > 0 ? 'ok' : 'empty-graph',
+        })
+      }
+    } catch {
+      void 0
+    }
+  }
   const preferredParserId = getCachedPreferredParser(name, normalizedText, cfgKey)
   const bm = preferredParserId
     ? null

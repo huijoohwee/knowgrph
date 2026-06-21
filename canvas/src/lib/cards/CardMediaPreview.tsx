@@ -20,6 +20,9 @@ type SkeletonBlock = {
 }
 
 const CARD_MEDIA_SKELETON_STYLE_ID = 'kg-card-media-skeleton-style'
+const CARD_MEDIA_LOW_PRIORITY_IMAGE_PROPS = {
+  fetchpriority: 'low',
+} as unknown as React.ImgHTMLAttributes<HTMLImageElement>
 
 const stopInteractiveCardMediaEvent = (event: React.SyntheticEvent) => {
   try {
@@ -397,9 +400,12 @@ export function CardMediaPreview({
         alt={title}
         data-kg-card-media-kind={kind}
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-card-media-loading="lazy"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
         loading="lazy"
+        decoding="async"
+        {...CARD_MEDIA_LOW_PRIORITY_IMAGE_PROPS}
         draggable={false}
         onLoad={() => onReady?.()}
         onError={() => onError?.()}
@@ -419,8 +425,10 @@ export function CardMediaPreview({
         src={proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl}
         data-kg-card-media-kind="video"
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-card-media-preload="metadata"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
+        aria-label={title}
         controls={videoControls ?? interactive}
         muted={videoMuted ?? false}
         autoPlay={videoAutoPlay || undefined}
@@ -453,6 +461,7 @@ export function CardMediaPreview({
         ].filter(Boolean).join(' ')}
         data-kg-card-media-kind="audio"
         data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-card-media-preload="metadata"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
         style={{
           background: 'rgba(2, 6, 23, 0.06)',
@@ -466,6 +475,7 @@ export function CardMediaPreview({
         <audio
           src={proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl}
           className="w-full max-w-full"
+          aria-label={title}
           controls
           preload="metadata"
           draggable={false}

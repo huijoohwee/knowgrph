@@ -77,6 +77,9 @@ const MEDIA_DESCRIPTION_STORAGE_KEY = 'kg.media.descriptions'
 const MEDIA_FIELDS_STORAGE_KEY = 'kg.media.fields'
 const MEDIA_GENERATE_MEDIA_ACTION_ID = 'generate-media' as const
 const MEDIA_IMPORT_URL_ACTION_ID = 'import-media-url' as const
+const LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS = {
+  fetchpriority: 'low',
+} as unknown as React.ImgHTMLAttributes<HTMLImageElement>
 const MEDIA_NEW_ACTIONS: readonly MediaPanelActionSpec[] = [
   {
     id: INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
@@ -300,7 +303,7 @@ function MediaCandidateThumb({
         <MediaKindOverlay Icon={resolveMediaKindOverlayIcon(item.kind)} label={item.kind} appearance="hover" />
         <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
-        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" draggable={false} />
+        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
       </span>
     )
   }
@@ -347,7 +350,7 @@ function MediaCandidatePreview({
         <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
         <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
-        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
+        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
       </figure>
     )
   }
@@ -408,7 +411,7 @@ function UploadedMediaPreview({
       <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
       <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
       {item.kind === 'image' ? (
-        <img src={item.linkUrl} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" draggable={false} />
+        <img src={item.linkUrl} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
       ) : (
         <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
       )}
@@ -1122,7 +1125,7 @@ function UploadedMediaRow({
         <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
         <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
         {item.kind === 'image' ? (
-          <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" draggable={false} />
+          <img src={item.linkUrl} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
         ) : (
           <Icon className={cn('m-auto h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
         )}

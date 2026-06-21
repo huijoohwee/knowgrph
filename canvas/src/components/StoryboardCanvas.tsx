@@ -135,6 +135,8 @@ type StoryboardRenderedEdge = {
   id: string
   sourceId: string
   targetId: string
+  renderSourceId: string
+  renderTargetId: string
   label: string
   d: string
 }
@@ -148,6 +150,7 @@ type StoryboardEdgeLayer = {
 const STORYBOARD_RENDERED_EDGE_LABELS = new Set(['parent_node_id', 'rootBranch', 'candidateOption', 'candidateScorecard', 'publishedCandidate'])
 const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
+const STORYBOARD_GROUP_MEMBERSHIP_PROPERTY_KEYS = ['luminaGroupId', 'groupId', 'parentGroupId', 'clusterId', 'sectionId'] as const
 const STORYBOARD_SCORECARD_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 text-[11px] sm:grid-cols-2'
 const STORYBOARD_CANONICAL_TEXT_FIELDS = { summary: { propertyKeys: STORYBOARD_SUMMARY_PROPERTY_KEYS, canonicalKey: 'summary' }, output: { propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS, canonicalKey: 'output' }, action: { propertyKeys: STORYBOARD_ACTION_PROPERTY_KEYS, canonicalKey: 'action' }, dialogue: { propertyKeys: STORYBOARD_DIALOGUE_PROPERTY_KEYS, canonicalKey: 'dialogue' } } as const
 const STORYBOARD_NEW_CARD_NODE_TYPE = 'Storyboard'
@@ -202,6 +205,15 @@ function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
 
 function readStoryboardScalar(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function readStoryboardNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function readStoryboardStringList(value: unknown): string[] {
@@ -555,6 +567,47 @@ export default function StoryboardCanvas({
   }, [board.lanes, currentPropertiesByCardId, storytreeFilter])
   const visibleCardIds = React.useMemo(() => visibleLanes.flatMap(lane => lane.cards.map(card => card.id)), [visibleLanes])
   const visibleCardKey = visibleCardIds.join('\u0000')
+  const structuralEndpointCardIdByNodeId = React.useMemo(() => {
+    const visible = new Set(visibleCardIds)
+    const endpointByNodeId = new Map<string, string>()
+    const visibleCardEntries: Array<{ card: StoryboardCardModel; x: number; y: number }> = []
+    for (const lane of visibleLanes) {
+      for (const card of lane.cards) {
+        if (!visible.has(card.id)) continue
+        const properties = currentPropertiesByCardId.get(card.id) || {}
+        for (const key of STORYBOARD_GROUP_MEMBERSHIP_PROPERTY_KEYS) {
+          const groupId = readStoryboardScalar(properties[key])
+          if (groupId && !endpointByNodeId.has(groupId)) endpointByNodeId.set(groupId, card.id)
+        }
+        const node = nodeById.get(card.id)
+        const x = readStoryboardNumber(node?.x)
+        const y = readStoryboardNumber(node?.y)
+        if (node && x !== null && y !== null) visibleCardEntries.push({ card, x, y })
+      }
+    }
+    const graphNodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+    for (const node of graphNodes) {
+      const groupId = readStoryboardScalar(node?.id)
+      if (!groupId || visible.has(groupId) || endpointByNodeId.has(groupId)) continue
+      const properties = readStoryboardNodeProperties(node)
+      const type = readStoryboardScalar(node?.type).toLowerCase()
+      const isStructuralGroup = readStoryboardBool(properties.luminaGroup) || /\b(group|cluster|section)\b/i.test(type)
+      if (!isStructuralGroup) continue
+      const groupX = readStoryboardNumber(node?.x)
+      const groupY = readStoryboardNumber(node?.y)
+      const groupWidth = readStoryboardNumber(properties.width)
+      const groupHeight = readStoryboardNumber(properties.height)
+      if (groupX === null || groupY === null || groupWidth === null || groupHeight === null) continue
+      const member = visibleCardEntries.find(entry => (
+        entry.x >= groupX &&
+        entry.y >= groupY &&
+        entry.x <= groupX + groupWidth &&
+        entry.y <= groupY + groupHeight
+      ))
+      if (member) endpointByNodeId.set(groupId, member.card.id)
+    }
+    return endpointByNodeId
+  }, [currentPropertiesByCardId, graphData?.nodes, nodeById, visibleCardIds, visibleLanes])
   const commitStoryboardMarkdownMutation = React.useCallback((args: {
     nextMarkdownText: string | null
     historyLabel: string
@@ -1086,9 +1139,12 @@ export default function StoryboardCanvas({
         if (!shouldRenderStoryboardEdge(edge, label)) continue
         const sourceId = readStoryboardScalar(edge?.source)
         const targetId = readStoryboardScalar(edge?.target)
-        if (!sourceId || !targetId || !visible.has(sourceId) || !visible.has(targetId)) continue
-        const sourceEl = cardElementsRef.current.get(sourceId)
-        const targetEl = cardElementsRef.current.get(targetId)
+        if (!sourceId || !targetId) continue
+        const renderSourceId = visible.has(sourceId) ? sourceId : structuralEndpointCardIdByNodeId.get(sourceId) || ''
+        const renderTargetId = visible.has(targetId) ? targetId : structuralEndpointCardIdByNodeId.get(targetId) || ''
+        if (!renderSourceId || !renderTargetId) continue
+        const sourceEl = cardElementsRef.current.get(renderSourceId)
+        const targetEl = cardElementsRef.current.get(renderTargetId)
         if (!sourceEl || !targetEl) continue
         const sourceRect = sourceEl.getBoundingClientRect()
         const targetRect = targetEl.getBoundingClientRect()
@@ -1111,9 +1167,11 @@ export default function StoryboardCanvas({
           ? `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${(sx + dx).toFixed(1)} ${sy.toFixed(1)} ${(tx - dx).toFixed(1)} ${ty.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`
           : `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${sx.toFixed(1)} ${(sy + dy).toFixed(1)} ${tx.toFixed(1)} ${(ty - dy).toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)}`
         edges.push({
-          id: `${sourceId}:${label}:${targetId}`,
+          id: readStoryboardScalar(edge?.id) || `${sourceId}:${label}:${targetId}`,
           sourceId,
           targetId,
+          renderSourceId,
+          renderTargetId,
           label,
           d,
         })
@@ -1143,7 +1201,7 @@ export default function StoryboardCanvas({
       window.removeEventListener('resize', schedule)
       observer?.disconnect()
     }
-  }, [graphData?.edges, storyboardZoom.transformKey, visibleCardIds, visibleCardKey])
+  }, [graphData?.edges, storyboardZoom.transformKey, structuralEndpointCardIdByNodeId, visibleCardIds, visibleCardKey])
   const commitStrytreeWorkflowResult = React.useCallback((args: {
     result: ReturnType<typeof toggleStrytreeLikeAction>
     history: string
@@ -1410,7 +1468,7 @@ export default function StoryboardCanvas({
           </span>
           <span className={['inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px]', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>
             <Link2 className="h-3 w-3" aria-hidden="true" />
-            {referenceCount} refs
+            {referenceCount} links
           </span>
           <span className={['hidden text-[10px] sm:inline font-mono', UI_THEME_TOKENS.text.tertiary].join(' ')} title={board.semanticKey}>
             {board.semanticKey ? board.semanticKey.slice(0, 10) : 'empty'}
@@ -1452,8 +1510,11 @@ export default function StoryboardCanvas({
                   strokeDasharray={edge.label === 'candidateOption' || edge.label === 'candidateScorecard' ? '6 5' : undefined}
                   markerEnd="url(#kg-storyboard-edge-arrow)"
                   data-kg-storyboard-canvas-edge={edge.label}
+                  data-kg-storyboard-canvas-edge-id={edge.id}
                   data-kg-storyboard-canvas-edge-source={edge.sourceId}
                   data-kg-storyboard-canvas-edge-target={edge.targetId}
+                  data-kg-storyboard-canvas-edge-render-source={edge.renderSourceId}
+                  data-kg-storyboard-canvas-edge-render-target={edge.renderTargetId}
                 />
               ))}
             </svg>
@@ -1618,6 +1679,10 @@ export default function StoryboardCanvas({
                     const summaryEntry = cardParagraphEntries.find(entry => entry.id === 'summary') || null
                     const outputEntry = cardParagraphEntries.find(entry => entry.id === 'output') || null
                     const canEditCard = typeof updateNode === 'function'
+                    const sourcePromptLabel = readStoryboardScalar(card.sourcePromptLabel)
+                    const usesNativeSourceFields = !!sourcePromptLabel || !!readStoryboardScalar(currentCardProperties.luminaNodeType)
+                    const canEditCanonicalText = canEditCard && !usesNativeSourceFields
+                    const shouldRenderSourcePromptReferenceControls = !usesNativeSourceFields && (card.references.length > 0 || !!card.href)
                     const commitCardProperty = (fieldId: keyof typeof STORYBOARD_CANONICAL_TEXT_FIELDS) => (nextValue: string) => {
                       const field = STORYBOARD_CANONICAL_TEXT_FIELDS[fieldId]
                       updateStoryboardCanonicalProperty({
@@ -1631,7 +1696,12 @@ export default function StoryboardCanvas({
                       { fieldId: 'output', icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Output', value: card.output || outputEntry?.value || '' },
                       { fieldId: 'action', icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Action', value: card.action },
                       { fieldId: 'dialogue', icon: <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />, label: 'Dialogue', value: card.dialogue },
-                    ] as const
+                    ].filter(row => row.value || canEditCanonicalText) as {
+                      fieldId: keyof typeof STORYBOARD_CANONICAL_TEXT_FIELDS
+                      icon: React.ReactNode
+                      label: string
+                      value: string
+                    }[]
                     const cardDragProps = storyboardDrag.createCardDragProps({ rowId: card.id, groupKey: lane.id })
                     const cardDragVisualState = getKanbanCardDragVisualState({
                       hasActiveDrag: storyboardDrag.draggingRowId !== null,
@@ -1657,10 +1727,16 @@ export default function StoryboardCanvas({
                     const candidateCreditCost = Number(currentCardProperties.creditCost || 0)
                     const candidateElapsedMs = Number(currentCardProperties.elapsedMs || 0)
                     const candidatePublishEligible = readStoryboardBool(currentCardProperties.publishEligible)
-                    const storyboardCardModelSelect = resolveSharedChatModelSelect({
-                      chatProvider,
-                      chatModel: readStoryboardScalar(currentCardProperties.chatModel) || chatModel,
-                    })
+                    const explicitStoryboardCardChatModel = readStoryboardScalar(currentCardProperties.chatModel)
+                    const sourceModelLabel = readStoryboardScalar(card.sourceModelLabel)
+                    const shouldUseSourceModelReadout = !!sourceModelLabel && !explicitStoryboardCardChatModel
+                    const storyboardCardModelSelect = shouldUseSourceModelReadout
+                      ? null
+                      : resolveSharedChatModelSelect({
+                          chatProvider,
+                          chatModel: explicitStoryboardCardChatModel || chatModel,
+                        })
+                    const storyboardMediaPromptModel = storyboardCardModelSelect?.modelId || sourceModelLabel || chatModel
                     return (
                       <React.Fragment key={card.id}>
                         <li
@@ -1849,7 +1925,7 @@ export default function StoryboardCanvas({
                                     title={displayTitle}
                                     media={displayMedia}
                                     loadingState={mediaLoadingState}
-                                    model={storyboardCardModelSelect.modelId}
+                                    model={storyboardMediaPromptModel}
                                     onAddMedia={openStoryboardCardMediaPanel}
                                     onDropMedia={handleDropStoryboardMedia}
                                     onGenerateMediaPrompt={generateStoryboardCardMediaFromPrompt}
@@ -1882,17 +1958,31 @@ export default function StoryboardCanvas({
                                 <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                   {UI_COPY.chatModelSelectLabel}
                                 </p>
-                                <ChatModelCredentialControls
-                                  apiKeyPrompt={sharedCardApiKeyPrompt}
-                                  modelId={storyboardCardModelSelect.modelId}
-                                  modelOptions={storyboardCardModelSelect.options}
-                                  onModelChanged={nextModel => updateStoryboardCardModel(card.id, nextModel)}
-                                  disabled={!canEditCard}
-                                  uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
-                                />
+                                {storyboardCardModelSelect ? (
+                                  <ChatModelCredentialControls
+                                    apiKeyPrompt={sharedCardApiKeyPrompt}
+                                    modelId={storyboardCardModelSelect.modelId}
+                                    modelOptions={storyboardCardModelSelect.options}
+                                    onModelChanged={nextModel => updateStoryboardCardModel(card.id, nextModel)}
+                                    disabled={!canEditCard}
+                                    uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+                                  />
+                                ) : (
+                                  <output
+                                    className={[
+                                      'block rounded border px-2 py-1 text-[11px]',
+                                      UI_THEME_TOKENS.input.border,
+                                      UI_THEME_TOKENS.input.bg,
+                                      UI_THEME_TOKENS.text.primary,
+                                    ].join(' ')}
+                                    data-kg-storyboard-source-model-readout="true"
+                                  >
+                                    {sourceModelLabel}
+                                  </output>
+                                )}
                               </section>
 
-                              {summaryEntry || canEditCard ? (
+                              {summaryEntry || canEditCanonicalText ? (
                                 <section>
                                   <p className={['m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
                                     {summaryEntry?.label || 'Summary'}
@@ -1901,7 +1991,7 @@ export default function StoryboardCanvas({
                                     value={summaryEntry?.value || ''}
                                     ariaLabel={`Summary for ${card.id}`}
                                     placeholder="Add summary"
-                                    canEdit={canEditCard}
+                                    canEdit={canEditCanonicalText}
                                     editActivation="click"
                                     multiline
                                     markdownPreview="auto"
@@ -1920,7 +2010,7 @@ export default function StoryboardCanvas({
                                   icon={row.icon}
                                   label={row.label}
                                   value={row.value}
-                                  canEdit={canEditCard}
+                                  canEdit={canEditCanonicalText}
                                   onCommit={commitCardProperty(row.fieldId)}
                                   markdownCommandContextText={storyboardCommandContextText}
                                 />
@@ -2031,12 +2121,12 @@ export default function StoryboardCanvas({
                               ) : null}
 
                               {card.prompt || card.style || card.references.length > 0 ? (
-                                <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label="Visual brief">
+                                <section className="rounded-xl border border-black/5 bg-black/[0.025] p-2.5" aria-label={sourcePromptLabel ? `${sourcePromptLabel} source prompt` : 'Visual brief'}>
                                   <section className="flex items-center justify-between gap-2">
                                     <section className="flex items-center gap-2">
                                       <Sparkles className={['h-3.5 w-3.5 shrink-0', UI_THEME_TOKENS.text.tertiary].join(' ')} aria-hidden="true" />
                                       <span className={['text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary].join(' ')}>
-                                        Visual Brief
+                                        {sourcePromptLabel || 'Visual Brief'}
                                       </span>
                                     </section>
                                     {card.style ? <DataViewTagChip value={card.style} /> : null}
@@ -2044,8 +2134,8 @@ export default function StoryboardCanvas({
                                   {card.prompt ? (
                                     <CardInlineTextEditor
                                       value={card.prompt}
-                                      ariaLabel={`Visual brief for ${card.id}`}
-                                      placeholder="Add visual brief"
+                                      ariaLabel={`${sourcePromptLabel || 'Visual brief'} for ${card.id}`}
+                                      placeholder={`Add ${(sourcePromptLabel || 'visual brief').toLowerCase()}`}
                                       canEdit={typeof updateNode === 'function'}
                                       editActivation="click"
                                       multiline
@@ -2064,46 +2154,48 @@ export default function StoryboardCanvas({
                                       editorClassName={`mt-2 ${UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME} text-xs leading-5`}
                                     />
                                   ) : null}
-                                  <section className="mt-2 flex items-center gap-2">
-                                    {card.references.length > 0 ? (
-                                      <StoryboardMentionPill label={`${card.references.length} refs`} title={`${card.references.length} references`}>
-                                        {visualBriefReference ? (
-                                          <CardMediaPreview
-                                            kind={visualBriefReference.kind}
-                                            url={visualBriefReference.url}
-                                            title="Reference"
-                                            interactive={false}
-                                            fit="cover"
-                                            mediaThumbnailDataAttr
-                                            mediaClassName={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME}
-                                          />
-                                        ) : (
-                                          <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
-                                            <ImageIcon className="h-3 w-3" aria-hidden="true" />
-                                          </span>
-                                        )}
-                                      </StoryboardMentionPill>
-                                    ) : null}
-                                    {card.href ? (
-                                      <a
-                                        href={card.href}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className={CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME}
-                                        draggable={false}
-                                        onClick={event => {
-                                          event.stopPropagation()
-                                        }}
-                                        onDragStart={event => {
-                                          event.preventDefault()
-                                        }}
-                                        title={card.href}
-                                      >
-                                        <Wand2 className="h-3 w-3" aria-hidden="true" />
-                                        Open brief
-                                      </a>
-                                    ) : null}
-                                  </section>
+                                  {shouldRenderSourcePromptReferenceControls ? (
+                                    <section className="mt-2 flex items-center gap-2">
+                                      {card.references.length > 0 ? (
+                                        <StoryboardMentionPill label={`${card.references.length} refs`} title={`${card.references.length} references`}>
+                                          {visualBriefReference ? (
+                                            <CardMediaPreview
+                                              kind={visualBriefReference.kind}
+                                              url={visualBriefReference.url}
+                                              title="Reference"
+                                              interactive={false}
+                                              fit="cover"
+                                              mediaThumbnailDataAttr
+                                              mediaClassName={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME}
+                                            />
+                                          ) : (
+                                            <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
+                                              <ImageIcon className="h-3 w-3" aria-hidden="true" />
+                                            </span>
+                                          )}
+                                        </StoryboardMentionPill>
+                                      ) : null}
+                                      {card.href ? (
+                                        <a
+                                          href={card.href}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className={CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME}
+                                          draggable={false}
+                                          onClick={event => {
+                                            event.stopPropagation()
+                                          }}
+                                          onDragStart={event => {
+                                            event.preventDefault()
+                                          }}
+                                          title={card.href}
+                                        >
+                                          <Wand2 className="h-3 w-3" aria-hidden="true" />
+                                          Open brief
+                                        </a>
+                                      ) : null}
+                                    </section>
+                                  ) : null}
                                 </section>
                               ) : null}
 
@@ -2127,7 +2219,7 @@ export default function StoryboardCanvas({
                                 </section>
                               ) : null}
 
-                              {card.href ? (
+                              {card.href && !usesNativeSourceFields ? (
                                 <section className="flex items-center justify-end">
                                   <a
                                     href={card.href}

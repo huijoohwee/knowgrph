@@ -53,6 +53,7 @@ import {
   type FetchMode,
   type WebpageViewMode,
 } from './urlContentHeuristics'
+import { resolveSameOriginWorkspaceImportFetchPath } from './sameOriginFetchPath'
 type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }
 type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
@@ -120,6 +121,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   if (!cleaned) throw new Error('Invalid URL')
 
   const normalizedUrl = normalizeGitHubBlobLikeUrl(cleaned) ?? cleaned
+  const sameOriginFetchPath = resolveSameOriginWorkspaceImportFetchPath(normalizedUrl)
   const normalizedLower = normalizedUrl.toLowerCase()
   const canvas2dRenderer = normalizeWorkspaceUrlImportCanvas2dRenderer(opts?.canvas2dRenderer)
   const documentSemanticMode = normalizeWorkspaceUrlImportDocumentMode(opts?.documentSemanticMode)
@@ -128,6 +130,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
   const isRootRelativeFetch = isRootRelativeFetchUrl(normalizedUrl)
+  const directFetchPath = sameOriginFetchPath || (isRootRelativeFetch ? normalizedUrl : '')
   const isLocalRepoPath =
     (!isHttpUrl && !isRootRelativeFetch && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
   const localFsFetchPath =
@@ -188,7 +191,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     opts?.onProgress?.(10)
     const fetchPath =
       localFsFetchPath ||
-      (isRootRelativeFetch ? normalizedUrl : (isLocalRepoPath ? buildCodebaseFilePath(localRepoPath) : resolveBinaryDownloadProxyUrl(normalizedUrl)))
+      directFetchPath ||
+      (isLocalRepoPath ? buildCodebaseFilePath(localRepoPath) : resolveBinaryDownloadProxyUrl(normalizedUrl))
     const accept = isGltf
       ? `${GLTF_ASSET_MIME_TYPE},application/json,text/plain,*/*`
       : `${GLB_ASSET_MIME_TYPE},application/octet-stream,*/*`
@@ -818,19 +822,19 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   }
 
   opts?.onProgress?.(10)
-  const res = isRootRelativeFetch
+  const res = directFetchPath
     ? await (async () => {
-        const response = await fetch(normalizedUrl, { headers: { Accept: 'text/markdown,text/plain,*/*' } })
+        const response = await fetch(directFetchPath, { headers: { Accept: 'text/markdown,text/plain,*/*' } })
         if (!response.ok) {
           return {
             ok: false,
             kind: 'http',
-            url: normalizedUrl,
+            url: directFetchPath,
             usedProxy: false,
             status: response.status,
           } as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure
         }
-        return { ok: true, text: await response.text(), url: normalizedUrl, usedProxy: false } as const
+        return { ok: true, text: await response.text(), url: directFetchPath, usedProxy: false } as const
       })()
     : await fetchRemoteTextDetailed(normalizedUrl, { preflightHead: true, preferProxy: true })
   opts?.onProgress?.(100)

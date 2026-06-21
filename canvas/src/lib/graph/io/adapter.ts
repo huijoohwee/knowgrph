@@ -11,6 +11,7 @@ import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGra
 import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
 import { coerceGeoJsonToFeatureCollection } from '@/lib/gympgrph/api'
 import { tryBuildGrabMapsGraphDataFromJson } from '@/lib/graph/io/grabmaps'
+import { tryBuildBytePlusLuminaCanvasGraphData } from '@/lib/graph/io/byteplusLuminaCanvas'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -54,12 +55,17 @@ export const parseGraphFromJson = (
     return { data, diag: { format: 'json', warnings: [] } }
   }
 
+  const jsonRecord = readPlainObject(json)
+  const luminaCanvas = tryBuildBytePlusLuminaCanvasGraphData({ name, json })
+  if (luminaCanvas) {
+    return { data: luminaCanvas.graphData, diag: { format: 'json', warnings: luminaCanvas.warnings } }
+  }
+
   const widget = tryParseWidgetImportGraphData(json)
   if (widget) {
     return { data: widget.graphData, diag: { format: 'json', warnings: widget.warnings } }
   }
 
-  const jsonRecord = readPlainObject(json)
   if (jsonRecord && Array.isArray(jsonRecord.nodes) && Array.isArray(jsonRecord.edges)) {
     const n0 = readPlainObject(jsonRecord.nodes[0]) || {}
     const e0 = readPlainObject(jsonRecord.edges[0]) || {}

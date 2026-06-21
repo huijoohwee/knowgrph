@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { parse as parseYaml } from 'yaml'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } from '@/components/StoryboardCanvas/storyboardModel'
 import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -46,6 +47,11 @@ import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/l
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
+}
+
+const readTypedValue = (value: unknown): unknown => {
+  if (!value || typeof value !== 'object' || !('value' in value)) return value
+  return (value as Record<string, unknown>).value
 }
 
 const readSource = (...parts: string[]): string => fs.readFileSync(path.resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -200,6 +206,10 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(!text.includes('localhost:'), 'expected starter template not to store localhost media URLs')
   assert(!text.includes('kg_media_token='), 'expected starter template not to store local media access tokens')
   assert(!text.includes('upload-730fe6850f0fc26f'), 'expected starter template not to store copied upload ids')
+  assert(!text.includes('\n  cards:\n'), 'expected starter template not to store runtime card override payloads')
+  assert(!text.includes('seedream-'), 'expected starter template not to store provider-specific generated model ids')
+  assert(!text.includes('outputSrcDoc:'), 'expected starter template not to store generated rich-media srcdoc payloads')
+  assert(!text.includes('Generated Strybldr'), 'expected starter template not to store generated runtime handoff copy')
   assert(!text.includes('New storyboard card'), 'expected starter template not to store ad hoc duplicated storyboard cards')
   const parsed = await loadGraphDataFromTextViaParser(starterName, text, {
     applyToStore: false,
@@ -208,6 +218,26 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(parsed?.parserId === 'strybldr-storyboard', `expected Strybldr starter to use Strybldr parser, got ${parsed?.parserId}`)
   const graph = parsed.graphData
   assert(graph, 'expected parsed starter graph')
+  const frontmatterPayload = parseYaml(frontmatter.rawBlock.replace(/^---\n?/, '').replace(/\n---\s*$/, '')) as Record<string, unknown>
+  const flowRecord = frontmatterPayload.flow as Record<string, unknown> | undefined
+  const authoredFlowNodes = Array.isArray(flowRecord?.nodes) ? flowRecord.nodes : []
+  const graphNodeById = new Map((graph.nodes || []).map(node => [String(node.id), node]))
+  const missingParsedFields: string[] = []
+  for (const authoredNode of authoredFlowNodes) {
+    if (!authoredNode || typeof authoredNode !== 'object') continue
+    const authoredRecord = authoredNode as Record<string, unknown>
+    const authoredId = String(readTypedValue(authoredRecord.id) || '')
+    const parsedNode = graphNodeById.get(authoredId)
+    if (!parsedNode) {
+      missingParsedFields.push(`${authoredId || '(unknown)'}:node`)
+      continue
+    }
+    for (const key of Object.keys(authoredRecord)) {
+      if (key === 'id' || key === 'type' || key === 'label') continue
+      if (!(key in (parsedNode.properties || {}))) missingParsedFields.push(`${authoredId}:${key}`)
+    }
+  }
+  assert(missingParsedFields.length === 0, `expected parser to preserve all authored flow node fields, missing ${missingParsedFields.join(', ')}`)
   const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
   const laneIds = new Set(board.lanes.map(lane => lane.id))
   for (const laneId of ['Source', 'Storyboard', 'Elements', 'Runtime', 'Review', 'Publish']) {
@@ -215,6 +245,24 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   }
   assert(board.totalCards === 8, `expected neutral starter to render 8 source-owned cards, got ${board.totalCards}`)
   assert(!board.lanes.some(lane => lane.cards.some(card => card.title === 'New storyboard card')), 'expected board not to render ad hoc duplicated cards')
+  const sourceNode = graphNodeById.get('strybldr:source:3725310941')
+  assert(sourceNode, 'expected parsed starter graph to keep source node')
+  assert(sourceNode.properties?.mediaKind === 'doc', `expected source mediaKind to parse, got ${String(sourceNode.properties?.mediaKind || '')}`)
+  assert(sourceNode.properties?.mimeHint === 'text/markdown', `expected source mimeHint to parse, got ${String(sourceNode.properties?.mimeHint || '')}`)
+  assert(sourceNode.properties?.['graph:degree'] === 1, `expected source graph degree to parse, got ${String(sourceNode.properties?.['graph:degree'] || '')}`)
+  assert(sourceNode.properties?.['visual:nodeSize'] === 14, `expected source visual node size to parse, got ${String(sourceNode.properties?.['visual:nodeSize'] || '')}`)
+  assert(
+    Array.isArray(sourceNode.properties?.references) && sourceNode.properties.references.includes('docs/knowgrph-strybldr-starter-template.md'),
+    `expected source references to parse, got ${JSON.stringify(sourceNode.properties?.references)}`,
+  )
+  const runtimeNode = graphNodeById.get('starter-runtime-gate-card')
+  assert(runtimeNode, 'expected parsed starter graph to keep runtime gate node')
+  assert(runtimeNode.properties?.provider === 'knowgrph-local-animatic', `expected runtime provider to parse, got ${String(runtimeNode.properties?.provider || '')}`)
+  assert(runtimeNode.properties?.evidenceKind === 'runtime-plan', `expected runtime evidenceKind to parse, got ${String(runtimeNode.properties?.evidenceKind || '')}`)
+  assert(runtimeNode.properties?.strybldrElementId === 'starter-runtime-gate-card', `expected runtime strybldrElementId to parse, got ${String(runtimeNode.properties?.strybldrElementId || '')}`)
+  assert(runtimeNode.properties?.mimeHint === 'text/markdown', `expected runtime mimeHint to parse, got ${String(runtimeNode.properties?.mimeHint || '')}`)
+  assert(runtimeNode.properties?.['flow:widgetTypeId'] === FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID, 'expected runtime node to keep storyboard widget type id')
+  assert(runtimeNode.properties?.['flow:widgetFormId'] === FLOW_STORYBOARD_ELEMENT_FORM_ID, 'expected runtime node to keep storyboard widget form id')
 }
 
 export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload() {

@@ -29,7 +29,11 @@ import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspa
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
-import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
+import {
+  activateStrybldrImportSurface,
+  shouldActivateStrybldrImportSurface,
+} from '@/features/strybldr/strybldrImportSurface'
+import { looksLikeBytePlusLuminaCanvasText } from '@/lib/graph/io/byteplusLuminaCanvas'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
@@ -227,14 +231,19 @@ export async function applyWorkspaceImportToCanvas(args: {
       }
     }
     if (!text.trim()) continue
+    const nameForParse = workspaceDocumentKey(path)
+    const allowLargeLuminaCanvasParse =
+      path.toLowerCase().endsWith('.json') &&
+      text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS &&
+      looksLikeBytePlusLuminaCanvasText(text)
     const frontmatterHeaderBlock = extractYamlFrontmatterHeaderBlock(text)
     const frontmatterHeaderText = frontmatterHeaderBlock ? `${frontmatterHeaderBlock.rawBlock}\n` : ''
     const hasCanvasFrontmatterPresetInHeader = !!frontmatterHeaderText && !!parseCanvasWorkspaceFrontmatterPreset(frontmatterHeaderText)
     if (!preferredInteractiveImportRawText && hasCanvasFrontmatterPresetInHeader) {
       preferredInteractiveImportRawText = frontmatterHeaderText
     }
-    if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS) continue
-    if (text.length > remainingChars) continue
+    if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS && !allowLargeLuminaCanvasParse) continue
+    if (text.length > remainingChars && !allowLargeLuminaCanvasParse) continue
 
     const textHash = buildSourceFileParseIdentityHash({
       cacheNamespace: `workspace-import:${path}`,
@@ -255,10 +264,12 @@ export async function applyWorkspaceImportToCanvas(args: {
     remainingFiles -= 1
     remainingChars -= text.length
 
-    const nameForParse = workspaceDocumentKey(path)
     let res: Awaited<ReturnType<typeof loadGraphDataFromTextViaParser>> | null = null
     try {
-      res = await runInIdle(() => loadGraphDataFromTextViaParser(nameForParse, text, { applyToStore: false }), { timeoutMs: 650 })
+      res = await runInIdle(
+        () => loadGraphDataFromTextViaParser(nameForParse, text, { applyToStore: false }),
+        { timeoutMs: allowLargeLuminaCanvasParse ? 2500 : 650 },
+      )
     } catch {
       res = null
     }
@@ -275,6 +286,8 @@ export async function applyWorkspaceImportToCanvas(args: {
     } else if (!preferredInteractiveImportGraphData && graphData && hasCanvasFrontmatterPreset) {
       preferredInteractiveImportGraphData = graphData
       preferredInteractiveImportRawText = text
+    } else if (!preferredInteractiveImportGraphData && graphData && shouldActivateStrybldrImportSurface({ graphData })) {
+      preferredInteractiveImportGraphData = graphData
     }
     if (!sawFrontmatterOnlyDoc && isFrontmatterOnlyDoc(text)) {
       sawFrontmatterOnlyDoc = true
@@ -328,6 +341,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     store.setSourceFiles(next)
     const preserveInteractiveImportLanding =
       !!preferredInteractiveImportRawText
+      || !!preferredInteractiveImportGraphData
       || sawFrontmatterOnlyDoc
     if (!skipComposedGraphApply && !preserveInteractiveImportLanding) {
       if (applyToGraph) {
@@ -345,7 +359,7 @@ export async function applyWorkspaceImportToCanvas(args: {
   }
   if (merged !== existing) {
     store.setSourceFiles(merged)
-    if (preferredInteractiveImportRawText || sawFrontmatterOnlyDoc) {
+    if (preferredInteractiveImportRawText || preferredInteractiveImportGraphData || sawFrontmatterOnlyDoc) {
       applyInteractiveImportModes({
         graphData: preferredInteractiveImportGraphData,
         frontmatterOnlyDoc: sawFrontmatterOnlyDoc,
@@ -354,7 +368,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     }
     return { sourceFilesUpdated: true, enabledCount, parsedCount: 0 }
   }
-  if (preferredInteractiveImportRawText || sawFrontmatterOnlyDoc) {
+  if (preferredInteractiveImportRawText || preferredInteractiveImportGraphData || sawFrontmatterOnlyDoc) {
     applyInteractiveImportModes({
       graphData: preferredInteractiveImportGraphData,
       frontmatterOnlyDoc: sawFrontmatterOnlyDoc,

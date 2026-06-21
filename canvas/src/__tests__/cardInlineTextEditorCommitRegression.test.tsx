@@ -1679,12 +1679,12 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
       await waitForFrames(dom.window, 8)
     })
 
-    const chips = Array.from(container.querySelectorAll<HTMLElement>('[data-kg-card-inline-keyword-pill="1"]'))
-    const chip = chips[0]
+    const chips = Array.from(container.querySelectorAll('[data-kg-card-inline-keyword-pill="1"]')) as HTMLElement[]
+    const chip = chips[0] as HTMLElement | undefined
     if (!(chip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected #keyword token to render as inline chip on the shared card display path, html=${container.innerHTML}`)
     }
-    const numericChip = chips.find(candidate => String(candidate.textContent || '').trim() === '180kb')
+    const numericChip = chips.find(candidate => String(candidate.textContent || '').trim() === '180kb') as HTMLElement | undefined
     if (!(numericChip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected numeric-leading #keyword token to render as the same inline chip path, html=${container.innerHTML}`)
     }

@@ -19,12 +19,13 @@ export function testNodeOverlayOpenExternalActionBuildsVisibleContract() {
 }
 
 export function testNodeOverlayOpenExternalActionOpensWindowSafely() {
-  const globalWindow = globalThis as typeof globalThis & { window?: Pick<Window, 'open'> }
+  const globalWindow = globalThis as unknown as { window?: Pick<Window, 'open'> }
   const previousWindow = globalWindow.window
   const calls: unknown[][] = []
   globalWindow.window = {
     open: (...args: unknown[]) => {
       calls.push(args)
+      return null as unknown as Window
     },
   }
   try {

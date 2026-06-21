@@ -185,7 +185,7 @@ export async function testMarkdownDataViewInlineEditAppliesDensityClassesFromVie
     await tick()
     await tick()
 
-    const noteCell = Array.from(dom.window.document.querySelectorAll<HTMLTableCellElement>('tbody td')).find(td =>
+    const noteCell = (Array.from(dom.window.document.querySelectorAll('tbody td')) as HTMLTableCellElement[]).find(td =>
       String(td.textContent || '').includes('longer note'),
     ) || null
     if (!noteCell) throw new Error('expected note cell')
