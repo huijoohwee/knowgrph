@@ -3,11 +3,15 @@ from typing import List
 from .superagent_contracts import AgentContract, GoalSpec, TaskSpec
 
 
-def resolve_video_tool_name(provider_mode: str = "mock") -> str:
-    return "video.generate.pixverse" if str(provider_mode or "").strip().lower() == "pixverse" else "video.generate.mock"
+DEFAULT_SUPERAGENT_PROVIDER_MODE = "byteplus-modelark"
 
 
-def build_agent_contracts(provider_mode: str = "mock") -> List[AgentContract]:
+def resolve_video_tool_name(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE) -> str:
+    normalized = str(provider_mode or DEFAULT_SUPERAGENT_PROVIDER_MODE).strip().lower()
+    return "video.generate.mock" if normalized == "mock" else "video.generate.byteplus_modelark_placeholder"
+
+
+def build_agent_contracts(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE) -> List[AgentContract]:
     video_tool_name = resolve_video_tool_name(provider_mode)
     return [
         AgentContract(
@@ -93,7 +97,7 @@ def build_agent_contracts(provider_mode: str = "mock") -> List[AgentContract]:
     ]
 
 
-def build_plan(provider_mode: str = "mock") -> List[TaskSpec]:
+def build_plan(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE) -> List[TaskSpec]:
     video_tool_name = resolve_video_tool_name(provider_mode)
     return [
         TaskSpec("inspect_goal", "Inspect goal, input brief, and tool capabilities", "planner", "workspace.inspect"),

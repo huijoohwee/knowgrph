@@ -47,9 +47,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if cmd in {"superagent", "super-agent", "run-goal"}:
             from . import superagent_harness
             return superagent_harness.main(rest, base_dir=base_dir)
-        if cmd in {"pixverse-smoke"}:
-            from . import pixverse_smoke_cmd
-            return pixverse_smoke_cmd.main(rest, base_dir=base_dir)
         if cmd in {"youtube"}:
             from . import youtube_cmd
             return youtube_cmd.main(rest, parser_script_path=entrypoint)

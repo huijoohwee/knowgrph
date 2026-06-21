@@ -13,18 +13,16 @@ export function testPixVersePrdTadUsesImplementedBaselineOwners(): void {
     readRepoFile('canvas/src/features/panels/views/settingsView.constants.ts'),
     readRepoFile('knowgrph_parser/superagent_harness.py'),
     readRepoFile('knowgrph_parser/superagent_tools.py'),
-    readRepoFile('knowgrph_parser/superagent_pixverse.py'),
   ].join('\n')
 
   const requiredDocTokens = [
     'version: 0.12.1',
     'status: accepted-implemented-baseline',
     'Phase A shipped: MainPanel MCP includes PixVerse MCP readiness through the shared `SettingsView` owner.',
-    'Phase B baseline shipped: `knowgrph_parser` now supports `provider_mode="pixverse"`',
+    'Phase B harness ownership removed: the local SuperAgent harness now defaults to the BytePlus ModelArk placeholder path',
     'MainPanel Integrations and chat-readiness UX now include PixVerse-aware provider affordances through existing settings owners.',
     '`canvas/src/features/panels/views/pixverseMcpApiDocs.ts` | Shipped',
     '`canvas/src/features/panels/views/pixverseVideoGenerationApiDocs.ts` | Shipped',
-    '`knowgrph_parser/superagent_pixverse.py` | Shipped',
     'Flow Editor, Storyboard, and Animatic consume shared graph/media fields only.',
   ]
   for (const token of requiredDocTokens) {
@@ -37,10 +35,8 @@ export function testPixVersePrdTadUsesImplementedBaselineOwners(): void {
     'PIXVERSE_MCP_DOC_AREA',
     'PIXVERSE_VIDEO_GENERATION_DOC_ROWS',
     'buildPixVerseLocalMcpConfigJson',
-    'provider_mode="pixverse"',
-    '"video.generate.pixverse"',
-    'PixVerseMcpStdioClient',
-    'run_pixverse_text_to_video',
+    'video.generate.byteplus_modelark_placeholder',
+    'byteplus-modelark',
   ]
   for (const token of requiredOwnerTokens) {
     if (!ownerText.includes(token)) {
@@ -59,6 +55,9 @@ export function testPixVersePrdTadUsesImplementedBaselineOwners(): void {
     'Add a new PixVerse execution path additively',
     'harness remains mock-only for video',
     'Shipped vs proposed states',
+    ['provider_mode="', 'pixverse"'].join(''),
+    ['video.generate.', 'pixverse'].join(''),
+    ['superagent_', 'pixverse.py'].join(''),
   ]
   for (const token of staleDocTokens) {
     if (doc.includes(token)) {

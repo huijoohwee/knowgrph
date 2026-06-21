@@ -81,8 +81,6 @@
     "check": "npm run check --workspace=@knowgrph/canvas",
     "test": "npm run test:ci --workspace=@knowgrph/canvas",
     "superagent:example": "python3 -m knowgrph_parser superagent --input knowgrph_parser/fixtures/superagent-neutral.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example",
-    "superagent:pixverse:smoke": "python3 -m knowgrph_parser pixverse-smoke --print-summary",
-    "pixverse:readiness:e2e": "python3 canvas/scripts/validate_pixverse_readiness_e2e.py",
     "goal:run": "python3 -m knowgrph_parser run-goal --input knowgrph_parser/fixtures/superagent-neutral.md --goal-file goal --output-dir data/outputs/goal-run-current --run-id goal-run-current --print-summary",
     "superagent:test": "python3 -m unittest knowgrph_parser.superagent_harness_test",
     "pipeline": "python3 -m knowgrph_parser pipeline",

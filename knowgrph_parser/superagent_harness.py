@@ -20,7 +20,7 @@ from .superagent_contracts import (
     ToolRegistry,
     TraceWriter,
 )
-from .superagent_plan import build_agent_contracts, build_plan, parse_goal_contract
+from .superagent_plan import DEFAULT_SUPERAGENT_PROVIDER_MODE, build_agent_contracts, build_plan, parse_goal_contract
 from .superagent_proof_manifest import ensure_harness_proof_manifest_artifact, write_harness_proof_manifest
 from .superagent_renderers import render_final_report
 from .superagent_tools import build_default_tool_registry
@@ -35,7 +35,7 @@ class SuperAgentHarness:
         goal_text: str,
         run_id: str,
         budget: RunBudget,
-        provider_mode: str = "mock",
+        provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
         resume: bool = False,
         stop_after_step: int = 0,
         fail_once_tools: Optional[Iterable[str]] = None,
@@ -335,7 +335,7 @@ class SuperAgentHarness:
             }
         if task.tool_name == "image.generate.mock":
             return {**common, "text_plan": memory.get("generate_text") or {}}
-        if task.tool_name in {"video.generate.mock", "video.generate.pixverse"}:
+        if task.tool_name in {"video.generate.mock", "video.generate.byteplus_modelark_placeholder"}:
             return {
                 **common,
                 "text_plan": memory.get("generate_text") or {},
@@ -409,7 +409,7 @@ def run_harness(
     goal_text: str,
     run_id: str,
     budget: Optional[RunBudget] = None,
-    provider_mode: str = "mock",
+    provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
     resume: bool = False,
     stop_after_step: int = 0,
     fail_once_tools: Optional[Iterable[str]] = None,
@@ -434,7 +434,12 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: Optional[str] = None
     parser.add_argument("--goal-file", default="", help="Path to the goal contract. Defaults to ./goal when present.")
     parser.add_argument("--output-dir", default="", help="Directory for state, trace, and artifacts.")
     parser.add_argument("--run-id", default="", help="Stable run id. Defaults to a timestamped id.")
-    parser.add_argument("--provider-mode", default="mock", choices=["mock", "pixverse"], help="Media provider mode. Supports deterministic mock and PixVerse MCP with mock fallback.")
+    parser.add_argument(
+        "--provider-mode",
+        default=DEFAULT_SUPERAGENT_PROVIDER_MODE,
+        choices=[DEFAULT_SUPERAGENT_PROVIDER_MODE, "mock"],
+        help="Media provider mode. Defaults to a BytePlus ModelArk placeholder; mock remains deterministic.",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume from output-dir/state.json.")
     parser.add_argument("--stop-after-step", type=int, default=0, help="Checkpoint after N completed tasks, then stop as interrupted.")
     parser.add_argument("--fail-once", action="append", default=[], help="Inject one retryable failure for the named tool.")

@@ -238,9 +238,9 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
           providerMode: {
             type: "string",
-            enum: ["mock", "pixverse"],
-            default: "mock",
-            description: "Optional media provider mode. mock is deterministic; pixverse uses local PixVerse MCP with mock fallback.",
+            enum: ["byteplus-modelark", "mock"],
+            default: "byteplus-modelark",
+            description: "Optional media provider mode. byteplus-modelark records the minimal ModelArk MCP placeholder; mock is deterministic.",
           },
           resume: {
             type: "boolean",

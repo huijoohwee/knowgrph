@@ -475,8 +475,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       if (typeof args.providerMode === "string" && args.providerMode.trim()) {
         const providerMode = args.providerMode.trim();
-        if (!["mock", "pixverse"].includes(providerMode)) {
-          throw new Error("providerMode must be mock or pixverse.");
+        if (!["byteplus-modelark", "mock"].includes(providerMode)) {
+          throw new Error("providerMode must be byteplus-modelark or mock.");
         }
         cmdArgs.push("--provider-mode", providerMode);
       }

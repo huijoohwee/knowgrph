@@ -20,7 +20,7 @@ This document describes the Codex-compatible harness implemented by:
 python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
-The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic mock text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The shipped video path now supports either deterministic mock output or local PixVerse MCP execution behind the same typed tool registry without changing the run loop. MainPanel MCP and Integrations also expose a Codex-facing BytePlus ModelArk remote MCP media profile for image generation, audio-for-video generation, and video generation using an operator-supplied Streamable HTTP URL plus host-managed `ARK_API_KEY`.
+The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The default media provider mode is a bare-minimum BytePlus ModelArk placeholder that records the Codex-facing remote MCP server key without performing a live provider call; deterministic `mock` remains available for local tests.
 
 For research-code-create work, this harness is the local artifact loop and Codex
 goal bridge, not a deployed public mutation API. Research and review-heavy
@@ -35,7 +35,7 @@ and shared Rich Media Panel owners.
 |---|---|---|
 | Message gateway | `/goal`, `npm run goal:run`, local MCP `knowgrph.superagent.run`, MainPanel/FloatingPanel handoff docs | Local/dev only unless a separate deploy proof exists. |
 | Memory | `state.json`, `trace.jsonl`, `goal.json`, recovery events, observations, source hashes, review audits | Persist run memory as artifacts; do not create unowned global memory files. |
-| Tools | `superagent_tools.py`, `superagent_pixverse.py`, local MCP tool contract, Source Files, rich-media runtime, BytePlus ModelArk MCP setup docs | Register typed tools once; do not fork renderer/provider-specific tool stacks. |
+| Tools | `superagent_tools.py`, local MCP tool contract, Source Files, rich-media runtime, BytePlus ModelArk MCP setup docs | Register typed tools once; do not fork renderer/provider-specific tool stacks. |
 | Skills | `skill.select`, current tool registry, optional frontmatter skill hints | Select progressively by task need; do not bulk-copy external skill packs or pin repo-path catalogs. |
 | Subagents | Role-scoped `AgentContract` entries for planner, research, code, text, image, video, canvas, verifier, and synthesizer workers | Keep scoped context, tools, completion signal, and artifact responsibility explicit. |
 | Sandbox/workspace | Per-run output directory under `data/outputs/*` or caller-provided output path; generated code executes with `python` argv, bounded timeout, and no shell invocation | Keep uploads/workspace/outputs separated; do not hardcode absolute repo paths. |
@@ -55,9 +55,9 @@ and shared Rich Media Panel owners.
   tree and executes it inside a bounded local sandbox directory, recording the
   code file, stdout/stderr, return code, and sandbox result artifact.
 - Create: generate Text, Image, Video, Chart, and Rich Media Panel artifacts
-  through the typed local harness and shared media owners. Codex-facing
-  BytePlus MCP media rows are setup/readiness guidance for an external
-  operator-selected remote MCP server, not a second renderer.
+  through the typed local harness and shared media owners. The default
+  BytePlus ModelArk mode is a placeholder contract for the operator-selected
+  remote MCP server, not a live provider implementation.
 - Long horizon: keep every run bounded by explicit step, retry, wall-clock,
   tool, and review limits; resumability is checkpointed through state and trace
   artifacts.
@@ -73,7 +73,6 @@ and shared Rich Media Panel owners.
 - `superagent_contracts.py`: dataclasses, error taxonomy, layout constants, registry, and trace writer.
 - `superagent_plan.py`: agent contracts, task plan, and goal parsing; current task order is `inspect_goal -> select_skills -> research_goal -> code_sandbox -> generate_text -> generate_image -> generate_video -> compose_canvas -> verify_outputs -> synthesize_report`.
 - `superagent_tools.py`: workspace, skill, research, code/sandbox, text, image, video, canvas, and report tools.
-- `superagent_pixverse.py`: local PixVerse MCP stdio adapter, bounded polling, upload-safe reference-image handling, constrained `fusion_video` composition, automated local uploaded-media handoff, optional bounded `extend_video` chaining, optional `lip_sync_video` and `sound_effect_video` post-processing, and fallback-safe live video orchestration.
 - `canvas/src/features/panels/views/byteplusModelArkMcpApiDocs.ts`: BytePlus ModelArk remote MCP setup rows for MainPanel MCP and Integrations, including Codex `mcp add` placeholder command, media profile, `ARK_API_KEY` env naming, and image/audio-for-video/video documentation links.
 - `superagent_verifier.py`: deterministic artifact, graph, layout, trace, and provenance checks.
 - `superagent_renderers.py`: markdown, SVG, HTML, canvas graph, workspace, and report rendering helpers.
@@ -122,23 +121,6 @@ A completed run writes:
 - `artifacts/responsive/responsive-proof.json`
 - `artifacts/workspace/rich-media-flow.md`
 
-When `provider_mode="pixverse"` resolves live instead of fallback, the video artifact set also includes:
-
-- `artifacts/video/pixverse-video.html`
-- `artifacts/video/pixverse-video.json`
-- `artifacts/video/pixverse-reference-upload.png`
-- `artifacts/video/pixverse-transition-last-frame.png` for multi-scene transition runs
-
-The PixVerse manifest records:
-
-- `base_generation_mode` for the initial generation tool (`text_to_video`, `image_to_video`, `transition_video`, or `fusion_video`)
-- `generation_mode` for the final resolved tool, including `extend_video`, `lip_sync_video`, or `sound_effect_video` when additive post-processing is used
-- `extension_count` and `extension_chain` for continuation provenance
-- `request.fusion_references` when the constrained fusion path derives hero/world/support image references for `fusion_video`
-- `lip_sync` for optional TTS or custom-audio narration augmentation provenance, including video mode, uploaded video media id when present, local upload sources when present, mode, audio media id, speaker id, text, submission, and final status
-- `sound_effect` for optional audio augmentation provenance, including mode, uploaded video media id when present, local upload sources when present, prompt, original-audio retention, submission, and final status
-- `uploads` for upload-safe reference images plus any automated uploaded-video or uploaded-audio MCP resource records used by the live PixVerse run
-
 ## Resume And Recovery
 
 Checkpoint a run:
@@ -156,87 +138,15 @@ python3 -m knowgrph_parser superagent --resume --output-dir data/outputs/superag
 Exercise bounded recovery:
 
 ```bash
-python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-retry --run-id superagent-retry --fail-once video.generate.mock
+python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-retry --run-id superagent-retry --fail-once video.generate.byteplus_modelark_placeholder
 ```
-
-Run a real-local PixVerse smoke path:
-
-```bash
-PIXVERSE_API_KEY=... npm run superagent:pixverse:smoke
-```
-
-Optional constrained fusion generation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --strategy fusion-video
-```
-
-The smoke command uses the shipped local PixVerse MCP stdio adapter, requires a live PixVerse result by default, and fails if the run silently falls back to mock output unless `--allow-fallback` is provided.
-
-Optional sound-effect augmentation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Gentle ocean waves, seagull calls, soft wind"
-```
-
-Optional uploaded-video sound-effect augmentation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Urban traffic, footsteps, city ambiance" --sound-effect-video-media-id "66666"
-```
-
-Optional TTS lip-sync augmentation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-speaker-id "speaker_001" --lip-sync-text "Welcome to our amazing video tutorial"
-```
-
-Optional custom-audio lip-sync augmentation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-audio-media-id "44444"
-```
-
-Optional uploaded-video lip-sync augmentation stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-speaker-id "speaker_001" --lip-sync-text "Welcome to our uploaded video tutorial" --lip-sync-video-media-id "77777"
-```
-
-Optional uploaded-video custom-audio lip-sync with automated local media upload stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --lip-sync-video-file /absolute/path/to/video.mp4 --lip-sync-audio-file /absolute/path/to/audio.wav
-```
-
-Optional uploaded-video sound-effect augmentation with automated local media upload stays on the same smoke path:
-
-```bash
-PIXVERSE_API_KEY=... python3 -m knowgrph_parser pixverse-smoke --sound-effect-prompt "Urban traffic, footsteps, city ambiance" --sound-effect-video-file /absolute/path/to/video.mp4
-```
-
-The current safe additive path keeps `lip_sync_video` and `sound_effect_video` mutually exclusive per run to avoid conflicting downstream audio ownership.
-
-Run the focused browser-side PixVerse readiness check against a running local dev server:
-
-```bash
-python3 canvas/scripts/validate_pixverse_readiness_e2e.py
-```
-
-Or use the npm shortcut:
-
-```bash
-npm run pixverse:readiness:e2e
-```
-
-The browser check opens the real Settings -> Integrations surface, verifies PixVerse readiness controls and docs visibility, and asserts that strategy toggles update the live `integrationConfigsJson` state without introducing a parallel PixVerse-only settings path.
 
 ## Codex And MCP
 
 Codex can run the harness directly from `/goal` using `superagent` or the equivalent `run-goal` CLI alias. The local setup guide is [knowgrph-codex-goal-setup.md](knowgrph-codex-goal-setup.md), and the repo-owned goal loop is also available as `npm run goal:run`.
 
-For BytePlus media generation, Codex should use the MainPanel MCP or Integrations row `byteplusModelArkMcp.remote_config.codex`. The row emits `codex mcp add byteplus-modelark-media --url '<REMOTE_MCP_STREAMABLE_HTTP_URL>'`; the URL comes from the operator-selected BytePlus cloud-deployed MCP or remote MCP details page, while `ARK_API_KEY` stays in the MCP host environment. The companion `byteplusModelArkMcp.media.profile` row documents image generation, audio-for-video generation through `generate_audio` and audio inputs, and video generation without claiming a standalone audio-only output API.
+For BytePlus media generation, Codex should use the MainPanel MCP or Integrations row `byteplusModelArkMcp.remote_config.codex`. The row emits `codex mcp add byteplus-modelark-media --url '<REMOTE_MCP_STREAMABLE_HTTP_URL>'`; the URL comes from the operator-selected BytePlus cloud-deployed MCP or remote MCP details page, while `ARK_API_KEY` stays in the MCP host environment. The harness default records that placeholder server key in generated video metadata and keeps the provider call unexecuted until an operator supplies the remote MCP endpoint.
 
 MCP clients can call `knowgrph.superagent.run`, which wraps the same command and returns the trace, state, report, canvas artifact paths, and workspace frontmatter-flow artifact. The local stdio MCP tool contract is owned upstream by [local-tool-contract.js](../../mcp/local-tool-contract.js); usage and surface boundaries live in [README.md](../../mcp/README.md), [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md), and the planned Agentic OS dashboard contract in [knowgrph-mcp-agentic-os-prd-tad.md](knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md).
 
-Baseline validation remains offline and deterministic for mock runs. PixVerse live validation adds a focused local smoke path through `python3 -m knowgrph_parser pixverse-smoke` or `npm run superagent:pixverse:smoke`, while the static responsive proof still covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.
+Baseline validation remains offline and deterministic for `byteplus-modelark` placeholder and `mock` runs. The static responsive proof still covers `320x640`, `390x844`, `768x1024`, `1366x768`, and `1920x1080` classes before browser-specific smoke checks are layered on top.

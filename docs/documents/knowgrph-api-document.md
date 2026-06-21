@@ -32,7 +32,7 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 
 - CLI: `python3 -m knowgrph_parser superagent` or `python3 -m knowgrph_parser run-goal`
 - MCP tool: `knowgrph.superagent.run`
-- Purpose: run the bounded long-horizon research/code/create artifact loop across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` task levels with typed provider contracts, `skill.select`, `research.scout`, `code.write_and_run`, bounded sandbox execution, trace persistence, artifact provenance, run memory, resume, verification, deterministic mock providers, optional local PixVerse MCP `providerMode`, and mobile-first responsive workspace metadata.
+- Purpose: run the bounded long-horizon research/code/create artifact loop across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` task levels with typed provider contracts, `skill.select`, `research.scout`, `code.write_and_run`, bounded sandbox execution, trace persistence, artifact provenance, run memory, resume, verification, default BytePlus ModelArk placeholder media metadata, deterministic mock mode, and mobile-first responsive workspace metadata.
 - Implementation: [superagent_harness.py](../../knowgrph_parser/superagent_harness.py), local stdio transport in [server.js](../../mcp/server.js), and local MCP tool-contract ownership in [local-tool-contract.js](../../mcp/local-tool-contract.js)
 - Boundary: DeerFlow is conceptual inspiration only for message gateway, memory, tools, skills, subagents, sandboxed workspace artifacts, and minutes-to-hours runs. The API docs must not copy DeerFlow code, clone its architecture, or describe the local harness as a deployed Pages/WebMCP mutation route.
 - Contract source: [README.md](../../mcp/README.md) and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md)
@@ -258,7 +258,7 @@ All credentials are operator-supplied. No credential literal appears in source f
 | GrabMaps MCP | Bearer token | `KNOWGRPH_GRABMAPS_MCP_TOKEN` on the MCP host process | No browser path | Never |
 | Stripe Checkout and webhook | Restricted or secret API key | Worker secret `STRIPE_RESTRICTED_KEY` or `STRIPE_SECRET_KEY` on `knowgrph-payment` | No | Never |
 | Solana Pay settlement | RPC URL or private binding | Worker secret/private binding `SOLANA_PAY_RPC_URL` on `knowgrph-payment` | No | Never |
-| PixVerse SuperAgent provider mode | MCP/provider credential | Local MCP/provider host environment | No browser path | Never |
+| BytePlus ModelArk SuperAgent placeholder | MCP/provider credential | Local MCP/provider host environment, when an operator supplies a remote MCP endpoint | No browser path | Never |
 | VideoDB API and MCP | Bearer API key | `VIDEODB_API_KEY` on the server integration proxy or MCP host process | No browser path | Never |
 | SenseNova API | HMAC-SHA256 signed JWT source credential | `SENSENOVA_API_KEY` on the server integration proxy | No browser path | Never |
 

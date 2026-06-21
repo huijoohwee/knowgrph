@@ -27,9 +27,9 @@ Sec 1-7 define the PRD, Sec 8-15 define the TAD, Sec 16 maps traceability, and S
 ## Implementation Status
 
 - Phase A shipped: MainPanel MCP includes PixVerse MCP readiness through the shared `SettingsView` owner.
-- Phase B baseline shipped: `knowgrph_parser` now supports `provider_mode="pixverse"` using local PixVerse MCP stdio with `text_to_video`, `image_to_video`, `transition_video`, `fusion_video`, `extend_video`, `lip_sync_video` for generated clips and uploaded `video_media_id` with TTS plus custom-audio on generated clips and uploaded videos, `sound_effect_video` for generated clips and uploaded `video_media_id`, `upload_image`, automated local uploaded-video handoff, adaptive automated local audio upload when the PixVerse MCP build exposes an audio upload tool, and `get_video_status`, plus local preview/manifest artifacts and mock fallback when local config or live generation is unavailable.
+- Phase B harness ownership removed: the local SuperAgent harness now defaults to the BytePlus ModelArk placeholder path and no longer ships a PixVerse provider mode.
 - MainPanel Integrations and chat-readiness UX now include PixVerse-aware provider affordances through existing settings owners.
-- The local SuperAgent harness boundary follows `docs/documents/knowgrph-superagent-harness.md`: PixVerse extends native `knowgrph_parser` tool/provider owners, and DeerFlow remains conceptual inspiration or an optional gateway, not copied architecture.
+- The local SuperAgent harness boundary follows `docs/documents/knowgrph-superagent-harness.md`: BytePlus ModelArk placeholder metadata is the default provider-mode contract, and DeerFlow remains conceptual inspiration or an optional gateway, not copied architecture.
 - Focused browser-side readiness coverage now exists for the real Settings -> Integrations flow, validating PixVerse strategy toggles and live browser state.
 - Advanced PixVerse feature coverage such as guaranteed upstream-standard local audio upload exposure across all PixVerse MCP builds remains future additive work.
 
@@ -50,15 +50,15 @@ Knowgrph already ships the shared browser-local E2E path for AI-assisted workspa
 - FloatingPanel Chat already owns the current chat submit workflow.
 - Markdown YAML frontmatter remains the single source of truth for downstream canvas apply.
 - Flow Editor, Storyboard, and Animatic already reuse the shared frontmatter/graph pipeline.
-- The local super-agent harness now supports both `provider_mode="mock"` and `provider_mode="pixverse"`.
-- The PixVerse path is implemented additively at the harness/tool boundary: it launches local PixVerse MCP stdio, uploads reference images when needed, selects `text_to_video`, `image_to_video`, `transition_video`, or constrained `fusion_video`, optionally chains bounded `extend_video`, can apply `lip_sync_video` in TTS mode or custom-audio mode to a generated clip and an uploaded `video_media_id`, can apply `sound_effect_video` to a final generated clip or an uploaded `video_media_id`, can automate local uploaded-video handoff through `upload_video`, can automate local custom-audio handoff when the connected PixVerse MCP exposes `upload_audio` or `upload_media`, polls `get_video_status`, writes local preview/manifest artifacts, and falls back to deterministic mock video when local config or live generation is unavailable.
+- The local super-agent harness now supports `provider_mode="byteplus-modelark"` by default and `provider_mode="mock"` for deterministic test runs.
+- PixVerse is not a local SuperAgent harness provider; PixVerse readiness stays scoped to MainPanel MCP and Integrations documentation.
 
 ### Pain Point
 
 Knowgrph has two remaining PixVerse follow-on gaps today:
 
 1. The shipped Integrations UX is now PixVerse-aware, but richer chat/runtime affordances can still be layered on top of the same settings and chat owners.
-2. The shipped harness PixVerse path now covers text-to-video, image-to-video, transition-video, constrained fusion-video generation, bounded extend-video chaining, optional generated-video TTS lip-sync post-processing, optional generated-video plus custom-audio lip-sync post-processing, optional uploaded-video TTS lip-sync post-processing, optional uploaded-video plus custom-audio lip-sync post-processing, optional generated-video sound-effect post-processing, optional uploaded-video sound-effect post-processing, and automated local uploaded-media handoff at the same harness boundary, but richer PixVerse MCP capabilities remain future additive work.
+2. PixVerse capability rows now stay readiness-only; the SuperAgent harness no longer routes through PixVerse.
 
 ### User Impact
 
@@ -72,7 +72,7 @@ Knowgrph has two remaining PixVerse follow-on gaps today:
 The repo already has the right seams to add PixVerse without creating a duplicate pipeline:
 
 - MainPanel MCP can add a PixVerse MCP readiness section through the same settings-doc machinery already used for Stripe, API-native browser, and GrabMaps MCP.
-- Live PixVerse execution now lives at the harness tool-registry boundary, not in renderer code and not as a second MCP-only markdown-to-canvas path.
+- PixVerse readiness now lives in MainPanel MCP and Integrations documentation, not in renderer code and not as a second MCP-only markdown-to-canvas path.
 - The existing chat -> YAML frontmatter -> canvas apply pipeline can remain the sole browser-local E2E route.
 - Long-horizon research/code/create harness metadata can wrap the run, but it does not create a PixVerse-only renderer, parser, memory layer, or graph apply path.
 
@@ -81,13 +81,13 @@ The repo already has the right seams to add PixVerse without creating a duplicat
 If Knowgrph adds:
 
 - a PixVerse MCP readiness section in MainPanel MCP, and
-- a harness-side PixVerse provider behind the existing super-agent tool boundary,
+- a readiness-only PixVerse configuration surface that does not compete with the SuperAgent BytePlus ModelArk placeholder,
 
 then users will be able to move from MainPanel discovery through chat/frontmatter generation into Flow Editor, Storyboard, and Animatic without introducing stale local schemas, duplicate pipelines, or PixVerse-specific hardcoded demo fixtures.
 
 ### Phase 0 Gate
 
-Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and the local `provider_mode="pixverse"` harness baseline are shipped, while advanced PixVerse work remains planned and additive.
+Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is shipped, while SuperAgent media defaults to the BytePlus ModelArk placeholder path.
 
 ---
 
@@ -101,7 +101,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 - Discover how PixVerse MCP should be configured from inside Knowgrph.
 - Keep chat-driven markdown/frontmatter generation on the existing shared path.
 - Validate that Flow Editor, Storyboard, and Animatic continue to consume provider-neutral graph/media fields.
-- Extend the shipped baseline PixVerse harness path without rewriting the renderer stack.
+- Keep PixVerse readiness outside the SuperAgent harness while preserving renderer neutrality.
 
 ### Persona B - MCP Client / Agent Builder
 
@@ -110,7 +110,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 **Jobs-to-be-done**:
 - Copy an agent-ready PixVerse MCP config snippet from MainPanel MCP.
 - Understand that PixVerse MCP readiness is distinct from Knowgrph's local stdio MCP server.
-- Understand that the readiness card points to the shipped local harness baseline, not a Cloudflare-deployed mutating PixVerse service.
+- Understand that the readiness card is configuration documentation, not a Cloudflare-deployed mutating PixVerse service or a SuperAgent provider mode.
 
 ### Persona C - Renderer / Pipeline Maintainer
 
@@ -133,7 +133,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 | Discover | User reads config snippets and opens the next surface | Shared `SettingsView` | MCP setup is disconnected from chat/canvas workflow | Keep panel CTA routed into FloatingPanel Chat UI |
 | Engage | User works through chat-driven document generation | FloatingPanel Chat UI | Risk of duplicate pipeline design | Reuse existing chat -> KGC -> canvas apply path only |
 | Complete | Markdown YAML frontmatter lands in canvas | Flow Editor / Storyboard / Animatic | Risk of provider-specific renderer forks | Keep provider concerns upstream; renderers stay field-driven |
-| Return | User runs local super-agent harness | `knowgrph_parser` harness | Live local provider still needs fallback-safe operation | Use the shipped PixVerse provider path behind the current tool registry |
+| Return | User runs local super-agent harness | `knowgrph_parser` harness | Provider defaults need one truthful placeholder | Use the BytePlus ModelArk placeholder path |
 
 ---
 
@@ -153,9 +153,9 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 
 `/goal MainPanel MCP readiness code contains a PixVerse MCP settings-doc area wired through existing shared settings owners, and no new panel view is added outside the current MainPanel/SettingsView path`
 
-*AC-2*: Given the PixVerse MCP area is rendered, when the user inspects its rows, then it provides an agent-ready local stdio config snippet and states that the local harness supports `provider_mode="pixverse"` with bounded polling and mock fallback.
+*AC-2*: Given the PixVerse MCP area is rendered, when the user inspects its rows, then it provides an agent-ready local stdio config snippet without claiming SuperAgent harness provider ownership.
 
-`/goal PixVerse MCP settings-doc entries include a local_config JSON snippet and a readiness/status note that documents the shipped `provider_mode="pixverse"` contract plus mock fallback`
+`/goal PixVerse MCP settings-doc entries include a local_config JSON snippet and do not claim a shipped PixVerse SuperAgent provider mode`
 
 *AC-3*: Given the PixVerse MCP area is rendered, when the user uses the section CTA, then the action routes into the existing FloatingPanel Chat UI rather than a new PixVerse-specific panel.
 
@@ -179,19 +179,19 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 
 `/goal the PixVerse PRD/TAD explicitly keeps Flow Editor, Storyboard, and Animatic on shared frontmatter/graph projection rather than provider-specific renderer logic`
 
-### Epic KPV-E3 - Local Harness Provider Integration
+### Epic KPV-E3 - Local Harness Boundary
 
 **Traceability root**: `PRD-KPV-E3`
 
-**Story KPV-E3-S1 - Baseline live provider work is shipped additively and advanced PixVerse work remains additive**
+**Story KPV-E3-S1 - PixVerse does not own the SuperAgent provider boundary**
 
-> As a harness maintainer, I want the PixVerse live-provider path to stay at the super-agent tool boundary, so that the shipped baseline can evolve without rewriting the canvas or MainPanel systems.
+> As a harness maintainer, I want PixVerse readiness to stay out of the SuperAgent provider path, so that the harness can default to the BytePlus ModelArk placeholder without competing provider branches.
 
 **Acceptance Criteria**:
 
-*AC-6*: Given the revised TAD, when PixVerse execution work is described, then it names the shipped baseline `provider_mode="pixverse"` path and keeps future PixVerse capabilities additive in `superagent_harness.py`, `superagent_tools.py`, and related adapter modules.
+*AC-6*: Given the revised TAD, when PixVerse execution work is described, then it does not name a shipped SuperAgent PixVerse provider path.
 
-`/goal the PixVerse PRD/TAD marks the shipped baseline `provider_mode="pixverse"` path as additive harness work and keeps future PixVerse capabilities on the same tool-registry boundary`
+`/goal the PixVerse PRD/TAD states that SuperAgent defaults to the BytePlus ModelArk placeholder path and does not keep PixVerse as a harness provider`
 
 *AC-7*: Given future provider work is implemented, when demo markdown is reviewed, then canonical docs in `huijoohwee/docs/knowgrph-storyboard-demo.md`, `huijoohwee/docs/knowgrph-video-demo.md`, and `huijoohwee/docs/knowgrph-animatic-demo.md` remain provider-neutral and do not hardcode PixVerse-specific fixture URLs as contract requirements.
 
@@ -208,7 +208,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 | **Must** | KPV-E3-S1 Future harness provider work documented as additive | 8.7 | Keeps implementation truth intact and avoids false shipped claims |
 | **Should** | Local stdio config JSON snippet for PixVerse MCP | 7.2 | Improves copy-paste readiness for agent users |
 | **Should** | Explicit provider-neutral demo-doc guardrails | 6.9 | Prevents hardcoded fixture creep across docs/renderers |
-| **Should** | Shipped `provider_mode="pixverse"` path with auto/image-to-video/transition-video strategies plus bounded extend-video | 8.8 | Already implemented with bounded polling, stdio MCP, upload-safe image handling, continuation support, local artifacts, and mock fallback |
+| **Should** | MainPanel PixVerse readiness without SuperAgent provider-mode ownership | 8.8 | Keeps PixVerse documentation visible while the local SuperAgent harness defaults to the BytePlus ModelArk placeholder path |
 | **Won't (this slice)** | Cloudflare-deployed mutating PixVerse video generation service | 1.0 | Out of scope; current MCP surfaces remain local or read-only |
 
 **Min-viable scope**:
@@ -224,7 +224,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 |---|---|---|---|---|
 | PixVerse MCP discoverability in MainPanel MCP | 0 sections | 1 PixVerse MCP area | This slice | Shared settings render includes PixVerse area |
 | Duplicate pipeline count | 0 allowed | 0 | This slice | Docs claim only one browser-local E2E route |
-| False shipped claims in PixVerse doc | Present in v0.1.0 draft | 0 | This slice | Revised doc reflects shipped readiness and shipped baseline harness support accurately |
+| False shipped claims in PixVerse doc | Present in v0.1.0 draft | 0 | This slice | Revised doc reflects shipped readiness without claiming SuperAgent provider ownership |
 | Provider-neutral demo contract drift | At risk | 0 hardcoded PixVerse fixtures required by demo contract | This slice | Revised scope/validation sections forbid provider-specific demo hardcodes |
 | Future harness integration churn | Unknown | Additive only | Future slice | Future implementation touches harness/tool boundary, not renderer ownership |
 
@@ -266,7 +266,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness and
 | Animatic projection | `canvas/src/components/AnimaticCanvas/animaticTimeline.ts` | Shipped |
 | Super-agent harness | `knowgrph_parser/superagent_harness.py` | Shipped |
 | Super-agent tool registry | `knowgrph_parser/superagent_tools.py` | Shipped |
-| Live PixVerse harness provider | `provider_mode="pixverse"` baseline | Shipped |
+| Live PixVerse harness provider | Removed from SuperAgent harness; BytePlus ModelArk placeholder is the default provider-mode contract | Removed |
 
 ---
 
@@ -285,7 +285,7 @@ Add a PixVerse MCP area to the existing MainPanel MCP docs surface.
 - Surface local stdio config guidance.
 - Reuse the shared settings/doc-entry rendering path.
 - Route CTA to FloatingPanel Chat.
-- Document the shipped baseline harness provider contract and keep advanced PixVerse capabilities additive.
+- Document that PixVerse readiness does not own the SuperAgent provider contract and keep advanced PixVerse capability documentation additive.
 
 ### Phase B - Shipped Local Harness Provider
 
@@ -294,7 +294,7 @@ Extend the existing harness/tool-registry boundary without changing renderer own
 **Files**:
 - `knowgrph_parser/superagent_harness.py`
 - `knowgrph_parser/superagent_tools.py`
-- `knowgrph_parser/superagent_pixverse.py`
+- `docs/documents/knowgrph-superagent-harness.md`
 - `knowgrph_parser/superagent_harness_test.py`
 
 **Intent**:
@@ -385,9 +385,8 @@ flowchart TB
 | Parser | Frontmatter flow graph parser | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowBlock.ts` | Shipped | Canonical graph derivation from markdown |
 | Renderer | Storyboard projection | `storyboardModel.ts` | Shipped | Lane/card projection from GraphData |
 | Renderer | Animatic projection | `animaticTimeline.ts` | Shipped | Timeline projection from GraphData + `timeline.*` |
-| Harness | `SuperAgentHarness` | `knowgrph_parser/superagent_harness.py` | Shipped | Mock and PixVerse provider-mode orchestration owner |
-| Harness | `build_default_tool_registry()` | `knowgrph_parser/superagent_tools.py` | Shipped | Registers mock text/image tools plus mock and PixVerse video tools |
-| Harness | PixVerse MCP adapter | `knowgrph_parser/superagent_pixverse.py` | Shipped | Additive stdio MCP bridge with text/image/transition generation, bounded extend-video chaining, upload-safe image handling, and fallback |
+| Harness | `SuperAgentHarness` | `knowgrph_parser/superagent_harness.py` | Shipped | BytePlus ModelArk placeholder and deterministic mock provider-mode orchestration owner |
+| Harness | `build_default_tool_registry()` | `knowgrph_parser/superagent_tools.py` | Shipped | Registers mock text/image tools plus BytePlus placeholder and mock video tools |
 
 ---
 
@@ -402,7 +401,7 @@ flowchart TB
 - Must register through `buildMcpDocEntries()`.
 - Must provide at least one agent-ready local stdio config snippet.
 - Must route section CTA to the existing FloatingPanel Chat UI.
-- Must document the shipped baseline harness contract truthfully and keep advanced PixVerse capability coverage additive.
+- Must document that SuperAgent defaults to the BytePlus ModelArk placeholder and that PixVerse readiness does not own the harness provider path.
 
 **Minimal config snippet shape**:
 
@@ -435,14 +434,13 @@ flowchart TB
 - Flow Editor, Storyboard, and Animatic consume shared graph/media fields only.
 - No PixVerse-specific renderer branch or second apply path is introduced.
 
-### IC-03: Harness Provider Contract
+### IC-03: SuperAgent Provider Boundary
 
-**Interface**: `SuperAgentHarness` -> tool registry -> provider adapter
+**Interface**: `SuperAgentHarness` -> tool registry -> BytePlus ModelArk placeholder
 
 **Contract**:
-- Extend the current registry additively while preserving the shipped mock path and shipped baseline PixVerse path.
-- Preserve mock fallback for zero-key, offline, and CI runs.
-- Keep exact PixVerse MCP tool names rooted in `pixverseVideoGenerationSsot.ts` and `superagent_pixverse.py`; future tools must be validated before documentation.
+- Preserve BytePlus ModelArk placeholder mode and deterministic mock mode.
+- Keep exact PixVerse MCP tool names rooted in `pixverseVideoGenerationSsot.ts`; future tools must be validated before documentation and must not reintroduce SuperAgent provider-mode ownership without a new accepted owner.
 - Emit provider provenance in artifacts/proof only from the harness provider boundary.
 
 ---
@@ -487,25 +485,25 @@ flowchart TB
 
 #### Context
 
-The repo ships shared settings-doc infrastructure for external MCP surfaces and a local harness provider baseline for PixVerse. Both must stay rooted in existing owners so PixVerse does not create a second MainPanel, chat, renderer, or harness stack.
+The repo ships shared settings-doc infrastructure for external MCP surfaces and a local SuperAgent harness that defaults to the BytePlus ModelArk placeholder. PixVerse readiness must stay rooted in existing settings owners so it does not create a second MainPanel, chat, renderer, or harness stack.
 
 #### Decision
 
 Keep Phase A and Phase B in their existing owners:
 - PixVerse MCP readiness in MainPanel MCP,
 - PixVerse-aware Integrations rows in the shared integrations SSOT,
-- `provider_mode="pixverse"` in the local super-agent harness with mock fallback,
-- future advanced PixVerse work as additive changes to the same harness/provider boundary.
+- BytePlus ModelArk placeholder mode in the local super-agent harness,
+- future advanced PixVerse work as readiness-only documentation unless a new accepted SuperAgent owner is introduced.
 
 #### Alternatives Considered
 
-1. **Readiness plus local harness baseline** (chosen): implementation-accurate, uses existing owners, keeps fallback-safe execution.
+1. **Readiness plus BytePlus SuperAgent placeholder** (chosen): implementation-accurate, uses existing owners, keeps fallback-safe execution.
 2. **Separate PixVerse service**: higher surface area, but would duplicate the current local/read-only MCP boundaries.
 3. **Add PixVerse-specific renderer logic**: rejected; conflicts with the shared frontmatter/graph architecture.
 
 #### Rationale
 
-This sequence preserves SSOT and avoids false shipped claims. It delivered the MainPanel MCP readiness slice first, then added a baseline harness PixVerse path without creating a second runtime path.
+This sequence preserves SSOT and avoids false shipped claims. It keeps the MainPanel MCP readiness slice separate from the SuperAgent BytePlus ModelArk placeholder path.
 
 #### Consequences
 
@@ -543,12 +541,12 @@ Keep all PixVerse-specific behavior upstream:
 
 | Attribute | Scenario | Pattern | Validation |
 |---|---|---|---|
-| Implementation truth | PixVerse doc must describe the shipped baseline accurately without overstating unsupported capabilities | Separate shipped baseline vs future advanced capabilities | Review current harness/tool code against doc text |
+| Implementation truth | PixVerse doc must describe readiness accurately without overstating unsupported SuperAgent capabilities | Separate readiness vs provider ownership | Review current harness/tool code against doc text |
 | Reuse | PixVerse readiness must reuse existing MainPanel settings owners | Shared doc-entry + section-meta path | No new panel shell or duplicate launcher added |
 | Pipeline integrity | MainPanel readiness must not fork the browser-local E2E path | Reuse Chat -> frontmatter -> canvas apply | Doc and code show one downstream route only |
 | Renderer neutrality | Demo docs and renderers must remain provider-neutral | Shared media keys and semantic-key helpers only | No required hardcoded PixVerse URLs in canonical demo docs |
 | Security | PixVerse secrets must not move into browser storage | Shell/server-side env placeholders only | Config snippets use placeholder env values only |
-| Future extensibility | Advanced PixVerse work must remain additive | Extend tool registry, preserve mock fallback | Future implementation touches harness/tool boundary only |
+| Future extensibility | Advanced PixVerse work must remain additive | Preserve the BytePlus placeholder and require a new owner before harness routing | Future implementation must not bypass the accepted harness boundary |
 
 ---
 
@@ -557,11 +555,11 @@ Keep all PixVerse-specific behavior upstream:
 | PRD Epic | Story | AC | TAD Component | Interface | `/goal` Condition |
 |---|---|---|---|---|---|
 | E1 | S1 | AC-1 | PixVerse MCP doc entries | IC-01 | `PixVerse MCP settings-doc area is wired through shared MainPanel MCP settings owners` |
-| E1 | S1 | AC-2 | PixVerse local config snippet | IC-01 | `PixVerse MCP entries include local_config JSON and document the shipped `provider_mode="pixverse"` contract plus mock fallback` |
+| E1 | S1 | AC-2 | PixVerse local config snippet | IC-01 | `PixVerse MCP entries include local_config JSON without claiming a SuperAgent provider mode` |
 | E1 | S1 | AC-3 | `MCP_SECTION_META` | IC-01 | `PixVerse MCP section opens existing FloatingPanel Chat UI only` |
 | E2 | S1 | AC-4 | Current owner map + data flows | IC-02 | `PRD/TAD documents the existing browser-local E2E path with no second MCP-only apply path` |
 | E2 | S1 | AC-5 | Renderer/provider boundary | IC-02 | `PRD/TAD keeps renderer ownership provider-neutral and upstreams PixVerse concerns` |
-| E3 | S1 | AC-6 | Harness baseline + future phase | IC-03 | `PRD/TAD states the shipped baseline `provider_mode="pixverse"` path and keeps future PixVerse work additive` |
+| E3 | S1 | AC-6 | Harness boundary | IC-03 | `PRD/TAD states that SuperAgent defaults to BytePlus ModelArk placeholder mode and does not keep PixVerse as a harness provider` |
 | E3 | S1 | AC-7 | Demo-doc guardrails | IC-02 | `PRD/TAD forbids canonical demo docs from depending on hardcoded PixVerse-only URLs or schema drift` |
 
 ---
@@ -575,12 +573,12 @@ Keep all PixVerse-specific behavior upstream:
 - [x] Acceptance criteria are observable and expressible as `/goal`
 - [x] Renderer neutrality and demo-doc hardcode guardrails are explicit
 - [x] MainPanel MCP reuse is specified through existing settings-doc owners
-- [x] Future harness work is additive and mock fallback is preserved
+- [x] Future harness work requires a new accepted owner and the BytePlus placeholder is preserved
 
 **Post-Documentation Review**:
-- [x] Confirm PixVerse MCP local stdio launch shape in shipped MainPanel MCP docs and harness defaults
+- [x] Confirm PixVerse MCP local stdio launch shape in shipped MainPanel MCP docs and BytePlus SuperAgent defaults
 - [ ] Confirm any future PixVerse tool names from provider schema during implementation rather than hardcoding assumptions in docs
-- [x] Add focused harness tests for mock fallback and fake stdio MCP live-path coverage
+- [x] Add focused harness tests for BytePlus placeholder defaults and deterministic mock fallback
 - [ ] Re-run this PRD/TAD version and traceability review when Phase B starts
 
 ---
@@ -590,7 +588,7 @@ Keep all PixVerse-specific behavior upstream:
 | Anti-Pattern | Status | Mitigation |
 |---|---|---|
 | Solution-first PixVerse rollout | Yes | Current repo truth and pain points documented first |
-| False shipped claims | Yes | Shipped local readiness/provider baseline and planned advanced work are separated |
+| False shipped claims | Yes | Shipped local readiness and BytePlus SuperAgent provider ownership are separated |
 | Duplicate markdown-to-canvas path | Yes | Existing browser-local E2E route remains canonical |
 | Renderer-specific provider logic | Yes | Provider concerns stay upstream of GraphData projection |
 | Hardcoded PixVerse demo fixtures as contract | Yes | Demo docs remain provider-neutral; shared media keys stay canonical |
@@ -598,4 +596,4 @@ Keep all PixVerse-specific behavior upstream:
 
 ---
 
-*Document version 0.12.1 - implementation-accurate baseline for shipped PixVerse MCP readiness, shipped PixVerse-aware Integrations UX, shipped browser-side readiness validation, and shipped harness support for `text_to_video`, `image_to_video`, `transition_video`, `fusion_video`, `extend_video`, `lip_sync_video` on generated clips and uploaded `video_media_id` in TTS mode plus custom-audio on generated clips and uploaded videos, `sound_effect_video` for generated clips and uploaded `video_media_id`, automated local uploaded-media handoff, and `get_video_status`. Apply semantic versioning on every change. Update `/goal` conditions in Sec 16 whenever acceptance criteria in Sec 4 change. Re-verify upstream PixVerse MCP tool schema before expanding into fully standardized audio-upload exposure across all PixVerse MCP builds.*
+*Document version 0.12.1 - implementation-accurate baseline for shipped PixVerse MCP readiness, shipped PixVerse-aware Integrations UX, browser-side readiness validation, and removed SuperAgent PixVerse provider ownership. Apply semantic versioning on every change. Update `/goal` conditions in Sec 16 whenever acceptance criteria in Sec 4 change. Re-verify upstream PixVerse MCP tool schema before expanding PixVerse readiness documentation.*

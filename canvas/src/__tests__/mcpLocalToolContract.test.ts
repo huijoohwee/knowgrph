@@ -260,8 +260,16 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   if (!superagentTool.inputSchema.properties?.providerMode) {
     throw new Error('expected SuperAgent tool schema to expose providerMode')
   }
-  if (!String(superagentTool.inputSchema.properties.providerMode.description || '').includes('PixVerse MCP with mock fallback')) {
-    throw new Error(`expected SuperAgent providerMode to document PixVerse fallback, got ${JSON.stringify(superagentTool.inputSchema.properties.providerMode)}`)
+  const providerMode = superagentTool.inputSchema.properties.providerMode as {
+    default?: string
+    enum?: string[]
+    description?: string
+  }
+  if (providerMode.default !== 'byteplus-modelark' || JSON.stringify(providerMode.enum) !== JSON.stringify(['byteplus-modelark', 'mock'])) {
+    throw new Error(`expected SuperAgent providerMode to default to BytePlus ModelArk placeholder, got ${JSON.stringify(providerMode)}`)
+  }
+  if (!String(providerMode.description || '').includes('ModelArk MCP placeholder')) {
+    throw new Error(`expected SuperAgent providerMode to document BytePlus ModelArk placeholder, got ${JSON.stringify(providerMode)}`)
   }
 
   const vdeoxplnTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList)

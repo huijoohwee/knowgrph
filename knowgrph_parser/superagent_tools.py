@@ -5,7 +5,6 @@ import sys
 from typing import Any, List, Optional, Tuple
 
 from .common import read_text, sha256_text, utc_now_iso, write_json, write_text
-from .superagent_pixverse import run_pixverse_text_to_video
 from .superagent_contracts import (
     BALANCED_LAYOUT_ID,
     ERROR_CONFIG,
@@ -133,13 +132,13 @@ def build_default_tool_registry(harness: Any) -> ToolRegistry:
     )
     registry.register(
         ToolDefinition(
-            "video.generate.pixverse",
-            "Generate a PixVerse-backed video artifact through the official stdio MCP server with bounded polling and mock fallback.",
+            "video.generate.byteplus_modelark_placeholder",
+            "Record a minimal BytePlus ModelArk media-generation placeholder and emit deterministic local video output.",
             {"text_plan": "object", "image_result": "object", "artifacts_dir": "string", "run_id": "string", "step_id": "string"},
             {},
-            180,
-            [ERROR_CONFIG, ERROR_RETRYABLE],
-            tool_video_generate_pixverse,
+            30,
+            [ERROR_RETRYABLE],
+            tool_video_generate_byteplus_modelark_placeholder,
         )
     )
     registry.register(
@@ -674,29 +673,29 @@ def tool_video_generate_mock(payload: JsonDict) -> JsonDict:
     }
 
 
-def tool_video_generate_pixverse(payload: JsonDict) -> JsonDict:
-    try:
-        return run_pixverse_text_to_video(payload=payload)
-    except HarnessError as error:
-        fallback = tool_video_generate_mock(payload)
-        video = fallback.get("video") if isinstance(fallback.get("video"), dict) else {}
-        if video:
-            video["requested_provider_mode"] = "pixverse"
-            video["provider_mode_resolved"] = "mock"
-            video["provider_status"] = "fallback"
-            video["fallback_kind"] = error.kind
-            video["fallback_reason"] = error.message
-        for artifact in fallback.get("artifacts") or []:
-            if not isinstance(artifact, dict):
-                continue
-            metadata = artifact.get("metadata") if isinstance(artifact.get("metadata"), dict) else {}
-            metadata.update({
-                "requested_provider_mode": "pixverse",
-                "provider_mode_resolved": "mock",
-                "fallback_kind": error.kind,
-            })
-            artifact["metadata"] = metadata
-        return fallback
+def tool_video_generate_byteplus_modelark_placeholder(payload: JsonDict) -> JsonDict:
+    result = tool_video_generate_mock(payload)
+    video = result.get("video") if isinstance(result.get("video"), dict) else {}
+    if video:
+        video["requested_provider_mode"] = "byteplus-modelark"
+        video["provider"] = "byteplus-modelark"
+        video["provider_mode_resolved"] = "byteplus-modelark"
+        video["provider_status"] = "placeholder"
+        video["model"] = "operator-selected-modelark-video-model"
+        video["remote_mcp_server"] = "byteplus-modelark-media"
+        video["placeholder"] = True
+    for artifact in result.get("artifacts") or []:
+        if not isinstance(artifact, dict):
+            continue
+        metadata = artifact.get("metadata") if isinstance(artifact.get("metadata"), dict) else {}
+        metadata.update({
+            "requested_provider_mode": "byteplus-modelark",
+            "provider_mode_resolved": "byteplus-modelark",
+            "remote_mcp_server": "byteplus-modelark-media",
+            "placeholder": True,
+        })
+        artifact["metadata"] = metadata
+    return result
 
 
 def tool_canvas_write(payload: JsonDict) -> JsonDict:

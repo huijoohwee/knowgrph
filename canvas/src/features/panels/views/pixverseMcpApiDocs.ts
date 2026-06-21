@@ -131,7 +131,7 @@ const PIXVERSE_MCP_DOC_ROWS: ReadonlyArray<PixVerseMcpDocRow> = [
     typeLabel: 'object',
     value: buildPixVerseLocalMcpConfigJson({}),
     responsibility: 'Agent-ready mcpServers JSON for a local PixVerse MCP server.',
-    notes: 'Knowgrph now supports `provider_mode="pixverse"` in the local harness through PixVerse MCP stdio, with bounded polling and mock fallback when local config or live generation is unavailable.',
+    notes: 'This readiness row documents local PixVerse MCP setup only; the local SuperAgent harness defaults to the BytePlus ModelArk placeholder path.',
     searchHints: ['local config', 'mcpServers', 'pixverse', 'uvx pixverse-mcp'],
   },
   {
@@ -144,10 +144,10 @@ const PIXVERSE_MCP_DOC_ROWS: ReadonlyArray<PixVerseMcpDocRow> = [
   {
     key: 'readiness_scope',
     typeLabel: 'readiness',
-    value: 'provider_mode_pixverse',
+    value: 'mainpanel_pixverse_mcp_readiness',
     responsibility: 'States the current scope boundary for PixVerse in Knowgrph.',
     notes: 'Prevents false renderer ownership claims and forbids a second MCP-only markdown-to-canvas path.',
-    searchHints: ['readiness', 'chat pipeline', 'provider_mode pixverse'],
+    searchHints: ['readiness', 'chat pipeline', 'pixverse mcp'],
   },
 ]
 

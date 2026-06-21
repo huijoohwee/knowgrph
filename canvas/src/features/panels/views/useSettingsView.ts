@@ -1288,7 +1288,7 @@ export function useSettingsView({
         },
         {
           title: PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
-          searchIndex: normalizeText('PixVerse Video Generation local harness mcp stdio provider_mode pixverse image-to-video transition-video'),
+          searchIndex: normalizeText('PixVerse Video Generation mcp readiness image-to-video transition-video'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
