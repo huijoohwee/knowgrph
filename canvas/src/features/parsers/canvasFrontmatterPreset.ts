@@ -41,6 +41,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
   const canvasSurfaceMode = readSurface(raw.canvasSurfaceMode)
   const canvasRenderMode = readMode2d3d(raw.canvasRenderMode)
   const canvas2dRenderer = resolveCanvas2dRendererId(raw.canvas2dRenderer)
+  const videoSequenceTimelineEnabled = readBool(raw.videoSequenceTimelineEnabled)
   const canvas3dMode = raw.canvas3dMode == null ? undefined : normalizeCanvas3dMode(raw.canvas3dMode)
   const documentSemanticMode = readSemantic(raw.documentSemanticMode)
   const frontmatterModeEnabled = readBool(raw.frontmatterModeEnabled)
@@ -51,6 +52,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     canvasSurfaceMode === undefined &&
     canvasRenderMode === undefined &&
     canvas2dRenderer === undefined &&
+    videoSequenceTimelineEnabled === undefined &&
     canvas3dMode === undefined &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
@@ -64,6 +66,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     canvasSurfaceMode,
     canvasRenderMode,
     canvas2dRenderer,
+    videoSequenceTimelineEnabled,
     canvas3dMode,
     documentSemanticMode,
     frontmatterModeEnabled,
@@ -181,7 +184,10 @@ export function applyCanvasFrontmatterPreset(args: {
   })
   const documentStructureBaselineLock =
     preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
-  const canvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
+  const videoSequenceTimelineEnabled = preset?.videoSequenceTimelineEnabled === true
+  const canvas2dRenderer = videoSequenceTimelineEnabled
+    ? 'media'
+    : (preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer)
   const flowEditorLandingRequested =
     isFlowEditorCanvas2dRenderer(canvas2dRenderer) &&
     (surfacePreset.canvasRenderMode ?? store.canvasRenderMode) === '2d'
@@ -253,6 +259,25 @@ export function applyCanvasFrontmatterPreset(args: {
       }
       current.setCanvas2dRenderer(canvas2dRenderer)
       if (useGraphStore.getState().canvas2dRenderer === canvas2dRenderer) changed = true
+    }
+  }
+  if (videoSequenceTimelineEnabled) {
+    const current = useGraphStore.getState()
+    if (current.bottomSurfaceTab !== 'timeline') {
+      current.setBottomSurfaceTab('timeline')
+      changed = true
+    }
+    if (current.bottomSurfaceCollapsed === true) {
+      current.setBottomSurfaceCollapsed(false)
+      changed = true
+    }
+    if (current.floatingPanelView !== 'timeline') {
+      current.setFloatingPanelView('timeline')
+      changed = true
+    }
+    if (current.floatingPanelOpen !== true) {
+      current.setFloatingPanelOpen(true)
+      changed = true
     }
   }
 

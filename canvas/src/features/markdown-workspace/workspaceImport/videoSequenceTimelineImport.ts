@@ -1,0 +1,161 @@
+import { hashText } from '@/features/parsers/hash'
+import { inferCorpusMediaKind, type CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
+import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import { yamlQuote } from './yaml'
+
+export type VideoSequenceImportAsset = {
+  workspacePath?: string | null
+  relativePath?: string | null
+  originalName: string
+  sourceUrl?: string | null
+  mimeHint?: string | null
+  byteSize?: number | null
+  importMode: CorpusSourceUnit['provenance']['importMode']
+}
+
+const VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES = 5
+const VIDEO_SEQUENCE_DOCUMENT_SUFFIX = 'video-sequence.timeline.md'
+
+const cleanInline = (value: unknown): string => String(value || '').replace(/\s+/g, ' ').trim()
+
+const cleanPath = (value: unknown): string => String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
+
+const stripExtension = (name: string): string => String(name || '').replace(/\.[a-z0-9]+$/i, '').trim()
+
+const sanitizeFilenamePart = (value: unknown): string => {
+  const safe = cleanInline(value)
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+  return safe || 'video'
+}
+
+const sanitizeMermaidLabel = (value: unknown, fallback: string): string => {
+  const label = cleanInline(value)
+    .replace(/[:|#]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return label || fallback
+}
+
+const formatTimelineClock = (minutesRaw: number): string => {
+  const minutes = Math.max(0, Math.floor(Number(minutesRaw) || 0))
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+}
+
+const buildClipId = (asset: VideoSequenceImportAsset, index: number): string => {
+  const signature = [
+    asset.workspacePath,
+    asset.relativePath,
+    asset.sourceUrl,
+    asset.originalName,
+    asset.byteSize,
+    index,
+  ].map(value => String(value || '')).join(':')
+  return `clip_${hashText(signature).slice(0, 10)}`
+}
+
+const buildClipLaneId = (clipId: string, lane: 'video' | 'mask' | 'grade' | 'audio'): string => {
+  return lane === 'video' ? clipId : `${clipId}_${lane}`
+}
+
+export function isVideoSequenceImportAsset(asset: VideoSequenceImportAsset | null | undefined): boolean {
+  if (!asset) return false
+  return inferCorpusMediaKind(asset.originalName || asset.relativePath || asset.sourceUrl || '', asset.mimeHint) === 'video'
+}
+
+export function buildVideoSequenceWorkspaceDocumentName(assetsRaw: ReadonlyArray<VideoSequenceImportAsset>): string {
+  const assets = assetsRaw.filter(isVideoSequenceImportAsset)
+  const first = assets[0] || null
+  const base = first ? sanitizeFilenamePart(stripExtension(first.originalName || first.relativePath || first.sourceUrl || 'video')) : 'video'
+  const prefix = assets.length > 1 ? `${base}-sequence` : base
+  return `${prefix}.${VIDEO_SEQUENCE_DOCUMENT_SUFFIX}`
+}
+
+export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArray<VideoSequenceImportAsset>): string {
+  const assets = assetsRaw.filter(isVideoSequenceImportAsset)
+  const clips = assets.map((asset, index) => ({
+    asset,
+    clipId: buildClipId(asset, index),
+    index,
+    label: sanitizeMermaidLabel(asset.originalName || asset.relativePath || asset.sourceUrl, `Video clip ${index + 1}`),
+    startMinutes: index * VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES,
+  }))
+  const sourceLines = clips.flatMap(clip => {
+    const asset = clip.asset
+    const lines = [
+      `  - id: ${yamlQuote(clip.clipId)}`,
+      `    originalName: ${yamlQuote(cleanInline(asset.originalName) || clip.label)}`,
+      `    relativePath: ${yamlQuote(cleanPath(asset.relativePath || asset.originalName || asset.sourceUrl || clip.label))}`,
+      `    importMode: ${yamlQuote(asset.importMode)}`,
+    ]
+    const workspacePath = normalizeWorkspacePath(asset.workspacePath || '')
+    if (workspacePath) lines.push(`    workspacePath: ${yamlQuote(workspacePath)}`)
+    const sourceUrl = cleanInline(asset.sourceUrl)
+    if (sourceUrl) lines.push(`    sourceUrl: ${yamlQuote(sourceUrl)}`)
+    const mimeHint = cleanInline(asset.mimeHint)
+    if (mimeHint) lines.push(`    mimeHint: ${yamlQuote(mimeHint)}`)
+    const byteSize = Number(asset.byteSize)
+    if (Number.isFinite(byteSize) && byteSize >= 0) lines.push(`    byteSize: ${Math.floor(byteSize)}`)
+    return lines
+  })
+  const sourceYaml = sourceLines.length > 0 ? ['kgVideoSequenceSources:', ...sourceLines] : []
+  const ganttLines = [
+    'gantt',
+    '  title Video Sequence',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Video',
+    ...clips.map(clip => `  ${clip.label} : ${buildClipLaneId(clip.clipId, 'video')}, ${formatTimelineClock(clip.startMinutes)}, ${VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES}m`),
+    '  section Mask',
+    ...clips.map(clip => `  ${clip.label} mask : ${buildClipLaneId(clip.clipId, 'mask')}, ${formatTimelineClock(clip.startMinutes)}, ${VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES}m`),
+    '  section Grade',
+    ...clips.map(clip => `  ${clip.label} grade : ${buildClipLaneId(clip.clipId, 'grade')}, ${formatTimelineClock(clip.startMinutes)}, ${VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES}m`),
+    '  section Audio',
+    ...clips.map(clip => `  ${clip.label} audio : ${buildClipLaneId(clip.clipId, 'audio')}, ${formatTimelineClock(clip.startMinutes)}, ${VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES}m`),
+  ]
+  return [
+    '---',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "media"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgVideoSequenceTimeline: true',
+    `kgVideoSequenceImportSourceCount: ${clips.length}`,
+    ...sourceYaml,
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    ...ganttLines.map(line => `      ${line}`),
+    '---',
+    '',
+    '# Video Sequence Timeline',
+    '',
+    '| Clip | Source | Mode |',
+    '| --- | --- | --- |',
+    ...clips.map(clip => `| ${clip.label} | ${cleanPath(clip.asset.relativePath || clip.asset.sourceUrl || clip.asset.originalName) || clip.label} | ${clip.asset.importMode} |`),
+    '',
+  ].join('\n')
+}
+
+export async function materializeVideoSequenceTimelineImportDocument(args: {
+  fs: WorkspaceFs
+  parentPath?: WorkspacePath | null
+  assets: ReadonlyArray<VideoSequenceImportAsset>
+}): Promise<WorkspacePath | null> {
+  const assets = args.assets.filter(isVideoSequenceImportAsset)
+  if (assets.length === 0) return null
+  const text = buildVideoSequenceTimelineImportMarkdown(assets)
+  const createdPath = await args.fs.createFile({
+    parentPath: args.parentPath || WORKSPACE_ROOT_PATH,
+    name: buildVideoSequenceWorkspaceDocumentName(assets),
+    text,
+  })
+  return normalizeWorkspacePath(createdPath)
+}

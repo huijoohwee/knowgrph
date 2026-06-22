@@ -7,7 +7,7 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { bulkSetWorkspaceEntrySources, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
-import { normalizeImportUrlInput } from '@/lib/url'
+import { normalizeWorkspaceImportUrlInput } from '@/lib/url'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
@@ -25,6 +25,7 @@ import type { WorkspaceFileSelection, WorkspaceImportActionsCtx } from './types'
 import { summarizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import { inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 import { registerStrybldrImageFiles } from '@/features/strybldr/strybldrImageFileRegistry'
+import { registerVideoSequenceSourceFiles } from '@/components/timeline/videoSequenceSourceRegistry'
 import {
   buildStrybldrStoryboardDocument,
   buildStrybldrWorkspaceDocumentName,
@@ -207,6 +208,7 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
+        registerVideoSequenceSourceFiles(snapshot)
         const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
         const { createdPath, jsonSourceText } = await finalizeWorkspaceImportCommit({
@@ -319,6 +321,7 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
+        registerVideoSequenceSourceFiles(snapshot)
         const applyToGraph = await resolveWorkspaceImportApplyToGraph(fs, res, importRuntime)
         if (importJobRef.current !== jobId) return
         const { createdPath, jsonSourceText } = await finalizeWorkspaceImportCommit({
@@ -342,9 +345,9 @@ export function useWorkspaceImportActions(args: {
 
   const handleImportUrl = React.useCallback(
     async (urlRaw: string, opts?: { canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }) => {
-      const url = normalizeImportUrlInput(urlRaw)
+      const url = normalizeWorkspaceImportUrlInput(urlRaw)
       if (!url) {
-        status.setStatusError('Import failed: enter a valid http(s) URL')
+        status.setStatusError('Import failed: enter a valid URL or local file path')
         useGraphStore.getState().pushUiLog({ kind: 'warning', message: 'Import URL rejected: invalid URL input', source: 'workspace:importUrl' })
         return
       }

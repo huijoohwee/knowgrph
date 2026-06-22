@@ -4,6 +4,7 @@ import { useMermaidGanttDocument } from '@/features/gitgraph/useMermaidGanttDocu
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { InteractiveMermaidDiagram } from '@/lib/diagram/InteractiveMermaidDiagram'
+import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
 import {
   buildMermaidInteractiveSelectionRows,
   findMermaidDiagramRowForRowKey,
@@ -153,10 +154,15 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
     () => findMermaidDiagramRowForRowKey(ganttModel.rows, selectedRowKey),
     [ganttModel.rows, selectedRowKey],
   )
+  const videoSequenceModel = React.useMemo(
+    () => readVideoSequenceTimelineModelFromMarkdown(markdownText),
+    [markdownText],
+  )
+  const isVideoSequenceTimeline = videoSequenceModel?.enabled === true
   const selectedLabels = React.useMemo(() => readMermaidDirectSelectionLabels(selectedRow), [selectedRow])
   const selectionRows = React.useMemo(() => buildMermaidInteractiveSelectionRows(ganttModel.rows), [ganttModel.rows])
   const selectedLineIndex = typeof selectedRow?.lineIndex === 'number' ? selectedRow.lineIndex : null
-  const showSelectedBarInteraction = shouldExposeMermaidGanttBarInteraction(selectedRow)
+  const showSelectedBarInteraction = !isVideoSequenceTimeline && shouldExposeMermaidGanttBarInteraction(selectedRow)
 
   const handleSelectedRowKeyChange = React.useCallback((rowKey: string | null) => {
     const nextRowKey = String(rowKey || '').trim()
@@ -177,9 +183,9 @@ export default function MermaidGanttCanvas({ active = true }: MermaidGanttCanvas
     if (!active || !code || autoOpenedFloatingPanelRef.current) return
     autoOpenedFloatingPanelRef.current = true
     if (floatingPanelOpen) return
-    setFloatingPanelView('gantt')
+    setFloatingPanelView(isVideoSequenceTimeline ? 'timeline' : 'gantt')
     setFloatingPanelOpen(true)
-  }, [active, code, floatingPanelOpen, setFloatingPanelOpen, setFloatingPanelView])
+  }, [active, code, floatingPanelOpen, isVideoSequenceTimeline, setFloatingPanelOpen, setFloatingPanelView])
 
   React.useEffect(() => {
     if (!showSelectedBarInteraction || !selectedRowKey) {

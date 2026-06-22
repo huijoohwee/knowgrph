@@ -1,6 +1,33 @@
 import React from 'react'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
-type State = { hasError: boolean; error?: unknown; componentStack?: string }
+const ERROR_BOUNDARY_TOAST_ID = 'react:error-boundary'
+
+export function formatErrorBoundaryToastMessage(error: unknown): string {
+  if (!error) return 'Application error'
+  if (error instanceof Error) {
+    const message = String(error.message || '').trim()
+    return message ? `${error.name}: ${message}` : error.name
+  }
+  const message = String(error).trim()
+  return message || 'Application error'
+}
+
+function upsertErrorBoundaryToast(error: unknown): void {
+  try {
+    useGraphStore.getState().upsertUiToast({
+      id: ERROR_BOUNDARY_TOAST_ID,
+      kind: 'error',
+      message: formatErrorBoundaryToastMessage(error),
+      ttlMs: null,
+      dismissible: true,
+    })
+  } catch {
+    void 0
+  }
+}
+
+type State = { hasError: boolean }
 
 export default class ErrorBoundary extends React.Component<React.PropsWithChildren<object>, State> {
   constructor(props: React.PropsWithChildren<object>) {
@@ -8,35 +35,22 @@ export default class ErrorBoundary extends React.Component<React.PropsWithChildr
     this.state = { hasError: false }
   }
   static getDerivedStateFromError(error: unknown): State {
-    return { hasError: true, error }
+    void error
+    return { hasError: true }
   }
   componentDidCatch(error: unknown, info: React.ErrorInfo): void {
     try {
-      const stack = String(info?.componentStack || '')
-      this.setState({ componentStack: stack })
-    } catch {
-      void 0
-    }
-    try {
-      console.error(error)
+      void info
+      upsertErrorBoundaryToast(error)
     } catch {
       void 0
     }
   }
   render() {
     if (!this.state.hasError) return this.props.children
-    const message = (() => {
-      const e = this.state.error
-      if (!e) return 'Unknown error'
-      if (e instanceof Error) return `${e.name}: ${e.message}`
-      return String(e)
-    })()
-    const stack = this.state.error instanceof Error ? String(this.state.error.stack || '') : ''
-    const details = [message, stack, this.state.componentStack || ''].filter(Boolean).join('\n')
     return (
-      <section className="p-3 text-sm text-red-600">
-        <section>Something went wrong.</section>
-        <section className="mt-2 whitespace-pre-wrap break-words text-xs text-red-700">{details}</section>
+      <section className="sr-only" role="status" aria-live="polite">
+        Application error surfaced in notifications.
       </section>
     )
   }

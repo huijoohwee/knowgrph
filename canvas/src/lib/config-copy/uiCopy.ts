@@ -12,6 +12,7 @@ const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the ta
 const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
 const CANVAS_VIEW_RENDERER_DASHBOARD_TITLE = '2D Renderer: Dashboard'
 const CANVAS_VIEW_RENDERER_GALLERY_TITLE = '2D Renderer: Gallery'
+const CANVAS_VIEW_RENDERER_MEDIA_TITLE = '2D Renderer: Media'
 const CANVAS_VIEW_RENDERER_FLOWCHART_TITLE = '2D Renderer: Flowchart'
 const CANVAS_VIEW_RENDERER_MULTI_DIM_TABLE_TITLE = '2D Renderer: Multi-dimensional Table'
 const CANVAS_VIEW_RENDERER_GITGRAPH_TITLE = '2D Renderer: GitGraph'
@@ -215,6 +216,7 @@ export const UI_COPY = {
   canvasViewRendererD3Title: CANVAS_VIEW_RENDERER_D3_TITLE,
   canvasViewRendererDashboardTitle: CANVAS_VIEW_RENDERER_DASHBOARD_TITLE,
   canvasViewRendererGalleryTitle: CANVAS_VIEW_RENDERER_GALLERY_TITLE,
+  canvasViewRendererMediaTitle: CANVAS_VIEW_RENDERER_MEDIA_TITLE,
   canvasViewRendererD3FlowchartTitle: CANVAS_VIEW_RENDERER_FLOWCHART_TITLE,
   canvasViewRendererMultiDimTableTitle: CANVAS_VIEW_RENDERER_MULTI_DIM_TABLE_TITLE,
   canvasViewRendererGitGraphTitle: CANVAS_VIEW_RENDERER_GITGRAPH_TITLE,

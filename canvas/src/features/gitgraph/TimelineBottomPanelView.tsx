@@ -1,5 +1,5 @@
 import React from 'react'
-import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
+import { GanttTimelineTransportPanel, TimelineVideoSequenceEmptyState } from './GanttTimelineTransportPanel'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
 import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
@@ -19,6 +19,9 @@ export function TimelineBottomPanelView({
   })
   if (!timelineCode && ganttCode) {
     return <GanttTimelineTransportPanel code={ganttCode} compact={compact} />
+  }
+  if (!timelineCode) {
+    return <TimelineVideoSequenceEmptyState compact={compact} />
   }
   return (
     <MermaidDiagramPanelView

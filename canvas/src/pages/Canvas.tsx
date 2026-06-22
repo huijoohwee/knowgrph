@@ -38,7 +38,6 @@ const CanvasViewportLazy = React.lazy(() =>
 const EmbeddedEditorShellLazy = React.lazy(() =>
   import('@/components/EmbeddedEditorShell').then(mod => ({ default: mod.EmbeddedEditorShell })),
 )
-const ToastHostLazy = React.lazy(() => import('@/components/ui/ToastHost'))
 const CanvasQueryBootstrapRuntimeLazy = React.lazy(() =>
   import('@/features/canvas/CanvasQueryBootstrapRuntime').then(mod => ({ default: mod.CanvasQueryBootstrapRuntime })),
 )
@@ -276,10 +275,6 @@ export default function CanvasPage() {
                 </nav>
               </header>
             ) : null}
-
-            <React.Suspense fallback={null}>
-              <ToastHostLazy />
-            </React.Suspense>
 
             <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">

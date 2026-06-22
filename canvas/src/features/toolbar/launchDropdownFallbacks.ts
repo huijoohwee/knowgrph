@@ -5,7 +5,7 @@ import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import type { VideoDownloadOptions } from '@/lib/video-download/types'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-import { normalizeImportUrlInput } from '@/lib/url'
+import { normalizeImportUrlInput, normalizeWorkspaceImportUrlInput } from '@/lib/url'
 import {
   getWorkspaceUrlImportCanvasRendererLabel,
   isWorkspaceUrlImportCanvasRendererId,
@@ -65,6 +65,9 @@ export async function importLocalFilesFallback(args: {
           typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
+    const { registerVideoSequenceSourceFiles } = (await import(
+      '@/components/timeline/videoSequenceSourceRegistry'
+    )) as typeof import('@/components/timeline/videoSequenceSourceRegistry')
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() =>
@@ -74,6 +77,7 @@ export async function importLocalFilesFallback(args: {
         parentPath: WORKSPACE_ROOT_PATH,
       }),
     ))
+    registerVideoSequenceSourceFiles(snapshot)
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     const applyToGraph = typeof res.applyToGraph === 'boolean'
       ? res.applyToGraph
@@ -129,9 +133,13 @@ export async function importLocalFolderFallback(args: {
           typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')
         >,
       ])
+    const { registerVideoSequenceSourceFiles } = (await import(
+      '@/components/timeline/videoSequenceSourceRegistry'
+    )) as typeof import('@/components/timeline/videoSequenceSourceRegistry')
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot })))
+    registerVideoSequenceSourceFiles(snapshot)
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     const applyToGraph = typeof res.applyToGraph === 'boolean'
       ? res.applyToGraph
@@ -167,12 +175,12 @@ export async function importUrlFallback(args: {
   documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   pushUiToast: PushUiToast
 }): Promise<void> {
-  const url = normalizeImportUrlInput(args.urlRaw)
+  const url = normalizeWorkspaceImportUrlInput(args.urlRaw)
   if (!url) {
     args.pushUiToast({
       id: 'launch:import:url',
       kind: 'warning',
-      message: 'Enter a valid http(s) URL before importing',
+      message: 'Enter a valid URL or local file path before importing',
       ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })

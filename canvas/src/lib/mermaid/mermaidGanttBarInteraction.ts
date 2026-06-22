@@ -22,6 +22,8 @@ export type MermaidGanttTimelineDragPreview = {
   startMinutes: number
 }
 
+export type MermaidGanttVideoSequenceOperation = 'mask' | 'grade'
+
 export type MermaidGanttTimelineModel = {
   durationMinutes: number
   endMinutes: number
@@ -182,6 +184,107 @@ function readGanttTaskTokens(line: string): string[] {
   return line.slice(colonIndex + 1).split(',').map(token => token.trim()).filter(Boolean)
 }
 
+function isMermaidGanttStatusToken(token: string): boolean {
+  return /^(?:active|done|crit|milestone|vert)$/i.test(String(token || '').trim())
+}
+
+function isLegacyVideoSequenceLaneToken(token: string): boolean {
+  return /^(?:video|mask|grade|audio|splice)$/i.test(String(token || '').trim())
+}
+
+function readGanttLineIndent(line: string): string {
+  return line.match(/^(\s*)/)?.[1] || ''
+}
+
+function readSpanAbsoluteStartMinutes(args: {
+  code: string
+  line: string
+  span: MermaidGanttTimelineTaskSpan
+}): number | null {
+  const explicitClock = readGanttTaskTokens(args.line).find(token => readClockMinutes(token) != null)
+  const explicitMinutes = explicitClock ? readClockMinutes(explicitClock) : null
+  if (explicitMinutes != null) return explicitMinutes
+  const baseClockMinutes = readBaseClockMinutes(String(args.code || '').split('\n'))
+  if (baseClockMinutes == null) return null
+  return baseClockMinutes + args.span.startMinutes
+}
+
+function readGanttTimingMetaTokens(tokens: readonly string[]): string[] {
+  return tokens.filter(token =>
+    readClockMinutes(token) == null
+    && readDurationMinutes(token) == null
+    && !isLegacyVideoSequenceLaneToken(token),
+  )
+}
+
+function appendGanttTaskIdSuffix(metaTokens: readonly string[], suffix: string): string[] {
+  const next = metaTokens.map(token => String(token || '').trim()).filter(Boolean)
+  const suffixPart = String(suffix || '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase()
+  if (!suffixPart) return next
+  const taskIdIndex = next.findIndex(token => !isMermaidGanttStatusToken(token) && !/^after\b/i.test(token) && !/^until\b/i.test(token))
+  if (taskIdIndex < 0) return next
+  next[taskIdIndex] = `${next[taskIdIndex]}_${suffixPart}`
+  return next
+}
+
+function readGanttTaskStableId(line: string): string {
+  const tokens = readGanttTimingMetaTokens(readGanttTaskTokens(line))
+  return String(tokens.find(token => !isMermaidGanttStatusToken(token) && !/^after\b/i.test(token) && !/^until\b/i.test(token)) || '').trim()
+}
+
+function normalizeVideoSequenceClipGroupId(value: string): string {
+  return String(value || '')
+    .trim()
+    .replace(/_(?:mask|grade|audio)(?=_splice$|$)/gi, '')
+}
+
+function resolveVideoSequenceClipGroupKey(line: string): string {
+  const stableId = readGanttTaskStableId(line)
+  if (stableId) return normalizeVideoSequenceClipGroupId(stableId)
+  return readGanttTaskLabel(line).replace(/\s+(?:mask|grade|audio|splice)\b.*$/i, '').trim().toLowerCase()
+}
+
+function readVideoSequenceOperationFromLine(line: string): MermaidGanttVideoSequenceOperation | '' {
+  const signature = `${readGanttTaskLabel(line)} ${readGanttTaskStableId(line)}`.toLowerCase()
+  if (/\bgrade|color|lut|exposure|contrast\b/.test(signature) || /_grade\b/.test(signature)) return 'grade'
+  if (/\bmask|matte|roto|alpha\b/.test(signature) || /_mask\b/.test(signature)) return 'mask'
+  return ''
+}
+
+function readVideoSequenceClipGroupLineIndexes(args: {
+  code: string
+  rowLineIndex: number
+}): number[] {
+  const lines = String(args.code || '').split('\n')
+  const selectedLine = lines[args.rowLineIndex]
+  if (typeof selectedLine !== 'string' || !selectedLine.includes(':')) return []
+  const selectedGroupKey = resolveVideoSequenceClipGroupKey(selectedLine)
+  if (!selectedGroupKey) return [args.rowLineIndex]
+  const model = buildMermaidGanttTimelineModel(args.code)
+  return model.taskSpans
+    .filter(span => {
+      const line = lines[span.lineIndex]
+      return typeof line === 'string' && resolveVideoSequenceClipGroupKey(line) === selectedGroupKey
+    })
+    .map(span => span.lineIndex)
+    .sort((a, b) => a - b)
+}
+
+function buildGanttTaskLine(args: {
+  absoluteStartMinutes: number
+  durationMinutes: number
+  indent: string
+  label: string
+  metaTokens: readonly string[]
+}): string {
+  const timingTokens = [
+    ...args.metaTokens,
+    formatClockMinutes(args.absoluteStartMinutes),
+    formatDurationMinutes(args.durationMinutes),
+  ]
+  return `${args.indent}${args.label} : ${timingTokens.join(', ')}`
+}
+
 function readBaseClockMinutes(lines: string[]): number | null {
   for (const line of lines) {
     const tokens = readGanttTaskTokens(String(line || '').trim())
@@ -331,6 +434,118 @@ export function updateMermaidGanttCodeRowTiming(args: {
   const nextDurationTokenIndex = timeTokenIndex >= 0 ? durationTokenIndex : durationTokenIndex + 1
   tokens[nextDurationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
   lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`
+  return lines.join('\n')
+}
+
+export function splitMermaidGanttCodeRowAtOffset(args: {
+  code: string
+  rowLineIndex: number
+  splitOffsetMinutes: number
+}): string | null {
+  const lines = String(args.code || '').split('\n')
+  const line = lines[args.rowLineIndex]
+  if (typeof line !== 'string' || !line.includes(':')) return null
+  const span = buildMermaidGanttTimelineModel(args.code).taskSpans.find(item => item.lineIndex === args.rowLineIndex)
+  if (!span) return null
+  const splitOffsetMinutes = Math.round(args.splitOffsetMinutes)
+  if (splitOffsetMinutes <= 0 || splitOffsetMinutes >= span.durationMinutes) return null
+  const absoluteStartMinutes = readSpanAbsoluteStartMinutes({ code: args.code, line, span })
+  if (absoluteStartMinutes == null) return null
+  const label = readGanttTaskLabel(line)
+  const tokens = readGanttTaskTokens(line)
+  const metaTokens = readGanttTimingMetaTokens(tokens)
+  const indent = readGanttLineIndent(line)
+  const firstLine = buildGanttTaskLine({
+    absoluteStartMinutes,
+    durationMinutes: splitOffsetMinutes,
+    indent,
+    label,
+    metaTokens,
+  })
+  const secondLine = buildGanttTaskLine({
+    absoluteStartMinutes: absoluteStartMinutes + splitOffsetMinutes,
+    durationMinutes: span.durationMinutes - splitOffsetMinutes,
+    indent,
+    label: `${label} splice`,
+    metaTokens: appendGanttTaskIdSuffix(metaTokens, 'splice'),
+  })
+  lines.splice(args.rowLineIndex, 1, firstLine, secondLine)
+  return lines.join('\n')
+}
+
+export function splitMermaidGanttVideoSequenceClipGroupAtOffset(args: {
+  code: string
+  rowLineIndex: number
+  splitOffsetMinutes: number
+}): string | null {
+  const groupLineIndexes = readVideoSequenceClipGroupLineIndexes(args)
+  if (groupLineIndexes.length <= 1) return splitMermaidGanttCodeRowAtOffset(args)
+  let nextCode = String(args.code || '')
+  for (const lineIndex of groupLineIndexes.slice().sort((a, b) => b - a)) {
+    const updated = splitMermaidGanttCodeRowAtOffset({
+      code: nextCode,
+      rowLineIndex: lineIndex,
+      splitOffsetMinutes: args.splitOffsetMinutes,
+    })
+    if (updated) nextCode = updated
+  }
+  return nextCode === args.code ? null : nextCode
+}
+
+export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
+  code: string
+  rowLineIndex: number
+  mode: MermaidGanttBarDragMode
+  deltaMinutes: number
+}): string | null {
+  const groupLineIndexes = readVideoSequenceClipGroupLineIndexes(args)
+  if (groupLineIndexes.length <= 1) return updateMermaidGanttCodeRowTiming(args)
+  let nextCode = String(args.code || '')
+  for (const lineIndex of groupLineIndexes.slice().sort((a, b) => b - a)) {
+    const updated = updateMermaidGanttCodeRowTiming({
+      code: nextCode,
+      rowLineIndex: lineIndex,
+      mode: args.mode,
+      deltaMinutes: args.deltaMinutes,
+    })
+    if (updated) nextCode = updated
+  }
+  return nextCode === args.code ? null : nextCode
+}
+
+export function insertMermaidGanttVideoSequenceOperationRow(args: {
+  code: string
+  rowLineIndex: number
+  operation: MermaidGanttVideoSequenceOperation
+}): string | null {
+  const lines = String(args.code || '').split('\n')
+  const line = lines[args.rowLineIndex]
+  if (typeof line !== 'string' || !line.includes(':')) return null
+  const groupKey = resolveVideoSequenceClipGroupKey(line)
+  if (groupKey) {
+    const existingLineIndex = buildMermaidGanttTimelineModel(args.code).taskSpans.find(span => {
+      const candidateLine = lines[span.lineIndex]
+      return (
+        typeof candidateLine === 'string' &&
+        resolveVideoSequenceClipGroupKey(candidateLine) === groupKey &&
+        readVideoSequenceOperationFromLine(candidateLine) === args.operation
+      )
+    })?.lineIndex
+    if (typeof existingLineIndex === 'number') return args.code
+  }
+  const span = buildMermaidGanttTimelineModel(args.code).taskSpans.find(item => item.lineIndex === args.rowLineIndex)
+  if (!span) return null
+  const absoluteStartMinutes = readSpanAbsoluteStartMinutes({ code: args.code, line, span })
+  if (absoluteStartMinutes == null) return null
+  const label = `${readGanttTaskLabel(line)} ${args.operation === 'grade' ? 'grade' : 'mask'}`
+  const operationLine = buildGanttTaskLine({
+    absoluteStartMinutes,
+    durationMinutes: Math.max(1, span.durationMinutes),
+    indent: readGanttLineIndent(line),
+    label,
+    metaTokens: appendGanttTaskIdSuffix(readGanttTimingMetaTokens(readGanttTaskTokens(line)), args.operation),
+  })
+  lines.splice(args.rowLineIndex + 1, 0, operationLine)
   return lines.join('\n')
 }
 

@@ -64,6 +64,7 @@ export type RichMediaPanelProps = {
   openUrl?: string
   kind?: RichMediaKind
   interactive?: boolean
+  videoControls?: boolean
   hideUntilReady?: boolean
   headerPassthrough?: boolean
   resizable?: boolean
@@ -934,7 +935,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           title={title}
           interactive={contentInteractive}
           fit="contain"
-          videoControls={kind === 'video' ? true : undefined}
+          videoControls={kind === 'video' ? props.videoControls ?? true : undefined}
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)

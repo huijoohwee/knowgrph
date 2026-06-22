@@ -45,6 +45,11 @@ import {
   deriveModelWorkspaceDocumentNameFromUrl,
 } from './glbAsset'
 import {
+  buildCorpusMediaMetadataMarkdown,
+  buildCorpusMediaWorkspaceDocumentName,
+  inferCorpusMediaKind,
+} from '@/features/queryable-corpus/corpusGraph'
+import {
   autoTuneFromHtml,
   deriveFallbackExtFromNormalizedLower,
   isWeChatArticleUrl,
@@ -68,10 +73,10 @@ const isRootRelativeFetchUrl = (value: string): boolean => {
 }
 const deriveFetchFilename = (rawUrl: string, fallback: string): string => {
   const derived = deriveFilenameFromUrl(rawUrl, fallback)
-  if (derived !== fallback || !isRootRelativeFetchUrl(rawUrl)) return derived
-  const pathOnly = String(rawUrl || '').split(/[?#]/)[0] || ''
+  if (derived !== fallback) return derived
+  const pathOnly = String(rawUrl || '').replace(/^file:\/\//i, '').split(/[?#]/)[0] || ''
   const basename = pathOnly.split('/').filter(Boolean).pop() || ''
-  if (!basename) return fallback
+  if (!basename || (!isRootRelativeFetchUrl(rawUrl) && !/\.[a-z0-9]+$/i.test(basename))) return fallback
   try {
     return decodeURIComponent(basename).split('/').filter(Boolean).pop() || fallback
   } catch {
@@ -259,6 +264,24 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       text: ['# Image', '', `![](${normalizedUrl})`, '', `[](${normalizedUrl})`, ''].join('\n'),
       sourceMediaKind: 'image',
       sourceMimeHint: 'text/markdown',
+    }
+  }
+
+  const videoFilename = deriveFetchFilename(normalizedUrl, 'video')
+  const looksLikeVideo = inferCorpusMediaKind(videoFilename) === 'video' || inferCorpusMediaKind(normalizedUrl) === 'video'
+  if (looksLikeVideo) {
+    const originalName = videoFilename || deriveFilenameFromUrl(normalizedUrl, 'video')
+    return {
+      normalizedUrl,
+      name: buildCorpusMediaWorkspaceDocumentName(originalName),
+      text: buildCorpusMediaMetadataMarkdown({
+        originalName,
+        mimeHint: 'video/*',
+        importMode: 'url',
+        relativePath: normalizedUrl,
+      }),
+      sourceMediaKind: 'video',
+      sourceMimeHint: 'video/*',
     }
   }
 

@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { computeSvgSurfaceWideTimelineFitTransform } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
+import { buildVideoSequenceExportPlan } from '@/components/timeline/videoSequenceExport'
+import {
+  readVideoSequenceSourcePlayableUrl,
+  readVideoSequenceTimelineModelFromMarkdown,
+} from '@/components/timeline/videoSequenceTimeline'
+import { buildVideoSequenceSourceRegistryKeys } from '@/components/timeline/videoSequenceSourceRegistry'
+import { buildVideoSequenceTimelineImportMarkdown } from '@/features/markdown-workspace/workspaceImport/videoSequenceTimelineImport'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport/urlContent'
 import { annotateInteractiveMermaidSelectionRows } from '@/lib/diagram/InteractiveMermaidDiagram'
 import {
   findMermaidDiagramRowKeyForSvgLabel,
@@ -12,6 +20,7 @@ import {
   buildMermaidGanttTimelineModel,
   buildMermaidGanttTimelineTicks,
   formatMermaidGanttTimelineOffset,
+  insertMermaidGanttVideoSequenceOperationRow,
   isMermaidGanttBarDragMode,
   resolveMermaidGanttBarDragCommitted,
   resolveMermaidGanttBarDragPreview,
@@ -19,8 +28,11 @@ import {
   resolveMermaidGanttTimelineDragPreviewSpan,
   resolveMermaidGanttTimelineRowKeyAtPosition,
   replaceFirstMermaidGanttFrontmatterCode,
+  splitMermaidGanttCodeRowAtOffset,
+  splitMermaidGanttVideoSequenceClipGroupAtOffset,
   shouldExposeMermaidGanttBarInteraction,
   updateMermaidGanttCodeRowTiming,
+  updateMermaidGanttVideoSequenceClipGroupTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import {
   parseMermaidDiagramCodeModel,
@@ -28,7 +40,10 @@ import {
   readYamlFrontmatterMermaidDiagramCodes,
   resolveMermaidDiagramCode,
 } from '@/lib/mermaid/mermaidDiagramCode'
+import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import { normalizeWorkspaceImportUrlInput } from '@/lib/url'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 const root = () => resolve(process.cwd(), 'src')
 const readSource = (...parts: string[]) => readFileSync(resolve(root(), ...parts), 'utf8')
@@ -293,7 +308,7 @@ export function testInteractiveMermaidSelectionAnnotatesSiblingChartGeometry() {
   }
 }
 
-export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
+export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   const toolbarText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const canvasViewMenuText = readSource('components', 'toolbar', 'canvasViewMenu.ts')
   const canvasViewActionsText = readSource('components', 'toolbar', 'canvasViewActions.ts')
@@ -311,12 +326,22 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   const gitGraphFloatingText = readSource('features', 'gitgraph', 'GitGraphFloatingPanelView.tsx')
   const gitGraphCanvasText = readSource('components', 'MermaidGitGraphCanvas.tsx')
   const ganttCanvasText = readSource('components', 'MermaidGanttCanvas.tsx')
+  const mediaCanvasText = readSource('components', 'MediaCanvas.tsx')
   const ganttFloatingText = readSource('features', 'gitgraph', 'GanttFloatingPanelView.tsx')
   const timelineFloatingText = readSource('features', 'gitgraph', 'TimelineFloatingPanelView.tsx')
   const gitGraphBottomText = readSource('features', 'gitgraph', 'GitGraphBottomPanelView.tsx')
   const ganttBottomText = readSource('features', 'gitgraph', 'GanttBottomPanelView.tsx')
   const ganttTransportText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const timelineBottomText = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
+  const videoSequenceExportText = readSource('components', 'timeline', 'videoSequenceExport.ts')
+  const videoSequenceSourceRegistryText = readSource('components', 'timeline', 'videoSequenceSourceRegistry.ts')
+  const localImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'localImport.ts')
+  const importActionsText = readSource('features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const launchFallbackText = readSource('features', 'toolbar', 'launchDropdownFallbacks.ts')
+  const urlImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'urlImport.ts')
+  const urlContentText = readSource('features', 'markdown-workspace', 'workspaceImport', 'urlContent.ts')
+  const videoSequenceImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'videoSequenceTimelineImport.ts')
+  const canvasFrontmatterPresetText = readSource('features', 'parsers', 'canvasFrontmatterPreset.ts')
   const resolverText = readSource('lib', 'mermaid', 'mermaidDiagramCode.ts')
   const plainMermaidText = readSource('features', 'markdown', 'ui', 'PlainMermaidDiagram.tsx')
   const interactiveMermaidText = readSource('lib', 'diagram', 'InteractiveMermaidDiagram.tsx')
@@ -548,6 +573,22 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     throw new Error('expected Canvas Gantt-timeline to share row-key selection state, selected-bar drag handles, and interactive Mermaid selection utilities with BottomPanel and FloatingPanel Gantt-Timeline')
   }
   if (
+    !ganttCanvasText.includes('readVideoSequenceTimelineModelFromMarkdown(markdownText)') ||
+    !ganttCanvasText.includes('isVideoSequenceTimeline') ||
+    ganttCanvasText.includes(['VideoSequenceCanvas', 'Preview'].join('')) ||
+    ganttCanvasText.includes(['data-kg-video-sequence', 'canvas'].join('-')) ||
+    !canvasFrontmatterPresetText.includes("current.setBottomSurfaceTab('timeline')") ||
+    !canvasFrontmatterPresetText.includes("current.setFloatingPanelView('timeline')") ||
+    !canvasFrontmatterPresetText.includes('current.setFloatingPanelOpen(true)') ||
+    !videoSequenceSourceRegistryText.includes('registerVideoSequenceSourceFiles') ||
+    !videoSequenceSourceRegistryText.includes('URL.createObjectURL(file)') ||
+    !videoSequenceSourceRegistryText.includes('resolveVideoSequenceSourceRuntimeUrl') ||
+    !importActionsText.includes('registerVideoSequenceSourceFiles(snapshot)') ||
+    !launchFallbackText.includes('registerVideoSequenceSourceFiles(snapshot)')
+  ) {
+    throw new Error('expected video sequence docs to render playback through Media Canvas while BottomPanel/FloatingPanel Timeline own editing and rows')
+  }
+  if (
     ganttCanvasText.includes('TimelineTransportControls') ||
     ganttCanvasText.includes('useTimelineTransportPlayback') ||
     ganttCanvasText.includes('data-kg-gantt-timeline-transport') ||
@@ -564,6 +605,9 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttBarInteractionText.includes('buildMermaidGanttTimelineTicks') ||
     !ganttBarInteractionText.includes('resolveMermaidGanttTimelineRowKeyAtPosition') ||
     !ganttBarInteractionText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttBarInteractionText.includes('updateMermaidGanttVideoSequenceClipGroupTiming') ||
+    !ganttBarInteractionText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
+    !ganttBarInteractionText.includes('resolveVideoSequenceClipGroupKey') ||
     !ganttBarInteractionText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
     !ganttBarInteractionText.includes('shouldExposeMermaidGanttBarInteraction') ||
     ganttBarInteractionText.includes('knowgrph-animatic-demo') ||
@@ -605,9 +649,18 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttFloatingText.includes('renderMode="list"') ||
     !timelineFloatingText.includes('MermaidDiagramPanelView') ||
     !timelineFloatingText.includes('kind="timeline"') ||
-    !timelineFloatingText.includes('renderMode="list"')
+    !timelineFloatingText.includes('kind="gantt"') ||
+    !timelineFloatingText.includes('renderMode="list"') ||
+    !timelineFloatingText.includes('useMermaidGanttDocument') ||
+    !timelineFloatingText.includes('model={ganttModel}') ||
+    !timelineFloatingText.includes('rootThemeMode={ganttThemeMode}') ||
+    timelineFloatingText.includes('GanttTimelineTransportPanel') ||
+    timelineFloatingText.includes('TimelineVideoSequenceEmptyState') ||
+    timelineFloatingText.includes('TimelineTransportControls') ||
+    timelineFloatingText.includes('useTimelineTransportPlayback') ||
+    timelineFloatingText.includes('data-kg-gantt-timeline-transport')
   ) {
-    throw new Error('expected FloatingPanel Mermaid diagrams to keep row-list/editor surfaces only and sync through shared selection')
+    throw new Error('expected FloatingPanel Mermaid diagrams to keep Timeline video sequences as row lists without duplicating the BottomPanel Gantt transport')
   }
   if (
     !gitGraphSelectionText.includes('resolveGitGraphSelectedCommand') ||
@@ -664,7 +717,7 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttTransportText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
     !ganttTransportText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
     !ganttTransportText.includes('deltaMinutes: effectiveDeltaMinutes') ||
-    !ganttTransportText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttTransportText.includes('updateMermaidGanttVideoSequenceClipGroupTiming') ||
     !ganttTransportText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
     !ganttTransportText.includes('isMermaidGanttTimelineVerticalMarker') ||
     !ganttTransportText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
@@ -672,12 +725,31 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     !ganttTransportText.includes('resolveTimelineTransportPlayheadPercent') ||
     !ganttTransportText.includes('resolveTimelineTransportPlayheadScrollLeft') ||
     !ganttTransportText.includes('resolveTimelineTransportZoom') ||
+    !ganttTransportText.includes('ganttTimelineTransportPositionMinutes') ||
+    !ganttTransportText.includes('ganttTimelineTransportPlaying') ||
+    !ganttTransportText.includes('setGanttTimelineTransportState') ||
     !ganttTransportText.includes('centerTimelinePlayhead') ||
+    !ganttTransportText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS') ||
+    !ganttTransportText.includes('buildVideoSequenceTimelineToolStatus') ||
+    !ganttTransportText.includes('buildVideoSequenceExportPlan') ||
+    !ganttTransportText.includes('downloadVideoSequenceExport') ||
+    !ganttTransportText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
+    !ganttTransportText.includes('upsertUiToast') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export="video"') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export="audio"') ||
+    !ganttTransportText.includes('Download edited video') ||
+    !ganttTransportText.includes('Download edited audio') ||
+    !ganttTransportText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
+    !ganttTransportText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
+    !ganttTransportText.includes('data-kg-video-sequence-timeline') ||
+    !ganttTransportText.includes('data-kg-video-sequence-lane={lane}') ||
     !ganttTransportText.includes('timeline-transport-chrome--mermaid-gantt') ||
     !ganttTransportText.includes('timeline-transport-track-clip--milestone') ||
+    !ganttTransportText.includes('timeline-video-sequence-tool-strip') ||
+    !ganttTransportText.includes('timeline-video-sequence-lane-sidebar') ||
     !ganttTransportText.includes('timeline-transport-chrome-actions') ||
     !ganttTransportText.includes('timeline-transport-playhead') ||
-    !ganttTransportText.includes("top: verticalMarker ? '0px' : `${24 + (index % 2) * 16}px`") ||
+    !ganttTransportText.includes("top: verticalMarker ? '0px' : `${24 + laneIndex * 18 + (index % 2) * 3}px`") ||
     !ganttTransportText.includes("width: verticalMarker ? '14px'") ||
     !ganttTransportText.includes('data-kg-gantt-timeline-ruler-content="1"') ||
     !ganttTransportText.includes('data-kg-gantt-timeline-playhead="1"') ||
@@ -697,6 +769,74 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
     ganttTransportText.includes('/Users/')
   ) {
     throw new Error('expected shared Gantt-Timeline transport to own playback/scrub state, row-key sync, and neutral BottomPanel markers without copied fixture/source tokens')
+  }
+  if (
+    !videoSequenceExportText.includes('buildVideoSequenceExportPlan') ||
+    !videoSequenceExportText.includes('renderVideoSequenceExport') ||
+    !videoSequenceExportText.includes('downloadVideoSequenceExport') ||
+    !videoSequenceExportText.includes('MediaRecorder') ||
+    !videoSequenceExportText.includes('captureStream') ||
+    !videoSequenceExportText.includes('createMediaElementSource') ||
+    !videoSequenceExportText.includes('downloadBlob') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceSourceRuntimeUrl') ||
+    !videoSequenceExportText.includes('hasMask') ||
+    !videoSequenceExportText.includes('hasGrade') ||
+    videoSequenceExportText.includes('/Users/') ||
+    videoSequenceExportText.includes(['blender', 'blender'].join('/'))
+  ) {
+    throw new Error('expected video sequence export to render source-backed edited video/audio downloads through neutral browser media APIs without hardcoded fixture paths')
+  }
+  if (
+    !floatingTypeText.includes('ganttTimelineTransportPositionMinutes') ||
+    !floatingTypeText.includes('setGanttTimelineTransportState') ||
+    !uiInitialStateText.includes('ganttTimelineTransportPositionMinutes: 0') ||
+    !uiInitialStateText.includes('setGanttTimelineTransportState') ||
+    !mediaCanvasText.includes('MediaCanvasSyncedPanel') ||
+    !mediaCanvasText.includes('data-kg-video-sequence-media-sync') ||
+    !mediaCanvasText.includes('resolveVideoSequenceTimeFromPosition') ||
+    !mediaCanvasText.includes('resolveVideoSequencePositionFromTime') ||
+    !mediaCanvasText.includes('setGanttTimelineTransportState') ||
+    !mediaCanvasText.includes('videoControls={syncEnabled ? false : undefined}') ||
+    !mediaCanvasText.includes("querySelector('video')")
+  ) {
+    throw new Error('expected Media Canvas video playback and BottomPanel Timeline slider to share the neutral Gantt transport state')
+  }
+  if (
+    !timelineBottomText.includes('TimelineVideoSequenceEmptyState') ||
+    !timelineBottomText.includes('<TimelineVideoSequenceEmptyState compact={compact} />')
+  ) {
+    throw new Error('expected empty BottomPanel Timeline to render the shared video sequence editor shell instead of a blank Mermaid-only panel')
+  }
+  if (
+    !localImportText.includes('materializeVideoSequenceTimelineImportDocument') ||
+    !localImportText.includes('pushLocalVideoSequenceImportAsset') ||
+    !localImportText.includes('pruneVideoSequenceSourceDocuments') ||
+    !localImportText.includes('args.fs.deleteEntry(path)') ||
+    !localImportText.includes("inferCorpusMediaKind(args.originalName || args.relativePath, args.file.type) !== 'video'") ||
+    !localImportText.includes('applyToGraph: true') ||
+    !urlImportText.includes('materializeVideoSequenceTimelineImportDocument') ||
+    !urlImportText.includes("sourceUnit.mediaKind === 'video'") ||
+    !urlImportText.includes('removedVideoSourcePaths') ||
+    !urlImportText.includes('args.fs.deleteEntry(normalized)') ||
+    !urlContentText.includes('looksLikeVideo') ||
+    !urlContentText.includes('buildCorpusMediaMetadataMarkdown') ||
+    !urlContentText.includes("sourceMediaKind: 'video'") ||
+    !videoSequenceImportText.includes('kgVideoSequenceTimeline: true') ||
+    !videoSequenceImportText.includes('type: mermaid_gantt') ||
+    !videoSequenceImportText.includes('section Mask') ||
+    !videoSequenceImportText.includes('section Grade')
+  ) {
+    throw new Error('expected local-file and URL video imports to materialize a shared source-backed video sequence Timeline document')
+  }
+  for (const forbidden of ['/Users/', 'knowgrph-research-agent-demo', 'knowgrph-missalph-demo']) {
+    if (
+      localImportText.includes(forbidden) ||
+      urlImportText.includes(forbidden) ||
+      urlContentText.includes(forbidden) ||
+      videoSequenceImportText.includes(forbidden)
+    ) {
+      throw new Error(`expected video sequence import projection to avoid hardcoded fixture token ${forbidden}`)
+    }
   }
   if (!resolverText.includes('readTypedMermaidDiagramCodes') || !resolverText.includes('mermaid_gantt')) {
     throw new Error('expected typed Mermaid diagram parsing to live in the shared resolver')
@@ -730,6 +870,227 @@ export function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   })
   if (!wideTimelineTransform || wideTimelineTransform.k <= 1 || wideTimelineTransform.x < 20 || wideTimelineTransform.y < 200) {
     throw new Error(`expected wide Gantt timeline fit to keep readable scale and centered vertical placement, got ${JSON.stringify(wideTimelineTransform)}`)
+  }
+  const sequenceCode = [
+    'gantt',
+    '  title Sequence',
+    '  section Edit',
+    '  Opening shot : clip_opening, 09:00, 6m',
+  ].join('\n')
+  const cutCode = splitMermaidGanttCodeRowAtOffset({ code: sequenceCode, rowLineIndex: 3, splitOffsetMinutes: 2 })
+  if (!cutCode?.includes('Opening shot : clip_opening, 09:00, 2m') || !cutCode.includes('Opening shot splice : clip_opening_splice, 09:02, 4m')) {
+    throw new Error(`expected video sequence cut to split selected Gantt row at playhead, got ${cutCode}`)
+  }
+  const maskCode = insertMermaidGanttVideoSequenceOperationRow({ code: sequenceCode, rowLineIndex: 3, operation: 'mask' })
+  if (!maskCode?.includes('Opening shot mask : clip_opening_mask, 09:00, 6m')) {
+    throw new Error(`expected video sequence mask to insert a source-backed operation lane, got ${maskCode}`)
+  }
+  const gradeCode = insertMermaidGanttVideoSequenceOperationRow({ code: sequenceCode, rowLineIndex: 3, operation: 'grade' })
+  if (!gradeCode?.includes('Opening shot grade : clip_opening_grade, 09:00, 6m')) {
+    throw new Error(`expected video sequence grade to insert a source-backed operation lane, got ${gradeCode}`)
+  }
+  const groupedSequenceCode = [
+    'gantt',
+    '  title Sequence',
+    '  section Video',
+    '  Opening shot : clip_opening, 09:00, 6m',
+    '  section Mask',
+    '  Opening shot mask : clip_opening_mask, 09:00, 6m',
+    '  section Grade',
+    '  Opening shot grade : clip_opening_grade, 09:00, 6m',
+    '  section Audio',
+    '  Opening shot audio : clip_opening_audio, 09:00, 6m',
+  ].join('\n')
+  const groupedCutCode = splitMermaidGanttVideoSequenceClipGroupAtOffset({
+    code: groupedSequenceCode,
+    rowLineIndex: 3,
+    splitOffsetMinutes: 2,
+  })
+  if (
+    !groupedCutCode?.includes('Opening shot : clip_opening, 09:00, 2m') ||
+    !groupedCutCode.includes('Opening shot splice : clip_opening_splice, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot mask : clip_opening_mask, 09:00, 2m') ||
+    !groupedCutCode.includes('Opening shot mask splice : clip_opening_mask_splice, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot grade splice : clip_opening_grade_splice, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot audio splice : clip_opening_audio_splice, 09:02, 4m')
+  ) {
+    throw new Error(`expected video sequence cut to split every source-backed clip lane, got ${groupedCutCode}`)
+  }
+  const groupedMovedCode = updateMermaidGanttVideoSequenceClipGroupTiming({
+    code: groupedSequenceCode,
+    rowLineIndex: 3,
+    mode: 'move',
+    deltaMinutes: 1,
+  })
+  if (
+    !groupedMovedCode?.includes('Opening shot : clip_opening, 09:01, 6m') ||
+    !groupedMovedCode.includes('Opening shot mask : clip_opening_mask, 09:01, 6m') ||
+    !groupedMovedCode.includes('Opening shot grade : clip_opening_grade, 09:01, 6m') ||
+    !groupedMovedCode.includes('Opening shot audio : clip_opening_audio, 09:01, 6m')
+  ) {
+    throw new Error(`expected video sequence splice/move to update every source-backed clip lane, got ${groupedMovedCode}`)
+  }
+  const duplicateGradeCode = insertMermaidGanttVideoSequenceOperationRow({
+    code: groupedSequenceCode,
+    rowLineIndex: 3,
+    operation: 'grade',
+  })
+  if (duplicateGradeCode !== groupedSequenceCode) {
+    throw new Error(`expected video sequence grade to reuse the existing operation lane without duplication, got ${duplicateGradeCode}`)
+  }
+  const spliceOnlyMovedCode = groupedCutCode
+    ? updateMermaidGanttVideoSequenceClipGroupTiming({
+      code: groupedCutCode,
+      rowLineIndex: 4,
+      mode: 'move',
+      deltaMinutes: 1,
+    })
+    : null
+  if (
+    !spliceOnlyMovedCode?.includes('Opening shot : clip_opening, 09:00, 2m') ||
+    !spliceOnlyMovedCode.includes('Opening shot splice : clip_opening_splice, 09:03, 4m') ||
+    !spliceOnlyMovedCode.includes('Opening shot mask : clip_opening_mask, 09:00, 2m') ||
+    !spliceOnlyMovedCode.includes('Opening shot mask splice : clip_opening_mask_splice, 09:03, 4m')
+  ) {
+    throw new Error(`expected video sequence splice segment edits to avoid mutating the original segment, got ${spliceOnlyMovedCode}`)
+  }
+  const groupedExportPlan = buildVideoSequenceExportPlan({
+    code: groupedCutCode || '',
+    filenameHint: 'Sequence.md',
+    sources: [{
+      id: 'clip_opening',
+      originalName: 'opening.mp4',
+      relativePath: 'opening.mp4',
+      workspacePath: '',
+      sourceUrl: 'https://media.example.test/opening.mp4',
+      mimeHint: 'video/mp4',
+      byteSize: 100,
+      importMode: 'url',
+    }],
+  })
+  if (
+    groupedExportPlan?.segments.length !== 2 ||
+    groupedExportPlan.segments[0]?.sourceStartRatio !== 0 ||
+    Math.abs((groupedExportPlan.segments[0]?.sourceEndRatio || 0) - (2 / 6)) > 0.0001 ||
+    Math.abs((groupedExportPlan.segments[1]?.sourceStartRatio || 0) - (2 / 6)) > 0.0001 ||
+    groupedExportPlan.segments[1]?.sourceEndRatio !== 1 ||
+    groupedExportPlan.segments.some(segment => !segment.hasMask || !segment.hasGrade) ||
+    groupedExportPlan.filenameBase !== 'sequence'
+  ) {
+    throw new Error(`expected edited video export plan to preserve cut source ranges and mask/grade operations, got ${JSON.stringify(groupedExportPlan)}`)
+  }
+  const importedSequenceMarkdown = buildVideoSequenceTimelineImportMarkdown([{
+    workspacePath: '/workspace/clip-alpha.mp4.source.md',
+    relativePath: 'clips/clip-alpha.mp4',
+    originalName: 'clip-alpha.mp4',
+    mimeHint: 'video/mp4',
+    byteSize: 100,
+    importMode: 'file',
+  }, {
+    workspacePath: '/workspace/clip-beta.webm.source.md',
+    relativePath: 'clips/clip-beta.webm',
+    originalName: 'clip-beta.webm',
+    mimeHint: 'video/webm',
+    byteSize: 200,
+    importMode: 'folder',
+  }])
+  const importedSequenceCode = resolveMermaidDiagramCode(
+    readYamlFrontmatterMermaidDiagramCodes(importedSequenceMarkdown, 'gantt'),
+    'gantt',
+  )
+  const importedSequenceModel = buildMermaidGanttTimelineModel(importedSequenceCode)
+  const importedVideoSequenceModel = readVideoSequenceTimelineModelFromMarkdown(importedSequenceMarkdown)
+  const importedSequencePreset = parseCanvasWorkspaceFrontmatterPreset(importedSequenceMarkdown)
+  const legacySequencePreset = parseCanvasWorkspaceFrontmatterPreset(importedSequenceMarkdown.replace('kgCanvas2dRenderer: "media"', 'kgCanvas2dRenderer: "gantt"'))
+  if (
+    !importedSequenceMarkdown.includes('kgCanvas2dRenderer: "media"') ||
+    !importedSequenceMarkdown.includes('kgVideoSequenceTimeline: true') ||
+    !importedSequenceCode.includes('section Video') ||
+    !importedSequenceCode.includes('section Mask') ||
+    !importedSequenceCode.includes('section Grade') ||
+    !importedSequenceCode.includes('section Audio') ||
+    !/clip-alpha\.mp4\s*:\s*clip_[a-z0-9]+,\s*00:00,\s*5m/.test(importedSequenceCode) ||
+    !/clip-beta\.webm grade\s*:\s*clip_[a-z0-9]+_grade,\s*00:05,\s*5m/.test(importedSequenceCode) ||
+    /\s:\s(?:video|mask|grade|audio|splice),/.test(importedSequenceCode) ||
+    importedSequenceModel.durationMinutes !== 10 ||
+    importedSequenceModel.taskSpans.length !== 8 ||
+    importedSequencePreset?.canvas2dRenderer !== 'media' ||
+    importedSequencePreset?.videoSequenceTimelineEnabled !== true ||
+    legacySequencePreset?.canvas2dRenderer !== 'media'
+  ) {
+    throw new Error(`expected video import projection to emit runtime-ready typed Gantt sequence frontmatter, got ${JSON.stringify({ importedSequenceCode, importedSequenceModel })}`)
+  }
+  if (
+    !importedVideoSequenceModel?.enabled ||
+    importedVideoSequenceModel.sources.length !== 2 ||
+    importedVideoSequenceModel.sources[0]?.originalName !== 'clip-alpha.mp4' ||
+    importedVideoSequenceModel.sources[0]?.byteSize !== 100 ||
+    readVideoSequenceSourcePlayableUrl(importedVideoSequenceModel.sources[0]!) !== '' ||
+    !buildVideoSequenceSourceRegistryKeys(importedVideoSequenceModel.sources[0]!).some(key => key.includes('clip-alpha.mp4|100'))
+  ) {
+    throw new Error(`expected video sequence frontmatter parser to expose neutral local-source metadata without persisted object URLs, got ${JSON.stringify(importedVideoSequenceModel)}`)
+  }
+  const importedUrlSequenceMarkdown = buildVideoSequenceTimelineImportMarkdown([{
+    sourceUrl: 'https://media.example.test/clip.mp4',
+    relativePath: 'https://media.example.test/clip.mp4',
+    originalName: 'clip.mp4',
+    mimeHint: 'video/mp4',
+    importMode: 'url',
+  }])
+  const importedUrlVideoSequenceModel = readVideoSequenceTimelineModelFromMarkdown(importedUrlSequenceMarkdown)
+  const importedUrlSource = importedUrlVideoSequenceModel?.sources[0] || null
+  if (!importedUrlSource || readVideoSequenceSourcePlayableUrl(importedUrlSource) !== 'https://media.example.test/clip.mp4') {
+    throw new Error(`expected URL video sequence sources to resolve direct playable video URLs, got ${JSON.stringify(importedUrlVideoSequenceModel)}`)
+  }
+  const localVideoImportInput = '/tmp/knowgrph-video/clip.mp4'
+  if (normalizeWorkspaceImportUrlInput(localVideoImportInput) !== localVideoImportInput) {
+    throw new Error('expected workspace Import URL to accept local absolute video paths without hardcoding fixture paths in source')
+  }
+  const localVideoContent = await fetchWorkspaceUrlContent(localVideoImportInput)
+  if (
+    localVideoContent.name !== 'clip.mp4.source.md' ||
+    localVideoContent.sourceMediaKind !== 'video' ||
+    !localVideoContent.text.includes('originalName: "clip.mp4"') ||
+    !localVideoContent.text.includes('relativePath: "tmp/knowgrph-video/clip.mp4"')
+  ) {
+    throw new Error(`expected local absolute video path import to preserve source basename metadata before binary fetch, got ${JSON.stringify(localVideoContent)}`)
+  }
+  const store = useGraphStore.getState()
+  store.resetAll()
+  store.setGanttTimelineTransportState({
+    documentKey: 'sequence-a.md',
+    positionMinutes: 2.5,
+    playing: true,
+    playbackRate: 1.5,
+  })
+  const afterTransportSet = useGraphStore.getState()
+  if (
+    afterTransportSet.ganttTimelineTransportDocumentKey !== 'sequence-a.md' ||
+    afterTransportSet.ganttTimelineTransportPositionMinutes !== 2.5 ||
+    afterTransportSet.ganttTimelineTransportPlaying !== true ||
+    afterTransportSet.ganttTimelineTransportPlaybackRate !== 1.5
+  ) {
+    throw new Error(`expected shared Gantt transport state to update atomically, got ${JSON.stringify({
+      documentKey: afterTransportSet.ganttTimelineTransportDocumentKey,
+      position: afterTransportSet.ganttTimelineTransportPositionMinutes,
+      playing: afterTransportSet.ganttTimelineTransportPlaying,
+      rate: afterTransportSet.ganttTimelineTransportPlaybackRate,
+    })}`)
+  }
+  store.setGanttTimelineTransportState({ documentKey: 'sequence-b.md' })
+  const afterTransportDocumentSwitch = useGraphStore.getState()
+  if (
+    afterTransportDocumentSwitch.ganttTimelineTransportDocumentKey !== 'sequence-b.md' ||
+    afterTransportDocumentSwitch.ganttTimelineTransportPositionMinutes !== 0 ||
+    afterTransportDocumentSwitch.ganttTimelineTransportPlaying !== false ||
+    afterTransportDocumentSwitch.ganttTimelineTransportPlaybackRate !== 1
+  ) {
+    throw new Error(`expected shared Gantt transport state to reset on document switch, got ${JSON.stringify({
+      documentKey: afterTransportDocumentSwitch.ganttTimelineTransportDocumentKey,
+      position: afterTransportDocumentSwitch.ganttTimelineTransportPositionMinutes,
+      playing: afterTransportDocumentSwitch.ganttTimelineTransportPlaying,
+      rate: afterTransportDocumentSwitch.ganttTimelineTransportPlaybackRate,
+    })}`)
   }
   const visibleFrameGanttTransform = computeSvgSurfaceWideTimelineFitTransform({
     bounds: { minX: 0, minY: 0, width: 1375, height: 196 },

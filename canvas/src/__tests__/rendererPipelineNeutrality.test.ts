@@ -9,6 +9,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const dashboardModelText = readFileSync(resolve(root, 'components', 'DashboardCanvas', 'dashboardModel.ts'), 'utf8')
   const rendererSelectText = readFileSync(resolve(root, 'components', 'toolbar', 'Canvas2dRendererSelect.tsx'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(root, 'components', 'toolbar', 'canvasViewMenu.ts'), 'utf8')
+  const mediaCanvasText = readFileSync(resolve(root, 'components', 'MediaCanvas.tsx'), 'utf8')
   const animaticTimelineModelText = readFileSync(resolve(root, 'components', 'AnimaticCanvas', 'useAnimaticTimelineModel.ts'), 'utf8')
   const responsiveToolbarCssText = readFileSync(resolve(root, 'styles', 'responsive-toolbar.css'), 'utf8')
   const toolbarRendererViewText = readFileSync(resolve(root, 'features', 'toolbar', 'ToolbarToolMenuRendererView.tsx'), 'utf8')
@@ -61,14 +62,42 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   ) {
     throw new Error('expected Dashboard renderer to be registered through shared renderer config and excluded from minimap')
   }
+  if (
+    !renderConfigText.includes("'media'") ||
+    !renderConfigText.includes("surfaceId: 'media'") ||
+    !renderConfigText.includes('export const isMediaCanvas2dRenderer') ||
+    !renderConfigText.includes('!isMediaCanvas2dRenderer(id)')
+  ) {
+    throw new Error('expected Media renderer to be registered through shared renderer config and excluded from minimap')
+  }
   if (!canvasViewportText.includes('getCanvas2dSurfaceId(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport to derive the active 2D surface from the shared renderer surface helper')
   }
   if (!canvasViewportText.includes("import('@/components/DashboardCanvas')") || !canvasViewportText.includes("active2dSurface === 'dashboard'")) {
     throw new Error('expected CanvasViewport to mount Dashboard through the shared 2D surface branch')
   }
+  if (!canvasViewportText.includes("import('@/components/MediaCanvas')") || !canvasViewportText.includes("active2dSurface === 'media'")) {
+    throw new Error('expected CanvasViewport to mount Media through the shared 2D surface branch')
+  }
   if (!canvasViewportText.includes("import('@/components/MermaidGitGraphCanvas')") || !canvasViewportText.includes("active2dSurface === 'gitGraph'")) {
     throw new Error('expected CanvasViewport to mount GitGraph through the shared 2D surface branch')
+  }
+  if (
+    !mediaCanvasText.includes('useCommandMenuRichMediaInventory') ||
+    !mediaCanvasText.includes('<RichMediaPanel') ||
+    !mediaCanvasText.includes('data-kg-media-canvas="1"') ||
+    !mediaCanvasText.includes('readVideoSequenceTimelineModelFromMarkdown')
+  ) {
+    throw new Error('expected Media renderer to reuse shared rich-media inventory, RichMediaPanel, and video-sequence source model')
+  }
+  if (
+    !mediaCanvasText.includes('shouldIncludeRichMediaInventoryItemOnMediaCanvas') ||
+    !mediaCanvasText.includes("item.kind === 'mermaid'") ||
+    !mediaCanvasText.includes("nodeId.startsWith('flow-diagram-')") ||
+    !mediaCanvasText.includes('data-kg-flow-diagram') ||
+    !mediaCanvasText.includes('data-kg-mermaid-source')
+  ) {
+    throw new Error('expected Media renderer to exclude Mermaid/Gantt flow-diagram panels so diagram charts stay in BottomPanel')
   }
   const blockedChartRuntimeTokens = [['chart', 'js'].join('.'), ['chart', 'js'].join('')]
   if (!dashboardCanvasText.includes("import * as d3 from 'd3'") || blockedChartRuntimeTokens.some(token => dashboardCanvasText.toLowerCase().includes(token))) {
@@ -90,7 +119,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!gitGraphCanvasText.includes('selectedElementLabel: selectedCommandLabel') || !gitGraphCanvasText.includes('onSelectedElementLabelChange: handleSelectedElementLabelChange')) {
     throw new Error('expected GitGraph FloatingPanel selection to flow through the shared SVG surface runtime')
   }
-  if (!svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?:') || !svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?.({ svgEl: args.svgEl, target, candidate })')) {
+  if (!svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?:') || !svgSurfaceZoomRuntimeText.includes('readSelectedElementLabel?.({ svgEl: args.svgEl, target: target || candidate, candidate })')) {
     throw new Error('expected shared SVG surface runtime to expose neutral clicked-element label resolution')
   }
   if (!svgSurfaceZoomRuntimeText.includes('resolveSelectedElementByLabel?:') || !svgSurfaceZoomRuntimeText.includes('readSelectedElementPeers?:')) {

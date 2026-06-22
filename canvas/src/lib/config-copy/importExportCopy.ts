@@ -134,9 +134,9 @@ export const SOURCE_FILES_FORMATS = {
 
 export const SOURCE_FILES_COPY = {
   supports:
-    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonc .jsonld .csv .tsv .tab .html .htm .svg .yaml .yml .toml .tf .tfvars Dockerfile .pdf .gltf .glb code/schema/script/config files, and media metadata for images/videos; URL sources: https://… (including YouTube and GLTF/GLB assets).',
-  importUrlPrompt: 'Enter a Source File URL (https://… YouTube, GLTF, or GLB).',
-  urlPlaceholder: 'https://… (YouTube, .gltf, or .glb)',
+    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonc .jsonld .csv .tsv .tab .html .htm .svg .yaml .yml .toml .tf .tfvars Dockerfile .pdf .gltf .glb code/schema/script/config files, and media metadata for images/videos; URL/local sources: https://… or an absolute local media path.',
+  importUrlPrompt: 'Enter a Source File URL or absolute local media path.',
+  urlPlaceholder: 'URL or absolute local path (.mp4, .mov, .webm, .gltf, .glb)',
   geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',
   geoLayerEmbeddedGeojsonUploadFailed: 'Geo layer enable failed: unable to upload embedded GeoJSON to local dataset cache',
   geoLayerJsonNoPointsDerived:

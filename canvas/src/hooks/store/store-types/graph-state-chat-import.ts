@@ -71,6 +71,13 @@ export type MermaidDiagramSelectionKind = 'flowchart' | 'gitgraph' | 'gantt' | '
 
 export type MermaidDiagramSelectedRowKeyByKind = Partial<Record<MermaidDiagramSelectionKind, string>>
 
+export type GanttTimelineTransportStateUpdate = {
+  documentKey?: string | null
+  positionMinutes?: number | null
+  playing?: boolean
+  playbackRate?: number | null
+}
+
 export interface GraphStateChatImport {
   flowchartDataSource: 'api' | 'fixture' | 'workspace';
   setFlowchartDataSource: (v: 'api' | 'fixture' | 'workspace') => void;
@@ -188,6 +195,11 @@ export interface GraphStateChatImport {
   setFloatingPanelView: (view: FloatingPanelView) => void;
   mermaidDiagramSelectedRowKeyByKind: MermaidDiagramSelectedRowKeyByKind;
   setMermaidDiagramSelectedRowKey: (kind: MermaidDiagramSelectionKind, rowKey: string | null) => void;
+  ganttTimelineTransportDocumentKey: string;
+  ganttTimelineTransportPositionMinutes: number;
+  ganttTimelineTransportPlaying: boolean;
+  ganttTimelineTransportPlaybackRate: number;
+  setGanttTimelineTransportState: (update: GanttTimelineTransportStateUpdate) => void;
   gitGraphSelectedCommandLineIndex: number | null;
   setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) => void;
   chatExchangeLogs: ChatExchangeLogEntry[];

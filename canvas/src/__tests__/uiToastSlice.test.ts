@@ -116,3 +116,52 @@ export function testToastHostSchedulesPruneFromNextExpiryInsteadOfPolling() {
     throw new Error('expected toast host to remove the always-on prune interval hot path')
   }
 }
+
+export function testErrorBoundaryUsesSharedToastInsteadOfInlineRedDetails() {
+  const boundaryText = readFileSync(resolve(process.cwd(), 'src', 'components', 'ErrorBoundary.tsx'), 'utf8')
+  const appText = readFileSync(resolve(process.cwd(), 'src', 'App.tsx'), 'utf8')
+  const canvasText = readFileSync(resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx'), 'utf8')
+  const toastIndex = appText.indexOf('<ToastHostLazy />')
+  const boundaryIndex = appText.indexOf('<ErrorBoundary>')
+
+  if (!boundaryText.includes('useGraphStore') || !boundaryText.includes('upsertUiToast')) {
+    throw new Error('expected ErrorBoundary failures to flow through the shared toast store')
+  }
+  if (!boundaryText.includes("id: ERROR_BOUNDARY_TOAST_ID") || !boundaryText.includes("'react:error-boundary'")) {
+    throw new Error('expected ErrorBoundary toast to use a stable upsert id')
+  }
+  if (boundaryText.includes('text-red-600') || boundaryText.includes('text-red-700')) {
+    throw new Error('expected ErrorBoundary to remove inline red error details')
+  }
+  if (boundaryText.includes('console.error(error)')) {
+    throw new Error('expected ErrorBoundary to avoid duplicate console-only error reporting')
+  }
+  if (!appText.includes("const ToastHostLazy = lazy(() => import('@/components/ui/ToastHost'))")) {
+    throw new Error('expected App shell to own the shared toast host')
+  }
+  if (toastIndex < 0 || boundaryIndex < 0 || toastIndex > boundaryIndex) {
+    throw new Error('expected App shell toast host to mount outside the route ErrorBoundary')
+  }
+  if (canvasText.includes('ToastHostLazy')) {
+    throw new Error('expected Canvas page to avoid a duplicate toast host')
+  }
+}
+
+export function testMermaidDiagramErrorsUseSharedToastInsteadOfInlineRedDetails() {
+  const interactiveText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'diagram', 'InteractiveMermaidDiagram.tsx'), 'utf8')
+  const plainText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'PlainMermaidDiagram.tsx'), 'utf8')
+  for (const [label, text] of [['interactive', interactiveText], ['plain', plainText]] as const) {
+    if (!text.includes('useGraphStore') || !text.includes('upsertUiToast')) {
+      throw new Error(`expected ${label} Mermaid renderer to route render failures through shared toasts`)
+    }
+    if (!text.includes('mermaid-diagram-render-error:')) {
+      throw new Error(`expected ${label} Mermaid renderer to use a stable toast id`)
+    }
+    if (text.includes('text-red-600') || text.includes('text-red-400')) {
+      throw new Error(`expected ${label} Mermaid renderer to remove inline red render errors`)
+    }
+    if (!text.includes('Mermaid diagram error surfaced in notifications.')) {
+      throw new Error(`expected ${label} Mermaid renderer to keep a semantic non-visual status fallback`)
+    }
+  }
+}

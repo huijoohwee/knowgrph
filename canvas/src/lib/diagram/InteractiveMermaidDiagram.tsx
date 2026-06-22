@@ -3,6 +3,7 @@ import { useSvgSurfaceZoomRuntime, type SvgSurfaceFitMode } from '@/components/G
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import { applyPlainMermaidDiagramSelection } from '@/features/markdown/ui/PlainMermaidDiagram'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 
@@ -392,6 +393,7 @@ export function InteractiveMermaidDiagram({
   const svgHostRef = React.useRef<HTMLElement | null>(null)
   const [baseSvg, setBaseSvg] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
+  const upsertUiToast = useGraphStore(state => state.upsertUiToast)
   const annotatedSvg = React.useMemo(
     () => annotateInteractiveMermaidSelectionRows(baseSvg, selectionRows),
     [baseSvg, selectionRows],
@@ -484,6 +486,18 @@ export function InteractiveMermaidDiagram({
     }
   }, [code, rootThemeMode])
 
+  React.useEffect(() => {
+    const message = String(error || '').trim()
+    if (!message) return
+    upsertUiToast({
+      id: `mermaid-diagram-render-error:${rendererId}`,
+      kind: 'error',
+      message,
+      ttlMs: 6000,
+      dismissible: true,
+    })
+  }, [error, rendererId, upsertUiToast])
+
   useSvgSurfaceZoomRuntime({
     active: !!selectedSvg && !error,
     rootRef,
@@ -502,7 +516,11 @@ export function InteractiveMermaidDiagram({
   })
 
   if (error) {
-    return <section className="text-xs text-red-600 dark:text-red-400">{error}</section>
+    return (
+      <section className="sr-only" role="status" aria-live="polite">
+        Mermaid diagram error surfaced in notifications.
+      </section>
+    )
   }
 
   if (!selectedSvg) return null

@@ -31,6 +31,11 @@ import {
 } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import { importXrImageWorkspaceAssetsFromFile, isXrImageAssetFile } from './xrImageAssets'
 import {
+  buildVideoSequenceWorkspaceDocumentName,
+  materializeVideoSequenceTimelineImportDocument,
+  type VideoSequenceImportAsset,
+} from './videoSequenceTimelineImport'
+import {
   getModelAssetFormat,
   isCorpusMediaImportFile,
   isLocalTextWorkspaceImportName,
@@ -52,6 +57,51 @@ function recordCorpusSourceUnit(
     byteSize: args.file.size,
     status: args.status,
   })
+}
+
+function pushLocalVideoSequenceImportAsset(
+  assets: VideoSequenceImportAsset[],
+  args: {
+    workspacePath: WorkspacePath
+    relativePath: string
+    originalName: string
+    file: File
+    importMode: VideoSequenceImportAsset['importMode']
+  },
+): void {
+  if (inferCorpusMediaKind(args.originalName || args.relativePath, args.file.type) !== 'video') return
+  assets.push({
+    workspacePath: args.workspacePath,
+    relativePath: args.relativePath,
+    originalName: args.originalName,
+    mimeHint: args.file.type,
+    byteSize: args.file.size,
+    importMode: args.importMode,
+  })
+}
+
+async function pruneVideoSequenceSourceDocuments(args: {
+  fs: WorkspaceFs
+  createdPaths: WorkspacePath[]
+  sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
+  assets: VideoSequenceImportAsset[]
+}): Promise<WorkspacePath[]> {
+  const sourcePaths = new Set(
+    args.assets
+      .map(asset => normalizeWorkspacePath(asset.workspacePath || ''))
+      .filter(path => path && /\.source\.md$/i.test(path)),
+  )
+  if (sourcePaths.size === 0) return []
+  const removed: WorkspacePath[] = []
+  for (const path of sourcePaths) {
+    await args.fs.deleteEntry(path).catch(() => void 0)
+    removed.push(path)
+  }
+  const keepCreated = args.createdPaths.filter(path => !sourcePaths.has(normalizeWorkspacePath(path)))
+  args.createdPaths.splice(0, args.createdPaths.length, ...keepCreated)
+  const keepSources = args.sources.filter(item => !sourcePaths.has(normalizeWorkspacePath(item.path)))
+  args.sources.splice(0, args.sources.length, ...keepSources)
+  return removed
 }
 
 function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
@@ -193,6 +243,7 @@ export async function importWorkspaceLocalFiles(args: {
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
   const sourceUnits: CorpusSourceUnit[] = []
+  const videoSequenceAssets: VideoSequenceImportAsset[] = []
   const recordSourceUnit = createCorpusSourceUnitRecorder({ sourceUnits, importMode: 'file' })
 
   const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
@@ -276,6 +327,13 @@ export async function importWorkspaceLocalFiles(args: {
             createdPaths.push(desiredPath)
             sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
             recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: existingText, file, status: 'cached' })
+            pushLocalVideoSequenceImportAsset(videoSequenceAssets, {
+              workspacePath: desiredPath,
+              relativePath: nameRaw,
+              originalName: nameRaw,
+              file,
+              importMode: 'file',
+            })
             continue
           }
         }
@@ -308,6 +366,13 @@ export async function importWorkspaceLocalFiles(args: {
             createdPaths.push(desiredPath)
             sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
             recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: metadataText, file, status: 'unsupported' })
+            pushLocalVideoSequenceImportAsset(videoSequenceAssets, {
+              workspacePath: desiredPath,
+              relativePath: nameRaw,
+              originalName: nameRaw,
+              file,
+              importMode: 'file',
+            })
             continue
           }
           const rawText = modelFormat ? await buildModelAssetMarkdownFromFile(file, modelFormat) : await file.text()
@@ -407,13 +472,40 @@ export async function importWorkspaceLocalFiles(args: {
         jsonSourceDocuments,
       })
       recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: nameRaw, originalName: nameRaw, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })
+      pushLocalVideoSequenceImportAsset(videoSequenceAssets, {
+        workspacePath: normalized,
+        relativePath: nameRaw,
+        originalName: nameRaw,
+        file,
+        importMode: 'file',
+      })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
 
+  const videoSequencePath = await materializeVideoSequenceTimelineImportDocument({
+    fs: args.fs,
+    parentPath,
+    assets: videoSequenceAssets,
+  })
+  const removedPaths = videoSequencePath
+    ? await pruneVideoSequenceSourceDocuments({
+        fs: args.fs,
+        createdPaths,
+        sources,
+        assets: videoSequenceAssets,
+      })
+    : []
+  if (videoSequencePath) {
+    createdPaths.unshift(videoSequencePath)
+    sources.unshift({ path: videoSequencePath, source: { kind: 'local', originalName: buildVideoSequenceWorkspaceDocumentName(videoSequenceAssets) } })
+  }
+
   return {
     ...buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits }),
+    ...(removedPaths.length > 0 ? { removedPaths } : {}),
+    ...(videoSequencePath ? { applyToGraph: true } : {}),
     ...(jsonSourceDocuments.length > 0 ? { jsonSourceDocuments } : {}),
   }
 }
@@ -436,6 +528,7 @@ export async function importWorkspaceLocalFolder(args: {
   const skipped: Array<{ name: string; reason: 'unsupported' | 'missing-name' }> = []
   const failed: Array<{ name: string; error: string }> = []
   const sourceUnits: CorpusSourceUnit[] = []
+  const videoSequenceAssets: VideoSequenceImportAsset[] = []
   const recordSourceUnit = createCorpusSourceUnitRecorder({ sourceUnits, importMode: 'folder' })
 
   const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
@@ -534,6 +627,13 @@ export async function importWorkspaceLocalFolder(args: {
           createdPaths.push(desiredPath)
           sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
           recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: relPath || rawRelName, originalName: rawRelName, text: existingText, file, status: 'cached' })
+          pushLocalVideoSequenceImportAsset(videoSequenceAssets, {
+            workspacePath: desiredPath,
+            relativePath: relPath || rawRelName,
+            originalName: rawRelName,
+            file,
+            importMode: 'folder',
+          })
           continue
         }
       }
@@ -585,6 +685,13 @@ export async function importWorkspaceLocalFolder(args: {
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
       recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: relPath || rawRelName, originalName: rawRelName, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })
+      pushLocalVideoSequenceImportAsset(videoSequenceAssets, {
+        workspacePath: normalized,
+        relativePath: relPath || rawRelName,
+        originalName: rawRelName,
+        file,
+        importMode: 'folder',
+      })
     } catch (e) {
       failed.push({ name: nameRaw, error: String((e as { message?: unknown })?.message ?? e) })
       try {
@@ -596,5 +703,27 @@ export async function importWorkspaceLocalFolder(args: {
     }
   }
 
-  return buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits })
+  const videoSequencePath = await materializeVideoSequenceTimelineImportDocument({
+    fs: args.fs,
+    parentPath: WORKSPACE_ROOT_PATH,
+    assets: videoSequenceAssets,
+  })
+  const removedPaths = videoSequencePath
+    ? await pruneVideoSequenceSourceDocuments({
+        fs: args.fs,
+        createdPaths,
+        sources,
+        assets: videoSequenceAssets,
+      })
+    : []
+  if (videoSequencePath) {
+    createdPaths.unshift(videoSequencePath)
+    sources.unshift({ path: videoSequencePath, source: { kind: 'local', originalName: buildVideoSequenceWorkspaceDocumentName(videoSequenceAssets) } })
+  }
+
+  return {
+    ...buildCorpusWorkspaceImportResult({ createdPaths, sources, skipped, failed, sourceUnits }),
+    ...(removedPaths.length > 0 ? { removedPaths } : {}),
+    ...(videoSequencePath ? { applyToGraph: true } : {}),
+  }
 }

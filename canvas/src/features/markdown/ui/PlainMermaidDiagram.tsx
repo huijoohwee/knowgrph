@@ -1,6 +1,7 @@
 import React from 'react'
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CARD_MARKDOWN_PREVIEW_MERMAID_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
 
@@ -19,6 +20,7 @@ export function PlainMermaidDiagram({
 }) {
   const [baseSvg, setBaseSvg] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
+  const upsertUiToast = useGraphStore(state => state.upsertUiToast)
   const selectedSvg = React.useMemo(
     () => applyPlainMermaidDiagramSelection(baseSvg, selectedLabels || [], dimUnselected),
     [baseSvg, selectedLabels, dimUnselected],
@@ -61,8 +63,24 @@ export function PlainMermaidDiagram({
     }
   }, [code, rootThemeMode])
 
+  React.useEffect(() => {
+    const message = String(error || '').trim()
+    if (!message) return
+    upsertUiToast({
+      id: 'mermaid-diagram-render-error:plain',
+      kind: 'error',
+      message,
+      ttlMs: 6000,
+      dismissible: true,
+    })
+  }, [error, upsertUiToast])
+
   if (error) {
-    return <section className="text-xs text-red-600 dark:text-red-400">{error}</section>
+    return (
+      <section className="sr-only" role="status" aria-live="polite">
+        Mermaid diagram error surfaced in notifications.
+      </section>
+    )
   }
 
   if (!selectedSvg) return null

@@ -2,9 +2,9 @@
 schema: kgc-computing-flow/v1
 doc_id: knowgrph-yaml-mermaid-gitgraph-frontmatter-prd-tad
 doc_type: prd-tad
-version: 0.1.4
+version: 0.1.7
 status: dev-source-implemented-no-deploy
-updated: 2026-06-05
+updated: 2026-06-22
 deploy_status: not_deployed
 ---
 
@@ -12,7 +12,7 @@ deploy_status: not_deployed
 
 ## Document Purpose
 
-This document defines the implemented Dev-source contract for Toolbar -> Canvas View Mode -> **2D Renderer: GitGraph** and the shared BottomPanel/FloatingPanel Mermaid diagram surfaces for GitGraph and Gantt. The feature lets a Markdown document land on a dedicated Mermaid GitGraph surface through YAML frontmatter while preserving the existing Flow frontmatter parser and renderer ownership boundaries.
+This document defines the implemented Dev-source contract for Toolbar -> Canvas View Mode -> **2D Renderer: GitGraph**, **2D Renderer: Media**, the shared BottomPanel/FloatingPanel Mermaid diagram surfaces for GitGraph and Gantt, and the Timeline video sequence import projection. The feature lets a Markdown document land on a dedicated Mermaid GitGraph, shared rich-media, or Gantt-backed video sequence surface through YAML frontmatter while preserving the existing Flow frontmatter parser and renderer ownership boundaries.
 
 The implementation is Dev-only. It does not claim a Prod mirror sync or Cloudflare deployment.
 
@@ -30,9 +30,12 @@ The implementation is Dev-only. It does not claim a Prod mirror sync or Cloudfla
 | Inline GitGraph CRUD | `canvas/src/lib/mermaid/mermaidGitGraphEdit.ts`, `canvas/src/components/MermaidGitGraphCanvas.tsx` | Command create/update/delete transforms operate on the active Markdown `mermaid: |` source and reuse the shared inline text editor. |
 | Document version graph | `canvas/src/features/document-versioning/documentVersioning.ts`, `canvas/src/features/document-versioning/DocumentVersionGitGraphPanel.tsx`, `canvas/src/features/strybldr/StrybldrTimelineBottomPanel.tsx` | Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in Version Graph view; the bottom panel keeps Version Graph separate from Mermaid GitGraph; MainPanel History does not own a duplicate document-version Docs surface. |
 | BottomPanel / FloatingPanel Mermaid panels | `canvas/src/features/gitgraph/MermaidDiagramPanelView.tsx`, typed diagram FloatingPanel views, and typed diagram BottomPanel views | BottomPanel owns Mermaid diagram previews and omits parsed row lists; FloatingPanel owns parsed rows and omits Mermaid diagram previews. Both surfaces share the same selected-row store and document-version graph row-selection helper; document-version history never appears as a GitGraph fallback. |
+| Timeline video sequence editor | `canvas/src/components/MediaCanvas.tsx`, `canvas/src/components/timeline/videoSequenceSourceRegistry.ts`, `canvas/src/features/gitgraph/GanttTimelineTransportPanel.tsx`, `canvas/src/features/gitgraph/TimelineBottomPanelView.tsx`, `canvas/src/features/gitgraph/TimelineFloatingPanelView.tsx`, `canvas/src/components/timeline/videoSequenceTimeline.ts`, `canvas/src/lib/mermaid/mermaidGanttBarInteraction.ts` | Canvas renders `kgVideoSequenceTimeline` documents as Media playback preview instead of a Gantt flow diagram. BottomPanel Timeline owns the visual Gantt transport and neutral empty sequence shell. FloatingPanel Timeline resolves the same source as a row/list surface so it does not duplicate playback chrome. Gantt-backed Timeline rows expose cut, splice-to-playhead, mask lane, and grade lane actions that write back through Mermaid Gantt frontmatter. |
+| Toolbar video import projection | `canvas/src/features/markdown-workspace/workspaceImport/videoSequenceTimelineImport.ts`, `canvas/src/features/markdown-workspace/workspaceImport/localImport.ts`, `canvas/src/features/markdown-workspace/workspaceImport/urlImport.ts`, `canvas/src/features/markdown-workspace/workspaceImport/urlContent.ts`, `canvas/src/features/markdown-workspace/useWorkspaceFileActions/importActions.ts`, `canvas/src/lib/url.ts` | Launch -> Import local files/folder and Import URL preserve video media as corpus manifest source units, then leave one visible source-backed `kgVideoSequenceTimeline` Markdown document with `kgCanvas2dRenderer: "media"`, typed `mermaid_gantt` frontmatter, and no repo-local fixture paths. Local file-picker videos register runtime object URLs without persisting stale `blob:` URLs; Import URL accepts direct HTTP(S), root-relative, `file://`, and local absolute paths for workspace imports. |
+| Media renderer surface | `canvas/src/components/MediaCanvas.tsx`, `canvas/src/components/RichMediaPanel.tsx`, `canvas/src/lib/command-menu/commandMenuRichMediaInventory.ts`, `canvas/src/components/CanvasViewport.tsx`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/lib/config.render.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Toolbar -> Canvas View Mode exposes `2D Renderer: Media` as a canonical renderer id. The surface reuses the shared rich-media inventory and `RichMediaPanel` viewer for images, videos, audio, webpage iframes, and playable video-sequence sources without duplicating media parsing, lightbox, or transport owners; Mermaid/Gantt flow-diagram panels remain BottomPanel/FloatingPanel diagram surfaces. |
 | Typed `flow_diagrams` frontmatter | `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowDiagrams.ts` | Routed `mermaid_flowchart`, `mermaid_gitgraph`, `mermaid_architecture`, and `mermaid_eventmodeling` entries render in FloatingPanel row-list and BottomPanel chart surfaces without filename checks, static backfill, or Rich Media Panel fallback. |
 | Canvas mount | `canvas/src/components/CanvasViewport.tsx` | Mounts the GitGraph surface only when the active 2D surface is `gitGraph`. |
-| Toolbar and registry | `canvas/src/lib/config.render.ts`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/components/toolbar/canvasViewActions.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Registers canonical renderer id `gitGraph`, label `2D Renderer: GitGraph`, menu metadata, icon, normalized canonical-token resolution, and Canvas View Display Controls that open BottomPanel GitGraph/Gantt through the shared bottom-surface store. |
+| Toolbar and registry | `canvas/src/lib/config.render.ts`, `canvas/src/components/toolbar/canvasViewMenu.ts`, `canvas/src/components/toolbar/canvasViewActions.ts`, `canvas/src/lib/config-copy/uiCopy.ts` | Registers canonical renderer ids, menu metadata, icons, normalized canonical-token resolution, and Canvas View Display Controls that open BottomPanel GitGraph/Gantt through the shared bottom-surface store. |
 | Parser routing contract | opening frontmatter `kgParserRoutingContract` | Names parser logic, routing keys, diagram kinds, surfaces, edge policy, and fork policy for runtime-ready demos without renderer-local aliases, stale carryover, or body-side topology mirrors. |
 
 ## Product Requirements
@@ -123,10 +126,11 @@ Markdown Source
 
 ### Rendering
 
-- `gitGraph` is a canonical 2D renderer id and maps to the `gitGraph` surface.
+- `gitGraph` and `media` are canonical 2D renderer ids and map to the `gitGraph` and `media` surfaces.
 - The surface is mounted from `CanvasViewport` only when active.
 - The surface resolves GitGraph code from active Markdown frontmatter text first, then from parsed graph metadata as fallback, so inline source edits render immediately without waiting on a parser reapply.
 - Mermaid rendering uses the existing cached SVG renderer and SVG postprocessor.
+- Media rendering uses `MediaCanvas` to project active-document playback media inventory and playable `kgVideoSequenceSources` through the shared `RichMediaPanel` surface. The Media renderer does not parse Mermaid diagrams, fork upload/import handling, persist runtime-only object URLs, or render flow-diagram/Mermaid `srcDoc` panels that belong in BottomPanel/FloatingPanel diagram surfaces.
 - Interaction uses `useSvgSurfaceZoomRuntime`, which adapts the rendered SVG to the shared D3 Graph viewport path (`createZoom`, toolbar `useZoomEffects`, `fitAllTransform`, `useAutoZoomModes2d`, and keyed zoom commits).
 - The adapter creates a neutral one-node visual-bounds graph from the wrapped SVG content bounds, with the root `viewBox` or dimensions as fallback. This graph is only a fit/zoom measurement input and is not written back to source GraphData.
 - SVG selection is generic and element-local. It exposes selected labels through surface data attributes for inspection without adding GitGraph semantic parsing, hardcoded labels, or file-specific behavior.
@@ -158,6 +162,13 @@ Markdown Source
 - BottomPanel and FloatingPanel stay in sync through `mermaidDiagramSelectedRowKeyByKind`; row clicks in FloatingPanel update BottomPanel diagram selection, and direct SVG element clicks in BottomPanel update the FloatingPanel selected row.
 - BottomPanel diagram views render their typed frontmatter only. GitGraph does not import, mount, or fallback to the document-version graph panel, and Gantt does not reuse document-version state.
 - Canvas View -> Display Controls exposes Flowchart, GitGraph, Architecture, EventModeling, and Gantt beside Timeline. These controls route to `bottomSurfaceTab` / `bottomSurfaceCollapsed`; they must not switch the 2D renderer, mutate layout state, or duplicate panel rendering logic.
+- Video-sequence documents declare `kgCanvas2dRenderer: "media"` and render playback sources through `MediaCanvas`. Legacy video-sequence documents that still declare `kgCanvas2dRenderer: "gantt"` normalize to Media at the frontmatter preset boundary. Ordinary non-video Gantt documents still render through `MermaidGanttCanvas` / `InteractiveMermaidDiagram` when the user explicitly selects the Gantt renderer.
+- BottomPanel Timeline reuses the Gantt transport owner for source-backed video sequence editing. FloatingPanel Timeline renders the same Gantt-backed sequence as a Mermaid row/list surface only. Cut splits the selected Gantt row at the playhead, Splice moves the selected row to the playhead, Mask inserts a mask operation row, and Grade inserts a grade operation row.
+- Timeline row lanes are derived from row labels/sections (`video`, `mask`, `grade`, `audio`) through `videoSequenceTimeline.ts`; generated Gantt task metadata stays Mermaid-valid as `task_id, HH:mm, duration` instead of unsupported lane tags. Empty BottomPanel Timeline state renders the neutral sequence editor shell instead of a blank Mermaid-only panel.
+- Toolbar -> Launch -> Import local files/folder and Import URL detect video sources through shared corpus media inference, keep the actual media as source-unit metadata, and materialize a generated `kgVideoSequenceTimeline` document that opens the Gantt-backed Timeline surface. Local picker video bytes remain session-local object URLs keyed by source metadata; those object URLs are never written into Markdown.
+- Direct video URLs are treated as media metadata and are not fetched as webpage text. Generated sequence documents carry `kgVideoSequenceSources` provenance plus typed `flow_diagrams.video_sequence.type: mermaid_gantt` source, so edits remain ordinary Mermaid Gantt source mutations.
+- Toolbar -> Canvas View Mode -> `2D Renderer: Media` renders images, videos, audio, webpage iframes, and playable video-sequence sources from the shared rich-media inventory. It is a preview surface only: Timeline remains the source-backed editor for cuts, splices, masks, grades, and transport state, and Gantt flow diagrams remain in BottomPanel/FloatingPanel diagram surfaces.
+- The sequence import projection is neutral and data-driven. It must not branch on local validation directories, copied vendor implementations, project filenames, or fixture-specific paths.
 - `bottomSurfaceTab: "gitGraph"` is Mermaid-only. Document version control uses `bottomSurfaceTab: "documentVersionGraph"` and is labeled Version Graph in the bottom panel.
 - The shared panel path must not backfill static diagrams, regenerate stale templates, or branch on demo filenames.
 

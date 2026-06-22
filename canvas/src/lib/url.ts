@@ -20,6 +20,22 @@ export function normalizeImportUrlInput(value: unknown): string {
   }
 }
 
+export function normalizeWorkspaceImportUrlInput(value: unknown): string {
+  const raw = typeof value === 'string' ? (unwrapUserProvidedText(value) || value.trim()) : ''
+  if (!raw || raw.length > 4096) return ''
+  if (/^(?:download|import)\s+failed\s*:/i.test(raw)) return ''
+  if (isLikelyAbsoluteFsPath(raw)) return raw
+  if (raw.startsWith('/') && !isLikelyAbsoluteFsPath(raw)) return raw
+  try {
+    const url = new URL(raw)
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.toString()
+    if (url.protocol === 'file:' && isLikelyAbsoluteFsPath(url.pathname)) return url.toString()
+    return ''
+  } catch {
+    return ''
+  }
+}
+
 export function normalizeCodebaseRelPath(relPath: string): string {
   const trimmed = String(relPath || '')
     .trim()

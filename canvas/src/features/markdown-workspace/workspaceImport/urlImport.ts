@@ -21,6 +21,7 @@ import {
 } from '@/features/strybldr/strybldrStoryboard'
 import { importXrImageWorkspaceAssetsFromUrl, isXrImageAssetUrl } from './xrImageAssets'
 import { materializeCsvJsonImportArtifacts } from './csvJsonConversion'
+import { materializeVideoSequenceTimelineImportDocument } from './videoSequenceTimelineImport'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -196,6 +197,33 @@ export async function importWorkspaceUrl(args: {
     jsonSourceDocuments.push(...csvJsonDerived.jsonSourceDocuments)
   }
   let effectiveApplyToGraph = applyToGraph
+  const removedVideoSourcePaths: WorkspacePath[] = []
+  if (sourceUnit.mediaKind === 'video') {
+    const videoSequencePath = await materializeVideoSequenceTimelineImportDocument({
+      fs: args.fs,
+      parentPath,
+      assets: [{
+        workspacePath: normalized,
+        relativePath: sourceUrl,
+        originalName: fetched.name.replace(/\.source\.md$/i, '') || fetched.name,
+        sourceUrl,
+        mimeHint: fetched.sourceMimeHint || '',
+        byteSize: fetched.text.length,
+        importMode: 'url',
+      }],
+    })
+    if (videoSequencePath) {
+      await args.fs.deleteEntry(normalized).catch(() => void 0)
+      removedVideoSourcePaths.push(normalized)
+      const retainedCreatedPaths = createdPaths.filter(path => normalizeWorkspacePath(path) !== normalized)
+      createdPaths.splice(0, createdPaths.length, ...retainedCreatedPaths)
+      const retainedSources = sources.filter(item => normalizeWorkspacePath(item.path) !== normalized)
+      sources.splice(0, sources.length, ...retainedSources)
+      createdPaths.unshift(videoSequencePath)
+      sources.unshift({ path: videoSequencePath, source: { kind: 'url', url: sourceUrl } })
+      effectiveApplyToGraph = true
+    }
+  }
   if (args.canvas2dRenderer === 'storyboard') {
     const storyDoc = buildStrybldrStoryboardDocument({
       sourceUnits: [sourceUnit],
@@ -218,7 +246,7 @@ export async function importWorkspaceUrl(args: {
   return {
     createdPaths,
     sources,
-    ...(removedPaths.length > 0 ? { removedPaths } : {}),
+    ...(removedPaths.length > 0 || removedVideoSourcePaths.length > 0 ? { removedPaths: [...removedPaths, ...removedVideoSourcePaths] } : {}),
     ...(jsonSourceDocuments.length > 0 ? { jsonSourceDocuments } : {}),
     skipped: [],
     failed: [],

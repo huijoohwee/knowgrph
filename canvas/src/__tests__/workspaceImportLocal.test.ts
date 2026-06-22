@@ -10,6 +10,7 @@ import {
   hydrateWorkspaceFileFromPendingLocalImport,
   importWorkspaceLocalFiles,
   importWorkspaceLocalFolder,
+  importWorkspaceUrl,
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
 } from '@/features/markdown-workspace/workspaceImport'
@@ -148,6 +149,128 @@ export async function testWorkspaceImportLocalFilesCreatesExpectedEntries() {
     const names = entries.filter(e => e.kind === 'file').map(e => e.name).sort()
     if (!names.includes('a.md') || !names.includes('b.txt')) {
       throw new Error(`expected imported files to exist, got: ${names.join(', ')}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLocalVideoCreatesSingleRenderableSequenceDocument() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const file = createBinaryFile('clip.mp4', new Uint8Array([0, 1, 2, 3]), 'video/mp4')
+    const res = await importWorkspaceLocalFiles({ fs, files: [file], parentPath: '/' })
+    if (res.createdPaths.length !== 1) {
+      throw new Error(`expected video import to leave one visible workspace file, got ${res.createdPaths.join(', ')}`)
+    }
+    const path = res.createdPaths[0] || ''
+    if (!path.endsWith('.video-sequence.timeline.md')) {
+      throw new Error(`expected video import to focus the sequence document, got ${path}`)
+    }
+    if (res.createdPaths.some(createdPath => /\.source\.md$/i.test(createdPath))) {
+      throw new Error(`expected generated video source sidecars to be pruned from createdPaths, got ${res.createdPaths.join(', ')}`)
+    }
+    const entries = await fs.listEntries()
+    const names = entries.filter(e => e.kind === 'file').map(e => e.name).sort()
+    if (names.some(name => /\.source\.md$/i.test(name))) {
+      throw new Error(`expected video import workspace to avoid source sidecar files, got: ${names.join(', ')}`)
+    }
+    const text = String((await fs.readFileText(path)) || '')
+    if (
+      !text.includes('kgCanvas2dRenderer: "media"') ||
+      !text.includes('kgVideoSequenceTimeline: true') ||
+      !text.includes('kgVideoSequenceSources:') ||
+      !text.includes('clip.mp4')
+    ) {
+      throw new Error(`expected video import to create a renderable Media sequence document, got ${text}`)
+    }
+    if (res.corpusManifest?.sourceUnits.length !== 1 || res.corpusManifest.sourceUnits[0]?.mediaKind !== 'video') {
+      throw new Error(`expected pruned sidecar import to keep video source unit manifest, got ${JSON.stringify(res.corpusManifest)}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportUrlVideoCreatesSingleRenderableSequenceDocument() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const res = await importWorkspaceUrl({
+      fs,
+      urlRaw: 'https://media.example.test/clip.mp4',
+      parentPath: '/',
+      fetchUrlContent: async url => ({
+        normalizedUrl: url,
+        name: 'clip.mp4.source.md',
+        text: [
+          '---',
+          'kgCorpusSourceUnit: true',
+          'originalName: "clip.mp4"',
+          'relativePath: "https://media.example.test/clip.mp4"',
+          'mediaKind: "video"',
+          'mimeHint: "video/mp4"',
+          'byteSize: 4',
+          'status: "unsupported"',
+          'importMode: "url"',
+          '---',
+          '',
+        ].join('\n'),
+        sourceMediaKind: 'video',
+        sourceMimeHint: 'video/mp4',
+      }),
+    })
+    if (res.createdPaths.length !== 1) {
+      throw new Error(`expected URL video import to leave one visible workspace file, got ${res.createdPaths.join(', ')}`)
+    }
+    const path = res.createdPaths[0] || ''
+    if (!path.endsWith('.video-sequence.timeline.md') || res.createdPaths.some(createdPath => /\.source\.md$/i.test(createdPath))) {
+      throw new Error(`expected URL video import to focus only the sequence document, got ${res.createdPaths.join(', ')}`)
+    }
+    const names = (await fs.listEntries()).filter(e => e.kind === 'file').map(e => e.name).sort()
+    if (names.some(name => /\.source\.md$/i.test(name))) {
+      throw new Error(`expected URL video import workspace to avoid source sidecar files, got: ${names.join(', ')}`)
+    }
+    const text = String((await fs.readFileText(path)) || '')
+    if (!text.includes('sourceUrl: "https://media.example.test/clip.mp4"') || !text.includes('kgCanvas2dRenderer: "media"')) {
+      throw new Error(`expected URL video import to create a playable Media sequence document, got ${text}`)
+    }
+
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('flowEditor')
+    store.setBottomSurfaceTab('gantt')
+    store.setBottomSurfaceCollapsed(true)
+    store.setFloatingPanelView('flowEditor')
+    store.setFloatingPanelOpen(false)
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: {
+        applyToGraph: true,
+        skipComposedGraphApply: true,
+        removedPaths: res.removedPaths,
+      },
+    })
+    await activateFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph: true })
+    const next = useGraphStore.getState()
+    if (next.canvasRenderMode !== '2d') {
+      throw new Error(`expected URL video activation to preserve 2d canvas mode, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas2dRenderer !== 'media') {
+      throw new Error(`expected URL video activation to land on Media renderer, got ${String(next.canvas2dRenderer || '')}`)
+    }
+    if (next.bottomSurfaceTab !== 'timeline' || next.bottomSurfaceCollapsed === true) {
+      throw new Error(`expected URL video activation to open BottomPanel Timeline, got tab=${String(next.bottomSurfaceTab || '')} collapsed=${String(next.bottomSurfaceCollapsed)}`)
+    }
+    if (next.floatingPanelView !== 'timeline' || next.floatingPanelOpen !== true) {
+      throw new Error(`expected URL video activation to show FloatingPanel Timeline rows, got view=${String(next.floatingPanelView || '')} open=${String(next.floatingPanelOpen)}`)
     }
   } finally {
     restore()

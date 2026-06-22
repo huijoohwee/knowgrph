@@ -13,6 +13,7 @@ import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceL
 const PerformanceAutomationReadoutLazy = lazy(async () => ({
   default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
 }))
+const ToastHostLazy = lazy(() => import('@/components/ui/ToastHost'))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
@@ -160,6 +161,9 @@ export default function App() {
           <PerformanceAutomationReadoutLazy />
         </Suspense>
       ) : null}
+      <Suspense fallback={null}>
+        <ToastHostLazy />
+      </Suspense>
       <ErrorBoundary>
         <Routes>
           <Route path="/*" element={<Canvas />} />

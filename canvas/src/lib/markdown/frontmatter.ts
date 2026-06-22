@@ -16,6 +16,7 @@ export type CanvasWorkspaceFrontmatterPreset = {
   canvasRenderMode?: '2d' | '3d'
   canvas3dMode?: Canvas3dModeId
   canvas2dRenderer?: Canvas2dRendererId
+  videoSequenceTimelineEnabled?: boolean
   documentSemanticMode?: 'document' | 'keyword'
   frontmatterModeEnabled?: boolean
   multiDimTableModeEnabled?: boolean
@@ -168,7 +169,11 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
   const canvasRenderSurfaceAlias = readCanvasSurfaceModePreset(meta.kgCanvasRenderMode)
   const canvas3dMode = readCanvas3dModePreset(meta.kgCanvas3dMode)
     ?? (canvasSurfaceMode === 'xr' || canvasRenderSurfaceAlias === 'xr' ? 'xr' : undefined)
-  const canvas2dRenderer = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
+  const canvas2dRendererRaw = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
+  const videoSequenceTimelineEnabled = readBooleanPreset(meta.kgVideoSequenceTimeline) === true
+  const canvas2dRenderer = videoSequenceTimelineEnabled && canvas2dRendererRaw === 'gantt'
+    ? 'media'
+    : canvas2dRendererRaw
   const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
   const frontmatterModeEnabled = readBooleanPreset(meta.kgFrontmatterModeEnabled)
   const multiDimTableModeEnabled = readBooleanPreset(meta.kgMultiDimTableModeEnabled)
@@ -179,6 +184,7 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
     canvasRenderMode === undefined &&
     canvas3dMode === undefined &&
     canvas2dRenderer === undefined &&
+    videoSequenceTimelineEnabled === false &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
     multiDimTableModeEnabled === undefined &&
@@ -192,6 +198,7 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
     canvasRenderMode,
     canvas3dMode,
     canvas2dRenderer,
+    videoSequenceTimelineEnabled,
     documentSemanticMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
@@ -225,6 +232,7 @@ export function parseCanvasWorkspaceFrontmatterPresetBlock(block: YamlFrontmatte
   const canvasRenderModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasRenderMode')
   const canvas3dModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas3dMode')
   const canvas2dRendererRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas2dRenderer')
+  const videoSequenceTimelineRaw = readYamlFrontmatterValue(block.rawBlock, 'kgVideoSequenceTimeline')
   const documentSemanticModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentSemanticMode')
   const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
   const multiDimTableModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgMultiDimTableModeEnabled')
@@ -234,6 +242,7 @@ export function parseCanvasWorkspaceFrontmatterPresetBlock(block: YamlFrontmatte
     kgCanvasRenderMode: canvasRenderModeRaw || undefined,
     kgCanvas3dMode: canvas3dModeRaw || undefined,
     kgCanvas2dRenderer: canvas2dRendererRaw || undefined,
+    kgVideoSequenceTimeline: readBooleanPreset(videoSequenceTimelineRaw),
     kgDocumentSemanticMode: documentSemanticModeRaw || undefined,
     kgFrontmatterModeEnabled: readBooleanPreset(frontmatterModeEnabledRaw),
     kgMultiDimTableModeEnabled: readBooleanPreset(multiDimTableModeEnabledRaw),

@@ -35,6 +35,10 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
     'timeline-transport-ruler',
     'timeline-transport-ruler-tick',
     'timeline-player-range-rail',
+    'timeline-video-sequence-tool-strip',
+    'timeline-video-sequence-lane-sidebar',
+    'timeline-transport-ruler--video-sequence',
+    'data-kg-video-sequence-tool',
     '--kg-timeline-progress',
   ]) {
     if (!transportText.includes(snippet) && !cssText.includes(snippet)) {
@@ -46,6 +50,9 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
     'rgb(247 246 255 / 1) 12px',
     'rgb(130 130 226 / 0.88)',
     'rgb(0 18 128 / 1)',
+    '.timeline-transport-track-clip--lane-mask',
+    '.timeline-transport-track-clip--lane-grade',
+    '.timeline-video-sequence-empty-dropzone',
     '.timeline-transport-track-clip--milestone .timeline-transport-track-handle',
     'opacity: 0;',
   ]) {
