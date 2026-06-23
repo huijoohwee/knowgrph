@@ -4,7 +4,7 @@ Cloudflare Worker that hosts the Agents SDK `McpAgent` for the
 **knowgrph ↔ agentic-canvas-os MCP connector** control plane. Exposes the
 Director tool (`knowgrph.video_remix.run`) plus the five stage tools
 (`research`, `storyboard`, `render`, `publish`, `checkout`) over the
-**MCP Streamable HTTP** transport at `https://airvio.co/knowgrph/mcp`.
+**MCP Streamable HTTP** transport at `https://airvio.co/knowgrph/control-plane/mcp`.
 
 Migrates the deployed plain-JSON-RPC HTTP MCP at
 `cloudflare/pages/knowgrph-agent-ready.mjs` per **ADR-7** and
@@ -15,10 +15,10 @@ R14.1; Properties 1, 26).
 
 | File | Responsibility |
 |---|---|
-| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers the 6 tools with the Streamable HTTP transport, routes `/knowgrph/mcp[*]` to `KnowgrphMcpAgent.serve(...)`, persists each Director Run_Manifest to the durable store, and serves `GET /knowgrph/mcp/runs/{id}` for read-back. |
+| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers the 6 tools with the Streamable HTTP transport, routes `/knowgrph/control-plane/mcp[*]` to `KnowgrphMcpAgent.serve(...)`, persists each Director Run_Manifest to the durable store, and serves `GET /knowgrph/control-plane/mcp/runs/{id}` for read-back. |
 | `tool-registry.mjs` | Pure-JS source of truth for the tool list, schemas, and approval-gate boundary. Imported by the Worker and by the Node `node:test` unit tests. Reuses `mcp/video-remix-runtime.js` for the Director tool. |
 | `run-manifest-store.mjs` | Durable Run_Manifest persistence (task 1.2). `RunManifestStore` Durable Object plus pure helpers (`RunManifestPersistence`, `persistRunManifestThroughNamespace`, `readRunManifestThroughNamespace`). One DO instance per `runId`. |
-| `wrangler.toml` | Worker bindings: route `airvio.co/knowgrph/mcp[*]`, Durable Object classes `KnowgrphMcpAgent` (transport sessions) and `RunManifestStore` (Run_Manifest persistence). |
+| `wrangler.toml` | Worker bindings: route `airvio.co/knowgrph/control-plane/mcp[*]`, Durable Object classes `KnowgrphMcpAgent` (transport sessions) and `RunManifestStore` (Run_Manifest persistence). |
 | `__tests__/tool-registry.test.mjs` | Node-built-in unit tests for Property 26 (input + output schemas) and Property 1 (gate boundary). |
 | `__tests__/run-manifest-store.test.mjs` | Node-built-in unit tests for Property 25 (durable persistence read-back consistency) against an in-memory storage shim. |
 
@@ -52,7 +52,7 @@ The `structuredContent` returned to the MCP caller is augmented with a
   "persistence": {
     "persisted": true,
     "persistedAt": "2024-...Z",
-    "readBackEndpoint": "/knowgrph/mcp/runs/<runId>",
+    "readBackEndpoint": "/knowgrph/control-plane/mcp/runs/<runId>",
     "deadlineMs": 2000,
     "error": null
   }
@@ -62,7 +62,7 @@ The `structuredContent` returned to the MCP caller is augmented with a
 Read back the latest persisted state from any client:
 
 ```bash
-curl -s https://airvio.co/knowgrph/mcp/runs/<runId>
+curl -s https://airvio.co/knowgrph/control-plane/mcp/runs/<runId>
 ```
 
 Returns:
@@ -124,7 +124,7 @@ npx wrangler dev --config wrangler.toml
 Hit the Streamable HTTP endpoint:
 
 ```bash
-curl -sX POST http://localhost:8787/knowgrph/mcp \
+curl -sX POST http://localhost:8787/knowgrph/control-plane/mcp \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
@@ -138,22 +138,23 @@ Gated by the `cloud-deploy` Approval_Gate (spec task 11.1):
 npx wrangler deploy --config wrangler.toml
 ```
 
-The route `airvio.co/knowgrph/mcp[*]` will route to this Worker, taking
-precedence over the legacy `${APP_BASE_PATH}/mcp` handler in
-`cloudflare/pages/knowgrph-agent-ready.mjs`. The Pages site continues to
-serve discovery surfaces (`.well-known/*`, OpenAPI, A2A card, health).
+The route `airvio.co/knowgrph/control-plane/mcp[*]` routes to this Worker
+without shadowing the published Pages agent-ready endpoint at
+`/knowgrph/mcp`. Keep the Pages site on the public discovery/read-only MCP
+surface (`.well-known/*`, OpenAPI, A2A card, health) and reserve this Worker
+for the Streamable HTTP Director control plane.
 
 ## Notes for downstream tasks
 
 - Task 1.2 (this task) added the `RunManifestStore` Durable Object and the
-  `GET /knowgrph/mcp/runs/{id}` read-back route.
+  `GET /knowgrph/control-plane/mcp/runs/{id}` read-back route.
 - Task 1.3 will tighten persistence-failure handling: retain the most
   recently persisted state, return a structured persistence-failure
   response, and emit an observability diagnostic. The current
   implementation surfaces failures as a non-null `persistence.error` on
   the tool response and keeps prior state intact (DO write is atomic).
 - Task 1.4 will refine the tool listing endpoint to mirror the
-  `tools/list` payload at `/knowgrph/mcp/tools` for non-MCP discovery
+  `tools/list` payload at `/knowgrph/control-plane/mcp/tools` for non-MCP discovery
   callers; an initial JSON listing is already exposed.
 - Task 1.5 will emit stage-transition diagnostics on stage transitions; the
   current Worker only handles boundary enforcement and tool dispatch.

@@ -59,7 +59,7 @@ npx wrangler secret put BYTEPLUS_API_KEY --config cloudflare/workers/knowgrph-mc
 Deploy + verify the MCP Streamable HTTP endpoint:
 ```
 npm run mcp:worker:deploy
-curl -fsS https://airvio.co/knowgrph/mcp/health   # expect 200, status:"pass"
+curl -fsS https://airvio.co/knowgrph/control-plane/mcp/health   # expect 200, status:"pass"
 ```
 
 ## 2. AWS Agent-API — REST tier (task 11.2)
@@ -83,7 +83,7 @@ Install tier deps (so node_modules ships in the Lambda asset) and deploy:
 npm run agent-api:install
 CDK_DEFAULT_ACCOUNT=<acct> \
 CDK_DEFAULT_REGION=<region> \
-MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 CORS_ALLOW_ORIGIN=<https://your-vercel-app.vercel.app> \
 # optional: RUN_MANIFEST_PREFIX=runs
 npm run agent-api:cdk:deploy
@@ -114,7 +114,7 @@ see [knowgrph-post-deploy-verification-checklist.md](file:///Users/huijoohwee/Do
 
 ```
 AGENT_API_URL=<ApiUrl> \
-MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 FRONTEND_URL=<vercel-url> \
 AGENTCORE_MCP_URL=<optional-agentcore-runtime-base-url> \
 npm run runtime:verify
@@ -130,7 +130,7 @@ deploy:
 ```bash
 AGENT_API_URL=<ApiUrl> \
 FRONTEND_URL=<vercel-url> \
-MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 REFERENCE_URL=https://example.com/reference-video.mp4 \
 BRIEF='Hosted proof run: blocked path plus same-session persisted read-back.' \
 BUDGET_USD=10 \
@@ -156,7 +156,7 @@ or re-run an individual phase.
 ```bash
 AGENT_API_URL=<ApiUrl> \
 FRONTEND_URL=<vercel-url> \
-MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 REFERENCE_URL=https://example.com/reference-video.mp4 \
 BRIEF='Hosted proof run: blocked path plus same-session persisted read-back.' \
 BUDGET_USD=10 \
@@ -243,7 +243,7 @@ the control-plane endpoint env:
 npm run agentcore:test
 # build + push ARM64 image and create the AgentCore Runtime
 CLOUD_DEPLOY_APPROVAL_TOKEN=<token> \
-MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 AUTH_JWT_SECRET=<server-side-secret> \
 npm run agentcore:deploy        # wraps agentcore launch; set AGENTCORE_DEPLOY_COMMAND=deploy for newer CLI flows
 # verify the deployed MCP endpoint + liveness

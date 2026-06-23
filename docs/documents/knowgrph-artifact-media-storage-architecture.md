@@ -45,7 +45,7 @@ traceability:
 | Layer | Provider | Service |
 |---|---|---|
 | UI + static | Cloudflare Pages | `airvio.co/knowgrph` |
-| Agent compute | Cloudflare Workers | `McpAgent` at `airvio.co/knowgrph/mcp` |
+| Agent compute | Cloudflare Workers | `McpAgent` at `airvio.co/knowgrph/control-plane/mcp` |
 | AI routing + cache | Cloudflare AI Gateway | unified billing, fallback, token count |
 | Document store | Cloudflare D1 | run manifests, node metadata, media metadata/provenance, auto-save revisions |
 | Durable state | Cloudflare Durable Objects | per-run `RunManifest DO` and room-level canvas sync notifications |

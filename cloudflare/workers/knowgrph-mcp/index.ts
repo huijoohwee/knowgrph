@@ -2,7 +2,7 @@
 //
 // Spec: knowgrph-acos-mcp-connector
 //   - task 1.1 (R14.1; Properties 1, 26): Agents SDK `McpAgent` exposed
-//     over MCP Streamable HTTP transport at airvio.co/knowgrph/mcp.
+//     over MCP Streamable HTTP transport at airvio.co/knowgrph/control-plane/mcp.
 //   - task 1.2 (R14.2; Property 25): durable Run_Manifest persistence so
 //     a Director run state change is written within 2s and a subsequent
 //     `GET /runs/{id}` returns the latest persisted state.
@@ -64,7 +64,7 @@ export interface KnowgrphMcpEnv {
 
 export { RunManifestStore };
 
-const MCP_PATH = "/knowgrph/mcp";
+const MCP_PATH = "/knowgrph/control-plane/mcp";
 const RUNS_PATH_PREFIX = `${MCP_PATH}/runs/`;
 
 const APPROVAL_TOKEN_INPUT = z.union([
@@ -169,7 +169,7 @@ const CHECKOUT_INPUT = {
 //
 // task 1.4: the tool surface must list `knowgrph.video_remix.run` plus each
 // stage tool with BOTH an input schema and an output schema. The HTTP
-// `GET /knowgrph/mcp/tools` listing already returns both (it serializes the
+// `GET /knowgrph/control-plane/mcp/tools` listing already returns both (it serializes the
 // canonical `buildKnowgrphMcpToolDefinitions()` JSON Schemas). The MCP-native
 // `tools/list` only carried input schemas because tools were registered with
 // `server.tool(name, description, inputShape, handler)`. Registering each tool
@@ -322,7 +322,7 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
 
     // Register every tool with BOTH an input schema and an output schema so
     // the MCP-native `tools/list` exposes the same input+output contract per
-    // tool as the HTTP `GET /knowgrph/mcp/tools` listing (R14.4 / Property 26).
+    // tool as the HTTP `GET /knowgrph/control-plane/mcp/tools` listing (R14.4 / Property 26).
     // `registerTool` carries `outputSchema` into the Streamable HTTP tool
     // surface, which `server.tool(...)` cannot.
     const register = (
@@ -389,7 +389,7 @@ const jsonResponse = (body: unknown, init?: ResponseInit): Response =>
   });
 
 /**
- * GET /knowgrph/mcp/runs/{id}
+ * GET /knowgrph/control-plane/mcp/runs/{id}
  *
  * Reads the latest persisted Run_Manifest record for `runId` from the
  * `RUN_MANIFEST_STORE` Durable Object and returns it as JSON. After a

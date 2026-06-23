@@ -18,7 +18,7 @@ export function resolveHostedSubmissionFlowConfig(env = process.env) {
   const outputDir = resolve(optionalEnv(env, "ARTIFACTS_DIR", "./artifacts"));
   return Object.freeze({
     frontendUrl:    requireEnv(env, "FRONTEND_URL"),
-    mcpEndpoint:    optionalEnv(env, "MCP_ENDPOINT", "https://airvio.co/knowgrph/mcp"),
+    mcpEndpoint:    optionalEnv(env, "MCP_ENDPOINT", "https://airvio.co/knowgrph/control-plane/mcp"),
     referenceUrl:   optionalEnv(env, "REFERENCE_URL", "https://example.com/reference-video.mp4"),
     brief:          optionalEnv(env, "BRIEF", "Hosted proof run: blocked path plus same-session persisted read-back."),
     budgetUsd:      optionalEnv(env, "BUDGET_USD", "10"),

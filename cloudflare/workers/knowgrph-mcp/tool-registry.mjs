@@ -3,7 +3,7 @@
 // Pure-JS module shared by the Cloudflare Worker entry (`index.ts`) and Node
 // `node:test` unit tests. This file is the single source of truth for:
 //
-//   * the tool list exposed at airvio.co/knowgrph/mcp (Director + 5 stage
+//   * the tool list exposed at airvio.co/knowgrph/control-plane/mcp (Director + 5 stage
 //     tools) with both inputSchema and outputSchema (Property 26 / R14.4),
 //   * approval-gate enforcement at the McpAgent boundary so a remote
 //     invocation of an approval-gated stage tool before approval is withheld
@@ -439,7 +439,7 @@ const DIRECTOR_TOOL_DEFINITION = Object.freeze({
 
 /**
  * Returns the canonical tool list this McpAgent exposes at
- * airvio.co/knowgrph/mcp. Property 26 / R14.4: every entry carries both
+ * airvio.co/knowgrph/control-plane/mcp. Property 26 / R14.4: every entry carries both
  * `inputSchema` and `outputSchema`.
  */
 export function buildKnowgrphMcpToolDefinitions() {

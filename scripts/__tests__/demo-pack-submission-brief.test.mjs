@@ -21,13 +21,13 @@ function sampleArtifact() {
     },
     demoPackValidation: { valid: true, errors: [] },
     supplementalUrls: [
-      { kind: "control_plane", url: "https://airvio.co/knowgrph/mcp/health" },
+      { kind: "control_plane", url: "https://airvio.co/knowgrph/control-plane/mcp/health" },
     ],
     demoPack: {
       urls: [
         { kind: "frontend", url: "https://app.example.vercel.app", reachable: true },
-        { kind: "agent-api", url: "https://api.example.aws", reachable: true },
-        { kind: "agent-api-health", url: "https://api.example.aws/health", reachable: true },
+        { kind: "worker", url: "https://api.example.aws", reachable: true },
+        { kind: "worker-health", url: "https://api.example.aws/health", reachable: true },
       ],
       sections: [
         { dimension: "Agent Overview", evidence: "Autonomous remix agent.", verified: true },

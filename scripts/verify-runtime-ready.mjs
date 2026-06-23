@@ -10,7 +10,7 @@
 // This script makes REAL outbound GETs to URLs YOU supply (no code/secrets are
 // transmitted). It runs nothing automatically — invoke it after a gated deploy:
 //
-//   MCP_ENDPOINT=https://airvio.co/knowgrph/mcp \
+//   MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 //   FRONTEND_URL=https://airvio.co/knowgrph \
 //   node scripts/verify-runtime-ready.mjs
 //
@@ -60,7 +60,7 @@ function joinUrl(base, suffix) {
 
 async function main() {
   const frontend     = process.env.FRONTEND_URL      || "https://airvio.co/knowgrph";
-  const mcpEndpoint  = process.env.MCP_ENDPOINT      || "https://airvio.co/knowgrph/mcp";
+  const mcpEndpoint  = process.env.MCP_ENDPOINT      || "https://airvio.co/knowgrph/control-plane/mcp";
   const storageUrl   = process.env.STORAGE_WORKER_URL || null;
 
   const results = await Promise.all([

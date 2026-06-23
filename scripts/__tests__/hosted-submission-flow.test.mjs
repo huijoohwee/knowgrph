@@ -9,12 +9,12 @@ import {
 test("resolveHostedSubmissionFlowConfig derives deterministic output paths", () => {
   const config = resolveHostedSubmissionFlowConfig({
     FRONTEND_URL: "https://airvio.co/knowgrph",
-    MCP_ENDPOINT: "https://airvio.co/knowgrph/mcp",
+    MCP_ENDPOINT: "https://airvio.co/knowgrph/control-plane/mcp",
     ARTIFACTS_DIR: "./tmp-artifacts",
   });
 
   assert.equal(config.frontendUrl, "https://airvio.co/knowgrph");
-  assert.equal(config.mcpEndpoint, "https://airvio.co/knowgrph/mcp");
+  assert.equal(config.mcpEndpoint, "https://airvio.co/knowgrph/control-plane/mcp");
   assert.match(config.proofOutputPath, /tmp-artifacts\/runtime-proof\.json$/);
   assert.match(config.demoPackOutputPath, /tmp-artifacts\/runtime-demo-pack\.json$/);
   assert.match(config.submissionBriefOutputPath, /tmp-artifacts\/runtime-submission-brief\.md$/);

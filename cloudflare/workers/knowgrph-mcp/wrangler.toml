@@ -1,13 +1,12 @@
 # Cloudflare Worker: knowgrph-mcp
 #
 # Hosts the Agents SDK `McpAgent` exposing MCP Streamable HTTP transport at
-# airvio.co/knowgrph/mcp (see knowgrph-acos-mcp-connector spec, ADR-7).
+# airvio.co/knowgrph/control-plane/mcp (see knowgrph-acos-mcp-connector spec, ADR-7).
 #
-# Migration note (task 1.1): this Worker takes precedence over the legacy
-# Pages-handled `${APP_BASE_PATH}/mcp` route in
-# `cloudflare/pages/knowgrph-agent-ready.mjs`. The Pages route remains the
-# discovery surface (.well-known/*, OpenAPI, A2A card, health) and forwards
-# tool semantics onto this Worker via the same external URL.
+# Route note: this Worker now owns a dedicated control-plane endpoint so the
+# published Pages agent-ready surface can continue serving `/knowgrph/mcp`
+# without route shadowing. Keep the Pages route for public discovery/read-only
+# MCP and reserve this Worker for the Streamable HTTP Director control plane.
 
 name = "knowgrph-mcp"
 main = "index.ts"
@@ -37,16 +36,16 @@ KNOWGRPH_LIVE_CLIENTS = "0"
 
 # Streamable HTTP transport endpoint per Requirement R14.1.
 [[routes]]
-pattern = "airvio.co/knowgrph/mcp"
+pattern = "airvio.co/knowgrph/control-plane/mcp"
 zone_name = "airvio.co"
 
 [[routes]]
-pattern = "airvio.co/knowgrph/mcp/*"
+pattern = "airvio.co/knowgrph/control-plane/mcp/*"
 zone_name = "airvio.co"
 
 # McpAgent maintains per-session state in a Durable Object. Task 1.2 adds a
 # separate `RunManifestStore` DO that persists each Director Run_Manifest
-# under one DO instance per `runId`, so a `GET /knowgrph/mcp/runs/{id}`
+# under one DO instance per `runId`, so a `GET /knowgrph/control-plane/mcp/runs/{id}`
 # read-back returns the latest persisted state with read-after-write
 # consistency (R14.2 / Property 25).
 [[durable_objects.bindings]]

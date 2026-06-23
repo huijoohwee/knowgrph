@@ -80,7 +80,7 @@ async function getJson(url, headers = {}) {
 }
 
 async function main() {
-  const agentApiUrl = optionalEnv("MCP_ENDPOINT", "https://airvio.co/knowgrph/mcp");
+  const agentApiUrl = optionalEnv("MCP_ENDPOINT", "https://airvio.co/knowgrph/control-plane/mcp");
   const referenceUrl = optionalEnv("REFERENCE_URL", "https://example.com/reference-video.mp4");
   const brief = optionalEnv(
     "BRIEF",
@@ -89,7 +89,7 @@ async function main() {
   const budgetUsdRaw = optionalEnv("BUDGET_USD", "10");
   const budgetUsd = Number(budgetUsdRaw);
   const frontendUrl = optionalEnv("FRONTEND_URL");
-  const mcpEndpoint = optionalEnv("MCP_ENDPOINT", "https://airvio.co/knowgrph/mcp");
+  const mcpEndpoint = optionalEnv("MCP_ENDPOINT", "https://airvio.co/knowgrph/control-plane/mcp");
   const outputPath = optionalEnv("PROOF_OUTPUT_PATH");
 
   if (!Number.isFinite(budgetUsd) || budgetUsd <= 0) {

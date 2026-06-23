@@ -210,7 +210,7 @@ function jsonResponse(body, status = 200) {
  *
  * The Worker entry brokers public access via the dispatch handler
  * (`persistRunManifestThroughNamespace`) and the
- * `GET /knowgrph/mcp/runs/{id}` route (`readRunManifestThroughNamespace`).
+ * `GET /knowgrph/control-plane/mcp/runs/{id}` route (`readRunManifestThroughNamespace`).
  */
 export class RunManifestStore {
   constructor(state, env) {

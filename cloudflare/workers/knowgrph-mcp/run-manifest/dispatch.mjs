@@ -114,7 +114,7 @@ export async function executeAndPersistDirector({
 // ---------------------------------------------------------------------------
 
 /** Default `GET /runs/{id}` read-back path prefix (mirrors index.ts MCP_PATH). */
-export const RUN_MANIFEST_READBACK_PATH_PREFIX = "/knowgrph/mcp/runs/";
+export const RUN_MANIFEST_READBACK_PATH_PREFIX = "/knowgrph/control-plane/mcp/runs/";
 
 /**
  * Persist a Director Run_Manifest to the `RUN_MANIFEST_STORE` namespace keyed
