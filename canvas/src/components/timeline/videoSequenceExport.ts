@@ -28,6 +28,11 @@ export type VideoSequenceExportPlan = {
   segments: VideoSequenceExportSegment[]
 }
 
+export type VideoSequenceSourceTimeResolution = {
+  segment: VideoSequenceExportSegment
+  sourceTimeSeconds: number
+}
+
 type SourceSegmentDraft = {
   segmentKey: string
   sourceKey: string
@@ -47,6 +52,7 @@ const VIDEO_EXPORT_FRAME_RATE = 30
 const VIDEO_EXPORT_MIN_GAP_SECONDS = 0.05
 
 const clean = (value: unknown): string => String(value || '').trim()
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 
 const stripExtension = (value: string): string => clean(value).replace(/\.[a-z0-9]+$/i, '')
 
@@ -74,7 +80,7 @@ const readStableTaskId = (line: string): string => {
 }
 
 const normalizeSegmentKey = (value: string): string => {
-  return clean(value).replace(/_(?:mask|grade|audio)(?=_splice|$)/gi, '')
+  return clean(value).replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=_splice|$)/gi, '')
 }
 
 const normalizeSourceKey = (value: string): string => {
@@ -89,6 +95,25 @@ const sourceLookupKeys = (source: VideoSequenceTimelineSource): string[] => {
     source.relativePath.split('/').filter(Boolean).pop() || '',
     stripExtension(source.relativePath.split('/').filter(Boolean).pop() || ''),
   ].map(value => clean(value).toLowerCase()).filter(Boolean)
+}
+
+const sourceIdentityKeys = (source: VideoSequenceTimelineSource): string[] => {
+  return [
+    source.id,
+    source.sourceUrl,
+    source.workspacePath,
+    source.relativePath,
+    source.originalName,
+  ].map(value => clean(value).toLowerCase()).filter(Boolean)
+}
+
+export function areVideoSequenceExportSourcesEqual(
+  left: VideoSequenceTimelineSource,
+  right: VideoSequenceTimelineSource,
+): boolean {
+  const leftKeys = new Set(sourceIdentityKeys(left))
+  if (!leftKeys.size) return false
+  return sourceIdentityKeys(right).some(key => leftKeys.has(key))
 }
 
 const findSourceForKey = (
@@ -163,6 +188,65 @@ export function buildVideoSequenceExportPlan(args: {
     filenameBase: sanitizeFilenamePart(args.filenameHint || firstSource?.originalName || firstSource?.relativePath || 'video-sequence'),
     segments,
   }
+}
+
+export function resolveVideoSequenceExportPositionSourceTime(args: {
+  plan: VideoSequenceExportPlan | null
+  positionMinutes: number
+  source: VideoSequenceTimelineSource
+  sourceDurationSeconds: number
+}): VideoSequenceSourceTimeResolution | null {
+  if (!args.plan?.segments.length || args.sourceDurationSeconds <= 0) return null
+  const positionMinutes = Math.max(0, args.positionMinutes)
+  const candidates = args.plan.segments
+    .filter(segment => areVideoSequenceExportSourcesEqual(segment.source, args.source))
+    .filter(segment => segment.durationMinutes > 0)
+    .filter(segment => positionMinutes >= segment.timelineStartMinutes && positionMinutes <= segment.timelineEndMinutes)
+    .sort((a, b) => {
+      const aExactStart = Math.abs(positionMinutes - a.timelineStartMinutes) < 0.0001 ? 0 : 1
+      const bExactStart = Math.abs(positionMinutes - b.timelineStartMinutes) < 0.0001 ? 0 : 1
+      return aExactStart - bExactStart || a.timelineStartMinutes - b.timelineStartMinutes
+    })
+  const segment = candidates[0]
+  if (!segment) return null
+  const timelineRatio = clamp(
+    (positionMinutes - segment.timelineStartMinutes) / Math.max(segment.durationMinutes, 0.0001),
+    0,
+    1,
+  )
+  const sourceRatio = segment.sourceStartRatio + (segment.sourceEndRatio - segment.sourceStartRatio) * timelineRatio
+  return {
+    segment,
+    sourceTimeSeconds: clamp(sourceRatio, 0, 1) * args.sourceDurationSeconds,
+  }
+}
+
+export function resolveVideoSequenceExportSourceTimePosition(args: {
+  currentTimeSeconds: number
+  plan: VideoSequenceExportPlan | null
+  preferredPositionMinutes?: number
+  source: VideoSequenceTimelineSource
+  sourceDurationSeconds: number
+}): number | null {
+  if (!args.plan?.segments.length || args.sourceDurationSeconds <= 0) return null
+  const sourceRatio = clamp(args.currentTimeSeconds / args.sourceDurationSeconds, 0, 1)
+  const candidates = args.plan.segments
+    .filter(segment => areVideoSequenceExportSourcesEqual(segment.source, args.source))
+    .filter(segment => segment.durationMinutes > 0 && segment.sourceEndRatio >= segment.sourceStartRatio)
+    .flatMap(segment => {
+      const minRatio = Math.min(segment.sourceStartRatio, segment.sourceEndRatio)
+      const maxRatio = Math.max(segment.sourceStartRatio, segment.sourceEndRatio)
+      if (sourceRatio < minRatio - 0.0001 || sourceRatio > maxRatio + 0.0001) return []
+      const ratioSpan = Math.max(0.0001, segment.sourceEndRatio - segment.sourceStartRatio)
+      const segmentRatio = clamp((sourceRatio - segment.sourceStartRatio) / ratioSpan, 0, 1)
+      const positionMinutes = segment.timelineStartMinutes + segment.durationMinutes * segmentRatio
+      const preferredDistance = typeof args.preferredPositionMinutes === 'number'
+        ? Math.abs(positionMinutes - args.preferredPositionMinutes)
+        : 0
+      return [{ positionMinutes, preferredDistance }]
+    })
+    .sort((a, b) => a.preferredDistance - b.preferredDistance || a.positionMinutes - b.positionMinutes)
+  return candidates[0]?.positionMinutes ?? null
 }
 
 function selectMediaRecorderMimeType(candidates: readonly string[]): string {

@@ -1,8 +1,4 @@
-import {
-  KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
-  buildKnowgrphAgentReadyToolContracts,
-  KNOWGRPH_AGENT_READY_TOOL_IDS,
-} from "./knowgrphAgentReadyToolContract.mjs";
+import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, buildKnowgrphAgentReadyToolContracts, KNOWGRPH_AGENT_READY_TOOL_IDS } from "./knowgrphAgentReadyToolContract.mjs";
 import { hashSignatureParts } from "../../../../grph-shared/dist/hash/signature.js";
 export const KNOWGRPH_VDEOXPLN_CONTRACT_VERSION = "knowgrph-vdeoxpln/v0.1";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
@@ -16,6 +12,7 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   videoRemixRun: "knowgrph.video_remix.run",
   browserApiRun: "knowgrph.browser_api.run",
   memoryAdd: "knowgrph.memory.add", memorySearch: "knowgrph.memory.search", memoryAssemblePrompt: "knowgrph.memory.assemble_prompt",
+  showrunnerStartRun: "knowgrph.showrunner.start_run", showrunnerRunStatus: "knowgrph.showrunner.run_status", showrunnerPostChoice: "knowgrph.showrunner.post_choice", showrunnerSubmitCritique: "knowgrph.showrunner.submit_critique", showrunnerApproveStage: "knowgrph.showrunner.approve_stage", showrunnerGetArtifact: "knowgrph.showrunner.get_artifact",
   vdeoxplnList: "knowgrph.vdeoxpln.list",
 });
 
@@ -26,7 +23,7 @@ export const KNOWGRPH_VDEOXPLN_IDS = Object.freeze({
   chatToCanvas: "knowgrph-chat-to-canvas",
   strybldr: "knowgrph-strybldr",
   researchVisual: "knowgrph-research-visual",
-  memoryLayer: "knowgrph-memory-layer", commerceReadiness: "knowgrph-commerce-readiness",
+  memoryLayer: "knowgrph-memory-layer", aiShowrunner: "knowgrph-ai-showrunner", commerceReadiness: "knowgrph-commerce-readiness",
 });
 
 const normalizeString = (value) => String(value || "").trim();
@@ -384,6 +381,7 @@ const RAW_VDEOXPLN = Object.freeze([
     publish: ["mainpanel-mcp", "browser-webmcp"],
   },
   { id: KNOWGRPH_VDEOXPLN_IDS.memoryLayer, title: "Knowgrph Memory Layer", purpose: "Persist, retrieve, and inject explicitly scoped agent memories through a provider-neutral local harness with Mem0-ready runtime boundaries.", scope: "local-stdio-and-browser-local", mutation: "local-scoped-memory", triggers: ["memory layer", "long-term memory", "cross-session context", "mem0", "personalization", "prompt memory"], inputs: ["user or agent message", "runtime scope", "memory query"], outputs: ["memory write result", "ranked memory results", "bounded prompt context", "memory cost log"], owners: ["canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs", "mcp/memory-layer-runtime.js", "mcp/local-tool-contract.js", "mcp/server.js", "docs/documents/knowgrph-ai-agents-memory-layer-prd-tad.md"], tools: { published: [], browserLocal: [], local: [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList] }, workflow: ["Require explicit runtime scope.", "Add/search through the configured harness.", "Inject only top-ranked memories within token budget."], aiPolicy: { mode: "optional-via-local-tools", maxAttempts: 1, tokenBudget: "memory-harness-owned", fallback: "Return empty memory results or skip write while preserving the agent turn." }, artifactPolicy: { persistence: "operator-configured-local-memory-store", graphMaterialization: "none", semanticKeyInputs: ["memoryScope", "operation", "topK", "providerMode"] }, validation: ["vdeoxpln:check", "mcpLocalToolContract", "aiAgentsMemoryLayer"], publish: ["local-mcp-docs", "mainpanel-mcp"] },
+  { id: KNOWGRPH_VDEOXPLN_IDS.aiShowrunner, title: "Knowgrph AI Showrunner", purpose: "Run provider-neutral multi-agent creative pipelines for podcasts, narrative games, and writers rooms through existing Source Files, memory, MCP, KGC, and Flow Editor owners.", scope: "local-stdio-and-browser-local", mutation: "local-approval-gated", triggers: ["ai showrunner", "podcast pipeline", "narrative game", "writers room", "creative state", "multi-agent orchestration"], inputs: ["creative brief markdown", "run id", "choice signal", "critique text", "operator approval"], outputs: ["pipeline run state", "creative state entries", "script", "choice graph", "revision history", "artifact manifest"], owners: ["canvas/src/features/ai-showrunner", "canvas/src/features/chat/chatKgcCanvasApply.ts", "canvas/src/features/source-files", "canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs", "canvas/src/lib/graph/semanticKey.ts", "mcp/local-tool-contract.js"], tools: { published: [], browserLocal: [], local: [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerRunStatus, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerPostChoice, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerSubmitCritique, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerApproveStage, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerGetArtifact, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList] }, workflow: ["Validate the frontmatter-first Creative_Brief before any agent turn.", "Run bounded role turns through dry-run or injected provider-neutral dispatch.", "Persist append-only state, token logs, and manifests through Source Files."], aiPolicy: { mode: "optional-via-local-tools", maxAttempts: 1, tokenBudget: "pipeline-run-owned", fallback: "Halt at approval or structured error while preserving committed Creative_State." }, artifactPolicy: { persistence: "source-files", graphMaterialization: "kgc-validation-to-canvas-apply", semanticKeyInputs: ["run_id", "agent_role", "turn_index", "content_hash"] }, validation: ["vdeoxpln:check", "mcpLocalToolContract", "showrunnerDryRun"], publish: ["local-mcp-docs", "mainpanel-mcp"] },
   {
     id: KNOWGRPH_VDEOXPLN_IDS.commerceReadiness,
     title: "Knowgrph Commerce Readiness",

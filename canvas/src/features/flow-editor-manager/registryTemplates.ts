@@ -46,12 +46,9 @@ import {
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
-import {
-  getGrabMapsDiscoveryWidgetLabel,
-  isGrabMapsDiscoveryWidgetEntry,
-} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
-import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/swarmPredictionWidget'
+import { getGrabMapsDiscoveryWidgetLabel, isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'; import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/swarmPredictionWidget'
+import { buildShowrunnerRegistryDraft, FLOW_SHOWRUNNER_NODE_TYPE_ID } from '@/features/ai-showrunner/showrunnerFlowNode'
 import {
   buildBytePlusTextGenerationFields,
   getBytePlusSharedTextApiDocRowByRowKey,
@@ -427,7 +424,7 @@ export function getWidgetRegistryEntryLabel(args: {
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) return FLOW_STORYBOARD_ELEMENT_NODE_LABEL
-  if (nodeTypeId === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return FLOW_SWARM_PREDICTION_NODE_LABEL
+  if (nodeTypeId === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return FLOW_SWARM_PREDICTION_NODE_LABEL; if (nodeTypeId === FLOW_SHOWRUNNER_NODE_TYPE_ID) return 'AI Showrunner'
   if (nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
   return nodeTypeId || String(args.formId || '').trim() || String(args.widgetTypeId || '').trim() || FLOW_TEXT_GENERATION_NODE_LABEL
 }
@@ -642,6 +639,7 @@ export function buildCanonicalWidgetRegistryDraft(args: {
       formId: formId || draft.formId,
     }
   }
+  if (nodeTypeId === FLOW_SHOWRUNNER_NODE_TYPE_ID) { const draft = buildShowrunnerRegistryDraft(); return { ...draft, widgetTypeId: widgetTypeId || draft.widgetTypeId, formId: formId || draft.formId } }
   if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) {
     return {
       ...buildStoryboardElementRegistryDraft(),

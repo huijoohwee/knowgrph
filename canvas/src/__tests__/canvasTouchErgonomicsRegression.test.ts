@@ -2339,9 +2339,10 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !cssText.includes('--kg-canvas-viewport-edge-gap: 0.5rem') ||
     !responsiveCanvasToolbarCssText.includes('var(--kg-safe-top) + var(--kg-canvas-viewport-edge-gap)') ||
     !responsiveCanvasToolbarCssText.includes('var(--kg-safe-bottom) + var(--kg-canvas-viewport-edge-gap)') || !responsiveCanvasToolbarCssText.includes('.kg-canvas-bottom-panel') ||
+    !responsiveCanvasToolbarCssText.includes('72rem') ||
     !strybldrTimelineBottomPanelText.includes('UI_RESPONSIVE_CANVAS_BOTTOM_PANEL_CLASSNAME') || strybldrTimelineBottomPanelText.includes("bottom: 'calc(var(--kg-safe-bottom)") || strybldrTimelineBottomPanelText.includes("width: 'min(calc(100% - 1.5rem")
   ) {
-    throw new Error('expected Canvas Toolbar and Timeline bottom panel viewport-edge spacing to share the same CSS token')
+    throw new Error('expected Canvas Toolbar and Timeline bottom panel viewport-edge spacing plus wide timeline panel sizing to share the same CSS token')
   }
   if (
     !cssText.includes('--kg-toolbar-compact-surface-height') ||

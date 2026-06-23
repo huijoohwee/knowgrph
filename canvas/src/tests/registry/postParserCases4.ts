@@ -1,6 +1,7 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
   ["toolbar.importUrl.videoDownload.eligibility","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadEligibilityIsPureAndDomainOwned"],
   ["toolbar.importUrl.videoDownload.codec","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResultCodecRoundTripAndErrors"],
   ["toolbar.importUrl.videoDownload.resolver","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResolverRequestDedupAndSanitization"],

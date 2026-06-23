@@ -1,11 +1,13 @@
 import type { MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { clampTimelineTransportValue } from './timelineTransport'
 import { isLikelyAbsoluteFsPath, buildLocalFsFetchPath } from '@/lib/url'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { isPlainObject } from '@/lib/graph/value'
 
-export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade'
-export type VideoSequenceTimelineLaneId = 'video' | 'mask' | 'grade' | 'audio'
+export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'
+export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'audio'
 export type VideoSequenceTimelineImportMode = 'file' | 'folder' | 'url' | 'workspace'
+export type VideoSequenceTimelineScopeId = 'live-preview' | 'luma-waveform' | 'chroma-vectorscope' | 'histogram' | 'audio-waveform' | 'audio-mix'
 
 export type VideoSequenceTimelineTool = {
   id: VideoSequenceTimelineToolId
@@ -16,6 +18,20 @@ export type VideoSequenceTimelineTool = {
 export type VideoSequenceTimelineLane = {
   id: VideoSequenceTimelineLaneId
   label: string
+}
+
+export type VideoSequenceTimelineScope = {
+  id: VideoSequenceTimelineScopeId
+  label: string
+  samples: number[]
+  value: number
+}
+
+export type VideoSequenceTimelinePlaybackRequestDetail = {
+  documentKey: string
+  playbackRate: number
+  playing: boolean
+  positionMinutes: number
 }
 
 export type VideoSequenceTimelineSource = {
@@ -34,18 +50,53 @@ export type VideoSequenceTimelineFrontmatterModel = {
   sources: VideoSequenceTimelineSource[]
 }
 
+export const VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT = 'knowgrph:video-sequence-playback-request'
+
 export const VIDEO_SEQUENCE_TIMELINE_TOOLS: readonly VideoSequenceTimelineTool[] = [
   { id: 'cut', label: 'Cut', title: 'Cut selected clip at playhead' },
   { id: 'splice', label: 'Splice', title: 'Splice selected clip to playhead' },
   { id: 'mask', label: 'Mask', title: 'Add mask lane for selected clip' },
   { id: 'grade', label: 'Grade', title: 'Add color grade lane for selected clip' },
+  { id: 'speed', label: 'Speed', title: 'Add speed control lane for selected clip' },
+  { id: 'adjustment', label: 'Adjustment', title: 'Add adjustment layer for selected clip' },
+  { id: 'transition', label: 'Transition', title: 'Add transition lane for selected clip' },
+  { id: 'keyframe', label: 'Keyframe', title: 'Add keyframe lane for selected clip' },
+  { id: 'filter', label: 'Filter', title: 'Add filter lane for selected clip' },
+  { id: 'effect', label: 'Effect', title: 'Add effect lane for selected clip' },
 ] as const
 
 export const VIDEO_SEQUENCE_TIMELINE_LANES: readonly VideoSequenceTimelineLane[] = [
   { id: 'video', label: 'Video' },
+  { id: 'image', label: 'Image' },
+  { id: 'scene', label: 'Scene' },
   { id: 'mask', label: 'Mask' },
   { id: 'grade', label: 'Grade' },
+  { id: 'effect', label: 'Effect' },
+  { id: 'adjustment', label: 'Adjust' },
+  { id: 'transition', label: 'Trans' },
+  { id: 'keyframe', label: 'Keys' },
+  { id: 'filter', label: 'Filter' },
   { id: 'audio', label: 'Audio' },
+] as const
+
+const VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS: readonly Pick<VideoSequenceTimelineScope, 'id' | 'label'>[] = [
+  { id: 'live-preview', label: 'Live preview' },
+  { id: 'luma-waveform', label: 'Luma waveform' },
+  { id: 'chroma-vectorscope', label: 'Chroma vectorscope' },
+  { id: 'histogram', label: 'Histogram' },
+  { id: 'audio-waveform', label: 'Audio waveform' },
+  { id: 'audio-mix', label: 'Audio mix' },
+] as const
+
+export const VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS: readonly VideoSequenceTimelineToolId[] = [
+  'mask',
+  'grade',
+  'speed',
+  'adjustment',
+  'transition',
+  'keyframe',
+  'filter',
+  'effect',
 ] as const
 
 const clean = (value: unknown): string => String(value || '').trim()
@@ -67,6 +118,11 @@ const readByteSize = (value: unknown): number | null => {
 const readImportMode = (value: unknown): VideoSequenceTimelineImportMode | '' => {
   const mode = clean(value)
   return mode === 'file' || mode === 'folder' || mode === 'url' || mode === 'workspace' ? mode : ''
+}
+
+export function dispatchVideoSequenceTimelinePlaybackRequest(detail: VideoSequenceTimelinePlaybackRequestDetail): void {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return
+  window.dispatchEvent(new CustomEvent(VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT, { detail }))
 }
 
 const normalizeVideoSequenceSource = (value: unknown): VideoSequenceTimelineSource | null => {
@@ -128,6 +184,13 @@ export function readVideoSequenceSourcePlayableUrl(source: VideoSequenceTimeline
 export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskSpan): VideoSequenceTimelineLaneId {
   const signature = `${span.label} ${span.raw}`.toLowerCase()
   if (/\baudio|sound|voice|music\b/.test(signature)) return 'audio'
+  if (/\bimage|still|plate|photo|frame\b/.test(signature) || /_image\b/.test(signature)) return 'image'
+  if (/\bscene\b/.test(signature) || /_scene\b/.test(signature)) return 'scene'
+  if (/\bkeyframe|key\b/.test(signature) || /_keyframe\b/.test(signature)) return 'keyframe'
+  if (/\btransition|dissolve|wipe|fade\b/.test(signature) || /_transition\b/.test(signature)) return 'transition'
+  if (/\badjust|adjustment|layer\b/.test(signature) || /_adjustment\b/.test(signature)) return 'adjustment'
+  if (/\bfilter|blur|sharpen|denoise\b/.test(signature) || /_filter\b/.test(signature)) return 'filter'
+  if (/\beffect|fx|speed|retime|stabilize\b/.test(signature) || /_(?:effect|speed)\b/.test(signature)) return 'effect'
   if (/\bmask|matte|roto|alpha\b/.test(signature)) return 'mask'
   if (/\bgrade|color|lut|exposure|contrast\b/.test(signature)) return 'grade'
   return 'video'
@@ -137,12 +200,73 @@ export function resolveVideoSequenceTimelineLaneIndex(lane: VideoSequenceTimelin
   return Math.max(0, VIDEO_SEQUENCE_TIMELINE_LANES.findIndex(item => item.id === lane))
 }
 
+export function formatVideoSequenceTimelineSecondsOffset(valueSeconds: number): string {
+  const totalSeconds = Math.max(0, Math.round(Number.isFinite(valueSeconds) ? valueSeconds : 0))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+export function resolveVideoSequenceTimelineMediaSeconds(args: {
+  durationSeconds: number
+  maxMinutes: number
+  positionMinutes: number
+}): number {
+  if (!Number.isFinite(args.durationSeconds) || args.durationSeconds <= 0 || args.maxMinutes <= 0) return 0
+  const ratio = clampTimelineTransportValue(args.positionMinutes, 0, args.maxMinutes) / args.maxMinutes
+  return clampTimelineTransportValue(ratio * args.durationSeconds, 0, args.durationSeconds)
+}
+
+export function resolveVideoSequenceTimelinePositionMinutes(args: {
+  currentTimeSeconds: number
+  durationSeconds: number
+  maxMinutes: number
+}): number {
+  if (!Number.isFinite(args.currentTimeSeconds) || !Number.isFinite(args.durationSeconds) || args.durationSeconds <= 0 || args.maxMinutes <= 0) return 0
+  const ratio = clampTimelineTransportValue(args.currentTimeSeconds, 0, args.durationSeconds) / args.durationSeconds
+  return clampTimelineTransportValue(ratio * args.maxMinutes, 0, args.maxMinutes)
+}
+
+export function resolveVideoSequenceTimelineUnitsPerMs(args: {
+  durationSeconds: number
+  fallbackUnitsPerMs: number
+  maxMinutes: number
+}): number {
+  if (!Number.isFinite(args.durationSeconds) || args.durationSeconds <= 0 || args.maxMinutes <= 0) return args.fallbackUnitsPerMs
+  return args.maxMinutes / (args.durationSeconds * 1000)
+}
+
+export function buildVideoSequenceTimelineScopes(args: {
+  maxMinutes: number
+  positionMinutes: number
+  sourceCount: number
+  spanCount: number
+}): VideoSequenceTimelineScope[] {
+  const maxMinutes = Math.max(0, Number.isFinite(args.maxMinutes) ? args.maxMinutes : 0)
+  const progress = maxMinutes > 0 ? clampTimelineTransportValue(args.positionMinutes, 0, maxMinutes) / maxMinutes : 0
+  const density = Math.max(1, args.sourceCount + args.spanCount)
+  return VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS.map((scope, scopeIndex) => {
+    const samples = Array.from({ length: 12 }, (_, sampleIndex) => {
+      const phase = (sampleIndex + 1) * (scopeIndex + 2) * 0.37 + progress * Math.PI * 2
+      const shaped = Math.sin(phase) * 0.34 + Math.cos(phase / Math.max(1, density)) * 0.18 + 0.5
+      return Math.round(clampTimelineTransportValue(shaped, 0.06, 0.96) * 100)
+    })
+    const value = Math.round(samples.reduce((total, sample) => total + sample, 0) / samples.length)
+    return { ...scope, samples, value }
+  })
+}
+
 export function buildVideoSequenceTimelineToolStatus(args: {
   selectedSpan: MermaidGanttTimelineTaskSpan | null
   positionMinutes: number
 }): Record<VideoSequenceTimelineToolId, boolean> {
   const span = args.selectedSpan
-  if (!span) return { cut: false, splice: false, mask: false, grade: false }
+  if (!span) {
+    return VIDEO_SEQUENCE_TIMELINE_TOOLS.reduce((out, tool) => {
+      out[tool.id] = false
+      return out
+    }, {} as Record<VideoSequenceTimelineToolId, boolean>)
+  }
   const playhead = Math.round(args.positionMinutes)
   const canCut = playhead > span.startMinutes && playhead < span.endMinutes
   return {
@@ -150,5 +274,11 @@ export function buildVideoSequenceTimelineToolStatus(args: {
     splice: playhead >= 0 && playhead !== span.startMinutes,
     mask: true,
     grade: true,
+    speed: true,
+    adjustment: true,
+    transition: true,
+    keyframe: true,
+    filter: true,
+    effect: true,
   }
 }

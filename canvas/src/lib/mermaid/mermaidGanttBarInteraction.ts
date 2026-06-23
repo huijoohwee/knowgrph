@@ -22,7 +22,7 @@ export type MermaidGanttTimelineDragPreview = {
   startMinutes: number
 }
 
-export type MermaidGanttVideoSequenceOperation = 'mask' | 'grade'
+export type MermaidGanttVideoSequenceOperation = 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'
 
 export type MermaidGanttTimelineModel = {
   durationMinutes: number
@@ -88,6 +88,7 @@ export function resolveMermaidGanttBarDragCommitted(deltaPx: number): boolean {
 }
 
 export function resolveMermaidGanttTimelineDragPreviewSpan(args: {
+  allowTimelineExpansion?: boolean
   deltaMinutes: number
   maxMinutes: number
   mode: MermaidGanttBarDragMode
@@ -106,20 +107,31 @@ export function resolveMermaidGanttTimelineDragPreviewSpan(args: {
     }
   }
   if (args.mode === 'resize-end') {
+    if (args.allowTimelineExpansion) {
+      return {
+        durationMinutes: Math.max(1, durationMinutes + deltaMinutes),
+        rowKey: args.span.rowKey,
+        startMinutes: args.span.startMinutes,
+      }
+    }
     return {
       durationMinutes: clampGanttTimelineMinutes(durationMinutes + deltaMinutes, 1, Math.max(1, maxMinutes - args.span.startMinutes)),
       rowKey: args.span.rowKey,
       startMinutes: args.span.startMinutes,
     }
   }
+  const maxMoveStartMinutes = args.allowTimelineExpansion
+    ? Math.max(0, maxMinutes)
+    : Math.max(0, maxMinutes - durationMinutes)
   return {
     durationMinutes,
     rowKey: args.span.rowKey,
-    startMinutes: clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, Math.max(0, maxMinutes - durationMinutes)),
+    startMinutes: clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, maxMoveStartMinutes),
   }
 }
 
 export function resolveMermaidGanttTimelineDragEffectiveDelta(args: {
+  allowTimelineExpansion?: boolean
   deltaMinutes: number
   maxMinutes: number
   mode: MermaidGanttBarDragMode
@@ -189,7 +201,7 @@ function isMermaidGanttStatusToken(token: string): boolean {
 }
 
 function isLegacyVideoSequenceLaneToken(token: string): boolean {
-  return /^(?:video|mask|grade|audio|splice)$/i.test(String(token || '').trim())
+  return /^(?:video|image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed|splice)$/i.test(String(token || '').trim())
 }
 
 function readGanttLineIndent(line: string): string {
@@ -235,17 +247,23 @@ function readGanttTaskStableId(line: string): string {
 function normalizeVideoSequenceClipGroupId(value: string): string {
   return String(value || '')
     .trim()
-    .replace(/_(?:mask|grade|audio)(?=_splice$|$)/gi, '')
+    .replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=_splice$|$)/gi, '')
 }
 
 function resolveVideoSequenceClipGroupKey(line: string): string {
   const stableId = readGanttTaskStableId(line)
   if (stableId) return normalizeVideoSequenceClipGroupId(stableId)
-  return readGanttTaskLabel(line).replace(/\s+(?:mask|grade|audio|splice)\b.*$/i, '').trim().toLowerCase()
+  return readGanttTaskLabel(line).replace(/\s+(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed|splice)\b.*$/i, '').trim().toLowerCase()
 }
 
 function readVideoSequenceOperationFromLine(line: string): MermaidGanttVideoSequenceOperation | '' {
   const signature = `${readGanttTaskLabel(line)} ${readGanttTaskStableId(line)}`.toLowerCase()
+  if (/\bkeyframe|key\b/.test(signature) || /_keyframe\b/.test(signature)) return 'keyframe'
+  if (/\btransition|dissolve|wipe|fade\b/.test(signature) || /_transition\b/.test(signature)) return 'transition'
+  if (/\badjust|adjustment|layer\b/.test(signature) || /_adjustment\b/.test(signature)) return 'adjustment'
+  if (/\bfilter|blur|sharpen|denoise\b/.test(signature) || /_filter\b/.test(signature)) return 'filter'
+  if (/\beffect|fx\b/.test(signature) || /_effect\b/.test(signature)) return 'effect'
+  if (/\bspeed|retime|ramp\b/.test(signature) || /_speed\b/.test(signature)) return 'speed'
   if (/\bgrade|color|lut|exposure|contrast\b/.test(signature) || /_grade\b/.test(signature)) return 'grade'
   if (/\bmask|matte|roto|alpha\b/.test(signature) || /_mask\b/.test(signature)) return 'mask'
   return ''
@@ -312,7 +330,8 @@ export function formatMermaidGanttTimelineOffset(value: number): string {
 export function buildMermaidGanttTimelineModel(code: string): MermaidGanttTimelineModel {
   const lines = String(code || '').replace(/\r/g, '').split('\n')
   const taskSpans: MermaidGanttTimelineTaskSpan[] = []
-  let baseClockMinutes: number | null = null
+  const usesVideoSequenceZeroOrigin = lines.some(line => /^\s*title\s+Video Sequence\s*$/i.test(String(line || '').trim()))
+  let baseClockMinutes: number | null = usesVideoSequenceZeroOrigin ? 0 : null
   let cursorMinutes = 0
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -341,8 +360,9 @@ export function buildMermaidGanttTimelineModel(code: string): MermaidGanttTimeli
 
   const startMinutes = taskSpans.length ? Math.min(...taskSpans.map(span => span.startMinutes)) : 0
   const endMinutes = taskSpans.length ? Math.max(...taskSpans.map(span => span.endMinutes)) : 0
+  const originMinutes = usesVideoSequenceZeroOrigin ? 0 : startMinutes
   return {
-    durationMinutes: Math.max(0, endMinutes - startMinutes),
+    durationMinutes: Math.max(0, endMinutes - originMinutes),
     endMinutes,
     startMinutes,
     taskSpans,
@@ -537,7 +557,7 @@ export function insertMermaidGanttVideoSequenceOperationRow(args: {
   if (!span) return null
   const absoluteStartMinutes = readSpanAbsoluteStartMinutes({ code: args.code, line, span })
   if (absoluteStartMinutes == null) return null
-  const label = `${readGanttTaskLabel(line)} ${args.operation === 'grade' ? 'grade' : 'mask'}`
+  const label = `${readGanttTaskLabel(line)} ${args.operation}`
   const operationLine = buildGanttTaskLine({
     absoluteStartMinutes,
     durationMinutes: Math.max(1, span.durationMinutes),

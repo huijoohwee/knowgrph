@@ -255,12 +255,15 @@ export function StrybldrTimelineBottomPanel({
   const handlePinToggle = React.useCallback(() => {
     if (pinned) {
       const rect = panelRef.current?.getBoundingClientRect()
+      if (rect && Number.isFinite(rect.width) && rect.width > 0 && Number.isFinite(rect.height) && rect.height > 0) {
+        setPanelSizePx(clampPanelSize({ width: rect.width, height: rect.height }))
+      }
       setPosition(clampPosition(rect ? resolveLayerRelativePosition(rect) : getDefaultUnpinnedPosition()))
       setPinned(false)
       return
     }
     setPinned(true)
-  }, [clampPosition, getDefaultUnpinnedPosition, pinned, resolveLayerRelativePosition])
+  }, [clampPanelSize, clampPosition, getDefaultUnpinnedPosition, pinned, resolveLayerRelativePosition])
   const handleMinimize = React.useCallback(() => setMinimized(true), [])
   const handleRestore = React.useCallback(() => setMinimized(false), [])
   const documentVersionGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'documentVersionGraph'
@@ -584,7 +587,11 @@ export function StrybldrTimelineBottomPanel({
             />
           </header>
           {!minimized ? (
-            <section className="min-h-0 flex-1 px-2 pb-2" aria-label="Timeline bottom panel body">
+            <section
+              className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 overscroll-contain"
+              aria-label="Timeline bottom panel body"
+              data-kg-strybldr-bottom-timeline-scroll="body"
+            >
               {view === 'documentVersionGraph' ? (
                 <React.Suspense fallback={null}>
                   <DocumentVersionGitGraphPanelLazy

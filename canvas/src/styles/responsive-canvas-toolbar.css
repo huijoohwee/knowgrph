@@ -43,7 +43,7 @@
 }
 
 .kg-canvas-bottom-panel {
-  width: min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 42rem);
+  width: min(calc(100% - 1.5rem - var(--kg-safe-left) - var(--kg-safe-right)), 72rem);
 }
 
 .kg-canvas-bottom-panel--pinned {

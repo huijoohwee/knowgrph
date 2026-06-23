@@ -5,8 +5,12 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { useCommandMenuRichMediaInventory, type CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT,
   readVideoSequenceSourcePlayableUrl,
   readVideoSequenceTimelineModelFromMarkdown,
+  resolveVideoSequenceTimelineMediaSeconds,
+  resolveVideoSequenceTimelinePositionMinutes,
+  type VideoSequenceTimelinePlaybackRequestDetail,
   type VideoSequenceTimelineSource,
 } from '@/components/timeline/videoSequenceTimeline'
 import { resolveVideoSequenceSourceRuntimeUrl } from '@/components/timeline/videoSequenceSourceRegistry'
@@ -22,6 +26,12 @@ import {
   clampTimelineTransportValue,
   resolveTimelineTransportPlaybackRate,
 } from '@/components/timeline/timelineTransport'
+import {
+  buildVideoSequenceExportPlan,
+  resolveVideoSequenceExportPositionSourceTime,
+  resolveVideoSequenceExportSourceTimePosition,
+  type VideoSequenceExportPlan,
+} from '@/components/timeline/videoSequenceExport'
 
 type MediaCanvasItem = {
   key: string
@@ -32,6 +42,7 @@ type MediaCanvasItem = {
   srcDoc?: string
   source: string
   panel?: CommandMenuRichMediaItem['panel']
+  videoSequenceSource?: VideoSequenceTimelineSource
 }
 
 const clean = (value: unknown): string => String(value || '').trim()
@@ -94,37 +105,21 @@ function useVideoSequenceTimelineDuration(markdownText: string): number {
   }, [markdownText])
 }
 
-function resolveVideoSequenceTimeFromPosition(args: {
-  durationSeconds: number
-  maxMinutes: number
-  positionMinutes: number
-}): number {
-  if (!Number.isFinite(args.durationSeconds) || args.durationSeconds <= 0 || args.maxMinutes <= 0) return 0
-  const progress = clampTimelineTransportValue(args.positionMinutes, 0, args.maxMinutes) / args.maxMinutes
-  return clampTimelineTransportValue(progress * args.durationSeconds, 0, args.durationSeconds)
-}
-
-function resolveVideoSequencePositionFromTime(args: {
-  currentTimeSeconds: number
-  durationSeconds: number
-  maxMinutes: number
-}): number {
-  if (!Number.isFinite(args.currentTimeSeconds) || !Number.isFinite(args.durationSeconds) || args.durationSeconds <= 0 || args.maxMinutes <= 0) return 0
-  const progress = clampTimelineTransportValue(args.currentTimeSeconds, 0, args.durationSeconds) / args.durationSeconds
-  return clampTimelineTransportValue(progress * args.maxMinutes, 0, args.maxMinutes)
-}
-
 function MediaCanvasSyncedPanel({
   documentKey,
+  exportPlan,
   item,
   sequenceMaxMinutes,
 }: {
   documentKey: string
+  exportPlan: VideoSequenceExportPlan | null
   item: MediaCanvasItem
   sequenceMaxMinutes: number
 }) {
   const rootRef = React.useRef<HTMLElement | null>(null)
+  const playbackFallbackRef = React.useRef(false)
   const syncEnabled = item.source === 'video-sequence' && item.kind === 'video' && sequenceMaxMinutes > 0
+  const syncSource = item.videoSequenceSource || null
   const {
     transportDocumentKey,
     transportPositionMinutes,
@@ -150,6 +145,50 @@ function MediaCanvasSyncedPanel({
   }, [])
 
   React.useEffect(() => {
+    playbackFallbackRef.current = false
+  }, [documentKey, item.src])
+
+  const resolveTargetSeconds = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): number | null => {
+    const durationSeconds = video.duration
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null
+    const resolvedSourceTime = syncSource
+      ? resolveVideoSequenceExportPositionSourceTime({
+        plan: exportPlan,
+        positionMinutes: nextPositionMinutes,
+        source: syncSource,
+        sourceDurationSeconds: durationSeconds,
+      })
+      : null
+    return resolvedSourceTime?.sourceTimeSeconds ?? resolveVideoSequenceTimelineMediaSeconds({
+      durationSeconds,
+      maxMinutes: sequenceMaxMinutes,
+      positionMinutes: nextPositionMinutes,
+    })
+  }, [exportPlan, sequenceMaxMinutes, syncSource])
+
+  const applyVideoTime = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): void => {
+    const targetSeconds = resolveTargetSeconds(video, nextPositionMinutes)
+    if (targetSeconds == null) return
+    if (Math.abs((video.currentTime || 0) - targetSeconds) > VIDEO_SEQUENCE_SYNC_EPSILON_SECONDS) {
+      video.currentTime = targetSeconds
+    }
+  }, [resolveTargetSeconds])
+
+  const requestNativePlayback = React.useCallback((video: HTMLVideoElement): void => {
+    if (!video.paused || playbackFallbackRef.current) return
+    const play = typeof video.play === 'function' ? video.play.bind(video) : null
+    if (!play) {
+      playbackFallbackRef.current = true
+      video.setAttribute('data-kg-video-sequence-playback-fallback', 'seek')
+      return
+    }
+    void play().catch(() => {
+      playbackFallbackRef.current = true
+      video.setAttribute('data-kg-video-sequence-playback-fallback', 'seek')
+    })
+  }, [])
+
+  React.useEffect(() => {
     if (!syncEnabled) return
     let raf = 0
     let cancelled = false
@@ -164,26 +203,27 @@ function MediaCanvasSyncedPanel({
       if (cleanupVideo) return
       video.setAttribute('data-kg-video-sequence-media-sync', '1')
       const applyTransportPosition = () => {
-        const durationSeconds = video.duration
-        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return
-        const targetSeconds = resolveVideoSequenceTimeFromPosition({
-          durationSeconds,
-          maxMinutes: sequenceMaxMinutes,
-          positionMinutes: useGraphStore.getState().ganttTimelineTransportPositionMinutes || 0,
-        })
-        if (Math.abs((video.currentTime || 0) - targetSeconds) > VIDEO_SEQUENCE_SYNC_EPSILON_SECONDS) {
-          video.currentTime = targetSeconds
-        }
+        const storePositionMinutes = useGraphStore.getState().ganttTimelineTransportPositionMinutes || 0
+        applyVideoTime(video, storePositionMinutes)
       }
       const writeTransportPosition = () => {
         const durationSeconds = video.duration
         if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return
-        const nextPosition = resolveVideoSequencePositionFromTime({
+        const current = useGraphStore.getState()
+        const resolvedPosition = syncSource
+          ? resolveVideoSequenceExportSourceTimePosition({
+            currentTimeSeconds: video.currentTime || 0,
+            plan: exportPlan,
+            preferredPositionMinutes: current.ganttTimelineTransportPositionMinutes || 0,
+            source: syncSource,
+            sourceDurationSeconds: durationSeconds,
+          })
+          : null
+        const nextPosition = resolvedPosition ?? resolveVideoSequenceTimelinePositionMinutes({
           currentTimeSeconds: video.currentTime || 0,
           durationSeconds,
           maxMinutes: sequenceMaxMinutes,
         })
-        const current = useGraphStore.getState()
         if (
           current.ganttTimelineTransportDocumentKey !== documentKey ||
           Math.abs((current.ganttTimelineTransportPositionMinutes || 0) - nextPosition) > VIDEO_SEQUENCE_SYNC_EPSILON_MINUTES
@@ -192,6 +232,7 @@ function MediaCanvasSyncedPanel({
         }
       }
       const writePlaying = () => {
+        if (video.paused || video.ended) writeTransportPosition()
         useGraphStore.getState().setGanttTimelineTransportState({ documentKey, playing: !video.paused && !video.ended })
       }
       video.addEventListener('loadedmetadata', applyTransportPosition)
@@ -216,33 +257,49 @@ function MediaCanvasSyncedPanel({
       if (raf) window.cancelAnimationFrame(raf)
       cleanupVideo?.()
     }
-  }, [documentKey, readVideo, sequenceMaxMinutes, syncEnabled])
+  }, [applyVideoTime, documentKey, exportPlan, readVideo, sequenceMaxMinutes, syncEnabled, syncSource])
+
+  React.useEffect(() => {
+    if (!syncEnabled) return
+    const handlePlaybackRequest = (event: Event) => {
+      const detail = (event as CustomEvent<VideoSequenceTimelinePlaybackRequestDetail>).detail
+      if (!detail || clean(detail.documentKey) !== documentKey) return
+      const video = readVideo()
+      if (!video) return
+      applyVideoTime(video, detail.positionMinutes)
+      const nextPlaybackRate = resolveTimelineTransportPlaybackRate(detail.playbackRate, playbackRate)
+      if (video.playbackRate !== nextPlaybackRate) video.playbackRate = nextPlaybackRate
+      if (detail.playing) {
+        playbackFallbackRef.current = false
+        video.removeAttribute('data-kg-video-sequence-playback-fallback')
+        requestNativePlayback(video)
+      } else if (!video.paused) {
+        playbackFallbackRef.current = false
+        video.removeAttribute('data-kg-video-sequence-playback-fallback')
+        video.pause()
+      }
+    }
+    window.addEventListener(VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+    return () => {
+      window.removeEventListener(VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+    }
+  }, [applyVideoTime, documentKey, playbackRate, readVideo, requestNativePlayback, syncEnabled])
 
   React.useEffect(() => {
     if (!syncEnabled) return
     const video = readVideo()
     if (!video) return
-    const durationSeconds = video.duration
-    if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
-      const targetSeconds = resolveVideoSequenceTimeFromPosition({
-        durationSeconds,
-        maxMinutes: sequenceMaxMinutes,
-        positionMinutes,
-      })
-      if (Math.abs((video.currentTime || 0) - targetSeconds) > VIDEO_SEQUENCE_SYNC_EPSILON_SECONDS) {
-        video.currentTime = targetSeconds
-      }
-    }
+    applyVideoTime(video, positionMinutes)
     if (video.playbackRate !== playbackRate) video.playbackRate = playbackRate
     const shouldPlay = transportDocumentKey === documentKey && transportPlaying
     if (shouldPlay && video.paused) {
-      void video.play().catch(() => {
-        useGraphStore.getState().setGanttTimelineTransportState({ documentKey, playing: false })
-      })
+      requestNativePlayback(video)
     } else if (!shouldPlay && !video.paused) {
+      playbackFallbackRef.current = false
+      video.removeAttribute('data-kg-video-sequence-playback-fallback')
       video.pause()
     }
-  }, [documentKey, playbackRate, positionMinutes, readVideo, sequenceMaxMinutes, syncEnabled, transportDocumentKey, transportPlaying])
+  }, [applyVideoTime, documentKey, playbackRate, positionMinutes, readVideo, requestNativePlayback, syncEnabled, transportDocumentKey, transportPlaying])
 
   return (
     <article
@@ -284,6 +341,21 @@ export default function MediaCanvas() {
     () => readVideoSequenceTimelineModelFromMarkdown(markdownText),
     [markdownText],
   )
+  const videoSequenceGanttCode = React.useMemo(
+    () => resolveMermaidDiagramCode(
+      readYamlFrontmatterMermaidDiagramCodes(markdownText, 'gantt'),
+      'gantt',
+    ),
+    [markdownText],
+  )
+  const videoSequenceExportPlan = React.useMemo(
+    () => buildVideoSequenceExportPlan({
+      code: videoSequenceGanttCode,
+      filenameHint: markdownDocumentName,
+      sources: videoSequenceModel?.sources || [],
+    }),
+    [markdownDocumentName, videoSequenceGanttCode, videoSequenceModel?.sources],
+  )
   const videoSequenceItems = React.useMemo<MediaCanvasItem[]>(() => {
     if (!videoSequenceModel?.sources.length) return []
     return videoSequenceModel.sources.flatMap((source, index): MediaCanvasItem[] => {
@@ -297,6 +369,7 @@ export default function MediaCanvas() {
         src,
         openUrl: readVideoSequenceSourcePlayableUrl(source) || src,
         source: 'video-sequence',
+        videoSequenceSource: source,
       }]
     })
   }, [videoSequenceModel])
@@ -335,6 +408,7 @@ export default function MediaCanvas() {
             <MediaCanvasSyncedPanel
               key={item.key}
               documentKey={documentKey}
+              exportPlan={videoSequenceExportPlan}
               item={item}
               sequenceMaxMinutes={sequenceMaxMinutes}
             />

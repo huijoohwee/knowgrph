@@ -62,6 +62,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   let selectedRenderMode: '2d' | '3d' | null = null
   let canvas3dMode: string | null = null
   const calls: string[] = []
+  const timelineBottomCalls: string[] = []
 
   applyCanvasViewSelection({
     id: 'surface:xr',
@@ -679,11 +680,18 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   const gitGraphToggle = displayControls?.children?.find(child => child.id === 'control:gitGraph')
   const ganttToggle = displayControls?.children?.find(child => child.id === 'control:gantt')
   if (!displayControls || !timelineToggle || !gridToggle || !snapGridToggle || !gitGraphToggle || !ganttToggle) {
-    throw new Error('Expected Display Controls to own Grid, Snap to Grid, Timeline, GitGraph, and Gantt toggles')
+    throw new Error(
+      'Expected Display Controls to own Grid, Snap to Grid, Timeline, Flowchart, GitGraph, Gantt, Architecture, and Event Model toggles',
+    )
   }
   const childIds = displayControls.children?.map(child => child.id).join('|')
-  if (childIds !== 'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:snapGrid|control:timeline|control:gitGraph|control:gantt') {
-    throw new Error(`Expected Minimap, Grid, Snap to Grid, Timeline, GitGraph, and Gantt to sit beside each other in Display Controls, got ${childIds}`)
+  if (
+    childIds !==
+      'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:snapGrid|control:timeline|control:flowchart|control:gitGraph|control:gantt|control:architecture|control:eventModeling'
+  ) {
+    throw new Error(
+      `Expected Minimap, Grid, Snap to Grid, Timeline, Flowchart, GitGraph, Gantt, Architecture, and Event Model to sit beside each other in Display Controls, got ${childIds}`,
+    )
   }
   if (timelineToggle.children?.length) {
     throw new Error('Expected Timeline to reuse Grid-style single toggle semantics, not On/Off submenu children')
@@ -691,10 +699,19 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   if (gitGraphToggle.children?.length || ganttToggle.children?.length) {
     throw new Error('Expected GitGraph and Gantt to reuse Timeline-style single-action bottom-panel semantics')
   }
-  if (timelineToggle.isActive !== true || gitGraphToggle.isActive !== true || ganttToggle.isActive === true || gridToggle.isActive === true || snapGridToggle.isActive === true) {
-    throw new Error('Expected Timeline, GitGraph, Gantt, Grid, and Snap to Grid toggles to expose peer active states under Display Controls')
+  if (
+    timelineToggle.isActive === true ||
+    gitGraphToggle.isActive !== true ||
+    ganttToggle.isActive === true ||
+    gridToggle.isActive === true ||
+    snapGridToggle.isActive === true
+  ) {
+    throw new Error(
+      'Expected GitGraph to be the active bottom-surface toggle while Timeline, Gantt, Grid, and Snap to Grid remain inactive under Display Controls',
+    )
   }
   const calls: string[] = []
+  const timelineBottomCalls: string[] = []
   const unexpectedViewMutations: string[] = []
   const markUnexpected = (name: string) => () => {
     unexpectedViewMutations.push(name)
@@ -723,17 +740,23 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     setBehavior: markUnexpected('setBehavior') as any,
     setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
     setTimelineEnabled: enabled => calls.push(String(enabled)),
+    setBottomSurfaceCollapsed: collapsed => timelineBottomCalls.push(`collapsed:${String(collapsed)}`),
+    setBottomSurfaceTab: tab => timelineBottomCalls.push(`tab:${tab}`),
     setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
     setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
     setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
   })
-  if (calls.join('|') !== 'false') {
-    throw new Error(`Expected Timeline toggle to disable the shared bottom-panel setting, got ${calls.join('|')}`)
+  if (calls.length > 0) {
+    throw new Error(`Expected Timeline toggle to avoid mutating the legacy timelineEnabled flag, got ${calls.join('|')}`)
+  }
+  if (timelineBottomCalls.join('|') !== 'tab:timeline|collapsed:false') {
+    throw new Error(`Expected Timeline Display Control to open the shared BottomPanel Timeline tab, got ${timelineBottomCalls.join('|')}`)
   }
   if (unexpectedViewMutations.length > 0) {
     throw new Error(`Expected Timeline toggle not to mutate Canvas View Mode setters, got ${unexpectedViewMutations.join(', ')}`)
   }
   calls.length = 0
+  timelineBottomCalls.length = 0
   applyCanvasViewSelection({
     id: 'control:timeline',
     ensureBaselineUnlocked: () => true,
@@ -757,12 +780,17 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
     setSchema: () => {},
     setRenderMediaAsNodes: () => {},
     setTimelineEnabled: enabled => calls.push(String(enabled)),
+    setBottomSurfaceCollapsed: collapsed => timelineBottomCalls.push(`collapsed:${String(collapsed)}`),
+    setBottomSurfaceTab: tab => timelineBottomCalls.push(`tab:${tab}`),
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
   })
-  if (calls.join('|') !== 'true') {
-    throw new Error(`Expected Timeline toggle to enable the shared bottom-panel setting, got ${calls.join('|')}`)
+  if (calls.length > 0) {
+    throw new Error(`Expected Timeline toggle to keep the legacy timelineEnabled flag untouched, got ${calls.join('|')}`)
+  }
+  if (timelineBottomCalls.join('|') !== 'tab:timeline|collapsed:false') {
+    throw new Error(`Expected inactive Timeline Display Control to open the shared BottomPanel Timeline tab, got ${timelineBottomCalls.join('|')}`)
   }
   const bottomCalls: string[] = []
   applyCanvasViewSelection({

@@ -1,10 +1,20 @@
 import React from 'react'
-import { Download, FileAudio, Film, Layers, LocateFixed, Maximize2, Palette, Scissors, SlidersHorizontal, SplitSquareVertical, ZoomIn, ZoomOut, type LucideIcon } from 'lucide-react'
+import { Download, FileAudio, LocateFixed, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { TimelineTransportChrome } from '@/components/timeline/TimelineTransportControls'
 import {
+  VideoSequenceClipEditPanel,
+  type VideoSequenceClipEditAction,
+} from '@/components/timeline/VideoSequenceClipEditPanel'
+import { VideoSequenceMonitorPanel } from '@/components/timeline/VideoSequenceMonitorPanel'
+import {
+  TimelineVideoSequenceToolButton,
+  VideoSequenceTimelineRuler,
+} from '@/components/timeline/VideoSequenceTimelineRuler'
+import {
   buildVideoSequenceExportPlan,
   downloadVideoSequenceExport,
+  type VideoSequenceExportPlan,
   type VideoSequenceExportKind,
 } from '@/components/timeline/videoSequenceExport'
 import {
@@ -20,13 +30,20 @@ import {
 } from '@/components/timeline/timelineTransport'
 import {
   VIDEO_SEQUENCE_TIMELINE_LANES,
+  VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS,
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
   buildVideoSequenceTimelineToolStatus,
+  buildVideoSequenceTimelineScopes,
+  dispatchVideoSequenceTimelinePlaybackRequest,
+  formatVideoSequenceTimelineSecondsOffset,
+  readVideoSequenceSourcePlayableUrl,
   readVideoSequenceTimelineModelFromMarkdown,
+  resolveVideoSequenceTimelineMediaSeconds,
+  resolveVideoSequenceTimelineUnitsPerMs,
   resolveVideoSequenceTimelineLane,
-  resolveVideoSequenceTimelineLaneIndex,
   type VideoSequenceTimelineToolId,
 } from '@/components/timeline/videoSequenceTimeline'
+import { resolveVideoSequenceSourceRuntimeUrl } from '@/components/timeline/videoSequenceSourceRegistry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   buildMermaidGanttTimelineModel,
@@ -44,6 +61,7 @@ import {
   type MermaidGanttBarDragMode,
   type MermaidGanttTimelineDragPreview,
   type MermaidGanttTimelineTaskSpan,
+  type MermaidGanttVideoSequenceOperation,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 
 type GanttTimelineTransportDragState = {
@@ -56,94 +74,55 @@ type GanttTimelineTransportDragState = {
   span: MermaidGanttTimelineTaskSpan
 }
 
-const VIDEO_SEQUENCE_TOOL_ICONS: Record<VideoSequenceTimelineToolId, LucideIcon> = {
-  cut: Scissors,
-  splice: SplitSquareVertical,
-  mask: Layers,
-  grade: Palette,
+const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
+
+function readVideoMetadataDurationSeconds(url: string): Promise<number> {
+  return new Promise(resolve => {
+    const video = document.createElement('video')
+    const timeoutId = window.setTimeout(() => {
+      cleanup()
+      resolve(0)
+    }, 3000)
+    const cleanup = () => {
+      window.clearTimeout(timeoutId)
+      video.removeEventListener('loadedmetadata', onLoaded)
+      video.removeEventListener('error', onError)
+      video.removeAttribute('src')
+      video.load()
+    }
+    const onLoaded = () => {
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0
+      cleanup()
+      resolve(duration)
+    }
+    const onError = () => {
+      cleanup()
+      resolve(0)
+    }
+    video.preload = 'metadata'
+    video.addEventListener('loadedmetadata', onLoaded)
+    video.addEventListener('error', onError)
+    video.src = url
+    video.load()
+  })
 }
 
-function isMermaidGanttTimelineVerticalMarker(span: MermaidGanttTimelineTaskSpan): boolean {
-  return /(^|[:,\s])vert([,\s]|$)/i.test(span.raw)
-}
-
-function TimelineVideoSequenceToolButton({
-  active,
-  disabled,
-  id,
-  label,
-  title,
-  onClick,
-}: {
-  active?: boolean
-  disabled?: boolean
-  id: VideoSequenceTimelineToolId
-  label: string
-  title: string
-  onClick: () => void
-}) {
-  const Icon = VIDEO_SEQUENCE_TOOL_ICONS[id]
-  return (
-    <button
-      type="button"
-      aria-label={title}
-      title={title}
-      disabled={disabled}
-      data-kg-video-sequence-tool={id}
-      data-kg-video-sequence-tool-active={active ? '1' : undefined}
-      onClick={onClick}
-    >
-      <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-      <span className="sr-only">{label}</span>
-    </button>
-  )
-}
-
-export function TimelineVideoSequenceEmptyState({
-  compact,
-}: {
-  compact: boolean
-}) {
-  return (
-    <section
-      className={`timeline-video-sequence-empty ${compact ? 'timeline-video-sequence-empty--compact' : ''}`}
-      aria-label="Timeline video sequence editor"
-      data-kg-video-sequence-timeline="empty"
-    >
-      <header className="timeline-video-sequence-empty-header">
-        <section className="timeline-video-sequence-empty-title">
-          <Film className="h-4 w-4" strokeWidth={1.8} aria-hidden={true} />
-          <span>Video Sequence Timeline</span>
-        </section>
-        <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
-          {VIDEO_SEQUENCE_TIMELINE_TOOLS.map(tool => (
-            <TimelineVideoSequenceToolButton
-              key={tool.id}
-              id={tool.id}
-              label={tool.label}
-              title={tool.title}
-              disabled={true}
-              onClick={() => undefined}
-            />
-          ))}
-        </nav>
-      </header>
-      <section className="timeline-video-sequence-empty-grid" aria-label="Video sequence lanes">
-        <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels">
-          {VIDEO_SEQUENCE_TIMELINE_LANES.map(lane => (
-            <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-lane-label={lane.id}>
-              {lane.label}
-            </section>
-          ))}
-        </aside>
-        <section className="timeline-video-sequence-empty-ruler" aria-label="Timeline source status">
-          <section className="timeline-video-sequence-empty-dropzone">
-            Add Mermaid Gantt frontmatter to edit source-backed clips.
-          </section>
-        </section>
-      </section>
-    </section>
-  )
+async function resolveVideoSequenceExportPlanDurationSeconds(plan: VideoSequenceExportPlan | null): Promise<number> {
+  if (!plan?.segments.length || typeof document === 'undefined') return 0
+  const sourceDurationByUrl = new Map<string, number>()
+  let totalSeconds = 0
+  for (const segment of plan.segments) {
+    const url = readVideoSequenceSourcePlayableUrl(segment.source) || resolveVideoSequenceSourceRuntimeUrl(segment.source)
+    if (!url) return 0
+    let sourceDurationSeconds = sourceDurationByUrl.get(url)
+    if (typeof sourceDurationSeconds !== 'number') {
+      sourceDurationSeconds = await readVideoMetadataDurationSeconds(url)
+      sourceDurationByUrl.set(url, sourceDurationSeconds)
+    }
+    if (!sourceDurationSeconds) return 0
+    totalSeconds += Math.max(0, segment.sourceEndRatio - segment.sourceStartRatio) * sourceDurationSeconds
+  }
+  return totalSeconds
 }
 
 export function GanttTimelineTransportPanel({
@@ -157,6 +136,7 @@ export function GanttTimelineTransportPanel({
   const [dragState, setDragState] = React.useState<GanttTimelineTransportDragState | null>(null)
   const [dragPreview, setDragPreview] = React.useState<MermaidGanttTimelineDragPreview | null>(null)
   const [exportingKind, setExportingKind] = React.useState<VideoSequenceExportKind | ''>('')
+  const [mediaDurationSeconds, setMediaDurationSeconds] = React.useState(0)
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
   const {
     markdownDocumentName,
@@ -185,6 +165,7 @@ export function GanttTimelineTransportPanel({
       upsertUiToast: state.upsertUiToast,
     })),
   )
+  const previousSelectedRowKeyRef = React.useRef(selectedRowKey)
   const timelineModel = React.useMemo(() => buildMermaidGanttTimelineModel(code), [code])
   const ticks = React.useMemo(() => buildMermaidGanttTimelineTicks(timelineModel), [timelineModel])
   const maxMinutes = Math.max(0, timelineModel.durationMinutes)
@@ -195,8 +176,17 @@ export function GanttTimelineTransportPanel({
     : 0
   const playing = transportDocumentKey === documentKey && transportPlaying
   const playbackRate = resolveTimelineTransportPlaybackRate(transportPlaybackRate, 1)
-  const currentLabel = formatMermaidGanttTimelineOffset(positionMinutes)
-  const totalLabel = formatMermaidGanttTimelineOffset(maxMinutes)
+  const hasMediaDurationScale = mediaDurationSeconds > 0 && maxMinutes > 0
+  const currentLabel = hasMediaDurationScale
+    ? formatVideoSequenceTimelineSecondsOffset(resolveVideoSequenceTimelineMediaSeconds({
+      durationSeconds: mediaDurationSeconds,
+      maxMinutes,
+      positionMinutes,
+    }))
+    : formatMermaidGanttTimelineOffset(positionMinutes)
+  const totalLabel = hasMediaDurationScale
+    ? formatVideoSequenceTimelineSecondsOffset(mediaDurationSeconds)
+    : formatMermaidGanttTimelineOffset(maxMinutes)
   const timelineZoom = resolveTimelineTransportZoom(timelineZoomIndex)
   const playheadPercent = resolveTimelineTransportPlayheadPercent(positionMinutes, maxMinutes)
   const selectedSpan = React.useMemo(
@@ -220,6 +210,32 @@ export function GanttTimelineTransportPanel({
     [code, markdownDocumentName, videoSequenceModel?.sources],
   )
   const exportDisabled = disabled || !exportPlan || exportingKind !== ''
+  const activeLaneIds = React.useMemo(
+    () => new Set(timelineModel.taskSpans.map(span => resolveVideoSequenceTimelineLane(span))),
+    [timelineModel.taskSpans],
+  )
+  const monitorScopes = React.useMemo(() => buildVideoSequenceTimelineScopes({
+    maxMinutes,
+    positionMinutes,
+    sourceCount: videoSequenceModel?.sources.length || 0,
+    spanCount: timelineModel.taskSpans.length,
+  }), [maxMinutes, positionMinutes, timelineModel.taskSpans.length, videoSequenceModel?.sources.length])
+  const displayTicks = React.useMemo(() => {
+    if (!hasMediaDurationScale) return ticks
+    return ticks.map(tick => ({
+      ...tick,
+      label: formatVideoSequenceTimelineSecondsOffset(resolveVideoSequenceTimelineMediaSeconds({
+        durationSeconds: mediaDurationSeconds,
+        maxMinutes,
+        positionMinutes: tick.minutes,
+      })),
+    }))
+  }, [hasMediaDurationScale, maxMinutes, mediaDurationSeconds, ticks])
+  const playbackUnitsPerMs = React.useMemo(() => resolveVideoSequenceTimelineUnitsPerMs({
+    durationSeconds: mediaDurationSeconds,
+    fallbackUnitsPerMs: 1 / 1000,
+    maxMinutes,
+  }), [maxMinutes, mediaDurationSeconds])
 
   const commitGanttVideoSequenceCode = React.useCallback((nextCode: string | null, nextLineIndex?: number) => {
     if (!nextCode || nextCode === code) return
@@ -263,13 +279,61 @@ export function GanttTimelineTransportPanel({
       )
       return
     }
+    if (!VIDEO_SEQUENCE_OPERATION_TOOL_SET.has(toolId)) return
     commitGanttVideoSequenceCode(
       insertMermaidGanttVideoSequenceOperationRow({
         code,
         rowLineIndex: selectedSpan.lineIndex,
-        operation: toolId === 'grade' ? 'grade' : 'mask',
+        operation: toolId as MermaidGanttVideoSequenceOperation,
       }),
       selectedSpan.lineIndex + 1,
+    )
+  }, [code, commitGanttVideoSequenceCode, maxMinutes, positionMinutes, selectedSpan])
+
+  const handleVideoSequenceClipEdit = React.useCallback((action: VideoSequenceClipEditAction) => {
+    if (!selectedSpan || maxMinutes <= 0) return
+    if (action === 'split-at-playhead') {
+      commitGanttVideoSequenceCode(
+        splitMermaidGanttVideoSequenceClipGroupAtOffset({
+          code,
+          rowLineIndex: selectedSpan.lineIndex,
+          splitOffsetMinutes: positionMinutes - selectedSpan.startMinutes,
+        }),
+        selectedSpan.lineIndex,
+      )
+      return
+    }
+
+    let mode: MermaidGanttBarDragMode = 'move'
+    let deltaMinutes = 0
+    if (action === 'nudge-back') {
+      deltaMinutes = -Math.min(1, Math.max(0, selectedSpan.startMinutes))
+    } else if (action === 'nudge-forward') {
+      deltaMinutes = 1
+    } else if (action === 'trim-start-back') {
+      mode = 'resize-start'
+      deltaMinutes = -Math.min(1, Math.max(0, selectedSpan.startMinutes))
+    } else if (action === 'trim-start-forward') {
+      mode = 'resize-start'
+      deltaMinutes = Math.min(1, Math.max(0, selectedSpan.durationMinutes - 1))
+    } else if (action === 'trim-end-back') {
+      mode = 'resize-end'
+      deltaMinutes = -Math.min(1, Math.max(0, selectedSpan.durationMinutes - 1))
+    } else if (action === 'trim-end-forward') {
+      mode = 'resize-end'
+      deltaMinutes = 1
+    } else if (action === 'snap-to-playhead') {
+      deltaMinutes = Math.round(positionMinutes - selectedSpan.startMinutes)
+    }
+    if (!deltaMinutes) return
+    commitGanttVideoSequenceCode(
+      updateMermaidGanttVideoSequenceClipGroupTiming({
+        code,
+        rowLineIndex: selectedSpan.lineIndex,
+        mode,
+        deltaMinutes,
+      }),
+      selectedSpan.lineIndex,
     )
   }, [code, commitGanttVideoSequenceCode, maxMinutes, positionMinutes, selectedSpan])
 
@@ -309,6 +373,21 @@ export function GanttTimelineTransportPanel({
   }, [documentKey, exportPlan, exportingKind, setGanttTimelineTransportState, upsertUiToast])
 
   React.useEffect(() => {
+    let cancelled = false
+    setMediaDurationSeconds(0)
+    if (!exportPlan) return () => {
+      cancelled = true
+    }
+    void resolveVideoSequenceExportPlanDurationSeconds(exportPlan).then(durationSeconds => {
+      if (cancelled) return
+      setMediaDurationSeconds(Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [exportPlan])
+
+  React.useEffect(() => {
     if (maxMinutes <= 0) {
       setGanttTimelineTransportState({ documentKey, playing: false, positionMinutes: 0 })
       return
@@ -320,6 +399,9 @@ export function GanttTimelineTransportPanel({
   }, [documentKey, maxMinutes, positionMinutes, setGanttTimelineTransportState])
 
   React.useEffect(() => {
+    const previousSelectedRowKey = previousSelectedRowKeyRef.current
+    if (previousSelectedRowKey === selectedRowKey) return
+    previousSelectedRowKeyRef.current = selectedRowKey
     if (!selectedRowKey || playing) return
     const selectedSpan = timelineModel.taskSpans.find(span => span.rowKey === selectedRowKey)
     if (!selectedSpan) return
@@ -338,9 +420,39 @@ export function GanttTimelineTransportPanel({
     }
   }, [documentKey, maxMinutes, selectedRowKey, setGanttTimelineTransportState, setMermaidDiagramSelectedRowKey, timelineModel])
 
+  const handleRulerPointerScrub = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || maxMinutes <= 0) return
+    const target = event.target as HTMLElement | null
+    if (target?.closest('button,[data-kg-gantt-timeline-track-span="1"]')) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (rect.width <= 0) return
+    const ratio = clampTimelineTransportValue((event.clientX - rect.left) / rect.width, 0, 1)
+    setGanttTimelineTransportState({ documentKey, playing: false })
+    handlePositionChange(ratio * maxMinutes)
+  }, [documentKey, handlePositionChange, maxMinutes, setGanttTimelineTransportState])
+
   const handlePlaybackEnd = React.useCallback(() => {
     setGanttTimelineTransportState({ documentKey, playing: false })
   }, [documentKey, setGanttTimelineTransportState])
+
+  const requestMediaPlayback = React.useCallback((nextPlaying: boolean) => {
+    dispatchVideoSequenceTimelinePlaybackRequest({
+      documentKey,
+      playbackRate,
+      playing: nextPlaying,
+      positionMinutes,
+    })
+  }, [documentKey, playbackRate, positionMinutes])
+
+  const handlePlaybackPointerDown = React.useCallback(() => {
+    requestMediaPlayback(!playing)
+  }, [playing, requestMediaPlayback])
+
+  const handleTogglePlayback = React.useCallback(() => {
+    const nextPlaying = !playing
+    setGanttTimelineTransportState({ documentKey, playing: nextPlaying })
+    requestMediaPlayback(nextPlaying)
+  }, [documentKey, playing, requestMediaPlayback, setGanttTimelineTransportState])
 
   const centerTimelinePlayhead = React.useCallback(() => {
     const contentElement = rulerContentRef.current
@@ -379,6 +491,7 @@ export function GanttTimelineTransportPanel({
       })
       const deltaMinutes = Math.round(preview.deltaPx * dragState.minutesPerPixel)
       const nextPreview = resolveMermaidGanttTimelineDragPreviewSpan({
+        allowTimelineExpansion: true,
         deltaMinutes,
         maxMinutes,
         mode: dragState.mode,
@@ -402,6 +515,7 @@ export function GanttTimelineTransportPanel({
       if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
       const deltaMinutes = Math.round(preview.deltaPx * dragState.minutesPerPixel)
       const effectiveDeltaMinutes = resolveMermaidGanttTimelineDragEffectiveDelta({
+        allowTimelineExpansion: true,
         deltaMinutes,
         maxMinutes,
         mode: dragState.mode,
@@ -481,7 +595,7 @@ export function GanttTimelineTransportPanel({
     position: positionMinutes,
     max: maxMinutes,
     playbackRate,
-    unitsPerMs: 1 / 1000,
+    unitsPerMs: playbackUnitsPerMs,
     onPositionChange: handlePositionChange,
     onPlaybackEnd: handlePlaybackEnd,
   })
@@ -491,11 +605,22 @@ export function GanttTimelineTransportPanel({
       ariaLabel="Scrub Gantt-timeline position"
       chromeClassName="timeline-transport-chrome--mermaid-gantt p-2"
       currentLabel={currentLabel}
+      contextControls={(
+        <VideoSequenceClipEditPanel
+          disabled={disabled}
+          maxMinutes={maxMinutes}
+          mediaDurationSeconds={mediaDurationSeconds}
+          playheadMinutes={positionMinutes}
+          selectedSpan={selectedSpan}
+          onAction={handleVideoSequenceClipEdit}
+        />
+      )}
       disabled={disabled}
       max={Math.max(1, maxMinutes)}
       min={0}
       playbackRate={playbackRate}
       playing={playing}
+      shellClassName="timeline-transport-shell--video-sequence"
       rootProps={{
         'aria-label': 'Gantt-Timeline transport',
         'data-kg-gantt-timeline-transport': 'bottomPanel',
@@ -577,113 +702,45 @@ export function GanttTimelineTransportPanel({
         </section>
       )}
       ruler={(
-        <section className="timeline-video-sequence-editor" aria-label="Video sequence editor">
-          <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels">
-            {VIDEO_SEQUENCE_TIMELINE_LANES.map(lane => (
-              <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-lane-label={lane.id}>
-                {lane.label}
-              </section>
-            ))}
-          </aside>
-          <section
-            ref={rulerContentRef}
-            className="timeline-transport-ruler-content timeline-video-sequence-ruler-content"
-            style={{ width: `${timelineZoom * 100}%` }}
-            data-kg-gantt-timeline-ruler-content="1"
-            data-kg-gantt-timeline-zoom={String(timelineZoom)}
-          >
-            <span
-              className="timeline-transport-playhead"
-              style={{ left: `clamp(14px, ${playheadPercent}%, calc(100% - 14px))` }}
-              data-kg-gantt-timeline-playhead="1"
-              aria-hidden="true"
-            >
-              <span className="timeline-transport-playhead-marker" />
-            </span>
-            {ticks.map(tick => (
-              <React.Fragment key={`${tick.minutes}:${tick.label}`}>
-                <span
-                  className="timeline-transport-ruler-tick"
-                  style={{ left: `clamp(14px, ${tick.percent}%, calc(100% - 14px))` }}
-                  data-kg-gantt-timeline-tick="1"
-                >
-                  <span className="timeline-transport-ruler-tick-line" />
-                  <span>{tick.label}</span>
-                </span>
-              </React.Fragment>
-            ))}
-            {timelineModel.taskSpans.map((span, index) => {
-              const verticalMarker = isMermaidGanttTimelineVerticalMarker(span)
-              const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
-              const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
-              const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
-              const leftPercent = maxMinutes > 0 ? (startMinutes / maxMinutes) * 100 : 0
-              const widthPercent = maxMinutes > 0 ? Math.max(2, (durationMinutes / maxMinutes) * 100) : 0
-              const selected = selectedRowKey === span.rowKey
-              const dragging = dragState?.span.rowKey === span.rowKey
-              const lane = resolveVideoSequenceTimelineLane(span)
-              const laneIndex = resolveVideoSequenceTimelineLaneIndex(lane)
-              return (
-                <article
-                  key={`span:${span.rowKey}`}
-                  className={`timeline-transport-track-clip timeline-transport-track-clip--lane-${lane} ${verticalMarker ? 'timeline-transport-track-clip--milestone' : ''} ${selected ? 'timeline-transport-track-clip--selected' : ''} ${dragging ? 'timeline-transport-track-clip--dragging' : ''}`}
-                  style={{
-                    left: verticalMarker ? `clamp(24px, ${leftPercent}%, calc(100% - 24px))` : `${leftPercent}%`,
-                    top: verticalMarker ? '0px' : `${24 + laneIndex * 18 + (index % 2) * 3}px`,
-                    width: verticalMarker ? '14px' : `${Math.min(100 - leftPercent, widthPercent)}%`,
-                  }}
-                  aria-label={`${span.label} timeline clip`}
-                  data-kg-gantt-timeline-track-span="1"
-                  data-kg-gantt-timeline-track-dragging={dragging ? '1' : undefined}
-                  data-kg-gantt-timeline-track-row-key={span.rowKey}
-                  data-kg-video-sequence-lane={lane}
-                  title={span.label}
-                >
-                  <button
-                    type="button"
-                    className="timeline-transport-track-handle timeline-transport-track-handle--start"
-                    aria-label={`Resize ${span.label} start`}
-                    data-kg-gantt-timeline-track-drag-mode="resize-start"
-                    onPointerDown={event => handleTrackPointerStart(event, span, 'resize-start')}
-                  />
-                  <button
-                    type="button"
-                    className="timeline-transport-track-clip-move"
-                    aria-label={`Move ${span.label}`}
-                    data-kg-gantt-timeline-track-drag-mode="move"
-                    onClick={() => setMermaidDiagramSelectedRowKey('gantt', span.rowKey)}
-                    onPointerDown={event => handleTrackPointerStart(event, span, 'move')}
-                  >
-                    <span className="timeline-transport-track-clip-label">{span.label}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="timeline-transport-track-handle timeline-transport-track-handle--end"
-                    aria-label={`Resize ${span.label} end`}
-                    data-kg-gantt-timeline-track-drag-mode="resize-end"
-                    onPointerDown={event => handleTrackPointerStart(event, span, 'resize-end')}
-                  />
-                </article>
-              )
-            })}
-            <section className="timeline-video-sequence-grade-strip" aria-label="Color grading controls">
-              <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} aria-hidden={true} />
-              <span>Grade</span>
-            </section>
-          </section>
-        </section>
+        <VideoSequenceTimelineRuler
+          contentRef={rulerContentRef}
+          displayTicks={displayTicks}
+          dragPreview={dragPreview}
+          draggingRowKey={dragState?.span.rowKey || ''}
+          maxMinutes={maxMinutes}
+          playheadPercent={playheadPercent}
+          selectedRowKey={selectedRowKey}
+          taskSpans={timelineModel.taskSpans}
+          timelineZoom={timelineZoom}
+          onRulerPointerDown={handleRulerPointerScrub}
+          onSelectRowKey={rowKey => setMermaidDiagramSelectedRowKey('gantt', rowKey)}
+          onTrackPointerStart={handleTrackPointerStart}
+        />
+      )}
+      rulerAside={(
+        <VideoSequenceMonitorPanel
+          activeLaneIds={activeLaneIds}
+          currentLabel={currentLabel}
+          scopes={monitorScopes}
+          sourceCount={videoSequenceModel?.sources.length || 0}
+        />
       )}
       rulerClassName={compact ? 'timeline-transport-ruler--compact timeline-transport-ruler--tracks timeline-transport-ruler--video-sequence' : 'timeline-transport-ruler--tracks timeline-transport-ruler--video-sequence'}
       rulerProps={{
         'data-kg-gantt-timeline-ruler': 'bottomPanel',
+        style: {
+          '--kg-video-sequence-lane-count': VIDEO_SEQUENCE_TIMELINE_LANES.length,
+        } as React.CSSProperties,
       } as React.HTMLAttributes<HTMLElement>}
       step={1}
+      showRange={false}
       subtitleLabel={`${timelineModel.taskSpans.length} timeline rows`}
       titleLabel="Gantt-Timeline"
       totalLabel={totalLabel}
       value={clampTimelineTransportValue(positionMinutes, 0, Math.max(1, maxMinutes))}
       onPlaybackRateChange={rate => setGanttTimelineTransportState({ documentKey, playbackRate: rate })}
-      onTogglePlayback={() => setGanttTimelineTransportState({ documentKey, playing: !playing })}
+      onPlaybackPointerDown={handlePlaybackPointerDown}
+      onTogglePlayback={handleTogglePlayback}
       onValueChange={handlePositionChange}
     />
   )

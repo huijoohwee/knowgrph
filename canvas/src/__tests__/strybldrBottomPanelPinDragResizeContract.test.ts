@@ -23,6 +23,7 @@ export function testStrybldrBottomPanelUnpinDragReusesResizeRuntime() {
     '<RichMediaPanelResizeHandle placement="panel"',
     "pinned && 'kg-canvas-bottom-panel--pinned'",
     "!pinned && 'cursor-move'",
+    'setPanelSizePx(clampPanelSize({ width: rect.width, height: rect.height }))',
   ]
   const missing = required.filter(token => !text.includes(token))
   if (missing.length > 0) {
@@ -33,6 +34,9 @@ export function testStrybldrBottomPanelUnpinDragReusesResizeRuntime() {
   }
   if (text.includes("bottom: 'calc(var(--kg-safe-bottom)") || text.includes("width: 'min(calc(100% - 1.5rem")) {
     throw new Error('expected bottom panel safe-area geometry to remain in shared responsive CSS')
+  }
+  if (text.indexOf('setPanelSizePx(clampPanelSize({ width: rect.width, height: rect.height }))') > text.indexOf('setPinned(false)')) {
+    throw new Error('expected unpin to preserve the rendered pinned panel size before switching to floating geometry')
   }
   if (
     !sharedDragText.includes('export function beginOverlayPanelPositionDrag') ||

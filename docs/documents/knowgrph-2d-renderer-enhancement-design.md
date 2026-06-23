@@ -48,6 +48,14 @@
 - Shares collective fit/center, zoom view keys, snap-to-grid, lasso, and align/distribute semantics with D3 and Flow, plus renderer-neutral shortcuts for align/distribute and keyboard nudging.
 - Wireframe presentation is driven by schema metadata (`renderer:designWireframe`) and rendered via a Floating Panel "Design wireframe" section: controls include label/meta chips, text/media previews, depth fade, optional edges, and label-collision avoidance. These knobs are schema-only; the UI is a thin shell and remains host/URL-agnostic.
 
+### Media (2D Rich Media + Video Sequence)
+
+- Best for source-backed rich media inspection and video-sequence preview without forking Timeline ownership.
+- Media canvas reuses the shared rich-media inventory and `RichMediaPanel`; video-sequence sources come from `kgVideoSequenceSources`, resolve through the runtime source registry, and must not persist stale blob URLs.
+- BottomPanel `Timeline` owns video-sequence transport, playhead, cut/splice controls, selected-clip nudge/trim/snap/split editing, luma waveform, chroma vectorscope, histogram, audio waveform/mix monitors, lane slots, and source-backed Mermaid Gantt writeback. Clip edits operate on the grouped source lanes so video, mask, grade, and audio timing remains aligned.
+- FloatingPanel `Timeline` remains the parsed row/list editor for Timeline or Gantt-Timeline frontmatter. It must not mount the BottomPanel transport shell.
+- Cut/splice playback sync maps transport minutes to source media seconds through the compiled sequence plan, including gaps, repeated source segments, masks, grades, transitions, filters, adjustment layers, keyframes, effects, speed rows, images, scenes, and audio lanes.
+
 ## Parity SSOT (Must Match Across Variants)
 
 ### 1) Display Graph Derivation

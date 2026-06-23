@@ -1,5 +1,6 @@
 import React from 'react'
-import { GanttTimelineTransportPanel, TimelineVideoSequenceEmptyState } from './GanttTimelineTransportPanel'
+import { TimelineVideoSequenceEmptyState } from '@/components/timeline/VideoSequenceTimelineRuler'
+import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
 import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'

@@ -16,6 +16,10 @@ import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGene
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/flow-editor-manager/registryTemplates'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import {
+  FLOW_SHOWRUNNER_NODE_TYPE_ID,
+  runShowrunnerWidgetProperties,
+} from '@/features/ai-showrunner/showrunnerFlowNode'
+import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
   resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
   resolveFlowEditorWorkflowRunTarget,
@@ -356,6 +360,45 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             lastRunAt: new Date().toISOString(),
           }))
           args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Ran swarm prediction.', ttlMs: 2400 })
+        } finally {
+          setRunLoadingStateForKnownNodeIds({ loading: false })
+        }
+        return
+      }
+
+      if (String(node.type || '').trim() === FLOW_SHOWRUNNER_NODE_TYPE_ID) {
+        const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
+          context: workflowNodeResolutionContext,
+          graphForRun,
+          writableNodeId,
+          registry: args.widgetRegistry,
+        })
+        const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)
+        const readConnectedProperty = (schemaPath: string, propertyKey: string): unknown => {
+          const connected = connectedValuesBySchemaPath?.[schemaPath]?.value
+          return typeof connected === 'undefined' || connected === null ? rawNodeProperties[propertyKey] : connected
+        }
+        setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
+        try {
+          const outputProperties = await runShowrunnerWidgetProperties({
+            ...rawNodeProperties,
+            brief_path: readConnectedProperty('properties.brief_path', 'brief_path'),
+            brief_markdown: readConnectedProperty('properties.brief_markdown', 'brief_markdown'),
+            run_id: readConnectedProperty('properties.run_id', 'run_id'),
+            dry_run: readConnectedProperty('properties.dry_run', 'dry_run'),
+          })
+          updateRunOutputForKnownNodeIds(nodeProps => ({
+            ...clearRichMediaOutputProperties(nodeProps),
+            run_id: outputProperties.run_id,
+            run_status: outputProperties.run_status,
+            latest_artifact_path: outputProperties.latest_artifact_path,
+            token_spend_summary: outputProperties.token_spend_summary,
+            output: outputProperties.token_spend_summary,
+            outputMimeType: 'application/json; charset=utf-8',
+            outputModel: 'knowgrph-ai-showrunner',
+            lastRunAt: new Date().toISOString(),
+          }))
+          args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Ran AI Showrunner.', ttlMs: 2400 })
         } finally {
           setRunLoadingStateForKnownNodeIds({ loading: false })
         }

@@ -1,0 +1,27 @@
+.timeline-transport-shell--video-sequence {
+  display: grid;
+  grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 72px) minmax(0, 1fr);
+}
+
+.timeline-transport-shell--video-sequence .timeline-player {
+  grid-column: 2;
+}
+
+.timeline-transport-track-clip--lane-effect,
+.timeline-transport-track-clip--lane-filter {
+  border-color: rgb(124 58 237 / 0.88);
+  background: rgb(139 92 246 / 0.88);
+}
+
+.timeline-transport-track-clip--lane-adjustment,
+.timeline-transport-track-clip--lane-keyframe,
+.timeline-transport-track-clip--lane-transition {
+  border-color: rgb(190 24 93 / 0.88);
+  background: rgb(236 72 153 / 0.86);
+}
+
+.timeline-transport-track-clip--lane-image,
+.timeline-transport-track-clip--lane-scene {
+  border-color: rgb(15 118 110 / 0.88);
+  background: rgb(20 184 166 / 0.86);
+}

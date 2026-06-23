@@ -56,6 +56,28 @@ const VIDEO_REMIX_RUN_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
+const SHOWRUNNER_TOOL_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["ok"],
+  properties: {
+    ok: { type: "boolean" },
+    run_id: { type: "string" },
+    run_status: { type: "string" },
+    artifact_path: { type: "string" },
+    error: { type: "object", additionalProperties: true },
+  },
+});
+
+const SHOWRUNNER_RUN_ID_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["run_id"],
+  properties: {
+    run_id: { type: "string" },
+  },
+});
+
 const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
@@ -360,6 +382,92 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
         "Use this when a local MCP host needs to inject ranked memory results into a bounded system-message context section without exposing internal memory IDs or scores.",
       outputSchema: PROMPT_ASSEMBLER_OUTPUT_SCHEMA,
       inputSchema: PROMPT_ASSEMBLER_INPUT_SCHEMA,
+    }, READ_ONLY_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun,
+      description:
+        "Use this when a local MCP host needs to validate a Knowgrph AI Showrunner Creative_Brief and start a bounded dry-run or approval-gated Pipeline_Run.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          brief_path: { type: "string", description: "Workspace Source_File path for a knowgrph-showrunner-brief/v1 document." },
+          brief_markdown: { type: "string", description: "Inline knowgrph-showrunner-brief/v1 Markdown." },
+          dry_run: { type: "boolean", default: true, description: "When true, deterministic mock turns produce the full artifact structure with zero paid calls." },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerRunStatus,
+      description:
+        "Use this when a local MCP host needs to read the current AI Showrunner Pipeline_Run lifecycle state without mutating Creative_State.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: SHOWRUNNER_RUN_ID_INPUT_SCHEMA,
+    }, READ_ONLY_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerPostChoice,
+      description:
+        "Use this when a local MCP host needs to route a player choice signal to the Narrative_Game_Engine message bus for a running showrunner run.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["run_id", "choice_signal"],
+        properties: {
+          run_id: { type: "string" },
+          choice_signal: { type: "string" },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerSubmitCritique,
+      description:
+        "Use this when a local MCP host needs to submit critique text for a Writers_Room draft through the showrunner message bus.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["run_id", "draft_version", "critique_text"],
+        properties: {
+          run_id: { type: "string" },
+          draft_version: { type: "number" },
+          critique_text: { type: "string" },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerApproveStage,
+      description:
+        "Use this when a local MCP host needs to release an AI Showrunner approval or budget gate and resume the Pipeline_Run.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["run_id", "stage_id"],
+        properties: {
+          run_id: { type: "string" },
+          stage_id: { type: "string" },
+        },
+      },
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerGetArtifact,
+      description:
+        "Use this when a local MCP host needs to read the Source_File path for a Showrunner artifact without mutating Creative_State or triggering turns.",
+      outputSchema: SHOWRUNNER_TOOL_OUTPUT_SCHEMA,
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["run_id", "artifact_type"],
+        properties: {
+          run_id: { type: "string" },
+          artifact_type: {
+            type: "string",
+            enum: ["manifest", "failure_report", "narration_manifest", "choice_graph", "revision_history", "cost_log", "state"],
+          },
+        },
+      },
     }, READ_ONLY_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,

@@ -445,9 +445,11 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-gantt-toggle') ||
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-timeline-toggle') ||
     !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-architecture-toggle') ||
-    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-event-modeling-toggle')
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-event-modeling-toggle') ||
+    !bottomPanelText.includes('data-kg-strybldr-bottom-timeline-scroll="body"') ||
+    !bottomPanelText.includes('overflow-y-auto')
   ) {
-    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, Timeline, Architecture, and Event Model tabs')
+    throw new Error('expected BottomPanel to route separate Version Graph, GitGraph, Gantt, Timeline, Architecture, Event Model tabs, and retain a scrollable body for tall Timeline editors')
   }
   if (
     !iconText.includes("'floatingPanel.gantt'") ||
@@ -719,7 +721,6 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('deltaMinutes: effectiveDeltaMinutes') ||
     !ganttTransportText.includes('updateMermaidGanttVideoSequenceClipGroupTiming') ||
     !ganttTransportText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
-    !ganttTransportText.includes('isMermaidGanttTimelineVerticalMarker') ||
     !ganttTransportText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
     !ganttTransportText.includes('resolveTimelineTransportNextZoomIndex') ||
     !ganttTransportText.includes('resolveTimelineTransportPlayheadPercent') ||
@@ -729,10 +730,21 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('ganttTimelineTransportPlaying') ||
     !ganttTransportText.includes('setGanttTimelineTransportState') ||
     !ganttTransportText.includes('centerTimelinePlayhead') ||
+    !ganttTransportText.includes('handleRulerPointerScrub') ||
+    !ganttTransportText.includes('showRange={false}') ||
+    !ganttTransportText.includes('shellClassName="timeline-transport-shell--video-sequence"') ||
+    !ganttTransportText.includes('VideoSequenceMonitorPanel') ||
+    !ganttTransportText.includes('VideoSequenceTimelineRuler') ||
     !ganttTransportText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS') ||
+    !ganttTransportText.includes('VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS') ||
     !ganttTransportText.includes('buildVideoSequenceTimelineToolStatus') ||
+    !ganttTransportText.includes('buildVideoSequenceTimelineScopes') ||
     !ganttTransportText.includes('buildVideoSequenceExportPlan') ||
     !ganttTransportText.includes('downloadVideoSequenceExport') ||
+    !ganttTransportText.includes('resolveVideoSequenceExportPlanDurationSeconds') ||
+    !ganttTransportText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
+    !ganttTransportText.includes('resolveVideoSequenceTimelineUnitsPerMs') ||
+    !ganttTransportText.includes('playbackUnitsPerMs') ||
     !ganttTransportText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
     !ganttTransportText.includes('upsertUiToast') ||
     !ganttTransportText.includes('data-kg-video-sequence-export="video"') ||
@@ -742,27 +754,15 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
     !ganttTransportText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
     !ganttTransportText.includes('data-kg-video-sequence-timeline') ||
-    !ganttTransportText.includes('data-kg-video-sequence-lane={lane}') ||
     !ganttTransportText.includes('timeline-transport-chrome--mermaid-gantt') ||
-    !ganttTransportText.includes('timeline-transport-track-clip--milestone') ||
     !ganttTransportText.includes('timeline-video-sequence-tool-strip') ||
-    !ganttTransportText.includes('timeline-video-sequence-lane-sidebar') ||
     !ganttTransportText.includes('timeline-transport-chrome-actions') ||
-    !ganttTransportText.includes('timeline-transport-playhead') ||
-    !ganttTransportText.includes("top: verticalMarker ? '0px' : `${24 + laneIndex * 18 + (index % 2) * 3}px`") ||
-    !ganttTransportText.includes("width: verticalMarker ? '14px'") ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-ruler-content="1"') ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-playhead="1"') ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="move"') ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="resize-start"') ||
-    !ganttTransportText.includes('data-kg-gantt-timeline-track-drag-mode="resize-end"') ||
     !ganttTransportText.includes("setMermaidDiagramSelectedRowKey('gantt', rowKey)") ||
-    !ganttTransportText.includes('const totalLabel = formatMermaidGanttTimelineOffset(maxMinutes)') ||
+    !ganttTransportText.includes('formatMermaidGanttTimelineOffset(maxMinutes)') ||
+    !ganttTransportText.includes('formatVideoSequenceTimelineSecondsOffset(mediaDurationSeconds)') ||
     !ganttTransportText.includes('totalLabel={totalLabel}') ||
     !ganttTransportText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
     !ganttTransportText.includes("'data-kg-gantt-timeline-ruler': 'bottomPanel'") ||
-    !ganttTransportText.includes('timeline-transport-ruler-tick') ||
-    !ganttTransportText.includes('timeline-transport-ruler-tick-line') ||
     ganttTransportText.includes('timeline-transport-chrome--capcut') ||
     ganttTransportText.includes('GANTT_TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
     ganttTransportText.includes('aregrid/frame') ||
@@ -793,8 +793,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !uiInitialStateText.includes('setGanttTimelineTransportState') ||
     !mediaCanvasText.includes('MediaCanvasSyncedPanel') ||
     !mediaCanvasText.includes('data-kg-video-sequence-media-sync') ||
-    !mediaCanvasText.includes('resolveVideoSequenceTimeFromPosition') ||
-    !mediaCanvasText.includes('resolveVideoSequencePositionFromTime') ||
+    !mediaCanvasText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
+    !mediaCanvasText.includes('resolveVideoSequenceTimelinePositionMinutes') ||
     !mediaCanvasText.includes('setGanttTimelineTransportState') ||
     !mediaCanvasText.includes('videoControls={syncEnabled ? false : undefined}') ||
     !mediaCanvasText.includes("querySelector('video')")

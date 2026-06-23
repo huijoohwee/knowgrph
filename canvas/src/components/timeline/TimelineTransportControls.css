@@ -12,6 +12,7 @@
 }
 
 .timeline-transport-chrome--mermaid-gantt {
+  --kg-video-sequence-lane-sidebar-width: 72px;
   border: 1px solid rgb(226 232 240 / 1);
   background: rgb(255 255 255 / 1);
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
@@ -139,6 +140,23 @@
   font-size: 10px;
   line-height: 1;
   overflow: hidden;
+}
+
+.timeline-transport-ruler-layout {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.timeline-transport-ruler-layout:has(.timeline-transport-ruler-aside) {
+  grid-template-columns: minmax(26rem, 1fr) minmax(18rem, 26rem);
+}
+
+.timeline-transport-ruler-aside {
+  min-width: 0;
+  align-self: start;
 }
 
 .timeline-transport-ruler--compact {
@@ -531,6 +549,14 @@
   align-items: center;
 }
 
+.timeline-player-context {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .timeline-player .ant-select {
   position: relative;
   display: inline-flex;
@@ -678,7 +704,7 @@
 }
 
 .timeline-transport-ruler--video-sequence {
-  min-height: 112px;
+  min-height: calc(56px + (var(--kg-video-sequence-lane-count, 4) * 18px));
   background:
     linear-gradient(90deg, rgb(100 116 139 / 0.22) 1px, transparent 1px) repeat-x 0 0 / 12.5% 100%,
     linear-gradient(180deg, rgb(248 250 252 / 1) 0, rgb(248 250 252 / 1) 18px, rgb(241 245 249 / 1) 18px, rgb(241 245 249 / 1) 100%);
@@ -689,7 +715,7 @@
   display: grid;
   min-width: 0;
   min-height: inherit;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 72px) minmax(0, 1fr);
 }
 
 .timeline-video-sequence-lane-sidebar {
@@ -697,7 +723,6 @@
   left: 0;
   z-index: 4;
   display: grid;
-  grid-template-rows: repeat(4, 18px);
   align-content: start;
   gap: 0;
   padding-top: 24px;
@@ -805,4 +830,10 @@
   box-shadow:
     0 0 0 1px rgb(37 99 235 / 0.7),
     0 1px 3px rgb(15 23 42 / 0.18);
+}
+
+@media (max-width: 920px) {
+  .timeline-transport-ruler-layout:has(.timeline-transport-ruler-aside) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

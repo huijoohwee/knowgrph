@@ -10,6 +10,7 @@ import './TimelineTransportControls.css'
 
 export type TimelineTransportControlsProps = {
   ariaLabel: string
+  contextControls?: React.ReactNode
   currentLabel: string
   disabled?: boolean
   max: number
@@ -19,19 +20,23 @@ export type TimelineTransportControlsProps = {
   playing: boolean
   rangeClassName?: string
   shellClassName?: string
+  showRange?: boolean
   step: number
   totalLabel?: string
   value: number
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
+  onPlaybackPointerDown?: () => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
 }
 
 export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
   chromeClassName?: string
+  footer?: React.ReactNode
   headerAside?: React.ReactNode
   rootProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
   ruler?: React.ReactNode
+  rulerAside?: React.ReactNode
   rulerClassName?: string
   rulerProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
   subtitleLabel?: React.ReactNode
@@ -41,6 +46,7 @@ export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
 export function TimelineTransportControls(props: TimelineTransportControlsProps) {
   const {
     ariaLabel,
+    contextControls,
     currentLabel,
     disabled = false,
     max,
@@ -50,10 +56,12 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
     playing,
     rangeClassName,
     shellClassName,
+    showRange = true,
     step,
     totalLabel,
     value,
     onPlaybackRateChange,
+    onPlaybackPointerDown,
     onTogglePlayback,
     onValueChange,
   } = props
@@ -77,6 +85,7 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           aria-label={playing ? 'Pause playback' : 'Start playback'}
           title={playing ? 'Pause (Space)' : 'Play (Space)'}
           disabled={disabled}
+          onPointerDown={onPlaybackPointerDown}
           onClick={onTogglePlayback}
         >
           {playing ? <Pause className="h-4 w-4" strokeWidth={2} aria-hidden={true} /> : <Play className="h-4 w-4" strokeWidth={2} aria-hidden={true} />}
@@ -122,21 +131,28 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
             </span>
           </section>
         </section>
+        {contextControls ? (
+          <section className="timeline-player-context" aria-label="Timeline contextual controls">
+            {contextControls}
+          </section>
+        ) : null}
       </section>
-      <section className={cn('timeline-player-range', rangeClassName)}>
-        <section className="timeline-player-range-rail" aria-hidden="true"></section>
-        <input
-          aria-label={ariaLabel}
-          className="timeline-player-range-input"
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          onChange={event => onValueChange(Number(event.target.value || 0))}
-        />
-      </section>
+      {showRange ? (
+        <section className={cn('timeline-player-range', rangeClassName)}>
+          <section className="timeline-player-range-rail" aria-hidden="true"></section>
+          <input
+            aria-label={ariaLabel}
+            className="timeline-player-range-input"
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            disabled={disabled}
+            onChange={event => onValueChange(Number(event.target.value || 0))}
+          />
+        </section>
+      ) : null}
     </section>
   )
 }
@@ -144,9 +160,11 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
 export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
   const {
     chromeClassName,
+    footer,
     headerAside,
     rootProps,
     ruler,
+    rulerAside,
     rulerClassName,
     rulerProps,
     subtitleLabel,
@@ -171,14 +189,24 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
         </header>
       ) : null}
       <TimelineTransportControls {...transportProps} />
-      {ruler ? (
-        <section
-          {...rulerProps}
-          className={rulerRootClassName}
-        >
-          {ruler}
+      {ruler || rulerAside ? (
+        <section className="timeline-transport-ruler-layout" data-kg-timeline-transport-ruler-layout="shared">
+          {ruler ? (
+            <section
+              {...rulerProps}
+              className={rulerRootClassName}
+            >
+              {ruler}
+            </section>
+          ) : null}
+          {rulerAside ? (
+            <aside className="timeline-transport-ruler-aside" aria-label="Timeline ruler side panel">
+              {rulerAside}
+            </aside>
+          ) : null}
         </section>
       ) : null}
+      {footer}
     </section>
   )
 }
