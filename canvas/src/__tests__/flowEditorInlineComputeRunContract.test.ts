@@ -17,7 +17,7 @@ import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibil
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts'), 'utf8')
+  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts'), 'utf8')
   const workflowRunInputsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunInputs.ts'), 'utf8')
   const requiredRunInputs = [
     'export function buildFlowEditorInlineComputeOutputPatch(args: {',
@@ -38,7 +38,7 @@ export function testFlowEditorCanvasRunsFlowComputeBeforeProviderTextBranch() {
     'updateRunOutputForKnownNodeIds(nodeProps => buildFlowEditorInlineComputeOutputPatch({',
     "message: 'Ran inline compute.'",
     'resolveFlowEditorWorkflowDownstreamRunTargetIds({',
-    'await runWorkflowNode(targetId, { allowCreateRichMediaPanel, visitedNodeIds })',
+    'await runWorkflowNode(targetId, { allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds })',
   ]) {
     if (!workflowActionsText.includes(snippet)) throw new Error(`expected FlowEditor workflow run path to include ${snippet}`)
   }

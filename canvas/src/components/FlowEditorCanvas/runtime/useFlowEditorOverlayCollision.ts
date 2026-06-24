@@ -9,7 +9,7 @@ import {
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData } from '@/lib/graph/types'
@@ -199,6 +199,7 @@ export function useFlowEditorOverlayCollision(args: {
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!runtimeActive) return
     if (workspaceOverlayOpenRef.current) return
+    if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
     if (typeof document === 'undefined' || typeof window === 'undefined') return
     if (overlayCollisionResolveRafRef.current != null) return
     if (overlayCollisionWarmupStartedAtMsRef.current == null) overlayCollisionWarmupStartedAtMsRef.current = Date.now()
@@ -206,6 +207,7 @@ export function useFlowEditorOverlayCollision(args: {
     overlayCollisionResolveRafRef.current = window.requestAnimationFrame(() => {
       overlayCollisionResolveRafRef.current = null
       if (!runtimeActive || workspaceOverlayOpenRef.current) return
+      if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
 
       const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
       if (overlayEls.length < 2) {
@@ -908,6 +910,7 @@ export function useFlowEditorOverlayCollision(args: {
       }
       if (!changedPos && !changedWorld) return
       if (workspaceOverlayOpenRef.current) return
+      if (isWorkspaceGraphMutationBlocked(st)) return
       const storeGraphKey = buildGraphMetaKeyIgnoringPending((st as unknown as { graphData?: GraphData | null }).graphData || null)
       const shouldWriteGraphScopedInMemory = !!graphKey && graphKey !== storeGraphKey
       selfCommittedPosSignatureRef.current = buildPosSignature(overlayNodeIds, {
@@ -917,6 +920,7 @@ export function useFlowEditorOverlayCollision(args: {
       })
       if (shouldWriteGraphScopedInMemory) {
         useGraphStore.setState(prev => {
+          if (isWorkspaceGraphMutationBlocked(prev)) return {}
           const prevState = prev as unknown as {
             flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
             flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
@@ -1056,6 +1060,7 @@ export function useFlowEditorOverlayCollision(args: {
     const handlePosLikeChange = () => {
       if (workspaceOverlayOpenRef.current) return
       const state = useGraphStore.getState()
+      if (isWorkspaceGraphMutationBlocked(state)) return
       const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
       const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)
       const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
@@ -1103,6 +1108,7 @@ export function useFlowEditorOverlayCollision(args: {
       ).join('|'),
       () => {
         if (workspaceOverlayOpenRef.current) return
+        if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
         scheduleOverlayCollisionResolveRef.current()
       },
     )

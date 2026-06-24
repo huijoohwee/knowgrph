@@ -385,12 +385,16 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     throw new Error('expected Flow Editor overlay edge rendering to avoid local first-schema-port fallback aliases')
   }
 
-  const workflowPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowActionsPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
   const workflowRunAllPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
+  const workspaceTableSsotPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
   const workflowWritebackPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
   const workflowRichMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRichMediaPanel.ts')
+  const workflowActionsText = readUtf8(workflowActionsPath)
   const workflowText = readUtf8(workflowPath)
   const workflowRunAllText = readUtf8(workflowRunAllPath)
+  const workspaceTableSsotText = readUtf8(workspaceTableSsotPath)
   const workflowWritebackText = readUtf8(workflowWritebackPath)
   const workflowRichMediaPanelText = readUtf8(workflowRichMediaPanelPath)
   if (!workflowWritebackText.includes('export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean')) {
@@ -405,16 +409,57 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!workflowText.includes('const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false')) {
     throw new Error('expected workflow node runs to expose an explicit topology creation gate for Rich Media Panel mirroring')
   }
+  if (!workflowText.includes("import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected workflow output runs to reuse the shared graph-mutation transition guard instead of owning a local layout shim')
+  }
+  if (!workflowText.includes('const suppressLayoutMutation = runOptions?.suppressLayoutMutation === true')) {
+    throw new Error('expected workflow node runs to expose an explicit output-only layout mutation gate')
+  }
+  if (!workflowText.includes('withRunLayoutMutationGuard(() => updateFlowEditorWorkflowOutputForKnownNodeIds({')) {
+    throw new Error('expected workflow output writes to guard Flow Editor layout from Run all side effects')
+  }
+  if (!workflowText.includes('withRunLayoutMutationGuard(() => setFlowEditorWorkflowRunLoadingStateForKnownNodeIds({')) {
+    throw new Error('expected workflow loading-state writes to guard Flow Editor layout from Run all side effects')
+  }
+  if (!workflowWritebackText.includes('suppressStoreGraphWriteback?: boolean')) {
+    throw new Error('expected shared workflow writeback helper to expose a run-scoped store graph writeback suppression gate')
+  }
+  if (!workflowText.includes('suppressStoreGraphWriteback: suppressLayoutMutation')) {
+    throw new Error('expected Run all workflow output/loading writes to suppress duplicate graph-store writeback while the Flow Editor draft is authoritative')
+  }
+  if (!workflowWritebackText.includes('if (args.suppressStoreGraphWriteback === true) {')
+    || !workflowWritebackText.includes('if (updatedDraft) args.scheduleWorkflowOutputEdgeRefresh()')
+    || !workflowWritebackText.includes('return\n  }\n\n  let updated = false')) {
+    throw new Error('expected suppressed Run all writeback to return before any fallback graph-store node mutation')
+  }
+  if (!workflowText.includes('if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })')) {
+    throw new Error('expected Rich Media Panel output mirrors to avoid graph-store writeback during output-only Run all')
+  }
+  if (!workspaceTableSsotText.includes('workspaceGraphMutationLayoutLockActive?: boolean')) {
+    throw new Error('expected shared workspace graph-mutation SSOT to expose a run-scoped layout lock')
+  }
+  if (!workspaceTableSsotText.includes('if (args.workspaceGraphMutationLayoutLockActive === true) return true')) {
+    throw new Error('expected shared graph mutation predicate to block layout writes for the whole Run all lifecycle')
+  }
+  if (!workflowRunAllText.includes('setRunAllLayoutMutationLock(true)')) {
+    throw new Error('expected Toolbar Run all to hold the layout mutation lock across async node execution')
+  }
+  if (!workflowRunAllText.includes('await waitForRunAllLayoutReleaseFrame()')) {
+    throw new Error('expected Toolbar Run all to wait for final output renders before releasing the layout mutation lock')
+  }
+  if (!workflowRunAllText.includes('setRunAllLayoutMutationLock(false)')) {
+    throw new Error('expected Toolbar Run all to release the layout mutation lock in finally')
+  }
   if (!workflowRichMediaPanelText.includes('if (!args.allowCreateRichMediaPanel) return null')) {
     throw new Error('expected shared Rich Media Panel helper to skip node creation when Run all is output-only')
   }
-  if (!workflowRunAllText.includes('await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false })')) {
-    throw new Error('expected Toolbar Run all to write outputs into existing nodes only without appending Rich Media Panel nodes')
+  if (!workflowRunAllText.includes('await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })')) {
+    throw new Error('expected Toolbar Run all to write outputs into existing nodes only without appending Rich Media Panel nodes or mutating Flow Editor layout')
   }
-  if (!workflowText.includes('const readLiveDraftGraphData = () => (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null')) {
+  if (!workflowActionsText.includes('readDraftGraphData: () => (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null')) {
     throw new Error('expected Run all to use the live draft graph ref as the mutation SSOT between sequential node runs')
   }
-  if (!workflowText.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
+  if (!workflowActionsText.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
     throw new Error('expected Run all output writes to update the draft ref synchronously before React state catches up')
   }
   if (!workflowWritebackText.includes("import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'")) {
@@ -423,7 +468,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!workflowWritebackText.includes('const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
     throw new Error('expected shared workflow writeback helper to bump revision at the same SSOT draft mutation point')
   }
-  if (workflowRunAllText.includes("await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false })\n        scheduleWorkflowOutputEdgeRefresh()")) {
+  if (workflowRunAllText.includes("await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })\n        scheduleWorkflowOutputEdgeRefresh()")) {
     throw new Error('expected Run all to avoid unconditional overlay edge refresh churn between nodes')
   }
   if (!workflowText.includes('const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>')) {

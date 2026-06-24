@@ -146,6 +146,91 @@ export function testWorkspaceCloseTransitionBlocksLayoutCacheMutation() {
   }
 }
 
+export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation() {
+  const previous = useGraphStore.getState()
+  const previousPatch = {
+    canvas2dRenderer: previous.canvas2dRenderer,
+    workspaceViewMode: previous.workspaceViewMode,
+    workspaceCanvasPaneOpen: previous.workspaceCanvasPaneOpen,
+    markdownWorkspaceIndexingInFlight: previous.markdownWorkspaceIndexingInFlight,
+    workspaceGraphMutationBlockUntilMs: previous.workspaceGraphMutationBlockUntilMs,
+    workspaceGraphMutationBlockKey: previous.workspaceGraphMutationBlockKey,
+    flowWidgetPinnedByNodeId: previous.flowWidgetPinnedByNodeId,
+    flowWidgetPosByNodeId: previous.flowWidgetPosByNodeId,
+    flowWidgetWorldPosByNodeId: previous.flowWidgetWorldPosByNodeId,
+    graphData: previous.graphData,
+  }
+
+  try {
+    useGraphStore.setState({
+      canvas2dRenderer: 'flowEditor',
+      workspaceViewMode: 'canvas',
+      workspaceCanvasPaneOpen: false,
+      markdownWorkspaceIndexingInFlight: false,
+      workspaceGraphMutationBlockUntilMs: 0,
+      workspaceGraphMutationBlockKey: '',
+      flowWidgetPinnedByNodeId: { widgetA: true },
+      flowWidgetPosByNodeId: { widgetA: { top: 10, left: 20 } },
+      flowWidgetWorldPosByNodeId: { widgetA: { x: 30, y: 40 } },
+      graphData: {
+        type: 'Graph',
+        nodes: [{ id: 'widgetA', label: 'Widget A', type: 'rich_media_panel' }],
+        edges: [],
+        metadata: { title: 'Flow Editor renderer transition guard' },
+      },
+    } as never)
+    useGraphStore.getState().setCanvas2dRenderer('d3')
+    const afterSwitch = useGraphStore.getState()
+    if (!afterSwitch.workspaceGraphMutationBlockKey || afterSwitch.workspaceGraphMutationBlockUntilMs <= Date.now()) {
+      throw new Error('expected 2D renderer switch to stamp a transient graph mutation guard')
+    }
+    afterSwitch.setFlowWidgetPinnedByNodeId({ widgetA: false })
+    afterSwitch.setFlowWidgetPosByNodeId({ widgetA: { top: 300, left: 400 } })
+    afterSwitch.setFlowWidgetWorldPosByNodeId({ widgetA: { x: 500, y: 600 } })
+    const blocked = useGraphStore.getState()
+    if (blocked.flowWidgetPinnedByNodeId.widgetA !== true) {
+      throw new Error('expected renderer transition guard to block Flow Editor widget pin mutation')
+    }
+    if (blocked.flowWidgetPosByNodeId.widgetA?.top !== 10 || blocked.flowWidgetPosByNodeId.widgetA?.left !== 20) {
+      throw new Error('expected renderer transition guard to block Flow Editor widget screen-position mutation')
+    }
+    if (blocked.flowWidgetWorldPosByNodeId.widgetA?.x !== 30 || blocked.flowWidgetWorldPosByNodeId.widgetA?.y !== 40) {
+      throw new Error('expected renderer transition guard to block Flow Editor widget world-position mutation')
+    }
+  } finally {
+    useGraphStore.setState(previousPatch as never)
+  }
+}
+
+export function testFlowEditorOverlayPositionBypassesHonorWorkspaceMutationGuard() {
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const collisionText = readFileSync(collisionPath, 'utf8')
+  if (!collisionText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay collision to import the shared workspace graph mutation guard')
+  }
+  if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
+    throw new Error('expected Flow Editor overlay collision scheduling to stop during workspace and renderer transitions')
+  }
+  if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(st)) return')) {
+    throw new Error('expected Flow Editor overlay collision direct position commits to honor the workspace mutation guard')
+  }
+  if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(prev)) return {}')) {
+    throw new Error('expected graph-scoped Flow Editor overlay position writes to honor the workspace mutation guard')
+  }
+
+  const recenterPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowEditorOverlayRecenter.ts')
+  const recenterText = readFileSync(recenterPath, 'utf8')
+  if (!recenterText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay recenter to import the shared workspace graph mutation guard')
+  }
+  if (!recenterText.includes('if (isWorkspaceGraphMutationBlocked(st as never)) return')) {
+    throw new Error('expected Flow Editor overlay recenter to skip lifecycle mutation windows')
+  }
+  if (!recenterText.includes('if (isWorkspaceGraphMutationBlocked(prev as never)) return {}')) {
+    throw new Error('expected graph-scoped overlay recenter writes to honor the workspace mutation guard')
+  }
+}
+
 export async function testWorkspaceGraphMutationTransitionExpiresStoreState() {
   const previous = useGraphStore.getState()
   const previousPatch = {

@@ -15,6 +15,7 @@ export type WorkspaceGraphMutationState = {
   markdownWorkspaceIndexingInFlight?: boolean
   workspaceGraphMutationBlockUntilMs?: number
   workspaceGraphMutationBlockKey?: string
+  workspaceGraphMutationLayoutLockActive?: boolean
 }
 
 type WorkspaceGraphMutationKeyArgs = WorkspaceGraphMutationState & {
@@ -29,6 +30,7 @@ export function isWorkspaceEditorOverlayOpen(args: {
 }
 
 export function isWorkspaceGraphMutationBlocked(args: WorkspaceGraphMutationState): boolean {
+  if (args.workspaceGraphMutationLayoutLockActive === true) return true
   if (isWorkspaceEditorOverlayOpen(args) || args.markdownWorkspaceIndexingInFlight === true) return true
   const untilMs = Number(args.workspaceGraphMutationBlockUntilMs || 0)
   return Number.isFinite(untilMs) && untilMs > Date.now()

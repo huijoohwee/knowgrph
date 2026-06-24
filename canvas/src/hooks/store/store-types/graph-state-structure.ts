@@ -100,6 +100,7 @@ export interface GraphStateStructure {
   markdownWorkspaceIndexingInFlight: boolean
   workspaceGraphMutationBlockUntilMs: number
   workspaceGraphMutationBlockKey: string
+  workspaceGraphMutationLayoutLockActive: boolean
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
   setMarkdownWorkspaceIndexingInFlight: (inFlight: boolean) => void
   setWorkspaceViewState: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void

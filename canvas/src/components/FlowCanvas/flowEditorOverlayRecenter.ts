@@ -6,7 +6,7 @@ import {
   readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
@@ -30,6 +30,7 @@ export function recenterFlowEditorOverlayWidgetPositions(args: {
   }
   const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || st.graphData || null)
   const storeGraphKey = buildGraphMetaKeyIgnoringPending(st.graphData || null)
+  if (isWorkspaceGraphMutationBlocked(st as never)) return
   const shouldWriteGraphScopedInMemory =
     isWorkspaceEditorOverlayOpen(st as never)
     || (!!graphKey && graphKey !== storeGraphKey)
@@ -96,6 +97,7 @@ const writeGraphScopedOverlayPositions = (args: {
   nextScreen: Record<string, { top: number; left: number }>
 }) => {
   useGraphStore.setState((prev) => {
+    if (isWorkspaceGraphMutationBlocked(prev as never)) return {}
     const prevState = prev as unknown as {
       flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
       flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>

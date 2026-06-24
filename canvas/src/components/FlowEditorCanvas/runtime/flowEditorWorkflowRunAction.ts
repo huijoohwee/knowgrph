@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
@@ -47,6 +48,7 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 export type FlowEditorWorkflowNodeRunner = (nodeId: string, runOptions?: {
   allowCreateRichMediaPanel?: boolean
+  suppressLayoutMutation?: boolean
   visitedNodeIds?: Set<string>
 }) => Promise<void>
 
@@ -94,6 +96,25 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
     try {
       const id = String(nodeId || '').trim()
       const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false
+      const suppressLayoutMutation = runOptions?.suppressLayoutMutation === true
+      const stampRunLayoutMutationGuard = () => {
+        if (!suppressLayoutMutation) return
+        const state = useGraphStore.getState()
+        useGraphStore.setState(buildWorkspaceGraphMutationTransitionState({
+          workspaceViewMode: state.workspaceViewMode,
+          workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+          markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+          transitionSemanticKey: `flow-editor-run:${id}`,
+        }))
+      }
+      const withRunLayoutMutationGuard = <T>(fn: () => T): T => {
+        stampRunLayoutMutationGuard()
+        try {
+          return fn()
+        } finally {
+          stampRunLayoutMutationGuard()
+        }
+      }
       if (!id) return
       const visitedNodeIds = runOptions?.visitedNodeIds || new Set<string>()
       if (visitedNodeIds.has(id)) return
@@ -191,7 +212,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
 
       const workflowWritebackNodeIds = [writableNodeId, resolvedNodeId, id, node.id]
       const updateRunOutputForKnownNodeIds = (buildPatch: (nodeProps: Record<string, unknown>) => Record<string, unknown>) => {
-        updateFlowEditorWorkflowOutputForKnownNodeIds({
+        withRunLayoutMutationGuard(() => updateFlowEditorWorkflowOutputForKnownNodeIds({
           nodeIds: workflowWritebackNodeIds,
           fallbackNode: node,
           fallbackWritableNodeId: writableNodeId,
@@ -200,12 +221,13 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
           updateNode: args.updateNode,
           scheduleWorkflowOutputEdgeRefresh,
+          suppressStoreGraphWriteback: suppressLayoutMutation,
           buildPatch,
-        })
+        }))
       }
 
       const setRunLoadingStateForKnownNodeIds = (loadingArgs: { loading: boolean; kind?: 'text' | 'image' | 'video' | 'audio' }) => {
-        setFlowEditorWorkflowRunLoadingStateForKnownNodeIds({
+        withRunLayoutMutationGuard(() => setFlowEditorWorkflowRunLoadingStateForKnownNodeIds({
           nodeIds: workflowWritebackNodeIds,
           fallbackNode: node,
           fallbackWritableNodeId: writableNodeId,
@@ -216,7 +238,8 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
           updateNode: args.updateNode,
           scheduleWorkflowOutputEdgeRefresh,
-        })
+          suppressStoreGraphWriteback: suppressLayoutMutation,
+        }))
       }
 
       const rawNodeProperties = (node.properties || {}) as Record<string, unknown>
@@ -251,61 +274,24 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
       }
 
       const publishTextRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; outputText: string; title: string; model?: unknown; sourceUrl?: string; outputPath?: string | null; loading?: boolean }) => {
-        const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({
-          context: workflowNodeResolutionContext,
-          graphForRun,
-          allowCreateRichMediaPanel,
-          anchorNode: panelArgs.anchorNode,
-          readLiveDraftGraphData: args.readDraftGraphData,
-          appendDraftNode: args.appendDraftNode,
-        })
-        if (!panelNodeId) return
-        const patch: Record<string, unknown> = {
-          ...clearRichMediaOutputProperties({}),
-          ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model, outputPath: panelArgs.outputPath }),
-          richMediaActiveTab: 'text',
-          outputLoading: panelArgs.loading === true ? true : undefined,
-          outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
-          lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
-          outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
-        }
-        const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
-          panelNodeId,
-          patch,
-          readLiveDraftGraphData: args.readDraftGraphData,
-          commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-          scheduleWorkflowOutputEdgeRefresh,
-        })
-        const liveDraft = args.readDraftGraphData()
-        const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
-          ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
-          : resolveNodeByIdAcrossGraphs(panelNodeId))
-        const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-        args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
-      }
-
-      const publishVideoRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; patch: Record<string, unknown> }) => {
-        const downstreamPanelTargetIds = resolveFlowEditorWorkflowDownstreamRunTargetIds({
-          node: panelArgs.anchorNode,
-          graphData: graphForRun,
-        }).filter(targetId => {
-          const candidate = resolveNodeByIdAcrossGraphs(targetId)
-          return resolveRichMediaWidgetKind(candidate) === 'video'
-        })
-        const panelNodeIds = downstreamPanelTargetIds.length > 0
-          ? downstreamPanelTargetIds
-          : [ensureFlowEditorWorkflowRichMediaPanelNodeId({
+        withRunLayoutMutationGuard(() => {
+          const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({
             context: workflowNodeResolutionContext,
             graphForRun,
             allowCreateRichMediaPanel,
             anchorNode: panelArgs.anchorNode,
             readLiveDraftGraphData: args.readDraftGraphData,
             appendDraftNode: args.appendDraftNode,
-          })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        for (const panelNodeId of panelNodeIds) {
-          const patch = {
-            ...panelArgs.patch,
-            richMediaActiveTab: 'video',
+          })
+          if (!panelNodeId) return
+          const patch: Record<string, unknown> = {
+            ...clearRichMediaOutputProperties({}),
+            ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model, outputPath: panelArgs.outputPath }),
+            richMediaActiveTab: 'text',
+            outputLoading: panelArgs.loading === true ? true : undefined,
+            outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
+            lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
+            outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
           }
           const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
             panelNodeId,
@@ -319,8 +305,49 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
             : resolveNodeByIdAcrossGraphs(panelNodeId))
           const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-          args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
-        }
+          if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
+        })
+      }
+
+      const publishVideoRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; patch: Record<string, unknown> }) => {
+        withRunLayoutMutationGuard(() => {
+          const downstreamPanelTargetIds = resolveFlowEditorWorkflowDownstreamRunTargetIds({
+            node: panelArgs.anchorNode,
+            graphData: graphForRun,
+          }).filter(targetId => {
+            const candidate = resolveNodeByIdAcrossGraphs(targetId)
+            return resolveRichMediaWidgetKind(candidate) === 'video'
+          })
+          const panelNodeIds = downstreamPanelTargetIds.length > 0
+            ? downstreamPanelTargetIds
+            : [ensureFlowEditorWorkflowRichMediaPanelNodeId({
+              context: workflowNodeResolutionContext,
+              graphForRun,
+              allowCreateRichMediaPanel,
+              anchorNode: panelArgs.anchorNode,
+              readLiveDraftGraphData: args.readDraftGraphData,
+              appendDraftNode: args.appendDraftNode,
+            })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+          for (const panelNodeId of panelNodeIds) {
+            const patch = {
+              ...panelArgs.patch,
+              richMediaActiveTab: 'video',
+            }
+            const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
+              panelNodeId,
+              patch,
+              readLiveDraftGraphData: args.readDraftGraphData,
+              commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+              scheduleWorkflowOutputEdgeRefresh,
+            })
+            const liveDraft = args.readDraftGraphData()
+            const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
+              ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
+              : resolveNodeByIdAcrossGraphs(panelNodeId))
+            const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
+            if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
+          }
+        })
       }
 
       if (String(node.type || '').trim() === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
@@ -687,7 +714,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
       }))
       if (downstreamRunnableTargetIds.length > 0) {
         for (const targetId of downstreamRunnableTargetIds) {
-          await runWorkflowNode(targetId, { allowCreateRichMediaPanel, visitedNodeIds })
+          await runWorkflowNode(targetId, { allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds })
         }
         args.upsertUiToast({
           id: `flow-editor-run-downstream-${id}`,

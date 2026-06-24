@@ -186,6 +186,7 @@ export const createUiInitialState = (
     markdownWorkspaceIndexingInFlight: false,
     workspaceGraphMutationBlockUntilMs: 0,
     workspaceGraphMutationBlockKey: '',
+    workspaceGraphMutationLayoutLockActive: false,
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
         const next = open === false ? false : true

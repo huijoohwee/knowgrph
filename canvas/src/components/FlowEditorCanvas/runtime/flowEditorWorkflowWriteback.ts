@@ -29,10 +29,12 @@ export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {
   commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   scheduleWorkflowOutputEdgeRefresh: () => void
+  suppressStoreGraphWriteback?: boolean
   buildPatch: (nodeProps: Record<string, unknown>) => Record<string, unknown>
 }): void {
   const candidateIds = collectFlowEditorWorkflowCandidateNodeIds(args.nodeIds)
   const currentDraft = args.readLiveDraftGraphData()
+  let updatedDraft = false
   if (currentDraft && Array.isArray(currentDraft.nodes) && currentDraft.nodes.length > 0) {
     let changed = false
     const nextNodes = currentDraft.nodes.map(existing => {
@@ -47,7 +49,13 @@ export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {
     if (changed) {
       const nextDraft = bumpFlowEditorDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
       args.commitDraftGraphDataUpdate(currentDraft, nextDraft)
+      updatedDraft = true
     }
+  }
+
+  if (args.suppressStoreGraphWriteback === true) {
+    if (updatedDraft) args.scheduleWorkflowOutputEdgeRefresh()
+    return
   }
 
   let updated = false
@@ -82,6 +90,7 @@ export function setFlowEditorWorkflowRunLoadingStateForKnownNodeIds(args: {
   commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   scheduleWorkflowOutputEdgeRefresh: () => void
+  suppressStoreGraphWriteback?: boolean
 }): void {
   updateFlowEditorWorkflowOutputForKnownNodeIds({
     nodeIds: args.nodeIds,
@@ -92,6 +101,7 @@ export function setFlowEditorWorkflowRunLoadingStateForKnownNodeIds(args: {
     commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
     updateNode: args.updateNode,
     scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+    suppressStoreGraphWriteback: args.suppressStoreGraphWriteback,
     buildPatch: nodeProps => ({
       ...nodeProps,
       outputLoading: args.loading === true ? true : undefined,

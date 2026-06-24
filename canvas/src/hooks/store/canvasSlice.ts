@@ -62,6 +62,7 @@ import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetE
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
+import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
@@ -611,6 +612,15 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         enforceFrontmatterOnly
           ? targetValid.filter(id => eligibleFlowWidgetNodeIds.has(id))
           : targetValid
+      const rendererMutationGuard =
+        prevRenderer !== nextRenderer
+          ? buildWorkspaceGraphMutationTransitionState({
+              workspaceViewMode: state.workspaceViewMode,
+              workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+              markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
+              transitionSemanticKey: `2d-renderer:${prevRenderer}->${nextRenderer}`,
+            })
+          : {}
 
       return {
         canvas2dRenderer: radialRenderer,
@@ -624,6 +634,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         canvasPointerMode2dByRenderer: nextPointerBy,
         openWidgetNodeIds: nextWidgets,
         openWidgetNodeIdsByRenderer: nextWidgetBy,
+        ...rendererMutationGuard,
       }
     })
   },
