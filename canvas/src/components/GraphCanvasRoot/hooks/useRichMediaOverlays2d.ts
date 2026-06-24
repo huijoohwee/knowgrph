@@ -147,6 +147,7 @@ export function useRichMediaOverlays2d(args: {
       })
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
+      canvasRenderMode: '2d',
       canvas2dRenderer,
       frontmatterModeEnabled,
       documentSemanticMode,

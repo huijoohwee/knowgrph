@@ -247,6 +247,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
+      canvasRenderMode: '2d',
       canvas2dRenderer,
       frontmatterModeEnabled,
       documentSemanticMode,

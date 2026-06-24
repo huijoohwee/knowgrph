@@ -128,9 +128,16 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerRunStatus,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerPostChoice,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerSubmitCritique,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerApproveStage,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerGetArtifact,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
 

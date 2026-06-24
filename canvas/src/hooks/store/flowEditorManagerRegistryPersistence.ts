@@ -11,6 +11,7 @@ import {
   buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'
 import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
 import {
   buildGrabMapsDiscoveryRegistryDraft,
@@ -20,6 +21,8 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_HTML_VIDEO_RENDERER_FORM_ID,
+  FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
@@ -520,8 +523,15 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildGenerateTextRegistryDraft(),
     nowIso,
   })
-  const seededVideoScript = ensureDefaultRegistryEntry({
+  const seededHtmlVideoRenderer = ensureDefaultRegistryEntry({
     entries: seededText.entries,
+    nodeTypeId: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
+    formId: FLOW_HTML_VIDEO_RENDERER_FORM_ID,
+    draft: buildHtmlVideoRendererRegistryDraft(),
+    nowIso,
+  })
+  const seededVideoScript = ensureDefaultRegistryEntry({
+    entries: seededHtmlVideoRenderer.entries,
     nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
     formId: FLOW_VIDEO_SCRIPT_FORM_ID,
     draft: buildBytePlusVideoScriptRegistryDraft(),
@@ -590,6 +600,7 @@ export function ensureDefaultWidgetRegistryEntries(
       seededImage.changed
       || seededVideo.changed
       || seededText.changed
+      || seededHtmlVideoRenderer.changed
       || seededVideoScript.changed
       || seededOpenAiText.changed
       || seededDeerFlowText.changed

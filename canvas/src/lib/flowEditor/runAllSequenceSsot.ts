@@ -1,5 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
+  FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
@@ -43,6 +44,7 @@ function classifyRunnablePhase(node: GraphNode): FlowRunAllPhaseId | null {
   const typeId = normalizeText(node.type)
   if (typeId === normalizeText(FLOW_TEXT_GENERATION_NODE_TYPE_ID)) return 'text'
   if (typeId === normalizeText(FLOW_IMAGE_GENERATION_NODE_TYPE_ID)) return classifyImageNodePhase(node)
+  if (typeId === normalizeText(FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID)) return 'video'
   if (typeId === normalizeText(FLOW_VIDEO_GENERATION_NODE_TYPE_ID)) return 'video'
   return null
 }

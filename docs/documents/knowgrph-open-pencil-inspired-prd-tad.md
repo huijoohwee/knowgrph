@@ -19,7 +19,8 @@ The shipped baseline keeps renderer semantics neutral. Design editing operates o
 | Editor chrome | Shipped | `canvas/src/components/DesignCanvas/DesignCanvasEditorChrome.tsx` |
 | Pointer modes, fit-to-view, undo, redo | Shipped | `canvas/src/components/DesignCanvas/DesignCanvasEditorChrome.tsx`; `canvas/src/features/design/DesignFloatingPanelView.tsx` |
 | Move and resize operation commits | Shipped | `canvas/src/components/DesignCanvas/useFrameDragController.ts`; `canvas/src/components/DesignCanvas/useResizeMarqueeController.ts` |
-| Layers, inspector, tokens, DOM tree, DOM inspect panels | Shipped | `canvas/src/features/design/DesignFloatingPanelView.tsx`; `canvas/src/features/design/DesignLayersPanel.tsx`; `canvas/src/features/design/DesignInspectorPanel.tsx`; `canvas/src/features/design/DesignTokensPanel.tsx`; `canvas/src/features/design/DesignDomTreePanel.tsx`; `canvas/src/features/design/DesignDomInspectPanel.tsx` |
+| Layers, Style, tokens, DOM tree, DOM inspect panels | Shipped | `canvas/src/features/design/DesignFloatingPanelView.tsx`; `canvas/src/features/design/DesignLayersPanel.tsx`; `canvas/src/features/design/DesignInspectorPanel.tsx`; `canvas/src/features/design/DesignTokensPanel.tsx`; `canvas/src/features/design/DesignDomTreePanel.tsx`; `canvas/src/features/design/DesignDomInspectPanel.tsx` |
+| Agent-native HTML video render | Shipped | `canvas/src/features/design/designAgentVideoSpec.ts`; `canvas/src/features/design/DesignAgentVideoPanel.tsx`; `canvas/src/features/html-video-renderer/*` |
 | Design-only history | Shipped | `canvas/src/hooks/store/designHistorySlice.ts`; `canvas/src/hooks/store/store-types/graph-state-design-history.ts` |
 | Design launch and Import URL activation | Shipped | `canvas/src/features/design/designEditorLaunchState.ts`; `canvas/src/__tests__/designEditorIntegrationRegression.test.ts` |
 | Layer state and token summaries | Shipped | `canvas/src/features/design/designLayersState.ts`; `canvas/src/features/design/designTokenSummary.ts` |
@@ -36,7 +37,7 @@ The shipped baseline keeps renderer semantics neutral. Design editing operates o
 
 ### FR-1: Dedicated Design Surface
 
-The Design editor is reachable through the MainPanel Design tab and through Design renderer activation paths. `DesignEditorMainPanelView` reuses `DesignFloatingPanelView`, so the MainPanel and floating panel share the same overview, layers, inspector, token, DOM tree, and DOM inspect behavior.
+The Design editor is reachable through the MainPanel Design tab and through Design renderer activation paths. `DesignEditorMainPanelView` reuses `DesignFloatingPanelView`, so the MainPanel and floating panel share the same overview, Layers, Style, token, DOM tree, DOM inspect, and Video behavior.
 
 Acceptance:
 
@@ -84,6 +85,16 @@ Acceptance:
 - `designEditorSurfaceRegression.test.ts` verifies shared semantic-key helper usage.
 - `designTokenSummary.test.ts` covers extraction and semantic cache behavior.
 
+### FR-6: Agent-Native HTML Video Render
+
+The Design Video panel can derive a programmatic HTML-video render from the active graph. `designAgentVideoSpec.ts` converts selected or visible Design layers into semantic HTML, scoped CSS motion, seekable composition data attributes, virtual workspace files, composition rows, source-derived assets, timeline lanes, and structured data, then `DesignAgentVideoPanel.tsx` sends the generated HTML-video renderer node through the existing runtime-registered engine path. The shipped browser runtime can render MP4 through the `canvas-2d` adapter when supported by the browser; no hardcoded fallback engine is allowed.
+
+Acceptance:
+
+- `designAgentVideoSpec.ts` calls `buildScopedGraphSemanticKey('design-agent-video'` and reuses `summarizeDesignTokens`.
+- `DesignAgentVideoPanel.tsx` calls `createHtmlVideoEngineRegistryFromRuntimeConfig()` and `runHtmlVideoFlowNode`.
+- `designAgentVideoWorkspace.test.ts` verifies semantic HTML, deterministic motion CSS, virtual workspace/composition/asset/timeline metadata, timeline `data-start` / `data-duration` / `data-track-index` markers, generated `video/mp4` preview state, and no copied upstream design engine path.
+
 ## Technical Architecture
 
 ```mermaid
@@ -93,11 +104,13 @@ flowchart LR
   B --> E["DesignFloatingPanelView"]
   D --> F["DesignCanvasEditorChrome"]
   D --> G["Drag and resize controllers"]
-  E --> H["Layers / Inspector / Tokens / DOM panels"]
+  E --> H["Layers / Style / Tokens / DOM panels"]
   G --> I["designHistorySlice"]
   H --> I
   H --> J["designTokenSummary"]
   J --> K["buildScopedGraphSemanticKey"]
+  E --> L["designAgentVideoSpec"]
+  L --> M["HTML-video renderer runtime registry"]
 ```
 
 ### Source Ownership
@@ -112,11 +125,12 @@ flowchart LR
 | Editor chrome | `canvas/src/components/DesignCanvas/DesignCanvasEditorChrome.tsx` | Exposes existing pointer, undo, redo, and fit actions. |
 | Move controller | `canvas/src/components/DesignCanvas/useFrameDragController.ts` | Commits move operations once per gesture. |
 | Resize controller | `canvas/src/components/DesignCanvas/useResizeMarqueeController.ts` | Commits resize operations once per gesture. |
-| Panel shell | `canvas/src/features/design/DesignFloatingPanelView.tsx` | Hosts overview, layers, inspector, tokens, DOM tree, and DOM inspect tabs. |
+| Panel shell | `canvas/src/features/design/DesignFloatingPanelView.tsx` | Hosts overview, Layers, Style, Tokens, DOM Tree, DOM Inspect, and Video workspace tabs. |
 | Layers | `canvas/src/features/design/DesignLayersPanel.tsx`; `canvas/src/features/design/designLayersState.ts` | Owns layer visibility and ordering behavior. |
 | Inspector | `canvas/src/features/design/DesignInspectorPanel.tsx` | Owns numeric frame edits. |
 | Tokens | `canvas/src/features/design/DesignTokensPanel.tsx`; `canvas/src/features/design/designTokenSummary.ts` | Owns token extraction and semantic-keyed cache. |
 | DOM context | `canvas/src/features/design/DesignDomTreePanel.tsx`; `canvas/src/features/design/DesignDomInspectPanel.tsx` | Owns DOM context display for Design workflows. |
+| Agent video | `canvas/src/features/design/designAgentVideoSpec.ts`; `canvas/src/features/design/DesignAgentVideoPanel.tsx`; `canvas/src/features/html-video-renderer/*` | Owns graph-derived HTML/CSS/data render specs and MP4 generation through registered runtime adapters. |
 | Design history | `canvas/src/hooks/store/designHistorySlice.ts`; `canvas/src/hooks/store/store-types/graph-state-design-history.ts` | Owns reversible Design-only commands. |
 
 ### State and Data Flow
@@ -126,7 +140,8 @@ flowchart LR
 3. `DesignCanvasRenderShell` mounts `DesignCanvasEditorChrome` on the active canvas.
 4. Drag, resize, inspector, and layer interactions preview through the UI and commit through Design history actions.
 5. Token summaries use `buildScopedGraphSemanticKey('design-token-summary'` for stable cache identity.
-6. Renderer output remains derived from graph data plus Design-scoped view state.
+6. Design video specs use `buildScopedGraphSemanticKey('design-agent-video'` and reuse token summaries for stable render identity.
+7. Renderer output remains derived from graph data plus Design-scoped view state.
 
 ## Implementation Boundaries
 
@@ -139,6 +154,7 @@ Implemented:
 - Token summary extraction using the shared semantic-key helper.
 - DOM tree and DOM inspect panels for Design context.
 - Import URL path that can activate the shared Design surface.
+- HTML-video render action in the Design overview that derives source-owned semantic HTML/CSS/data and renders MP4 through registered runtime adapters.
 
 Out of scope for this baseline:
 
@@ -161,6 +177,7 @@ Run these focused checks after editing Design owners or this document:
 ```bash
 npm --prefix canvas run test:ci:unit -- "design.editor.prdTad"
 npm --prefix canvas run test:ci:unit -- "design.editor.surface"
+npm --prefix canvas run test:ci:unit -- "design.editor.agentVideo"
 npm --prefix canvas run test:ci:unit -- "design.layers"
 npm run hygiene:check
 npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false

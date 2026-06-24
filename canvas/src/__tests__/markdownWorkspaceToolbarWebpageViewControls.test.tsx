@@ -522,9 +522,9 @@ export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAft
     const sourceUrl = 'https://example.invalid/page'
     const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as unknown }
+    let viewCalls: string[] = []
 
     function Harness() {
-      const [view, setView] = React.useState<'markdown' | 'html'>('markdown')
       const [layoutMode, setLayoutMode] = React.useState<'split' | 'editor'>('split')
       return (
         <MarkdownWorkspaceMain
@@ -542,12 +542,12 @@ export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAft
           onToggleFullscreen={() => {}}
           presentationApiRef={presentationApiRef as never}
           isMarkdown={true}
-          webpageWorkspaceMeta={{ url: sourceUrl, view, fidelityLevel: 4 } as never}
+          webpageWorkspaceMeta={{ url: sourceUrl, view: 'markdown', fidelityLevel: 4 } as never}
           onWebpageChangeView={next => {
-            if (next === 'html' || next === 'markdown') setView(next)
+            viewCalls = [...viewCalls, String(next)]
           }}
           onWebpageUpdateMeta={() => {}}
-          activeText={`---\nkgWebpageUrl: "${sourceUrl}"\nkgWebpageView: "${view}"\n---\n\n[](${sourceUrl})\n`}
+          activeText={`---\nkgWebpageUrl: "${sourceUrl}"\nkgWebpageView: "markdown"\n---\n\n[](${sourceUrl})\n`}
           setActiveText={() => {}}
           activeDocumentKey="doc-click-path"
           highlightedLineRange={{ start: null, end: null }}
@@ -587,7 +587,10 @@ export async function testMarkdownWorkspaceToolbarViewerAndHtmlRenderTogetherAft
       await tick()
     })
     if (!checkboxFor(dom.window.document, 'Viewer').checked || !checkboxFor(dom.window.document, 'HTML').checked) {
-      throw new Error('expected Viewer and HTML checkboxes to stay checked together after selection')
+      throw new Error('expected Viewer and HTML checkboxes to stay checked together after selection without waiting for webpage view persistence')
+    }
+    if (JSON.stringify(viewCalls) !== JSON.stringify(['html'])) {
+      throw new Error(`expected HTML pane selection to request persisted webpage html view once, got ${JSON.stringify(viewCalls)}`)
     }
     if (!dom.window.document.querySelector('section[aria-label="Viewer"]')) {
       throw new Error('expected Viewer pane to render after selecting Viewer and HTML')

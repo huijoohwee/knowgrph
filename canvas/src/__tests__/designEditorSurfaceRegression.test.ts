@@ -8,8 +8,11 @@ export function testDesignRendererMountsEditorChromeAndTokensPanel() {
   if (!panel.includes('DesignTokensPanel') || !panel.includes("id: 'tokens'")) {
     throw new Error('expected Design floating panel to expose semantic token analysis tab')
   }
-  if (!panel.includes('<ToolbarDropdownSelect') || !panel.includes('title={`Design section:') || panel.includes('aria-label="Design panel tabs"')) {
-    throw new Error('expected Design floating panel section switching to use the shared click-expand-down chooser instead of a horizontal tabs row')
+  if (!panel.includes('aria-label="Design workspace sections"') || !panel.includes("id: 'video'") || !panel.includes("title: 'Style'")) {
+    throw new Error('expected Design floating panel to expose first-class workspace sections for Layers, Style, Tokens, DOM, and Video')
+  }
+  if (!panel.includes('<ToolbarDropdownSelect') || !panel.includes('title={`Design section:') || !panel.includes('UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) {
+    throw new Error('expected Design floating panel to keep the shared narrow dropdown selector for compact layouts')
   }
 }
 

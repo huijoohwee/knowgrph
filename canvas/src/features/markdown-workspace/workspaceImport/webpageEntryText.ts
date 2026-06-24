@@ -1,6 +1,8 @@
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { extractUpstreamUrlFromMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
+import { normalizeSemanticHtmlContainers } from '@/lib/html/semanticHtml'
 import { normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlBlockScalar, yamlQuote } from './yaml'
 
@@ -152,31 +154,7 @@ const shouldCanonicalizeProxyLinkLabel = (label: string, href: string, upstreamU
 const extractUpstreamUrlFromProxyHref = (rawHref: string): string => {
   const href = normalizeLocalProxyUrlsInMarkdown(String(rawHref || '').trim())
   if (!href) return ''
-  const decodeSafe = (value: string): string => {
-    try {
-      return decodeURIComponent(value)
-    } catch {
-      return value
-    }
-  }
-  const assetPath = href.match(/^\/__webpage_asset_path\/(.+)$/i)
-  if (assetPath) {
-    const decoded = decodeSafe(String(assetPath[1] || '').trim())
-    return /^https?:\/\//i.test(decoded) ? decoded : ''
-  }
-  const fetchRemote = href.match(/^\/__fetch_remote\?(.*)$/i)
-  if (fetchRemote) {
-    const params = new URLSearchParams(String(fetchRemote[1] || ''))
-    const decoded = decodeSafe(String(params.get('url') || '').trim())
-    return /^https?:\/\//i.test(decoded) ? decoded : ''
-  }
-  const webpageProxy = href.match(/^\/__webpage_proxy\?(.*)$/i)
-  if (webpageProxy) {
-    const params = new URLSearchParams(String(webpageProxy[1] || ''))
-    const decoded = decodeSafe(String(params.get('url') || '').trim())
-    return /^https?:\/\//i.test(decoded) ? decoded : ''
-  }
-  return ''
+  return extractUpstreamUrlFromMarkdownLocalProxyUrl(href)
 }
 
 const normalizeAutolinksToCardsInMarkdown = (text: string): string => {
@@ -198,6 +176,116 @@ const normalizeAutolinksToCardsInMarkdown = (text: string): string => {
   return next
 }
 
+const normalizeProxyMarkdownMediaDestinations = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  next = next.replace(
+    /!\[([^\]]*)\]\(((?:https?:\/\/[^\s)\]]+)?\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^)]+)\)/gi,
+    (_m, rawAlt: string, rawHref: string) => {
+      const href = normalizeLocalProxyUrlsInMarkdown(String(rawHref || '').trim())
+      const upstreamUrl = extractUpstreamUrlFromProxyHref(href)
+      const alt = decodeLooseHtmlEntities(String(rawAlt || '').trim())
+      return `![${alt}](${upstreamUrl || href})`
+    },
+  )
+  return next
+}
+
+const normalizeProxyHtmlMediaAttributeUrls = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  const normalizeUrl = (rawValue: string): string => {
+    const value = decodeLooseHtmlEntities(String(rawValue || '').trim())
+    if (!value) return rawValue
+    const href = normalizeLocalProxyUrlsInMarkdown(value)
+    return extractUpstreamUrlFromProxyHref(href) || href || rawValue
+  }
+  const normalizeSrcset = (rawValue: string): string => {
+    return String(rawValue || '')
+      .split(',')
+      .map(part => {
+        const candidate = String(part || '').trim()
+        if (!candidate) return candidate
+        const pieces = candidate.split(/\s+/g)
+        const url = pieces.shift() || ''
+        const normalizedUrl = normalizeUrl(url)
+        return [normalizedUrl, ...pieces].filter(Boolean).join(' ')
+      })
+      .join(', ')
+  }
+  return next.replace(/<(img|video|audio|source)\b[^>]*>/gi, tag => {
+    return String(tag || '').replace(
+      /\b(src|data-src|data-original|data-lazy-src|poster|srcset)\s*=\s*(["'])(.*?)\2/gi,
+      (_attr, rawName: string, quote: string, rawValue: string) => {
+        const name = String(rawName || '').trim()
+        const normalized = name.toLowerCase() === 'srcset' ? normalizeSrcset(rawValue) : normalizeUrl(rawValue)
+        return `${name}=${quote}${normalized}${quote}`
+      },
+    )
+  })
+}
+
+const readHtmlAttribute = (tag: string, name: string): string => {
+  const escaped = String(name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`\\b${escaped}\\s*=\\s*(["'])(.*?)\\1`, 'i')
+  const match = String(tag || '').match(pattern)
+  return decodeLooseHtmlEntities(String(match?.[2] || '').trim())
+}
+
+const markdownMediaLine = (alt: string, href: string): string => {
+  const label = decodeLooseHtmlEntities(String(alt || '').trim()).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ')
+  const url = decodeLooseHtmlEntities(String(href || '').trim())
+  return url ? `![${label}](${url})` : ''
+}
+
+const normalizeHtmlMediaTagsToMarkdown = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+
+  next = next.replace(/<video\b[^>]*>[\s\S]*?<\/video\s*>/gi, block => {
+    const openTag = String(block || '').match(/<video\b[^>]*>/i)?.[0] || ''
+    const videoSrc = readHtmlAttribute(openTag, 'src')
+    const sourceTag = String(block || '').match(/<source\b[^>]*>/i)?.[0] || ''
+    const sourceSrc = readHtmlAttribute(sourceTag, 'src')
+    const poster = readHtmlAttribute(openTag, 'poster')
+    const title = readHtmlAttribute(openTag, 'title') || readHtmlAttribute(openTag, 'aria-label') || 'video'
+    const href = videoSrc || sourceSrc || poster
+    return href ? `\n${markdownMediaLine(title, href)}\n` : block
+  })
+
+  next = next.replace(/<audio\b[^>]*>[\s\S]*?<\/audio\s*>/gi, block => {
+    const openTag = String(block || '').match(/<audio\b[^>]*>/i)?.[0] || ''
+    const audioSrc = readHtmlAttribute(openTag, 'src')
+    const sourceTag = String(block || '').match(/<source\b[^>]*>/i)?.[0] || ''
+    const sourceSrc = readHtmlAttribute(sourceTag, 'src')
+    const title = readHtmlAttribute(openTag, 'title') || readHtmlAttribute(openTag, 'aria-label') || 'audio'
+    const href = audioSrc || sourceSrc
+    return href ? `\n${markdownMediaLine(title, href)}\n` : block
+  })
+
+  next = next.replace(/<img\b[^>]*>/gi, tag => {
+    const href =
+      readHtmlAttribute(tag, 'src') ||
+      readHtmlAttribute(tag, 'data-src') ||
+      readHtmlAttribute(tag, 'data-original') ||
+      readHtmlAttribute(tag, 'data-lazy-src')
+    const alt = readHtmlAttribute(tag, 'alt') || readHtmlAttribute(tag, 'title')
+    return href ? `\n${markdownMediaLine(alt, href)}\n` : tag
+  })
+
+  return next
+}
+
+const normalizeLinkedMarkdownMediaWrappers = (text: string): string => {
+  let next = String(text || '')
+  if (!next) return next
+  next = next.replace(
+    /\[\s*\n+\s*(!\[[^\]]*\]\([^)]+\))\s*\n+\s*\]\((https?:\/\/[^)\s]+)\)/gi,
+    '[$1]($2)',
+  )
+  return next
+}
+
 const normalizeProxyMarkdownLinks = (text: string): string => {
   let next = String(text || '')
   if (!next) return next
@@ -211,10 +299,9 @@ const normalizeProxyMarkdownLinks = (text: string): string => {
     const upstreamUrl = extractUpstreamUrlFromProxyHref(href)
     const label = decodeLooseHtmlEntities(String(rawLabel || '').trim())
     const shouldReplaceLabel = shouldCanonicalizeProxyLinkLabel(label, href, upstreamUrl)
-    const nextLabel = shouldReplaceLabel
-      ? String(upstreamUrl || label || href).trim()
-      : label
-    return `${bang || ''}[${nextLabel}](${href})`
+    const nextLabel = bang ? label : (shouldReplaceLabel ? String(upstreamUrl || label || href).trim() : label)
+    const nextHref = bang && upstreamUrl ? upstreamUrl : href
+    return `${bang || ''}[${nextLabel}](${nextHref})`
   })
   return next
 }
@@ -223,7 +310,12 @@ const normalizeWorkspaceWebpageEntryBodyText = (text: string): string => {
   const decoded = decodeLooseHtmlEntities(String(text || ''))
   const proxyNormalized = normalizeLocalProxyUrlsInMarkdown(decoded)
   const autolinkNormalized = normalizeAutolinksToCardsInMarkdown(proxyNormalized)
-  const proxyLinksNormalized = normalizeProxyMarkdownLinks(autolinkNormalized)
+  const mediaDestinationsNormalized = normalizeProxyMarkdownMediaDestinations(autolinkNormalized)
+  const htmlMediaAttributesNormalized = normalizeProxyHtmlMediaAttributeUrls(mediaDestinationsNormalized)
+  const semanticHtmlNormalized = normalizeSemanticHtmlContainers(htmlMediaAttributesNormalized)
+  const htmlMediaMarkdownNormalized = normalizeHtmlMediaTagsToMarkdown(semanticHtmlNormalized)
+  const linkedMediaNormalized = normalizeLinkedMarkdownMediaWrappers(htmlMediaMarkdownNormalized)
+  const proxyLinksNormalized = normalizeProxyMarkdownLinks(linkedMediaNormalized)
   return normalizeLocalProxyUrlsInMarkdown(proxyLinksNormalized)
 }
 

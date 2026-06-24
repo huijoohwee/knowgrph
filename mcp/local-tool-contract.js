@@ -78,6 +78,44 @@ const SHOWRUNNER_RUN_ID_INPUT_SCHEMA = Object.freeze({
   },
 });
 
+const HTML_VIDEO_RENDER_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["html", "duration_ms", "fps", "width", "height"],
+  properties: {
+    html: { type: "string" },
+    duration_ms: { type: "integer", minimum: 1, maximum: 3600000 },
+    fps: { type: "integer", minimum: 1, maximum: 120 },
+    width: { type: "integer", minimum: 1, maximum: 7680 },
+    height: { type: "integer", minimum: 1, maximum: 4320 },
+    css: { type: "string" },
+    data: { type: "object", additionalProperties: true },
+    engine_hint: { type: "string", maxLength: 255 },
+  },
+});
+
+const HTML_VIDEO_RENDER_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["ok", "render_job_id", "output_path", "output_manifest_path"],
+  properties: {
+    ok: { type: "boolean" },
+    render_job_id: { type: "string" },
+    output_path: { type: ["string", "null"] },
+    output_manifest_path: { type: ["string", "null"] },
+    output_storage_url: { type: "string" },
+    engine_id: { type: "string" },
+    error: {
+      type: "object",
+      required: ["code", "message"],
+      properties: {
+        code: { type: "string" },
+        message: { type: "string" },
+      },
+    },
+  },
+});
+
 const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
@@ -362,6 +400,13 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       },
     }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults(BROWSER_API_TOOL, BROWSER_API_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender,
+      description:
+        "Use this when a local MCP host needs to render an HTML + CSS + data document into an MP4 video artifact through the Knowgrph HTML Video Renderer pipeline.",
+      outputSchema: HTML_VIDEO_RENDER_OUTPUT_SCHEMA,
+      inputSchema: HTML_VIDEO_RENDER_INPUT_SCHEMA,
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add,
       description:

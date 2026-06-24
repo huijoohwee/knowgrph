@@ -2,9 +2,37 @@ import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
-export const CANVAS_SURFACE_MODE_IDS = ['2d', '3d', 'xr', 'voxel'] as const
+export const CANVAS_SURFACE_MODE_IDS = ['2d', '3d', 'xr', 'voxel', 'geospatial'] as const
 
 export type CanvasSurfaceModeId = (typeof CANVAS_SURFACE_MODE_IDS)[number]
+
+export const CANVAS_GRAPH_SURFACE_MODE_IDS = ['2d', '3d', 'xr', 'voxel'] as const
+
+export type CanvasGraphSurfaceModeId = (typeof CANVAS_GRAPH_SURFACE_MODE_IDS)[number]
+
+export type CanvasSurfaceModeSpec = {
+  id: CanvasSurfaceModeId
+  title: string
+  label: string
+}
+
+const CANVAS_SURFACE_MODE_SPECS: Record<CanvasSurfaceModeId, CanvasSurfaceModeSpec> = {
+  '2d': { id: '2d', title: '2D Mode', label: '2D' },
+  '3d': { id: '3d', title: '3D Mode', label: '3D' },
+  xr: { id: 'xr', title: 'XR Mode', label: 'XR' },
+  voxel: { id: 'voxel', title: 'Voxel Mode', label: 'Voxel' },
+  geospatial: { id: 'geospatial', title: 'Geospatial Mode', label: 'Geo' },
+}
+
+export function getCanvasSurfaceModeSpec(id: CanvasSurfaceModeId): CanvasSurfaceModeSpec {
+  return CANVAS_SURFACE_MODE_SPECS[id]
+}
+
+export function listCanvasSurfaceModeSpecs(): readonly CanvasSurfaceModeSpec[]
+export function listCanvasSurfaceModeSpecs<T extends CanvasSurfaceModeId>(ids: readonly T[]): ReadonlyArray<CanvasSurfaceModeSpec & { id: T }>
+export function listCanvasSurfaceModeSpecs(ids: readonly CanvasSurfaceModeId[] = CANVAS_SURFACE_MODE_IDS): readonly CanvasSurfaceModeSpec[] {
+  return ids.map(id => CANVAS_SURFACE_MODE_SPECS[id])
+}
 
 type VoxelModeApplicabilityArgs = {
   canvas2dRenderer: Canvas2dRendererId
@@ -154,6 +182,10 @@ export function applyCanvasSurfaceModeSelection(params: CanvasSurfaceModeSelecti
   if (mode === '2d') {
     if (geospatialEnabled) return false
     setCanvasRenderMode('2d')
+    return true
+  }
+  if (mode === 'geospatial') {
+    onOpenGeospatialMode()
     return true
   }
   if (mode === 'voxel') {

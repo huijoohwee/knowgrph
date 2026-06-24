@@ -28,6 +28,7 @@ type TimelineBottomPanelSize = {
 
 type TimelineBottomPanelView =
   | 'timeline'
+  | 'designTimeline'
   | 'strybldrTimeline'
   | 'documentVersionGraph'
   | 'flowchart'
@@ -55,6 +56,9 @@ const GanttBottomPanelViewLazy = React.lazy(() =>
 )
 const TimelineBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/TimelineBottomPanelView').then(mod => ({ default: mod.TimelineBottomPanelView })),
+)
+const DesignTimelineBottomPanelViewLazy = React.lazy(() =>
+  import('@/features/design/DesignTimelineBottomPanelView').then(mod => ({ default: mod.DesignTimelineBottomPanelView })),
 )
 const ArchitectureBottomPanelViewLazy = React.lazy(() =>
   import('@/features/gitgraph/ArchitectureBottomPanelView').then(mod => ({ default: mod.ArchitectureBottomPanelView })),
@@ -282,10 +286,10 @@ export function StrybldrTimelineBottomPanel({
     mermaidArchitectureRequested ||
     mermaidEventModelingRequested
   const showTimelineView = React.useCallback(() => {
-    setView('timeline')
+    setView(initialView === 'designTimeline' ? 'designTimeline' : 'timeline')
     setBottomSurfaceTab('timeline')
     setBottomSurfaceCollapsed(false)
-  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  }, [initialView, setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const showStrybldrTimelineView = React.useCallback(() => {
     setView('strybldrTimeline')
     if (bottomSurfaceDiagramRequested) setBottomSurfaceCollapsed(true)
@@ -389,7 +393,7 @@ export function StrybldrTimelineBottomPanel({
   }
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'architecture' || view === 'eventModeling'
+    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'designTimeline' || view === 'architecture' || view === 'eventModeling'
       ? pinned
         ? expandedPinnedHeightStyle
         : expandedUnpinnedHeightStyle
@@ -458,13 +462,13 @@ export function StrybldrTimelineBottomPanel({
               <IconButton
                 className={cn(
                   'App-toolbar__btn',
-                  view === 'timeline'
+                  view === 'timeline' || view === 'designTimeline'
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`,
                 )}
                 title="Timeline"
                 showTooltip
-                aria-pressed={view === 'timeline'}
+                aria-pressed={view === 'timeline' || view === 'designTimeline'}
                 onClick={showTimelineView}
                 data-kg-strybldr-bottom-timeline-timeline-toggle="1"
               >
@@ -617,6 +621,10 @@ export function StrybldrTimelineBottomPanel({
               ) : view === 'timeline' ? (
                 <React.Suspense fallback={null}>
                   <TimelineBottomPanelViewLazy compact />
+                </React.Suspense>
+              ) : view === 'designTimeline' ? (
+                <React.Suspense fallback={null}>
+                  <DesignTimelineBottomPanelViewLazy compact />
                 </React.Suspense>
               ) : view === 'architecture' ? (
                 <React.Suspense fallback={null}>

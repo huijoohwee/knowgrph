@@ -55,6 +55,10 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       '',
       '![](/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png)',
       '',
+      'Direct no-extension article image:',
+      '',
+      '![article](https://cassette.sphdigital.com.sg/image/straitstimes/04c048580dbbd2204b1b172b998af8bb480077470466d51c0853f5eb4d5b8541)',
+      '',
       'Video:',
       '',
       '![](https://example.com/demo.mp4)',
@@ -154,6 +158,17 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
     })
     if (!hasWeChat) {
       throw new Error(`expected wechat image url to render as img, got: ${imgSrcs.join(', ')}`)
+    }
+    const hasArticleImage = imgSrcs.some(s => {
+      const raw = String(s || '')
+      try {
+        return decodeURIComponent(raw).includes('cassette.sphdigital.com.sg/image/straitstimes/04c048580dbbd2204b1b172b998af8bb480077470466d51c0853f5eb4d5b8541')
+      } catch {
+        return raw.includes('cassette.sphdigital.com.sg/image/straitstimes/')
+      }
+    })
+    if (!hasArticleImage) {
+      throw new Error(`expected no-extension article image url with image path hint to render as img, got: ${imgSrcs.join(', ')}`)
     }
 
     const video = container.querySelector('video') as HTMLVideoElement | null

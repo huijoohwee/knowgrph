@@ -121,7 +121,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const mermaidFlowchartBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'flowchart'
   const mermaidGitGraphBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
-  const mermaidTimelineBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const designTimelineBottomPanelVisible = canvas2dRenderer === 'design' && bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const mermaidTimelineBottomPanelVisible = !designTimelineBottomPanelVisible && bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
   const mermaidArchitectureBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'architecture'
   const mermaidEventModelingBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
   const { paywallEnabled, floatingPanelOpen, floatingPanelView } = useGraphStore(
@@ -161,6 +162,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     mermaidTimelineBottomPanelVisible ||
     mermaidArchitectureBottomPanelVisible ||
     mermaidEventModelingBottomPanelVisible ||
+    designTimelineBottomPanelVisible ||
     strybldrTimelineBottomPanelVisible
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
@@ -263,17 +265,19 @@ export function CanvasViewport(props: CanvasViewportProps) {
                     ? 'eventModeling'
                     : mermaidArchitectureBottomPanelVisible
                       ? 'architecture'
-                      : mermaidTimelineBottomPanelVisible
-                        ? 'timeline'
-                        : mermaidGanttBottomPanelVisible
-                          ? 'gantt'
-                          : mermaidGitGraphBottomPanelVisible
-                            ? 'gitGraph'
-                            : mermaidFlowchartBottomPanelVisible
-                              ? 'flowchart'
-                              : documentVersionGraphBottomPanelVisible
-                                ? 'documentVersionGraph'
-                                : 'strybldrTimeline'
+                      : designTimelineBottomPanelVisible
+                        ? 'designTimeline'
+                        : mermaidTimelineBottomPanelVisible
+                          ? 'timeline'
+                          : mermaidGanttBottomPanelVisible
+                            ? 'gantt'
+                            : mermaidGitGraphBottomPanelVisible
+                              ? 'gitGraph'
+                              : mermaidFlowchartBottomPanelVisible
+                                ? 'flowchart'
+                                : documentVersionGraphBottomPanelVisible
+                                  ? 'documentVersionGraph'
+                                  : 'strybldrTimeline'
                 }
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />

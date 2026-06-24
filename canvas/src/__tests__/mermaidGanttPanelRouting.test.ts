@@ -32,7 +32,6 @@ import {
   splitMermaidGanttVideoSequenceClipGroupAtOffset,
   shouldExposeMermaidGanttBarInteraction,
   updateMermaidGanttCodeRowTiming,
-  updateMermaidGanttVideoSequenceClipGroupTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import {
   parseMermaidDiagramCodeModel,
@@ -607,7 +606,6 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttBarInteractionText.includes('buildMermaidGanttTimelineTicks') ||
     !ganttBarInteractionText.includes('resolveMermaidGanttTimelineRowKeyAtPosition') ||
     !ganttBarInteractionText.includes('updateMermaidGanttCodeRowTiming') ||
-    !ganttBarInteractionText.includes('updateMermaidGanttVideoSequenceClipGroupTiming') ||
     !ganttBarInteractionText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
     !ganttBarInteractionText.includes('resolveVideoSequenceClipGroupKey') ||
     !ganttBarInteractionText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
@@ -719,7 +717,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
     !ganttTransportText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
     !ganttTransportText.includes('deltaMinutes: effectiveDeltaMinutes') ||
-    !ganttTransportText.includes('updateMermaidGanttVideoSequenceClipGroupTiming') ||
+    !ganttTransportText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttTransportText.includes('rulerScrubState') ||
     !ganttTransportText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
     !ganttTransportText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
     !ganttTransportText.includes('resolveTimelineTransportNextZoomIndex') ||
@@ -733,8 +732,10 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('handleRulerPointerScrub') ||
     !ganttTransportText.includes('showRange={false}') ||
     !ganttTransportText.includes('shellClassName="timeline-transport-shell--video-sequence"') ||
-    !ganttTransportText.includes('VideoSequenceMonitorPanel') ||
     !ganttTransportText.includes('VideoSequenceTimelineRuler') ||
+    !ganttTransportText.includes('scopes={monitorScopes}') ||
+    ganttTransportText.includes('VideoSequenceMonitorPanel') ||
+    ganttTransportText.includes('rulerBelow={(') ||
     !ganttTransportText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS') ||
     !ganttTransportText.includes('VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS') ||
     !ganttTransportText.includes('buildVideoSequenceTimelineToolStatus') ||
@@ -772,6 +773,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   }
   if (
     !videoSequenceExportText.includes('buildVideoSequenceExportPlan') ||
+    !videoSequenceExportText.includes('buildVideoSequencePreviewSyncPlan') ||
+    !videoSequenceExportText.includes('selectedRowKey') ||
     !videoSequenceExportText.includes('renderVideoSequenceExport') ||
     !videoSequenceExportText.includes('downloadVideoSequenceExport') ||
     !videoSequenceExportText.includes('MediaRecorder') ||
@@ -795,6 +798,9 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !mediaCanvasText.includes('data-kg-video-sequence-media-sync') ||
     !mediaCanvasText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
     !mediaCanvasText.includes('resolveVideoSequenceTimelinePositionMinutes') ||
+    !mediaCanvasText.includes('buildVideoSequencePreviewSyncPlan') ||
+    !mediaCanvasText.includes('selectedGanttRowKey') ||
+    !mediaCanvasText.includes('videoSequencePreviewSyncPlan || videoSequenceExportPlan') ||
     !mediaCanvasText.includes('setGanttTimelineTransportState') ||
     !mediaCanvasText.includes('videoControls={syncEnabled ? false : undefined}') ||
     !mediaCanvasText.includes("querySelector('video')")
@@ -878,15 +884,15 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     '  Opening shot : clip_opening, 09:00, 6m',
   ].join('\n')
   const cutCode = splitMermaidGanttCodeRowAtOffset({ code: sequenceCode, rowLineIndex: 3, splitOffsetMinutes: 2 })
-  if (!cutCode?.includes('Opening shot : clip_opening, 09:00, 2m') || !cutCode.includes('Opening shot splice : clip_opening_splice, 09:02, 4m')) {
+  if (!cutCode?.includes('Opening shot : clip_opening, kgsrc_0_2, 09:00, 2m') || !cutCode.includes('Opening shot splice : clip_opening_splice, kgsrc_2_6, 09:02, 4m')) {
     throw new Error(`expected video sequence cut to split selected Gantt row at playhead, got ${cutCode}`)
   }
   const maskCode = insertMermaidGanttVideoSequenceOperationRow({ code: sequenceCode, rowLineIndex: 3, operation: 'mask' })
-  if (!maskCode?.includes('Opening shot mask : clip_opening_mask, 09:00, 6m')) {
+  if (!maskCode?.includes('Opening shot mask : clip_opening_mask, kgsrc_0_6, 09:00, 6m')) {
     throw new Error(`expected video sequence mask to insert a source-backed operation lane, got ${maskCode}`)
   }
   const gradeCode = insertMermaidGanttVideoSequenceOperationRow({ code: sequenceCode, rowLineIndex: 3, operation: 'grade' })
-  if (!gradeCode?.includes('Opening shot grade : clip_opening_grade, 09:00, 6m')) {
+  if (!gradeCode?.includes('Opening shot grade : clip_opening_grade, kgsrc_0_6, 09:00, 6m')) {
     throw new Error(`expected video sequence grade to insert a source-backed operation lane, got ${gradeCode}`)
   }
   const groupedSequenceCode = [
@@ -907,28 +913,28 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     splitOffsetMinutes: 2,
   })
   if (
-    !groupedCutCode?.includes('Opening shot : clip_opening, 09:00, 2m') ||
-    !groupedCutCode.includes('Opening shot splice : clip_opening_splice, 09:02, 4m') ||
-    !groupedCutCode.includes('Opening shot mask : clip_opening_mask, 09:00, 2m') ||
-    !groupedCutCode.includes('Opening shot mask splice : clip_opening_mask_splice, 09:02, 4m') ||
-    !groupedCutCode.includes('Opening shot grade splice : clip_opening_grade_splice, 09:02, 4m') ||
-    !groupedCutCode.includes('Opening shot audio splice : clip_opening_audio_splice, 09:02, 4m')
+    !groupedCutCode?.includes('Opening shot : clip_opening, kgsrc_0_2, 09:00, 2m') ||
+    !groupedCutCode.includes('Opening shot splice : clip_opening_splice, kgsrc_2_6, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot mask : clip_opening_mask, kgsrc_0_2, 09:00, 2m') ||
+    !groupedCutCode.includes('Opening shot mask splice : clip_opening_mask_splice, kgsrc_2_6, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot grade splice : clip_opening_grade_splice, kgsrc_2_6, 09:02, 4m') ||
+    !groupedCutCode.includes('Opening shot audio splice : clip_opening_audio_splice, kgsrc_2_6, 09:02, 4m')
   ) {
     throw new Error(`expected video sequence cut to split every source-backed clip lane, got ${groupedCutCode}`)
   }
-  const groupedMovedCode = updateMermaidGanttVideoSequenceClipGroupTiming({
+  const decoupledMovedCode = updateMermaidGanttCodeRowTiming({
     code: groupedSequenceCode,
     rowLineIndex: 3,
     mode: 'move',
     deltaMinutes: 1,
   })
   if (
-    !groupedMovedCode?.includes('Opening shot : clip_opening, 09:01, 6m') ||
-    !groupedMovedCode.includes('Opening shot mask : clip_opening_mask, 09:01, 6m') ||
-    !groupedMovedCode.includes('Opening shot grade : clip_opening_grade, 09:01, 6m') ||
-    !groupedMovedCode.includes('Opening shot audio : clip_opening_audio, 09:01, 6m')
+    !decoupledMovedCode?.includes('Opening shot : clip_opening, kgsrc_0_6, 09:01, 6m') ||
+    !decoupledMovedCode.includes('Opening shot mask : clip_opening_mask, 09:00, 6m') ||
+    !decoupledMovedCode.includes('Opening shot grade : clip_opening_grade, 09:00, 6m') ||
+    !decoupledMovedCode.includes('Opening shot audio : clip_opening_audio, 09:00, 6m')
   ) {
-    throw new Error(`expected video sequence splice/move to update every source-backed clip lane, got ${groupedMovedCode}`)
+    throw new Error(`expected video sequence bar move to edit only the selected source-backed strip, got ${decoupledMovedCode}`)
   }
   const duplicateGradeCode = insertMermaidGanttVideoSequenceOperationRow({
     code: groupedSequenceCode,
@@ -939,7 +945,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     throw new Error(`expected video sequence grade to reuse the existing operation lane without duplication, got ${duplicateGradeCode}`)
   }
   const spliceOnlyMovedCode = groupedCutCode
-    ? updateMermaidGanttVideoSequenceClipGroupTiming({
+    ? updateMermaidGanttCodeRowTiming({
       code: groupedCutCode,
       rowLineIndex: 4,
       mode: 'move',
@@ -947,12 +953,12 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     })
     : null
   if (
-    !spliceOnlyMovedCode?.includes('Opening shot : clip_opening, 09:00, 2m') ||
-    !spliceOnlyMovedCode.includes('Opening shot splice : clip_opening_splice, 09:03, 4m') ||
-    !spliceOnlyMovedCode.includes('Opening shot mask : clip_opening_mask, 09:00, 2m') ||
-    !spliceOnlyMovedCode.includes('Opening shot mask splice : clip_opening_mask_splice, 09:03, 4m')
+    !spliceOnlyMovedCode?.includes('Opening shot : clip_opening, kgsrc_0_2, 09:00, 2m') ||
+    !spliceOnlyMovedCode.includes('Opening shot splice : clip_opening_splice, kgsrc_2_6, 09:03, 4m') ||
+    !spliceOnlyMovedCode.includes('Opening shot mask : clip_opening_mask, kgsrc_0_2, 09:00, 2m') ||
+    !spliceOnlyMovedCode.includes('Opening shot mask splice : clip_opening_mask_splice, kgsrc_2_6, 09:02, 4m')
   ) {
-    throw new Error(`expected video sequence splice segment edits to avoid mutating the original segment, got ${spliceOnlyMovedCode}`)
+    throw new Error(`expected video sequence splice segment edits to avoid mutating other split strips, got ${spliceOnlyMovedCode}`)
   }
   const groupedExportPlan = buildVideoSequenceExportPlan({
     code: groupedCutCode || '',

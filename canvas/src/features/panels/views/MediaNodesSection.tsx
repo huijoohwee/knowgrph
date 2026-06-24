@@ -45,11 +45,15 @@ export default function MediaNodesSection({
   const setMarkdownViewerMediaMode = useGraphStore(s => s.setMarkdownViewerMediaMode)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
   const richMediaDisplayMode = readRichMediaDisplayMode({
     renderMediaAsNodes,
+    canvasRenderMode,
+    canvas3dMode,
     canvas2dRenderer,
     frontmatterModeEnabled,
     documentSemanticMode,

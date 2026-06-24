@@ -176,6 +176,7 @@ export function RichMediaOverlayLayer2d(props: {
               nodeInteractive: n.interactive,
               renderMediaAsNodes,
               infiniteCanvasInteractionMode,
+              canvasRenderMode: '2d',
             })}
             panel={n.panel}
             onPanelChange={next => {

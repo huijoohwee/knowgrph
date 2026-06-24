@@ -6,7 +6,6 @@ import {
   VideoSequenceClipEditPanel,
   type VideoSequenceClipEditAction,
 } from '@/components/timeline/VideoSequenceClipEditPanel'
-import { VideoSequenceMonitorPanel } from '@/components/timeline/VideoSequenceMonitorPanel'
 import {
   TimelineVideoSequenceToolButton,
   VideoSequenceTimelineRuler,
@@ -29,7 +28,6 @@ import {
   type TimelineTransportPlaybackRate,
 } from '@/components/timeline/timelineTransport'
 import {
-  VIDEO_SEQUENCE_TIMELINE_LANES,
   VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS,
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
   buildVideoSequenceTimelineToolStatus,
@@ -40,7 +38,7 @@ import {
   readVideoSequenceTimelineModelFromMarkdown,
   resolveVideoSequenceTimelineMediaSeconds,
   resolveVideoSequenceTimelineUnitsPerMs,
-  resolveVideoSequenceTimelineLane,
+  resolveVisibleVideoSequenceTimelineLaneCount,
   type VideoSequenceTimelineToolId,
 } from '@/components/timeline/videoSequenceTimeline'
 import { resolveVideoSequenceSourceRuntimeUrl } from '@/components/timeline/videoSequenceSourceRegistry'
@@ -50,6 +48,7 @@ import {
   buildMermaidGanttTimelineTicks,
   formatMermaidGanttTimelineOffset,
   replaceFirstMermaidGanttFrontmatterCode,
+  updateMermaidGanttCodeRowTiming,
   resolveMermaidGanttBarDragCommitted,
   resolveMermaidGanttBarDragPreview,
   resolveMermaidGanttTimelineDragEffectiveDelta,
@@ -57,7 +56,6 @@ import {
   resolveMermaidGanttTimelineRowKeyAtPosition,
   insertMermaidGanttVideoSequenceOperationRow,
   splitMermaidGanttVideoSequenceClipGroupAtOffset,
-  updateMermaidGanttVideoSequenceClipGroupTiming,
   type MermaidGanttBarDragMode,
   type MermaidGanttTimelineDragPreview,
   type MermaidGanttTimelineTaskSpan,
@@ -72,6 +70,12 @@ type GanttTimelineTransportDragState = {
   markdownDocumentName: string | null
   markdownText: string
   span: MermaidGanttTimelineTaskSpan
+}
+
+type GanttTimelineTransportRulerScrubState = {
+  pointerId: number
+  rectLeft: number
+  rectWidth: number
 }
 
 const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
@@ -135,6 +139,7 @@ export function GanttTimelineTransportPanel({
   const [timelineZoomIndex, setTimelineZoomIndex] = React.useState(0)
   const [dragState, setDragState] = React.useState<GanttTimelineTransportDragState | null>(null)
   const [dragPreview, setDragPreview] = React.useState<MermaidGanttTimelineDragPreview | null>(null)
+  const [rulerScrubState, setRulerScrubState] = React.useState<GanttTimelineTransportRulerScrubState | null>(null)
   const [exportingKind, setExportingKind] = React.useState<VideoSequenceExportKind | ''>('')
   const [mediaDurationSeconds, setMediaDurationSeconds] = React.useState(0)
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
@@ -168,6 +173,10 @@ export function GanttTimelineTransportPanel({
   const previousSelectedRowKeyRef = React.useRef(selectedRowKey)
   const timelineModel = React.useMemo(() => buildMermaidGanttTimelineModel(code), [code])
   const ticks = React.useMemo(() => buildMermaidGanttTimelineTicks(timelineModel), [timelineModel])
+  const visibleLaneCount = React.useMemo(
+    () => resolveVisibleVideoSequenceTimelineLaneCount(timelineModel.taskSpans),
+    [timelineModel.taskSpans],
+  )
   const maxMinutes = Math.max(0, timelineModel.durationMinutes)
   const disabled = !code || maxMinutes <= 0
   const documentKey = String(markdownDocumentName || '').trim()
@@ -210,10 +219,6 @@ export function GanttTimelineTransportPanel({
     [code, markdownDocumentName, videoSequenceModel?.sources],
   )
   const exportDisabled = disabled || !exportPlan || exportingKind !== ''
-  const activeLaneIds = React.useMemo(
-    () => new Set(timelineModel.taskSpans.map(span => resolveVideoSequenceTimelineLane(span))),
-    [timelineModel.taskSpans],
-  )
   const monitorScopes = React.useMemo(() => buildVideoSequenceTimelineScopes({
     maxMinutes,
     positionMinutes,
@@ -269,7 +274,7 @@ export function GanttTimelineTransportPanel({
     }
     if (toolId === 'splice') {
       commitGanttVideoSequenceCode(
-        updateMermaidGanttVideoSequenceClipGroupTiming({
+        updateMermaidGanttCodeRowTiming({
           code,
           rowLineIndex: selectedSpan.lineIndex,
           mode: 'move',
@@ -327,7 +332,7 @@ export function GanttTimelineTransportPanel({
     }
     if (!deltaMinutes) return
     commitGanttVideoSequenceCode(
-      updateMermaidGanttVideoSequenceClipGroupTiming({
+      updateMermaidGanttCodeRowTiming({
         code,
         rowLineIndex: selectedSpan.lineIndex,
         mode,
@@ -420,16 +425,30 @@ export function GanttTimelineTransportPanel({
     }
   }, [documentKey, maxMinutes, selectedRowKey, setGanttTimelineTransportState, setMermaidDiagramSelectedRowKey, timelineModel])
 
+  const resolveRulerScrubMinutes = React.useCallback((clientX: number, state: GanttTimelineTransportRulerScrubState) => {
+    if (state.rectWidth <= 0) return 0
+    const ratio = clampTimelineTransportValue((clientX - state.rectLeft) / state.rectWidth, 0, 1)
+    return ratio * maxMinutes
+  }, [maxMinutes])
+
   const handleRulerPointerScrub = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0 || maxMinutes <= 0) return
     const target = event.target as HTMLElement | null
     if (target?.closest('button,[data-kg-gantt-timeline-track-span="1"]')) return
     const rect = event.currentTarget.getBoundingClientRect()
     if (rect.width <= 0) return
-    const ratio = clampTimelineTransportValue((event.clientX - rect.left) / rect.width, 0, 1)
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    const nextScrubState = {
+      pointerId: event.pointerId,
+      rectLeft: rect.left,
+      rectWidth: rect.width,
+    }
+    setRulerScrubState(nextScrubState)
     setGanttTimelineTransportState({ documentKey, playing: false })
-    handlePositionChange(ratio * maxMinutes)
-  }, [documentKey, handlePositionChange, maxMinutes, setGanttTimelineTransportState])
+    handlePositionChange(resolveRulerScrubMinutes(event.clientX, nextScrubState))
+  }, [documentKey, handlePositionChange, maxMinutes, resolveRulerScrubMinutes, setGanttTimelineTransportState])
 
   const handlePlaybackEnd = React.useCallback(() => {
     setGanttTimelineTransportState({ documentKey, playing: false })
@@ -529,7 +548,7 @@ export function GanttTimelineTransportPanel({
       ) {
         return
       }
-      const nextCode = updateMermaidGanttVideoSequenceClipGroupTiming({
+      const nextCode = updateMermaidGanttCodeRowTiming({
         code,
         rowLineIndex: dragState.span.lineIndex,
         mode: dragState.mode,
@@ -552,6 +571,27 @@ export function GanttTimelineTransportPanel({
       window.removeEventListener('pointercancel', handlePointerEnd)
     }
   }, [code, documentKey, dragState, maxMinutes, setGanttTimelineTransportState, setMarkdownDocument, setMermaidDiagramSelectedRowKey])
+
+  React.useEffect(() => {
+    if (!rulerScrubState) return
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== rulerScrubState.pointerId) return
+      event.preventDefault()
+      handlePositionChange(resolveRulerScrubMinutes(event.clientX, rulerScrubState))
+    }
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (event.pointerId !== rulerScrubState.pointerId) return
+      setRulerScrubState(null)
+    }
+    window.addEventListener('pointermove', handlePointerMove, { passive: false })
+    window.addEventListener('pointerup', handlePointerEnd, { passive: true })
+    window.addEventListener('pointercancel', handlePointerEnd, { passive: true })
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerEnd)
+      window.removeEventListener('pointercancel', handlePointerEnd)
+    }
+  }, [handlePositionChange, resolveRulerScrubMinutes, rulerScrubState])
 
   const handleTrackPointerStart = React.useCallback((
     event: React.PointerEvent<HTMLElement>,
@@ -710,6 +750,7 @@ export function GanttTimelineTransportPanel({
           maxMinutes={maxMinutes}
           playheadPercent={playheadPercent}
           selectedRowKey={selectedRowKey}
+          scopes={monitorScopes}
           taskSpans={timelineModel.taskSpans}
           timelineZoom={timelineZoom}
           onRulerPointerDown={handleRulerPointerScrub}
@@ -717,22 +758,15 @@ export function GanttTimelineTransportPanel({
           onTrackPointerStart={handleTrackPointerStart}
         />
       )}
-      rulerAside={(
-        <VideoSequenceMonitorPanel
-          activeLaneIds={activeLaneIds}
-          currentLabel={currentLabel}
-          scopes={monitorScopes}
-          sourceCount={videoSequenceModel?.sources.length || 0}
-        />
-      )}
       rulerClassName={compact ? 'timeline-transport-ruler--compact timeline-transport-ruler--tracks timeline-transport-ruler--video-sequence' : 'timeline-transport-ruler--tracks timeline-transport-ruler--video-sequence'}
       rulerProps={{
         'data-kg-gantt-timeline-ruler': 'bottomPanel',
         style: {
-          '--kg-video-sequence-lane-count': VIDEO_SEQUENCE_TIMELINE_LANES.length,
+          '--kg-video-sequence-lane-count': visibleLaneCount,
         } as React.CSSProperties,
       } as React.HTMLAttributes<HTMLElement>}
       step={1}
+      showInlineProgress={false}
       showRange={false}
       subtitleLabel={`${timelineModel.taskSpans.length} timeline rows`}
       titleLabel="Gantt-Timeline"

@@ -7,11 +7,13 @@ import {
   normalizeRichMediaPanelDensity,
   normalizeRichMediaPanelTab,
   readRichMediaDisplayMode,
+  resolveRichMediaSurfaceMode,
   resolveRichMediaAspectSelection,
   resolveRichMediaPanelInteractive,
   resolveRichMediaPanelSelectedTab,
   resolveToggledRichMediaAspectSize,
 } from '@/lib/render/richMediaSsot'
+import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 
 export function testRichMediaSsotConsistencyRegression() {
   if (readRichMediaDisplayMode(false) !== 'circle-only') {
@@ -29,6 +31,18 @@ export function testRichMediaSsotConsistencyRegression() {
     }) !== 'panel-only'
   ) {
     throw new Error('expected frontmatter Flow Editor document mode to force Rich Media display mode to panel-only')
+  }
+  if (resolveRichMediaSurfaceMode({ renderMediaAsNodes: false, canvasRenderMode: '3d', canvas3dMode: 'xr' }) !== 'xr') {
+    throw new Error('expected Rich Media surface resolver to preserve XR surface mode')
+  }
+  if (resolveRichMediaSurfaceMode({ renderMediaAsNodes: false, canvasRenderMode: '3d', canvas3dMode: 'voxel' }) !== 'voxel') {
+    throw new Error('expected Rich Media surface resolver to preserve Voxel surface mode')
+  }
+  if (resolveRichMediaSurfaceMode({ renderMediaAsNodes: false, geospatialEnabled: true }) !== 'geospatial') {
+    throw new Error('expected Rich Media surface resolver to preserve Geospatial surface mode')
+  }
+  if (readRichMediaDisplayMode({ renderMediaAsNodes: true, geospatialEnabled: true }) !== 'panel-only') {
+    throw new Error('expected Rich Media display mode SSOT to allow panel mode on Geospatial surface when enabled')
   }
   if (normalizeRichMediaPanelDensity('compact') !== 'compact') {
     throw new Error('expected Rich Media panel density SSOT to preserve compact mode')
@@ -143,6 +157,17 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (
     listDisplayRichMediaOverlayNodes({
+      renderMediaAsNodes: true,
+      canvasRenderMode: '3d',
+      canvas3dMode: 'xr',
+      nodes: [imageNode],
+      poolMax: 24,
+    }).length !== 1
+  ) {
+    throw new Error('expected Rich Media overlay pool SSOT to enable XR surface overlays through the shared helper')
+  }
+  if (
+    listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes: false,
       canvas2dRenderer: 'flowEditor',
       frontmatterModeEnabled: true,
@@ -152,6 +177,33 @@ export function testRichMediaSsotConsistencyRegression() {
     }).length !== 1
   ) {
     throw new Error('expected frontmatter Flow Editor document mode to enable the Rich Media overlay pool without the manual toggle')
+  }
+  const geospatialMenu = buildCanvasViewOptions(
+    {
+      canvas2dRenderer: 'd3',
+      canvas3dMode: '3d',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: true,
+      timelineEnabled: true,
+      bottomSurfaceCollapsed: true,
+      bottomSurfaceTab: 'stats',
+      geospatialEnabled: true,
+      layoutMode: 'block',
+      schema: { layout: { mode: 'block' }, behavior: {}, nodeStyles: {}, edgeStyles: {}, rules: [] } as any,
+      frontmatterOnlyAllowed: false,
+      isD3Like2dLayoutToggle: true,
+    },
+    getCanvasViewRendererOptions(),
+  )
+  const richMediaControl = geospatialMenu
+    .find(option => option.id === 'control:menu')
+    ?.children
+    ?.find(option => option.id === 'control:richMedia')
+  if (!richMediaControl || richMediaControl.disabled === true || richMediaControl.isActive !== true) {
+    throw new Error('expected Canvas View Display Controls to reuse Rich Media SSOT and keep Rich Media active/selectable on Geospatial surface')
   }
 
   const flowCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx'), 'utf8')

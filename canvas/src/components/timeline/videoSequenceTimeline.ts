@@ -196,8 +196,14 @@ export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskS
   return 'video'
 }
 
-export function resolveVideoSequenceTimelineLaneIndex(lane: VideoSequenceTimelineLaneId): number {
-  return Math.max(0, VIDEO_SEQUENCE_TIMELINE_LANES.findIndex(item => item.id === lane))
+export function resolveVisibleVideoSequenceTimelineLanes(taskSpans: readonly MermaidGanttTimelineTaskSpan[]): readonly VideoSequenceTimelineLane[] {
+  const activeLaneIds = new Set(taskSpans.map(span => resolveVideoSequenceTimelineLane(span)))
+  const visibleLanes = VIDEO_SEQUENCE_TIMELINE_LANES.filter(lane => activeLaneIds.has(lane.id))
+  return visibleLanes.length ? visibleLanes : VIDEO_SEQUENCE_TIMELINE_LANES
+}
+
+export function resolveVisibleVideoSequenceTimelineLaneCount(taskSpans: readonly MermaidGanttTimelineTaskSpan[]): number {
+  return resolveVisibleVideoSequenceTimelineLanes(taskSpans).length
 }
 
 export function formatVideoSequenceTimelineSecondsOffset(valueSeconds: number): string {
@@ -254,6 +260,38 @@ export function buildVideoSequenceTimelineScopes(args: {
     const value = Math.round(samples.reduce((total, sample) => total + sample, 0) / samples.length)
     return { ...scope, samples, value }
   })
+}
+
+type VideoSequenceTimelineSampleArgs = {
+  sampleCount: number
+  seedText: string
+}
+
+function buildVideoSequenceTimelineSeededSamples(args: VideoSequenceTimelineSampleArgs, options: {
+  maxValue: number
+  minValue: number
+  phaseStep: number
+}): number[] {
+  const count = Math.max(4, Math.min(96, Math.round(Number.isFinite(args.sampleCount) ? args.sampleCount : 0)))
+  const seedText = clean(args.seedText)
+  const seed = Array.from(seedText).reduce((total, char, index) => total + (char.charCodeAt(0) * (index + 3)), count * 17)
+  return Array.from({ length: count }, (_, sampleIndex) => {
+    const phase = (sampleIndex + 1) * options.phaseStep + seed * 0.013
+    const shaped = Math.sin(phase) * 0.32 + Math.cos(phase * 0.47) * 0.22 + 0.52
+    return Math.round(clampTimelineTransportValue(shaped * 100, options.minValue, options.maxValue))
+  })
+}
+
+export function buildVideoSequenceTimelineCueSamples(args: VideoSequenceTimelineSampleArgs): number[] {
+  return buildVideoSequenceTimelineSeededSamples(args, { minValue: 18, maxValue: 100, phaseStep: 0.53 })
+}
+
+export function buildVideoSequenceTimelineFrameSamples(args: VideoSequenceTimelineSampleArgs): number[] {
+  return buildVideoSequenceTimelineSeededSamples(args, { minValue: 28, maxValue: 100, phaseStep: 0.41 })
+}
+
+export function buildVideoSequenceTimelineWaveformSamples(args: VideoSequenceTimelineSampleArgs): number[] {
+  return buildVideoSequenceTimelineSeededSamples(args, { minValue: 8, maxValue: 96, phaseStep: 0.71 })
 }
 
 export function buildVideoSequenceTimelineToolStatus(args: {

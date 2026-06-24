@@ -18,6 +18,13 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
+  computePanelFrameResizeFromDrag16x9,
+  computePanelFrameSizeFromWidth16x9,
+  readRichMediaPanelFrameMetrics,
+  readStableRichMediaPanelSize,
+  type MediaPanelCssMetrics,
+} from '@/lib/render/mediaPanelLayout'
+import {
   computeOverlayDragStartScreenSpace3d,
   computeOverlayDraggedWorldPos3d,
   computeThreeCameraPoseAfterOverlayPan,
@@ -29,6 +36,7 @@ import {
 
 type StoreSlice = {
   renderMediaAsNodes: boolean
+  canvas3dMode: unknown
   infiniteCanvasInteractionMode: 'static' | 'interactive'
   mediaPanelDensity: unknown
   threeIframeOverlayPoolMax: unknown
@@ -48,6 +56,27 @@ type StoreSlice = {
   selectedNodeIds: unknown
 }
 
+type RichMediaResizeState3d = {
+  id: string
+  pointerId: number
+  startW: number
+  startH: number
+  frameMetrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
+  lastW: number
+  lastH: number
+}
+
+type RichMediaHeaderDragState3d = {
+  id: string
+  pointerId: number
+  mode: 'world' | 'screen'
+  sx: number
+  sy: number
+  ndcZ: number
+  w: number
+  h: number
+}
+
 export function useThreeRichMediaOverlayController(args: {
   active: boolean
   sceneGraph: GraphData | null
@@ -63,6 +92,7 @@ export function useThreeRichMediaOverlayController(args: {
   const store = useGraphStore(
     useShallow((s): StoreSlice => ({
       renderMediaAsNodes: s.renderMediaAsNodes === true,
+      canvas3dMode: s.canvas3dMode,
       infiniteCanvasInteractionMode: (s.infiniteCanvasInteractionMode || 'static') as 'static' | 'interactive',
       mediaPanelDensity: s.mediaPanelDensity,
       threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
@@ -91,9 +121,18 @@ export function useThreeRichMediaOverlayController(args: {
   const missFramesRef = React.useRef<Map<string, number>>(new Map())
   const pointerOverrideActiveRef = React.useRef<boolean>(false)
   const pointerOverrideResetTimerRef = React.useRef<number | null>(null)
+  const localPositionsRef = React.useRef<Record<string, [number, number, number]>>({})
+  const localPanelSizesRef = React.useRef<Record<string, { w: number; h: number }>>({})
+  const localPinnedRef = React.useRef<Record<string, boolean>>({})
+  const localScreenAnchorsRef = React.useRef<Record<string, { sx: number; sy: number }>>({})
+  const localZIndexRef = React.useRef<Record<string, number>>({})
   const dragOverridesRef = React.useRef<Record<string, [number, number, number]>>({})
-  const headerDragRef = React.useRef<null | { id: string; pointerId: number; sx: number; sy: number; ndcZ: number; w: number; h: number }>(null)
+  const screenDragOverridesRef = React.useRef<Record<string, { sx: number; sy: number }>>({})
+  const headerDragRef = React.useRef<null | RichMediaHeaderDragState3d>(null)
   const overlayPanRef = React.useRef<null | { pointerId: number; pose: ThreeCameraPose }>(null)
+  const resizeRef = React.useRef<RichMediaResizeState3d | null>(null)
+  const zIndexCounterRef = React.useRef<number>(1)
+  const [controlRevision, setControlRevision] = React.useState(0)
   const scratchRef = React.useRef(createThreeMediaOverlayLayoutScratch())
 
   const sceneGraphSemanticKey = React.useMemo(
@@ -124,14 +163,52 @@ export function useThreeRichMediaOverlayController(args: {
     const preferredNodeIds = [store.selectedNodeId, ...(Array.isArray(store.selectedNodeIds) ? store.selectedNodeIds : [])]
     return listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes: store.renderMediaAsNodes,
+      canvasRenderMode: '3d',
+      canvas3dMode: store.canvas3dMode,
       nodes,
       poolMax: poolMaxRaw > 0 ? poolMaxRaw : 24,
       preferredNodeIds,
       connectedValuesByNodeId: richMediaConnectedValuesByNodeId,
       nodeById: sceneGraphLookup?.nodeById || undefined,
     })
-  }, [args.sceneGraph, richMediaConnectedValuesByNodeId, sceneGraphLookup, store.renderMediaAsNodes, store.selectedNodeId, store.selectedNodeIds, store.threeIframeOverlayPoolMax])
+  }, [args.sceneGraph, richMediaConnectedValuesByNodeId, sceneGraphLookup, store.canvas3dMode, store.renderMediaAsNodes, store.selectedNodeId, store.selectedNodeIds, store.threeIframeOverlayPoolMax])
   const mediaNodesKey = React.useMemo(() => overlayNodesPool.map(n => n.id).join('|'), [overlayNodesPool])
+  const readNodeProperties = React.useCallback((id: string): Record<string, unknown> => {
+    const key = String(id || '').trim()
+    if (!key) return {}
+    const node = sceneGraphLookup?.nodeById?.get(key) || null
+    const props = node?.properties
+    return props && typeof props === 'object' && !Array.isArray(props) ? { ...(props as Record<string, unknown>) } : {}
+  }, [sceneGraphLookup])
+  const bumpControlRevision = React.useCallback(() => setControlRevision(rev => (rev + 1) % 1_000_000), [])
+  const getPanelSizeForId = React.useCallback((id: string) => localPanelSizesRef.current[id] || readStableRichMediaPanelSize(readNodeProperties(id)), [readNodeProperties])
+  const readPanelPinned = React.useCallback((id: string): boolean => {
+    if (typeof localPinnedRef.current[id] === 'boolean') return localPinnedRef.current[id]!
+    return readNodeProperties(id)['visual:pinned'] !== false
+  }, [readNodeProperties])
+  const getPanelScreenAnchorForId = React.useCallback((id: string): { sx: number; sy: number } | null => {
+    const local = localScreenAnchorsRef.current[id]
+    if (local && Number.isFinite(local.sx) && Number.isFinite(local.sy)) return local
+    const props = readNodeProperties(id)
+    const sx = Number(props['visual:screenX'])
+    const sy = Number(props['visual:screenY'])
+    return Number.isFinite(sx) && Number.isFinite(sy) ? { sx, sy } : null
+  }, [readNodeProperties])
+  const getPanelZIndexForId = React.useCallback((id: string): number => {
+    const local = localZIndexRef.current[id]
+    if (Number.isFinite(local)) return Number(local)
+    const z = Number(readNodeProperties(id)['visual:zIndex'])
+    return Number.isFinite(z) ? z : 0
+  }, [readNodeProperties])
+  const updateNodeProperties = React.useCallback((id: string, patch: Record<string, JSONValue>) => {
+    const baseProps = readNodeProperties(id) as Record<string, JSONValue>
+    useGraphStore.getState().updateNode(id, {
+      properties: {
+        ...baseProps,
+        ...patch,
+      },
+    } as Partial<GraphNode>)
+  }, [readNodeProperties])
   const requestSchedule = React.useCallback(() => {
     const schedule = scheduleRef.current
     if (schedule) {
@@ -235,13 +312,18 @@ export function useThreeRichMediaOverlayController(args: {
         camera: args.threeCameraRef.current,
         gl: args.threeGlRef.current,
         overlayNodesPool,
-        positions: args.positions,
+        positions: { ...args.positions, ...localPositionsRef.current },
         dragOverrides: dragOverridesRef.current,
+        screenDragOverrides: screenDragOverridesRef.current,
         overlayEls: overlayElsRef.current,
         missFrames: missFramesRef.current,
         prevVisibleIds: visibleIdsRef.current,
         effectiveSchema: args.effectiveSchema,
         scratch: scratchRef.current,
+        getPanelSizeForId,
+        getPanelPinnedForId: readPanelPinned,
+        getPanelScreenAnchorForId,
+        getPanelZIndexForId,
         ...store,
       })
     }
@@ -263,7 +345,7 @@ export function useThreeRichMediaOverlayController(args: {
       raf = null
       if (scheduleRef.current === schedule) scheduleRef.current = null
     }
-  }, [args.active, args.effectiveSchema, args.positions, args.threeCameraRef, args.threeGlRef, mediaNodesKey, overlayNodesPool, store])
+  }, [args.active, args.effectiveSchema, args.positions, args.threeCameraRef, args.threeGlRef, controlRevision, getPanelScreenAnchorForId, getPanelSizeForId, getPanelZIndexForId, mediaNodesKey, overlayNodesPool, readPanelPinned, store])
 
   const overlayHiddenNodeIdSet = React.useMemo(() => {
     const nodes = args.sceneGraph && Array.isArray(args.sceneGraph.nodes) ? (args.sceneGraph.nodes as GraphNode[]) : []
@@ -276,6 +358,7 @@ export function useThreeRichMediaOverlayController(args: {
   useOverlayDragWatchdog({
     draggedNodeIdRef: args.draggedNodeIdRef,
     dragOverridesRef,
+    screenDragOverridesRef,
     headerDragRef,
     overlayPanRef,
     setDraggedNodeId: args.setDraggedNodeId,
@@ -288,22 +371,159 @@ export function useThreeRichMediaOverlayController(args: {
       void 0
     }
   }, [])
+  const stopPanelChromeSafeEvent = React.useCallback((event: React.SyntheticEvent) => {
+    const target = event.target instanceof Element ? event.target : null
+    if (target?.closest('button,a,input,textarea,select,[role="button"],[data-kg-rich-media-resize-handle="1"]')) return
+    try {
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+  }, [])
+  const beginResize = React.useCallback((id: string, pointerId: number) => {
+    const el = overlayElsRef.current.get(id) || null
+    const rect = el?.getBoundingClientRect()
+    const measuredW = rect && Number.isFinite(rect.width) ? Math.max(24, Math.round(rect.width)) : 0
+    const measuredH = rect && Number.isFinite(rect.height) ? Math.max(24, Math.round(rect.height)) : 0
+    const stableSize = getPanelSizeForId(id)
+    const frameMetrics = readRichMediaPanelFrameMetrics(el)
+    const startW = stableSize ? stableSize.w : Math.max(24, measuredW)
+    const startH = stableSize
+      ? stableSize.h
+      : (measuredH || Math.max(24, Math.round(computePanelFrameSizeFromWidth16x9({ panelW: startW, metrics: frameMetrics }).panelH)))
+    resizeRef.current = { id, pointerId, startW, startH, frameMetrics, lastW: startW, lastH: startH }
+    if (el) {
+      el.style.width = `${startW}px`
+      el.style.height = `${startH}px`
+    }
+  }, [getPanelSizeForId])
+
+  const moveResize = React.useCallback((id: string, payload: { pointerId: number; dx: number; dy: number }) => {
+    const drag = resizeRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== payload.pointerId) return
+    const next = computePanelFrameResizeFromDrag16x9({
+      startW: drag.startW,
+      startH: drag.startH,
+      dxClientPx: payload.dx,
+      dyClientPx: payload.dy,
+      scale: 1,
+      metrics: drag.frameMetrics,
+      minPanelW: 24,
+      minPanelH: 24,
+    })
+    const nextW = Math.max(24, Math.round(next.panelW))
+    const nextH = Math.max(24, Math.round(next.panelH))
+    drag.lastW = nextW
+    drag.lastH = nextH
+    localPanelSizesRef.current[id] = { w: nextW, h: nextH }
+    const el = overlayElsRef.current.get(id) || null
+    if (el) {
+      el.style.width = `${nextW}px`
+      el.style.height = `${nextH}px`
+    }
+  }, [])
+
+  const endResize = React.useCallback((id: string, pointerId: number) => {
+    const drag = resizeRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
+    resizeRef.current = null
+    localPanelSizesRef.current[id] = { w: drag.lastW, h: drag.lastH }
+    const baseProps = readNodeProperties(id)
+    useGraphStore.getState().updateNode(id, {
+      properties: {
+        ...baseProps,
+        'visual:width': drag.lastW,
+        'visual:height': drag.lastH,
+      },
+    } as Partial<GraphNode>)
+    requestSchedule()
+    bumpControlRevision()
+  }, [bumpControlRevision, readNodeProperties, requestSchedule])
+  const stopHeaderControlEvent = React.useCallback((event: React.SyntheticEvent) => {
+    try {
+      event.preventDefault()
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+  }, [])
+
+  const togglePinned = React.useCallback((id: string) => {
+    const pinned = readPanelPinned(id)
+    const el = overlayElsRef.current.get(id) || null
+    const rect = el?.getBoundingClientRect()
+    if (pinned) {
+      const sx = rect && Number.isFinite(rect.left) && Number.isFinite(rect.width) ? rect.left + rect.width / 2 : undefined
+      const sy = rect && Number.isFinite(rect.top) && Number.isFinite(rect.height) ? rect.top + rect.height / 2 : undefined
+      localPinnedRef.current[id] = false
+      if (Number.isFinite(sx) && Number.isFinite(sy)) localScreenAnchorsRef.current[id] = { sx: Math.round(Number(sx)), sy: Math.round(Number(sy)) }
+    } else {
+      const p = dragOverridesRef.current[id] || args.positions[id] || null
+      localPinnedRef.current[id] = true
+      if (p) localPositionsRef.current[id] = [p[0], p[1], p[2]]
+      if (p) updateNodeProperties(id, { pos3d: [p[0], p[1], p[2]] as unknown as JSONValue })
+      delete screenDragOverridesRef.current[id]
+    }
+    requestSchedule()
+    bumpControlRevision()
+  }, [args.positions, bumpControlRevision, readPanelPinned, requestSchedule, updateNodeProperties])
+
+  const bringToFront = React.useCallback((id: string) => {
+    const next = zIndexCounterRef.current + 1
+    zIndexCounterRef.current = next
+    localZIndexRef.current[id] = next
+    updateNodeProperties(id, { 'visual:zIndex': next as unknown as JSONValue })
+    requestSchedule()
+    bumpControlRevision()
+  }, [bumpControlRevision, requestSchedule, updateNodeProperties])
+
+  const togglePanelSize = React.useCallback((id: string) => {
+    const el = overlayElsRef.current.get(id) || null
+    const rect = el?.getBoundingClientRect()
+    const stable = getPanelSizeForId(id)
+    const currentW = stable?.w || (rect && Number.isFinite(rect.width) ? Math.max(24, Math.round(rect.width)) : 320)
+    const frameMetrics = readRichMediaPanelFrameMetrics(el)
+    const nextW = currentW > 260 ? 220 : 380
+    const nextFrame = computePanelFrameSizeFromWidth16x9({ panelW: nextW, metrics: frameMetrics })
+    localPanelSizesRef.current[id] = { w: Math.round(nextFrame.panelW), h: Math.round(nextFrame.panelH) }
+    updateNodeProperties(id, {
+      'visual:width': Math.round(nextFrame.panelW) as unknown as JSONValue,
+      'visual:height': Math.round(nextFrame.panelH) as unknown as JSONValue,
+    })
+    requestSchedule()
+    bumpControlRevision()
+  }, [bumpControlRevision, getPanelSizeForId, requestSchedule, updateNodeProperties])
+
   const overlayLayer = args.active && overlayNodesPool.length > 0 ? (
     <section aria-label="3D media overlay" className="absolute inset-0 z-[80] pointer-events-none">
       {overlayNodesPool.map(n => (
         <RichMediaPanel
           key={n.id}
           ref={getOverlayRefForId(n.id)}
+          overlayId={n.id}
           className="absolute left-0 top-0 pointer-events-auto"
           title={n.title}
           url={n.url}
           srcDoc={n.srcDoc}
           openUrl={n.openUrl}
           kind={n.kind}
+          panelChrome="flowEditor"
+          widgetToolbarActive={true}
+          headerPinned={readPanelPinned(n.id)}
+          headerMinimized={(getPanelSizeForId(n.id)?.w || 9999) <= 260}
+          onHeaderPinnedPointerDown={stopHeaderControlEvent}
+          onHeaderTogglePinned={event => {
+            stopHeaderControlEvent(event)
+            togglePinned(n.id)
+          }}
+          onHeaderValidate={() => bringToFront(n.id)}
+          onHeaderToggleMinimized={() => togglePanelSize(n.id)}
           interactive={resolveRichMediaPanelInteractive({
             nodeInteractive: n.interactive,
             renderMediaAsNodes: store.renderMediaAsNodes,
             infiniteCanvasInteractionMode: store.infiniteCanvasInteractionMode,
+            canvasRenderMode: '3d',
+            canvas3dMode: store.canvas3dMode,
           })}
           hideUntilReady={false}
           panel={n.panel}
@@ -316,6 +536,11 @@ export function useThreeRichMediaOverlayController(args: {
             })
           }}
           forwardWheelTo={store.infiniteCanvasInteractionMode === 'interactive' ? undefined : (() => args.glCanvasRef.current)}
+          forwardWheelBeforeScrollableTarget={store.infiniteCanvasInteractionMode !== 'interactive'}
+          resizable={true}
+          onResizeStart={({ pointerId }) => beginResize(n.id, pointerId)}
+          onResize={({ pointerId, dx, dy }) => moveResize(n.id, { pointerId, dx, dy })}
+          onResizeEnd={({ pointerId }) => endResize(n.id, pointerId)}
           onOverlayPanStart={({ pointerId }) => {
             const pose = useGraphStore.getState().captureThreeCameraPose()
             if (pose) overlayPanRef.current = { pointerId, pose }
@@ -338,14 +563,36 @@ export function useThreeRichMediaOverlayController(args: {
             const camera = args.threeCameraRef.current
             const gl = args.threeGlRef.current
             const p = dragOverridesRef.current[n.id] || args.positions[n.id]
-            if (!camera || !gl || !p) return
-            const start = computeOverlayDragStartScreenSpace3d({
-              camera,
-              world: { x: p[0], y: p[1], z: p[2] },
-              viewportW: gl.domElement.clientWidth || 1,
-              viewportH: gl.domElement.clientHeight || 1,
-            })
-            headerDragRef.current = { id: n.id, pointerId, sx: start.sx, sy: start.sy, ndcZ: start.ndcZ, w: start.w, h: start.h }
+            if (!camera || !gl) return
+            const viewportW = gl.domElement.clientWidth || 1
+            const viewportH = gl.domElement.clientHeight || 1
+            const start = p
+              ? computeOverlayDragStartScreenSpace3d({
+                  camera,
+                  world: { x: p[0], y: p[1], z: p[2] },
+                  viewportW,
+                  viewportH,
+                })
+              : (() => {
+                  const rect = overlayElsRef.current.get(n.id)?.getBoundingClientRect()
+                  return {
+                    sx: rect && Number.isFinite(rect.left) && Number.isFinite(rect.width) ? rect.left + rect.width / 2 : viewportW / 2,
+                    sy: rect && Number.isFinite(rect.top) && Number.isFinite(rect.height) ? rect.top + rect.height / 2 : viewportH / 2,
+                    ndcZ: 0,
+                    w: viewportW,
+                    h: viewportH,
+                  }
+                })()
+            headerDragRef.current = {
+              id: n.id,
+              pointerId,
+              mode: readPanelPinned(n.id) ? 'world' : 'screen',
+              sx: start.sx,
+              sy: start.sy,
+              ndcZ: start.ndcZ,
+              w: start.w,
+              h: start.h,
+            }
             args.setDraggedNodeId(n.id)
             void clientX
             void clientY
@@ -353,7 +600,13 @@ export function useThreeRichMediaOverlayController(args: {
           onHeaderDrag={({ dx, dy, pointerId }) => {
             const st = headerDragRef.current
             const camera = args.threeCameraRef.current
-            if (!st || st.id !== n.id || st.pointerId !== pointerId || !camera) return
+            if (!st || st.id !== n.id || st.pointerId !== pointerId) return
+            if (st.mode === 'screen') {
+              screenDragOverridesRef.current[n.id] = { sx: st.sx + dx, sy: st.sy + dy }
+              requestSchedule()
+              return
+            }
+            if (!camera) return
             const next = computeOverlayDraggedWorldPos3d({
               camera,
               startSx: st.sx,
@@ -365,28 +618,33 @@ export function useThreeRichMediaOverlayController(args: {
               viewportH: st.h || 1,
             })
             if (next) dragOverridesRef.current[n.id] = [next.x, next.y, next.z]
+            requestSchedule()
           }}
           onHeaderDragEnd={({ pointerId }) => {
             const st = headerDragRef.current
             if (st && st.id === n.id && st.pointerId === pointerId) headerDragRef.current = null
             const p = dragOverridesRef.current[n.id]
-            if (p && useGraphStore.getState().workspaceViewMode === 'editor') {
-              const s = useGraphStore.getState()
-              const node0 = s.graphData?.nodes?.find(nn => String(nn.id) === String(n.id)) || null
-              const baseProps = (node0?.properties || {}) as Record<string, JSONValue>
-              try {
-                s.updateNode(n.id, { properties: { ...baseProps, pos3d: [p[0], p[1], p[2]] as unknown as JSONValue } })
-              } catch {
-                void 0
+            const screen = screenDragOverridesRef.current[n.id]
+            if (screen) {
+              localPinnedRef.current[n.id] = false
+              localScreenAnchorsRef.current[n.id] = {
+                sx: Math.round(screen.sx),
+                sy: Math.round(screen.sy),
               }
+            } else if (p) {
+              localPositionsRef.current[n.id] = [p[0], p[1], p[2]]
+              updateNodeProperties(n.id, { pos3d: [p[0], p[1], p[2]] as unknown as JSONValue })
             }
             delete dragOverridesRef.current[n.id]
+            delete screenDragOverridesRef.current[n.id]
             args.setDraggedNodeId(null)
+            requestSchedule()
+            bumpControlRevision()
           }}
           onWheelCapture={stopEvent}
-          onClickCapture={stopEvent}
-          onDoubleClickCapture={stopEvent}
-          onContextMenuCapture={stopEvent}
+          onClickCapture={stopPanelChromeSafeEvent}
+          onDoubleClickCapture={stopPanelChromeSafeEvent}
+          onContextMenuCapture={stopPanelChromeSafeEvent}
         />
       ))}
     </section>
@@ -455,16 +713,18 @@ function useOverlayPointerOverride(args: {
 function useOverlayDragWatchdog(args: {
   draggedNodeIdRef: React.MutableRefObject<string | null>
   dragOverridesRef: React.MutableRefObject<Record<string, [number, number, number]>>
-  headerDragRef: React.MutableRefObject<null | { id: string; pointerId: number; sx: number; sy: number; ndcZ: number; w: number; h: number }>
+  screenDragOverridesRef: React.MutableRefObject<Record<string, { sx: number; sy: number }>>
+  headerDragRef: React.MutableRefObject<null | RichMediaHeaderDragState3d>
   overlayPanRef: React.MutableRefObject<null | { pointerId: number; pose: ThreeCameraPose }>
   setDraggedNodeId: React.Dispatch<React.SetStateAction<string | null>>
 }) {
-  const { draggedNodeIdRef, dragOverridesRef, headerDragRef, overlayPanRef, setDraggedNodeId } = args
+  const { draggedNodeIdRef, dragOverridesRef, screenDragOverridesRef, headerDragRef, overlayPanRef, setDraggedNodeId } = args
   React.useEffect(() => {
     const clearStaleOverlayDragState = () => {
       const header = headerDragRef.current
       if (header) {
         delete dragOverridesRef.current[header.id]
+        delete screenDragOverridesRef.current[header.id]
         headerDragRef.current = null
       }
       if (overlayPanRef.current) overlayPanRef.current = null
@@ -492,5 +752,5 @@ function useOverlayDragWatchdog(args: {
       window.clearInterval(watchdog)
       clearStaleOverlayDragState()
     }
-  }, [draggedNodeIdRef, dragOverridesRef, headerDragRef, overlayPanRef, setDraggedNodeId])
+  }, [draggedNodeIdRef, dragOverridesRef, headerDragRef, overlayPanRef, screenDragOverridesRef, setDraggedNodeId])
 }

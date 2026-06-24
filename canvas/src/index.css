@@ -116,8 +116,15 @@
   --kg-safe-left: env(safe-area-inset-left, 0px);
 
   --kg-touch-target: 44px;
-  --kg-motion-fast: 140ms;
-  --kg-motion-ease: ease;
+  --kg-motion-duration-fast: 140ms;
+  --kg-motion-duration-enter: 180ms;
+  --kg-motion-duration-emphasis: 260ms;
+  --kg-motion-stagger-step: 24ms;
+  --kg-motion-distance-sm: 8px;
+  --kg-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --kg-motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --kg-motion-fast: var(--kg-motion-duration-fast);
+  --kg-motion-ease: var(--kg-motion-ease-standard);
   --kg-transition-action: transform var(--kg-motion-fast) var(--kg-motion-ease), box-shadow var(--kg-motion-fast) var(--kg-motion-ease), background var(--kg-motion-fast) var(--kg-motion-ease);
   --kg-transition-group-shape: stroke-width var(--kg-motion-fast) var(--kg-motion-ease), fill-opacity var(--kg-motion-fast) var(--kg-motion-ease);
   --kg-transition-group-label: opacity var(--kg-motion-fast) var(--kg-motion-ease);
@@ -137,8 +144,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
+    --kg-motion-duration-fast: 0ms;
+    --kg-motion-duration-enter: 0ms;
+    --kg-motion-duration-emphasis: 0ms;
+    --kg-motion-stagger-step: 0ms;
+    --kg-motion-distance-sm: 0px;
     --kg-motion-fast: 0ms;
     --kg-motion-ease: linear;
+    --kg-motion-ease-standard: linear;
+    --kg-motion-ease-spring: linear;
   }
 }
 

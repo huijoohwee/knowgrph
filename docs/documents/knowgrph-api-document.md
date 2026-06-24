@@ -69,6 +69,15 @@ Responsive output contract:
 - Response: `Download_Result` with `ok`, `filePath`, `fileName`, `mimeType`, `sizeBytes`, `sourceUrl`, and optional browser-local `fileUrl`; errors return `ok: false`, `error`, and optional `errorCode`.
 - Server implementation: `canvas/vite.config.ts` owns the local `/__video_download` middleware and range-capable `/__video_download_file` asset route; `cloudflare/pages/video-download.mjs` owns the Pages endpoint source. The Dev/Preview route uses native in-repo `fetch`, bounded file writes, generic media-source discovery, and a native YouTube player resolver for direct audio/video URLs; it does not invoke yt-dlp or any external downloader. Sources that require unsupported native muxing/transcoding return sanitized errors without stack traces.
 
+### HTML video renderer runtime
+
+- Client owner: `canvas/src/features/html-video-renderer/*`.
+- Design bridge owner: `canvas/src/features/design/designAgentVideoSpec.ts` and `canvas/src/features/design/DesignEditorOverviewPanel.tsx`.
+- Purpose: turn source-owned HTML, CSS, seekable timing data, and structured render data into MP4 artifacts for coding-agent workflows and Design renderer previews.
+- Runtime contract: engine adapters are registered through `globalThis.knowgrphHtmlVideoEngines` and resolved by `createHtmlVideoEngineRegistryFromRuntimeConfig()`. Missing engines fail closed with structured `engine_not_configured` errors; there is no endpoint-level or client-level fallback engine.
+- Browser-native MP4 smoke: the shipped Dev runtime can register the FOSS `canvas-2d` adapter, which uses browser WebCodecs plus in-repo dependencies to mux MP4 without installing a system `ffmpeg` binary. The headless adapter remains operator-configured for environments that explicitly provide an FFmpeg runtime.
+- Artifact contract: `runHtmlVideoFlowNode` writes generated MP4 output through the shared rich-media artifact writer when workspace FS is available and can publish a `video/mp4` blob preview to the calling surface. Design-authored artifacts include composition metadata, virtual workspace files, composition rows, source-derived assets, timeline lanes, and per-layer `data-start`, `data-duration`, and `data-track-index` markers so runtime adapters can seek deterministic frames without a proprietary timeline file.
+
 ## Production note
 
 These middleware endpoints exist for local development and preview builds. Current production is split by concern:
@@ -375,6 +384,7 @@ Use the narrowest canonical owner:
 - Chat endpoint and provider normalization: `canvas/src/lib/chatEndpoint.ts`
 - MainPanel settings docs rows: `canvas/src/features/integrations/*Ssot.ts` or `canvas/src/features/panels/views/*ApiDocs.ts`
 - Local MCP tools: `mcp/local-tool-contract.js` plus the shared agent-ready contract imported by it
+- HTML video rendering: `canvas/src/features/html-video-renderer/*` validates Render_Spec input, resolves engines from runtime config, and delegates MP4 persistence to `canvas/src/features/chat/richMediaRun.ts`; the native `headless-browser` adapter captures seeked Playwright frames and invokes an operator-provided FFmpeg binary, with no hardcoded fallback engine
 - Production storage/payment routes: `cloudflare/workers/*`
 
 #### 2. Canonical credential names only

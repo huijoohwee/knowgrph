@@ -16,6 +16,11 @@ export type MermaidGanttTimelineTaskSpan = {
   startMinutes: number
 }
 
+export type MermaidGanttSourceRangeMinutes = {
+  endMinutes: number
+  startMinutes: number
+}
+
 export type MermaidGanttTimelineDragPreview = {
   durationMinutes: number
   rowKey: string
@@ -204,6 +209,61 @@ function isLegacyVideoSequenceLaneToken(token: string): boolean {
   return /^(?:video|image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed|splice)$/i.test(String(token || '').trim())
 }
 
+function isMermaidGanttSourceRangeToken(token: string): boolean {
+  return /^kgsrc_\d+(?:_\d+)?_\d+(?:_\d+)?$/i.test(String(token || '').trim())
+}
+
+function readMermaidGanttSourceRangeToken(token: string): MermaidGanttSourceRangeMinutes | null {
+  const match = /^kgsrc_(\d+(?:_\d+)?)_(\d+(?:_\d+)?)$/i.exec(String(token || '').trim())
+  if (!match) return null
+  const startMinutes = Number(match[1]?.replace(/_/g, '.'))
+  const endMinutes = Number(match[2]?.replace(/_/g, '.'))
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) return null
+  if (endMinutes <= startMinutes) return null
+  return { startMinutes, endMinutes }
+}
+
+function formatMermaidGanttSourceRangeToken(range: MermaidGanttSourceRangeMinutes): string {
+  const normalize = (value: number): string => String(Math.max(0, Number(value.toFixed(3)))).replace(/\./g, '_')
+  return `kgsrc_${normalize(range.startMinutes)}_${normalize(Math.max(range.startMinutes, range.endMinutes))}`
+}
+
+function readMermaidGanttLineSourceRange(line: string): MermaidGanttSourceRangeMinutes | null {
+  for (const token of readGanttTaskTokens(line)) {
+    const range = readMermaidGanttSourceRangeToken(token)
+    if (range) return range
+  }
+  return null
+}
+
+function upsertMermaidGanttSourceRangeToken(
+  metaTokens: readonly string[],
+  range: MermaidGanttSourceRangeMinutes,
+): string[] {
+  const next = metaTokens.map(token => String(token || '').trim()).filter(Boolean)
+  const token = formatMermaidGanttSourceRangeToken(range)
+  const existingIndex = next.findIndex(isMermaidGanttSourceRangeToken)
+  if (existingIndex >= 0) {
+    next[existingIndex] = token
+    return next
+  }
+  const stableIdIndex = next.findIndex(token =>
+    !isMermaidGanttStatusToken(token)
+    && !isMermaidGanttSourceRangeToken(token)
+    && !/^after\b/i.test(token)
+    && !/^until\b/i.test(token),
+  )
+  if (stableIdIndex >= 0) {
+    next.splice(stableIdIndex + 1, 0, token)
+    return next
+  }
+  return [token, ...next]
+}
+
+export function readMermaidGanttTaskSourceRangeMinutes(line: string): MermaidGanttSourceRangeMinutes | null {
+  return readMermaidGanttLineSourceRange(line)
+}
+
 function readGanttLineIndent(line: string): string {
   return line.match(/^(\s*)/)?.[1] || ''
 }
@@ -233,7 +293,12 @@ function appendGanttTaskIdSuffix(metaTokens: readonly string[], suffix: string):
   const next = metaTokens.map(token => String(token || '').trim()).filter(Boolean)
   const suffixPart = String(suffix || '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase()
   if (!suffixPart) return next
-  const taskIdIndex = next.findIndex(token => !isMermaidGanttStatusToken(token) && !/^after\b/i.test(token) && !/^until\b/i.test(token))
+  const taskIdIndex = next.findIndex(token =>
+    !isMermaidGanttStatusToken(token)
+    && !isMermaidGanttSourceRangeToken(token)
+    && !/^after\b/i.test(token)
+    && !/^until\b/i.test(token),
+  )
   if (taskIdIndex < 0) return next
   next[taskIdIndex] = `${next[taskIdIndex]}_${suffixPart}`
   return next
@@ -241,7 +306,24 @@ function appendGanttTaskIdSuffix(metaTokens: readonly string[], suffix: string):
 
 function readGanttTaskStableId(line: string): string {
   const tokens = readGanttTimingMetaTokens(readGanttTaskTokens(line))
-  return String(tokens.find(token => !isMermaidGanttStatusToken(token) && !/^after\b/i.test(token) && !/^until\b/i.test(token)) || '').trim()
+  return String(tokens.find(token =>
+    !isMermaidGanttStatusToken(token)
+    && !isMermaidGanttSourceRangeToken(token)
+    && !/^after\b/i.test(token)
+    && !/^until\b/i.test(token),
+  ) || '').trim()
+}
+
+function shouldWriteVideoSequenceSourceRange(args: {
+  code: string
+  line: string
+}): boolean {
+  if (String(args.code || '').split('\n').some(line => /^\s*title\s+Video Sequence\s*$/i.test(String(line || '').trim()))) return true
+  const label = readGanttTaskLabel(args.line)
+  const stableId = readGanttTaskStableId(args.line)
+  return /\.(?:mp4|mov|webm|m4v|mp3|wav|m4a|aac)\b/i.test(label)
+    || /^clip[_-]/i.test(stableId)
+    || readVideoSequenceOperationFromLine(args.line) !== ''
 }
 
 function normalizeVideoSequenceClipGroupId(value: string): string {
@@ -427,32 +509,65 @@ export function updateMermaidGanttCodeRowTiming(args: {
     : explicitStartMinutes
   const durationMinutes = readDurationMinutes(tokens[durationTokenIndex] || '')
   if (startMinutes == null || durationMinutes == null) return null
+  const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
+  const initialSourceRange = readMermaidGanttLineSourceRange(line) || {
+    endMinutes: (timelineSpan?.startMinutes ?? 0) + durationMinutes,
+    startMinutes: timelineSpan?.startMinutes ?? 0,
+  }
   let nextStartMinutes = startMinutes
   let nextDurationMinutes = durationMinutes
+  let nextSourceRange = initialSourceRange
   if (args.mode === 'move') {
     nextStartMinutes = startMinutes + deltaMinutes
   } else if (args.mode === 'resize-start') {
     nextStartMinutes = startMinutes + deltaMinutes
     nextDurationMinutes = durationMinutes - deltaMinutes
+    nextSourceRange = {
+      endMinutes: initialSourceRange.endMinutes,
+      startMinutes: initialSourceRange.startMinutes + deltaMinutes,
+    }
   } else {
     nextDurationMinutes = durationMinutes + deltaMinutes
+    nextSourceRange = {
+      endMinutes: initialSourceRange.endMinutes + deltaMinutes,
+      startMinutes: initialSourceRange.startMinutes,
+    }
   }
   if (nextDurationMinutes < 1) {
     const durationFloorDelta = nextDurationMinutes - 1
     nextDurationMinutes = 1
     if (args.mode === 'resize-start') nextStartMinutes += durationFloorDelta
   }
+  nextSourceRange = {
+    endMinutes: Math.max(nextSourceRange.startMinutes + nextDurationMinutes, nextSourceRange.endMinutes),
+    startMinutes: Math.max(0, nextSourceRange.startMinutes),
+  }
+  if (shouldWriteSourceRange) {
+    const nextMetaTokens = upsertMermaidGanttSourceRangeToken(
+      readGanttTimingMetaTokens(tokens),
+      {
+        endMinutes: Math.max(0, nextSourceRange.startMinutes) + nextDurationMinutes,
+        startMinutes: Math.max(0, nextSourceRange.startMinutes),
+      },
+    )
+    const nonTimingTokenCount = readGanttTimingMetaTokens(tokens).length
+    if (nonTimingTokenCount > 0) {
+      tokens.splice(0, nonTimingTokenCount, ...nextMetaTokens)
+    } else {
+      tokens.splice(0, 0, ...nextMetaTokens)
+    }
+  }
   if (timeTokenIndex >= 0) {
-    tokens[timeTokenIndex] = formatClockMinutes(nextStartMinutes)
+    const nextTimeTokenIndex = tokens.findIndex(token => readClockMinutes(token) != null)
+    tokens[nextTimeTokenIndex] = formatClockMinutes(nextStartMinutes)
   } else if (args.mode === 'resize-end') {
-    tokens[durationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
+    tokens[tokens.length - 1] = formatDurationMinutes(nextDurationMinutes)
     lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`
     return lines.join('\n')
   } else {
-    tokens.splice(durationTokenIndex, 0, formatClockMinutes(nextStartMinutes))
+    tokens.splice(tokens.length - 1, 0, formatClockMinutes(nextStartMinutes))
   }
-  const nextDurationTokenIndex = timeTokenIndex >= 0 ? durationTokenIndex : durationTokenIndex + 1
-  tokens[nextDurationTokenIndex] = formatDurationMinutes(nextDurationMinutes)
+  tokens[tokens.length - 1] = formatDurationMinutes(nextDurationMinutes)
   lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`
   return lines.join('\n')
 }
@@ -474,20 +589,35 @@ export function splitMermaidGanttCodeRowAtOffset(args: {
   const label = readGanttTaskLabel(line)
   const tokens = readGanttTaskTokens(line)
   const metaTokens = readGanttTimingMetaTokens(tokens)
+  const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
+  const sourceRange = readMermaidGanttLineSourceRange(line) || {
+    endMinutes: span.startMinutes + span.durationMinutes,
+    startMinutes: span.startMinutes,
+  }
   const indent = readGanttLineIndent(line)
   const firstLine = buildGanttTaskLine({
     absoluteStartMinutes,
     durationMinutes: splitOffsetMinutes,
     indent,
     label,
-    metaTokens,
+    metaTokens: shouldWriteSourceRange
+      ? upsertMermaidGanttSourceRangeToken(metaTokens, {
+        endMinutes: sourceRange.startMinutes + splitOffsetMinutes,
+        startMinutes: sourceRange.startMinutes,
+      })
+      : metaTokens,
   })
   const secondLine = buildGanttTaskLine({
     absoluteStartMinutes: absoluteStartMinutes + splitOffsetMinutes,
     durationMinutes: span.durationMinutes - splitOffsetMinutes,
     indent,
     label: `${label} splice`,
-    metaTokens: appendGanttTaskIdSuffix(metaTokens, 'splice'),
+    metaTokens: shouldWriteSourceRange
+      ? upsertMermaidGanttSourceRangeToken(appendGanttTaskIdSuffix(metaTokens, 'splice'), {
+        endMinutes: sourceRange.endMinutes,
+        startMinutes: sourceRange.startMinutes + splitOffsetMinutes,
+      })
+      : appendGanttTaskIdSuffix(metaTokens, 'splice'),
   })
   lines.splice(args.rowLineIndex, 1, firstLine, secondLine)
   return lines.join('\n')
@@ -506,27 +636,6 @@ export function splitMermaidGanttVideoSequenceClipGroupAtOffset(args: {
       code: nextCode,
       rowLineIndex: lineIndex,
       splitOffsetMinutes: args.splitOffsetMinutes,
-    })
-    if (updated) nextCode = updated
-  }
-  return nextCode === args.code ? null : nextCode
-}
-
-export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
-  code: string
-  rowLineIndex: number
-  mode: MermaidGanttBarDragMode
-  deltaMinutes: number
-}): string | null {
-  const groupLineIndexes = readVideoSequenceClipGroupLineIndexes(args)
-  if (groupLineIndexes.length <= 1) return updateMermaidGanttCodeRowTiming(args)
-  let nextCode = String(args.code || '')
-  for (const lineIndex of groupLineIndexes.slice().sort((a, b) => b - a)) {
-    const updated = updateMermaidGanttCodeRowTiming({
-      code: nextCode,
-      rowLineIndex: lineIndex,
-      mode: args.mode,
-      deltaMinutes: args.deltaMinutes,
     })
     if (updated) nextCode = updated
   }
@@ -557,13 +666,23 @@ export function insertMermaidGanttVideoSequenceOperationRow(args: {
   if (!span) return null
   const absoluteStartMinutes = readSpanAbsoluteStartMinutes({ code: args.code, line, span })
   if (absoluteStartMinutes == null) return null
+  const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
+  const sourceRange = readMermaidGanttLineSourceRange(line) || {
+    endMinutes: span.startMinutes + span.durationMinutes,
+    startMinutes: span.startMinutes,
+  }
   const label = `${readGanttTaskLabel(line)} ${args.operation}`
   const operationLine = buildGanttTaskLine({
     absoluteStartMinutes,
     durationMinutes: Math.max(1, span.durationMinutes),
     indent: readGanttLineIndent(line),
     label,
-    metaTokens: appendGanttTaskIdSuffix(readGanttTimingMetaTokens(readGanttTaskTokens(line)), args.operation),
+    metaTokens: shouldWriteSourceRange
+      ? upsertMermaidGanttSourceRangeToken(
+        appendGanttTaskIdSuffix(readGanttTimingMetaTokens(readGanttTaskTokens(line)), args.operation),
+        sourceRange,
+      )
+      : appendGanttTaskIdSuffix(readGanttTimingMetaTokens(readGanttTaskTokens(line)), args.operation),
   })
   lines.splice(args.rowLineIndex + 1, 0, operationLine)
   return lines.join('\n')

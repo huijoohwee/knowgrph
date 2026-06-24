@@ -4,8 +4,10 @@ import App from './App'
 import './index.css'
 import { installPwaRuntime } from '@/lib/pwa/runtime'
 import { installKnowgrphWebMcpRuntime } from '@/features/agent-ready/webMcpRuntime'
+import { installHtmlVideoBrowserRuntimeAdapters } from '@/features/html-video-renderer/htmlVideoBrowserRuntime'
 
 installKnowgrphWebMcpRuntime()
+installHtmlVideoBrowserRuntimeAdapters()
 
 if (import.meta.env.PROD) {
   installPwaRuntime()

@@ -16,7 +16,7 @@ import {
   isTableGraphCanvas2dRenderer,
   supportsCanvas2dMinimap,
 } from '@/lib/config.render'
-import { applyCanvasSurfaceModeSelection } from '@/lib/canvas/canvas3dMode'
+import { applyCanvasSurfaceModeSelection, type CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -180,60 +180,10 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
     return
   }
-  if (id === 'surface:2d') {
+  if (id.startsWith('surface:')) {
+    const mode = id.slice('surface:'.length) as CanvasSurfaceModeId
     applyCanvasSurfaceModeSelection({
-      mode: '2d',
-      geospatialEnabled,
-      onOpenGeospatialMode,
-      canvas2dRenderer,
-      documentSemanticMode,
-      frontmatterModeEnabled,
-      multiDimTableModeEnabled,
-      schema,
-      setCanvas2dRenderer,
-      setCanvasRenderMode,
-      setCanvas3dMode,
-      setSchema,
-    })
-    return
-  }
-  if (id === 'surface:voxel') {
-    applyCanvasSurfaceModeSelection({
-      mode: 'voxel',
-      geospatialEnabled,
-      onOpenGeospatialMode,
-      canvas2dRenderer,
-      documentSemanticMode,
-      frontmatterModeEnabled,
-      multiDimTableModeEnabled,
-      schema,
-      setCanvas2dRenderer,
-      setCanvasRenderMode,
-      setCanvas3dMode,
-      setSchema,
-    })
-    return
-  }
-  if (id === 'surface:3d') {
-    applyCanvasSurfaceModeSelection({
-      mode: '3d',
-      geospatialEnabled,
-      onOpenGeospatialMode,
-      canvas2dRenderer,
-      documentSemanticMode,
-      frontmatterModeEnabled,
-      multiDimTableModeEnabled,
-      schema,
-      setCanvas2dRenderer,
-      setCanvasRenderMode,
-      setCanvas3dMode,
-      setSchema,
-    })
-    return
-  }
-  if (id === 'surface:xr') {
-    applyCanvasSurfaceModeSelection({
-      mode: 'xr',
+      mode,
       geospatialEnabled,
       onOpenGeospatialMode,
       canvas2dRenderer,

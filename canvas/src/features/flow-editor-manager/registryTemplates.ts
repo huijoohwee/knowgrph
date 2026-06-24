@@ -21,6 +21,8 @@ import {
 } from '@/lib/chatEndpoint'
 import {
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
+  FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
+  FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
@@ -49,6 +51,7 @@ import {
 import { getGrabMapsDiscoveryWidgetLabel, isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'; import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/swarmPredictionWidget'
 import { buildShowrunnerRegistryDraft, FLOW_SHOWRUNNER_NODE_TYPE_ID } from '@/features/ai-showrunner/showrunnerFlowNode'
+import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'
 import {
   buildBytePlusTextGenerationFields,
   getBytePlusSharedTextApiDocRowByRowKey,
@@ -422,6 +425,7 @@ export function getWidgetRegistryEntryLabel(args: {
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
+  if (nodeTypeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return FLOW_HTML_VIDEO_RENDERER_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) return FLOW_STORYBOARD_ELEMENT_NODE_LABEL
   if (nodeTypeId === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return FLOW_SWARM_PREDICTION_NODE_LABEL; if (nodeTypeId === FLOW_SHOWRUNNER_NODE_TYPE_ID) return 'AI Showrunner'
@@ -615,6 +619,14 @@ export function buildCanonicalWidgetRegistryDraft(args: {
       ...buildWidgetDraftFromSmartFields({ nodeTypeId, mode: 'video' }),
       widgetTypeId: widgetTypeId || 'default',
       formId: formId || 'videoGeneration',
+    }
+  }
+  if (nodeTypeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) {
+    const draft = buildHtmlVideoRendererRegistryDraft()
+    return {
+      ...draft,
+      widgetTypeId: widgetTypeId || draft.widgetTypeId,
+      formId: formId || draft.formId,
     }
   }
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {

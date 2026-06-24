@@ -3,8 +3,15 @@ import { Blend, Film, Filter, Gauge, KeyRound, Layers, Palette, Scissors, Slider
 import {
   VIDEO_SEQUENCE_TIMELINE_LANES,
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
+  buildVideoSequenceTimelineCueSamples,
+  buildVideoSequenceTimelineFrameSamples,
+  buildVideoSequenceTimelineWaveformSamples,
+  formatVideoSequenceTimelineSecondsOffset,
   resolveVideoSequenceTimelineLane,
-  resolveVideoSequenceTimelineLaneIndex,
+  resolveVisibleVideoSequenceTimelineLanes,
+  type VideoSequenceTimelineLane,
+  type VideoSequenceTimelineLaneId,
+  type VideoSequenceTimelineScope,
   type VideoSequenceTimelineToolId,
 } from './videoSequenceTimeline'
 import type {
@@ -15,9 +22,10 @@ import type {
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import './VideoSequenceTimelineRuler.css'
 
-export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 18
+export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 36
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
-export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 32
+export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
+export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 28 + VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX
 
 const VIDEO_SEQUENCE_TOOL_ICONS: Record<VideoSequenceTimelineToolId, LucideIcon> = {
   adjustment: Blend,
@@ -32,14 +40,14 @@ const VIDEO_SEQUENCE_TOOL_ICONS: Record<VideoSequenceTimelineToolId, LucideIcon>
   transition: SlidersHorizontal,
 }
 
-export function buildVideoSequenceLaneSidebarStyle(): React.CSSProperties {
+export function buildVideoSequenceLaneSidebarStyle(lanes: readonly VideoSequenceTimelineLane[] = VIDEO_SEQUENCE_TIMELINE_LANES): React.CSSProperties {
   return {
-    gridTemplateRows: `repeat(${VIDEO_SEQUENCE_TIMELINE_LANES.length}, ${VIDEO_SEQUENCE_LANE_HEIGHT_PX}px)`,
+    gridTemplateRows: `repeat(${lanes.length}, ${VIDEO_SEQUENCE_LANE_HEIGHT_PX}px)`,
   }
 }
 
-export function resolveVideoSequenceRulerMinHeight(): number {
-  return VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX + (VIDEO_SEQUENCE_TIMELINE_LANES.length * VIDEO_SEQUENCE_LANE_HEIGHT_PX) + VIDEO_SEQUENCE_RULER_FOOTER_PX
+export function resolveVideoSequenceRulerMinHeight(laneCount = VIDEO_SEQUENCE_TIMELINE_LANES.length): number {
+  return VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX + (laneCount * VIDEO_SEQUENCE_LANE_HEIGHT_PX) + VIDEO_SEQUENCE_RULER_FOOTER_PX
 }
 
 export function TimelineVideoSequenceToolButton({
@@ -123,6 +131,7 @@ export function VideoSequenceTimelineRuler({
   maxMinutes,
   playheadPercent,
   selectedRowKey,
+  scopes = [],
   taskSpans,
   timelineZoom,
   onRulerPointerDown,
@@ -136,17 +145,20 @@ export function VideoSequenceTimelineRuler({
   maxMinutes: number
   playheadPercent: number
   selectedRowKey: string
+  scopes?: readonly VideoSequenceTimelineScope[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
 }) {
-  const minHeight = resolveVideoSequenceRulerMinHeight()
+  const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes(taskSpans), [taskSpans])
+  const visibleLaneIndexById = React.useMemo(() => new Map<VideoSequenceTimelineLaneId, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
+  const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   return (
     <section className="timeline-video-sequence-editor" aria-label="Video sequence editor" style={{ minHeight }}>
-      <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle()}>
-        {VIDEO_SEQUENCE_TIMELINE_LANES.map(lane => (
+      <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
+        {visibleLanes.map(lane => (
           <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-lane-label={lane.id}>
             {lane.label}
           </section>
@@ -155,7 +167,11 @@ export function VideoSequenceTimelineRuler({
       <section
         ref={contentRef}
         className="timeline-transport-ruler-content timeline-video-sequence-ruler-content"
-        style={{ width: `${timelineZoom * 100}%`, minHeight }}
+        style={{
+          width: `${timelineZoom * 100}%`,
+          minHeight,
+          '--kg-video-sequence-lane-count': visibleLanes.length,
+        } as React.CSSProperties}
         data-kg-gantt-timeline-ruler-content="1"
         data-kg-gantt-timeline-zoom={String(timelineZoom)}
         onPointerDown={onRulerPointerDown}
@@ -177,9 +193,30 @@ export function VideoSequenceTimelineRuler({
           const leftPercent = maxMinutes > 0 ? (startMinutes / maxMinutes) * 100 : 0
           const widthPercent = maxMinutes > 0 ? Math.max(2, (durationMinutes / maxMinutes) * 100) : 0
           const lane = resolveVideoSequenceTimelineLane(span)
-          const laneIndex = resolveVideoSequenceTimelineLaneIndex(lane)
+          const laneIndex = visibleLaneIndexById.get(lane) ?? 0
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
+          const showMediaCues = !verticalMarker && (lane === 'video' || lane === 'image' || lane === 'scene')
+          const cueSamples = showMediaCues
+            ? buildVideoSequenceTimelineCueSamples({
+                sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
+                seedText: `${span.label} ${span.raw}`,
+              })
+            : []
+          const frameSamples = showMediaCues
+            ? buildVideoSequenceTimelineFrameSamples({
+                sampleCount: Math.max(4, Math.round(durationMinutes * 1.6)),
+                seedText: `${span.label} ${span.raw}`,
+              })
+            : []
+          const waveformSamples = lane === 'audio' && !verticalMarker
+            ? buildVideoSequenceTimelineWaveformSamples({
+                sampleCount: Math.max(8, Math.round(durationMinutes * 3)),
+                seedText: `${span.label} ${span.raw}`,
+              })
+            : []
+          const clipStartLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes)
+          const clipEndLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes + durationMinutes)
           return (
             <article
               key={`span:${span.rowKey}`}
@@ -196,9 +233,53 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-lane={lane}
               title={span.label}
             >
+              {frameSamples.length ? (
+                <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">
+                  {frameSamples.map((sample, frameIndex) => (
+                    <span
+                      key={`frame:${span.rowKey}:${frameIndex}`}
+                      className="timeline-video-sequence-clip-frame"
+                      style={{
+                        '--kg-video-sequence-frame-focus': `${(sample + frameIndex * 13) % 100}%`,
+                        opacity: Math.max(0.52, sample / 100),
+                      } as React.CSSProperties}
+                    />
+                  ))}
+                </section>
+              ) : null}
+              {cueSamples.length ? (
+                <section className="timeline-video-sequence-clip-cues" aria-hidden="true" data-kg-video-sequence-clip-cues="1">
+                  {cueSamples.map((sample, cueIndex) => (
+                    <span
+                      key={`cue:${span.rowKey}:${cueIndex}`}
+                      className="timeline-video-sequence-clip-cue"
+                      style={{
+                        height: `${Math.max(5, sample / 9)}px`,
+                        opacity: Math.max(0.24, sample / 100),
+                      }}
+                    />
+                  ))}
+                </section>
+              ) : null}
+              {waveformSamples.length ? (
+                <section className="timeline-video-sequence-audio-waveform" aria-hidden="true" data-kg-video-sequence-audio-waveform="1">
+                  {waveformSamples.map((sample, sampleIndex) => (
+                    <span
+                      key={`waveform:${span.rowKey}:${sampleIndex}`}
+                      className="timeline-video-sequence-audio-waveform-bar"
+                      style={{ height: `${Math.max(4, sample / 4)}px` }}
+                    />
+                  ))}
+                </section>
+              ) : null}
               <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--start" aria-label={`Resize ${span.label} start`} data-kg-gantt-timeline-track-drag-mode="resize-start" onPointerDown={event => onTrackPointerStart(event, span, 'resize-start')} />
               <button type="button" className="timeline-transport-track-clip-move" aria-label={`Move ${span.label}`} data-kg-gantt-timeline-track-drag-mode="move" onClick={() => onSelectRowKey(span.rowKey)} onPointerDown={event => onTrackPointerStart(event, span, 'move')}>
                 <span className="timeline-transport-track-clip-label">{span.label}</span>
+                {!verticalMarker ? (
+                  <time className="timeline-video-sequence-clip-timecode" dateTime={`PT${Math.max(0, Math.round(durationMinutes))}S`}>
+                    {clipStartLabel}-{clipEndLabel}
+                  </time>
+                ) : null}
               </button>
               <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--end" aria-label={`Resize ${span.label} end`} data-kg-gantt-timeline-track-drag-mode="resize-end" onPointerDown={event => onTrackPointerStart(event, span, 'resize-end')} />
             </article>
@@ -208,6 +289,25 @@ export function VideoSequenceTimelineRuler({
           <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} aria-hidden={true} />
           <span>Grade</span>
         </section>
+        {scopes.length ? (
+          <section className="timeline-video-sequence-ruler-scope-strip" aria-label="Video sequence scopes" data-kg-video-sequence-ruler-scopes="1">
+            {scopes.map(scope => (
+              <section key={scope.id} className="timeline-video-sequence-ruler-scope" aria-label={`${scope.label} display`} title={scope.label} data-kg-video-sequence-scope={scope.id}>
+                <span className="sr-only">{scope.label}</span>
+                <section className="timeline-video-sequence-ruler-scope-bars" aria-label={`${scope.label} display`}>
+                  {scope.samples.map((sample, sampleIndex) => (
+                    <span
+                      key={`${scope.id}:${sampleIndex}`}
+                      className="timeline-video-sequence-ruler-scope-bar"
+                      style={{ '--kg-video-sequence-scope-bar': `${sample}%` } as React.CSSProperties}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </section>
+              </section>
+            ))}
+          </section>
+        ) : null}
       </section>
     </section>
   )

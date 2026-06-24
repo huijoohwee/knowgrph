@@ -19,11 +19,49 @@ export const normalizeMarkdownLocalProxyUrl = (href: string): string => {
   if (!raw) return ''
   try {
     const parsed = new URL(raw, 'https://knowgrph.local')
-    if (!localProxyPaths.has(parsed.pathname)) return raw
+    if (!localProxyPaths.has(parsed.pathname) && !parsed.pathname.startsWith('/__webpage_asset_path/')) return raw
     const proxied = parsed.searchParams.get('url')
     if (proxied) parsed.searchParams.set('url', decodeHtmlUrlEntities(proxied))
     return `${parsed.pathname}${parsed.search}${parsed.hash}`
   } catch {
     return raw
+  }
+}
+
+const decodeSafe = (value: string): string => {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+export const extractUpstreamUrlFromMarkdownLocalProxyUrl = (href: string): string => {
+  const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())
+  if (!raw) return ''
+  try {
+    const parsed = new URL(raw, 'https://knowgrph.local')
+    if (parsed.pathname.startsWith('/__webpage_asset_path/')) {
+      const encodedTarget = parsed.pathname.slice('/__webpage_asset_path/'.length)
+      const decodedPathTarget = decodeSafe(encodedTarget)
+      const decodedTarget = `${decodedPathTarget}${parsed.search || ''}${parsed.hash || ''}`
+      if (/^https?:\/\//i.test(decodedTarget)) return decodedTarget
+
+      const slash = encodedTarget.indexOf('/')
+      if (slash > 0) {
+        const origin = decodeSafe(encodedTarget.slice(0, slash))
+        const path = encodedTarget.slice(slash)
+        const target = `${origin}${path}${parsed.search || ''}${parsed.hash || ''}`
+        if (/^https?:\/\//i.test(target)) return target
+      }
+      return ''
+    }
+
+    const inner = parsed.searchParams.get('url') || ''
+    if (!inner) return ''
+    const decoded = decodeSafe(decodeHtmlUrlEntities(inner).trim())
+    return /^https?:\/\//i.test(decoded) ? decoded : ''
+  } catch {
+    return ''
   }
 }

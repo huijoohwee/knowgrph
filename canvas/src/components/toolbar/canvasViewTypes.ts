@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
+import type { CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 export type CanvasViewOptionId =
@@ -16,10 +17,7 @@ export type CanvasViewOptionId =
   | 'document:frontmatter'
   | 'document:multiDimTable'
   | 'surface:menu'
-  | 'surface:2d'
-  | 'surface:3d'
-  | 'surface:xr'
-  | 'surface:voxel'
+  | `surface:${CanvasSurfaceModeId}`
   | 'animation:menu'
   | 'animation:force'
   | 'animation:orbit'
@@ -37,7 +35,6 @@ export type CanvasViewOptionId =
   | 'control:gantt'
   | 'control:architecture'
   | 'control:eventModeling'
-  | 'view:geospatial'
 
 export type CanvasViewOption = {
   id: CanvasViewOptionId

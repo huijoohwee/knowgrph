@@ -290,6 +290,11 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   const posSig = `transform|${left}|${top}|${scale}`
   const sizeSig = `${display}|${z}|${w}|${h}`
 
+  if (display !== 'none') {
+    if (el.style.left !== '0px') el.style.left = '0px'
+    if (el.style.top !== '0px') el.style.top = '0px'
+  }
+
   const prevPosSig = BOX_POS_CACHE.get(el) || ''
   const prevSizeSig = BOX_SIZE_CACHE.get(el) || ''
   if (prevPosSig === posSig && prevSizeSig === sizeSig) return

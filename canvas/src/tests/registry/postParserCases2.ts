@@ -103,6 +103,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["markdown.workspace.webpageHtmlView.rendersIframe","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceWebpageHtmlViewRendersIframe"],
   ["markdown.workspace.webpageHtmlView.websiteImportArtifactHtml","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml"],
   ["markdown.workspace.webpageHtmlView.editorHtmlPaneVisible","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot"],
+  ["markdown.workspace.webpageHtmlView.markdownViewerRichMedia","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceWebpageMarkdownViewerRendersRichMedia"],
   ["markdown.workspace.webpageHtmlView.editorHtmlSwitchShowsViewer","@/__tests__/markdownWorkspaceWebpageHtmlViewSwitch.test","testMarkdownWorkspaceEditorHtmlViewSwitchShowsViewerPane"],
   ["markdown.workspace.importUrl.htmlPageSsotAndViewModes","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes"],
   ["markdown.workspace.editorTextOverride.works","@/__tests__/markdownWorkspaceWebpageHtmlView.test","testMarkdownWorkspaceEditorTextOverrideWorks"],

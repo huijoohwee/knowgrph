@@ -118,12 +118,19 @@ Canonical local tool inventory owner:
    - Typical use: health-check the runtime, search/resolve first-party browser API routes, list cached skills, login through a local browser session, run guarded cookie import, send feedback/verification, execute a resolved route with `dryRun=true` by default, or fall back to native browser capture/action operations such as `go`, `snap`, `click`, `fill`, `screenshot`, `text`, `markdown`, `sync`, and `close`
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
    - Browser target URLs are normalized before runtime calls; only `http` and `https` targets without embedded credentials are forwarded
-7. Memory layer tools
+7. `knowgrph.html_video.render`
+   - Accepts HTML, CSS, JSON data, duration, fps, width, height, and optional `engine_hint` for a local HTML-to-MP4 render request
+   - Resolves the active engine from `engine_hint` or `KNOWGRPH_HTML_VIDEO_ENGINE`; missing or unregistered engines return `engine_not_configured` without falling back to a hardcoded renderer
+   - Recommended no-install Dev/Prod smoke path: register/select `canvas-2d`; it uses browser WebCodecs plus Mediabunny to mux a real MP4 without a system FFmpeg binary
+   - The native `headless-browser` adapter is inspired by Hyperframes without copying it: Playwright captures seeked HTML frames and an operator-provided FFmpeg binary encodes MP4
+   - Runtime knobs: `KNOWGRPH_HTML_VIDEO_FFMPEG_BIN` (default `ffmpeg`), `KNOWGRPH_HTML_VIDEO_FFMPEG_VIDEO_CODEC` (default `mpeg4` to avoid forcing GPL codecs), and `KNOWGRPH_HTML_VIDEO_MAX_FRAMES` (safety bound)
+   - The browser Flow Editor path writes successful MP4 results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
+8. Memory layer tools
    - `knowgrph.memory.add` persists explicitly scoped memory text or messages through the provider-neutral memory harness
    - `knowgrph.memory.search` returns top-K scoped memory results for prompt augmentation
    - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
    - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
-8. `knowgrph.vdeoxpln.list`
+9. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.

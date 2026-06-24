@@ -19,6 +19,7 @@ import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getVoxelLabelTexture } from './voxelLabelTexture'
 import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
+import { isRichMediaPanelDisplayEnabled } from '@/lib/render/richMediaSsot'
 
 export function NodeMesh({
   node,
@@ -82,7 +83,11 @@ export function NodeMesh({
   const radius = baseRadius * scale
 
   const mediaSpec = getNodeMediaSpec(node)
-  const isMediaNode = !!renderMediaAsNodes && !!mediaSpec
+  const isMediaNode = isRichMediaPanelDisplayEnabled({
+    renderMediaAsNodes,
+    canvasRenderMode: '3d',
+    canvas3dMode: mode,
+  }) && !!mediaSpec
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaNodeOpacity * baseLayerOpacity))
 
   let displayColor = baseColor

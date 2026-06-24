@@ -91,6 +91,12 @@ export type RichMediaPanelProps = {
   onDoubleClickCapture?: React.MouseEventHandler<HTMLElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLElement>
   widgetToolbarActive?: boolean
+  headerPinned?: boolean
+  headerMinimized?: boolean
+  onHeaderValidate?: () => void
+  onHeaderTogglePinned?: (event: React.MouseEvent) => void
+  onHeaderPinnedPointerDown?: (event: React.PointerEvent) => void
+  onHeaderToggleMinimized?: () => void
   frameMode?: 'panel' | 'surface'
   resizeHandlePlacement?: 'root' | 'external'
   scrollOwner?: 'media' | 'panel'
@@ -238,6 +244,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const title = String(props.title || '').trim() || 'Media node'
   const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
   const showFlowEditorChrome = panelChrome === 'flowEditor'
+  const headerControlsActive = props.widgetToolbarActive !== false
   const frameMode = props.frameMode === 'surface' ? 'surface' : 'panel'
   const useSurfaceFrame = frameMode === 'surface' && !showFlowEditorChrome
   const resizeHandlePlacement = props.resizeHandlePlacement === 'external' ? 'external' : 'root'
@@ -962,12 +969,18 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const renderedSurface = showFlowEditorChrome ? (
     <>
       <FlowEditorPanelChromeHeader
-        active={false}
+        active={headerControlsActive}
         title={title}
+        minimized={props.headerMinimized === true}
         showFieldToggle={false}
         showPinToggle={true}
+        pinned={props.headerPinned === true}
         richMediaHeader={true}
         dragHandle={installHeaderDrag}
+        onValidate={props.onHeaderValidate}
+        onTogglePinned={props.onHeaderTogglePinned}
+        onPinnedPointerDown={props.onHeaderPinnedPointerDown}
+        onToggleMinimized={props.onHeaderToggleMinimized}
       />
       <section
         className="kg-mediaCardBody relative min-h-0 overflow-hidden"

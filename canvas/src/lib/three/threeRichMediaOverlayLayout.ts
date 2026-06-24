@@ -12,6 +12,16 @@ type LayoutCandidate = {
   dist: number
   sizeScale: number
   opacity: number
+  order: number
+}
+
+type OverlayPanelLayout = {
+  id: string
+  el: HTMLElement
+  rect: { left: number; top: number; w: number; h: number }
+  cssVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars']
+  opacity: number
+  stackScore: number
 }
 
 export type ThreeMediaOverlayLayoutScratch = {
@@ -41,17 +51,119 @@ const finiteNumberOrNull = (value: unknown): number | null => {
   return Number.isFinite(next) ? next : null
 }
 
+const rectsOverlap = (
+  a: { left: number; top: number; w: number; h: number },
+  b: { left: number; top: number; w: number; h: number },
+): boolean => (
+  a.left < b.left + b.w
+  && a.left + a.w > b.left
+  && a.top < b.top + b.h
+  && a.top + a.h > b.top
+)
+
+const computeOverlayStackScore = (args: {
+  candidate: LayoutCandidate
+  rect: { left: number; top: number; w: number; h: number }
+  selectedIds: Set<string>
+  dragOverrides: Record<string, [number, number, number]>
+  screenDragOverrides?: Record<string, { sx: number; sy: number }>
+  explicitZIndex?: number
+  viewportW: number
+  viewportH: number
+}): number => {
+  const viewportW = Math.max(1, args.viewportW)
+  const viewportH = Math.max(1, args.viewportH)
+  const cx = args.rect.left + args.rect.w / 2
+  const cy = args.rect.top + args.rect.h / 2
+  const screenX = Math.max(0, Math.min(1, cx / viewportW))
+  const screenY = Math.max(0, Math.min(1, cy / viewportH))
+  const selectedBoost = args.selectedIds.has(args.candidate.id) ? 1_000_000 : 0
+  const draggedBoost =
+    Object.prototype.hasOwnProperty.call(args.dragOverrides, args.candidate.id)
+    || Object.prototype.hasOwnProperty.call(args.screenDragOverrides || {}, args.candidate.id)
+      ? 2_000_000
+      : 0
+  const depthScore = Math.max(0, 10_000 - Math.min(10_000, args.candidate.dist))
+  const explicitZ = Number.isFinite(args.explicitZIndex)
+    ? Math.max(-10_000, Math.min(10_000, Number(args.explicitZIndex)))
+    : 0
+  return draggedBoost
+    + selectedBoost
+    + explicitZ * 10_000
+    + screenY * 1_000
+    + screenX
+    + depthScore / 1_000
+    + Math.max(0, 1_000 - args.candidate.order) / 1_000_000
+}
+
+const assignOverlayZIndexes = (layouts: OverlayPanelLayout[]): Map<string, number> => {
+  const ordered = [...layouts].sort((a, b) => {
+    if (a.stackScore !== b.stackScore) return a.stackScore - b.stackScore
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  })
+  const zById = new Map<string, number>()
+  const baseZ = 2000
+  for (let i = 0; i < ordered.length; i += 1) zById.set(ordered[i]!.id, baseZ + i)
+  for (let pass = 0; pass < ordered.length; pass += 1) {
+    let changed = false
+    for (let a = 0; a < layouts.length; a += 1) {
+      for (let b = a + 1; b < layouts.length; b += 1) {
+        const one = layouts[a]!
+        const two = layouts[b]!
+        if (!rectsOverlap(one.rect, two.rect)) continue
+        const front = one.stackScore >= two.stackScore ? one : two
+        const back = front === one ? two : one
+        const frontZ = zById.get(front.id) || baseZ
+        const backZ = zById.get(back.id) || baseZ
+        if (frontZ <= backZ) {
+          zById.set(front.id, backZ + 1)
+          changed = true
+        }
+      }
+    }
+    if (!changed) break
+  }
+  return zById
+}
+
+const resolveViewportAnchorSlot = (args: {
+  index: number
+  total: number
+  viewportW: number
+  viewportH: number
+  baseW: number
+  margin: number
+}): { sx: number; sy: number } => {
+  const total = Math.max(1, Math.floor(args.total))
+  const slotW = Math.max(1, args.baseW + args.margin * 2)
+  const cols = Math.max(1, Math.min(total, Math.floor(Math.max(1, args.viewportW - args.margin * 2) / slotW) || 1))
+  const rows = Math.max(1, Math.ceil(total / cols))
+  const col = Math.max(0, Math.min(cols - 1, args.index % cols))
+  const row = Math.max(0, Math.min(rows - 1, Math.floor(args.index / cols)))
+  const usableW = Math.max(1, args.viewportW - args.margin * 2)
+  const usableH = Math.max(1, args.viewportH - args.margin * 2)
+  return {
+    sx: args.margin + (usableW / cols) * (col + 0.5),
+    sy: args.margin + (usableH / rows) * (row + 0.5),
+  }
+}
+
 export function updateThreeMediaOverlayLayout(args: {
   camera: Camera | null
   gl: WebGLRenderer | null
   overlayNodesPool: ReadonlyArray<OverlayNodeLike>
   positions: Record<string, [number, number, number]>
   dragOverrides: Record<string, [number, number, number]>
+  screenDragOverrides?: Record<string, { sx: number; sy: number }>
   overlayEls: Map<string, HTMLElement>
   missFrames: Map<string, number>
   prevVisibleIds: Set<string>
   effectiveSchema: GraphSchema
   scratch: ThreeMediaOverlayLayoutScratch
+  getPanelSizeForId?: (id: string) => { w: number; h: number } | null
+  getPanelPinnedForId?: (id: string) => boolean
+  getPanelScreenAnchorForId?: (id: string) => { sx: number; sy: number } | null
+  getPanelZIndexForId?: (id: string) => number
   selectedNodeId?: unknown
   selectedNodeIds?: unknown
   mediaPanelDensity?: unknown
@@ -111,8 +223,39 @@ export function updateThreeMediaOverlayLayout(args: {
     }
   }
   candidates.length = 0
+  const projectedCandidateIds = new Set<string>()
+  const addViewportCandidate = (node: OverlayNodeLike, slotIndex: number, slotTotal: number, anchorOverride?: { sx: number; sy: number } | null) => {
+    if (projectedCandidateIds.has(node.id)) return
+    const anchor = anchorOverride && Number.isFinite(anchorOverride.sx) && Number.isFinite(anchorOverride.sy)
+      ? { sx: anchorOverride.sx, sy: anchorOverride.sy }
+      : resolveViewportAnchorSlot({
+          index: slotIndex,
+          total: slotTotal,
+          viewportW: w,
+          viewportH: h,
+          baseW,
+          margin,
+        })
+    candidates.push({
+      id: node.id,
+      sx: anchor.sx,
+      sy: anchor.sy,
+      dist: maxDistance + 1 + Math.max(0, slotIndex),
+      sizeScale: 1,
+      opacity: 1,
+      order: slotIndex,
+    })
+    projectedCandidateIds.add(node.id)
+  }
   for (let i = 0; i < args.overlayNodesPool.length; i += 1) {
     const node = args.overlayNodesPool[i]
+    const pinned = typeof args.getPanelPinnedForId === 'function' ? args.getPanelPinnedForId(node.id) : true
+    if (!pinned) {
+      const screenOverride = args.screenDragOverrides?.[node.id] || null
+      const screenAnchor = screenOverride || (typeof args.getPanelScreenAnchorForId === 'function' ? args.getPanelScreenAnchorForId(node.id) : null)
+      addViewportCandidate(node, i, args.overlayNodesPool.length, screenAnchor)
+      continue
+    }
     const pos3 = args.dragOverrides[node.id] || args.positions[node.id] || null
     if (!pos3) continue
     world.set(pos3[0], pos3[1], pos3[2])
@@ -190,10 +333,24 @@ export function updateThreeMediaOverlayLayout(args: {
         : 260
     const sizeScale = Math.max(0.001, Math.min(256, sizeFactor / Math.max(0.001, dist)))
     const opacity = labelDepthFadeEnabled ? Math.max(0.14, Math.min(1, 1 - Math.pow(dist / Math.max(1, maxDistance), 1.24))) : 1
-    candidates.push({ id: node.id, sx, sy, dist, sizeScale, opacity })
+    candidates.push({ id: node.id, sx, sy, dist, sizeScale, opacity, order: i })
+    projectedCandidateIds.add(node.id)
   }
 
-  candidates.sort((a, b) => a.dist - b.dist || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  if (candidates.length === 0) {
+    const total = Math.min(args.overlayNodesPool.length, maxCount)
+    for (let i = 0; i < args.overlayNodesPool.length && i < maxCount; i += 1) {
+      addViewportCandidate(args.overlayNodesPool[i]!, i, total)
+    }
+  } else {
+    const selectedMissingIds = [...selectedIds].filter(id => !projectedCandidateIds.has(id))
+    for (let i = 0; i < selectedMissingIds.length; i += 1) {
+      const node = args.overlayNodesPool.find(n => n.id === selectedMissingIds[i])
+      if (node) addViewportCandidate(node, candidates.length + i, candidates.length + selectedMissingIds.length)
+    }
+  }
+
+  candidates.sort((a, b) => a.dist - b.dist || a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const nextVisibleIds = new Set<string>()
   candidateById.clear()
   for (let i = 0; i < candidates.length; i += 1) candidateById.set(candidates[i]!.id, candidates[i]!)
@@ -220,6 +377,7 @@ export function updateThreeMediaOverlayLayout(args: {
     args.missFrames.delete(id)
     applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
   }
+  const panelLayouts: OverlayPanelLayout[] = []
   for (let i = 0; i < candidates.length; i += 1) {
     const c = candidates[i]!
     if (!nextVisibleIds.has(c.id)) continue
@@ -227,6 +385,7 @@ export function updateThreeMediaOverlayLayout(args: {
     const el = args.overlayEls.get(c.id)
     if (!el) continue
     applyEagerMediaLoading(el)
+    const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(c.id) : null
     const MAX_PANEL_PX = 2048
     const STEP_PX = 16
     const maxW = Math.max(2, Math.min(MAX_PANEL_PX, Math.floor(w - margin * 2)))
@@ -235,6 +394,16 @@ export function updateThreeMediaOverlayLayout(args: {
     let sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
     let computed = computeMediaPanelCssVars3d({ density, sizeScale })
     let panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
+    if (overrideSize && Number.isFinite(overrideSize.w) && Number.isFinite(overrideSize.h) && overrideSize.w > 1 && overrideSize.h > 1) {
+      panel = {
+        panelW: Math.max(2, Math.min(maxW, Math.round(overrideSize.w))),
+        panelH: Math.max(2, Math.min(maxH, Math.round(overrideSize.h))),
+        contentW,
+        contentH: Math.max(2, (contentW * 9) / 16),
+      }
+      sizeScale = Math.max(0.001, panel.panelW / Math.max(1, baseW))
+      computed = computeMediaPanelCssVars3d({ density, sizeScale })
+    }
     if (panel.panelW > maxW || panel.panelH > maxH) {
       const ratio = Math.min(maxW / panel.panelW, maxH / panel.panelH)
       contentW = Math.min(MAX_PANEL_PX, Math.max(2, Math.round((contentW * ratio) / STEP_PX) * STEP_PX))
@@ -242,18 +411,39 @@ export function updateThreeMediaOverlayLayout(args: {
       computed = computeMediaPanelCssVars3d({ density, sizeScale })
       panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
     }
-    const rect = computePanelRect({ cx: c.sx, cy: c.sy, w: panel.panelW, h: panel.panelH })
-    applyMediaPanelCssVars(el, computed.vars)
-    applyPanelBox(el, {
-      left: Math.round(rect.left * 10) / 10,
-      top: Math.round(rect.top * 10) / 10,
-      w: panel.panelW,
-      h: panel.panelH,
-      zIndex: 2000 - Math.max(0, Math.min(1500, Math.floor(c.dist))),
+    const rect = computePanelRect({ cx: c.sx, cy: c.sy, w: panel.panelW, h: panel.panelH, clamp: { viewportW: w, viewportH: h, margin } })
+    panelLayouts.push({
+      id: c.id,
+      el,
+      rect,
+      cssVars: computed.vars,
+      opacity: 1,
+      stackScore: computeOverlayStackScore({
+        candidate: c,
+        rect,
+        selectedIds,
+        dragOverrides: args.dragOverrides,
+        screenDragOverrides: args.screenDragOverrides,
+        explicitZIndex: typeof args.getPanelZIndexForId === 'function' ? args.getPanelZIndexForId(c.id) : 0,
+        viewportW: w,
+        viewportH: h,
+      }),
+    })
+  }
+  const zById = assignOverlayZIndexes(panelLayouts)
+  for (let i = 0; i < panelLayouts.length; i += 1) {
+    const layout = panelLayouts[i]!
+    applyMediaPanelCssVars(layout.el, layout.cssVars)
+    applyPanelBox(layout.el, {
+      left: Math.round(layout.rect.left * 10) / 10,
+      top: Math.round(layout.rect.top * 10) / 10,
+      w: layout.rect.w,
+      h: layout.rect.h,
+      zIndex: zById.get(layout.id) || 2000,
       display: 'block',
     })
     try {
-      el.style.opacity = String(c.opacity)
+      layout.el.style.opacity = String(layout.opacity)
     } catch {
       void 0
     }

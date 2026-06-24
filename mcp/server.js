@@ -33,6 +33,7 @@ import { KNOWGRPH_MCP_APP_RESOURCE_URI, buildKnowgrphMcpAppsCapabilities, buildK
 
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
 const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
+const KNOWGRPH_HTML_VIDEO_ENGINE = "KNOWGRPH_HTML_VIDEO_ENGINE";
 
 const KNOWGRPH_ROOT = resolveRootDir();
 const PYTHON_BIN = process.env.KNOWGRPH_PYTHON?.trim() || "python3";
@@ -128,6 +129,34 @@ function truncate(text) {
   const tail = text.slice(text.length - Math.floor(MAX_OUTPUT_CHARS * 0.3));
   return `${head}\n\n…(truncated ${text.length - MAX_OUTPUT_CHARS} chars)…\n\n${tail}`;
 }
+
+const buildHtmlVideoMcpFailure = (code, message, engineId = "") => ({
+  ok: false,
+  render_job_id: "",
+  output_path: null,
+  output_manifest_path: null,
+  ...(engineId ? { engine_id: engineId } : {}),
+  error: { code, message },
+});
+
+const validateHtmlVideoMcpArgs = (args) => {
+  const html = typeof args.html === "string" ? args.html.trim() : "";
+  if (!html) return "html must be a non-empty string";
+  const ranges = [
+    ["duration_ms", 1, 3600000],
+    ["fps", 1, 120],
+    ["width", 1, 7680],
+    ["height", 1, 4320],
+  ];
+  for (const [field, min, max] of ranges) {
+    const value = args[field];
+    if (!Number.isInteger(value) || value < min || value > max) {
+      return `${field} must be an integer between ${min} and ${max}`;
+    }
+  }
+  if (typeof args.engine_hint === "string" && args.engine_hint.length > 255) return "engine_hint must be at most 255 characters";
+  return "";
+};
 
 function buildCanvasUrl({ host, port, target }) {
   const base = `http://${host}:${port}/`;
@@ -515,6 +544,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun) {
       return await callBrowserApiRuntime(args, { maxOutputChars: MAX_OUTPUT_CHARS });
+    }
+
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender) {
+      const validationError = validateHtmlVideoMcpArgs(args);
+      if (validationError) return jsonToolResult(buildHtmlVideoMcpFailure("invalid_spec", validationError), true);
+      const engineId = typeof args.engine_hint === "string" && args.engine_hint.trim()
+        ? args.engine_hint.trim()
+        : String(process.env[KNOWGRPH_HTML_VIDEO_ENGINE] || "").trim();
+      if (!engineId) {
+        return jsonToolResult(buildHtmlVideoMcpFailure("engine_not_configured", "KNOWGRPH_HTML_VIDEO_ENGINE is not configured."), true);
+      }
+      return jsonToolResult(buildHtmlVideoMcpFailure("engine_not_configured", `No local stdio adapter is registered for ${engineId}.`, engineId), true);
     }
 
     if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args));

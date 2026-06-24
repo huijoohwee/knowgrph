@@ -3,6 +3,7 @@ import { FileVideo, Images } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { useCommandMenuRichMediaInventory, type CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
+import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT,
@@ -28,6 +29,7 @@ import {
 } from '@/components/timeline/timelineTransport'
 import {
   buildVideoSequenceExportPlan,
+  buildVideoSequencePreviewSyncPlan,
   resolveVideoSequenceExportPositionSourceTime,
   resolveVideoSequenceExportSourceTimePosition,
   type VideoSequenceExportPlan,
@@ -118,6 +120,10 @@ function MediaCanvasSyncedPanel({
 }) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const playbackFallbackRef = React.useRef(false)
+  const panelState = React.useMemo(
+    () => item.panel || buildStaticRichMediaPanelOverlayState({ renderKind: item.kind }),
+    [item.kind, item.panel],
+  )
   const syncEnabled = item.source === 'video-sequence' && item.kind === 'video' && sequenceMaxMinutes > 0
   const syncSource = item.videoSequenceSource || null
   const {
@@ -304,10 +310,11 @@ function MediaCanvasSyncedPanel({
   return (
     <article
       ref={rootRef}
-      className="min-h-[18rem] overflow-hidden rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)]"
+      className="min-h-[18rem] overflow-hidden"
       data-kg-media-canvas-item="1"
       data-kg-media-canvas-kind={item.kind}
       data-kg-media-canvas-source={item.source}
+      data-kg-media-canvas-rich-media-panel="1"
       data-kg-video-sequence-media-sync={syncEnabled ? '1' : undefined}
     >
       <RichMediaPanel
@@ -318,9 +325,9 @@ function MediaCanvasSyncedPanel({
         kind={item.kind}
         interactive
         videoControls={syncEnabled ? false : undefined}
-        frameMode="surface"
+        panelChrome="flowEditor"
         scrollOwner="media"
-        panel={item.panel}
+        panel={panelState}
         style={{ height: '100%', minHeight: '18rem' }}
       />
     </article>
@@ -329,10 +336,11 @@ function MediaCanvasSyncedPanel({
 
 export default function MediaCanvas() {
   const { items } = useCommandMenuRichMediaInventory()
-  const { markdownDocumentName, markdownText } = useGraphStore(
+  const { markdownDocumentName, markdownText, selectedGanttRowKey } = useGraphStore(
     useShallow(s => ({
       markdownDocumentName: s.markdownDocumentName || '',
       markdownText: s.markdownDocumentText || '',
+      selectedGanttRowKey: s.mermaidDiagramSelectedRowKeyByKind.gantt || '',
     })),
   )
   const documentKey = clean(markdownDocumentName)
@@ -355,6 +363,15 @@ export default function MediaCanvas() {
       sources: videoSequenceModel?.sources || [],
     }),
     [markdownDocumentName, videoSequenceGanttCode, videoSequenceModel?.sources],
+  )
+  const videoSequencePreviewSyncPlan = React.useMemo(
+    () => buildVideoSequencePreviewSyncPlan({
+      code: videoSequenceGanttCode,
+      filenameHint: markdownDocumentName,
+      selectedRowKey: selectedGanttRowKey,
+      sources: videoSequenceModel?.sources || [],
+    }),
+    [markdownDocumentName, selectedGanttRowKey, videoSequenceGanttCode, videoSequenceModel?.sources],
   )
   const videoSequenceItems = React.useMemo<MediaCanvasItem[]>(() => {
     if (!videoSequenceModel?.sources.length) return []
@@ -408,7 +425,7 @@ export default function MediaCanvas() {
             <MediaCanvasSyncedPanel
               key={item.key}
               documentKey={documentKey}
-              exportPlan={videoSequenceExportPlan}
+              exportPlan={videoSequencePreviewSyncPlan || videoSequenceExportPlan}
               item={item}
               sequenceMaxMinutes={sequenceMaxMinutes}
             />

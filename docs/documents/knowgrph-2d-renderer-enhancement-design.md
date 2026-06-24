@@ -47,6 +47,7 @@
 - Frame layout is snapshot-driven: when a `webpageLayout` graph is available, Design uses DOM-derived coordinates and dimensions as the SSOT; when no snapshot is ready yet, Design shows a single placeholder frame (loading/error/idle) instead of a legacy non-webpage frame grid.
 - Shares collective fit/center, zoom view keys, snap-to-grid, lasso, and align/distribute semantics with D3 and Flow, plus renderer-neutral shortcuts for align/distribute and keyboard nudging.
 - Wireframe presentation is driven by schema metadata (`renderer:designWireframe`) and rendered via a Floating Panel "Design wireframe" section: controls include label/meta chips, text/media previews, depth fade, optional edges, and label-collision avoidance. These knobs are schema-only; the UI is a thin shell and remains host/URL-agnostic.
+- Agent-native video export is owned by `canvas/src/features/design/designAgentVideoSpec.ts` and the existing HTML-video renderer. Design derives semantic HTML, CSS, seekable timing attributes, virtual workspace files, composition rows, source-derived assets, timeline lanes, and data from the active graph, selected layer ids, and shared design-token summaries, then routes the generated renderer flow node through `runHtmlVideoFlowNode` with `createHtmlVideoEngineRegistryFromRuntimeConfig()`. Actual MP4 generation still requires a registered runtime adapter such as the browser-native `canvas-2d` adapter; there is no hardcoded fallback engine or upstream design-tool runtime dependency.
 
 ### Media (2D Rich Media + Video Sequence)
 
@@ -133,4 +134,5 @@
 - No upstream design-tool repository URL literals exist in the repository.
 - 2D render variants share the same display-graph derivation and fit/zoom initialization contract.
 - Switching 2D variants preserves mental map: no chaotic clustering or excessive void-space regressions.
+- Design video export builds from source graph/tokens and reuses the HTML-video renderer runtime registry; focused `design.editor.agentVideo.*` tests guard semantic HTML, deterministic motion CSS, seekable timeline data attributes, MP4 preview state, and no copied design-engine/fallback path.
 - Bounded validation: focused renderer/parser tests and `npm run typecheck` pass; full `npm run test:ci` remains a release-level gate.

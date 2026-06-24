@@ -99,14 +99,20 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     if (!g) return null
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
   }, [glbAsset, renderGraph])
-  const hasGraph = !!(sceneGraph && Array.isArray(sceneGraph.nodes) && Array.isArray(sceneGraph.edges))
+  const sceneGraphForRender = useMemo<GraphData | null>(() => {
+    if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) return null
+    return Array.isArray(sceneGraph.edges)
+      ? sceneGraph
+      : { ...sceneGraph, edges: [] }
+  }, [sceneGraph])
+  const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset
   const hasRenderableScene = hasGraph || hasGlbAsset
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
-    hasGraph ? (sceneGraph as GraphData).nodes : [],
+    hasGraph ? sceneGraphForRender!.nodes : [],
     hasGraph ? (effectiveSchema as GraphSchema) : null,
-    hasGraph ? (sceneGraph as GraphData) : null,
+    hasGraph ? sceneGraphForRender : null,
     mode,
   )
   const positionsRef = React.useRef<Record<string, [number, number, number]>>({})
@@ -236,7 +242,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
 
   const { dragOverridesRef, overlayHiddenNodeIdSet, overlayLayer, requestSchedule, scheduleRef } = useThreeRichMediaOverlayController({
     active,
-    sceneGraph,
+    sceneGraph: sceneGraphForRender,
     effectiveSchema,
     positions: positions3d,
     glCanvasRef,
@@ -304,7 +310,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         <React.Suspense fallback={null}>
           {hasGraph ? (
             <SceneLazy
-              data={sceneGraph as GraphData}
+              data={sceneGraphForRender as GraphData}
               schema={effectiveSchema as GraphSchema}
               positions={positions}
               paused={paused}
@@ -354,8 +360,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
-        nodes={(sceneGraph as GraphData | null)?.nodes as GraphNode[] | undefined}
-        edges={(sceneGraph as GraphData | null)?.edges as GraphEdge[] | undefined}
+        nodes={sceneGraphForRender?.nodes as GraphNode[] | undefined}
+        edges={sceneGraphForRender?.edges as GraphEdge[] | undefined}
         schema={effectiveSchema as GraphSchema | null}
         tooltipInteractive
       />

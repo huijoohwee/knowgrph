@@ -16,6 +16,8 @@ export function testOpenPencilDesignPrdTadUsesImplementedDesignOwners(): void {
     'canvas/src/components/DesignCanvas/useFrameDragController.ts',
     'canvas/src/components/DesignCanvas/useResizeMarqueeController.ts',
     'canvas/src/features/design/DesignFloatingPanelView.tsx',
+    'canvas/src/features/design/DesignAgentVideoPanel.tsx',
+    'canvas/src/features/design/designAgentVideoSpec.ts',
     'canvas/src/features/design/DesignLayersPanel.tsx',
     'canvas/src/features/design/DesignInspectorPanel.tsx',
     'canvas/src/features/design/DesignTokensPanel.tsx',
@@ -30,7 +32,8 @@ export function testOpenPencilDesignPrdTadUsesImplementedDesignOwners(): void {
     'MainPanel Design tab | Shipped',
     'Shipped | `canvas/src/features/panels/mainPanelTabs.ts`; `canvas/src/features/panels/MainPanel.tsx`; `canvas/src/features/panels/views/DesignEditorMainPanelView.tsx`',
     'Editor chrome | Shipped | `canvas/src/components/DesignCanvas/DesignCanvasEditorChrome.tsx`',
-    'Layers, inspector, tokens, DOM tree, DOM inspect panels | Shipped | `canvas/src/features/design/DesignFloatingPanelView.tsx`',
+    'Layers, Style, tokens, DOM tree, DOM inspect panels | Shipped | `canvas/src/features/design/DesignFloatingPanelView.tsx`',
+    'Agent-native HTML video render | Shipped | `canvas/src/features/design/designAgentVideoSpec.ts`; `canvas/src/features/design/DesignAgentVideoPanel.tsx`',
     'Design-only history | Shipped | `canvas/src/hooks/store/designHistorySlice.ts`; `canvas/src/hooks/store/store-types/graph-state-design-history.ts`',
     "buildScopedGraphSemanticKey('design-token-summary'",
     'Any future collaborative Design operations must add source owners and tests before this document can mark them implemented.',
@@ -59,6 +62,8 @@ export function testOpenPencilDesignPrdTadUsesImplementedDesignOwners(): void {
     'DesignInspectorPanel',
     'DesignTokensPanel',
     "buildScopedGraphSemanticKey('design-token-summary'",
+    "buildScopedGraphSemanticKey('design-agent-video'",
+    'createHtmlVideoEngineRegistryFromRuntimeConfig()',
   ]
   for (const token of requiredOwnerTokens) {
     if (!owners.includes(token)) {

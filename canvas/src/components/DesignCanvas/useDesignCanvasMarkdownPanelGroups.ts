@@ -181,6 +181,8 @@ export function useDesignCanvasMarkdownPanelGroups(args: UseDesignCanvasMarkdown
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     return listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'design',
       nodes,
       poolMax,
     })

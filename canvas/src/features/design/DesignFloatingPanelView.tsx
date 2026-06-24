@@ -1,5 +1,5 @@
 import React from 'react'
-import { FileCode, Hand, Layers, ListTree, Maximize2, MonitorPlay, MousePointer, Palette, Redo, Ruler, Undo } from 'lucide-react'
+import { FileCode, Film, Hand, Layers, ListTree, Maximize2, MonitorPlay, MousePointer, Palette, Redo, Ruler, Undo } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -19,12 +19,13 @@ import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelec
 
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
+import { DesignAgentVideoPanel } from '@/features/design/DesignAgentVideoPanel'
 import { DesignEditorOverviewPanel } from '@/features/design/DesignEditorOverviewPanel'
 import DesignInspectorPanel from '@/features/design/DesignInspectorPanel'
 import DesignLayersPanel from '@/features/design/DesignLayersPanel'
 import DesignTokensPanel from '@/features/design/DesignTokensPanel'
 
-type DesignFloatingPanelTab = 'overview' | 'layers' | 'inspector' | 'tokens' | 'domTree' | 'domInspect'
+type DesignFloatingPanelTab = 'overview' | 'layers' | 'inspector' | 'tokens' | 'domTree' | 'domInspect' | 'video'
 
 export function DesignFloatingPanelView({ active }: { active: boolean }) {
   const panelTypography = usePanelTypography()
@@ -63,10 +64,11 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
       [
         { id: 'overview' as const, title: 'Overview', icon: MonitorPlay },
         { id: 'layers' as const, title: 'Layers', icon: Layers },
-        { id: 'inspector' as const, title: 'Inspector', icon: Ruler },
+        { id: 'inspector' as const, title: 'Style', icon: Ruler },
         { id: 'tokens' as const, title: 'Tokens', icon: Palette },
         { id: 'domTree' as const, title: 'DOM Tree', icon: ListTree },
         { id: 'domInspect' as const, title: 'DOM Inspect', icon: FileCode },
+        { id: 'video' as const, title: 'Video', icon: Film },
       ] satisfies Array<{ id: DesignFloatingPanelTab; title: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>,
     [],
   )
@@ -75,7 +77,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
     <section className="h-full flex flex-col" aria-label="Design panel">
       <header className={cn(uiToolbarRowScrollClassName, 'justify-between gap-2 w-full select-none', UI_THEME_TOKENS.panel.divider)}>
         <section className="flex min-w-0 items-center gap-2 px-1 py-1">
-          <section className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Design</section>
+          <section className={cn('text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>2D Renderer: Design</section>
           {lastLabel ? <section className={cn('min-w-0 truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{lastLabel}</section> : null}
         </section>
         <nav className={`${uiToolbarRowScrollClassName} gap-1`} aria-label="Design panel controls">
@@ -196,6 +198,33 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
           menuWidthClass={UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME}
         />
       </header>
+      <nav className={cn(uiToolbarRowScrollClassName, 'mt-1 gap-1 px-1')} aria-label="Design workspace sections">
+        {tabs.map(item => {
+          const Icon = item.icon
+          const activeTab = tab === item.id
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={cn(
+                'App-toolbar__btn',
+                UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+                'gap-1',
+                activeTab ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg,
+                activeTab ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.button.text,
+                panelTypography.microLabelClass,
+              )}
+              onClick={() => setTab(item.id)}
+              aria-current={activeTab ? 'page' : undefined}
+              aria-label={`Open ${item.title}`}
+              title={item.title}
+            >
+              <Icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+              <span className="hidden sm:inline">{item.title}</span>
+            </button>
+          )
+        })}
+      </nav>
       <section className={cn(UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, 'mt-1', panelTypography.panelTextClass)}>
         {tab === 'overview' && (
           <DesignEditorOverviewPanel
@@ -203,6 +232,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
             onOpenLayers={() => setTab('layers')}
             onOpenInspector={() => setTab('inspector')}
             onOpenTokens={() => setTab('tokens')}
+            onOpenVideo={() => setTab('video')}
           />
         )}
         {tab === 'layers' && <DesignLayersPanel active={active} />}
@@ -210,6 +240,7 @@ export function DesignFloatingPanelView({ active }: { active: boolean }) {
         {tab === 'tokens' && <DesignTokensPanel active={active} />}
         {tab === 'domTree' && <DesignDomTreePanel active={active} />}
         {tab === 'domInspect' && <DesignDomInspectPanel active={active} />}
+        {tab === 'video' && <section className="px-1 pb-2"><DesignAgentVideoPanel active={active} /></section>}
       </section>
     </section>
   )

@@ -12,6 +12,7 @@ import type { UiIconScale } from '@/lib/ui'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { runKnowgrphMotion } from '@/lib/motion/knowgrphMotion'
 
 import {
   resolveFlowEditorWidgetSurfacePointerPolicy,
@@ -162,6 +163,17 @@ export function NodeOverlayEditorView(args: {
     : null
   const safeToolbarInlineShiftPx = Number.isFinite(toolbarInlineShiftPx) ? toolbarInlineShiftPx : 0
   const safeToolbarMaxWidthPx = Number.isFinite(toolbarMaxWidthPx) && toolbarMaxWidthPx > 0 ? toolbarMaxWidthPx : undefined
+  const toolbarMotionRef = React.useRef<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    if (!active || !toolbarVisible) return
+    const controller = new AbortController()
+    runKnowgrphMotion(toolbarMotionRef.current, 'overlay-toolbar-enter', {
+      signal: controller.signal,
+    })
+    return () => controller.abort()
+  }, [active, toolbarVisible])
+
   return (
     <aside
       ref={asideRef}
@@ -221,6 +233,7 @@ export function NodeOverlayEditorView(args: {
     >
       <section className="relative">
         <section
+          ref={toolbarMotionRef}
           className={
             isRichMediaPanelWidget
               ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`

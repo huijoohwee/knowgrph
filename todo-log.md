@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-23
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| HTML video renderer | Make coding-agent HTML-to-MP4 jobs runtime-selectable without adding deploy artifacts | Keep Render_Spec validation, engine resolution, Flow node, MCP descriptor, and MP4 manifests source-owned in Dev. | `knowgrph/{canvas/src/features/html-video-renderer,canvas/src/features/chat/richMediaRun.ts,canvas/src/lib/config.flow-editor.ts,mcp/local-tool-contract.js,mcp/server.js}` | HTML Video Renderer pipeline | `validateRenderSpec`, `resolveHtmlVideoEngine`, `runHtmlVideoRenderJob`, `runHtmlVideoFlowNode`, `buildKnowgrphLocalMcpToolDefinitions` | HTML, CSS, data JSON, duration, fps, dimensions, engine hint or `KNOWGRPH_HTML_VIDEO_ENGINE` | Structured errors, render job semantic key, video/mp4 artifact metadata, vdeoxpln route, Flow widget registry entry | Engines are caller/runtime registered; no hardcoded fallback renderer exists, and artifacts flow through the shared rich-media writer once. | Register a real FOSS adapter module next, then smoke an actual MP4 write in Dev before any Prod/Cloudflare release. | 2026-06-23 |
+
 ## 2026-06-22
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

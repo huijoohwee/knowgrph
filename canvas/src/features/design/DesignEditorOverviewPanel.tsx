@@ -1,5 +1,5 @@
 import React from 'react'
-import { Hand, Layers, Maximize2, MousePointer, Palette, Redo, Ruler, Undo } from 'lucide-react'
+import { Film, Hand, Layers, Maximize2, MousePointer, Palette, Redo, Ruler, Undo } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
@@ -13,6 +13,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
+import { DesignAgentVideoPanel } from '@/features/design/DesignAgentVideoPanel'
 import { summarizeDesignTokens } from '@/features/design/designTokenSummary'
 
 export const DESIGN_EDITOR_OVERVIEW_METRIC_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4'
@@ -22,6 +23,7 @@ export function DesignEditorOverviewPanel(props: {
   onOpenLayers?: () => void
   onOpenInspector?: () => void
   onOpenTokens?: () => void
+  onOpenVideo?: () => void
 }) {
   const panelTypography = usePanelTypography()
   const graphData = useActiveGraphData()
@@ -211,6 +213,8 @@ export function DesignEditorOverviewPanel(props: {
         </dl>
       </section>
 
+      <DesignAgentVideoPanel active={props.active} />
+
       <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="Design inspection shortcuts">
         <nav className={cn(uiToolbarRowScrollClassName, 'gap-1')}>
           <button
@@ -230,6 +234,15 @@ export function DesignEditorOverviewPanel(props: {
           >
             <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
             <span>Layers</span>
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={props.onOpenVideo}
+            disabled={!props.onOpenVideo}
+          >
+            <Film className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+            <span>Video</span>
           </button>
         </nav>
       </section>

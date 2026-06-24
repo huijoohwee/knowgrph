@@ -86,6 +86,13 @@ export function FlowEditorPanelChromeHeader(props: {
     width: 'max(8px, calc(var(--kg-media-panel-header-h, 28px) * 0.46))',
     height: 'max(8px, calc(var(--kg-media-panel-header-h, 28px) * 0.46))',
   } : undefined
+  const stopHeaderControlPointerDown = React.useCallback((event: React.PointerEvent) => {
+    try {
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+  }, [])
 
   return (
     <header
@@ -127,6 +134,7 @@ export function FlowEditorPanelChromeHeader(props: {
             tooltipContent={UI_LABELS.flowWidgetValidate}
             showTooltip
             disabled={!active}
+            onPointerDown={stopHeaderControlPointerDown}
             onClick={onValidate}
             className="App-toolbar__btn"
             style={richMediaActionStyle}
@@ -140,6 +148,7 @@ export function FlowEditorPanelChromeHeader(props: {
               tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
               showTooltip
               disabled={!active}
+              onPointerDown={stopHeaderControlPointerDown}
               onClick={onToggleHideFields}
               className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
               style={richMediaActionStyle}
@@ -157,6 +166,7 @@ export function FlowEditorPanelChromeHeader(props: {
             tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
             showTooltip
             disabled={!active}
+            onPointerDown={stopHeaderControlPointerDown}
             onClick={onToggleMinimized}
             className="App-toolbar__btn"
             style={richMediaActionStyle}

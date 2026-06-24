@@ -119,6 +119,12 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   if (!toolbarModeSelectText.includes('getCanvasSurfaceModeDisabledCopy') || !canvasViewMenuText.includes('getCanvasSurfaceModeDisabledCopy')) {
     throw new Error('Expected both 3D mode selector and Canvas View Surface Mode menu to reuse shared surface-mode disabled copy')
   }
+  if (!toolbarModeSelectText.includes('listCanvasSurfaceModeSpecs') || !canvasViewMenuText.includes('listCanvasSurfaceModeSpecs')) {
+    throw new Error('Expected both 3D mode selector and Canvas View Surface Mode menu to reuse shared surface-mode specs')
+  }
+  if (canvasViewMenuText.includes('view:geospatial')) {
+    throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
+  }
   if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || toolbarModeSelectText.includes("setCanvas3dMode('3d')")) {
     throw new Error('Expected UI surfaces to avoid local direct 3D-mode setter sequences outside the shared owner')
   }
@@ -294,6 +300,9 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   }
   if (!threeGraph.includes('const hasRenderableScene = hasGraph || hasGlbAsset')) {
     throw new Error('Expected ThreeGraph to keep the canvas mounted for model asset documents without graph nodes')
+  }
+  if (!threeGraph.includes('const sceneGraphForRender = useMemo<GraphData | null>(() => {') || !threeGraph.includes(': { ...sceneGraph, edges: [] }')) {
+    throw new Error('Expected ThreeGraph to mount node-only media graphs in 3D/XR/Voxel mode by normalizing missing edges')
   }
   if (!threeGraph.includes('<GlbAssetModel')) {
     throw new Error('Expected XR/3D canvas to render active model asset documents with the shared model component')
@@ -645,6 +654,12 @@ export function testCanvasViewMenuKeepsMobileFirstGroupedOrder() {
   }
   for (const option of options) {
     if (!option.children?.length) throw new Error(`Expected ${option.title} to expand into child controls`)
+  }
+  const surfaceMode = options.find(option => option.id === 'surface:menu')
+  const surfaceChildIds = surfaceMode?.children?.map(child => child.id).join('|')
+  const expectedSurfaceChildIds = 'surface:2d|surface:3d|surface:xr|surface:voxel|surface:geospatial'
+  if (surfaceChildIds !== expectedSurfaceChildIds) {
+    throw new Error(`Expected Surface Mode to own ${expectedSurfaceChildIds}, got ${String(surfaceChildIds)}`)
   }
 }
 

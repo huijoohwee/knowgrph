@@ -345,6 +345,113 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
   }
 }
 
+export async function testMarkdownWorkspaceWebpageMarkdownViewerRendersRichMedia() {
+  const { dom, restore } = initJsdomHarness()
+  const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    state.setRichMediaPanelMode('embed')
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = (async (input: unknown) => {
+      throw new Error(`expected webpage Markdown rich media rendering not to fetch webpage HTML, got ${String(input || '')}`)
+    }) as unknown
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
+    const presentationApiRef = { current: null as MarkdownPresentationApi | null }
+    const imageUrl = 'https://assets.example.test/image/content/abc123'
+    const videoUrl = 'https://assets.example.test/media/clip.mp4'
+    const audioUrl = 'https://assets.example.test/media/sound.mp3'
+    const text = [
+      '---',
+      `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`,
+      'kgWebpageView: "markdown"',
+      '---',
+      '',
+      `![](${imageUrl})`,
+      '',
+      `![](${videoUrl})`,
+      '',
+      `![](${audioUrl})`,
+      '',
+    ].join('\n')
+
+    root.render(
+      React.createElement(MarkdownWorkspaceMain, {
+        themeMode: 'light',
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        explorerOpen: true,
+        setExplorerOpen: () => {},
+        layoutMode: 'viewer',
+        setLayoutMode: () => {},
+        markdownWordWrap: true,
+        setMarkdownWordWrap: () => {},
+        markdownTextHighlight: false,
+        setMarkdownTextHighlight: () => {},
+        onToggleFullscreen: () => {},
+        presentationApiRef,
+        isMarkdown: true,
+        activeText: text,
+        setActiveText: () => {},
+        activeDocumentKey: '/webpage-rich-media.md',
+        highlightedLineRange: null,
+        revealLineInEditor: () => {},
+        showInViewer: () => {},
+        showInPresentation: () => {},
+        showInGallery: () => {},
+        editorUri: 'inmemory://webpage-rich-media.md',
+        editorLanguage: 'markdown',
+        editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+    for (let i = 0; i < 8; i += 1) await tick()
+
+    if (container.querySelector('[data-kg-card-inline-media-pill="1"]')) {
+      throw new Error(`expected webpage Markdown Viewer to render full rich media, not chips; html=${container.innerHTML}`)
+    }
+    const decodeAttr = (value: string): string => {
+      try {
+        return decodeURIComponent(value)
+      } catch {
+        return value
+      }
+    }
+    const img = container.querySelector('img[data-kg-card-media-kind="image"]') as HTMLImageElement | null
+    if (!img || !decodeAttr(String(img.getAttribute('src') || '')).includes('/image/content/abc123')) {
+      throw new Error(`expected no-extension image-path URL to render as full image, html=${container.innerHTML}`)
+    }
+    const video = container.querySelector('video[data-kg-card-media-kind="video"]') as HTMLVideoElement | null
+    if (!video || !decodeAttr(String(video.getAttribute('src') || '')).includes('/media/clip.mp4')) {
+      throw new Error(`expected video URL to render as full video, html=${container.innerHTML}`)
+    }
+    const audio = container.querySelector('audio') as HTMLAudioElement | null
+    if (!audio || !decodeAttr(String(audio.getAttribute('src') || '')).includes('/media/sound.mp3')) {
+      throw new Error(`expected audio URL to render as full audio, html=${container.innerHTML}`)
+    }
+  } finally {
+    root?.unmount()
+    state.setRichMediaPanelMode(prevMode)
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
   resetWorkspaceUrlContentCacheForTests()
   const importUrl = `${BYTEPLUS_TEST_URL}?import-e2e=1`

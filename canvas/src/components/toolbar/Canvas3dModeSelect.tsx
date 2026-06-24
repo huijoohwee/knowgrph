@@ -4,9 +4,11 @@ import { Box, Columns2, Cuboid, Glasses } from 'lucide-react'
 import type { Canvas3dModeId } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  CANVAS_GRAPH_SURFACE_MODE_IDS,
   applyCanvasSurfaceModeSelection,
   getCanvasSurfaceModeDisabledCopy,
-  type CanvasSurfaceModeId,
+  listCanvasSurfaceModeSpecs,
+  type CanvasGraphSurfaceModeId,
 } from '@/lib/canvas/canvas3dMode'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
@@ -20,7 +22,7 @@ type Canvas3dModeSelectProps = {
 }
 
 type ThreeModeOption = {
-  id: CanvasSurfaceModeId
+  id: CanvasGraphSurfaceModeId
   title: string
   label: string
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
@@ -73,16 +75,17 @@ export function Canvas3dModeSelect({
   )
   const options = React.useMemo(
     () => {
-      const specs = [
-        { id: '2d', title: '2D Mode', label: '2D', Icon: Columns2 },
-        { id: '3d', title: '3D Mode', label: '3D', Icon: Box },
-        { id: 'xr', title: 'XR Mode', label: 'XR', Icon: Glasses },
-        { id: 'voxel', title: 'Voxel Mode', label: 'Voxel', Icon: Cuboid },
-      ] satisfies Array<Omit<ThreeModeOption, 'disabled' | 'disabledReason' | 'enableHint'>>
-      return specs.map(spec => {
+      const iconByMode: Record<CanvasGraphSurfaceModeId, ThreeModeOption['Icon']> = {
+        '2d': Columns2,
+        '3d': Box,
+        xr: Glasses,
+        voxel: Cuboid,
+      }
+      return listCanvasSurfaceModeSpecs(CANVAS_GRAPH_SURFACE_MODE_IDS).map(spec => {
         const disabledCopy = getCanvasSurfaceModeDisabledCopy(surfaceModeArgs, spec.id)
         return {
           ...spec,
+          Icon: iconByMode[spec.id],
           disabled: !!disabledCopy,
           disabledReason: disabledCopy?.reason,
           enableHint: disabledCopy?.hint,

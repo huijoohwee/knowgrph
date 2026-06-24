@@ -77,11 +77,15 @@ export function FloatingPropsPanel() {
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
   const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
   const setMediaPanelDensity = useGraphStore(s => s.setMediaPanelDensity)
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
   const richMediaDisplayMode = readRichMediaDisplayMode({
     renderMediaAsNodes,
+    canvasRenderMode,
+    canvas3dMode,
     canvas2dRenderer,
     frontmatterModeEnabled,
     documentSemanticMode,

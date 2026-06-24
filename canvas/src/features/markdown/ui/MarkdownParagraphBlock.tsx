@@ -37,7 +37,7 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
-import { normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
+import { extractUpstreamUrlFromMarkdownLocalProxyUrl, normalizeMarkdownLocalProxyUrl } from '@/lib/markdown-core/ui/mediaProxyUrl'
 const extractLinkText = (token: Token): string => {
   const p = token as unknown as TokensParagraph
   const inner = Array.isArray(p.tokens) ? p.tokens : []
@@ -215,31 +215,7 @@ const tryExtractProxiedInnerUrl = (href: string): string => {
   const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())
   if (!raw) return ''
   if (!raw.startsWith('/__webpage_asset_proxy') && !raw.startsWith('/__webpage_asset_path') && !raw.startsWith('/__fetch_remote')) return ''
-  try {
-    const base =
-      typeof window !== 'undefined' && window.location?.origin
-        ? window.location.origin
-        : 'https://example.invalid'
-    const u = new URL(raw, base)
-    if (u.pathname.startsWith('/__webpage_asset_path/')) {
-      const rest = u.pathname.slice('/__webpage_asset_path/'.length)
-      const slash = rest.indexOf('/')
-      if (slash > 0) return `${decodeURIComponent(rest.slice(0, slash))}${rest.slice(slash)}${u.search || ''}`
-    }
-    const inner = u.searchParams.get('url') || ''
-    if (!inner) return ''
-    const normalizedInner = inner
-      .replace(/&amp;/g, '&')
-      .replace(/&#38;/g, '&')
-      .replace(/&#x26;/gi, '&')
-    try {
-      return decodeURIComponent(normalizedInner)
-    } catch {
-      return normalizedInner
-    }
-  } catch {
-    return ''
-  }
+  return extractUpstreamUrlFromMarkdownLocalProxyUrl(raw)
 }
 const looksLikeImageHref = (href: string): boolean => {
   const raw = normalizeMarkdownLocalProxyUrl(String(href || '').trim())

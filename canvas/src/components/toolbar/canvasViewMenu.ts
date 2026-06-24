@@ -22,7 +22,13 @@ import {
   readCanvasGridDisplayControlActive,
   readSnapGridDisplayControlActive,
 } from '@/lib/canvas/canvasGridDisplayControls'
-import { getCanvasSurfaceModeDisabledCopy, type CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
+import {
+  getCanvasSurfaceModeDisabledCopy,
+  getCanvasSurfaceModeSpec,
+  listCanvasSurfaceModeSpecs,
+  type CanvasSurfaceModeId,
+} from '@/lib/canvas/canvas3dMode'
+import { isRichMediaPanelDisplayEnabled } from '@/lib/render/richMediaSsot'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
   if (
@@ -73,6 +79,14 @@ const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   flowEditor: UI_COPY.canvasViewRendererFlowEditorTitle,
 }
 
+const CANVAS_VIEW_SURFACE_MODE_ICON: Record<CanvasSurfaceModeId, CanvasViewOption['Icon']> = {
+  '2d': Columns2,
+  '3d': Box,
+  xr: Glasses,
+  voxel: Cuboid,
+  geospatial: Map,
+}
+
 export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] =>
   CANVAS_2D_RENDERER_ORDER.map(id => ({
     id,
@@ -107,10 +121,27 @@ export const buildCanvasViewOptions = (
     schema: state.schema,
   }
   const getSurfaceModeDisabledCopy = (mode: CanvasSurfaceModeId) => getCanvasSurfaceModeDisabledCopy(surfaceModeArgs, mode)
-  const surfaceMode2dDisabledCopy = getSurfaceModeDisabledCopy('2d')
-  const surfaceMode3dDisabledCopy = getSurfaceModeDisabledCopy('3d')
-  const surfaceModeXrDisabledCopy = getSurfaceModeDisabledCopy('xr')
-  const surfaceModeVoxelDisabledCopy = getSurfaceModeDisabledCopy('voxel')
+  const surfaceModeChildren = listCanvasSurfaceModeSpecs().map(spec => {
+    const disabledCopy = spec.id === 'geospatial' ? null : getSurfaceModeDisabledCopy(spec.id)
+    return {
+      id: `surface:${spec.id}` as const,
+      title: spec.title,
+      label: spec.label,
+      Icon: CANVAS_VIEW_SURFACE_MODE_ICON[spec.id],
+      disabled: !!disabledCopy,
+      disabledReason: disabledCopy?.reason,
+      enableHint: disabledCopy?.hint,
+    } satisfies CanvasViewOption
+  })
+  const richMediaDisplayEnabled = isRichMediaPanelDisplayEnabled({
+    renderMediaAsNodes: state.renderMediaAsNodes,
+    canvasRenderMode: state.canvasRenderMode,
+    canvas3dMode: state.canvas3dMode,
+    canvas2dRenderer: state.canvas2dRenderer,
+    frontmatterModeEnabled: state.frontmatterModeEnabled,
+    documentSemanticMode: state.documentSemanticMode,
+    geospatialEnabled: state.geospatialEnabled,
+  })
   const nodeShapeMode = state.schema.behavior?.nodeShapeMode
   const nodeShapeIcon =
     nodeShapeMode === 'rect'
@@ -265,50 +296,7 @@ export const buildCanvasViewOptions = (
       label: 'Surface',
       Icon: Box,
       dividerBefore: true,
-      children: [
-        {
-          id: 'surface:2d',
-          title: '2D Mode',
-          label: '2D',
-          Icon: Columns2,
-          disabled: !!surfaceMode2dDisabledCopy,
-          disabledReason: surfaceMode2dDisabledCopy?.reason,
-          enableHint: surfaceMode2dDisabledCopy?.hint,
-        },
-        {
-          id: 'surface:3d',
-          title: '3D Mode',
-          label: '3D',
-          Icon: Box,
-          disabled: !!surfaceMode3dDisabledCopy,
-          disabledReason: surfaceMode3dDisabledCopy?.reason,
-          enableHint: surfaceMode3dDisabledCopy?.hint,
-        },
-        {
-          id: 'surface:xr',
-          title: 'XR Mode',
-          label: 'XR',
-          Icon: Glasses,
-          disabled: !!surfaceModeXrDisabledCopy,
-          disabledReason: surfaceModeXrDisabledCopy?.reason,
-          enableHint: surfaceModeXrDisabledCopy?.hint,
-        },
-        {
-          id: 'surface:voxel',
-          title: 'Voxel Mode',
-          label: 'Voxel',
-          Icon: Cuboid,
-          disabled: !!surfaceModeVoxelDisabledCopy,
-          disabledReason: surfaceModeVoxelDisabledCopy?.reason,
-          enableHint: surfaceModeVoxelDisabledCopy?.hint,
-        },
-        {
-          id: 'view:geospatial',
-          title: UI_COPY.geospatialModeOnTitle,
-          label: 'Geo',
-          Icon: Map,
-        },
-      ],
+      children: surfaceModeChildren,
     },
     {
       id: 'animation:menu',
@@ -349,9 +337,7 @@ export const buildCanvasViewOptions = (
           title: UI_LABELS.renderMediaAsNodes,
           label: 'Media',
           Icon: ImageIcon,
-          isActive: state.renderMediaAsNodes,
-          disabled: state.geospatialEnabled,
-          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+          isActive: richMediaDisplayEnabled,
         },
         {
           id: 'control:nodeShape',
@@ -469,11 +455,13 @@ export const getCanvasViewTriggerState = (
   state: CanvasViewModelState,
   rendererOptions: CanvasViewRendererOption[],
 ): { id: CanvasViewOptionId; title: string; label: string } => {
-  if (state.geospatialEnabled) return { id: 'view:geospatial', title: UI_COPY.geospatialModeOnTitle, label: 'Geo' }
+  if (state.geospatialEnabled) {
+    const spec = getCanvasSurfaceModeSpec('geospatial')
+    return { id: 'surface:geospatial', title: spec.title, label: spec.label }
+  }
   if (state.canvasRenderMode === '3d') {
-    if (state.canvas3dMode === 'voxel') return { id: 'surface:voxel', title: 'Voxel Mode', label: 'Voxel' }
-    if (state.canvas3dMode === 'xr') return { id: 'surface:xr', title: 'XR Mode', label: 'XR' }
-    return { id: 'surface:3d', title: '3D Mode', label: '3D' }
+    const spec = getCanvasSurfaceModeSpec(state.canvas3dMode === 'voxel' ? 'voxel' : state.canvas3dMode === 'xr' ? 'xr' : '3d')
+    return { id: `surface:${spec.id}` as CanvasViewOptionId, title: spec.title, label: spec.label }
   }
   const activeRenderer = rendererOptions.find(o => o.id === state.canvas2dRenderer) || rendererOptions[0]
   return {

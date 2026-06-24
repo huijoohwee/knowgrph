@@ -21,6 +21,8 @@ import {
   isRichMediaPanelNode,
   resolvePreferredRichMediaPanelNodeId,
 } from '@/lib/render/richMediaPanelNode'
+import type { CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
+import { normalizeCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 export { buildRichMediaPanelOverlayState, buildStaticRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 export type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 export { getRichMediaPanelNodeLabel, isRichMediaPanelNode, resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaPanelNode'
@@ -71,6 +73,10 @@ export type RichMediaPanelAspectSelection = '16:9' | '9:16'
 
 export type RichMediaPanelDisplayArgs = {
   renderMediaAsNodes: unknown
+  canvasRenderMode?: unknown
+  canvas3dMode?: unknown
+  canvasSurfaceMode?: unknown
+  geospatialEnabled?: unknown
   canvas2dRenderer?: unknown
   frontmatterModeEnabled?: unknown
   documentSemanticMode?: unknown
@@ -83,9 +89,20 @@ function normalizeRichMediaPanelDisplayArgs(args: unknown): RichMediaPanelDispla
   return { renderMediaAsNodes: args }
 }
 
+export function resolveRichMediaSurfaceMode(args: unknown): CanvasSurfaceModeId {
+  const normalized = normalizeRichMediaPanelDisplayArgs(args)
+  const requestedSurface = String(normalized.canvasSurfaceMode || '').trim().toLowerCase()
+  if (requestedSurface === 'geospatial' || normalized.geospatialEnabled === true) return 'geospatial'
+  const renderMode = String(normalized.canvasRenderMode || '').trim().toLowerCase()
+  if (renderMode === '3d') return normalizeCanvas3dMode(normalized.canvas3dMode)
+  return '2d'
+}
+
 export function isRichMediaPanelDisplayEnabled(args: unknown): boolean {
   const normalized = normalizeRichMediaPanelDisplayArgs(args)
   if (normalized.renderMediaAsNodes === true) return true
+  const surfaceMode = resolveRichMediaSurfaceMode(normalized)
+  if (surfaceMode !== '2d') return false
   return isFlowEditorFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(normalized.canvas2dRenderer || ''),
     frontmatterModeEnabled: normalized.frontmatterModeEnabled === true,
@@ -423,6 +440,10 @@ export function resolveRichMediaPanelInteractive(args: {
   nodeInteractive: unknown
   renderMediaAsNodes: unknown
   infiniteCanvasInteractionMode: unknown
+  canvasRenderMode?: unknown
+  canvas3dMode?: unknown
+  canvasSurfaceMode?: unknown
+  geospatialEnabled?: unknown
   canvas2dRenderer?: unknown
   frontmatterModeEnabled?: unknown
   documentSemanticMode?: unknown
@@ -434,6 +455,10 @@ export function resolveRichMediaPanelInteractive(args: {
 
 export function listDisplayRichMediaOverlayNodes(args: {
   renderMediaAsNodes: unknown
+  canvasRenderMode?: unknown
+  canvas3dMode?: unknown
+  canvasSurfaceMode?: unknown
+  geospatialEnabled?: unknown
   canvas2dRenderer?: unknown
   frontmatterModeEnabled?: unknown
   documentSemanticMode?: unknown

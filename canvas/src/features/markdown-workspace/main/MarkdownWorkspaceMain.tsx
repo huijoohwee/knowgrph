@@ -160,7 +160,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     return deriveWebsiteImportFrontmatterMetaFromBlock(frontmatterBlock)
   }, [frontmatterBlock])
 
-  const showWebpageHtml = shouldRenderWebpageIframe(webpageMeta)
+  const webpageViewRequestsIframe = shouldRenderWebpageIframe(webpageMeta)
   const hasJsonSourcePreviewText = typeof jsonSourceText === 'string' && jsonSourceText.trim().length > 0
   const documentPanePreset = React.useMemo(
     () => resolveMarkdownWorkspaceDocumentPanePreset(activeDocumentKey),
@@ -275,7 +275,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const jsonPaneVisible = paneVisibility.json
   const markdownPaneVisible = paneVisibility.markdown
   const viewerPaneVisible = paneVisibility.viewer
-  const htmlPaneVisible = paneVisibility.html && showWebpageHtml
+  const htmlPaneVisible = paneVisibility.html && !!webpageMeta?.url
+  const showWebpageHtml = webpageViewRequestsIframe || htmlPaneVisible
   const binaryPaneVisible = paneAvailability.bin && (layoutMode === 'editor' || layoutMode === 'split')
   const { pendingGltfJsonKey, pendingGltfJson } = usePendingGltfJson({ activeDocumentKey, jsonPaneVisible, modelAsset })
   const activeJsonSourceKey = React.useMemo(
@@ -857,6 +858,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       markdownWordWrap={markdownWordWrap}
       markdownPresentationMode={false}
       markdownTextHighlight={markdownTextHighlight}
+      markdownViewerMediaMode={webpageMeta?.url ? 'image' : undefined}
       selectionKind={null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}

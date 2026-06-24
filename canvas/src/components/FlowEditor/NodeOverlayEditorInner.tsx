@@ -25,6 +25,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { runKnowgrphMotion } from '@/lib/motion/knowgrphMotion'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -276,6 +277,25 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
       return false
     })
   }, [active, autoRevealKey])
+
+  useIsomorphicLayoutEffect(() => {
+    if (!active) return
+    const controller = new AbortController()
+    runKnowgrphMotion(placement.asideRef.current, 'flow-widget-enter', {
+      index: stackIndex,
+      signal: controller.signal,
+    })
+    return () => controller.abort()
+  }, [active, graphMetaKey, nodeId, placement.asideRef, stackIndex])
+
+  React.useEffect(() => {
+    if (!active || !autoRevealKey) return
+    const controller = new AbortController()
+    runKnowgrphMotion(placement.asideRef.current, 'flow-widget-emphasis', {
+      signal: controller.signal,
+    })
+    return () => controller.abort()
+  }, [active, autoRevealKey, placement.asideRef])
 
   React.useEffect(() => {
     if (!toolbarVisible) return

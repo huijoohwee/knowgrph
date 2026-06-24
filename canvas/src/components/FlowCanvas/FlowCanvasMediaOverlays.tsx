@@ -770,6 +770,7 @@ export default function FlowCanvasMediaOverlays(args: {
               nodeInteractive: node.interactive,
               renderMediaAsNodes,
               infiniteCanvasInteractionMode,
+              canvasRenderMode: '2d',
               canvas2dRenderer,
               frontmatterModeEnabled,
               documentSemanticMode,

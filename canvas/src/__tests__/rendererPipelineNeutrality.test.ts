@@ -85,10 +85,13 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (
     !mediaCanvasText.includes('useCommandMenuRichMediaInventory') ||
     !mediaCanvasText.includes('<RichMediaPanel') ||
+    !mediaCanvasText.includes('buildStaticRichMediaPanelOverlayState') ||
+    !mediaCanvasText.includes('panelChrome="flowEditor"') ||
+    !mediaCanvasText.includes('data-kg-media-canvas-rich-media-panel="1"') ||
     !mediaCanvasText.includes('data-kg-media-canvas="1"') ||
     !mediaCanvasText.includes('readVideoSequenceTimelineModelFromMarkdown')
   ) {
-    throw new Error('expected Media renderer to reuse shared rich-media inventory, RichMediaPanel, and video-sequence source model')
+    throw new Error('expected Media renderer to reuse shared rich-media inventory, RichMediaPanel state/chrome, and video-sequence source model')
   }
   if (
     !mediaCanvasText.includes('shouldIncludeRichMediaInventoryItemOnMediaCanvas') ||

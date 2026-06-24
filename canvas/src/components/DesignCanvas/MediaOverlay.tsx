@@ -174,6 +174,7 @@ export function DesignCanvasMediaOverlay(props: {
             nodeInteractive: node.interactive,
             renderMediaAsNodes,
             infiniteCanvasInteractionMode,
+            canvasRenderMode: '2d',
             canvas2dRenderer: 'design',
           })}
           hideUntilReady={true}

@@ -629,6 +629,7 @@ export function useFlowEditorOverlaySurface(args: {
     const overlayEditorNodeIdSet = new Set(overlayEditorNodeIdsSnapshot)
     const overlays = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes: false,
+      canvasRenderMode: '2d',
       canvas2dRenderer: 'flowEditor',
       frontmatterModeEnabled: true,
       documentSemanticMode: 'document',

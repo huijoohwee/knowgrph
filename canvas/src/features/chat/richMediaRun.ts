@@ -2,6 +2,7 @@ import { getObjectPath } from '@/lib/data/objectPath'
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
+  FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -128,6 +129,7 @@ export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): 
   const typeId = cleanString(node.type)
   if (typeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
   if (typeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
+  if (typeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return 'video'
   const formId = cleanString((node.properties || {})[FLOW_WIDGET_FORM_ID_KEY])
   if (formId === 'imageGeneration') return 'image'
   if (formId === 'videoGeneration') return 'video'
@@ -414,6 +416,7 @@ const buildGeneratedMediaManifestMarkdown = (args: {
   outputPath: string
   asset: GeneratedBinaryAsset
   storage?: UploadGeneratedWorkspaceBlobToKnowgrphStorageResult | null
+  manifestMetadata?: ReadonlyArray<readonly [string, unknown]>
 }): string => {
   const title = cleanString(args.node.label) || cleanString(args.node.id) || `${args.kind} output`
   const savedName = args.outputPath.split('/').filter(Boolean).pop() || args.outputPath
@@ -431,6 +434,7 @@ const buildGeneratedMediaManifestMarkdown = (args: {
     ['contentHash', cleanString(args.storage?.contentHash)],
     ['sizeBytes', args.storage?.sizeBytes == null ? '' : String(args.storage.sizeBytes)],
     ['etag', cleanString(args.storage?.etag)],
+    ...(Array.isArray(args.manifestMetadata) ? args.manifestMetadata : []),
   ]
   const rows = rawRows.filter(([, value]) => cleanString(value))
   const dataTable = rows.length
@@ -457,6 +461,7 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
   extension: string
   asset: GeneratedBinaryAsset
   fs?: WorkspaceFs | null
+  manifestMetadata?: ReadonlyArray<readonly [string, unknown]>
 }): Promise<{ outputPath: string | null; outputManifestPath: string | null; outputStorageUrl?: string | null }> => {
   const outputPath = await persistGeneratedAsset({
     workspacePath: args.workspacePath,
@@ -488,6 +493,7 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
     outputPath,
     asset: args.asset,
     storage,
+    manifestMetadata: args.manifestMetadata,
   })
   const outputManifestPath = await writeWorkspaceTextArtifactAtPath({
     absolutePath: manifestPath,

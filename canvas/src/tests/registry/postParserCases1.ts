@@ -69,6 +69,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.groupResizeHandle.transitions.sharedShapeAndLabel","@/__tests__/resizeTransitionPolishRegression.test","testResizeTransitionPolishKeepsSharedShapeAndLabelTransitions"],
   ["ui.groupResizeHandle.transitions.chevronAndDot","@/__tests__/resizeTransitionPolishRegression.test","testResizeTransitionPolishKeepsChevronAndHandleDotTransitions"],
   ["ui.motionTokenSsoT.audit.noOtherRepoLevelCssMotionRecipes","@/__tests__/motionTokenSsoTAudit.test","testMotionTokenSsoTAuditFindsNoOtherRepoLevelCssMotionRecipes"],
+  ["ui.motionTokenSsoT.runtime.nativeWaapiNoDependency","@/__tests__/motionTokenSsoTAudit.test","testKnowgrphMotionRuntimeUsesNativeWaapiWithoutMotionDependency"],
+  ["ui.motionTokenSsoT.flowEditor.motionIntegration","@/__tests__/motionTokenSsoTAudit.test","testKnowgrphMotionTokensAndFlowEditorIntegration"],
   ["ui.markdown.mermaid.visibilityGate.defersUntilVisible","@/__tests__/mermaidVisibilityGateRegression.test","testMarkdownMermaidRenderingDefersUntilVisible"],
   ["store.graphDataSlice.avoidsWindowSetTimeout","@/__tests__/graphDataSliceAvoidsWindowSetTimeoutRegression.test","testGraphDataSliceAvoidsWindowSetTimeout"],
   ["ui.rendererIsolation.pointerMode","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationKeepsPointerModePerRenderer"],

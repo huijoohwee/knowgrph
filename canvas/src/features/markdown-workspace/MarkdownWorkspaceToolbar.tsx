@@ -221,7 +221,7 @@ export function MarkdownWorkspaceToolbar({
     Number(current.json && effectivePaneAvailability.json) +
     Number(current.markdown && effectivePaneAvailability.markdown) +
     Number(current.viewer && effectivePaneAvailability.viewer) +
-    Number(current.html && effectivePaneAvailability.html && webpageControls?.view === 'html')
+    Number(current.html && effectivePaneAvailability.html && !!webpageControls)
   ), [effectivePaneAvailability.html, effectivePaneAvailability.json, effectivePaneAvailability.markdown, effectivePaneAvailability.viewer, webpageControls])
   const resolveViewerEditPaneVisibility = React.useCallback((current: MarkdownWorkspacePaneVisibility): MarkdownWorkspacePaneVisibility => {
     if ((current.markdown && effectivePaneAvailability.markdown) || (current.json && effectivePaneAvailability.json)) return current
@@ -279,7 +279,7 @@ export function MarkdownWorkspaceToolbar({
     setSplitPaneVisibility,
   ])
   const htmlPaneAvailable = effectivePaneAvailability.html && !!webpageControls && !!onWebpageChangeView
-  const htmlPaneChecked = htmlPaneAvailable && webpageControls?.view === 'html' && effectiveSplitPanes.html
+  const htmlPaneChecked = htmlPaneAvailable && effectiveSplitPanes.html
   const handleHtmlPaneToggle = React.useCallback(() => {
     if (!setSplitPaneVisibility) return
     if (!htmlPaneAvailable || !onWebpageChangeView) return
@@ -287,7 +287,9 @@ export function MarkdownWorkspaceToolbar({
     if (htmlPaneChecked) {
       if (visiblePaneCount(current) <= 1) return
       setSplitPaneVisibility({ ...current, html: false })
-      onWebpageChangeView('markdown')
+      if (webpageControls?.view === 'html') {
+        onWebpageChangeView('markdown')
+      }
       return
     }
     if (layoutMode !== 'split') {
@@ -299,7 +301,7 @@ export function MarkdownWorkspaceToolbar({
       html: true,
     })
     onWebpageChangeView('html')
-  }, [effectivePaneAvailability.viewer, effectiveSplitPanes, htmlPaneAvailable, htmlPaneChecked, layoutMode, onWebpageChangeView, setLayoutMode, setSplitPaneVisibility, visiblePaneCount])
+  }, [effectivePaneAvailability.viewer, effectiveSplitPanes, htmlPaneAvailable, htmlPaneChecked, layoutMode, onWebpageChangeView, setLayoutMode, setSplitPaneVisibility, visiblePaneCount, webpageControls?.view])
 
   const webpageSignalsNode = React.useMemo(() => {
     const s = webpageSignalSummary
