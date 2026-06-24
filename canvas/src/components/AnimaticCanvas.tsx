@@ -37,6 +37,9 @@ import {
   TIMELINE_TRANSPORT_PLAYBACK_RATES,
   clampTimelineTransportValue,
   resolveTimelineTransportUnitsPerMs,
+  useTimelineDocumentTransportController,
+  useTimelineDocumentStoreBinding,
+  useTimelineTransportStoreBinding,
   type TimelineTransportPlaybackRate,
   useTimelineTransportPlayback,
 } from '@/components/timeline/timelineTransport'
@@ -326,16 +329,19 @@ export default function AnimaticCanvas({
 }) {
   const isTouchLaneViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const graphData = useActiveGraphRenderData(active)
-  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || '')
-  const markdownText = useGraphStore(s => s.markdownDocumentText || '')
+  const { markdownDocumentName, markdownText } = useTimelineDocumentStoreBinding()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const updateGraphMetadata = useGraphStore(s => s.updateGraphMetadata)
   const updateNode = useGraphStore(s => s.updateNode)
   const timelineEnabled = useGraphStore(s => resolveTimelineEnabled(s.timelineEnabled))
+  const {
+    transportDocumentKey,
+    transportPosition,
+    transportPlaying,
+    transportPlaybackRate,
+    setTimelineTransportState,
+  } = useTimelineTransportStoreBinding()
   const baseTimelineModel = useAnimaticTimelineModel({ graphData, graphDataRevision, markdownText })
-  const [playbackPosition, setPlaybackPosition] = React.useState(0)
-  const [playing, setPlaying] = React.useState(false)
-  const [playbackRate, setPlaybackRate] = React.useState<TimelineTransportPlaybackRate>(1)
   const [runtimeAutoScrollEnabled, setRuntimeAutoScrollEnabled] = React.useState(true)
   const [snapEnabled, setSnapEnabled] = React.useState(true)
   const [snapStepMs, setSnapStepMs] = React.useState<(typeof SNAP_STEP_OPTIONS_MS)[number]>(500)
@@ -392,6 +398,23 @@ export default function AnimaticCanvas({
     () => applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides),
     [baseTimelineModel, timingOverrides],
   )
+  const {
+    playbackPosition,
+    playing,
+    playbackRate,
+    setTransportPlaybackPosition,
+    setTransportPlaying,
+    setTransportPlaybackRate,
+  } = useTimelineDocumentTransportController({
+    active,
+    documentKey: markdownDocumentName,
+    maxPosition: timelineModel.totalSpan,
+    transportDocumentKey,
+    transportPosition,
+    transportPlaying,
+    transportPlaybackRate,
+    setTimelineTransportState,
+  })
   const persistedLaneControls = React.useMemo(
     () => readAnimaticTimelineLaneControlState(markdownText),
     [markdownText],
@@ -402,15 +425,6 @@ export default function AnimaticCanvas({
     setMutedLaneIds(persistedLaneControls.mutedLaneIds)
     setSoloLaneId(persistedLaneControls.soloLaneId)
   }, [persistedLaneControls])
-
-  React.useEffect(() => {
-    if (timelineModel.totalSpan <= 0) {
-      setPlaybackPosition(0)
-      setPlaying(false)
-      return
-    }
-    setPlaybackPosition(current => clampTimelineTransportValue(current, 0, timelineModel.totalSpan))
-  }, [timelineModel.totalSpan])
 
   React.useEffect(() => {
     if (timelineModel.usesAbsoluteTiming) return
@@ -439,13 +453,13 @@ export default function AnimaticCanvas({
     max: timelineModel.totalSpan,
     playbackRate,
     unitsPerMs: timelinePlaybackUnitsPerMs,
-    onPositionChange: setPlaybackPosition,
-    onPlaybackEnd: () => setPlaying(false),
+    onPositionChange: setTransportPlaybackPosition,
+    onPlaybackEnd: () => setTransportPlaying(false),
   })
 
   React.useEffect(() => {
-    if (!timelineEnabled) setPlaying(false)
-  }, [timelineEnabled])
+    if (!timelineEnabled && playing) setTransportPlaying(false)
+  }, [timelineEnabled, playing, setTransportPlaying])
 
   React.useEffect(() => {
     dragSessionIdRef.current += 1
@@ -792,8 +806,8 @@ export default function AnimaticCanvas({
           params: currentParams,
         } as never,
       })
-      setPlaying(false)
-      setPlaybackPosition(nextBeat?.displayStart ?? 0)
+      setTransportPlaying(false)
+      setTransportPlaybackPosition(nextBeat?.displayStart ?? 0)
     },
     [graphData?.nodes, resolveLaneItemMoveNodeId, updateNode],
   )
@@ -831,15 +845,15 @@ export default function AnimaticCanvas({
   const handleTogglePlayback = React.useCallback(() => {
     if (timelineModel.totalSpan <= 0) return
     if (playbackPosition >= timelineModel.totalSpan) {
-      setPlaybackPosition(0)
+      setTransportPlaybackPosition(0)
     }
-    setPlaying(current => !current)
-  }, [playbackPosition, timelineModel.totalSpan])
+    setTransportPlaying(!playing)
+  }, [playbackPosition, playing, timelineModel.totalSpan, setTransportPlaybackPosition, setTransportPlaying])
 
   const handleReset = React.useCallback(() => {
-    setPlaying(false)
-    setPlaybackPosition(0)
-  }, [])
+    setTransportPlaying(false)
+    setTransportPlaybackPosition(0)
+  }, [setTransportPlaybackPosition, setTransportPlaying])
 
   const handleStepBeat = React.useCallback(
     (direction: -1 | 1) => {
@@ -847,16 +861,16 @@ export default function AnimaticCanvas({
       const nextIndex = clamp(activeBeatIndex + direction, 0, timelineModel.beats.length - 1)
       const nextBeat = timelineModel.beats[nextIndex]
       if (!nextBeat) return
-      setPlaying(false)
-      setPlaybackPosition(nextBeat.displayStart)
+      setTransportPlaying(false)
+      setTransportPlaybackPosition(nextBeat.displayStart)
     },
-    [activeBeatIndex, timelineModel.beats],
+    [activeBeatIndex, timelineModel.beats, setTransportPlaybackPosition, setTransportPlaying],
   )
 
   const handleFocusBeat = React.useCallback((beat: AnimaticTimelineBeat) => {
-    setPlaying(false)
-    setPlaybackPosition(beat.displayStart)
-  }, [])
+    setTransportPlaying(false)
+    setTransportPlaybackPosition(beat.displayStart)
+  }, [setTransportPlaybackPosition, setTransportPlaying])
 
   const handleFocusLaneFromBeatCard = React.useCallback((laneId: AnimaticTimelineLaneId) => {
     const row = laneRowRefs.current[laneId]
@@ -910,13 +924,13 @@ export default function AnimaticCanvas({
         snapStepMs: timelineModel.usesAbsoluteTiming ? snapStepMs : null,
       })
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
+      setTransportPlaying(false)
       const insertedBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === insertResult.beatRef)
       if (insertedBeat) {
-        setPlaybackPosition(insertedBeat.displayStart)
+        setTransportPlaybackPosition(insertedBeat.displayStart)
       }
     },
-    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapStepMs, timelineModel, timingOverrides],
+    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleInsertBeat = React.useCallback(
@@ -936,10 +950,10 @@ export default function AnimaticCanvas({
     })
     if (!deleted) return
     commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-    setPlaying(false)
+    setTransportPlaying(false)
     const fallbackBeat = timelineModel.beats[Math.max(0, activeBeatIndex - 1)]
-    setPlaybackPosition(fallbackBeat?.displayStart ?? 0)
-  }, [activeBeat, activeBeatIndex, commitTimelineFrontmatterMeta, markdownText, timelineModel])
+    setTransportPlaybackPosition(fallbackBeat?.displayStart ?? 0)
+  }, [activeBeat, activeBeatIndex, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, timelineModel])
 
   const handleDeleteBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
@@ -954,11 +968,11 @@ export default function AnimaticCanvas({
       })
       if (!deleted) return
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
+      setTransportPlaying(false)
       const fallbackBeat = timelineModel.beats[Math.max(0, beatIndex - 1)]
-      setPlaybackPosition(fallbackBeat?.displayStart ?? 0)
+      setTransportPlaybackPosition(fallbackBeat?.displayStart ?? 0)
     },
-    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, timelineModel],
   )
 
   const handleDuplicateBeatAtTarget = React.useCallback(
@@ -974,11 +988,11 @@ export default function AnimaticCanvas({
       })
       if (!duplicateResult.beatRef) return
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
+      setTransportPlaying(false)
       const duplicatedBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === duplicateResult.beatRef)
-      if (duplicatedBeat) setPlaybackPosition(duplicatedBeat.displayStart)
+      if (duplicatedBeat) setTransportPlaybackPosition(duplicatedBeat.displayStart)
     },
-    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapStepMs, timelineModel, timingOverrides],
+    [activeBeat?.beatRef, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleDuplicateBeat = React.useCallback(async () => {
@@ -1002,11 +1016,11 @@ export default function AnimaticCanvas({
       })
       if (!splitResult.beatRef) return
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
+      setTransportPlaying(false)
       const splitBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(entry => entry.beatRef === splitResult.beatRef)
-      if (splitBeat) setPlaybackPosition(splitBeat.displayStart)
+      if (splitBeat) setTransportPlaybackPosition(splitBeat.displayStart)
     },
-    [activeBeat, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, snapEnabled, snapStepMs, timelineModel, timingOverrides],
+    [activeBeat, baseTimelineModel, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, snapEnabled, snapStepMs, timelineModel, timingOverrides],
   )
 
   const handleSplitBeat = React.useCallback(async () => {
@@ -1022,10 +1036,10 @@ export default function AnimaticCanvas({
     })
     if (!splitResult.beatRef) return
     commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-    setPlaying(false)
+    setTransportPlaying(false)
     const splitBeat = applyAnimaticTimelineBeatTimingOverrides(baseTimelineModel, timingOverrides).beats.find(beat => beat.beatRef === splitResult.beatRef)
-    if (splitBeat) setPlaybackPosition(splitBeat.displayStart)
-  }, [activeBeat, baseTimelineModel, canSplitActiveBeat, commitTimelineFrontmatterMeta, markdownText, snapEnabled, snapStepMs, snappedPlaybackPosition, timelineModel, timingOverrides])
+    if (splitBeat) setTransportPlaybackPosition(splitBeat.displayStart)
+  }, [activeBeat, baseTimelineModel, canSplitActiveBeat, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, snapEnabled, snapStepMs, snappedPlaybackPosition, timelineModel, timingOverrides])
 
   const handleMergeBeatWithNext = React.useCallback(async () => {
     if (!activeBeat || !canMergeActiveBeatWithNext) return
@@ -1037,9 +1051,9 @@ export default function AnimaticCanvas({
     })
     if (!merged) return
     commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-    setPlaying(false)
-    setPlaybackPosition(activeBeat.displayStart)
-  }, [activeBeat, canMergeActiveBeatWithNext, commitTimelineFrontmatterMeta, markdownText, timelineModel])
+    setTransportPlaying(false)
+    setTransportPlaybackPosition(activeBeat.displayStart)
+  }, [activeBeat, canMergeActiveBeatWithNext, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, timelineModel])
 
   const handleMergeBeatWithNextAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
@@ -1061,10 +1075,10 @@ export default function AnimaticCanvas({
       })
       if (!merged) return
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
-      setPlaybackPosition(beat.displayStart)
+      setTransportPlaying(false)
+      setTransportPlaybackPosition(beat.displayStart)
     },
-    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, timelineModel],
   )
 
   const handleRemoveGapBeforeBeat = React.useCallback(async () => {
@@ -1077,9 +1091,9 @@ export default function AnimaticCanvas({
     })
     if (!removed) return
     commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-    setPlaying(false)
-    setPlaybackPosition(Math.max(0, playbackPosition - activeGapBeforeMs))
-  }, [activeBeat, activeGapBeforeMs, canRemoveGapBeforeActiveBeat, commitTimelineFrontmatterMeta, markdownText, playbackPosition, timelineModel])
+    setTransportPlaying(false)
+    setTransportPlaybackPosition(Math.max(0, playbackPosition - activeGapBeforeMs))
+  }, [activeBeat, activeGapBeforeMs, canRemoveGapBeforeActiveBeat, commitTimelineFrontmatterMeta, markdownText, playbackPosition, setTransportPlaybackPosition, setTransportPlaying, timelineModel])
 
   const handleRemoveGapBeforeBeatAtTarget = React.useCallback(
     async (targetBeat: AnimaticTimelineBeat | null | undefined) => {
@@ -1099,10 +1113,10 @@ export default function AnimaticCanvas({
       })
       if (!removed) return
       commitTimelineFrontmatterMeta(nextFrontmatterMeta)
-      setPlaying(false)
-      setPlaybackPosition(Math.max(0, beat.displayStart - gapBeforeBeatMs))
+      setTransportPlaying(false)
+      setTransportPlaybackPosition(Math.max(0, beat.displayStart - gapBeforeBeatMs))
     },
-    [activeBeat, commitTimelineFrontmatterMeta, markdownText, timelineModel],
+    [activeBeat, commitTimelineFrontmatterMeta, markdownText, setTransportPlaybackPosition, setTransportPlaying, timelineModel],
   )
 
   const beginBeatFieldEdit = React.useCallback((beat: AnimaticTimelineBeat, field: AnimaticBeatEditableField) => {
@@ -1355,7 +1369,7 @@ export default function AnimaticCanvas({
       dragPointerClientXRef.current = event.clientX
       dragEdgeScrollDirectionRef.current = 0
       ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
-      setPlaying(false)
+      setTransportPlaying(false)
       setDragState({
         kind: 'beat',
         sessionId: dragSessionIdRef.current,
@@ -1370,7 +1384,7 @@ export default function AnimaticCanvas({
         beatsSnapshot: timelineModel.beats.map(entry => ({ ...entry, items: entry.items.slice() })),
       })
     },
-    [markdownDocumentName, markdownText, timelineModel.beats, timelineModel.usesAbsoluteTiming],
+    [markdownDocumentName, markdownText, setTransportPlaying, timelineModel.beats, timelineModel.usesAbsoluteTiming],
   )
 
   const handleLaneItemPointerStart = React.useCallback(
@@ -1390,7 +1404,7 @@ export default function AnimaticCanvas({
       dragPointerClientXRef.current = event.clientX
       dragEdgeScrollDirectionRef.current = 0
       ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
-      setPlaying(false)
+      setTransportPlaying(false)
       setSelectedLaneId(laneId)
       setSelectedItemNodeId(itemNodeId)
       setLaneItemDragPreviewOffsetPx(0)
@@ -1408,7 +1422,7 @@ export default function AnimaticCanvas({
         markdownText,
       })
     },
-    [markdownDocumentName, markdownText],
+    [markdownDocumentName, markdownText, setTransportPlaying],
   )
 
   React.useEffect(() => {
@@ -1630,11 +1644,11 @@ export default function AnimaticCanvas({
             step={timelineModel.usesAbsoluteTiming ? 10 : 0.01}
             totalLabel={totalTimeLabel}
             value={playbackPosition}
-            onPlaybackRateChange={setPlaybackRate}
+            onPlaybackRateChange={setTransportPlaybackRate}
             onTogglePlayback={handleTogglePlayback}
             onValueChange={nextValue => {
-              setPlaying(false)
-              setPlaybackPosition(nextValue)
+              setTransportPlaying(false)
+              setTransportPlaybackPosition(nextValue)
             }}
           />
           <section className="timeline-tool-strip mt-2 flex flex-wrap items-center gap-1.5">
@@ -2193,8 +2207,8 @@ export default function AnimaticCanvas({
                           className="absolute inset-0 z-0"
                           onDoubleClick={() => handleStartBeatLabelEdit(beat)}
                           onClick={() => {
-                            setPlaying(false)
-                            setPlaybackPosition(beat.displayStart)
+                            setTransportPlaying(false)
+                            setTransportPlaybackPosition(beat.displayStart)
                           }}
                         />
                         {timelineModel.usesAbsoluteTiming ? (
@@ -2205,8 +2219,8 @@ export default function AnimaticCanvas({
                               className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
                               onPointerDown={event => handleBeatPointerStart(event, beat, index, 'move')}
                               onClick={() => {
-                                setPlaying(false)
-                                setPlaybackPosition(beat.displayStart)
+                                setTransportPlaying(false)
+                                setTransportPlaybackPosition(beat.displayStart)
                               }}
                             />
                             <button

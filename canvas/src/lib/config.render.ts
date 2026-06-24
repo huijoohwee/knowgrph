@@ -2,11 +2,11 @@ export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'media', 'flow
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'media', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'media', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'storyboard', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -91,11 +91,11 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     sharesFlowEditorFrontmatterSyntax: false,
   },
   animatic: {
-    surfaceId: 'gantt',
-    registryLabel: 'Gantt-timeline',
-    menuLabel: 'Gantt',
-    menuDescription: 'Mermaid Gantt timeline',
-    menuBadges: ['Mermaid', 'Timeline'],
+    surfaceId: 'animatic',
+    registryLabel: 'Animatic',
+    menuLabel: 'Anim',
+    menuDescription: 'Beat timeline editor',
+    menuBadges: ['Timeline', 'Beats'],
     sharesFlowEditorFrontmatterSyntax: false,
   },
   storyboard: {

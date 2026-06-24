@@ -65,6 +65,8 @@ export async function writeBlobToFileHandle(handle: SaveFilePickerHandle, blob: 
   }
 }
 
+const BLOB_DOWNLOAD_REVOKE_DELAY_MS = 1000;
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const doc = typeof window !== 'undefined' ? window.document : null;
@@ -78,7 +80,9 @@ export function downloadBlob(blob: Blob, filename: string) {
   doc.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, BLOB_DOWNLOAD_REVOKE_DELAY_MS);
 }
 export function readExportPrefs(): Record<string, unknown> {
   return lsJson<Record<string, unknown>>(LS_KEYS.exportPrefs, {}, raw => {

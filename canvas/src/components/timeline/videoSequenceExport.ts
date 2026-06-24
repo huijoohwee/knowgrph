@@ -1,49 +1,123 @@
 import {
-  readVideoSequenceSourcePlayableUrl,
-  resolveVideoSequenceTimelineLane,
-  type VideoSequenceTimelineSource,
-} from './videoSequenceTimeline'
-import { resolveVideoSequenceSourceRuntimeUrl } from './videoSequenceSourceRegistry'
+  buildVideoSequenceExportPlan,
+  loadTimelinePlanVideoMetadata,
+  resolveTimelinePlanSourceUrl,
+  type VideoSequenceExportPlan,
+  type VideoSequenceExportSegment,
+} from './timelinePlanSync'
 import { downloadBlob } from '@/lib/graph/save'
-import type { MermaidGanttSourceRangeMinutes, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
-import { buildMermaidGanttTimelineModel, readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
+
+export type {
+  VideoSequenceExportPlan,
+  VideoSequenceExportSegment,
+} from './timelinePlanSync'
 
 export type VideoSequenceExportKind = 'video' | 'audio'
-
-export type VideoSequenceExportSegment = {
-  durationMinutes: number
-  hasGrade: boolean
-  hasMask: boolean
+export type VideoSequenceExportProgressPhase = 'preparing' | 'rendering' | 'finalizing'
+export type VideoSequenceExportErrorCode =
+  | 'aborted'
+  | 'capability-audio-context'
+  | 'capability-canvas-capture'
+  | 'capability-canvas-export'
+  | 'capability-media-recorder'
+  | 'plan-empty'
+  | 'plan-non-renderable'
+  | 'runtime-failed'
+  | 'source-load-failed'
+  | 'source-unavailable'
+export type VideoSequenceExportOutcomeStatus = 'cancelled' | 'downloaded' | 'failed'
+export type VideoSequenceExportProgress = {
+  completedSegments: number
+  kind: VideoSequenceExportKind
   label: string
-  source: VideoSequenceTimelineSource
-  sourceEndRatio: number
-  sourceStartRatio: number
-  timelineEndMinutes: number
-  timelineStartMinutes: number
+  percentage: number
+  phase: VideoSequenceExportProgressPhase
+  totalSegments: number
 }
-
-export type VideoSequenceExportPlan = {
-  durationMinutes: number
+export type VideoSequenceExportDownloadResult = {
+  byteSize: number
+  filename: string
+  kind: VideoSequenceExportKind
+  mimeType: string
+}
+export type VideoSequenceExportOutcome = {
+  errorCode: VideoSequenceExportErrorCode | ''
+  filename: string
+  kind: VideoSequenceExportKind
+  message: string
+  status: VideoSequenceExportOutcomeStatus
+  toastKind: 'error' | 'neutral' | 'success'
+}
+export type VideoSequenceExportSessionStatus = 'running' | VideoSequenceExportOutcomeStatus
+export type VideoSequenceExportSessionRecord = {
+  completedSegments: number
+  errorCode: VideoSequenceExportErrorCode | ''
+  filename: string
   filenameBase: string
-  segments: VideoSequenceExportSegment[]
+  kind: VideoSequenceExportKind
+  message: string
+  percentage: number
+  phase: VideoSequenceExportProgressPhase | ''
+  retryOfRunId: string
+  runId: string
+  startedAtMs: number
+  status: VideoSequenceExportSessionStatus
+  toastKind: 'error' | 'neutral' | 'success'
+  totalSegments: number
+  updatedAtMs: number
 }
+export type VideoSequenceExportRetryRequest = {
+  kind: VideoSequenceExportKind
+  plan: VideoSequenceExportPlan
+  retryOfRunId: string
+}
+export type VideoSequenceExportRetryControl = {
+  ariaLabel: string
+  disabled: boolean
+  kind: VideoSequenceExportKind | ''
+  title: string
+}
+export type VideoSequenceExportSessionSurfaceItem = {
+  detailLabel: string
+  kind: VideoSequenceExportKind
+  message: string
+  retryButtonLabel: string
+  retryButtonTitle: string
+  retryable: boolean
+  runId: string
+  styleMode: 'active' | 'muted' | 'solid'
+  styleTone: 'danger' | 'neutral' | 'success'
+  status: VideoSequenceExportSessionStatus
+  tone: 'error' | 'neutral' | 'success'
+}
+export type VideoSequenceExportSessionSurfaceModel = {
+  emptyLabel: string
+  items: VideoSequenceExportSessionSurfaceItem[]
+}
+export type VideoSequenceExportSessionSurfaceSelection = {
+  sessions: VideoSequenceExportSessionRecord[]
+}
+export type VideoSequenceExportEvent =
+  | {
+    eventType: 'outcome'
+    kind: VideoSequenceExportKind
+    message: string
+    outcome: VideoSequenceExportOutcome
+    status: VideoSequenceExportOutcomeStatus
+    toastKind: 'error' | 'neutral' | 'success'
+  }
+  | {
+    eventType: 'progress'
+    kind: VideoSequenceExportKind
+    message: string
+    percentage: number
+    phase: VideoSequenceExportProgressPhase
+    progress: VideoSequenceExportProgress
+  }
 
-export type VideoSequenceSourceTimeResolution = {
-  segment: VideoSequenceExportSegment
-  sourceTimeSeconds: number
-}
-
-type SourceSegmentDraft = {
-  segmentKey: string
-  sourceKey: string
-  sourceRangeMinutes: MermaidGanttSourceRangeMinutes | null
-  span: MermaidGanttTimelineTaskSpan
-}
-
-type SourceSegmentRange = SourceSegmentDraft & {
-  sourceEndRatio: number
-  sourceStartRatio: number
-}
+type MediaRecorderConstructorLike = {
+  isTypeSupported?: (mimeType: string) => boolean
+} | null | undefined
 
 type VideoSequenceRenderSegment = VideoSequenceExportSegment & {
   gapSecondsBefore: number
@@ -56,339 +130,553 @@ const VIDEO_EXPORT_WIDTH = 1280
 const VIDEO_EXPORT_HEIGHT = 720
 const VIDEO_EXPORT_FRAME_RATE = 30
 const VIDEO_EXPORT_MIN_GAP_SECONDS = 0.05
+const VIDEO_SEQUENCE_EXPORT_SESSION_HISTORY_LIMIT = 6
+const VIDEO_SEQUENCE_EXPORT_ERROR_MESSAGES: Record<VideoSequenceExportErrorCode, string> = {
+  aborted: 'Edited media export cancelled.',
+  'capability-audio-context': 'Web Audio export is not available in this browser.',
+  'capability-canvas-capture': 'Canvas video capture is not available in this browser.',
+  'capability-canvas-export': 'Canvas export is not available in this browser.',
+  'capability-media-recorder': 'MediaRecorder export is not available in this browser.',
+  'plan-empty': 'Edited media export requires at least one video segment.',
+  'plan-non-renderable': 'Edited media export requires at least one positive-duration source range.',
+  'runtime-failed': 'Edited media export failed.',
+  'source-load-failed': 'Unable to load source media.',
+  'source-unavailable': 'Re-import the local source or import a playable URL before export.',
+}
 
 const clean = (value: unknown): string => String(value || '').trim()
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 
-const stripExtension = (value: string): string => clean(value).replace(/\.[a-z0-9]+$/i, '')
+export {
+  areVideoSequenceExportSourcesEqual,
+  buildVideoSequenceExportPlan,
+  buildTimelinePreviewSyncPlan,
+  resolveTimelinePlanPositionFromSourceTime,
+  resolveTimelinePlanSourceTimeAtPosition,
+  type TimelinePlanSourceTimeResolution,
+} from './timelinePlanSync'
 
-const sanitizeFilenamePart = (value: unknown): string => {
-  return (clean(value) || 'video-sequence')
-    .replace(/\.[a-z0-9]+$/i, '')
-    .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'video-sequence'
+type VideoSequenceExportError = Error & {
+  code?: VideoSequenceExportErrorCode
 }
 
-const readGanttTaskTokens = (line: string): string[] => {
-  const colonIndex = line.indexOf(':')
-  if (colonIndex < 0) return []
-  return line.slice(colonIndex + 1).split(',').map(token => token.trim()).filter(Boolean)
+function isVideoSequenceExportErrorCode(value: unknown): value is VideoSequenceExportErrorCode {
+  return typeof value === 'string' && value in VIDEO_SEQUENCE_EXPORT_ERROR_MESSAGES
 }
 
-const readStableTaskId = (line: string): string => {
-  return readGanttTaskTokens(line).find(token => {
-    if (/^(?:active|done|crit|milestone|vert)$/i.test(token)) return false
-    if (/^(?:\d{1,2}:\d{2}|\d+(?:\.\d+)?m)$/i.test(token)) return false
-    if (/^(?:after|until)\b/i.test(token)) return false
-    return true
-  }) || ''
+function createVideoSequenceExportError(code: VideoSequenceExportErrorCode, message?: string): Error {
+  const error = new Error(message || VIDEO_SEQUENCE_EXPORT_ERROR_MESSAGES[code]) as VideoSequenceExportError
+  error.name = 'VideoSequenceExportError'
+  error.code = code
+  return error
 }
 
-const normalizeSegmentKey = (value: string): string => {
-  return clean(value).replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=_splice|$)/gi, '')
+export function resolveVideoSequenceExportErrorMessage(code: VideoSequenceExportErrorCode): string {
+  return VIDEO_SEQUENCE_EXPORT_ERROR_MESSAGES[code]
 }
 
-const normalizeSourceKey = (value: string): string => {
-  return normalizeSegmentKey(value).replace(/(?:_splice)+$/i, '')
-}
-
-const sourceLookupKeys = (source: VideoSequenceTimelineSource): string[] => {
-  return [
-    source.id,
-    source.originalName,
-    stripExtension(source.originalName),
-    source.relativePath.split('/').filter(Boolean).pop() || '',
-    stripExtension(source.relativePath.split('/').filter(Boolean).pop() || ''),
-  ].map(value => clean(value).toLowerCase()).filter(Boolean)
-}
-
-const sourceIdentityKeys = (source: VideoSequenceTimelineSource): string[] => {
-  return [
-    source.id,
-    source.sourceUrl,
-    source.workspacePath,
-    source.relativePath,
-    source.originalName,
-  ].map(value => clean(value).toLowerCase()).filter(Boolean)
-}
-
-export function areVideoSequenceExportSourcesEqual(
-  left: VideoSequenceTimelineSource,
-  right: VideoSequenceTimelineSource,
-): boolean {
-  const leftKeys = new Set(sourceIdentityKeys(left))
-  if (!leftKeys.size) return false
-  return sourceIdentityKeys(right).some(key => leftKeys.has(key))
-}
-
-const findSourceForKey = (
-  sources: readonly VideoSequenceTimelineSource[],
-  sourceKey: string,
-): VideoSequenceTimelineSource | null => {
-  const key = clean(sourceKey).toLowerCase()
-  if (!key) return sources[0] || null
-  return sources.find(source => sourceLookupKeys(source).includes(key)) || sources[0] || null
-}
-
-const buildOperationSet = (spans: readonly MermaidGanttTimelineTaskSpan[], lane: 'mask' | 'grade'): Set<string> => {
-  const out = new Set<string>()
-  for (const span of spans) {
-    if (resolveVideoSequenceTimelineLane(span) !== lane) continue
-    const id = readStableTaskId(span.raw)
-    const key = normalizeSegmentKey(id)
-    if (key) out.add(key)
+export function resolveVideoSequenceExportErrorCode(error: unknown): VideoSequenceExportErrorCode | '' {
+  if (error instanceof Error) {
+    const exportError = error as VideoSequenceExportError
+    if (isVideoSequenceExportErrorCode(exportError.code)) return exportError.code
+    const message = clean(error.message)
+    const matchedEntry = Object.entries(VIDEO_SEQUENCE_EXPORT_ERROR_MESSAGES)
+      .find(([, candidate]) => candidate === message)
+    if (matchedEntry) return matchedEntry[0] as VideoSequenceExportErrorCode
   }
-  return out
+  return ''
 }
 
-const buildSourceSegmentsForLane = (
-  spans: readonly MermaidGanttTimelineTaskSpan[],
-  lane: ReturnType<typeof resolveVideoSequenceTimelineLane>,
-): SourceSegmentDraft[] => {
-  const out: SourceSegmentDraft[] = []
-  for (const span of spans) {
-    if (resolveVideoSequenceTimelineLane(span) !== lane) continue
-    const segmentKey = normalizeSegmentKey(readStableTaskId(span.raw))
-    const sourceKey = normalizeSourceKey(segmentKey)
-    if (!segmentKey || !sourceKey) continue
-    out.push({
-      segmentKey,
-      sourceKey,
-      sourceRangeMinutes: readMermaidGanttTaskSourceRangeMinutes(span.raw),
-      span,
-    })
+export function resolveVideoSequenceExportErrorFeedback(error: unknown): {
+  kind: 'error' | 'neutral'
+  message: string
+} {
+  const code = resolveVideoSequenceExportErrorCode(error)
+  if (code === 'aborted') {
+    return {
+      kind: 'neutral',
+      message: resolveVideoSequenceExportErrorMessage(code),
+    }
   }
-  return out
+  if (code) {
+    return {
+      kind: 'error',
+      message: resolveVideoSequenceExportErrorMessage(code),
+    }
+  }
+  return {
+    kind: 'error',
+    message: clean(error instanceof Error ? error.message : '') || resolveVideoSequenceExportErrorMessage('runtime-failed'),
+  }
 }
 
-function buildVideoSequencePlanFromSegments(args: {
-  durationMinutes: number
-  filenameHint?: string | null
-  maskSegments: Set<string>
-  gradeSegments: Set<string>
-  sourceRangeMode?: 'sequence' | 'timeline'
-  segments: readonly SourceSegmentDraft[]
-  sources: readonly VideoSequenceTimelineSource[]
-}): VideoSequenceExportPlan | null {
-  if (!args.segments.length || !args.sources.length) return null
-  const rangeMode = args.sourceRangeMode || 'sequence'
-  const sourceDurationTotals = new Map<string, number>()
-  for (const segment of args.segments) {
-    sourceDurationTotals.set(segment.sourceKey, (sourceDurationTotals.get(segment.sourceKey) || 0) + Math.max(0, segment.span.durationMinutes))
+export function resolveVideoSequenceExportOutcome(args: {
+  error?: unknown
+  kind: VideoSequenceExportKind
+  result?: VideoSequenceExportDownloadResult | null
+}): VideoSequenceExportOutcome {
+  if (args.result) {
+    return {
+      errorCode: '',
+      filename: args.result.filename,
+      kind: args.kind,
+      message: `Downloaded ${args.result.filename}`,
+      status: 'downloaded',
+      toastKind: 'success',
+    }
   }
-  const sourceCursor = new Map<string, number>()
-  const sourceRanges = args.segments
-    .slice()
-    .sort((a, b) => a.sourceKey.localeCompare(b.sourceKey) || a.span.lineIndex - b.span.lineIndex)
-    .map((segment): SourceSegmentRange => {
-      const duration = Math.max(0, segment.span.durationMinutes)
-      if (segment.sourceRangeMinutes) {
-        const durationMinutes = Math.max(0.0001, args.durationMinutes, segment.sourceRangeMinutes.endMinutes)
-        return {
-          ...segment,
-          sourceEndRatio: clamp(segment.sourceRangeMinutes.endMinutes / durationMinutes, 0, 1),
-          sourceStartRatio: clamp(segment.sourceRangeMinutes.startMinutes / durationMinutes, 0, 1),
-        }
-      }
-      if (rangeMode === 'timeline') {
-        const durationMinutes = Math.max(0.0001, args.durationMinutes)
-        return {
-          ...segment,
-          sourceEndRatio: clamp(segment.span.endMinutes / durationMinutes, 0, 1),
-          sourceStartRatio: clamp(segment.span.startMinutes / durationMinutes, 0, 1),
-        }
-      }
-      const total = Math.max(duration, sourceDurationTotals.get(segment.sourceKey) || duration)
-      const cursor = sourceCursor.get(segment.sourceKey) || 0
-      sourceCursor.set(segment.sourceKey, cursor + duration)
+  const code = resolveVideoSequenceExportErrorCode(args.error)
+  const feedback = resolveVideoSequenceExportErrorFeedback(args.error)
+  return {
+    errorCode: code,
+    filename: '',
+    kind: args.kind,
+    message: feedback.message,
+    status: code === 'aborted' ? 'cancelled' : 'failed',
+    toastKind: feedback.kind === 'neutral' ? 'neutral' : 'error',
+  }
+}
+
+export function resolveVideoSequenceExportEvent(args: {
+  outcome?: VideoSequenceExportOutcome | null
+  progress?: VideoSequenceExportProgress | null
+}): VideoSequenceExportEvent {
+  if (args.progress) {
+    return {
+      eventType: 'progress',
+      kind: args.progress.kind,
+      message: args.progress.label,
+      percentage: args.progress.percentage,
+      phase: args.progress.phase,
+      progress: args.progress,
+    }
+  }
+  const outcome = args.outcome || resolveVideoSequenceExportOutcome({
+    error: new Error(resolveVideoSequenceExportErrorMessage('runtime-failed')),
+    kind: 'video',
+  })
+  return {
+    eventType: 'outcome',
+    kind: outcome.kind,
+    message: outcome.message,
+    outcome,
+    status: outcome.status,
+    toastKind: outcome.toastKind,
+  }
+}
+
+export function createVideoSequenceExportSessionRecord(args: {
+  filenameBase: string
+  kind: VideoSequenceExportKind
+  nowMs?: number
+  retryOfRunId?: string
+  runId?: string
+  totalSegments: number
+}): VideoSequenceExportSessionRecord {
+  const startedAtMs = Math.max(0, Math.floor(args.nowMs ?? Date.now()))
+  const progress = buildVideoSequenceExportProgress({
+    completedSegments: 0,
+    kind: args.kind,
+    phase: 'preparing',
+    totalSegments: args.totalSegments,
+  })
+  const filenameBase = clean(args.filenameBase) || 'edited-media'
+  return {
+    completedSegments: progress.completedSegments,
+    errorCode: '',
+    filename: '',
+    filenameBase,
+    kind: args.kind,
+    message: progress.label,
+    percentage: progress.percentage,
+    phase: progress.phase,
+    retryOfRunId: clean(args.retryOfRunId),
+    runId: args.runId || `${args.kind}:${filenameBase}:${startedAtMs}`,
+    startedAtMs,
+    status: 'running',
+    toastKind: 'neutral',
+    totalSegments: progress.totalSegments,
+    updatedAtMs: startedAtMs,
+  }
+}
+
+export function reduceVideoSequenceExportSessionRecord(args: {
+  event: VideoSequenceExportEvent
+  nowMs?: number
+  session: VideoSequenceExportSessionRecord
+}): VideoSequenceExportSessionRecord {
+  const updatedAtMs = Math.max(args.session.startedAtMs, Math.floor(args.nowMs ?? Date.now()))
+  if (args.event.eventType === 'progress') {
+    return {
+      ...args.session,
+      completedSegments: args.event.progress.completedSegments,
+      kind: args.event.kind,
+      message: args.event.message,
+      percentage: args.event.percentage,
+      phase: args.event.phase,
+      status: 'running',
+      toastKind: 'neutral',
+      totalSegments: args.event.progress.totalSegments,
+      updatedAtMs,
+    }
+  }
+  return {
+    ...args.session,
+    errorCode: args.event.outcome.errorCode,
+    filename: args.event.outcome.filename,
+    kind: args.event.kind,
+    message: args.event.message,
+    percentage: args.session.status === 'running' ? 100 : args.session.percentage,
+    phase: args.session.phase,
+    status: args.event.status,
+    toastKind: args.event.toastKind,
+    updatedAtMs,
+  }
+}
+
+export function upsertVideoSequenceExportSessionHistory(args: {
+  history: readonly VideoSequenceExportSessionRecord[]
+  limit?: number
+  nextSession: VideoSequenceExportSessionRecord
+}): VideoSequenceExportSessionRecord[] {
+  const limit = Math.max(1, Math.floor(args.limit ?? VIDEO_SEQUENCE_EXPORT_SESSION_HISTORY_LIMIT))
+  const withoutCurrent = args.history.filter(session => session.runId !== args.nextSession.runId)
+  return [args.nextSession, ...withoutCurrent].slice(0, limit)
+}
+
+export function resolveVideoSequenceExportRetryError(args: {
+  exportingKind?: VideoSequenceExportKind | ''
+  plan: VideoSequenceExportPlan | null | undefined
+  session: VideoSequenceExportSessionRecord | null | undefined
+}): string {
+  if (args.exportingKind) return 'Wait for the current edited media export to finish before retrying.'
+  if (!args.session) return 'Edited media export retry requires a previous export session.'
+  if (args.session.status === 'running') return 'Wait for the current edited media export to finish before retrying.'
+  if (!args.plan) return 'Edited media export retry requires a current export plan.'
+  const planError = resolveVideoSequenceExportPlanError(args.plan)
+  if (planError) return planError
+  if (clean(args.plan.filenameBase) !== clean(args.session.filenameBase)) {
+    return 'Edited media export retry requires the same compiled export plan as the previous run.'
+  }
+  return ''
+}
+
+export function resolveVideoSequenceExportRetryRequest(args: {
+  exportingKind?: VideoSequenceExportKind | ''
+  plan: VideoSequenceExportPlan | null | undefined
+  session: VideoSequenceExportSessionRecord | null | undefined
+}): {
+  error: string
+  request: VideoSequenceExportRetryRequest | null
+} {
+  const error = resolveVideoSequenceExportRetryError(args)
+  if (error || !args.plan || !args.session) {
+    return {
+      error,
+      request: null,
+    }
+  }
+  return {
+    error: '',
+    request: {
+      kind: args.session.kind,
+      plan: args.plan,
+      retryOfRunId: args.session.runId,
+    },
+  }
+}
+
+export function resolveVideoSequenceExportRetryControl(
+  session: VideoSequenceExportSessionRecord | null | undefined,
+): VideoSequenceExportRetryControl {
+  if (!session) {
+    return {
+      ariaLabel: 'Retry latest edited media export',
+      disabled: true,
+      kind: '',
+      title: 'Retry latest edited media export',
+    }
+  }
+  const target = session.kind === 'audio' ? 'audio' : 'video'
+  return {
+    ariaLabel: `Retry edited ${target} export`,
+    disabled: false,
+    kind: session.kind,
+    title: `Retry edited ${target} export`,
+  }
+}
+
+function resolveVideoSequenceExportSessionKindLabel(kind: VideoSequenceExportKind): string {
+  return kind === 'audio' ? 'Edited audio' : 'Edited video'
+}
+
+function resolveVideoSequenceExportSessionStatusLabel(status: VideoSequenceExportSessionStatus): string {
+  if (status === 'running') return 'Running'
+  if (status === 'downloaded') return 'Downloaded'
+  if (status === 'cancelled') return 'Cancelled'
+  return 'Failed'
+}
+
+export function resolveVideoSequenceExportSessionToneStyle(args: {
+  status: VideoSequenceExportSessionStatus
+  tone: VideoSequenceExportSessionRecord['toastKind']
+}): {
+  styleMode: VideoSequenceExportSessionSurfaceItem['styleMode']
+  styleTone: VideoSequenceExportSessionSurfaceItem['styleTone']
+} {
+  if (args.status === 'running') {
+    return {
+      styleMode: 'active',
+      styleTone: 'neutral',
+    }
+  }
+  if (args.status === 'cancelled') {
+    return {
+      styleMode: 'muted',
+      styleTone: 'neutral',
+    }
+  }
+  if (args.tone === 'success') {
+    return {
+      styleMode: 'solid',
+      styleTone: 'success',
+    }
+  }
+  return {
+    styleMode: 'solid',
+    styleTone: 'danger',
+  }
+}
+
+export function selectVideoSequenceExportSessionSurfaceSessions(args: {
+  includeStatuses?: readonly VideoSequenceExportSessionStatus[]
+  latestRetryableRunId?: string
+  maxItems?: number
+  sessions: readonly VideoSequenceExportSessionRecord[]
+}): VideoSequenceExportSessionSurfaceSelection {
+  const maxItems = Math.max(1, Math.floor(args.maxItems ?? 3))
+  const allowedStatuses = new Set((args.includeStatuses || []).filter(Boolean))
+  const hasStatusFilter = allowedStatuses.size > 0
+  const latestRetryableRunId = clean(args.latestRetryableRunId)
+  const filtered = args.sessions.filter(session => !hasStatusFilter || allowedStatuses.has(session.status))
+  const prioritized = [...filtered].sort((left, right) => {
+    const leftRetryable = latestRetryableRunId !== '' && left.runId === latestRetryableRunId
+    const rightRetryable = latestRetryableRunId !== '' && right.runId === latestRetryableRunId
+    if (leftRetryable !== rightRetryable) return leftRetryable ? -1 : 1
+    if (left.status === 'running' && right.status !== 'running') return -1
+    if (right.status === 'running' && left.status !== 'running') return 1
+    if (left.updatedAtMs !== right.updatedAtMs) return right.updatedAtMs - left.updatedAtMs
+    return right.startedAtMs - left.startedAtMs
+  })
+  return {
+    sessions: prioritized.slice(0, maxItems),
+  }
+}
+
+export function buildVideoSequenceExportSessionSurfaceModel(args: {
+  includeStatuses?: readonly VideoSequenceExportSessionStatus[]
+  latestRetryableRunId?: string
+  maxItems?: number
+  sessions: readonly VideoSequenceExportSessionRecord[]
+}): VideoSequenceExportSessionSurfaceModel {
+  const selection = selectVideoSequenceExportSessionSurfaceSessions(args)
+  return {
+    emptyLabel: 'No recent edited media exports.',
+    items: selection.sessions.map(session => {
+      const kindLabel = resolveVideoSequenceExportSessionKindLabel(session.kind)
+      const statusLabel = resolveVideoSequenceExportSessionStatusLabel(session.status)
+      const retryable = clean(args.latestRetryableRunId) !== '' && session.runId === args.latestRetryableRunId
+      const toneStyle = resolveVideoSequenceExportSessionToneStyle({
+        status: session.status,
+        tone: session.toastKind,
+      })
       return {
-        ...segment,
-        sourceEndRatio: Math.min(1, (cursor + duration) / total),
-        sourceStartRatio: Math.max(0, cursor / total),
+        detailLabel: `${kindLabel} • ${statusLabel}`,
+        kind: session.kind,
+        message: session.message,
+        retryButtonLabel: retryable ? `Retry ${kindLabel.toLowerCase()}` : 'Retry unavailable',
+        retryButtonTitle: retryable ? `Retry ${kindLabel.toLowerCase()}` : 'Retry unavailable',
+        retryable,
+        runId: session.runId,
+        styleMode: toneStyle.styleMode,
+        styleTone: toneStyle.styleTone,
+        status: session.status,
+        tone: session.toastKind,
       }
-    })
-  const segments = sourceRanges
-    .sort((a, b) => a.span.startMinutes - b.span.startMinutes || a.span.lineIndex - b.span.lineIndex)
-    .flatMap(segment => {
-      const source = findSourceForKey(args.sources, segment.sourceKey)
-      if (!source) return []
-      const duration = Math.max(0, segment.span.durationMinutes)
-      return [{
-        durationMinutes: duration,
-        hasGrade: args.gradeSegments.has(segment.segmentKey),
-        hasMask: args.maskSegments.has(segment.segmentKey),
-        label: segment.span.label,
-        source,
-        sourceEndRatio: segment.sourceEndRatio,
-        sourceStartRatio: segment.sourceStartRatio,
-        timelineEndMinutes: segment.span.endMinutes,
-        timelineStartMinutes: segment.span.startMinutes,
-      }]
-    })
-  if (!segments.length) return null
-  const firstSource = segments[0]?.source
-  return {
-    durationMinutes: Math.max(0, args.durationMinutes),
-    filenameBase: sanitizeFilenamePart(args.filenameHint || firstSource?.originalName || firstSource?.relativePath || 'video-sequence'),
-    segments,
+    }),
   }
 }
 
-export function buildVideoSequenceExportPlan(args: {
-  code: string
-  sources: readonly VideoSequenceTimelineSource[]
-  filenameHint?: string | null
-}): VideoSequenceExportPlan | null {
-  const model = buildMermaidGanttTimelineModel(args.code)
-  if (!model.taskSpans.length || !args.sources.length) return null
-  return buildVideoSequencePlanFromSegments({
-    durationMinutes: model.durationMinutes,
-    filenameHint: args.filenameHint,
-    gradeSegments: buildOperationSet(model.taskSpans, 'grade'),
-    maskSegments: buildOperationSet(model.taskSpans, 'mask'),
-    segments: buildSourceSegmentsForLane(model.taskSpans, 'video'),
-    sources: args.sources,
-  })
-}
-
-export function buildVideoSequencePreviewSyncPlan(args: {
-  code: string
-  selectedRowKey?: string | null
-  sources: readonly VideoSequenceTimelineSource[]
-  filenameHint?: string | null
-}): VideoSequenceExportPlan | null {
-  const model = buildMermaidGanttTimelineModel(args.code)
-  if (!model.taskSpans.length || !args.sources.length) return null
-  const selectedSpan = args.selectedRowKey
-    ? model.taskSpans.find(span => span.rowKey === args.selectedRowKey)
-    : null
-  const selectedLane = selectedSpan ? resolveVideoSequenceTimelineLane(selectedSpan) : 'video'
-  const selectedLaneSegments = buildSourceSegmentsForLane(model.taskSpans, selectedLane)
-  const segments = selectedLaneSegments.length ? selectedLaneSegments : buildSourceSegmentsForLane(model.taskSpans, 'video')
-  return buildVideoSequencePlanFromSegments({
-    durationMinutes: model.durationMinutes,
-    filenameHint: args.filenameHint,
-    gradeSegments: buildOperationSet(model.taskSpans, 'grade'),
-    maskSegments: buildOperationSet(model.taskSpans, 'mask'),
-    sourceRangeMode: 'timeline',
-    segments,
-    sources: args.sources,
-  })
-}
-
-export function resolveVideoSequenceExportPositionSourceTime(args: {
-  plan: VideoSequenceExportPlan | null
-  positionMinutes: number
-  source: VideoSequenceTimelineSource
-  sourceDurationSeconds: number
-}): VideoSequenceSourceTimeResolution | null {
-  if (!args.plan?.segments.length || args.sourceDurationSeconds <= 0) return null
-  const positionMinutes = Math.max(0, args.positionMinutes)
-  const candidates = args.plan.segments
-    .filter(segment => areVideoSequenceExportSourcesEqual(segment.source, args.source))
-    .filter(segment => segment.durationMinutes > 0)
-    .map(segment => {
-      const boundedPosition = clamp(positionMinutes, segment.timelineStartMinutes, segment.timelineEndMinutes)
-      const distance = Math.abs(positionMinutes - boundedPosition)
-      const contains = distance < 0.0001
-      return { boundedPosition, contains, distance, segment }
-    })
-    .sort((a, b) => {
-      const aExactStart = Math.abs(positionMinutes - a.segment.timelineStartMinutes) < 0.0001 ? 0 : 1
-      const bExactStart = Math.abs(positionMinutes - b.segment.timelineStartMinutes) < 0.0001 ? 0 : 1
-      return Number(b.contains) - Number(a.contains)
-        || a.distance - b.distance
-        || aExactStart - bExactStart
-        || a.segment.timelineStartMinutes - b.segment.timelineStartMinutes
-    })
-  const candidate = candidates[0]
-  if (!candidate) return null
-  const { boundedPosition, segment } = candidate
-  const timelineRatio = clamp(
-    (boundedPosition - segment.timelineStartMinutes) / Math.max(segment.durationMinutes, 0.0001),
-    0,
-    1,
-  )
-  const sourceRatio = segment.sourceStartRatio + (segment.sourceEndRatio - segment.sourceStartRatio) * timelineRatio
-  return {
-    segment,
-    sourceTimeSeconds: clamp(sourceRatio, 0, 1) * args.sourceDurationSeconds,
-  }
-}
-
-export function resolveVideoSequenceExportSourceTimePosition(args: {
-  currentTimeSeconds: number
-  plan: VideoSequenceExportPlan | null
-  preferredPositionMinutes?: number
-  source: VideoSequenceTimelineSource
-  sourceDurationSeconds: number
-}): number | null {
-  if (!args.plan?.segments.length || args.sourceDurationSeconds <= 0) return null
-  const sourceRatio = clamp(args.currentTimeSeconds / args.sourceDurationSeconds, 0, 1)
-  const candidates = args.plan.segments
-    .filter(segment => areVideoSequenceExportSourcesEqual(segment.source, args.source))
-    .filter(segment => segment.durationMinutes > 0 && segment.sourceEndRatio >= segment.sourceStartRatio)
-    .map(segment => {
-      const minRatio = Math.min(segment.sourceStartRatio, segment.sourceEndRatio)
-      const maxRatio = Math.max(segment.sourceStartRatio, segment.sourceEndRatio)
-      const boundedSourceRatio = clamp(sourceRatio, minRatio, maxRatio)
-      const ratioSpan = Math.max(0.0001, segment.sourceEndRatio - segment.sourceStartRatio)
-      const segmentRatio = clamp((boundedSourceRatio - segment.sourceStartRatio) / ratioSpan, 0, 1)
-      const positionMinutes = segment.timelineStartMinutes + segment.durationMinutes * segmentRatio
-      const distance = Math.abs(sourceRatio - boundedSourceRatio)
-      const contains = distance < 0.0001
-      const preferredDistance = typeof args.preferredPositionMinutes === 'number'
-        ? Math.abs(positionMinutes - args.preferredPositionMinutes)
-        : 0
-      return { contains, distance, positionMinutes, preferredDistance }
-    })
-    .sort((a, b) =>
-      Number(b.contains) - Number(a.contains)
-      || a.distance - b.distance
-      || a.preferredDistance - b.preferredDistance
-      || a.positionMinutes - b.positionMinutes,
-    )
-  return candidates[0]?.positionMinutes ?? null
-}
-
-function selectMediaRecorderMimeType(candidates: readonly string[]): string {
-  const recorder = typeof MediaRecorder !== 'undefined' ? MediaRecorder : null
+function selectMediaRecorderMimeType(candidates: readonly string[], recorder: MediaRecorderConstructorLike): string {
   if (!recorder || typeof recorder.isTypeSupported !== 'function') return candidates[candidates.length - 1] || ''
   return candidates.find(candidate => recorder.isTypeSupported(candidate)) || candidates[candidates.length - 1] || ''
 }
 
-function loadVideoMetadata(video: HTMLVideoElement, url: string): Promise<void> {
+export function resolveVideoSequenceExportRecorderMimeType(
+  kind: VideoSequenceExportKind,
+  recorder: MediaRecorderConstructorLike = typeof MediaRecorder !== 'undefined' ? MediaRecorder : null,
+): string {
+  return kind === 'audio'
+    ? selectMediaRecorderMimeType(['audio/webm;codecs=opus', 'audio/webm'], recorder)
+    : selectMediaRecorderMimeType(['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'], recorder)
+}
+
+export function resolveVideoSequenceExportCapabilityError(args: {
+  kind: VideoSequenceExportKind
+  hasAudioContext: boolean
+  hasCanvasCaptureStream: boolean
+  hasMediaRecorder: boolean
+}): string {
+  if (!args.hasMediaRecorder) return resolveVideoSequenceExportErrorMessage('capability-media-recorder')
+  if (!args.hasAudioContext) return resolveVideoSequenceExportErrorMessage('capability-audio-context')
+  if (args.kind === 'video' && !args.hasCanvasCaptureStream) return resolveVideoSequenceExportErrorMessage('capability-canvas-capture')
+  return ''
+}
+
+export function resolveVideoSequenceExportPlanError(plan: VideoSequenceExportPlan | null | undefined): string {
+  if (!plan?.segments.length) return resolveVideoSequenceExportErrorMessage('plan-empty')
+  const hasRenderableSegment = plan.segments.some(segment =>
+    segment.durationMinutes > 0 &&
+    segment.timelineEndMinutes > segment.timelineStartMinutes &&
+    segment.sourceEndRatio > segment.sourceStartRatio,
+  )
+  if (!hasRenderableSegment) return resolveVideoSequenceExportErrorMessage('plan-non-renderable')
+  return ''
+}
+
+export function isVideoSequenceExportAbortError(error: unknown): boolean {
+  return resolveVideoSequenceExportErrorCode(error) === 'aborted'
+}
+
+export function buildVideoSequenceExportProgress(args: {
+  completedSegments: number
+  kind: VideoSequenceExportKind
+  phase: VideoSequenceExportProgressPhase
+  totalSegments: number
+}): VideoSequenceExportProgress {
+  const target = args.kind === 'audio' ? 'audio' : 'video'
+  const totalSegments = Math.max(0, Math.floor(args.totalSegments || 0))
+  const normalizedTotalSegments = Math.max(1, totalSegments)
+  const completedSegments = Math.max(0, Math.min(totalSegments || normalizedTotalSegments, Math.floor(args.completedSegments || 0)))
+  if (args.phase === 'preparing') {
+    return {
+      completedSegments,
+      kind: args.kind,
+      phase: 'preparing',
+      percentage: 8,
+      label: `Preparing edited ${target}...`,
+      totalSegments,
+    }
+  }
+  if (args.phase === 'finalizing') {
+    return {
+      completedSegments,
+      kind: args.kind,
+      phase: 'finalizing',
+      percentage: 98,
+      label: `Finalizing edited ${target}...`,
+      totalSegments,
+    }
+  }
+  const percentage = Math.max(15, Math.min(95, Math.round(15 + (completedSegments / normalizedTotalSegments) * 80)))
+  return {
+    completedSegments,
+    kind: args.kind,
+    phase: 'rendering',
+    percentage,
+    label: `Rendering edited ${target} (${completedSegments}/${totalSegments || normalizedTotalSegments} segments, ${percentage}%)...`,
+    totalSegments,
+  }
+}
+
+function createVideoSequenceExportAbortError(): Error {
+  return createVideoSequenceExportError('aborted')
+}
+
+function throwIfVideoSequenceExportAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw createVideoSequenceExportAbortError()
+}
+
+function reportVideoSequenceExportProgress(
+  onEvent: ((event: VideoSequenceExportEvent) => void) | undefined,
+  onProgress: ((progress: VideoSequenceExportProgress) => void) | undefined,
+  progress: VideoSequenceExportProgress,
+): void {
+  try {
+    onProgress?.(progress)
+  } catch {
+    void 0
+  }
+  try {
+    onEvent?.(resolveVideoSequenceExportEvent({ progress }))
+  } catch {
+    void 0
+  }
+}
+
+function reportVideoSequenceExportOutcome(
+  onEvent: ((event: VideoSequenceExportEvent) => void) | undefined,
+  outcome: VideoSequenceExportOutcome,
+): void {
+  try {
+    onEvent?.(resolveVideoSequenceExportEvent({ outcome }))
+  } catch {
+    void 0
+  }
+}
+
+function waitForVideoSequenceExportDelay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      video.removeEventListener('loadedmetadata', onLoaded)
-      video.removeEventListener('error', onError)
+    if (signal?.aborted) {
+      reject(createVideoSequenceExportAbortError())
+      return
     }
-    const onLoaded = () => {
-      cleanup()
+    let settled = false
+    const timeoutId = window.setTimeout(() => {
+      settled = true
+      signal?.removeEventListener('abort', handleAbort)
       resolve()
+    }, Math.max(0, ms))
+    const handleAbort = () => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeoutId)
+      signal?.removeEventListener('abort', handleAbort)
+      reject(createVideoSequenceExportAbortError())
     }
-    const onError = () => {
-      cleanup()
-      reject(new Error('Unable to load source media.'))
-    }
-    video.addEventListener('loadedmetadata', onLoaded)
-    video.addEventListener('error', onError)
-    video.src = url
-    video.load()
+    signal?.addEventListener('abort', handleAbort, { once: true })
   })
 }
 
-function seekVideo(video: HTMLVideoElement, seconds: number): Promise<void> {
-  return new Promise(resolve => {
+function seekVideo(video: HTMLVideoElement, seconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createVideoSequenceExportAbortError())
+      return
+    }
     const target = Math.max(0, seconds)
+    let settled = false
+    let timeoutId = 0
     const done = () => {
+      if (settled) return
+      settled = true
       video.removeEventListener('seeked', done)
+      signal?.removeEventListener('abort', handleAbort)
+      window.clearTimeout(timeoutId)
       resolve()
     }
+    const handleAbort = () => {
+      if (settled) return
+      settled = true
+      video.removeEventListener('seeked', done)
+      signal?.removeEventListener('abort', handleAbort)
+      window.clearTimeout(timeoutId)
+      reject(createVideoSequenceExportAbortError())
+    }
     video.addEventListener('seeked', done, { once: true })
+    signal?.addEventListener('abort', handleAbort, { once: true })
     video.currentTime = target
-    window.setTimeout(done, 800)
+    timeoutId = window.setTimeout(done, 800)
   })
 }
 
@@ -399,8 +687,38 @@ function waitForRecorderStop(recorder: MediaRecorder): Promise<BlobPart[]> {
       if (event.data && event.data.size > 0) chunks.push(event.data)
     })
     recorder.addEventListener('stop', () => resolve(chunks), { once: true })
-    recorder.addEventListener('error', () => reject(new Error('Media export failed.')), { once: true })
+    recorder.addEventListener('error', () => reject(createVideoSequenceExportError('runtime-failed')), { once: true })
   })
+}
+
+async function cleanupVideoSequenceExportRuntime(args: {
+  audioContext: AudioContext
+  audioSource: MediaElementAudioSourceNode
+  stream: MediaStream | null
+  video: HTMLVideoElement
+}): Promise<void> {
+  try {
+    args.stream?.getTracks().forEach(track => track.stop())
+  } catch {
+    void 0
+  }
+  try {
+    args.audioSource.disconnect()
+  } catch {
+    void 0
+  }
+  try {
+    await args.audioContext.close()
+  } catch {
+    void 0
+  }
+  try {
+    args.video.pause()
+  } catch {
+    void 0
+  }
+  args.video.removeAttribute('src')
+  args.video.load()
 }
 
 function drawVideoFrame(args: {
@@ -440,24 +758,32 @@ async function recordGap(args: {
   canvas: HTMLCanvasElement
   context: CanvasRenderingContext2D
   seconds: number
+  signal?: AbortSignal
 }): Promise<void> {
   if (args.seconds <= VIDEO_EXPORT_MIN_GAP_SECONDS) return
+  throwIfVideoSequenceExportAborted(args.signal)
   drawVideoFrame({ canvas: args.canvas, context: args.context, segment: null, video: null })
-  await new Promise(resolve => window.setTimeout(resolve, args.seconds * 1000))
+  await waitForVideoSequenceExportDelay(args.seconds * 1000, args.signal)
 }
 
 async function recordSegment(args: {
   canvas: HTMLCanvasElement
   context: CanvasRenderingContext2D
   segment: VideoSequenceRenderSegment
+  signal?: AbortSignal
   video: HTMLVideoElement
 }): Promise<void> {
   const { canvas, context, segment, video } = args
-  await loadVideoMetadata(video, segment.url)
-  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0
+  throwIfVideoSequenceExportAborted(args.signal)
+  const duration = await loadTimelinePlanVideoMetadata({
+    url: segment.url,
+    video,
+    timeoutMs: 8000,
+  })
+  if (!duration) throw createVideoSequenceExportError('source-load-failed')
   const startSeconds = Math.max(0, Math.min(duration, segment.sourceStartSeconds))
   const endSeconds = Math.max(startSeconds, Math.min(duration, segment.sourceEndSeconds))
-  await seekVideo(video, startSeconds)
+  await seekVideo(video, startSeconds, args.signal)
   let raf = 0
   let stopped = false
   const drawLoop = () => {
@@ -469,6 +795,10 @@ async function recordSegment(args: {
   await video.play()
   await new Promise<void>(resolve => {
     const tick = () => {
+      if (args.signal?.aborted) {
+        resolve()
+        return
+      }
       if (video.currentTime >= endSeconds || video.paused || video.ended) {
         resolve()
         return
@@ -477,25 +807,45 @@ async function recordSegment(args: {
     }
     tick()
   })
+  throwIfVideoSequenceExportAborted(args.signal)
   stopped = true
   if (raf) window.cancelAnimationFrame(raf)
   video.pause()
 }
 
-async function resolveRenderSegments(plan: VideoSequenceExportPlan): Promise<VideoSequenceRenderSegment[]> {
+async function resolveRenderSegments(args: {
+  onEvent?: (event: VideoSequenceExportEvent) => void
+  onProgress?: (progress: VideoSequenceExportProgress) => void
+  plan: VideoSequenceExportPlan
+  renderKind: VideoSequenceExportKind
+  signal?: AbortSignal
+}): Promise<VideoSequenceRenderSegment[]> {
   let cursorMinutes = 0
   const secondsPerMinute = 1
   const out: VideoSequenceRenderSegment[] = []
-  for (const segment of plan.segments) {
-    const url = readVideoSequenceSourcePlayableUrl(segment.source) || resolveVideoSequenceSourceRuntimeUrl(segment.source)
-    if (!url) throw new Error('Re-import the local source or import a playable URL before export.')
+  reportVideoSequenceExportProgress(args.onEvent, args.onProgress, buildVideoSequenceExportProgress({
+    completedSegments: 0,
+    kind: args.renderKind,
+    phase: 'preparing',
+    totalSegments: args.plan.segments.length,
+  }))
+  for (const segment of args.plan.segments) {
+    throwIfVideoSequenceExportAborted(args.signal)
+    const url = resolveTimelinePlanSourceUrl(segment.source)
+    if (!url) throw createVideoSequenceExportError('source-unavailable')
     const probe = document.createElement('video')
     probe.preload = 'metadata'
     probe.crossOrigin = 'anonymous'
-    await loadVideoMetadata(probe, url)
-    const duration = Number.isFinite(probe.duration) && probe.duration > 0 ? probe.duration : 0
-    probe.removeAttribute('src')
-    probe.load()
+    const duration = await loadTimelinePlanVideoMetadata({
+      url,
+      video: probe,
+      timeoutMs: 8000,
+    })
+    if (!duration) {
+      probe.removeAttribute('src')
+      probe.load()
+      throw createVideoSequenceExportError('source-load-failed')
+    }
     const gapMinutes = Math.max(0, segment.timelineStartMinutes - cursorMinutes)
     out.push({
       ...segment,
@@ -511,16 +861,31 @@ async function resolveRenderSegments(plan: VideoSequenceExportPlan): Promise<Vid
 
 export async function renderVideoSequenceExport(args: {
   kind: VideoSequenceExportKind
+  onEvent?: (event: VideoSequenceExportEvent) => void
+  onProgress?: (progress: VideoSequenceExportProgress) => void
   plan: VideoSequenceExportPlan
+  signal?: AbortSignal
 }): Promise<Blob> {
-  if (typeof MediaRecorder === 'undefined') throw new Error('MediaRecorder export is not available in this browser.')
+  const planError = resolveVideoSequenceExportPlanError(args.plan)
+  if (planError) throw new Error(planError)
   const canvas = document.createElement('canvas')
   canvas.width = VIDEO_EXPORT_WIDTH
   canvas.height = VIDEO_EXPORT_HEIGHT
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('Canvas export is not available in this browser.')
+  if (!context) throw createVideoSequenceExportError('capability-canvas-export')
   const captureStream = canvas.captureStream?.bind(canvas)
-  if (args.kind === 'video' && typeof captureStream !== 'function') throw new Error('Canvas video capture is not available in this browser.')
+  const capabilityError = resolveVideoSequenceExportCapabilityError({
+    kind: args.kind,
+    hasAudioContext: typeof AudioContext !== 'undefined',
+    hasCanvasCaptureStream: typeof captureStream === 'function',
+    hasMediaRecorder: typeof MediaRecorder !== 'undefined',
+  })
+  if (capabilityError) {
+    throw createVideoSequenceExportError(
+      resolveVideoSequenceExportErrorCode(new Error(capabilityError)) || 'runtime-failed',
+      capabilityError,
+    )
+  }
   const video = document.createElement('video')
   video.crossOrigin = 'anonymous'
   video.playsInline = true
@@ -529,44 +894,88 @@ export async function renderVideoSequenceExport(args: {
   const audioDestination = audioContext.createMediaStreamDestination()
   const audioSource = audioContext.createMediaElementSource(video)
   audioSource.connect(audioDestination)
-  await audioContext.resume()
-  const renderSegments = await resolveRenderSegments(args.plan)
-  const mimeType = args.kind === 'audio'
-    ? selectMediaRecorderMimeType(['audio/webm;codecs=opus', 'audio/webm'])
-    : selectMediaRecorderMimeType(['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'])
-  const stream = args.kind === 'audio'
-    ? audioDestination.stream
-    : new MediaStream([
-      ...canvas.captureStream(VIDEO_EXPORT_FRAME_RATE).getVideoTracks(),
-      ...audioDestination.stream.getAudioTracks(),
-    ])
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-  const chunksPromise = waitForRecorderStop(recorder)
-  recorder.start(250)
+  let stream: MediaStream | null = null
   try {
-    for (const segment of renderSegments) {
-      await recordGap({ canvas, context, seconds: segment.gapSecondsBefore })
-      await recordSegment({ canvas, context, segment, video })
+    throwIfVideoSequenceExportAborted(args.signal)
+    await audioContext.resume()
+    const renderSegments = await resolveRenderSegments({
+      onEvent: args.onEvent,
+      onProgress: args.onProgress,
+      plan: args.plan,
+      renderKind: args.kind,
+      signal: args.signal,
+    })
+    const mimeType = resolveVideoSequenceExportRecorderMimeType(args.kind)
+    stream = args.kind === 'audio'
+      ? audioDestination.stream
+      : new MediaStream([
+        ...canvas.captureStream(VIDEO_EXPORT_FRAME_RATE).getVideoTracks(),
+        ...audioDestination.stream.getAudioTracks(),
+      ])
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+    const chunksPromise = waitForRecorderStop(recorder)
+    recorder.start(250)
+    try {
+      for (let i = 0; i < renderSegments.length; i += 1) {
+        const segment = renderSegments[i]
+        await recordGap({ canvas, context, seconds: segment.gapSecondsBefore, signal: args.signal })
+        await recordSegment({ canvas, context, segment, signal: args.signal, video })
+        reportVideoSequenceExportProgress(args.onEvent, args.onProgress, buildVideoSequenceExportProgress({
+          completedSegments: i + 1,
+          kind: args.kind,
+          phase: 'rendering',
+          totalSegments: renderSegments.length,
+        }))
+      }
+    } finally {
+      if (recorder.state !== 'inactive') recorder.stop()
     }
+    reportVideoSequenceExportProgress(args.onEvent, args.onProgress, buildVideoSequenceExportProgress({
+      completedSegments: renderSegments.length,
+      kind: args.kind,
+      phase: 'finalizing',
+      totalSegments: renderSegments.length,
+    }))
+    const chunks = await chunksPromise
+    const outputType = mimeType || (args.kind === 'audio' ? 'audio/webm' : 'video/webm')
+    return new Blob(chunks, { type: outputType })
   } finally {
-    if (recorder.state !== 'inactive') recorder.stop()
+    await cleanupVideoSequenceExportRuntime({
+      audioContext,
+      audioSource,
+      stream,
+      video,
+    })
   }
-  const chunks = await chunksPromise
-  stream.getTracks().forEach(track => track.stop())
-  audioSource.disconnect()
-  await audioContext.close()
-  video.removeAttribute('src')
-  video.load()
-  const outputType = mimeType || (args.kind === 'audio' ? 'audio/webm' : 'video/webm')
-  return new Blob(chunks, { type: outputType })
 }
 
 export async function downloadVideoSequenceExport(args: {
   kind: VideoSequenceExportKind
+  onEvent?: (event: VideoSequenceExportEvent) => void
+  onProgress?: (progress: VideoSequenceExportProgress) => void
   plan: VideoSequenceExportPlan
-}): Promise<string> {
-  const blob = await renderVideoSequenceExport(args)
-  const filename = `${args.plan.filenameBase}.edited.${args.kind === 'audio' ? 'audio.webm' : 'video.webm'}`
-  downloadBlob(blob, filename)
-  return filename
+  signal?: AbortSignal
+}): Promise<VideoSequenceExportDownloadResult> {
+  try {
+    const blob = await renderVideoSequenceExport(args)
+    const filename = `${args.plan.filenameBase}.edited.${args.kind === 'audio' ? 'audio.webm' : 'video.webm'}`
+    downloadBlob(blob, filename)
+    const result = {
+      byteSize: blob.size,
+      filename,
+      kind: args.kind,
+      mimeType: blob.type,
+    }
+    reportVideoSequenceExportOutcome(args.onEvent, resolveVideoSequenceExportOutcome({
+      kind: args.kind,
+      result,
+    }))
+    return result
+  } catch (error) {
+    reportVideoSequenceExportOutcome(args.onEvent, resolveVideoSequenceExportOutcome({
+      error,
+      kind: args.kind,
+    }))
+    throw error
+  }
 }

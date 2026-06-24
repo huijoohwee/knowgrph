@@ -122,36 +122,36 @@ export const createUiInitialState = (
         return { mermaidDiagramSelectedRowKeyByKind: next } as Partial<GraphState>
       }),
 
-    ganttTimelineTransportDocumentKey: '',
-    ganttTimelineTransportPositionMinutes: 0,
-    ganttTimelineTransportPlaying: false,
-    ganttTimelineTransportPlaybackRate: 1,
-    setGanttTimelineTransportState: (update: GraphState['setGanttTimelineTransportState'] extends (arg: infer Arg) => void ? Arg : never) =>
+    timelineTransportDocumentKey: '',
+    timelineTransportPosition: 0,
+    timelineTransportPlaying: false,
+    timelineTransportPlaybackRate: 1,
+    setTimelineTransportState: (update: GraphState['setTimelineTransportState'] extends (arg: infer Arg) => void ? Arg : never) =>
       set(state => {
         const documentKey = Object.prototype.hasOwnProperty.call(update || {}, 'documentKey')
           ? String(update?.documentKey || '').trim()
-          : state.ganttTimelineTransportDocumentKey
-        const currentDocumentKey = state.ganttTimelineTransportDocumentKey || ''
+          : state.timelineTransportDocumentKey
+        const currentDocumentKey = state.timelineTransportDocumentKey || ''
         const documentChanged = documentKey !== currentDocumentKey
-        const positionRaw = typeof update?.positionMinutes === 'number' && Number.isFinite(update.positionMinutes)
-          ? Math.max(0, update.positionMinutes)
-          : (documentChanged ? 0 : state.ganttTimelineTransportPositionMinutes)
+        const positionRaw = typeof update?.position === 'number' && Number.isFinite(update.position)
+          ? Math.max(0, update.position)
+          : (documentChanged ? 0 : state.timelineTransportPosition)
         const playbackRateRaw = typeof update?.playbackRate === 'number' && Number.isFinite(update.playbackRate)
           ? update.playbackRate
-          : (documentChanged ? 1 : state.ganttTimelineTransportPlaybackRate)
+          : (documentChanged ? 1 : state.timelineTransportPlaybackRate)
         const next = {
-          ganttTimelineTransportDocumentKey: documentKey,
-          ganttTimelineTransportPositionMinutes: positionRaw,
-          ganttTimelineTransportPlaying: typeof update?.playing === 'boolean'
+          timelineTransportDocumentKey: documentKey,
+          timelineTransportPosition: positionRaw,
+          timelineTransportPlaying: typeof update?.playing === 'boolean'
             ? update.playing
-            : (documentChanged ? false : state.ganttTimelineTransportPlaying),
-          ganttTimelineTransportPlaybackRate: playbackRateRaw,
+            : (documentChanged ? false : state.timelineTransportPlaying),
+          timelineTransportPlaybackRate: playbackRateRaw,
         }
         if (
-          state.ganttTimelineTransportDocumentKey === next.ganttTimelineTransportDocumentKey &&
-          Math.abs((state.ganttTimelineTransportPositionMinutes || 0) - next.ganttTimelineTransportPositionMinutes) < 0.001 &&
-          state.ganttTimelineTransportPlaying === next.ganttTimelineTransportPlaying &&
-          Math.abs((state.ganttTimelineTransportPlaybackRate || 1) - next.ganttTimelineTransportPlaybackRate) < 0.001
+          state.timelineTransportDocumentKey === next.timelineTransportDocumentKey &&
+          Math.abs((state.timelineTransportPosition || 0) - next.timelineTransportPosition) < 0.001 &&
+          state.timelineTransportPlaying === next.timelineTransportPlaying &&
+          Math.abs((state.timelineTransportPlaybackRate || 1) - next.timelineTransportPlaybackRate) < 0.001
         ) {
           return {}
         }

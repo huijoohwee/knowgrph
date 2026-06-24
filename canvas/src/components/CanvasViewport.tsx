@@ -37,6 +37,7 @@ const CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy = React.lazy(() =>
 const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidGitGraphCanvas'))
 const MermaidGanttCanvasLazy = React.lazy(() => import('@/components/MermaidGanttCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
+const AnimaticCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/AnimaticCanvas'), { retries: 2, retryDelayMs: 50 }))
 const StoryboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorWidgetDropBridgeLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorWidgetDropBridge'), { retries: 2, retryDelayMs: 50 }))
@@ -203,6 +204,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flow'}>
               {active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null}
+            </section>
+            <section className={`absolute inset-0 ${active2dSurface === 'animatic' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'animatic'}>
+              {active2dSurface === 'animatic' ? <AnimaticCanvasLazy active /> : null}
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
               {active2dSurface === 'storyboard' ? <StoryboardCanvasLazy active /> : null}

@@ -53,7 +53,18 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'type AnimaticTimelineScaleConfig',
     'TimelineTransportControls',
     'useTimelineTransportPlayback',
+    'useTimelineDocumentTransportController',
+    'useTimelineDocumentStoreBinding',
+    'useTimelineTransportStoreBinding',
     'resolveTimelineTransportUnitsPerMs',
+    'timelineTransportDocumentKey',
+    'timelineTransportPosition',
+    'timelineTransportPlaying',
+    'timelineTransportPlaybackRate',
+    'setTimelineTransportState',
+    'setTransportPlaybackPosition',
+    'setTransportPlaying',
+    'setTransportPlaybackRate',
     'timelineModel.scaleConfig',
     'setTimingOverrides({})',
     'setDragState(null)',
@@ -158,7 +169,7 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
       throw new Error(`expected AnimaticCanvas to retain reference player/timeline shell snippet: ${snippet}`)
     }
   }
-  for (const forbiddenSnippet of ['timeline-player-meta', 'timeline-player-chip', 'timeline-editor-config', 'timeline-editor-config-item', 'scaleConfigDraft', 'commitTimelineScaleConfig', 'Auto Scroll On', 'Auto Scroll Off', 'Selected Lane:', 'Selected Item:', 'Beat Strip:', 'Drag beat bars to move. Drag edges to resize. Snap follows the active grid step. Split uses the current playhead.', 'No note', 'No summary', 'No tags', 'Active Beat:']) {
+  for (const forbiddenSnippet of ['const [playbackPosition', 'const [playing', 'const [playbackRate', 'setTimelineTransportState({ documentKey', 'transportDocumentKey === markdownDocumentName', 'resolveTimelineTransportPlaybackRate(', 'timeline-player-meta', 'timeline-player-chip', 'timeline-editor-config', 'timeline-editor-config-item', 'scaleConfigDraft', 'commitTimelineScaleConfig', 'Auto Scroll On', 'Auto Scroll Off', 'Selected Lane:', 'Selected Item:', 'Beat Strip:', 'Drag beat bars to move. Drag edges to resize. Snap follows the active grid step. Split uses the current playhead.', 'No note', 'No summary', 'No tags', 'Active Beat:', 'useGraphStore(s => s.timelineTransportDocumentKey', 'useGraphStore(s => s.timelineTransportPosition', 'useGraphStore(s => s.timelineTransportPlaying', 'useGraphStore(s => s.timelineTransportPlaybackRate', 'useGraphStore(s => s.setTimelineTransportState', 'useGraphStore(s => s.markdownDocumentName', 'useGraphStore(s => s.markdownDocumentText']) {
     if (text.includes(forbiddenSnippet)) {
       throw new Error(`expected AnimaticCanvas player shell to avoid local-only meta chrome snippet: ${forbiddenSnippet}`)
     }

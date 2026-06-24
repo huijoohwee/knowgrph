@@ -1,4 +1,6 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export const TIMELINE_TRANSPORT_PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
 export const TIMELINE_TRANSPORT_ZOOM_LEVELS = [1, 1.5, 2, 3, 4] as const
@@ -79,6 +81,174 @@ export function splitTimelineTransportCurrentTotalLabel(label: string): {
   return {
     currentLabel: parts[0] || normalizedLabel,
     totalLabel: parts[1],
+  }
+}
+
+export type TimelineDocumentTransportStateUpdate = {
+  position?: number
+  playing?: boolean
+  playbackRate?: TimelineTransportPlaybackRate
+}
+
+export type TimelineTransportSnapshot = {
+  documentKey: string
+  position: number
+}
+
+export type TimelineTransportSnapshotReader = () => TimelineTransportSnapshot
+
+export type TimelineTransportStoreBinding = {
+  transportDocumentKey: string
+  transportPosition: number
+  transportPlaying: boolean
+  transportPlaybackRate: number
+  setTimelineTransportState: (update: {
+    documentKey?: string | null
+    position?: number | null
+    playing?: boolean
+    playbackRate?: number | null
+  }) => void
+}
+
+export type TimelineDocumentStoreBinding = {
+  markdownDocumentName: string
+  markdownText: string
+}
+
+export function resolveTimelineTransportSnapshot(args: {
+  transportDocumentKey: unknown
+  transportPosition: unknown
+}): TimelineTransportSnapshot {
+  return {
+    documentKey: String(args.transportDocumentKey || '').trim(),
+    position: Number.isFinite(args.transportPosition)
+      ? Math.max(0, Number(args.transportPosition))
+      : 0,
+  }
+}
+
+export function useTimelineTransportSnapshotReader(args: {
+  transportDocumentKey: string
+  transportPosition: number
+}): TimelineTransportSnapshotReader {
+  const snapshot = React.useMemo(() => resolveTimelineTransportSnapshot({
+    transportDocumentKey: args.transportDocumentKey,
+    transportPosition: args.transportPosition,
+  }), [args.transportDocumentKey, args.transportPosition])
+  const snapshotRef = React.useRef(snapshot)
+  snapshotRef.current = snapshot
+  return React.useCallback(() => snapshotRef.current, [])
+}
+
+export function useTimelineTransportStoreBinding(): TimelineTransportStoreBinding {
+  return useGraphStore(
+    useShallow(state => ({
+      transportDocumentKey: state.timelineTransportDocumentKey || '',
+      transportPosition: state.timelineTransportPosition || 0,
+      transportPlaying: state.timelineTransportPlaying === true,
+      transportPlaybackRate: state.timelineTransportPlaybackRate || 1,
+      setTimelineTransportState: state.setTimelineTransportState,
+    })),
+  )
+}
+
+export function useTimelineDocumentStoreBinding(): TimelineDocumentStoreBinding {
+  return useGraphStore(
+    useShallow(state => ({
+      markdownDocumentName: state.markdownDocumentName || '',
+      markdownText: state.markdownDocumentText || '',
+    })),
+  )
+}
+
+export function useTimelineDocumentTransportController(args: {
+  active?: boolean
+  documentKey: string
+  maxPosition: number
+  transportDocumentKey: string
+  transportPosition: number
+  transportPlaying: boolean
+  transportPlaybackRate: unknown
+  defaultPlaybackRate?: TimelineTransportPlaybackRate
+  setTimelineTransportState: (update: {
+    documentKey?: string | null
+    position?: number | null
+    playing?: boolean
+    playbackRate?: number | null
+  }) => void
+}) {
+  const playbackPosition = React.useMemo(
+    () => (
+      args.transportDocumentKey === args.documentKey
+        ? clampTimelineTransportValue(args.transportPosition, 0, args.maxPosition)
+        : 0
+    ),
+    [args.documentKey, args.maxPosition, args.transportDocumentKey, args.transportPosition],
+  )
+  const playing = args.transportDocumentKey === args.documentKey && args.transportPlaying
+  const playbackRate = resolveTimelineTransportPlaybackRate(
+    args.transportPlaybackRate,
+    args.defaultPlaybackRate || 1,
+  )
+  const updateDocumentTransportState = React.useCallback((update: TimelineDocumentTransportStateUpdate) => {
+    args.setTimelineTransportState({
+      documentKey: args.documentKey,
+      ...update,
+    })
+  }, [args.documentKey, args.setTimelineTransportState])
+  const setTransportPlaybackPosition = React.useCallback((nextPosition: number) => {
+    updateDocumentTransportState({
+      position: clampTimelineTransportValue(nextPosition, 0, Math.max(0, args.maxPosition)),
+    })
+  }, [args.maxPosition, updateDocumentTransportState])
+  const setTransportPlaying = React.useCallback((nextPlaying: boolean) => {
+    updateDocumentTransportState({ playing: nextPlaying })
+  }, [updateDocumentTransportState])
+  const setTransportPlaybackRate = React.useCallback((nextRate: TimelineTransportPlaybackRate) => {
+    updateDocumentTransportState({ playbackRate: nextRate })
+  }, [updateDocumentTransportState])
+
+  React.useEffect(() => {
+    if (args.active === false || !args.documentKey) return
+    if (args.transportDocumentKey !== args.documentKey) {
+      args.setTimelineTransportState({ documentKey: args.documentKey })
+      return
+    }
+    if (args.maxPosition <= 0) {
+      if (args.transportPlaying || args.transportPosition !== 0) {
+        args.setTimelineTransportState({
+          documentKey: args.documentKey,
+          playing: false,
+          position: 0,
+        })
+      }
+      return
+    }
+    const clampedPosition = clampTimelineTransportValue(args.transportPosition, 0, args.maxPosition)
+    if (Math.abs(clampedPosition - args.transportPosition) > 0.001) {
+      args.setTimelineTransportState({
+        documentKey: args.documentKey,
+        position: clampedPosition,
+      })
+    }
+  }, [
+    args.active,
+    args.documentKey,
+    args.maxPosition,
+    args.setTimelineTransportState,
+    args.transportDocumentKey,
+    args.transportPosition,
+    args.transportPlaying,
+  ])
+
+  return {
+    playbackPosition,
+    playing,
+    playbackRate,
+    updateDocumentTransportState,
+    setTransportPlaybackPosition,
+    setTransportPlaying,
+    setTransportPlaybackRate,
   }
 }
 

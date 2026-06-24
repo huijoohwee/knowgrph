@@ -68,11 +68,17 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
     throw new Error('expected current/total label splitting to live in the shared timeline transport helper')
   }
   for (const snippet of [
+    'TimelineDocumentTransportStateUpdate',
     'TIMELINE_TRANSPORT_ZOOM_LEVELS',
     'TIMELINE_TRANSPORT_AUTOMATION_INTENTS',
     'resolveTimelineTransportNextZoomIndex',
     'resolveTimelineTransportPlayheadPercent',
     'resolveTimelineTransportPlayheadScrollLeft',
+    'useTimelineDocumentTransportController',
+    'updateDocumentTransportState',
+    'setTransportPlaybackPosition',
+    'setTransportPlaying',
+    'setTransportPlaybackRate',
   ]) {
     if (!transportUtilsText.includes(snippet)) {
       throw new Error(`expected timeline transport interaction helper to stay centralized: ${snippet}`)

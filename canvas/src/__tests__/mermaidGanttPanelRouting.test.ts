@@ -331,8 +331,19 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   const gitGraphBottomText = readSource('features', 'gitgraph', 'GitGraphBottomPanelView.tsx')
   const ganttBottomText = readSource('features', 'gitgraph', 'GanttBottomPanelView.tsx')
   const ganttTransportText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
+  const ganttDocumentActionsText = readSource('features', 'gitgraph', 'useGanttTimelineDocumentActions.ts')
+  const ganttDisplayModelText = readSource('features', 'gitgraph', 'useGanttTimelineDisplayModel.ts')
+  const ganttInteractionsText = readSource('features', 'gitgraph', 'useGanttTimelineInteractions.ts')
+  const ganttMediaDurationText = readSource('features', 'gitgraph', 'useGanttTimelineMediaDuration.ts')
+  const ganttPlaybackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
+  const ganttSelectionSyncText = readSource('features', 'gitgraph', 'useGanttTimelineSelectionSync.ts')
+  const ganttTransportViewText = readSource('features', 'gitgraph', 'useGanttTimelineTransportView.ts')
   const timelineBottomText = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const videoSequenceExportText = readSource('components', 'timeline', 'videoSequenceExport.ts')
+  const timelineTransportText = readSource('components', 'timeline', 'timelineTransport.ts')
+  const surfaceBindingsText = readSource('components', 'timeline', 'timelineSurfaceBindings.ts')
+  const timelinePlanSyncText = readSource('components', 'timeline', 'timelinePlanSync.ts')
+  const timelinePreviewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const videoSequenceSourceRegistryText = readSource('components', 'timeline', 'videoSequenceSourceRegistry.ts')
   const localImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'localImport.ts')
   const importActionsText = readSource('features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
@@ -373,18 +384,18 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   if (
     !configRenderText.includes("'gitGraph', 'gantt'") ||
     !configRenderText.includes("surfaceId: 'gantt'") ||
-    !configRenderText.includes("animatic: {\n    surfaceId: 'gantt'") ||
-    !configRenderText.includes("registryLabel: 'Gantt-timeline'") ||
+    !configRenderText.includes("animatic: {\n    surfaceId: 'animatic'") ||
+    !configRenderText.includes("registryLabel: 'Animatic'") ||
     !configRenderText.includes('isGanttCanvas2dRenderer') ||
     !uiCopyText.includes('2D Renderer: Gantt-timeline') ||
     !canvasViewMenuText.includes('gantt: ChartGantt') ||
     !canvasViewMenuText.includes('canvasViewRendererGanttTitle') ||
     !canvasViewportText.includes('MermaidGanttCanvasLazy') ||
     !canvasViewportText.includes("active2dSurface === 'gantt'") ||
-    canvasViewportText.includes('AnimaticCanvasLazy') ||
-    canvasViewportText.includes("active2dSurface === 'animatic'")
+    !canvasViewportText.includes('AnimaticCanvasLazy') ||
+    !canvasViewportText.includes("active2dSurface === 'animatic'")
   ) {
-    throw new Error('expected Canvas 2D Renderer Gantt-timeline to replace the old Animatic canvas mount')
+    throw new Error('expected Canvas 2D Renderer Gantt-timeline to remain mounted while Animatic restores its own first-class canvas surface')
   }
   if (
     !canvasViewTypesText.includes("'control:gitGraph'") ||
@@ -711,23 +722,19 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('useTimelineTransportPlayback') ||
     !ganttTransportText.includes('buildMermaidGanttTimelineModel(code)') ||
     !ganttTransportText.includes('buildMermaidGanttTimelineTicks(timelineModel)') ||
-    !ganttTransportText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(timelineModel, nextPosition)') ||
-    !ganttTransportText.includes('resolveMermaidGanttBarDragPreview') ||
-    !ganttTransportText.includes('resolveMermaidGanttBarDragCommitted') ||
-    !ganttTransportText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
-    !ganttTransportText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
-    !ganttTransportText.includes('deltaMinutes: effectiveDeltaMinutes') ||
-    !ganttTransportText.includes('updateMermaidGanttCodeRowTiming') ||
-    !ganttTransportText.includes('rulerScrubState') ||
-    !ganttTransportText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
-    !ganttTransportText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
-    !ganttTransportText.includes('resolveTimelineTransportNextZoomIndex') ||
-    !ganttTransportText.includes('resolveTimelineTransportPlayheadPercent') ||
-    !ganttTransportText.includes('resolveTimelineTransportPlayheadScrollLeft') ||
-    !ganttTransportText.includes('resolveTimelineTransportZoom') ||
-    !ganttTransportText.includes('ganttTimelineTransportPositionMinutes') ||
-    !ganttTransportText.includes('ganttTimelineTransportPlaying') ||
-    !ganttTransportText.includes('setGanttTimelineTransportState') ||
+    !ganttTransportText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(timelineModel, position)') ||
+    !ganttTransportText.includes('useTimelineDocumentTransportController') ||
+    !ganttTransportText.includes('useTimelineDocumentStoreBinding') ||
+    !ganttTransportText.includes('useGanttTimelineDocumentActions') ||
+    !ganttTransportText.includes('useGanttTimelineDisplayModel') ||
+    !ganttTransportText.includes('useGanttTimelineInteractions') ||
+    !ganttTransportText.includes('useGanttTimelineMediaDuration') ||
+    !ganttTransportText.includes('useGanttTimelinePlaybackControls') ||
+    !ganttTransportText.includes('useGanttTimelineSelectionSync') ||
+    !ganttTransportText.includes('useGanttTimelineTransportView') ||
+    !ganttTransportText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !ganttTransportText.includes('useTimelineTransportStoreBinding') ||
+    !ganttTransportText.includes('setTimelineTransportState') ||
     !ganttTransportText.includes('centerTimelinePlayhead') ||
     !ganttTransportText.includes('handleRulerPointerScrub') ||
     !ganttTransportText.includes('showRange={false}') ||
@@ -741,29 +748,32 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportText.includes('buildVideoSequenceTimelineToolStatus') ||
     !ganttTransportText.includes('buildVideoSequenceTimelineScopes') ||
     !ganttTransportText.includes('buildVideoSequenceExportPlan') ||
-    !ganttTransportText.includes('downloadVideoSequenceExport') ||
-    !ganttTransportText.includes('resolveVideoSequenceExportPlanDurationSeconds') ||
-    !ganttTransportText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
-    !ganttTransportText.includes('resolveVideoSequenceTimelineUnitsPerMs') ||
     !ganttTransportText.includes('playbackUnitsPerMs') ||
     !ganttTransportText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
-    !ganttTransportText.includes('upsertUiToast') ||
     !ganttTransportText.includes('data-kg-video-sequence-export="video"') ||
     !ganttTransportText.includes('data-kg-video-sequence-export="audio"') ||
     !ganttTransportText.includes('Download edited video') ||
     !ganttTransportText.includes('Download edited audio') ||
-    !ganttTransportText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
-    !ganttTransportText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
     !ganttTransportText.includes('data-kg-video-sequence-timeline') ||
     !ganttTransportText.includes('timeline-transport-chrome--mermaid-gantt') ||
     !ganttTransportText.includes('timeline-video-sequence-tool-strip') ||
     !ganttTransportText.includes('timeline-transport-chrome-actions') ||
-    !ganttTransportText.includes("setMermaidDiagramSelectedRowKey('gantt', rowKey)") ||
-    !ganttTransportText.includes('formatMermaidGanttTimelineOffset(maxMinutes)') ||
-    !ganttTransportText.includes('formatVideoSequenceTimelineSecondsOffset(mediaDurationSeconds)') ||
+    !ganttTransportText.includes('onSelectRowKey={setSelectedRowKey}') ||
     !ganttTransportText.includes('totalLabel={totalLabel}') ||
     !ganttTransportText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
     !ganttTransportText.includes("'data-kg-gantt-timeline-ruler': 'bottomPanel'") ||
+    ganttTransportText.includes('timelineTransportDocumentKey') ||
+    ganttTransportText.includes('timelineTransportPosition') ||
+    ganttTransportText.includes('timelineTransportPlaying') ||
+    ganttTransportText.includes('timelineTransportPlaybackRate') ||
+    ganttTransportText.includes('markdownDocumentName: state.markdownDocumentName') ||
+    ganttTransportText.includes('markdownText: state.markdownDocumentText') ||
+    ganttTransportText.includes("selectedRowKey: state.mermaidDiagramSelectedRowKeyByKind.gantt") ||
+    ganttTransportText.includes('setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey') ||
+    ganttTransportText.includes('useGraphStore.getState()') ||
+    ganttTransportText.includes('dispatchTimelineTransportPlaybackRequest') ||
+    ganttTransportText.includes('transportDocumentKey === documentKey') ||
+    ganttTransportText.includes('resolveTimelineTransportPlaybackRate(') ||
     ganttTransportText.includes('timeline-transport-chrome--capcut') ||
     ganttTransportText.includes('GANTT_TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
     ganttTransportText.includes('aregrid/frame') ||
@@ -773,37 +783,174 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   }
   if (
     !videoSequenceExportText.includes('buildVideoSequenceExportPlan') ||
-    !videoSequenceExportText.includes('buildVideoSequencePreviewSyncPlan') ||
-    !videoSequenceExportText.includes('selectedRowKey') ||
+    !timelinePlanSyncText.includes('buildTimelinePreviewSyncPlan') ||
+    !timelinePlanSyncText.includes('resolveTimelinePlanSourceTimeAtPosition') ||
+    !timelinePlanSyncText.includes('resolveTimelinePlanPositionFromSourceTime') ||
+    !timelinePlanSyncText.includes('resolveTimelinePlanDurationSeconds') ||
+    !timelinePlanSyncText.includes('resolveTimelinePlanSourceUrl') ||
+    !timelinePlanSyncText.includes('loadTimelinePlanVideoMetadata') ||
+    !timelinePlanSyncText.includes('selectedRowKey') ||
+    !timelineTransportText.includes('resolveTimelineTransportSnapshot') ||
+    !timelineTransportText.includes('useTimelineDocumentStoreBinding') ||
+    !timelineTransportText.includes('useTimelineTransportSnapshotReader') ||
+    !timelineTransportText.includes('useTimelineTransportStoreBinding') ||
+    !surfaceBindingsText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !surfaceBindingsText.includes('useTimelineDocumentMutationStoreBinding') ||
+    !surfaceBindingsText.includes('useTimelineDocumentSnapshotReader') ||
+    !ganttDocumentActionsText.includes('useGanttTimelineDocumentActions') ||
+    !ganttDocumentActionsText.includes('useTimelineDocumentMutationStoreBinding') ||
+    !ganttDocumentActionsText.includes('downloadVideoSequenceExport') ||
+    !ganttDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipGroupAtOffset') ||
+    !ganttDocumentActionsText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
+    !ganttDocumentActionsText.includes('useTimelineDocumentSnapshotReader') ||
+    !ganttDocumentActionsText.includes('handleCommittedDragUpdate') ||
+    !ganttDocumentActionsText.includes('updateMermaidGanttCodeRowTiming') ||
+    !ganttDocumentActionsText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
+    !ganttDocumentActionsText.includes('upsertUiToast') ||
+    !ganttDocumentActionsText.includes('AbortController') ||
+    !ganttDocumentActionsText.includes('resolveVideoSequenceExportEvent') ||
+    !ganttDocumentActionsText.includes('resolveVideoSequenceExportOutcome') ||
+    !ganttDocumentActionsText.includes('createVideoSequenceExportSessionRecord') ||
+    !ganttDocumentActionsText.includes('reduceVideoSequenceExportSessionRecord') ||
+    !ganttDocumentActionsText.includes('resolveVideoSequenceExportRetryRequest') ||
+    !ganttDocumentActionsText.includes('handleRetryEditedMediaExport') ||
+    !ganttDocumentActionsText.includes('latestRetryableExportSession') ||
+    !ganttTransportText.includes('buildVideoSequenceExportSessionSurfaceModel') ||
+    !ganttTransportText.includes('latestRetryableRunId: latestRetryableExportSession?.runId') ||
+    !ganttTransportText.includes('resolveVideoSequenceExportRetryControl') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export="retry"') ||
+    !ganttTransportText.includes('handleRetryEditedMediaExport(latestRetryableExportSession)') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export-session') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export-session-mode') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export-session-retry') ||
+    !ganttTransportText.includes('data-kg-video-sequence-export-session-tone') ||
+    !ganttDocumentActionsText.includes('upsertVideoSequenceExportSessionHistory') ||
+    !ganttDocumentActionsText.includes('recentExportSessions') ||
+    !ganttDisplayModelText.includes('useGanttTimelineDisplayModel') ||
+    !ganttDisplayModelText.includes('formatVideoSequenceTimelineSecondsOffset') ||
+    !ganttDisplayModelText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
+    !ganttDisplayModelText.includes('resolveVideoSequenceTimelineUnitsPerMs') ||
+    !ganttDisplayModelText.includes('formatMermaidGanttTimelineOffset') ||
+    !ganttDisplayModelText.includes('displayTicks') ||
+    !ganttDisplayModelText.includes('playbackUnitsPerMs') ||
+    !ganttInteractionsText.includes('useGanttTimelineInteractions') ||
+    !ganttInteractionsText.includes('rulerScrubState') ||
+    !ganttInteractionsText.includes('resolveMermaidGanttBarDragCommitted') ||
+    !ganttInteractionsText.includes('resolveMermaidGanttBarDragPreview') ||
+    !ganttInteractionsText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
+    !ganttInteractionsText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
+    !ganttInteractionsText.includes('effectiveDeltaMinutes,') ||
+    !ganttInteractionsText.includes('handleRulerPointerScrub') ||
+    !ganttInteractionsText.includes('handleTrackPointerStart') ||
+    !ganttMediaDurationText.includes('useGanttTimelineMediaDuration') ||
+    !ganttMediaDurationText.includes('resolveTimelinePlanDurationSeconds') ||
+    !ganttMediaDurationText.includes("from '@/components/timeline/timelinePlanSync'") ||
+    !ganttMediaDurationText.includes('setMediaDurationSeconds(0)') ||
+    !ganttMediaDurationText.includes('Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0') ||
+    !ganttPlaybackControlsText.includes('useGanttTimelinePlaybackControls') ||
+    !ganttPlaybackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
+    !ganttPlaybackControlsText.includes('requestTimelineTransportPlayback') ||
+    !ganttPlaybackControlsText.includes('handlePlaybackPointerDown') ||
+    !ganttPlaybackControlsText.includes('handleTogglePlayback') ||
+    !ganttPlaybackControlsText.includes('handlePlaybackEnd') ||
+    !ganttSelectionSyncText.includes('useGanttTimelineSelectionSync') ||
+    !ganttSelectionSyncText.includes('previousSelectedRowKeyRef') ||
+    !ganttSelectionSyncText.includes('if (previousSelectedRowKey === args.selectedRowKey) return') ||
+    !ganttSelectionSyncText.includes('args.taskSpans.find(span => span.rowKey === args.selectedRowKey)') ||
+    !ganttSelectionSyncText.includes('args.setTransportPlaybackPosition(selectedSpan.startMinutes)') ||
+    !ganttTransportViewText.includes('useGanttTimelineTransportView') ||
+    !ganttTransportViewText.includes('TIMELINE_TRANSPORT_ZOOM_LEVELS') ||
+    !ganttTransportViewText.includes('resolveTimelineTransportNextZoomIndex') ||
+    !ganttTransportViewText.includes('resolveTimelineTransportPlayheadPercent') ||
+    !ganttTransportViewText.includes('resolveTimelineTransportPlayheadScrollLeft') ||
+    !ganttTransportViewText.includes('resolveTimelineTransportZoom') ||
+    !ganttTransportViewText.includes('centerTimelinePlayhead') ||
+    !ganttTransportViewText.includes('handleZoomOut') ||
+    !ganttTransportViewText.includes('handleZoomIn') ||
+    !ganttTransportViewText.includes('handleFitTimeline') ||
+    !ganttTransportViewText.includes('canZoomOut') ||
+    !ganttTransportViewText.includes('canZoomIn') ||
+    !ganttTransportViewText.includes('canFitTimeline') ||
+    !timelinePreviewSyncText.includes('useTimelineVideoPreviewSyncController') ||
+    !timelinePreviewSyncText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !timelinePreviewSyncText.includes('resolveTimelineVideoPreviewTargetSeconds') ||
+    !timelinePreviewSyncText.includes('resolveTimelineVideoPreviewPositionMinutes') ||
+    !timelinePreviewSyncText.includes('TimelineTransportSnapshotReader') ||
+    !timelinePreviewSyncText.includes('data-kg-video-sequence-playback-fallback') ||
+    !timelinePreviewSyncText.includes('if (video.paused || video.ended) writeTransportPosition()') ||
     !videoSequenceExportText.includes('renderVideoSequenceExport') ||
     !videoSequenceExportText.includes('downloadVideoSequenceExport') ||
     !videoSequenceExportText.includes('MediaRecorder') ||
     !videoSequenceExportText.includes('captureStream') ||
     !videoSequenceExportText.includes('createMediaElementSource') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportEvent') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportOutcome') ||
+    !videoSequenceExportText.includes('createVideoSequenceExportSessionRecord') ||
+    !videoSequenceExportText.includes('reduceVideoSequenceExportSessionRecord') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportRetryError') ||
+    !videoSequenceExportText.includes('selectVideoSequenceExportSessionSurfaceSessions') ||
+    !videoSequenceExportText.includes('buildVideoSequenceExportSessionSurfaceModel') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportRetryControl') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportRetryRequest') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportSessionToneStyle') ||
+    !videoSequenceExportText.includes('upsertVideoSequenceExportSessionHistory') ||
+    !videoSequenceExportText.includes('buildVideoSequenceExportProgress') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportErrorCode') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportErrorFeedback') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportErrorMessage') ||
+    !videoSequenceExportText.includes('resolveVideoSequenceExportPlanError') ||
+    !videoSequenceExportText.includes('completedSegments') ||
+    !videoSequenceExportText.includes('totalSegments') ||
+    !videoSequenceExportText.includes('onEvent?: (event: VideoSequenceExportEvent) => void') ||
+    !videoSequenceExportText.includes('signal?: AbortSignal') ||
     !videoSequenceExportText.includes('downloadBlob') ||
-    !videoSequenceExportText.includes('resolveVideoSequenceSourceRuntimeUrl') ||
+    !videoSequenceExportText.includes('resolveTimelinePlanSourceUrl') ||
+    !videoSequenceExportText.includes('loadTimelinePlanVideoMetadata') ||
+    videoSequenceExportText.includes('resolveVideoSequenceSourceRuntimeUrl') ||
     !videoSequenceExportText.includes('hasMask') ||
     !videoSequenceExportText.includes('hasGrade') ||
+    !ganttTransportText.includes('Cancel edited video export') ||
+    !ganttTransportText.includes('resolveVideoSequenceExportPlanError') ||
     videoSequenceExportText.includes('/Users/') ||
     videoSequenceExportText.includes(['blender', 'blender'].join('/'))
   ) {
     throw new Error('expected video sequence export to render source-backed edited video/audio downloads through neutral browser media APIs without hardcoded fixture paths')
   }
   if (
-    !floatingTypeText.includes('ganttTimelineTransportPositionMinutes') ||
-    !floatingTypeText.includes('setGanttTimelineTransportState') ||
-    !uiInitialStateText.includes('ganttTimelineTransportPositionMinutes: 0') ||
-    !uiInitialStateText.includes('setGanttTimelineTransportState') ||
+    !floatingTypeText.includes('timelineTransportPosition') ||
+    !floatingTypeText.includes('setTimelineTransportState') ||
+    !uiInitialStateText.includes('timelineTransportPosition: 0') ||
+    !uiInitialStateText.includes('setTimelineTransportState') ||
     !mediaCanvasText.includes('MediaCanvasSyncedPanel') ||
     !mediaCanvasText.includes('data-kg-video-sequence-media-sync') ||
-    !mediaCanvasText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
-    !mediaCanvasText.includes('resolveVideoSequenceTimelinePositionMinutes') ||
-    !mediaCanvasText.includes('buildVideoSequencePreviewSyncPlan') ||
+    !mediaCanvasText.includes("from '@/components/timeline/timelinePreviewSync'") ||
+    !mediaCanvasText.includes('useTimelineDocumentStoreBinding') ||
+    !mediaCanvasText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !mediaCanvasText.includes('useTimelineVideoPreviewSyncController') ||
+    !mediaCanvasText.includes("from '@/components/timeline/timelinePlanSync'") ||
+    !mediaCanvasText.includes('buildTimelinePreviewSyncPlan') ||
+    !mediaCanvasText.includes('resolveTimelinePlanSourceUrl') ||
+    !mediaCanvasText.includes('useTimelineDocumentTransportController') ||
+    !mediaCanvasText.includes('useTimelineTransportSnapshotReader') ||
+    !mediaCanvasText.includes('useTimelineTransportStoreBinding') ||
     !mediaCanvasText.includes('selectedGanttRowKey') ||
     !mediaCanvasText.includes('videoSequencePreviewSyncPlan || videoSequenceExportPlan') ||
-    !mediaCanvasText.includes('setGanttTimelineTransportState') ||
+    !mediaCanvasText.includes('setTimelineTransportState') ||
     !mediaCanvasText.includes('videoControls={syncEnabled ? false : undefined}') ||
-    !mediaCanvasText.includes("querySelector('video')")
+    !mediaCanvasText.includes("querySelector('video')") ||
+    mediaCanvasText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    mediaCanvasText.includes('useGraphStore.getState()') ||
+    mediaCanvasText.includes('markdownDocumentName: s.markdownDocumentName') ||
+    mediaCanvasText.includes('markdownText: s.markdownDocumentText') ||
+    mediaCanvasText.includes('selectedGanttRowKey: s.mermaidDiagramSelectedRowKeyByKind.gantt') ||
+    mediaCanvasText.includes('timelineTransportDocumentKey') ||
+    mediaCanvasText.includes('timelineTransportPosition') ||
+    mediaCanvasText.includes('timelineTransportPlaying') ||
+    mediaCanvasText.includes('timelineTransportPlaybackRate') ||
+    mediaCanvasText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
+    mediaCanvasText.includes('resolveVideoSequenceTimelinePositionMinutes') ||
+    mediaCanvasText.includes('resolveVideoSequenceSourceRuntimeUrl') ||
+    mediaCanvasText.includes('transportDocumentKey === documentKey && transportPlaying')
   ) {
     throw new Error('expected Media Canvas video playback and BottomPanel Timeline slider to share the neutral Gantt transport state')
   }
@@ -1063,39 +1210,39 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   }
   const store = useGraphStore.getState()
   store.resetAll()
-  store.setGanttTimelineTransportState({
+  store.setTimelineTransportState({
     documentKey: 'sequence-a.md',
-    positionMinutes: 2.5,
+    position: 2.5,
     playing: true,
     playbackRate: 1.5,
   })
   const afterTransportSet = useGraphStore.getState()
   if (
-    afterTransportSet.ganttTimelineTransportDocumentKey !== 'sequence-a.md' ||
-    afterTransportSet.ganttTimelineTransportPositionMinutes !== 2.5 ||
-    afterTransportSet.ganttTimelineTransportPlaying !== true ||
-    afterTransportSet.ganttTimelineTransportPlaybackRate !== 1.5
+    afterTransportSet.timelineTransportDocumentKey !== 'sequence-a.md' ||
+    afterTransportSet.timelineTransportPosition !== 2.5 ||
+    afterTransportSet.timelineTransportPlaying !== true ||
+    afterTransportSet.timelineTransportPlaybackRate !== 1.5
   ) {
     throw new Error(`expected shared Gantt transport state to update atomically, got ${JSON.stringify({
-      documentKey: afterTransportSet.ganttTimelineTransportDocumentKey,
-      position: afterTransportSet.ganttTimelineTransportPositionMinutes,
-      playing: afterTransportSet.ganttTimelineTransportPlaying,
-      rate: afterTransportSet.ganttTimelineTransportPlaybackRate,
+      documentKey: afterTransportSet.timelineTransportDocumentKey,
+      position: afterTransportSet.timelineTransportPosition,
+      playing: afterTransportSet.timelineTransportPlaying,
+      rate: afterTransportSet.timelineTransportPlaybackRate,
     })}`)
   }
-  store.setGanttTimelineTransportState({ documentKey: 'sequence-b.md' })
+  store.setTimelineTransportState({ documentKey: 'sequence-b.md' })
   const afterTransportDocumentSwitch = useGraphStore.getState()
   if (
-    afterTransportDocumentSwitch.ganttTimelineTransportDocumentKey !== 'sequence-b.md' ||
-    afterTransportDocumentSwitch.ganttTimelineTransportPositionMinutes !== 0 ||
-    afterTransportDocumentSwitch.ganttTimelineTransportPlaying !== false ||
-    afterTransportDocumentSwitch.ganttTimelineTransportPlaybackRate !== 1
+    afterTransportDocumentSwitch.timelineTransportDocumentKey !== 'sequence-b.md' ||
+    afterTransportDocumentSwitch.timelineTransportPosition !== 0 ||
+    afterTransportDocumentSwitch.timelineTransportPlaying !== false ||
+    afterTransportDocumentSwitch.timelineTransportPlaybackRate !== 1
   ) {
     throw new Error(`expected shared Gantt transport state to reset on document switch, got ${JSON.stringify({
-      documentKey: afterTransportDocumentSwitch.ganttTimelineTransportDocumentKey,
-      position: afterTransportDocumentSwitch.ganttTimelineTransportPositionMinutes,
-      playing: afterTransportDocumentSwitch.ganttTimelineTransportPlaying,
-      rate: afterTransportDocumentSwitch.ganttTimelineTransportPlaybackRate,
+      documentKey: afterTransportDocumentSwitch.timelineTransportDocumentKey,
+      position: afterTransportDocumentSwitch.timelineTransportPosition,
+      playing: afterTransportDocumentSwitch.timelineTransportPlaying,
+      rate: afterTransportDocumentSwitch.timelineTransportPlaybackRate,
     })}`)
   }
   const visibleFrameGanttTransform = computeSvgSurfaceWideTimelineFitTransform({

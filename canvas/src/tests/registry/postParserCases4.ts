@@ -2,6 +2,13 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
+  ["ui.videoSequence.localImport.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMediaRemounts"],
+  ["ui.videoSequence.export.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceExportKeepsSuccessfulSourceProbesBound"],
+  ["ui.videoSequence.export.compatibility","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportCapabilityAndMimeFallbacks"],
+  ["ui.videoSequence.export.cleanup","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportAlwaysFinalizesRuntimeCleanup"],
+  ["ui.videoSequence.export.progressAndAbort","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportProgressAndAbortContracts"],
+  ["ui.videoSequence.export.degeneratePlan","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportRejectsDegeneratePlans"],
+  ["ui.videoSequence.export.errorFeedback","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportErrorFeedbackContracts"],
   ["toolbar.importUrl.videoDownload.eligibility","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadEligibilityIsPureAndDomainOwned"],
   ["toolbar.importUrl.videoDownload.codec","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResultCodecRoundTripAndErrors"],
   ["toolbar.importUrl.videoDownload.resolver","@/__tests__/videoDownloadImportUrl.test","testVideoDownloadResolverRequestDedupAndSanitization"],

@@ -16,10 +16,12 @@ import {
 import {
   areVideoSequenceExportSourcesEqual,
   buildVideoSequenceExportPlan,
-  buildVideoSequencePreviewSyncPlan,
-  resolveVideoSequenceExportPositionSourceTime,
-  resolveVideoSequenceExportSourceTimePosition,
 } from '@/components/timeline/videoSequenceExport'
+import {
+  buildTimelinePreviewSyncPlan,
+  resolveTimelinePlanPositionFromSourceTime,
+  resolveTimelinePlanSourceTimeAtPosition,
+} from '@/components/timeline/timelinePlanSync'
 import {
   buildMermaidGanttTimelineModel,
   insertMermaidGanttVideoSequenceOperationRow,
@@ -40,9 +42,14 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const clipEditText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.tsx')
   const clipEditCssText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.css')
   const mediaCanvasText = readSource('components', 'MediaCanvas.tsx')
+  const previewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
   const transportPanelText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
+  const displayModelText = readSource('features', 'gitgraph', 'useGanttTimelineDisplayModel.ts')
+  const mediaDurationText = readSource('features', 'gitgraph', 'useGanttTimelineMediaDuration.ts')
+  const playbackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
+  const selectionSyncText = readSource('features', 'gitgraph', 'useGanttTimelineSelectionSync.ts')
   const sequenceText = readSource('components', 'timeline', 'videoSequenceTimeline.ts')
   if (
     controlsText.includes('footer?: React.ReactNode') ||
@@ -114,13 +121,14 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !sequenceText.includes('buildVideoSequenceTimelineCueSamples') ||
     !sequenceText.includes('buildVideoSequenceTimelineFrameSamples') ||
     !sequenceText.includes('buildVideoSequenceTimelineWaveformSamples') ||
-    !sequenceText.includes('VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT') ||
+    !sequenceText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
     !sequenceText.includes("export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'") ||
     !sequenceText.includes("export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'audio'") ||
     !sequenceText.includes('VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS') ||
-    !transportPanelText.includes('dispatchVideoSequenceTimelinePlaybackRequest') ||
-    !transportPanelText.includes('previousSelectedRowKeyRef') ||
-    !transportPanelText.includes('if (previousSelectedRowKey === selectedRowKey) return') ||
+    !transportPanelText.includes('useGanttTimelineDisplayModel') ||
+    !transportPanelText.includes('useGanttTimelineMediaDuration') ||
+    !transportPanelText.includes('useGanttTimelinePlaybackControls') ||
+    !transportPanelText.includes('useGanttTimelineSelectionSync') ||
     !transportPanelText.includes('handleVideoSequenceClipEdit') ||
     !transportPanelText.includes('resolveVisibleVideoSequenceTimelineLaneCount') ||
     !transportPanelText.includes("'--kg-video-sequence-lane-count': visibleLaneCount") ||
@@ -131,10 +139,41 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportPanelText.includes('VideoSequenceClipEditPanel') ||
     transportPanelText.includes('VideoSequenceMonitorPanel') ||
     !transportPanelText.includes('scopes={monitorScopes}') ||
-    !mediaCanvasText.includes('VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT') ||
-    !mediaCanvasText.includes('if (video.paused || video.ended) writeTransportPosition()') ||
-    !mediaCanvasText.includes('resolveTargetSeconds') ||
-    !mediaCanvasText.includes('data-kg-video-sequence-playback-fallback')
+    !mediaCanvasText.includes('useTimelineDocumentTransportController') ||
+    !mediaCanvasText.includes('useTimelineDocumentStoreBinding') ||
+    !mediaCanvasText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !mediaCanvasText.includes('resolveTimelinePlanSourceUrl') ||
+    !mediaCanvasText.includes('useTimelineVideoPreviewSyncController') ||
+    !mediaCanvasText.includes('useTimelineTransportSnapshotReader') ||
+    !mediaCanvasText.includes('useTimelineTransportStoreBinding') ||
+    mediaCanvasText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    mediaCanvasText.includes('useGraphStore.getState()') ||
+    mediaCanvasText.includes('markdownDocumentName: s.markdownDocumentName') ||
+    mediaCanvasText.includes('markdownText: s.markdownDocumentText') ||
+    mediaCanvasText.includes('selectedGanttRowKey: s.mermaidDiagramSelectedRowKeyByKind.gantt') ||
+    mediaCanvasText.includes('timelineTransportDocumentKey') ||
+    mediaCanvasText.includes('timelineTransportPosition') ||
+    mediaCanvasText.includes('timelineTransportPlaying') ||
+    mediaCanvasText.includes('timelineTransportPlaybackRate') ||
+    mediaCanvasText.includes('resolveTargetSeconds') ||
+    !playbackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
+    !playbackControlsText.includes('handlePlaybackPointerDown') ||
+    !playbackControlsText.includes('handleTogglePlayback') ||
+    !playbackControlsText.includes('handlePlaybackEnd') ||
+    !selectionSyncText.includes('previousSelectedRowKeyRef') ||
+    !selectionSyncText.includes('if (previousSelectedRowKey === args.selectedRowKey) return') ||
+    !selectionSyncText.includes('args.taskSpans.find(span => span.rowKey === args.selectedRowKey)') ||
+    !displayModelText.includes('formatVideoSequenceTimelineSecondsOffset') ||
+    !displayModelText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
+    !displayModelText.includes('resolveVideoSequenceTimelineUnitsPerMs') ||
+    !mediaDurationText.includes('resolveTimelinePlanDurationSeconds') ||
+    !previewSyncText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !previewSyncText.includes('resolveTimelineVideoPreviewTargetSeconds') ||
+    !previewSyncText.includes('resolveTimelineVideoPreviewPositionMinutes') ||
+    !previewSyncText.includes('TimelineTransportSnapshotReader') ||
+    !previewSyncText.includes('if (video.paused || video.ended) writeTransportPosition()') ||
+    !previewSyncText.includes('data-kg-video-sequence-playback-fallback') ||
+    mediaCanvasText.includes('transportDocumentKey === documentKey && transportPlaying')
   ) {
     throw new Error('expected video sequence surfaces to expose embedded ruler scopes, clip cues, audio waveform/mix, header tools, and direct playback sync through shared owners')
   }
@@ -349,13 +388,13 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     filenameHint: 'Sequence.md',
     sources: [sequenceSource],
   })
-  const sourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const sourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: exportPlan,
     positionMinutes: 3,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const sourcePosition = resolveVideoSequenceExportSourceTimePosition({
+  const sourcePosition = resolveTimelinePlanPositionFromSourceTime({
     currentTimeSeconds: 7.5,
     plan: exportPlan,
     preferredPositionMinutes: 3,
@@ -379,19 +418,19 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     filenameHint: 'Sequence.md',
     sources: [sequenceSource],
   })
-  const movedBaseSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const movedBaseSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: movedSpliceOrderPlan,
     positionMinutes: 3.5,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const movedSpliceSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const movedSpliceSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: movedSpliceOrderPlan,
     positionMinutes: 1.5,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const movedBasePosition = resolveVideoSequenceExportSourceTimePosition({
+  const movedBasePosition = resolveTimelinePlanPositionFromSourceTime({
     currentTimeSeconds: 3.75,
     plan: movedSpliceOrderPlan,
     preferredPositionMinutes: 3.5,
@@ -422,25 +461,25 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     filenameHint: 'Sequence.md',
     sources: [sequenceSource],
   })
-  const decoupledAudioPreviewPlan = buildVideoSequencePreviewSyncPlan({
+  const decoupledAudioPreviewPlan = buildTimelinePreviewSyncPlan({
     code: decoupledAudioPreviewCode,
     filenameHint: 'Sequence.md',
     selectedRowKey: decoupledAudioSpan?.rowKey,
     sources: [sequenceSource],
   })
-  const decoupledVideoSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const decoupledVideoSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: decoupledVideoExportPlan,
     positionMinutes: 4.5,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const decoupledAudioSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const decoupledAudioSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: decoupledAudioPreviewPlan,
     positionMinutes: 4.5,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const decoupledAudioPosition = resolveVideoSequenceExportSourceTimePosition({
+  const decoupledAudioPosition = resolveTimelinePlanPositionFromSourceTime({
     currentTimeSeconds: 4.5,
     plan: decoupledAudioPreviewPlan,
     preferredPositionMinutes: 4.5,
@@ -476,19 +515,19 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   ].join('\n')
   const multiLaneModel = buildMermaidGanttTimelineModel(multiLanePreviewCode)
   const selectedMaskSpan = multiLaneModel.taskSpans.find(span => span.label === '港岛仿生局.mp4 mask splice splice')
-  const selectedMaskPreviewPlan = buildVideoSequencePreviewSyncPlan({
+  const selectedMaskPreviewPlan = buildTimelinePreviewSyncPlan({
     code: multiLanePreviewCode,
     filenameHint: 'Sequence.md',
     selectedRowKey: selectedMaskSpan?.rowKey,
     sources: [sequenceSource],
   })
-  const selectedMaskSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const selectedMaskSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: selectedMaskPreviewPlan,
     positionMinutes: 2.5,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const selectedMaskPosition = resolveVideoSequenceExportSourceTimePosition({
+  const selectedMaskPosition = resolveTimelinePlanPositionFromSourceTime({
     currentTimeSeconds: 2.5,
     plan: selectedMaskPreviewPlan,
     preferredPositionMinutes: 2.5,
@@ -516,19 +555,19 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   ].join('\n')
   const boundedAudioModel = buildMermaidGanttTimelineModel(boundedAudioPreviewCode)
   const boundedAudioSpan = boundedAudioModel.taskSpans.find(span => span.label === '港岛仿生局.mp4 audio')
-  const boundedAudioPreviewPlan = buildVideoSequencePreviewSyncPlan({
+  const boundedAudioPreviewPlan = buildTimelinePreviewSyncPlan({
     code: boundedAudioPreviewCode,
     filenameHint: 'Sequence.md',
     selectedRowKey: boundedAudioSpan?.rowKey,
     sources: [sequenceSource],
   })
-  const boundedAudioSourceTime = resolveVideoSequenceExportPositionSourceTime({
+  const boundedAudioSourceTime = resolveTimelinePlanSourceTimeAtPosition({
     plan: boundedAudioPreviewPlan,
     positionMinutes: 15,
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
-  const boundedAudioPosition = resolveVideoSequenceExportSourceTimePosition({
+  const boundedAudioPosition = resolveTimelinePlanPositionFromSourceTime({
     currentTimeSeconds: 15,
     plan: boundedAudioPreviewPlan,
     preferredPositionMinutes: 15,
@@ -595,7 +634,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     openingSplice.sourceEndRatio !== 1 ||
     !openingSplice.hasGrade ||
     openingSplice.hasMask ||
-    resolveVideoSequenceExportPositionSourceTime({
+    resolveTimelinePlanSourceTimeAtPosition({
       plan: multiSourcePlan,
       positionMinutes: 8,
       source: sequenceSource,

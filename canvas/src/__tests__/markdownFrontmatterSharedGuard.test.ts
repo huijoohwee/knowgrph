@@ -91,8 +91,8 @@ export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxO
   if (getCanvas2dRendererLabel('multiDimTable') !== 'Multi-dimensional Table' || getCanvas2dSurfaceId('multiDimTable') !== 'multiDimTable') {
     throw new Error('expected Multi-dimensional Table renderer id to resolve to the shared table surface')
   }
-  if (getCanvas2dRendererLabel('animatic') !== 'Gantt-timeline' || getCanvas2dSurfaceId('animatic') !== 'gantt') {
-    throw new Error('expected old Animatic renderer id to adapt onto the Gantt-timeline surface')
+  if (getCanvas2dRendererLabel('animatic') !== 'Animatic' || getCanvas2dSurfaceId('animatic') !== 'animatic') {
+    throw new Error('expected Animatic renderer id to resolve to the dedicated animatic surface')
   }
   if (!sharesFlowEditorFrontmatterSyntax('flowEditor')) {
     throw new Error('expected Flow Editor to remain on the shared flow-frontmatter syntax owner')

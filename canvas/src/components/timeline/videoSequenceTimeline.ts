@@ -27,11 +27,11 @@ export type VideoSequenceTimelineScope = {
   value: number
 }
 
-export type VideoSequenceTimelinePlaybackRequestDetail = {
+export type TimelineTransportPlaybackRequestDetail = {
   documentKey: string
   playbackRate: number
   playing: boolean
-  positionMinutes: number
+  position: number
 }
 
 export type VideoSequenceTimelineSource = {
@@ -50,7 +50,7 @@ export type VideoSequenceTimelineFrontmatterModel = {
   sources: VideoSequenceTimelineSource[]
 }
 
-export const VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT = 'knowgrph:video-sequence-playback-request'
+export const TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT = 'knowgrph:timeline-transport-playback-request'
 
 export const VIDEO_SEQUENCE_TIMELINE_TOOLS: readonly VideoSequenceTimelineTool[] = [
   { id: 'cut', label: 'Cut', title: 'Cut selected clip at playhead' },
@@ -120,9 +120,9 @@ const readImportMode = (value: unknown): VideoSequenceTimelineImportMode | '' =>
   return mode === 'file' || mode === 'folder' || mode === 'url' || mode === 'workspace' ? mode : ''
 }
 
-export function dispatchVideoSequenceTimelinePlaybackRequest(detail: VideoSequenceTimelinePlaybackRequestDetail): void {
+export function dispatchTimelineTransportPlaybackRequest(detail: TimelineTransportPlaybackRequestDetail): void {
   if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return
-  window.dispatchEvent(new CustomEvent(VIDEO_SEQUENCE_TIMELINE_PLAYBACK_REQUEST_EVENT, { detail }))
+  window.dispatchEvent(new CustomEvent(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, { detail }))
 }
 
 const normalizeVideoSequenceSource = (value: unknown): VideoSequenceTimelineSource | null => {
