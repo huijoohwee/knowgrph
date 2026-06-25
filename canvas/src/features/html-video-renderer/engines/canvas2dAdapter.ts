@@ -16,15 +16,28 @@ const escapeJsonForScript = (value: unknown): string => JSON.stringify(value ?? 
 
 const buildFrameHtml = (spec: Readonly<RenderSpec>, timeMs: number): string => {
   const seconds = timeMs / 1000
-  return `<main data-kg-render-time-ms="${String(timeMs)}" data-kg-render-time-s="${String(seconds)}">
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <style>
-html, body, main {
+html, body {
   width: ${spec.width}px;
   height: ${spec.height}px;
   margin: 0;
   overflow: hidden;
+  background: transparent;
 }
+</style>
+</head>
+<body>
+<main data-kg-render-time-ms="${String(timeMs)}" data-kg-render-time-s="${String(seconds)}">
+<style>
 main {
+  width: ${spec.width}px;
+  height: ${spec.height}px;
+  margin: 0;
+  overflow: hidden;
   box-sizing: border-box;
   --kg-render-time-ms: ${timeMs};
   --kg-render-time-s: ${seconds};
@@ -33,7 +46,33 @@ ${spec.css ?? ''}
 </style>
 <script type="application/json" id="knowgrph-html-video-data">${escapeJsonForScript(spec.data ?? {})}</script>
 ${spec.html}
-</main>`
+</main>
+</body>
+</html>`
+}
+
+const createFrameRenderDocument = (spec: Readonly<RenderSpec>, timeMs: number): HTMLIFrameElement => {
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-label', 'HTML video frame raster host')
+  iframe.setAttribute('sandbox', 'allow-same-origin')
+  iframe.style.position = 'fixed'
+  iframe.style.left = '-10000px'
+  iframe.style.top = '0'
+  iframe.style.width = `${spec.width}px`
+  iframe.style.height = `${spec.height}px`
+  iframe.style.border = '0'
+  iframe.style.overflow = 'hidden'
+  document.body.appendChild(iframe)
+
+  const frameDocument = iframe.contentDocument
+  if (!frameDocument) {
+    iframe.remove()
+    throw new Error('canvas-2d MP4 renderer could not create an isolated frame document')
+  }
+  frameDocument.open()
+  frameDocument.write(buildFrameHtml(spec, timeMs))
+  frameDocument.close()
+  return iframe
 }
 
 const drawFrame = async (
@@ -42,18 +81,14 @@ const drawFrame = async (
   timeMs: number,
   html2canvas: (element: HTMLElement, options: Record<string, unknown>) => Promise<HTMLCanvasElement>,
 ): Promise<void> => {
-  const host = document.createElement('section')
-  host.setAttribute('aria-label', 'HTML video frame raster host')
-  host.style.position = 'fixed'
-  host.style.left = '-10000px'
-  host.style.top = '0'
-  host.style.width = `${spec.width}px`
-  host.style.height = `${spec.height}px`
-  host.style.overflow = 'hidden'
-  host.innerHTML = buildFrameHtml(spec, timeMs)
-  document.body.appendChild(host)
+  const iframe = createFrameRenderDocument(spec, timeMs)
   try {
-    const renderedCanvas = await html2canvas(host.firstElementChild as HTMLElement, {
+    const frameDocument = iframe.contentDocument
+    const renderRoot = frameDocument?.querySelector('main')
+    if (!(renderRoot instanceof HTMLElement)) {
+      throw new Error('canvas-2d MP4 renderer could not find an isolated frame root')
+    }
+    const renderedCanvas = await html2canvas(renderRoot, {
       width: spec.width,
       height: spec.height,
       windowWidth: spec.width,
@@ -66,7 +101,7 @@ const drawFrame = async (
     context.clearRect(0, 0, spec.width, spec.height)
     context.drawImage(renderedCanvas, 0, 0, spec.width, spec.height)
   } finally {
-    host.remove()
+    iframe.remove()
   }
 }
 

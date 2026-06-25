@@ -1,5 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   buildSourceLayerKeys,
   composeGraphFromSourceLayers,
@@ -172,6 +172,7 @@ function applyComposedSourceImportModes(
 ) {
   try {
     const store = useGraphStore.getState()
+    if (isWorkspaceGraphMutationBlocked(store)) return
     const explorerActivePath = useMarkdownExplorerStore.getState().activePath
     const { signature, rawText } = buildComposedImportModesSignature({
       state: store,

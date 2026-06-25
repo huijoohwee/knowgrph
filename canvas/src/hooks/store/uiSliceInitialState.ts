@@ -190,6 +190,7 @@ export const createUiInitialState = (
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
         const next = open === false ? false : true
+        if (state.workspaceGraphMutationLayoutLockActive === true) return {}
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
         return {

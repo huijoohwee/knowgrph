@@ -316,6 +316,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.workspaceView.graphMutation.rendererSwitchBlocksFlowEditorWidgets","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation"],
   ["ui.workspaceView.graphMutation.runAllCommitPreservesFlowEditorWidgets","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraphCommit"],
   ["ui.workspaceView.graphMutation.runAllSuppressesAutoZoom","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases"],
+  ["ui.workspaceView.graphMutation.runAllBlocksWorkspaceFrame","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRunAllLayoutLockBlocksWorkspaceFrameMutation"],
   ["ui.workspaceView.graphMutation.flowEditorBypassesGuarded","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testFlowEditorOverlayPositionBypassesHonorWorkspaceMutationGuard"],
   ["ui.flowEditor.zoom.fit.normalizesSurfaceOffset","@/__tests__/workspaceViewCollectiveLayoutRefreshRegression.test","testFlowEditorOverlayFitNormalizesSurfaceWindowOffset"],
   ["layout.collectiveFit.centroidBalanced16x9","@/__tests__/collectiveFitBalancedCentroidRegression.test","testCollectiveFitCentersDisconnectedComponentsOnBalancedViewportCentroid"],

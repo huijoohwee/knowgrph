@@ -278,16 +278,63 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!runAllText.includes('if (!active)') || !runAllText.includes('workspaceGraphMutationLayoutLockActive: false')) {
     throw new Error('expected Run all release to clear only the explicit layout lock')
   }
-  if (!runAllText.includes('const workspaceFrame = readRunAllWorkspaceFrame()') || !runAllText.includes('restoreRunAllWorkspaceFrame(workspaceFrame)')) {
-    throw new Error('expected Flow Editor Run all to restore the workspace frame before releasing the layout lock')
-  }
-  if (!runAllText.includes("transitionSemanticKey: 'flow-editor-run-all:restore-workspace-frame'")) {
-    throw new Error('expected Flow Editor Run all workspace-frame restore to stamp a semantic mutation guard')
-  }
   const runActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
   const runActionText = readFileSync(runActionPath, 'utf8')
-  if (!runActionText.includes('if (!suppressLayoutMutation) ensureEditorCanvasLandingForDuration(1500)')) {
-    throw new Error('expected Run all node execution to suppress KGC editor landing while layout mutation is locked')
+  if (!runActionText.includes('if (!suppressLayoutMutation && activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath))')) {
+    throw new Error('expected Run all node execution to skip KGC companion document side effects while layout mutation is locked')
+  }
+  if (!runActionText.includes('ensureEditorCanvasLandingForDuration(1500)')) {
+    throw new Error('expected manual KGC node execution to keep the editor landing behavior')
+  }
+  if (!runActionText.includes('await state.setActiveMarkdownDocument({')) {
+    throw new Error('expected manual KGC companion document switches to finish before graph apply runs')
+  }
+  if (!runActionText.includes('const ok = await state.applyMarkdownDocumentToGraph(canonicalPath, canonicalText, { force: true })')) {
+    throw new Error('expected manual KGC graph apply to preserve canonical document behavior')
+  }
+  const sourceComposePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts')
+  const sourceComposeText = readFileSync(sourceComposePath, 'utf8')
+  if (!sourceComposeText.includes('isWorkspaceGraphMutationBlocked') || !sourceComposeText.includes('if (isWorkspaceGraphMutationBlocked(store)) return')) {
+    throw new Error('expected composed source-file import modes to skip frontmatter preset replay during workspace graph mutation locks')
+  }
+}
+
+export function testRunAllLayoutLockBlocksWorkspaceFrameMutation() {
+  const previous = useGraphStore.getState()
+  const previousPatch = {
+    workspaceViewMode: previous.workspaceViewMode,
+    workspaceCanvasPaneOpen: previous.workspaceCanvasPaneOpen,
+    workspaceGraphMutationLayoutLockActive: previous.workspaceGraphMutationLayoutLockActive,
+    workspaceGraphMutationBlockUntilMs: previous.workspaceGraphMutationBlockUntilMs,
+    workspaceGraphMutationBlockKey: previous.workspaceGraphMutationBlockKey,
+  }
+
+  try {
+    useGraphStore.setState({
+      workspaceViewMode: 'canvas',
+      workspaceCanvasPaneOpen: false,
+      workspaceGraphMutationLayoutLockActive: true,
+      workspaceGraphMutationBlockUntilMs: Date.now() + 1000,
+      workspaceGraphMutationBlockKey: 'run-all-layout-lock-workspace-frame',
+    } as never)
+    const locked = useGraphStore.getState()
+    locked.setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+    locked.setWorkspaceViewMode('editor')
+    locked.setWorkspaceCanvasPaneOpen(true)
+    locked.toggleWorkspaceViewMode()
+    const afterLockedMutations = useGraphStore.getState()
+    if (afterLockedMutations.workspaceViewMode !== 'canvas' || afterLockedMutations.workspaceCanvasPaneOpen !== false) {
+      throw new Error('expected Run all layout lock to block workspace view and pane mutations')
+    }
+
+    useGraphStore.setState({ workspaceGraphMutationLayoutLockActive: false } as never)
+    useGraphStore.getState().setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+    const afterRelease = useGraphStore.getState()
+    if (afterRelease.workspaceViewMode !== 'editor' || afterRelease.workspaceCanvasPaneOpen !== true) {
+      throw new Error('expected workspace view and pane mutations to resume after Run all layout lock releases')
+    }
+  } finally {
+    useGraphStore.setState(previousPatch as never)
   }
 }
 

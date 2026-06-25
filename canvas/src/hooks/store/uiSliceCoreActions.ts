@@ -31,6 +31,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
             : next.paneOpen === true
               ? true
               : state.workspaceCanvasPaneOpen
+        if (state.workspaceGraphMutationLayoutLockActive === true) return {}
         if (state.workspaceViewMode === nextMode && state.workspaceCanvasPaneOpen === nextPaneOpen) return {}
         if (state.workspaceViewMode !== nextMode) lsSetJson(LS_KEYS.workspaceViewMode, nextMode)
         if (state.workspaceCanvasPaneOpen !== nextPaneOpen) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, nextPaneOpen)
@@ -49,6 +50,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set(state => {
         const nextMode = mode === 'editor' ? 'editor' : 'canvas'
         const nextPaneOpen = nextMode === 'editor' ? true : state.workspaceCanvasPaneOpen
+        if (state.workspaceGraphMutationLayoutLockActive === true) return {}
         if (state.workspaceViewMode === nextMode && state.workspaceCanvasPaneOpen === nextPaneOpen) return {}
         if (nextMode === 'editor' && state.workspaceCanvasPaneOpen !== true) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, true)
         return {
@@ -73,6 +75,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         const current = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
         const next = current === 'editor' ? 'canvas' : 'editor'
         const nextPaneOpen = next === 'editor' ? true : s.workspaceCanvasPaneOpen
+        if (s.workspaceGraphMutationLayoutLockActive === true) return {}
         if (s.workspaceViewMode === next && s.workspaceCanvasPaneOpen === nextPaneOpen) return {}
         if (next === 'editor' && s.workspaceCanvasPaneOpen !== true) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, true)
         return {

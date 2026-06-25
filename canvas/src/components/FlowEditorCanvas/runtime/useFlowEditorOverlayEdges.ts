@@ -122,6 +122,22 @@ function readPortHandleVisibleBoundaryRect(overlayEl: HTMLElement, button: HTMLE
   return overlayEl.getBoundingClientRect()
 }
 
+function isUsablePortHandleForOverlay(overlayEl: HTMLElement, button: HTMLElement): boolean {
+  if (!overlayEl.contains(button)) return false
+  if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+    const style = window.getComputedStyle(button)
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') === 0) return false
+  }
+  const overlayRect = overlayEl.getBoundingClientRect()
+  const buttonRect = button.getBoundingClientRect()
+  if (!isFiniteRect(overlayRect) || !isFiniteRect(buttonRect)) return false
+  const tolerancePx = 2
+  return buttonRect.right >= overlayRect.left - tolerancePx
+    && buttonRect.left <= overlayRect.right + tolerancePx
+    && buttonRect.bottom >= overlayRect.top - tolerancePx
+    && buttonRect.top <= overlayRect.bottom + tolerancePx
+}
+
 function isAnchorVisibleInBoundary(anchor: { x: number; y: number } | null, boundaryRect: DOMRect | null | undefined): boolean {
   if (!anchor || !isFiniteRect(boundaryRect)) return false
   const tolerancePx = 2
@@ -129,6 +145,15 @@ function isAnchorVisibleInBoundary(anchor: { x: number; y: number } | null, boun
     && anchor.y <= boundaryRect.bottom + tolerancePx
     && anchor.x >= boundaryRect.left - tolerancePx
     && anchor.x <= boundaryRect.right + tolerancePx
+}
+
+function isCachedAnchorAlignedWithFallbackRect(anchor: { x: number; y: number } | null, fallbackRect: DOMRect): boolean {
+  if (!anchor || !isFiniteRect(fallbackRect)) return false
+  const tolerancePx = 2
+  return Number.isFinite(anchor.x)
+    && Number.isFinite(anchor.y)
+    && anchor.y >= fallbackRect.top - tolerancePx
+    && anchor.y <= fallbackRect.bottom + tolerancePx
 }
 
 function clampAnchorYToVisibleBounds(value: number, fallbackRect: DOMRect, boundaryRect: DOMRect | null | undefined): number {
@@ -966,13 +991,16 @@ export function useFlowEditorOverlayEdges(args: {
         const rect = anchorArgs.fallbackRect
         const overlayScrollSignature = readOverlayScrollSurfaceSignature(el || null)
         const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect, overlayScrollSignature)
+        let portHandleCandidates: HTMLElement[] = []
         if (el && portKey) {
           const baseSel = `[data-kg-port-handle="1"][data-kg-port-dir="${anchorArgs.dir}"][data-kg-port-key="${esc(portKey)}"]`
           const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null
           const railBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null
           const fallbackBtn = el.querySelector(`button${baseSel}`) as HTMLElement | null
+          portHandleCandidates = [dotBtn, railBtn, fallbackBtn].filter((btn, index, items): btn is HTMLElement => !!btn && items.indexOf(btn) === index)
           const resolveFromButton = (btn: HTMLElement | null): { anchor: { x: number; y: number }; boundaryRect: DOMRect } | null => {
             if (!btn) return null
+            if (!isUsablePortHandleForOverlay(el, btn)) return null
             const dotEl = btn.querySelector('span') as HTMLElement | null
             const r = dotEl ? dotEl.getBoundingClientRect() : btn.getBoundingClientRect()
             const x = Number.isFinite(r.left) && Number.isFinite(r.width)
@@ -1000,9 +1028,14 @@ export function useFlowEditorOverlayEdges(args: {
               return resolved
             }
           }
+          if (portHandleCandidates.length > 0) overlayEdgeAnchorCacheRef.current.delete(anchorCacheKey)
         }
-        const cached = overlayEdgeAnchorCacheRef.current.get(anchorCacheKey)
-        if (cached && Number.isFinite(cached.x) && Number.isFinite(cached.y)) return cached
+        const canUseCachedAnchor = portHandleCandidates.length === 0
+        if (canUseCachedAnchor) {
+          const cached = overlayEdgeAnchorCacheRef.current.get(anchorCacheKey)
+          if (isCachedAnchorAlignedWithFallbackRect(cached || null, rect)) return cached
+          overlayEdgeAnchorCacheRef.current.delete(anchorCacheKey)
+        }
         if (!(Number.isFinite(rect.top) && Number.isFinite(rect.left) && Number.isFinite(rect.right) && Number.isFinite(rect.height) && rect.height > 0)) return null
         const pct = Math.max(0, Math.min(100, anchorArgs.fallbackPct)) / 100
         const baseX = anchorArgs.dir === 'out' ? rect.right : rect.left

@@ -243,8 +243,14 @@ export async function testHtmlVideoCanvas2dAdapterIsBrowserNativeMp4RuntimeAdapt
     'rasterizer=html2canvas',
     'VideoEncoder',
     '<main data-kg-render-time-ms',
+    "document.createElement('iframe')",
+    "iframe.setAttribute('sandbox', 'allow-same-origin')",
+    'frameDocument.write(buildFrameHtml(spec, timeMs))',
   ]) {
     if (!adapterText.includes(required)) throw new Error(`expected canvas-2d browser MP4 adapter to include ${required}`)
+  }
+  if (adapterText.includes("document.createElement('section')") || adapterText.includes('host.innerHTML = buildFrameHtml')) {
+    throw new Error('expected canvas-2d adapter to isolate frame HTML in an iframe instead of the app document')
   }
   for (const forbidden of ['ffmpeg', '@ffmpeg/', '@hyperframes/', 'Puppeteer']) {
     if (adapterText.includes(forbidden)) throw new Error(`canvas-2d adapter must not require ${forbidden}`)

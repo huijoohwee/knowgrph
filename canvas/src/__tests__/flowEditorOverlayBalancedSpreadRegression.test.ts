@@ -381,6 +381,13 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!overlayEdgesText.includes('frontmatterShotEdgeCrowdingLift')) {
     throw new Error('expected Flow Editor overlay edge rendering to apply a shared frontmatter shot crowding lift for hero/CTA routing')
   }
+  if (!overlayEdgesText.includes('function isUsablePortHandleForOverlay')
+    || !overlayEdgesText.includes('if (!isUsablePortHandleForOverlay(el, btn)) return null')
+    || !overlayEdgesText.includes('const canUseCachedAnchor = portHandleCandidates.length === 0')
+    || !overlayEdgesText.includes('function isCachedAnchorAlignedWithFallbackRect')
+    || !overlayEdgesText.includes('overlayEdgeAnchorCacheRef.current.delete(anchorCacheKey)')) {
+    throw new Error('expected Flow Editor overlay edge rendering to ignore hidden or off-surface duplicate port handles')
+  }
   if (overlayEdgesText.includes('firstSchemaPortKeyByNodeId')) {
     throw new Error('expected Flow Editor overlay edge rendering to avoid local first-schema-port fallback aliases')
   }

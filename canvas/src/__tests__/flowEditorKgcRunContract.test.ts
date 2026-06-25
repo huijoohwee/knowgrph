@@ -2,13 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export function testFlowEditorRunTargetsCanonicalKgcWorkspaceDocument() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions.ts')
+  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunAction.ts')
   const source = fs.readFileSync(filePath, 'utf8')
   const landingGuardSnippet = 'ensureEditorCanvasLandingForDuration(1500)'
   const applyCanonicalDocumentSnippet = 'applyMarkdownDocumentToGraph(canonicalPath, canonicalText, { force: true })'
 
   const requiredSnippets = [
-    "isKgcWorkspaceCompanionPath(activeWorkspacePath)",
+    "!suppressLayoutMutation && activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath)",
     'const canonicalPath = toCanonicalKgcWorkspacePath(activeWorkspacePath)',
     'useMarkdownExplorerStore.getState().setActivePath(canonicalPath)',
     landingGuardSnippet,

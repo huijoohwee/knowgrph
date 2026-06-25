@@ -16,41 +16,6 @@ const waitForRunAllLayoutReleaseFrame = async (): Promise<void> => {
   }))
 }
 
-type RunAllWorkspaceFrame = {
-  workspaceViewMode: 'canvas' | 'editor'
-  workspaceCanvasPaneOpen: boolean
-  editorWorkspacePane: 'markdown'
-}
-
-const readRunAllWorkspaceFrame = (): RunAllWorkspaceFrame => {
-  const state = useGraphStore.getState()
-  return {
-    workspaceViewMode: state.workspaceViewMode === 'editor' ? 'editor' : 'canvas',
-    workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen === true,
-    editorWorkspacePane: 'markdown',
-  }
-}
-
-const restoreRunAllWorkspaceFrame = (frame: RunAllWorkspaceFrame): void => {
-  const state = useGraphStore.getState()
-  if (
-    state.workspaceViewMode === frame.workspaceViewMode
-    && state.workspaceCanvasPaneOpen === frame.workspaceCanvasPaneOpen
-    && state.editorWorkspacePane === frame.editorWorkspacePane
-  ) return
-  useGraphStore.setState({
-    workspaceViewMode: frame.workspaceViewMode,
-    workspaceCanvasPaneOpen: frame.workspaceCanvasPaneOpen,
-    editorWorkspacePane: frame.editorWorkspacePane,
-    ...buildWorkspaceGraphMutationTransitionState({
-      workspaceViewMode: frame.workspaceViewMode,
-      workspaceCanvasPaneOpen: frame.workspaceCanvasPaneOpen,
-      markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
-      transitionSemanticKey: 'flow-editor-run-all:restore-workspace-frame',
-    }),
-  })
-}
-
 const setRunAllLayoutMutationLock = (active: boolean): void => {
   const state = useGraphStore.getState()
   if (!active) {
@@ -83,7 +48,6 @@ export function useFlowEditorWorkflowRunAll(args: {
     }
     if (runWorkflowAllInFlightRef.current) return
     runWorkflowAllInFlightRef.current = true
-    const workspaceFrame = readRunAllWorkspaceFrame()
     setRunAllLayoutMutationLock(true)
     try {
       const draft = (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null
@@ -111,7 +75,6 @@ export function useFlowEditorWorkflowRunAll(args: {
       }
       args.upsertUiToast({ id: 'flow-editor-run-all-done', kind: 'neutral', message: `Ran ${ids.length} nodes.`, ttlMs: 2200 })
     } finally {
-      restoreRunAllWorkspaceFrame(workspaceFrame)
       await waitForRunAllLayoutReleaseFrame()
       setRunAllLayoutMutationLock(false)
       runWorkflowAllInFlightRef.current = false

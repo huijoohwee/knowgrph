@@ -121,17 +121,17 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
       if (visitedNodeIds.has(id)) return
       visitedNodeIds.add(id)
       const activeWorkspacePath = typeof args.markdownDocumentName === 'string' ? args.markdownDocumentName.trim() : ''
-      if (activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath)) {
+      if (!suppressLayoutMutation && activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath)) {
         const canonicalPath = toCanonicalKgcWorkspacePath(activeWorkspacePath)
         const fs = await getWorkspaceFs()
         await fs.ensureSeed()
         const canonicalText = String(await fs.readFileText(canonicalPath) || '')
         if (canonicalText.trim()) {
           useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
-          if (!suppressLayoutMutation) ensureEditorCanvasLandingForDuration(1500)
+          ensureEditorCanvasLandingForDuration(1500)
           const state = useGraphStore.getState()
           if (state.markdownDocumentName !== canonicalPath || state.markdownDocumentText !== canonicalText) {
-            void state.setActiveMarkdownDocument({
+            await state.setActiveMarkdownDocument({
               name: canonicalPath,
               text: canonicalText,
               normalizeMermaidMmd: false,
