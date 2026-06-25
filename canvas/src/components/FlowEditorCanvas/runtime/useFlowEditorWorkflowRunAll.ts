@@ -18,13 +18,17 @@ const waitForRunAllLayoutReleaseFrame = async (): Promise<void> => {
 
 const setRunAllLayoutMutationLock = (active: boolean): void => {
   const state = useGraphStore.getState()
+  if (!active) {
+    useGraphStore.setState({ workspaceGraphMutationLayoutLockActive: false })
+    return
+  }
   useGraphStore.setState({
-    workspaceGraphMutationLayoutLockActive: active,
+    workspaceGraphMutationLayoutLockActive: true,
     ...buildWorkspaceGraphMutationTransitionState({
       workspaceViewMode: state.workspaceViewMode,
       workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
       markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
-      transitionSemanticKey: active ? 'flow-editor-run-all:active' : 'flow-editor-run-all:release',
+      transitionSemanticKey: 'flow-editor-run-all:active',
     }),
   })
 }

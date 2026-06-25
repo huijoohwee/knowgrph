@@ -1,12 +1,12 @@
 import React from 'react'
 import { type VideoSequenceExportPlan } from '@/components/timeline/videoSequenceExport'
 import {
-  cleanTimelinePreviewDocumentKey,
   useTimelineDocumentTransportController,
   useTimelineDocumentStoreBinding,
   useTimelineTransportStoreBinding,
 } from '@/components/timeline/timelineTransport'
 import { useTimelineGanttSelectionStoreBinding } from '@/components/timeline/timelineSurfaceBindings'
+import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
 import {
   buildVideoSequenceTimelineToolStatus,
   resolveVisibleVideoSequenceTimelineLaneCount,
