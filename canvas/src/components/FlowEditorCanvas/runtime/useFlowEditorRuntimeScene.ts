@@ -484,6 +484,8 @@ export function useFlowEditorRuntimeScene(args: {
         const rect = root.getBoundingClientRect()
         return {
           id: String(root.dataset.kgWidget || '').trim(),
+          screenLeft: rect.left,
+          screenTop: rect.top,
           left: rect.left - surfaceOffsetLeft,
           top: rect.top - surfaceOffsetTop,
           right: rect.right - surfaceOffsetLeft,
@@ -640,6 +642,8 @@ export function useFlowEditorRuntimeScene(args: {
               id: String(item.id || '').trim(),
               x: item.left + measuredCenterShiftX,
               y: item.top + measuredCenterShiftY,
+              screenX: item.screenLeft + measuredCenterShiftX,
+              screenY: item.screenTop + measuredCenterShiftY,
             }))
             .filter(item => item.id && Number.isFinite(item.x) && Number.isFinite(item.y))
         : placeWidgetsCenteredInGroupBounds({
@@ -654,7 +658,11 @@ export function useFlowEditorRuntimeScene(args: {
             cellH: panelScreen.height + gapScreenPx,
             gapWorld: gapScreenPx,
             snapWorld: value => value,
-          })
+          }).map(item => ({
+            ...item,
+            screenX: item.x + surfaceOffsetLeft,
+            screenY: item.y + surfaceOffsetTop,
+          }))
       if (placed.length <= 0) return true
       const nextWorld = { ...currentWorld }
       const nextScreen = { ...currentScreen }
@@ -673,7 +681,7 @@ export function useFlowEditorRuntimeScene(args: {
           nextWorld[id] = world
           changedWorld = true
         }
-        const screen = { left: p.x, top: p.y }
+        const screen = { left: p.screenX, top: p.screenY }
         const prevScreen = nextScreen[id]
         if (!prevScreen || Math.abs(prevScreen.left - screen.left) > 0.0001 || Math.abs(prevScreen.top - screen.top) > 0.0001) {
           nextScreen[id] = screen
