@@ -267,6 +267,14 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!runtimeSceneText.includes("reason: 'workspace-blocked-rejecting-live-runtime-transform'")) {
     throw new Error('expected Flow Editor runtime widgets to reject transient live zoom transforms while Run all blocks graph mutation')
   }
+  const runAllPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
+  const runAllText = readFileSync(runAllPath, 'utf8')
+  if (runAllText.includes('flow-editor-run-all:release')) {
+    throw new Error('expected Run all release to avoid stamping a fresh workspace mutation key that can trigger post-run auto-fit')
+  }
+  if (!runAllText.includes('if (!active)') || !runAllText.includes('workspaceGraphMutationLayoutLockActive: false')) {
+    throw new Error('expected Run all release to clear only the explicit layout lock')
+  }
 }
 
 export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation() {
