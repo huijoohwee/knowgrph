@@ -278,6 +278,17 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!runAllText.includes('if (!active)') || !runAllText.includes('workspaceGraphMutationLayoutLockActive: false')) {
     throw new Error('expected Run all release to clear only the explicit layout lock')
   }
+  if (!runAllText.includes('const workspaceFrame = readRunAllWorkspaceFrame()') || !runAllText.includes('restoreRunAllWorkspaceFrame(workspaceFrame)')) {
+    throw new Error('expected Flow Editor Run all to restore the workspace frame before releasing the layout lock')
+  }
+  if (!runAllText.includes("transitionSemanticKey: 'flow-editor-run-all:restore-workspace-frame'")) {
+    throw new Error('expected Flow Editor Run all workspace-frame restore to stamp a semantic mutation guard')
+  }
+  const runActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
+  const runActionText = readFileSync(runActionPath, 'utf8')
+  if (!runActionText.includes('if (!suppressLayoutMutation) ensureEditorCanvasLandingForDuration(1500)')) {
+    throw new Error('expected Run all node execution to suppress KGC editor landing while layout mutation is locked')
+  }
 }
 
 export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation() {

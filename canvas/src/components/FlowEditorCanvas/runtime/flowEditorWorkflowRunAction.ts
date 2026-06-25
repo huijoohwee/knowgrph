@@ -128,7 +128,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
         const canonicalText = String(await fs.readFileText(canonicalPath) || '')
         if (canonicalText.trim()) {
           useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
-          ensureEditorCanvasLandingForDuration(1500)
+          if (!suppressLayoutMutation) ensureEditorCanvasLandingForDuration(1500)
           const state = useGraphStore.getState()
           if (state.markdownDocumentName !== canonicalPath || state.markdownDocumentText !== canonicalText) {
             void state.setActiveMarkdownDocument({
