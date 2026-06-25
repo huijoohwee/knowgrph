@@ -229,30 +229,31 @@ export async function testHtmlVideoHeadlessBrowserAdapterIsNativeFossRuntimeAdap
   }
 }
 
-export async function testHtmlVideoCanvas2dAdapterIsBrowserNativeMp4RuntimeAdapter() {
+export async function testHtmlVideoCanvas2dAdapterIsBrowserNativeRecorderRuntimeAdapter() {
   const adapterPath = resolve(process.cwd(), 'src', 'features', 'html-video-renderer', 'engines', 'canvas2dAdapter.ts')
   const adapterText = readFileSync(adapterPath, 'utf8')
+  const forbiddenExternalMediaToolkit = ['media', 'bunny'].join('')
   for (const required of [
-    "await import('mediabunny')",
-    'new Mp4OutputFormat()',
-    'new BufferTarget()',
-    'new CanvasSource(canvas',
-    'getFirstEncodableVideoCodec',
-    "CANVAS_2D_MP4_CODEC_CANDIDATES = ['avc', 'vp9', 'vp8']",
+    'MediaRecorder',
+    'canvas.captureStream(spec.fps)',
+    'requestCanvasFrame(stream)',
+    'stopMediaStream(stream)',
+    'CANVAS_2D_RECORDER_MIME_CANDIDATES',
+    'MEDIA_VIDEO_RECORDER_MIME_TYPE_CANDIDATES',
     "await import('html2canvas')",
     'rasterizer=html2canvas',
-    'VideoEncoder',
-    '<main data-kg-render-time-ms',
-    "document.createElement('iframe')",
-    "iframe.setAttribute('sandbox', 'allow-same-origin')",
-    'frameDocument.write(buildFrameHtml(spec, timeMs))',
+    'recorder=MediaRecorder',
+    'data-kg-html-video-frame-host',
+    "document.createElement('main')",
+    "host.setAttribute('aria-label', 'HTML video frame raster host')",
+    'host.remove()',
   ]) {
     if (!adapterText.includes(required)) throw new Error(`expected canvas-2d browser MP4 adapter to include ${required}`)
   }
-  if (adapterText.includes("document.createElement('section')") || adapterText.includes('host.innerHTML = buildFrameHtml')) {
-    throw new Error('expected canvas-2d adapter to isolate frame HTML in an iframe instead of the app document')
+  if (adapterText.includes("document.createElement('div')") || adapterText.includes('host.innerHTML =')) {
+    throw new Error('expected canvas-2d adapter to use semantic temporary frame markup instead of generic host markup')
   }
-  for (const forbidden of ['ffmpeg', '@ffmpeg/', '@hyperframes/', 'Puppeteer']) {
+  for (const forbidden of [forbiddenExternalMediaToolkit, 'Mp4OutputFormat', 'CanvasSource', 'BufferTarget', 'ffmpeg', '@ffmpeg/', '@hyperframes/', 'Puppeteer']) {
     if (adapterText.includes(forbidden)) throw new Error(`canvas-2d adapter must not require ${forbidden}`)
   }
 

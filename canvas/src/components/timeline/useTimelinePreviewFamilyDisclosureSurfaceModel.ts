@@ -40,7 +40,7 @@ function buildTimelinePreviewFamilyDisclosureSummaryLabel(
   family: TimelinePreviewFamilyDisclosureFamily,
 ): string {
   if (family.expanded) {
-    return `${family.familyItemCount} variants shown`
+    return `${family.allItems.length} variants shown`
   }
   if (family.hiddenItemCount > 0) {
     return `${family.hiddenItemCount} hidden variant${family.hiddenItemCount === 1 ? '' : 's'}`

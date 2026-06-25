@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, Pause, Play } from 'lucide-react'
+import { Info, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   TIMELINE_TRANSPORT_PLAYBACK_RATES,
@@ -13,6 +13,8 @@ export type TimelineTransportControlsProps = {
   contextControls?: React.ReactNode
   currentLabel: string
   disabled?: boolean
+  contextLabel?: React.ReactNode
+  contextDetailsLabel?: string
   max: number
   min?: number
   playbackRate: TimelineTransportPlaybackRate
@@ -24,6 +26,7 @@ export type TimelineTransportControlsProps = {
   showRange?: boolean
   step: number
   totalLabel?: string
+  toolbarControls?: React.ReactNode
   value: number
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
   onPlaybackPointerDown?: () => void
@@ -46,6 +49,8 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
   const {
     ariaLabel,
     contextControls,
+    contextDetailsLabel,
+    contextLabel,
     currentLabel,
     disabled = false,
     max,
@@ -59,19 +64,24 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
     showRange = true,
     step,
     totalLabel,
+    toolbarControls,
     value,
     onPlaybackRateChange,
     onPlaybackPointerDown,
     onTogglePlayback,
     onValueChange,
   } = props
-  const playbackRateSelectId = React.useId()
   const progressPercent = React.useMemo(() => {
     const span = Math.max(0, max - min)
     if (span <= 0) return 0
     const clampedValue = Math.min(max, Math.max(min, value))
     return ((clampedValue - min) / span) * 100
   }, [max, min, value])
+  const nextPlaybackRate = React.useMemo(() => {
+    const currentIndex = playbackRates.findIndex(rate => rate === playbackRate)
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % playbackRates.length : 0
+    return playbackRates[nextIndex] || playbackRate
+  }, [playbackRate, playbackRates])
   return (
     <section
       className={cn('timeline-transport-shell', shellClassName)}
@@ -111,35 +121,38 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           />
         ) : null}
         <section className="rate-control">
-          <label className="sr-only" htmlFor={playbackRateSelectId}>
-            Playback rate
-          </label>
-          <section className="timeline-rate-select ant-select ant-select-sm ant-select-single ant-select-show-arrow">
-            <select
-              id={playbackRateSelectId}
-              className="ant-select-selection-native"
-              value={String(playbackRate)}
-              disabled={disabled}
-              onChange={event => {
-                onPlaybackRateChange(resolveTimelineTransportPlaybackRate(event.target.value, playbackRate))
-              }}
-            >
-              {playbackRates.map(rate => (
-                <option key={rate} value={String(rate)}>
-                  {rate.toFixed(1)}x
-                </option>
-              ))}
-            </select>
-            <section className="ant-select-selector">
-              <span className="ant-select-selection-item" title={`${playbackRate.toFixed(1)}x`}>
-                {playbackRate.toFixed(1)}x
-              </span>
-            </section>
-            <span className="ant-select-arrow" unselectable="on" aria-hidden="true">
-              <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
+          <button
+            type="button"
+            className="timeline-rate-button"
+            aria-label={`Playback rate ${playbackRate.toFixed(1)}x. Click for ${nextPlaybackRate.toFixed(1)}x.`}
+            title={`Playback rate ${playbackRate.toFixed(1)}x. Click for ${nextPlaybackRate.toFixed(1)}x.`}
+            disabled={disabled || playbackRates.length <= 1}
+            onClick={() => {
+              onPlaybackRateChange(resolveTimelineTransportPlaybackRate(String(nextPlaybackRate), playbackRate))
+            }}
+          >
+            <span className="timeline-rate-button-value">
+              {playbackRate.toFixed(1)}x
             </span>
-          </section>
+          </button>
         </section>
+        {toolbarControls ? (
+          <section className="timeline-player-toolbar" aria-label="Timeline tools">
+            {toolbarControls}
+          </section>
+        ) : null}
+        {contextLabel ? (
+          <section className="timeline-player-context-label" aria-label="Timeline context summary">
+            <button
+              type="button"
+              className="timeline-player-info-button"
+              aria-label={contextDetailsLabel || 'Timeline context summary'}
+              title={contextDetailsLabel || (typeof contextLabel === 'string' ? contextLabel : 'Timeline context summary')}
+            >
+              <Info className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+            </button>
+          </section>
+        ) : null}
         {contextControls ? (
           <section className="timeline-player-context" aria-label="Timeline contextual controls">
             {contextControls}
@@ -180,22 +193,26 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
   } = props
   const rootClassName = cn('timeline-transport-chrome', chromeClassName)
   const rulerRootClassName = cn('timeline-transport-ruler', rulerClassName)
+  const inlineHeaderAside = !titleLabel && !subtitleLabel ? headerAside : null
+  const headerAsideContent = inlineHeaderAside ? null : headerAside
   return (
     <section
       {...rootProps}
       className={rootClassName}
       data-kg-timeline-transport-chrome="shared"
     >
-      {titleLabel || subtitleLabel || headerAside ? (
+      {titleLabel || subtitleLabel || headerAsideContent ? (
         <header className="timeline-transport-chrome-header">
-          <section className="timeline-transport-chrome-title-block">
-            {titleLabel ? <section className="timeline-transport-chrome-title">{titleLabel}</section> : null}
-            {subtitleLabel ? <section className="timeline-transport-chrome-subtitle">{subtitleLabel}</section> : null}
-          </section>
-          {headerAside ? <section className="timeline-transport-chrome-header-aside">{headerAside}</section> : null}
+          {titleLabel || subtitleLabel ? (
+            <section className="timeline-transport-chrome-title-block">
+              {titleLabel ? <section className="timeline-transport-chrome-title">{titleLabel}</section> : null}
+              {subtitleLabel ? <section className="timeline-transport-chrome-subtitle">{subtitleLabel}</section> : null}
+            </section>
+          ) : null}
+          {headerAsideContent ? <section className="timeline-transport-chrome-header-aside">{headerAsideContent}</section> : null}
         </header>
       ) : null}
-      <TimelineTransportControls {...transportProps} />
+      <TimelineTransportControls {...transportProps} toolbarControls={inlineHeaderAside} />
       {ruler ? (
         <section className="timeline-transport-ruler-layout" data-kg-timeline-transport-ruler-layout="shared">
           <section

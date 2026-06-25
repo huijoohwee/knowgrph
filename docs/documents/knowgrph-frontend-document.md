@@ -574,7 +574,7 @@ ZOOM_MAX: number
 
 **Proxy Routing**: `applyMediaProxySrc` routes cross-origin HTTP(S) media through `/__fetch_remote`
 
-**Supported Formats**: Image (jpg, png, gif, webp), Video (mp4, webm)
+**Preferred Formats**: Image (`svg > webp > png > jpeg`), Video (`mp4 > webm`) via the shared media format preference owner.
 
 ### Canvas Coordinate System
 

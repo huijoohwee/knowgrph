@@ -28,7 +28,10 @@ import {
   insertMermaidGanttVideoSequenceOperationRow,
   resolveMermaidGanttTimelineDragEffectiveDelta,
   resolveMermaidGanttTimelineDragPreviewSpan,
+  splitMermaidGanttVideoSequenceClipAtOffset,
   updateMermaidGanttCodeRowTiming,
+  updateMermaidGanttVideoSequenceClipTiming,
+  updateMermaidGanttVideoSequenceClipGroupTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 
 const root = process.cwd()
@@ -40,8 +43,7 @@ function readSource(...parts: string[]): string {
 export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const controlsText = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
   const controlsCssText = readSource('components', 'timeline', 'TimelineTransportControls.css')
-  const clipEditText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.tsx')
-  const clipEditCssText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.css')
+  const clipEditText = readSource('components', 'timeline', 'videoSequenceClipEdit.ts')
   const mediaCanvasText = readSource('components', 'MediaCanvas.tsx')
   const previewMediaCanvasBindingText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasBinding.ts')
   const previewBootstrapText = readSource('components', 'timeline', 'useTimelinePreviewBootstrap.ts')
@@ -70,6 +72,19 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const previewSurfaceText = readSource('components', 'timeline', 'TimelinePreviewSurface.tsx')
   const previewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const previewVideoBindingText = readSource('components', 'timeline', 'useTimelinePreviewVideoBinding.ts')
+  const mediaReaderText = readSource('components', 'timeline', 'timelineMediaReader.ts')
+  const mediaFormatPreferenceText = readSource('lib', 'media', 'mediaFormatPreference.ts')
+  const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
+  const commandMenuCatalogText = [
+    readSource('features', 'command-menu', 'MediaCatalogPanel.tsx'),
+    readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx'),
+    readSource('features', 'command-menu', 'mediaCatalogCandidateItems.tsx'),
+    readSource('features', 'command-menu', 'mediaCatalogShared.tsx'),
+    readSource('features', 'command-menu', 'mediaCatalogTypes.ts'),
+    readSource('features', 'command-menu', 'mediaCatalogUploadedFields.tsx'),
+    readSource('features', 'command-menu', 'mediaCatalogUploadedItems.tsx'),
+  ].join('\n')
+  const forbiddenExternalMediaToolkit = ['media', 'bunny'].join('')
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
   const transportPanelText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
@@ -77,6 +92,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const transportSurfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
   const transportSurfaceText = readSource('features', 'gitgraph', 'GanttTimelineTransportSurface.tsx')
   const transportCommandModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportCommandModel.ts')
+  const transportDocumentActionsText = readSource('features', 'gitgraph', 'useGanttTimelineDocumentActions.ts')
   const transportChromeModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportChromeModel.ts')
   const transportContextControlsText = readSource('features', 'gitgraph', 'GanttTimelineTransportContextControls.tsx')
   const transportHeaderToolsText = readSource('features', 'gitgraph', 'GanttTimelineTransportHeaderTools.tsx')
@@ -97,11 +113,24 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     controlsText.includes('footer?: React.ReactNode') ||
     controlsText.includes('{footer}') ||
     !controlsText.includes('contextControls?: React.ReactNode') ||
+    !controlsText.includes('contextLabel?: React.ReactNode') ||
+    !controlsText.includes('contextDetailsLabel?: string') ||
+    !controlsText.includes('toolbarControls?: React.ReactNode') ||
     controlsText.includes('rulerAside?: React.ReactNode') ||
     controlsText.includes('rulerBelow?: React.ReactNode') ||
     controlsText.includes('timeline-transport-ruler-aside') ||
     controlsText.includes('timeline-transport-ruler-below') ||
     !controlsText.includes('timeline-player-context') ||
+    !controlsText.includes('timeline-player-context-label') ||
+    !controlsText.includes('timeline-player-toolbar') ||
+    !controlsText.includes('timeline-player-info-button') ||
+    !controlsText.includes('timeline-rate-button') ||
+    controlsText.includes('<select') ||
+    controlsCssText.includes('ant-select') ||
+    !controlsCssText.includes('.timeline-tool-menu') ||
+    !controlsCssText.includes('.timeline-tool-menu-panel') ||
+    !controlsText.includes('const inlineHeaderAside = !titleLabel && !subtitleLabel ? headerAside : null') ||
+    controlsText.includes('timeline-transport-chrome-header--tools-only') ||
     !controlsText.includes('showInlineProgress?: boolean') ||
     !controlsText.includes('!showRange && showInlineProgress') ||
     !controlsText.includes('onPlaybackPointerDown') ||
@@ -111,12 +140,23 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !controlsCssText.includes('line-height: 36px') ||
     controlsCssText.includes('.timeline-transport-ruler-layout:has(.timeline-transport-ruler-aside)') ||
     controlsCssText.includes('.timeline-transport-ruler-below') ||
-    !clipEditText.includes('VideoSequenceClipEditPanel') ||
-    !clipEditText.includes("data-kg-video-sequence-clip-edit") ||
-    !clipEditText.includes('data-kg-video-sequence-clip-edit-surface="transport"') ||
+    !clipEditText.includes('buildVideoSequenceClipEditDetailsLabel') ||
+    !clipEditText.includes('Selected clip:') ||
+    clipEditText.includes('VideoSequenceClipEditPanel') ||
+    clipEditText.includes('data-kg-video-sequence-clip-edit-surface="transport"') ||
+    clipEditText.includes('timeline-video-sequence-clip-edit-info') ||
+    clipEditText.includes('timeline-video-sequence-clip-edit-title') ||
+    clipEditText.includes('timeline-video-sequence-clip-edit-timecode') ||
     !clipEditText.includes("'split-at-playhead'") ||
     !clipEditText.includes("'snap-to-playhead'") ||
-    !clipEditCssText.includes('.timeline-video-sequence-clip-edit-actions') ||
+    clipEditText.includes('timeline-video-sequence-clip-edit-actions') ||
+    clipEditText.includes('aria-label="Clip nudge and trim tools"') ||
+    clipEditText.includes("label: 'Snap'") ||
+    clipEditText.includes("label: 'Split'") ||
+    clipEditText.includes('Clip nudge, trim, split, and snap tools') ||
+    clipEditText.includes('timeline-video-sequence-clip-edit-actions') ||
+    !controlsCssText.includes('.timeline-player-toolbar') ||
+    !controlsCssText.includes('.timeline-player-info-button') ||
     !controlsText.includes('{contextControls}') ||
     !rulerText.includes('VideoSequenceTimelineRuler') ||
     !rulerText.includes('TimelineVideoSequenceEmptyState') ||
@@ -127,8 +167,15 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('data-kg-video-sequence-scope-active-family') ||
     !rulerText.includes('data-kg-video-sequence-scope-activity-mode') ||
     !rulerText.includes('data-kg-video-sequence-scope-selection-active') ||
+    !rulerText.includes('data-kg-video-sequence-active-resize-mode') ||
+    !rulerText.includes('data-kg-video-sequence-trim-start') ||
+    !rulerText.includes('data-kg-video-sequence-trim-end') ||
+    !rulerText.includes('timeline-transport-track-handle-grip') ||
+    !rulerText.includes('timeline-video-sequence-trim-guide') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-strip') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-bars') ||
+    rulerText.includes('timeline-video-sequence-grade-strip') ||
+    rulerText.includes('Color grading controls') ||
     rulerText.includes('timeline-video-sequence-ruler-scope-header') ||
     rulerText.includes('<meter') ||
     !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 36') ||
@@ -143,16 +190,20 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerCssText.includes('.timeline-transport-shell--video-sequence') ||
     !rulerCssText.includes('.timeline-transport-track-clip--lane-effect') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-content .timeline-transport-track-clip-move') ||
-    !rulerCssText.includes('inset: 0 8px') ||
+    !rulerCssText.includes('inset: 0 12px') ||
     !rulerCssText.includes('touch-action: none') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-content .timeline-transport-track-handle') ||
-    !rulerCssText.includes('z-index: 3') ||
+    !rulerCssText.includes('z-index: 5') ||
+    !rulerCssText.includes('.timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip') ||
+    !rulerCssText.includes('.timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-video-sequence-active-resize-mode]') ||
+    !rulerCssText.includes('.timeline-video-sequence-trim-guide') ||
     !rulerCssText.includes('.timeline-video-sequence-clip-frame-strip') ||
     !rulerCssText.includes('.timeline-video-sequence-clip-frame') ||
     !rulerCssText.includes('.timeline-video-sequence-clip-cues') ||
     !rulerCssText.includes('.timeline-video-sequence-clip-timecode') ||
     !rulerCssText.includes('.timeline-video-sequence-audio-waveform-bar') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-scope-strip') ||
+    rulerCssText.includes('.timeline-video-sequence-grade-strip') ||
     rulerCssText.includes('.timeline-video-sequence-ruler-scope-header') ||
     !rulerCssText.includes('height: 32px') ||
     !rulerCssText.includes('top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 36px) + 2px)') ||
@@ -282,6 +333,14 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !previewRouteEntryText.includes("args.intent === 'media' ? 0 : args.positionMinutes") ||
     !previewRouteEntryText.includes('bootstrap: previewBootstrap') ||
     !transportChromeModelText.includes('useGanttTimelineTransportChromeModel') ||
+    !transportChromeModelText.includes('syncModeButton') ||
+    !transportChromeModelText.includes('clipActionButtons') ||
+    !transportChromeModelText.includes("action: 'nudge-back'") ||
+    !transportChromeModelText.includes("action: 'trim-start-back'") ||
+    !transportChromeModelText.includes("action: 'snap-to-playhead'") ||
+    !transportChromeModelText.includes("action: 'split-at-playhead'") ||
+    !transportChromeModelText.includes('handleToggleVideoSequenceTimingSyncMode') ||
+    !transportChromeModelText.includes("timingSyncMode === 'grouped'") ||
     !transportChromeModelText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS.map') ||
     !transportChromeModelText.includes('exportSessionCollection.surface.items.map') ||
     !transportChromeModelText.includes('exportSessionCollection.retryControl') ||
@@ -292,11 +351,24 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportChromeModelText.includes('Cancel edited audio export') ||
     !transportChromeModelText.includes('Download edited audio') ||
     !transportContextControlsText.includes('GanttTimelineTransportContextControls') ||
-    !transportContextControlsText.includes('VideoSequenceClipEditPanel') ||
+    transportContextControlsText.includes('VideoSequenceClipEditPanel') ||
+    !transportShellText.includes('contextDetailsLabel') ||
+    !transportChromeModelText.includes('buildVideoSequenceClipEditDetailsLabel') ||
+    !transportChromeModelText.includes('detailsLabel: buildVideoSequenceClipEditDetailsLabel') ||
     !transportContextControlsText.includes('timeline-transport-export-session') ||
     !transportContextControlsText.includes('data-kg-video-sequence-export-session-retry') ||
     !transportHeaderToolsText.includes('GanttTimelineTransportHeaderTools') ||
+    !transportHeaderToolsText.includes('data-kg-video-sequence-tool="timing-sync"') ||
+    !transportHeaderToolsText.includes('data-kg-video-sequence-timing-sync={args.model.syncModeButton.mode}') ||
+    !transportHeaderToolsText.includes('data-kg-video-sequence-clip-edit={button.action}') ||
+    !transportHeaderToolsText.includes('renderClipActionIcon(button.icon)') ||
+    !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--clip">') ||
+    !transportHeaderToolsText.includes('aria-label="Clip nudge and trim tools"') ||
+    !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--utilities">') ||
+    !transportHeaderToolsText.includes('aria-label="Timeline utility tools"') ||
+    transportHeaderToolsText.indexOf('args.model.clipActionButtons.map') > transportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') ||
     !transportHeaderToolsText.includes('TimelineVideoSequenceToolButton') ||
+    !sequenceText.includes("{ id: 'grade', label: 'Grade', title: 'Add color grade lane for selected clip' }") ||
     !transportHeaderToolsText.includes('timeline-video-sequence-tool-strip') ||
     !transportHeaderToolsText.includes('timeline-transport-chrome-actions') ||
     !transportHeaderToolsText.includes('data-kg-video-sequence-export={button.dataValue}') ||
@@ -322,12 +394,20 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportCommandModelText.includes('useGanttTimelineDocumentActions') ||
     !transportCommandModelText.includes('chromeModelCommands') ||
     !transportCommandModelText.includes('handleCommittedDragUpdate: documentActions.handleCommittedDragUpdate') ||
+    !transportCommandModelText.includes('handleToggleVideoSequenceTimingSyncMode: documentActions.handleToggleVideoSequenceTimingSyncMode') ||
+    !transportCommandModelText.includes('timingSyncMode: documentActions.timingSyncMode') ||
     !transportCommandModelText.includes('handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit') ||
+    !transportDocumentActionsText.includes("React.useState<MermaidGanttVideoSequenceTimingSyncMode>('grouped')") ||
+    !transportDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipAtOffset') ||
+    !transportDocumentActionsText.includes('updateMermaidGanttVideoSequenceClipTiming') ||
+    !transportDocumentActionsText.includes('handleToggleVideoSequenceTimingSyncMode') ||
+    !transportDocumentActionsText.includes('syncMode: timingSyncMode') ||
+    transportDocumentActionsText.includes('const nextCode = updateMermaidGanttCodeRowTiming') ||
     !transportRulerModelText.includes('useGanttTimelineTransportRulerModel') ||
     !transportRulerModelText.includes('clampTimelineTransportValue') ||
     !transportRulerModelText.includes("'--kg-video-sequence-lane-count': args.visibleLaneCount") ||
     !transportRulerModelText.includes("subtitleLabel: `${args.taskSpans.length} timeline rows`") ||
-    !transportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
+    transportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
     !transportRulerModelText.includes('value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes))') ||
     !transportRulerModelText.includes('scopes: args.scopes') ||
     !transportRulerText.includes('GanttTimelineTransportRuler') ||
@@ -344,6 +424,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportShellModelText.includes("chromeClassName: 'timeline-transport-chrome--mermaid-gantt p-2'") ||
     !transportShellModelText.includes("shellClassName: 'timeline-transport-shell--video-sequence'") ||
     !transportShellModelText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
+    !transportShellModelText.includes("'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined") ||
+    !transportShellModelText.includes("'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined") ||
     !transportShellModelText.includes("'data-kg-video-sequence-timeline': 'source-backed'") ||
     !transportShellModelText.includes('showInlineProgress: false') ||
     !transportShellModelText.includes('showRange: false') ||
@@ -353,6 +435,9 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportShellText.includes('GanttTimelineTransportContextControls') ||
     !transportShellText.includes('GanttTimelineTransportHeaderTools') ||
     !transportShellText.includes('GanttTimelineTransportRuler') ||
+    !transportShellText.includes('contextLabel={args.rulerModel.chrome.subtitleLabel}') ||
+    transportShellText.includes('titleLabel={args.rulerModel.chrome.titleLabel}') ||
+    transportShellText.includes('subtitleLabel={args.rulerModel.chrome.subtitleLabel}') ||
     !transportShellText.includes('showInlineProgress={args.shellModel.showInlineProgress}') ||
     !transportShellText.includes('showRange={args.shellModel.showRange}') ||
     !transportPlaybackModelText.includes('useGanttTimelineTransportPlaybackModel') ||
@@ -495,15 +580,108 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !previewSurfaceText.includes('data-kg-media-canvas-item-family-hidden-count') ||
     !previewSurfaceText.includes('data-kg-media-canvas-item-style-mode') ||
     !previewSurfaceText.includes('data-kg-video-sequence-media-sync') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-duration') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-frame-rate') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-resolution') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-audio-channels') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-time-resolution') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-reader-video-tracks') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-count') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-generated') ||
+    previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-strip') ||
+    previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-format') ||
+    previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-raster-format') ||
+    previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-time') ||
+    !previewSurfaceText.includes('relative aspect-video min-h-0 overflow-hidden') ||
+    previewSurfaceText.includes("minHeight: '18rem'") ||
+    !previewSurfaceText.includes('videoPoster={videoPoster}') ||
     !previewSurfaceText.includes('videoControls={syncEnabled ? false : undefined}') ||
     !previewSurfaceText.includes('onVideoElement={args.item.kind ===') ||
     !previewVideoBindingText.includes('useTimelinePreviewVideoBinding') ||
+    !previewVideoBindingText.includes('useTimelineMediaReaderSummary') ||
     !previewVideoBindingText.includes('useTimelineDocumentTransportController') ||
     !previewVideoBindingText.includes('useTimelineTransportSnapshotReader') ||
     !previewVideoBindingText.includes('useTimelineTransportStoreBinding') ||
     !previewVideoBindingText.includes('useTimelineVideoPreviewSyncController') ||
     !previewVideoBindingText.includes('handleVideoElement') ||
+    !previewVideoBindingText.includes('readerDurationSeconds: mediaReaderSummary.durationSeconds') ||
     !previewVideoBindingText.includes('readVideo: () => videoElementRef.current') ||
+    !mediaReaderText.includes('loadTimelineMediaReaderSummary') ||
+    mediaReaderText.includes(forbiddenExternalMediaToolkit) ||
+    !mediaReaderText.includes('fetchNativeMediaContainerBytes') ||
+    !mediaReaderText.includes('readNativeIsoBmffContainerSummary') ||
+    !mediaReaderText.includes("document.createElement('video')") ||
+    !mediaReaderText.includes("headers: { Range: `bytes=0-${NATIVE_MEDIA_CONTAINER_READ_BYTES - 1}` }") ||
+    !mediaReaderText.includes('readIsoTrackSummary') ||
+    !mediaReaderText.includes('readIsoStsd') ||
+    !mediaReaderText.includes('readIsoStts') ||
+    !mediaReaderText.includes('readIsoMdhd') ||
+    !mediaReaderText.includes('canDecodeCodec') ||
+    !mediaReaderText.includes('TimelineMediaReaderThumbnail') ||
+    !mediaReaderText.includes('loadNativeVideoThumbnails') ||
+    !mediaReaderText.includes('resolveThumbnailTimestamps') ||
+    !mediaReaderText.includes("document.createElement('canvas')") ||
+    !mediaReaderText.includes("canvas.toDataURL('image/webp', 0.78)") ||
+    !mediaReaderText.includes("canvas.toDataURL('image/png')") ||
+    !mediaReaderText.includes("canvas.toDataURL('image/jpeg', 0.76)") ||
+    !mediaReaderText.includes('buildSemanticThumbnailSvgDataUrl') ||
+    !mediaReaderText.includes("format: 'svg'") ||
+    !mediaReaderText.includes("mimeType: 'image/svg+xml'") ||
+    !mediaReaderText.includes('rasterFormat') ||
+    !mediaReaderText.includes('toSvgDataUrl') ||
+    !mediaFormatPreferenceText.includes("MEDIA_IMAGE_FORMAT_PREFERENCE = ['svg', 'webp', 'png', 'jpeg']") ||
+    !mediaFormatPreferenceText.includes("MEDIA_VIDEO_FORMAT_PREFERENCE = ['mp4', 'webm']") ||
+    !mediaFormatPreferenceText.includes('readPreferredImageFormat') ||
+    !mediaFormatPreferenceText.includes('readPreferredVideoFormat') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-image-format-preference') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-video-format-preference') ||
+    !mediaReaderText.includes("waitForMediaEvent(video, 'seeked'") ||
+    !mediaReaderText.includes('NATIVE_MEDIA_THUMBNAIL_COUNT = 5') ||
+    !mediaReaderText.includes('thumbnails,') ||
+    !transportSurfaceModelText.includes('useTimelineMediaReaderSummary') ||
+    !transportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
+    !transportSurfaceModelText.includes('sourceThumbnails: mediaThumbnailSummary.thumbnails') ||
+    !transportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') ||
+    !transportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') ||
+    !rulerText.includes('sourceThumbnails = []') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-strip') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-format') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-raster-format') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-time') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-preview') ||
+    !rulerText.includes('timeline-video-sequence-clip-thumbnail-preview-caption') ||
+    !rulerText.includes('timeline-video-sequence-clip-thumbnail-caption') ||
+    !rulerText.includes('onClick={event =>') ||
+    !rulerText.includes('onPointerDown={event =>') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-image-format-preference') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-video-format-preference') ||
+    !rulerCssText.includes('.timeline-video-sequence-clip-thumbnail-strip') ||
+    !rulerCssText.includes('.timeline-video-sequence-clip-thumbnail img') ||
+    !rulerCssText.includes('.timeline-video-sequence-clip-thumbnail-caption') ||
+    !rulerCssText.includes('.timeline-video-sequence-clip-thumbnail-preview') ||
+    !rulerCssText.includes('aspect-ratio: 16 / 9') ||
+    !richMediaPanelText.includes('MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR') ||
+    !richMediaPanelText.includes('MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR') ||
+    !richMediaPanelText.includes('data-kg-rich-media-shared-pan-drag-zoom') ||
+    !richMediaPanelText.includes('ZoomPanViewport') ||
+    !richMediaPanelText.includes('data-kg-rich-media-zoom-pan-viewport') ||
+    !richMediaPanelText.includes('wheelZoomBehavior="active"') ||
+    !richMediaPanelText.includes('contentFillsFrame') ||
+    !richMediaPanelText.includes('mediaThumbnailDataAttr') ||
+    !commandMenuCatalogText.includes('useNativeVideoMediaThumbnail') ||
+    !commandMenuCatalogText.includes('useTimelineMediaReaderSummary') ||
+    !commandMenuCatalogText.includes('readPreferredImageFormat') ||
+    !commandMenuCatalogText.includes('readPreferredVideoFormat') ||
+    !commandMenuCatalogText.includes('data-kg-media-image-format-preference') ||
+    !commandMenuCatalogText.includes('data-kg-media-video-format-preference') ||
+    !commandMenuCatalogText.includes('MediaThumbnailCaption') ||
+    !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-caption') ||
+    !commandMenuCatalogText.includes('contentType: item.contentType') ||
+    !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-format') ||
+    !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-raster-format') ||
+    !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-time') ||
+    commandMenuCatalogText.indexOf('{mediaActions.map(action => (') < commandMenuCatalogText.indexOf('{uploadedMediaItems.map(item => (') ||
     !playbackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
     !playbackControlsText.includes('handlePlaybackPointerDown') ||
     !playbackControlsText.includes('handleTogglePlayback') ||
@@ -515,7 +693,12 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !displayModelText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
     !displayModelText.includes('resolveVideoSequenceTimelineUnitsPerMs') ||
     !mediaDurationText.includes('resolveTimelinePlanDurationSeconds') ||
+    !transportShellModelText.includes("'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined") ||
+    !transportShellModelText.includes("'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined") ||
+    !transportSurfaceModelText.includes('hasMediaDurationScale: transportSession.hasMediaDurationScale') ||
+    !transportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !previewSyncText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !previewSyncText.includes('resolveTimelineVideoPreviewDurationSeconds') ||
     !previewSyncText.includes('resolveTimelineVideoPreviewTargetSeconds') ||
     !previewSyncText.includes('resolveTimelineVideoPreviewPositionMinutes') ||
     !previewSyncText.includes('TimelineTransportSnapshotReader') ||
@@ -635,22 +818,36 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     '  section Audio',
     '  港岛仿生局.mp4 audio : clip_hk_audio, 00:00, 15m',
   ].join('\n')
-  const movedFullWidthSequenceCode = updateMermaidGanttCodeRowTiming({
+  const movedFullWidthSequenceCode = updateMermaidGanttVideoSequenceClipGroupTiming({
     code: fullWidthSequenceCode,
     rowLineIndex: 5,
     mode: 'move',
     deltaMinutes: 3,
   })
+  const selectedOnlyMovedFullWidthSequenceCode = updateMermaidGanttVideoSequenceClipTiming({
+    code: fullWidthSequenceCode,
+    rowLineIndex: 11,
+    mode: 'move',
+    deltaMinutes: 3,
+    syncMode: 'selected',
+  })
+  const groupedModeMovedFullWidthSequenceCode = updateMermaidGanttVideoSequenceClipTiming({
+    code: fullWidthSequenceCode,
+    rowLineIndex: 11,
+    mode: 'move',
+    deltaMinutes: 3,
+    syncMode: 'grouped',
+  })
   const movedFullWidthSequenceModel = buildMermaidGanttTimelineModel(movedFullWidthSequenceCode || '')
   const movedFullWidthVideoSpan = movedFullWidthSequenceModel.taskSpans.find(span => span.label === '港岛仿生局.mp4')
   const visibleSequenceLanes = resolveVisibleVideoSequenceTimelineLanes(movedFullWidthSequenceModel.taskSpans)
-  const preciseTrimmedSequenceCode = updateMermaidGanttCodeRowTiming({
+  const preciseTrimmedSequenceCode = updateMermaidGanttVideoSequenceClipGroupTiming({
     code: fullWidthSequenceCode,
     rowLineIndex: 5,
     mode: 'resize-start',
     deltaMinutes: 2,
   })
-  const preciseExtendedSequenceCode = updateMermaidGanttCodeRowTiming({
+  const preciseExtendedSequenceCode = updateMermaidGanttVideoSequenceClipGroupTiming({
     code: preciseTrimmedSequenceCode || '',
     rowLineIndex: 5,
     mode: 'resize-end',
@@ -658,6 +855,9 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   })
   if (
     !movedFullWidthSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_0_15, 00:03, 15m') ||
+    !movedFullWidthSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, kgsrc_0_15, 00:03, 15m') ||
+    !movedFullWidthSequenceCode.includes('港岛仿生局.mp4 grade : clip_hk_grade, kgsrc_0_15, 00:03, 15m') ||
+    !movedFullWidthSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m') ||
     movedFullWidthSequenceModel.durationMinutes !== 18 ||
     movedFullWidthVideoSpan?.startMinutes !== 3 ||
     movedFullWidthVideoSpan?.endMinutes !== 18 ||
@@ -667,12 +867,28 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     throw new Error(`expected moved full-width video sequence clip to remain visibly editable in a compact active-lane stack, got ${JSON.stringify({ movedFullWidthSequenceCode, movedFullWidthSequenceModel, movedFullWidthVideoSpan, visibleSequenceLanes })}`)
   }
   if (
-    !preciseTrimmedSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_2_15, 00:02, 13m') ||
-    !preciseTrimmedSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, 00:00, 15m') ||
-    !preciseExtendedSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_2_16, 00:02, 14m') ||
-    !preciseExtendedSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, 00:00, 15m')
+    !selectedOnlyMovedFullWidthSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, 00:00, 15m') ||
+    !selectedOnlyMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, 00:00, 15m') ||
+    !selectedOnlyMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 grade : clip_hk_grade, 00:00, 15m') ||
+    !selectedOnlyMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m') ||
+    !groupedModeMovedFullWidthSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_0_15, 00:03, 15m') ||
+    !groupedModeMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, kgsrc_0_15, 00:03, 15m') ||
+    !groupedModeMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 grade : clip_hk_grade, kgsrc_0_15, 00:03, 15m') ||
+    !groupedModeMovedFullWidthSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m')
   ) {
-    throw new Error(`expected precise BottomPanel clip trim controls to edit only the selected lane, got ${JSON.stringify({ preciseTrimmedSequenceCode, preciseExtendedSequenceCode })}`)
+    throw new Error(`expected group/ungroup timing sync modes to choose between companion-lane sync and selected-lane edits, got ${JSON.stringify({ groupedModeMovedFullWidthSequenceCode, selectedOnlyMovedFullWidthSequenceCode })}`)
+  }
+  if (
+    !preciseTrimmedSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_2_15, 00:02, 13m') ||
+    !preciseTrimmedSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, kgsrc_2_15, 00:02, 13m') ||
+    !preciseTrimmedSequenceCode.includes('港岛仿生局.mp4 grade : clip_hk_grade, kgsrc_2_15, 00:02, 13m') ||
+    !preciseTrimmedSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_2_15, 00:02, 13m') ||
+    !preciseExtendedSequenceCode?.includes('港岛仿生局.mp4 : clip_hk, kgsrc_2_16, 00:02, 14m') ||
+    !preciseExtendedSequenceCode.includes('港岛仿生局.mp4 mask : clip_hk_mask, kgsrc_2_16, 00:02, 14m') ||
+    !preciseExtendedSequenceCode.includes('港岛仿生局.mp4 grade : clip_hk_grade, kgsrc_2_16, 00:02, 14m') ||
+    !preciseExtendedSequenceCode.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_2_16, 00:02, 14m')
+  ) {
+    throw new Error(`expected generated BottomPanel companion lanes to stay synchronized with Media canvas clip timing, got ${JSON.stringify({ preciseTrimmedSequenceCode, preciseExtendedSequenceCode })}`)
   }
   const splitSequenceCode = [
     'gantt',
@@ -695,7 +911,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const splitSequenceModel = buildMermaidGanttTimelineModel(splitSequenceCode)
   const splitSpliceSpan = splitSequenceModel.taskSpans.find(span => span.label === '港岛仿生局.mp4 splice')
   const movedSplitSequenceCode = splitSpliceSpan
-    ? updateMermaidGanttCodeRowTiming({
+    ? updateMermaidGanttVideoSequenceClipGroupTiming({
         code: splitSequenceCode,
         rowLineIndex: splitSpliceSpan.lineIndex,
         mode: 'move',
@@ -703,21 +919,48 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
       })
     : null
   const trimmedSplitSequenceCode = splitSpliceSpan
-    ? updateMermaidGanttCodeRowTiming({
+    ? updateMermaidGanttVideoSequenceClipGroupTiming({
         code: splitSequenceCode,
         rowLineIndex: splitSpliceSpan.lineIndex,
         mode: 'resize-start',
         deltaMinutes: 1,
       })
     : null
+  const selectedOnlySplitSequenceCode = splitMermaidGanttVideoSequenceClipAtOffset({
+    code: fullWidthSequenceCode,
+    rowLineIndex: 11,
+    splitOffsetMinutes: 2,
+    syncMode: 'selected',
+  })
+  const groupedModeSplitSequenceCode = splitMermaidGanttVideoSequenceClipAtOffset({
+    code: fullWidthSequenceCode,
+    rowLineIndex: 11,
+    splitOffsetMinutes: 2,
+    syncMode: 'grouped',
+  })
   if (
     !splitSpliceSpan ||
     !movedSplitSequenceCode?.includes('港岛仿生局.mp4 splice : clip_hk_splice, kgsrc_1_5, 00:02, 4m') ||
-    !movedSplitSequenceCode.includes('港岛仿生局.mp4 audio splice : clip_hk_audio_splice, 00:01, 4m') ||
+    !movedSplitSequenceCode.includes('港岛仿生局.mp4 mask splice : clip_hk_mask_splice, kgsrc_1_5, 00:02, 4m') ||
+    !movedSplitSequenceCode.includes('港岛仿生局.mp4 grade splice : clip_hk_grade_splice, kgsrc_1_5, 00:02, 4m') ||
+    !movedSplitSequenceCode.includes('港岛仿生局.mp4 audio splice : clip_hk_audio_splice, kgsrc_1_5, 00:02, 4m') ||
     !trimmedSplitSequenceCode?.includes('港岛仿生局.mp4 splice : clip_hk_splice, kgsrc_2_5, 00:02, 3m') ||
-    !trimmedSplitSequenceCode.includes('港岛仿生局.mp4 mask splice : clip_hk_mask_splice, 00:01, 4m')
+    !trimmedSplitSequenceCode.includes('港岛仿生局.mp4 mask splice : clip_hk_mask_splice, kgsrc_2_5, 00:02, 3m') ||
+    !trimmedSplitSequenceCode.includes('港岛仿生局.mp4 grade splice : clip_hk_grade_splice, kgsrc_2_5, 00:02, 3m') ||
+    !trimmedSplitSequenceCode.includes('港岛仿生局.mp4 audio splice : clip_hk_audio_splice, kgsrc_2_5, 00:02, 3m')
   ) {
-    throw new Error(`expected split/splice timeline clips to remain draggable and resizable as independently editable bars, got ${JSON.stringify({ movedSplitSequenceCode, splitSpliceSpan, trimmedSplitSequenceCode })}`)
+    throw new Error(`expected split/splice companion lanes to remain synchronized as a source-backed Media canvas group, got ${JSON.stringify({ movedSplitSequenceCode, splitSpliceSpan, trimmedSplitSequenceCode })}`)
+  }
+  if (
+    !selectedOnlySplitSequenceCode?.includes('港岛仿生局.mp4 audio : clip_hk_audio, kgsrc_0_2, 00:00, 2m') ||
+    !selectedOnlySplitSequenceCode.includes('港岛仿生局.mp4 audio splice : clip_hk_audio_splice, kgsrc_2_15, 00:02, 13m') ||
+    selectedOnlySplitSequenceCode.includes('港岛仿生局.mp4 mask splice') ||
+    !groupedModeSplitSequenceCode?.includes('港岛仿生局.mp4 splice : clip_hk_splice, kgsrc_2_15, 00:02, 13m') ||
+    !groupedModeSplitSequenceCode.includes('港岛仿生局.mp4 mask splice : clip_hk_mask_splice, kgsrc_2_15, 00:02, 13m') ||
+    !groupedModeSplitSequenceCode.includes('港岛仿生局.mp4 grade splice : clip_hk_grade_splice, kgsrc_2_15, 00:02, 13m') ||
+    !groupedModeSplitSequenceCode.includes('港岛仿生局.mp4 audio splice : clip_hk_audio_splice, kgsrc_2_15, 00:02, 13m')
+  ) {
+    throw new Error(`expected selected/grouped split sync modes to preserve user group/ungroup intent, got ${JSON.stringify({ groupedModeSplitSequenceCode, selectedOnlySplitSequenceCode })}`)
   }
   const transitionCode = insertMermaidGanttVideoSequenceOperationRow({ code, rowLineIndex: 3, operation: 'transition' })
   const filterCode = insertMermaidGanttVideoSequenceOperationRow({ code: transitionCode || code, rowLineIndex: 3, operation: 'filter' })

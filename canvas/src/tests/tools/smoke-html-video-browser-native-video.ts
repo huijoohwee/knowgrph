@@ -4,7 +4,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { chromium, type Browser } from 'playwright'
 
 const repoRoot = resolve(process.cwd(), '..')
-const defaultOutputPath = resolve(repoRoot, 'data', 'outputs', 'html-video-browser-smoke.mp4')
+const defaultOutputBasePath = resolve(repoRoot, 'data', 'outputs', 'html-video-browser-smoke')
 
 const readArg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -69,7 +69,7 @@ const launchBrowser = async (): Promise<Browser> => {
 const main = async () => {
   const port = Number(readArg('--port') || 5197)
   if (!Number.isInteger(port) || port < 1) throw new Error('--port must be a positive integer')
-  const outputPath = resolve(readArg('--output') || defaultOutputPath)
+  const requestedOutputPath = readArg('--output')
   const server = await startVite(port)
   let browser: Browser | null = null
   try {
@@ -81,7 +81,7 @@ const main = async () => {
       const adapterModulePath = '/src/features/html-video-renderer/engines/canvas2dAdapter.ts'
       const { canvas2dAdapter } = await import(/* @vite-ignore */ adapterModulePath)
       const renderResult = await canvas2dAdapter.render({
-        html: '<section aria-label="HTML video smoke"><h1>MP4 Smoke</h1><p>Browser-native HTML to video.</p></section>',
+        html: '<section aria-label="HTML video smoke"><h1>Native Video Smoke</h1><p>Browser-native HTML to video.</p></section>',
         css: `main {
   display: grid;
   place-items: center;
@@ -113,8 +113,10 @@ h1, p { margin: 0; }`,
       }
     })
     const buffer = Buffer.from(result.bytes)
-    if (buffer.byteLength < 128) throw new Error(`MP4 smoke output too small: ${buffer.byteLength} bytes`)
-    if (!buffer.includes(Buffer.from('ftyp'))) throw new Error('MP4 smoke output missing ftyp box')
+    if (buffer.byteLength < 128) throw new Error(`native video smoke output too small: ${buffer.byteLength} bytes`)
+    if (!String(result.type || '').startsWith('video/')) throw new Error(`native video smoke output returned non-video MIME type: ${result.type || 'unknown'}`)
+    const outputExtension = String(result.type).includes('mp4') ? 'mp4' : 'webm'
+    const outputPath = resolve(requestedOutputPath || `${defaultOutputBasePath}.${outputExtension}`)
     await mkdir(dirname(outputPath), { recursive: true })
     await writeFile(outputPath, buffer)
     console.log(JSON.stringify({

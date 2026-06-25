@@ -2,6 +2,10 @@ import React from 'react'
 import RichMediaPanel, { type RichMediaPanelProps } from '@/components/RichMediaPanel'
 import { cn } from '@/lib/utils'
 import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
+import {
+  MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
+  MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
+} from '@/lib/media/mediaFormatPreference'
 import { type VideoSequenceTimelineSource } from './videoSequenceTimeline'
 import { type VideoSequenceExportPlan } from './videoSequenceExport'
 import { useTimelinePreviewVideoBinding } from './useTimelinePreviewVideoBinding'
@@ -32,7 +36,7 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
     () => args.item.panel || buildStaticRichMediaPanelOverlayState({ renderKind: args.item.kind }),
     [args.item.kind, args.item.panel],
   )
-  const { handleVideoElement, syncEnabled } = useTimelinePreviewVideoBinding({
+  const { handleVideoElement, mediaReaderSummary, syncEnabled } = useTimelinePreviewVideoBinding({
     documentKey: args.documentKey,
     exportPlan: args.exportPlan,
     maxPosition: args.sequenceMaxMinutes,
@@ -41,11 +45,13 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
       ? args.item.videoSequenceSource || null
       : null,
   })
+  const videoThumbnails = syncEnabled && args.item.kind === 'video' ? mediaReaderSummary.thumbnails : []
+  const videoPoster = videoThumbnails[0]?.dataUrl || undefined
 
   return (
     <article
       className={cn(
-        'min-h-[18rem] overflow-hidden transition-opacity',
+        'relative aspect-video min-h-0 overflow-hidden transition-opacity',
         args.activity?.dimmed && 'opacity-60',
         args.activity?.active && 'rounded outline outline-1 outline-[var(--kg-canvas-accent)] outline-offset-0',
       )}
@@ -69,6 +75,20 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
       data-kg-media-canvas-source={args.item.source}
       data-kg-media-canvas-rich-media-panel="1"
       data-kg-video-sequence-media-sync={syncEnabled ? '1' : undefined}
+      data-kg-video-sequence-media-reader={syncEnabled ? mediaReaderSummary.status : undefined}
+      data-kg-video-sequence-media-reader-audio-tracks={syncEnabled ? mediaReaderSummary.audioTrackCount : undefined}
+      data-kg-video-sequence-media-reader-audio-channels={syncEnabled && mediaReaderSummary.audioChannelCount > 0 ? mediaReaderSummary.audioChannelCount : undefined}
+      data-kg-video-sequence-media-reader-audio-sample-rate={syncEnabled && mediaReaderSummary.audioSampleRate > 0 ? mediaReaderSummary.audioSampleRate : undefined}
+      data-kg-video-sequence-media-reader-duration={syncEnabled && mediaReaderSummary.durationSeconds > 0 ? mediaReaderSummary.durationSeconds : undefined}
+      data-kg-video-sequence-media-reader-duration-source={syncEnabled ? mediaReaderSummary.durationSource : undefined}
+      data-kg-video-sequence-media-reader-frame-rate={syncEnabled && mediaReaderSummary.averageVideoFrameRate > 0 ? mediaReaderSummary.averageVideoFrameRate : undefined}
+      data-kg-video-sequence-media-reader-resolution={syncEnabled && mediaReaderSummary.displayWidth > 0 && mediaReaderSummary.displayHeight > 0 ? `${mediaReaderSummary.displayWidth}x${mediaReaderSummary.displayHeight}` : undefined}
+      data-kg-video-sequence-media-reader-time-resolution={syncEnabled && mediaReaderSummary.timeResolution > 0 ? mediaReaderSummary.timeResolution : undefined}
+      data-kg-video-sequence-media-reader-video-tracks={syncEnabled ? mediaReaderSummary.videoTrackCount : undefined}
+      data-kg-video-sequence-media-thumbnail-count={videoThumbnails.length || undefined}
+      data-kg-video-sequence-media-thumbnail-generated={videoThumbnails.length ? 'native' : undefined}
+      data-kg-video-sequence-media-thumbnail-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
+      data-kg-video-sequence-media-thumbnail-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
     >
       <RichMediaPanel
         title={args.item.label}
@@ -78,11 +98,12 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
         kind={args.item.kind}
         interactive
         videoControls={syncEnabled ? false : undefined}
+        videoPoster={videoPoster}
         onVideoElement={args.item.kind === 'video' ? handleVideoElement : undefined}
         panelChrome="flowEditor"
         scrollOwner="media"
         panel={panelState}
-        style={{ height: '100%', minHeight: '18rem' }}
+        style={{ height: '100%' }}
       />
     </article>
   )

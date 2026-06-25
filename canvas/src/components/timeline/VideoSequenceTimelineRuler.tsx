@@ -1,5 +1,10 @@
 import React from 'react'
 import { Blend, Film, Filter, Gauge, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, type LucideIcon } from 'lucide-react'
+import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
+import {
+  MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
+  MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
+} from '@/lib/media/mediaFormatPreference'
 import {
   VIDEO_SEQUENCE_TIMELINE_LANES,
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
@@ -26,6 +31,22 @@ export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 36
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
 export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
 export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 28 + VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX
+const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'>, string> = {
+  'resize-end': 'end',
+  'resize-start': 'start',
+}
+
+function resolveActiveVideoSequenceResizeMode(args: {
+  dragging: boolean
+  previewSpan: MermaidGanttTimelineDragPreview | null
+  span: MermaidGanttTimelineTaskSpan
+}): Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'> | null {
+  if (!args.dragging || !args.previewSpan) return null
+  if (args.previewSpan.rowKey !== args.span.rowKey) return null
+  if (args.previewSpan.startMinutes !== args.span.startMinutes) return 'resize-start'
+  if (args.previewSpan.durationMinutes !== args.span.durationMinutes) return 'resize-end'
+  return null
+}
 
 const VIDEO_SEQUENCE_TOOL_ICONS: Record<VideoSequenceTimelineToolId, LucideIcon> = {
   adjustment: Blend,
@@ -54,7 +75,6 @@ export function TimelineVideoSequenceToolButton({
   active,
   disabled,
   id,
-  label,
   title,
   onClick,
 }: {
@@ -77,7 +97,6 @@ export function TimelineVideoSequenceToolButton({
       onClick={onClick}
     >
       <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-      <span className="sr-only">{label}</span>
     </button>
   )
 }
@@ -131,6 +150,7 @@ export function VideoSequenceTimelineRuler({
   maxMinutes,
   playheadPercent,
   selectedRowKey,
+  sourceThumbnails = [],
   scopes = [],
   taskSpans,
   timelineZoom,
@@ -145,6 +165,7 @@ export function VideoSequenceTimelineRuler({
   maxMinutes: number
   playheadPercent: number
   selectedRowKey: string
+  sourceThumbnails?: readonly TimelineMediaReaderThumbnail[]
   scopes?: readonly VideoSequenceTimelineScope[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
@@ -196,14 +217,16 @@ export function VideoSequenceTimelineRuler({
           const laneIndex = visibleLaneIndexById.get(lane) ?? 0
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
+          const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
           const showMediaCues = !verticalMarker && (lane === 'video' || lane === 'image' || lane === 'scene')
+          const nativeFrameSamples = !verticalMarker && lane === 'video' ? sourceThumbnails : []
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
                 seedText: `${span.label} ${span.raw}`,
               })
             : []
-          const frameSamples = showMediaCues
+          const frameSamples = showMediaCues && !nativeFrameSamples.length
             ? buildVideoSequenceTimelineFrameSamples({
                 sampleCount: Math.max(4, Math.round(durationMinutes * 1.6)),
                 seedText: `${span.label} ${span.raw}`,
@@ -230,9 +253,76 @@ export function VideoSequenceTimelineRuler({
               data-kg-gantt-timeline-track-span="1"
               data-kg-gantt-timeline-track-dragging={dragging ? '1' : undefined}
               data-kg-gantt-timeline-track-row-key={span.rowKey}
+              data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
               data-kg-video-sequence-lane={lane}
+              data-kg-video-sequence-trim-start={clipStartLabel}
+              data-kg-video-sequence-trim-end={clipEndLabel}
               title={span.label}
             >
+              {nativeFrameSamples.length ? (
+                <section
+                  className="timeline-video-sequence-clip-thumbnail-strip"
+                  aria-label={`${span.label} generated thumbnails`}
+                  data-kg-video-sequence-clip-thumbnail-strip="1"
+                  data-kg-video-sequence-clip-thumbnail-count={nativeFrameSamples.length}
+                  data-kg-video-sequence-clip-thumbnail-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
+                  data-kg-video-sequence-clip-thumbnail-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
+                >
+                  {nativeFrameSamples.map(thumbnail => (
+                    <button
+                      type="button"
+                      key={`thumbnail:${span.rowKey}:${thumbnail.timestampSeconds}:${thumbnail.width}x${thumbnail.height}`}
+                      className="timeline-video-sequence-clip-thumbnail"
+                      aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}
+                      data-kg-video-sequence-clip-thumbnail="1"
+                      data-kg-video-sequence-clip-thumbnail-format={thumbnail.format}
+                      data-kg-video-sequence-clip-thumbnail-raster-format={thumbnail.rasterFormat}
+                      data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
+                      onClick={event => {
+                        event.stopPropagation()
+                        onSelectRowKey(span.rowKey)
+                      }}
+                      onPointerDown={event => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <img
+                        alt=""
+                        decoding="async"
+                        draggable={false}
+                        height={thumbnail.height}
+                        loading="lazy"
+                        src={thumbnail.dataUrl}
+                        width={thumbnail.width}
+                      />
+                      <span className="timeline-video-sequence-clip-thumbnail-caption">
+                        <time dateTime={`PT${thumbnail.timestampSeconds.toFixed(3)}S`}>
+                          {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)}
+                        </time>
+                        <span>{thumbnail.format}/{thumbnail.rasterFormat}</span>
+                      </span>
+                      <span
+                        className="timeline-video-sequence-clip-thumbnail-preview"
+                        aria-hidden="true"
+                        data-kg-video-sequence-clip-thumbnail-preview="1"
+                      >
+                        <img
+                          alt=""
+                          decoding="async"
+                          draggable={false}
+                          height={thumbnail.height}
+                          loading="lazy"
+                          src={thumbnail.dataUrl}
+                          width={thumbnail.width}
+                        />
+                        <span className="timeline-video-sequence-clip-thumbnail-preview-caption">
+                          {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </section>
+              ) : null}
               {frameSamples.length ? (
                 <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">
                   {frameSamples.map((sample, frameIndex) => (
@@ -272,7 +362,10 @@ export function VideoSequenceTimelineRuler({
                   ))}
                 </section>
               ) : null}
-              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--start" aria-label={`Resize ${span.label} start`} data-kg-gantt-timeline-track-drag-mode="resize-start" onPointerDown={event => onTrackPointerStart(event, span, 'resize-start')} />
+              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--start" aria-label={`Resize ${span.label} start`} data-kg-gantt-timeline-track-drag-mode="resize-start" title={`Trim ${span.label} start`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-start')}>
+                <span className="timeline-transport-track-handle-grip" aria-hidden="true" />
+                {activeResizeMode === 'resize-start' ? <span className="timeline-video-sequence-trim-guide">{VIDEO_SEQUENCE_RESIZE_MODE_LABELS[activeResizeMode]}</span> : null}
+              </button>
               <button type="button" className="timeline-transport-track-clip-move" aria-label={`Move ${span.label}`} data-kg-gantt-timeline-track-drag-mode="move" onClick={() => onSelectRowKey(span.rowKey)} onPointerDown={event => onTrackPointerStart(event, span, 'move')}>
                 <span className="timeline-transport-track-clip-label">{span.label}</span>
                 {!verticalMarker ? (
@@ -281,14 +374,13 @@ export function VideoSequenceTimelineRuler({
                   </time>
                 ) : null}
               </button>
-              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--end" aria-label={`Resize ${span.label} end`} data-kg-gantt-timeline-track-drag-mode="resize-end" onPointerDown={event => onTrackPointerStart(event, span, 'resize-end')} />
+              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--end" aria-label={`Resize ${span.label} end`} data-kg-gantt-timeline-track-drag-mode="resize-end" title={`Trim ${span.label} end`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-end')}>
+                <span className="timeline-transport-track-handle-grip" aria-hidden="true" />
+                {activeResizeMode === 'resize-end' ? <span className="timeline-video-sequence-trim-guide">{VIDEO_SEQUENCE_RESIZE_MODE_LABELS[activeResizeMode]}</span> : null}
+              </button>
             </article>
           )
         })}
-        <section className="timeline-video-sequence-grade-strip" aria-label="Color grading controls">
-          <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} aria-hidden={true} />
-          <span>Grade</span>
-        </section>
         {scopes.length ? (
           <section className="timeline-video-sequence-ruler-scope-strip" aria-label="Video sequence scopes" data-kg-video-sequence-ruler-scopes="1">
             {scopes.map(scope => (

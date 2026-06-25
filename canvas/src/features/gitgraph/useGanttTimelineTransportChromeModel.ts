@@ -1,5 +1,8 @@
 import React from 'react'
-import { type VideoSequenceClipEditAction } from '@/components/timeline/VideoSequenceClipEditPanel'
+import {
+  buildVideoSequenceClipEditDetailsLabel,
+  type VideoSequenceClipEditAction,
+} from '@/components/timeline/videoSequenceClipEdit'
 import {
   buildVideoSequenceExportSessionCollection,
   type VideoSequenceExportKind,
@@ -9,19 +12,17 @@ import {
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
   type VideoSequenceTimelineToolId,
 } from '@/components/timeline/videoSequenceTimeline'
-import { type MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { type MermaidGanttTimelineTaskSpan, type MermaidGanttVideoSequenceTimingSyncMode } from '@/lib/mermaid/mermaidGanttBarInteraction'
 
 type ExportSessionCollection = ReturnType<typeof buildVideoSequenceExportSessionCollection>
 
 export type GanttTimelineTransportChromeModel = {
   contextControls: {
     clipEdit: {
-      disabled: boolean
+      detailsLabel: string
       maxMinutes: number
       mediaDurationSeconds: number
-      playheadMinutes: number
       selectedSpan: MermaidGanttTimelineTaskSpan | null
-      onAction: (action: VideoSequenceClipEditAction) => void
     }
     exportSessions: {
       emptyLabel: string
@@ -41,6 +42,24 @@ export type GanttTimelineTransportChromeModel = {
     }
   }
   headerTools: {
+    syncModeButton: {
+      active: boolean
+      ariaLabel: string
+      disabled: boolean
+      mode: MermaidGanttVideoSequenceTimingSyncMode
+      onClick: () => void
+      title: string
+    }
+    clipActionButtons: Array<{
+      action: VideoSequenceClipEditAction
+      ariaLabel: string
+      disabled: boolean
+      icon: 'nudge-back' | 'nudge-forward' | 'snap' | 'split' | 'trim-end-back' | 'trim-end-forward' | 'trim-start-back' | 'trim-start-forward'
+      key: VideoSequenceClipEditAction
+      label: string
+      onClick: () => void
+      title: string
+    }>
     actionButtons: Array<{
       ariaLabel: string
       dataValue?: 'audio' | 'retry' | 'video'
@@ -74,6 +93,7 @@ export function useGanttTimelineTransportChromeModel(args: {
   handleDownloadEditedMedia: (kind: VideoSequenceExportKind) => Promise<void>
   handleRetryEditedMediaExport: (session: VideoSequenceExportSessionRecord | null | undefined) => Promise<boolean>
   handleRetryEditedMediaExportRunId: (runId: string) => Promise<boolean>
+  handleToggleVideoSequenceTimingSyncMode: () => void
   handleVideoSequenceClipEdit: (action: VideoSequenceClipEditAction) => void
   handleVideoSequenceTool: (toolId: VideoSequenceTimelineToolId) => void
   handleFitTimeline: () => void
@@ -84,6 +104,7 @@ export function useGanttTimelineTransportChromeModel(args: {
   mediaDurationSeconds: number
   playheadMinutes: number
   selectedSpan: MermaidGanttTimelineTaskSpan | null
+  timingSyncMode: MermaidGanttVideoSequenceTimingSyncMode
   toolStatus: Record<VideoSequenceTimelineToolId, boolean>
 }): GanttTimelineTransportChromeModel {
   return React.useMemo(() => {
@@ -92,16 +113,26 @@ export function useGanttTimelineTransportChromeModel(args: {
     const exportBusy = args.exportingKind !== ''
     const videoExportDisabled = args.disabled || !args.exportSessionCollection.plan || !!args.exportPlanError || (exportBusy && !videoExportBusy)
     const audioExportDisabled = args.disabled || !args.exportSessionCollection.plan || !!args.exportPlanError || (exportBusy && !audioExportBusy)
+    const selectedSpan = args.selectedSpan
+    const clipActionDisabled = args.disabled || !selectedSpan
+    const roundedPlayheadDelta = selectedSpan ? Math.round(args.playheadMinutes - selectedSpan.startMinutes) : 0
+    const playheadInsideSelection = Boolean(
+      selectedSpan &&
+        args.playheadMinutes > selectedSpan.startMinutes &&
+        args.playheadMinutes < selectedSpan.endMinutes,
+    )
 
     return {
       contextControls: {
         clipEdit: {
-          disabled: args.disabled,
+          detailsLabel: buildVideoSequenceClipEditDetailsLabel({
+            maxMinutes: args.maxMinutes,
+            mediaDurationSeconds: args.mediaDurationSeconds,
+            selectedSpan,
+          }),
           maxMinutes: args.maxMinutes,
           mediaDurationSeconds: args.mediaDurationSeconds,
-          onAction: args.handleVideoSequenceClipEdit,
-          playheadMinutes: args.playheadMinutes,
-          selectedSpan: args.selectedSpan,
+          selectedSpan,
         },
         exportSessions: {
           emptyLabel: args.exportSessionCollection.surface.emptyLabel,
@@ -123,6 +154,98 @@ export function useGanttTimelineTransportChromeModel(args: {
         },
       },
       headerTools: {
+        syncModeButton: {
+          active: args.timingSyncMode === 'grouped',
+          ariaLabel: args.timingSyncMode === 'grouped' ? 'Ungroup video and audio timing sync' : 'Group video and audio timing sync',
+          disabled: args.disabled,
+          mode: args.timingSyncMode,
+          onClick: args.handleToggleVideoSequenceTimingSyncMode,
+          title: args.timingSyncMode === 'grouped'
+            ? 'Timing sync grouped: click to ungroup video/audio lanes'
+            : 'Timing sync ungrouped: click to group video/audio lanes',
+        },
+        clipActionButtons: [
+          {
+            action: 'nudge-back',
+            ariaLabel: 'Move selected clip left by one tick',
+            disabled: clipActionDisabled || (selectedSpan?.startMinutes || 0) <= 0,
+            icon: 'nudge-back',
+            key: 'nudge-back',
+            label: '-1',
+            onClick: () => args.handleVideoSequenceClipEdit('nudge-back'),
+            title: 'Move selected clip left by one tick',
+          },
+          {
+            action: 'nudge-forward',
+            ariaLabel: 'Move selected clip right by one tick',
+            disabled: clipActionDisabled,
+            icon: 'nudge-forward',
+            key: 'nudge-forward',
+            label: '+1',
+            onClick: () => args.handleVideoSequenceClipEdit('nudge-forward'),
+            title: 'Move selected clip right by one tick',
+          },
+          {
+            action: 'trim-start-back',
+            ariaLabel: 'Extend selected clip start left by one tick',
+            disabled: clipActionDisabled || (selectedSpan?.startMinutes || 0) <= 0,
+            icon: 'trim-start-back',
+            key: 'trim-start-back',
+            label: 'In -1',
+            onClick: () => args.handleVideoSequenceClipEdit('trim-start-back'),
+            title: 'Extend selected clip start left by one tick',
+          },
+          {
+            action: 'trim-start-forward',
+            ariaLabel: 'Trim selected clip start right by one tick',
+            disabled: clipActionDisabled || (selectedSpan?.durationMinutes || 0) <= 1,
+            icon: 'trim-start-forward',
+            key: 'trim-start-forward',
+            label: 'In +1',
+            onClick: () => args.handleVideoSequenceClipEdit('trim-start-forward'),
+            title: 'Trim selected clip start right by one tick',
+          },
+          {
+            action: 'trim-end-back',
+            ariaLabel: 'Trim selected clip end left by one tick',
+            disabled: clipActionDisabled || (selectedSpan?.durationMinutes || 0) <= 1,
+            icon: 'trim-end-back',
+            key: 'trim-end-back',
+            label: 'Out -1',
+            onClick: () => args.handleVideoSequenceClipEdit('trim-end-back'),
+            title: 'Trim selected clip end left by one tick',
+          },
+          {
+            action: 'trim-end-forward',
+            ariaLabel: 'Extend selected clip end right by one tick',
+            disabled: clipActionDisabled,
+            icon: 'trim-end-forward',
+            key: 'trim-end-forward',
+            label: 'Out +1',
+            onClick: () => args.handleVideoSequenceClipEdit('trim-end-forward'),
+            title: 'Extend selected clip end right by one tick',
+          },
+          {
+            action: 'snap-to-playhead',
+            ariaLabel: 'Move selected clip start to the playhead',
+            disabled: clipActionDisabled || roundedPlayheadDelta === 0,
+            icon: 'snap',
+            key: 'snap-to-playhead',
+            label: 'Snap',
+            onClick: () => args.handleVideoSequenceClipEdit('snap-to-playhead'),
+            title: 'Move selected clip start to the playhead',
+          },
+          {
+            action: 'split-at-playhead',
+            ariaLabel: 'Split selected clip group at the playhead',
+            disabled: clipActionDisabled || !playheadInsideSelection,
+            icon: 'split',
+            key: 'split-at-playhead',
+            label: 'Split',
+            onClick: () => args.handleVideoSequenceClipEdit('split-at-playhead'),
+            title: 'Split selected clip group at the playhead',
+          },
+        ],
         actionButtons: [
           {
             ariaLabel: videoExportBusy ? 'Cancel edited video export' : 'Download edited video',
@@ -219,6 +342,7 @@ export function useGanttTimelineTransportChromeModel(args: {
     args.handleFitTimeline,
     args.handleRetryEditedMediaExport,
     args.handleRetryEditedMediaExportRunId,
+    args.handleToggleVideoSequenceTimingSyncMode,
     args.handleVideoSequenceClipEdit,
     args.handleVideoSequenceTool,
     args.handleZoomIn,
@@ -228,6 +352,7 @@ export function useGanttTimelineTransportChromeModel(args: {
     args.mediaDurationSeconds,
     args.playheadMinutes,
     args.selectedSpan,
+    args.timingSyncMode,
     args.toolStatus,
   ])
 }

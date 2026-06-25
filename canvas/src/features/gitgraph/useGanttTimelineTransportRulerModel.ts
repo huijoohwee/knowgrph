@@ -1,4 +1,5 @@
 import React from 'react'
+import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
 import { type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
 import {
@@ -13,7 +14,6 @@ export type GanttTimelineTransportRulerModel = {
     rulerClassName: string
     rulerProps: React.HTMLAttributes<HTMLElement>
     subtitleLabel: string
-    titleLabel: string
     totalLabel: string
     value: number
   }
@@ -26,6 +26,7 @@ export type GanttTimelineTransportRulerModel = {
     playheadPercent: number
     scopes: readonly VideoSequenceTimelineScope[]
     selectedRowKey: string
+    sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
     onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
@@ -45,6 +46,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   positionMinutes: number
   scopes: readonly VideoSequenceTimelineScope[]
   selectedRowKey: string
+  sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
   totalLabel: string
@@ -65,7 +67,6 @@ export function useGanttTimelineTransportRulerModel(args: {
         } as React.CSSProperties,
       } as React.HTMLAttributes<HTMLElement>,
       subtitleLabel: `${args.taskSpans.length} timeline rows`,
-      titleLabel: 'Gantt-Timeline',
       totalLabel: args.totalLabel,
       value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes)),
     },
@@ -81,6 +82,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       playheadPercent: args.playheadPercent,
       scopes: args.scopes,
       selectedRowKey: args.selectedRowKey,
+      sourceThumbnails: args.sourceThumbnails,
       taskSpans: args.taskSpans,
       timelineZoom: args.timelineZoom,
     },
@@ -98,6 +100,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.positionMinutes,
     args.scopes,
     args.selectedRowKey,
+    args.sourceThumbnails,
     args.taskSpans,
     args.timelineZoom,
     args.totalLabel,

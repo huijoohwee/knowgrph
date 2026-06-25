@@ -1,0 +1,361 @@
+import React from 'react'
+import { type LucideIcon } from 'lucide-react'
+import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
+import { readUploadedMediaPanelDedupeKey, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { beginMediaPointerDragPayload, writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
+import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
+import { isPreferredRasterImageFormat, readPreferredImageFormat } from '@/lib/media/mediaFormatPreference'
+import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
+import { cn } from '@/lib/utils'
+import { LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS } from './mediaCatalogTypes'
+
+export const isMediaRowControlTarget = (target: EventTarget | null): boolean => {
+  if (typeof Element === 'undefined' || !(target instanceof Element)) return false
+  return !!target.closest('a, button, input, textarea, select, [data-kg-media-row-control="1"]')
+}
+
+export const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): boolean =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && !isMediaRowControlTarget(event.target)
+
+export const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
+  String(item.openUrl || item.src || item.thumbnailUrl || '').trim()
+
+const isOpenableMediaHref = (value: string): boolean =>
+  /^(https?:|blob:|data:|\/|\.\/|\.\.\/|docs\/)/i.test(value.trim())
+
+export function readRichMediaOpenHref(item: CommandMenuRichMediaItem): string {
+  const candidates = [item.openUrl, item.src, item.thumbnailUrl]
+  for (const candidate of candidates) {
+    const href = String(candidate || '').trim()
+    if (href && isOpenableMediaHref(href)) return href
+  }
+  return ''
+}
+
+export function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
+  const owner = item.renameOwner
+  if (owner?.type === 'markdownLine') return String(owner.href || '').trim()
+  return String(item.openUrl || item.src || '').trim()
+}
+
+export function useNativeVideoMediaThumbnail(args: {
+  contentType?: string
+  explicitThumbnailUrl: string
+  kind: string
+  url: string
+}): {
+  format: string
+  rasterFormat: string
+  timestampSeconds: number | null
+  url: string
+} {
+  const explicitFormat = readPreferredImageFormat(args.explicitThumbnailUrl, args.contentType || '')
+  const active = args.kind === 'video' && !args.explicitThumbnailUrl && !!args.url
+  const summary = useTimelineMediaReaderSummary({
+    active,
+    url: args.url,
+  })
+  const thumbnail = summary.thumbnails[0] || null
+  return {
+    format: thumbnail?.format || explicitFormat,
+    rasterFormat: thumbnail?.rasterFormat || (isPreferredRasterImageFormat(explicitFormat) ? explicitFormat : ''),
+    timestampSeconds: thumbnail ? thumbnail.timestampSeconds : null,
+    url: args.explicitThumbnailUrl || thumbnail?.dataUrl || '',
+  }
+}
+
+export const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
+export const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
+
+export function mediaListThumbnailFrameClassName(extraClassName?: string): string {
+  return cn(
+    MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.input.bg,
+    extraClassName,
+  )
+}
+
+export function MediaThumbnailCaption(props: {
+  format: string
+  rasterFormat: string
+  timestampSeconds: number | null
+}) {
+  const formatLabel = [props.format, props.rasterFormat && props.rasterFormat !== props.format ? props.rasterFormat : '']
+    .filter(Boolean)
+    .join('/')
+  const timeLabel = props.timestampSeconds === null ? '' : `${props.timestampSeconds.toFixed(2)}s`
+  const label = [timeLabel, formatLabel].filter(Boolean).join(' ')
+  if (!label) return null
+  return (
+    <span
+      className="pointer-events-none absolute bottom-1 left-1 z-20 max-w-[calc(100%-0.5rem)] truncate rounded bg-slate-950/75 px-1.5 py-0.5 text-[9px] font-semibold leading-3 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      data-kg-command-menu-media-thumbnail-caption="1"
+    >
+      {label}
+    </span>
+  )
+}
+
+export function MediaListThumbnailIconFrame({ Icon, label, infoLabel }: { Icon: LucideIcon; label: string; infoLabel?: string }) {
+  return (
+    <span className={mediaListThumbnailFrameClassName('items-center justify-center')}>
+      <MediaKindOverlay Icon={Icon} label={label} appearance="hover" />
+      <MediaInfoOverlay label={infoLabel || label} appearance="hover" />
+      <Icon className={cn('h-4 w-4', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+    </span>
+  )
+}
+
+export function MediaCandidateThumb({
+  item,
+  onDragStart,
+}: {
+  item: CommandMenuRichMediaItem
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
+}) {
+  const explicitThumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const generatedThumbnail = useNativeVideoMediaThumbnail({
+    explicitThumbnailUrl: explicitThumbnail,
+    kind: item.kind,
+    url: readRichMediaInsertUrl(item) || readRichMediaOpenHref(item),
+  })
+  const thumbnail = generatedThumbnail.url
+  const openHref = readRichMediaOpenHref(item)
+  if (thumbnail) {
+    return (
+      <span
+        className={mediaListThumbnailFrameClassName('cursor-grab active:cursor-grabbing')}
+        draggable={true}
+        data-kg-media-draggable="1"
+        data-kg-media-row-control="1"
+        onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onDragStart={event => onDragStart(event, item)}
+      >
+        <MediaKindOverlay Icon={resolveMediaKindOverlayIcon(item.kind)} label={item.kind} appearance="hover" />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaOpenLinkOverlay href={openHref} appearance="hover" />
+        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+        <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+      </span>
+    )
+  }
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
+  return (
+    <span
+      draggable={true}
+      data-kg-media-draggable="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
+    >
+      <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
+    </span>
+  )
+}
+
+export function MediaCandidatePreview({
+  item,
+  onDragStart,
+}: {
+  item: CommandMenuRichMediaItem
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
+}) {
+  const explicitThumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const generatedThumbnail = useNativeVideoMediaThumbnail({
+    explicitThumbnailUrl: explicitThumbnail,
+    kind: item.kind,
+    url: readRichMediaInsertUrl(item) || readRichMediaOpenHref(item),
+  })
+  const thumbnail = generatedThumbnail.url
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
+  const openHref = readRichMediaOpenHref(item)
+  if (thumbnail) {
+    return (
+      <figure
+        className={cn('group relative m-0 aspect-[16/9] w-full cursor-grab overflow-hidden border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+        draggable={true}
+        data-kg-media-draggable="1"
+        data-kg-media-row-control="1"
+        onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+        onDragStart={event => onDragStart(event, item)}
+      >
+        <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaOpenLinkOverlay href={openHref} appearance="hover" />
+        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+        <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+      </figure>
+    )
+  }
+  return (
+    <figure
+      className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-grab place-items-center border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+      draggable={true}
+      data-kg-media-draggable="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
+    >
+      <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+      <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+      <MediaOpenLinkOverlay href={openHref} appearance="hover" />
+      <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+    </figure>
+  )
+}
+
+export function UploadedMediaPreview({
+  item,
+  infoLabel,
+  onDragStart,
+  onPreview,
+}: {
+  item: UploadedMediaPanelItem
+  infoLabel: string
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
+  onPreview: (item: UploadedMediaPanelItem) => void
+}) {
+  const Icon = resolveMediaKindOverlayIcon(item.kind)
+  const generatedThumbnail = useNativeVideoMediaThumbnail({
+    contentType: item.contentType,
+    explicitThumbnailUrl: item.kind === 'image' ? item.linkUrl : '',
+    kind: item.kind,
+    url: item.linkUrl,
+  })
+  return (
+    <button
+      type="button"
+      className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-zoom-in place-items-center overflow-hidden border-x-0 border-b border-t-0 p-0 text-left', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+      title={`Preview ${item.name}`}
+      aria-label={`Preview ${item.name}`}
+      draggable={true}
+      data-kg-media-thumbnail-fullscreen={item.id}
+      data-kg-media-draggable="1"
+      data-kg-media-row-control="1"
+      onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+      onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+      onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+      onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+      onDragStart={event => onDragStart(event, item)}
+      onClick={event => {
+        event.stopPropagation()
+        onPreview(item)
+      }}
+    >
+      <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
+      <MediaInfoOverlay label={infoLabel} appearance="hover" />
+      <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
+      <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
+      {generatedThumbnail.url ? (
+        <>
+          <img src={generatedThumbnail.url} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+          <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+        </>
+      ) : (
+        <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
+      )}
+    </button>
+  )
+}
+
+export function mediaCardClassName(): string {
+  return cn(
+    'min-w-0 overflow-hidden rounded border text-left shadow-sm transition-colors',
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.panel.bg,
+    UI_THEME_TOKENS.button.hoverBg,
+  )
+}
+
+export function mediaListItemClassName(): string {
+  return cn(
+    'grid min-w-0 cursor-pointer gap-2 rounded border p-2 text-left shadow-sm transition-colors',
+    MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.panel.bg,
+    UI_THEME_TOKENS.button.hoverBg,
+  )
+}
+
+export function getCommandMenuMediaSourceLabel(item: CommandMenuRichMediaItem): string {
+  return item.source === 'graph' ? (item.panelTitle || 'Graph node media') : 'Markdown media'
+}
+
+export function getCommandMenuMediaDescription(item: CommandMenuRichMediaItem): string {
+  return item.openUrl || item.src || item.srcDoc || item.label
+}
+
+export function getUploadedMediaDescriptionKey(item: UploadedMediaPanelItem): string {
+  return String(item.storage?.contentHash || item.id || readUploadedMediaPanelDedupeKey(item)).trim()
+}
+
+export function buildCommandMenuMediaDragPayload(item: CommandMenuRichMediaItem): MediaDragPayload | null {
+  if (item.kind !== 'image' && item.kind !== 'audio' && item.kind !== 'video') return null
+  const url = readRichMediaInsertUrl(item)
+  if (!url) return null
+  return {
+    kind: item.kind,
+    url,
+    label: item.label || item.kind,
+    thumbnailUrl: item.thumbnailUrl || undefined,
+    sourceKey: item.key,
+  }
+}
+
+export function buildUploadedMediaDragPayload(item: UploadedMediaPanelItem): MediaDragPayload | null {
+  if (item.kind !== 'image' && item.kind !== 'audio' && item.kind !== 'video') return null
+  const url = String(item.storage?.accessUrl || item.linkUrl || '').trim()
+  if (!url) return null
+  return {
+    kind: item.kind,
+    url,
+    label: item.name || item.kind,
+    sourceKey: item.storage?.contentHash || item.id,
+  }
+}
+
+export function startMediaDrag(event: React.DragEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  writeMediaDragPayload(event.dataTransfer, payload)
+  beginMediaPointerDragPayload(payload)
+}
+
+export function startMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+export function startMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+export function continueMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload || event.buttons !== 1) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}
+
+export function continueMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload || event.buttons !== 1) return
+  event.stopPropagation()
+  beginMediaPointerDragPayload(payload)
+}

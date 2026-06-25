@@ -16,6 +16,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       playheadPercent={args.model.playheadPercent}
       selectedRowKey={args.model.selectedRowKey}
       scopes={args.model.scopes}
+      sourceThumbnails={args.model.sourceThumbnails}
       taskSpans={args.model.taskSpans}
       timelineZoom={args.model.timelineZoom}
       onRulerPointerDown={args.model.onRulerPointerDown}

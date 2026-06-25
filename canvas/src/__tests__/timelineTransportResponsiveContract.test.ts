@@ -15,18 +15,18 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
   const transportText = readUtf8('src/components/timeline/TimelineTransportControls.tsx')
   const cssText = readUtf8('src/components/timeline/TimelineTransportControls.css')
 
-  if (!transportText.includes('timeline-rate-select ant-select ant-select-sm ant-select-single ant-select-show-arrow')) {
-    throw new Error('expected timeline transport rate select to use the shared responsive CSS class owner')
+  if (!transportText.includes('timeline-rate-button') || transportText.includes('<select')) {
+    throw new Error('expected timeline transport rate control to use the shared compact button owner without hidden select options')
   }
-  if (!cssText.includes('.timeline-player .timeline-rate-select') || !cssText.includes('--kg-timeline-rate-select-width')) {
-    throw new Error('expected timeline rate select width to live in the timeline transport CSS owner')
+  if (!cssText.includes('.timeline-rate-button') || !cssText.includes('.timeline-rate-button-value')) {
+    throw new Error('expected timeline rate button width and value styling to live in the timeline transport CSS owner')
   }
-  if (!cssText.includes('inline-size: min(') || !cssText.includes('max-width: 100%')) {
-    throw new Error('expected timeline rate select to stay bounded on narrow viewports')
+  if (!cssText.includes('min-width: 44px') || !cssText.includes('font-variant-numeric: tabular-nums')) {
+    throw new Error('expected timeline rate button to stay stable on narrow viewports')
   }
   for (const snippet of [
     'export function TimelineTransportChrome',
-    'playbackRateSelectId = React.useId()',
+    'const nextPlaybackRate = React.useMemo(() =>',
     'totalLabel?: string',
     'timeline-timecode-current',
     'timeline-timecode-divider',

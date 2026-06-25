@@ -108,7 +108,15 @@ export function testAudioMediaUsesSharedCardPanelAndHtmlViewerOwners() {
   const richMediaPanel = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
   const richMediaOverlayLayer = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'), 'utf8')
   const webpageLayoutToGraph = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageLayoutToGraph.ts'), 'utf8')
-  const commandMenuCatalogPanel = readFileSync(resolve(process.cwd(), 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx'), 'utf8')
+  const commandMenuCatalogPanel = [
+    'MediaCatalogPanel.tsx',
+    'MediaCatalogPanelView.tsx',
+    'mediaCatalogCandidateItems.tsx',
+    'mediaCatalogShared.tsx',
+    'mediaCatalogTypes.ts',
+    'mediaCatalogUploadedFields.tsx',
+    'mediaCatalogUploadedItems.tsx',
+  ].map(fileName => readFileSync(resolve(process.cwd(), 'src', 'features', 'command-menu', fileName), 'utf8')).join('\n')
 
   if (!cardPreview.includes('data-kg-card-media-kind="audio"') || !cardPreview.includes('<audio')) {
     throw new Error('expected shared CardMediaPreview to render audio through the card media owner')

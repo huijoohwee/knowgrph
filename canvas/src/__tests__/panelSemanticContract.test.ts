@@ -1463,6 +1463,7 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const floatingPanelTypesPath = path.resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
   const uiSliceInitialStatePath = path.resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const commandCatalogPanelPath = path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx')
+  const commandMenuDirectoryPath = path.resolve(root, 'src', 'features', 'command-menu')
   const inlineCommandCatalogPath = path.resolve(root, 'src', 'lib', 'command-menu', 'inlineCommandMenuCatalog.ts')
   const responsiveInlineIconBadgePath = path.resolve(root, 'src', 'lib', 'ui', 'ResponsiveInlineIconBadge.tsx')
   const mediaKindOverlayPath = path.resolve(root, 'src', 'lib', 'ui', 'MediaKindOverlay.tsx')
@@ -1482,7 +1483,20 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   const iconLibraryText = readUtf8(iconLibraryPath)
   const floatingPanelTypesText = readUtf8(floatingPanelTypesPath)
   const uiSliceInitialStateText = readUtf8(uiSliceInitialStatePath)
-  const commandCatalogPanelText = readUtf8(commandCatalogPanelPath)
+  const commandCatalogReferenceText = readUtf8(commandCatalogPanelPath)
+  const commandMenuFileNames = [
+    'CommandMenuCatalogPanel.tsx',
+    'MediaCatalogPanel.tsx',
+    'MediaCatalogPanelView.tsx',
+    'mediaCatalogCandidateItems.tsx',
+    'mediaCatalogShared.tsx',
+    'mediaCatalogTypes.ts',
+    'mediaCatalogUploadedFields.tsx',
+    'mediaCatalogUploadedItems.tsx',
+  ]
+  const commandCatalogPanelText = commandMenuFileNames
+    .map(fileName => readUtf8(path.resolve(commandMenuDirectoryPath, fileName)))
+    .join('\n')
   const inlineCommandCatalogText = readUtf8(inlineCommandCatalogPath)
   const responsiveInlineIconBadgeText = readUtf8(responsiveInlineIconBadgePath)
   const mediaKindOverlayText = readUtf8(mediaKindOverlayPath)
@@ -1525,11 +1539,20 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!helpSectionsText.includes('<HelpCommandMenuSection') || !helpCommandMenuSectionText.includes('<CommandMenuReferenceCatalog')) {
     throw new Error('Expected MainPanel Help to own the shared Command Menu reference catalog section')
   }
-  if (!commandCatalogPanelText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_VARIABLE_COMMAND_ACTIONS') || !commandCatalogPanelText.includes('INLINE_KEYWORD_COMMAND_ACTIONS')) {
+  if (!commandCatalogReferenceText.includes('INLINE_SLASH_COMMAND_ACTIONS') || !commandCatalogReferenceText.includes('INLINE_VARIABLE_COMMAND_ACTIONS') || !commandCatalogReferenceText.includes('INLINE_KEYWORD_COMMAND_ACTIONS')) {
     throw new Error('Expected Command Menu reference catalog to render from the shared inline command catalog')
   }
-  if (!commandCatalogPanelText.includes('data-kg-command-menu-reference-catalog') || !commandCatalogPanelText.includes('data-kg-command-menu-prefix')) {
+  if (!commandCatalogReferenceText.includes('data-kg-command-menu-reference-catalog') || !commandCatalogReferenceText.includes('data-kg-command-menu-prefix')) {
     throw new Error('Expected MainPanel Help Command Menu reference catalog to expose shared prefix rows for /, @, and # actions')
+  }
+  if (commandCatalogReferenceText.split('\n').length >= 600) {
+    throw new Error('Expected CommandMenuCatalogPanel.tsx to stay below 600 lines and keep FloatingPanel Media in its dedicated owner')
+  }
+  for (const fileName of commandMenuFileNames) {
+    const lineCount = readUtf8(path.resolve(commandMenuDirectoryPath, fileName)).split('\n').length
+    if (lineCount >= 600) {
+      throw new Error(`Expected features/command-menu/${fileName} to stay below 600 lines; got ${lineCount}`)
+    }
   }
   if (!commandCatalogPanelText.includes('useCommandMenuRichMediaInventory') || !commandCatalogPanelText.includes('data-kg-media-panel') || !commandCatalogPanelText.includes('data-kg-media-list')) {
     throw new Error('Expected FloatingPanel Media to own the shared @ rich-media candidate list')
@@ -1629,7 +1652,8 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (
     !commandCatalogPanelText.includes('MediaLightbox')
     || !commandCatalogPanelText.includes('handlePreviewUploadedMedia')
-    || !commandCatalogPanelText.includes('onPreview={handlePreviewUploadedMedia}')
+    || !commandCatalogPanelText.includes('onPreviewUploadedMedia={handlePreviewUploadedMedia}')
+    || !commandCatalogPanelText.includes('onPreview={onPreviewUploadedMedia}')
     || !commandCatalogPanelText.includes('data-kg-media-thumbnail-fullscreen')
     || !commandCatalogPanelText.includes('MediaDownloadOverlay')
     || !mediaLightboxText.includes('PreviewOverlay')

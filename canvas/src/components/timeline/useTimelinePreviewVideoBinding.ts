@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTimelineVideoPreviewSyncController } from './timelinePreviewSync'
 import { type VideoSequenceExportPlan } from './videoSequenceExport'
+import { useTimelineMediaReaderSummary } from './timelineMediaReader'
 import {
   useTimelineDocumentTransportController,
   useTimelineTransportSnapshotReader,
@@ -22,6 +23,10 @@ export function useTimelinePreviewVideoBinding(args: {
     && args.documentKey
     && args.maxPosition > 0
   )
+  const mediaReaderSummary = useTimelineMediaReaderSummary({
+    active: syncEnabled,
+    url: args.mediaKey,
+  })
   const {
     transportDocumentKey,
     transportPosition,
@@ -64,6 +69,7 @@ export function useTimelinePreviewVideoBinding(args: {
     playing,
     readTransportSnapshot,
     readVideo: () => videoElementRef.current,
+    readerDurationSeconds: mediaReaderSummary.durationSeconds,
     setTransportPlaybackPosition,
     setTransportPlaying,
     source: args.source,
@@ -71,6 +77,7 @@ export function useTimelinePreviewVideoBinding(args: {
 
   return {
     handleVideoElement,
+    mediaReaderSummary,
     syncEnabled,
   }
 }

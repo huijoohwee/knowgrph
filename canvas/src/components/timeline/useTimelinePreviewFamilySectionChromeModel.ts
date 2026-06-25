@@ -39,7 +39,7 @@ export function useTimelinePreviewFamilySectionChromeModel(args: {
   familySectionLayout: TimelinePreviewFamilySectionLayoutModel
 }): TimelinePreviewFamilySectionChromeModel {
   return React.useMemo(() => {
-    const sections = args.familySectionLayout.sections.map(sectionLayout => ({
+    const sections = args.familySectionLayout.sections.map((sectionLayout): TimelinePreviewFamilySectionChromeSection => ({
       familyId: sectionLayout.familySurface.familyId,
       header: {
         label: sectionLayout.familySurface.headerLabel,

@@ -11,9 +11,11 @@ export type GanttTimelineTransportCommandModel = {
     | 'handleDownloadEditedMedia'
     | 'handleRetryEditedMediaExport'
     | 'handleRetryEditedMediaExportRunId'
+    | 'handleToggleVideoSequenceTimingSyncMode'
     | 'handleVideoSequenceClipEdit'
     | 'handleVideoSequenceTool'
     | 'latestRetryableExportSession'
+    | 'timingSyncMode'
   >
   handleCommittedDragUpdate: ReturnType<typeof useGanttTimelineDocumentActions>['handleCommittedDragUpdate']
 }
@@ -49,9 +51,11 @@ export function useGanttTimelineTransportCommandModel(args: {
       handleDownloadEditedMedia: documentActions.handleDownloadEditedMedia,
       handleRetryEditedMediaExport: documentActions.handleRetryEditedMediaExport,
       handleRetryEditedMediaExportRunId: documentActions.handleRetryEditedMediaExportRunId,
+      handleToggleVideoSequenceTimingSyncMode: documentActions.handleToggleVideoSequenceTimingSyncMode,
       handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit,
       handleVideoSequenceTool: documentActions.handleVideoSequenceTool,
       latestRetryableExportSession: documentActions.latestRetryableExportSession,
+      timingSyncMode: documentActions.timingSyncMode,
     },
     handleCommittedDragUpdate: documentActions.handleCommittedDragUpdate,
   }

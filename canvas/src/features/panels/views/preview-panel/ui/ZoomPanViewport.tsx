@@ -44,6 +44,7 @@ type ZoomPanViewportProps = {
   showControls?: boolean
   showZoomIndicator?: boolean
   frameClassName?: string
+  contentFillsFrame?: boolean
   disablePan?: boolean
   lockViewportAtFitScale?: boolean
 }
@@ -65,6 +66,7 @@ export default function ZoomPanViewport({
   showControls = true,
   showZoomIndicator = false,
   frameClassName,
+  contentFillsFrame = false,
   disablePan = false,
   lockViewportAtFitScale = false,
 }: ZoomPanViewportProps) {
@@ -149,6 +151,10 @@ export default function ZoomPanViewport({
   }, [])
 
   const fitToViewport = React.useCallback(() => {
+    if (contentFillsFrame) {
+      scheduleApply({ zoom: 1, pan: { x: 0, y: 0 } })
+      return
+    }
     const vw = Math.max(1, frameSize.w)
     const vh = Math.max(1, frameSize.h)
     const size = getContentSize()
@@ -162,7 +168,7 @@ export default function ZoomPanViewport({
       nextZoom = Math.min(nextZoom, fitZoomMax)
     }
     scheduleApply({ zoom: nextZoom, pan: { x: 0, y: 0 } })
-  }, [fitZoomMax, fitZoomMin, frameSize.h, frameSize.w, getContentSize, scheduleApply])
+  }, [contentFillsFrame, fitZoomMax, fitZoomMin, frameSize.h, frameSize.w, getContentSize, scheduleApply])
 
   React.useEffect(() => {
     if (!open) return
@@ -301,6 +307,12 @@ export default function ZoomPanViewport({
               <section className="w-full h-full flex items-center justify-center">
                 <section
                   style={{
+                    ...(contentFillsFrame
+                      ? {
+                          width: `${Math.max(1, frameSize.w)}px`,
+                          height: `${Math.max(1, frameSize.h)}px`,
+                        }
+                      : null),
                     transform: `translate(${disablePan ? 0 : Math.round(pan.x)}px, ${disablePan ? 0 : Math.round(pan.y)}px) scale(${zoom})`,
                     transformOrigin: 'center center',
                   }}

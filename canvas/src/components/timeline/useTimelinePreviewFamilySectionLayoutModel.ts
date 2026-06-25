@@ -37,7 +37,7 @@ export function useTimelinePreviewFamilySectionLayoutModel(args: {
   familyDisclosureSurface: TimelinePreviewFamilyDisclosureSurfaceModel
 }): TimelinePreviewFamilySectionLayoutModel {
   return React.useMemo(() => {
-    const sections = args.familyDisclosureSurface.families.map(familySurface => ({
+    const sections = args.familyDisclosureSurface.families.map((familySurface): TimelinePreviewFamilySectionLayoutSection => ({
       cardsLabel: `${familySurface.headerLabel} media cards`,
       familySurface,
       familySummaryLabel: familySurface.summaryLabel,

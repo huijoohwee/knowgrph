@@ -26,6 +26,16 @@ const clearVideoPlaybackFallback = (video: HTMLVideoElement) => {
   video.removeAttribute('data-kg-video-sequence-playback-fallback')
 }
 
+export function resolveTimelineVideoPreviewDurationSeconds(args: {
+  nativeDurationSeconds: number
+  readerDurationSeconds?: number
+}): number {
+  const readerDurationSeconds = Number(args.readerDurationSeconds)
+  if (Number.isFinite(readerDurationSeconds) && readerDurationSeconds > 0) return readerDurationSeconds
+  const nativeDurationSeconds = Number(args.nativeDurationSeconds)
+  return Number.isFinite(nativeDurationSeconds) && nativeDurationSeconds > 0 ? nativeDurationSeconds : 0
+}
+
 export function resolveTimelineVideoPreviewTargetSeconds(args: {
   exportPlan: VideoSequenceExportPlan | null
   maxPosition: number
@@ -83,6 +93,7 @@ export function useTimelineVideoPreviewSyncController(args: {
   playbackPosition: number
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
+  readerDurationSeconds?: number
   readTransportSnapshot: TimelineTransportSnapshotReader
   readVideo: () => HTMLVideoElement | null
   setTransportPlaybackPosition: (nextPosition: number) => void
@@ -96,14 +107,18 @@ export function useTimelineVideoPreviewSyncController(args: {
   }, [args.documentKey, args.mediaKey])
 
   const resolveTargetSeconds = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): number | null => {
+    const sourceDurationSeconds = resolveTimelineVideoPreviewDurationSeconds({
+      nativeDurationSeconds: video.duration,
+      readerDurationSeconds: args.readerDurationSeconds,
+    })
     return resolveTimelineVideoPreviewTargetSeconds({
       exportPlan: args.exportPlan,
       maxPosition: args.maxPosition,
       positionMinutes: nextPositionMinutes,
       source: args.source || null,
-      sourceDurationSeconds: video.duration,
+      sourceDurationSeconds,
     })
-  }, [args.exportPlan, args.maxPosition, args.source])
+  }, [args.exportPlan, args.maxPosition, args.readerDurationSeconds, args.source])
 
   const applyVideoTime = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): void => {
     const targetSeconds = resolveTargetSeconds(video, nextPositionMinutes)
@@ -146,13 +161,17 @@ export function useTimelineVideoPreviewSyncController(args: {
       }
       const writeTransportPosition = () => {
         const current = args.readTransportSnapshot()
+        const sourceDurationSeconds = resolveTimelineVideoPreviewDurationSeconds({
+          nativeDurationSeconds: video.duration,
+          readerDurationSeconds: args.readerDurationSeconds,
+        })
         const nextPosition = resolveTimelineVideoPreviewPositionMinutes({
           currentTimeSeconds: video.currentTime || 0,
           exportPlan: args.exportPlan,
           maxPosition: args.maxPosition,
           preferredPositionMinutes: current.position,
           source: args.source || null,
-          sourceDurationSeconds: video.duration,
+          sourceDurationSeconds,
         })
         if (nextPosition == null) return
         if (
@@ -194,6 +213,7 @@ export function useTimelineVideoPreviewSyncController(args: {
     args.documentKey,
     args.exportPlan,
     args.maxPosition,
+    args.readerDurationSeconds,
     args.readTransportSnapshot,
     args.readVideo,
     args.setTransportPlaybackPosition,

@@ -1,39 +1,25 @@
 import type { RenderEngine, RenderSpec } from '../htmlVideoRendererSsot'
 import { HTML_VIDEO_ENGINE_IDS } from '../htmlVideoRendererSsot'
+import { MEDIA_VIDEO_RECORDER_MIME_TYPE_CANDIDATES } from '@/lib/media/mediaFormatPreference'
 
-const CANVAS_2D_MP4_CODEC_CANDIDATES = ['avc', 'vp9', 'vp8'] as const
+const CANVAS_2D_RECORDER_MIME_CANDIDATES = MEDIA_VIDEO_RECORDER_MIME_TYPE_CANDIDATES
+const CANVAS_2D_RECORDER_VIDEO_BITS_PER_SECOND = 8_000_000
 
 const assertBrowserCanvasRuntime = () => {
-  if (typeof document === 'undefined' || typeof Image === 'undefined' || typeof Blob === 'undefined') {
-    throw new Error('canvas-2d MP4 rendering requires a browser runtime')
+  if (typeof document === 'undefined' || typeof Image === 'undefined' || typeof Blob === 'undefined' || typeof HTMLCanvasElement === 'undefined') {
+    throw new Error('canvas-2d video rendering requires a browser runtime')
   }
-  if (typeof VideoEncoder === 'undefined') {
-    throw new Error('canvas-2d MP4 rendering requires browser WebCodecs VideoEncoder support')
+  if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
+    throw new Error('canvas-2d video rendering requires browser MediaRecorder and canvas captureStream support')
   }
 }
 
 const escapeJsonForScript = (value: unknown): string => JSON.stringify(value ?? {}).replace(/</g, '\\u003c')
 
-const buildFrameHtml = (spec: Readonly<RenderSpec>, timeMs: number): string => {
+const buildFrameStyle = (spec: Readonly<RenderSpec>, timeMs: number): string => {
   const seconds = timeMs / 1000
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<style>
-html, body {
-  width: ${spec.width}px;
-  height: ${spec.height}px;
-  margin: 0;
-  overflow: hidden;
-  background: transparent;
-}
-</style>
-</head>
-<body>
-<main data-kg-render-time-ms="${String(timeMs)}" data-kg-render-time-s="${String(seconds)}">
-<style>
-main {
+  return `
+main[data-kg-html-video-frame-host="1"] {
   width: ${spec.width}px;
   height: ${spec.height}px;
   margin: 0;
@@ -43,36 +29,37 @@ main {
   --kg-render-time-s: ${seconds};
 }
 ${spec.css ?? ''}
-</style>
-<script type="application/json" id="knowgrph-html-video-data">${escapeJsonForScript(spec.data ?? {})}</script>
-${spec.html}
-</main>
-</body>
-</html>`
+`
 }
 
-const createFrameRenderDocument = (spec: Readonly<RenderSpec>, timeMs: number): HTMLIFrameElement => {
-  const iframe = document.createElement('iframe')
-  iframe.setAttribute('aria-label', 'HTML video frame raster host')
-  iframe.setAttribute('sandbox', 'allow-same-origin')
-  iframe.style.position = 'fixed'
-  iframe.style.left = '-10000px'
-  iframe.style.top = '0'
-  iframe.style.width = `${spec.width}px`
-  iframe.style.height = `${spec.height}px`
-  iframe.style.border = '0'
-  iframe.style.overflow = 'hidden'
-  document.body.appendChild(iframe)
+const createFrameRenderDocument = (spec: Readonly<RenderSpec>, timeMs: number): {
+  host: HTMLElement
+  renderRoot: HTMLElement
+} => {
+  const host = document.createElement('main')
+  host.setAttribute('aria-label', 'HTML video frame raster host')
+  host.setAttribute('data-kg-html-video-frame-host', '1')
+  host.setAttribute('data-kg-render-time-ms', String(timeMs))
+  host.setAttribute('data-kg-render-time-s', String(timeMs / 1000))
+  host.style.position = 'fixed'
+  host.style.left = '-10000px'
+  host.style.top = '0'
+  host.style.width = `${spec.width}px`
+  host.style.height = `${spec.height}px`
+  host.style.border = '0'
+  host.style.overflow = 'hidden'
 
-  const frameDocument = iframe.contentDocument
-  if (!frameDocument) {
-    iframe.remove()
-    throw new Error('canvas-2d MP4 renderer could not create an isolated frame document')
-  }
-  frameDocument.open()
-  frameDocument.write(buildFrameHtml(spec, timeMs))
-  frameDocument.close()
-  return iframe
+  const style = document.createElement('style')
+  style.textContent = buildFrameStyle(spec, timeMs)
+  const data = document.createElement('script')
+  data.type = 'application/json'
+  data.id = 'knowgrph-html-video-data'
+  data.textContent = escapeJsonForScript(spec.data ?? {})
+  const content = document.createElement('template')
+  content.innerHTML = spec.html
+  host.append(style, data, content.content.cloneNode(true))
+  document.body.appendChild(host)
+  return { host, renderRoot: host }
 }
 
 const drawFrame = async (
@@ -81,13 +68,8 @@ const drawFrame = async (
   timeMs: number,
   html2canvas: (element: HTMLElement, options: Record<string, unknown>) => Promise<HTMLCanvasElement>,
 ): Promise<void> => {
-  const iframe = createFrameRenderDocument(spec, timeMs)
+  const { host, renderRoot } = createFrameRenderDocument(spec, timeMs)
   try {
-    const frameDocument = iframe.contentDocument
-    const renderRoot = frameDocument?.querySelector('main')
-    if (!(renderRoot instanceof HTMLElement)) {
-      throw new Error('canvas-2d MP4 renderer could not find an isolated frame root')
-    }
     const renderedCanvas = await html2canvas(renderRoot, {
       width: spec.width,
       height: spec.height,
@@ -101,62 +83,76 @@ const drawFrame = async (
     context.clearRect(0, 0, spec.width, spec.height)
     context.drawImage(renderedCanvas, 0, 0, spec.width, spec.height)
   } finally {
-    iframe.remove()
+    host.remove()
   }
+}
+
+const wait = (durationMs: number): Promise<void> => new Promise(resolve => window.setTimeout(resolve, Math.max(0, durationMs)))
+
+const resolveCanvasRecorderMimeType = (): string => {
+  for (const candidate of CANVAS_2D_RECORDER_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(candidate)) return candidate
+  }
+  return ''
+}
+
+const requestCanvasFrame = (stream: MediaStream) => {
+  for (const track of stream.getVideoTracks()) {
+    const requestFrame = (track as MediaStreamTrack & { requestFrame?: () => void }).requestFrame
+    if (typeof requestFrame === 'function') requestFrame.call(track)
+  }
+}
+
+const stopMediaStream = (stream: MediaStream) => {
+  for (const track of stream.getTracks()) track.stop()
 }
 
 export const canvas2dAdapter: RenderEngine = {
   engineId: HTML_VIDEO_ENGINE_IDS.canvas2d,
   async render(spec) {
     assertBrowserCanvasRuntime()
-    const {
-      BufferTarget,
-      CanvasSource,
-      Mp4OutputFormat,
-      Output,
-      QUALITY_HIGH,
-      getFirstEncodableVideoCodec,
-    } = await import('mediabunny')
     const { default: html2canvas } = await import('html2canvas')
     const canvas = document.createElement('canvas')
     canvas.width = spec.width
     canvas.height = spec.height
     const context = canvas.getContext('2d', { alpha: false })
-    if (!context) throw new Error('canvas-2d MP4 rendering requires a 2D canvas context')
+    if (!context) throw new Error('canvas-2d video rendering requires a 2D canvas context')
 
-    const target = new BufferTarget()
-    const output = new Output({
-      format: new Mp4OutputFormat(),
-      target,
+    const mimeType = resolveCanvasRecorderMimeType()
+    if (!mimeType) throw new Error('canvas-2d video rendering requires a native MediaRecorder video MIME type')
+    const stream = canvas.captureStream(spec.fps)
+    const chunks: Blob[] = []
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: CANVAS_2D_RECORDER_VIDEO_BITS_PER_SECOND,
     })
-    const codec = await getFirstEncodableVideoCodec([...CANVAS_2D_MP4_CODEC_CANDIDATES], {
-      width: spec.width,
-      height: spec.height,
-      bitrate: QUALITY_HIGH,
+    const stopped = new Promise<void>((resolve, reject) => {
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunks.push(event.data)
+      }
+      recorder.onerror = event => reject(event instanceof ErrorEvent ? event.error : new Error('canvas-2d MediaRecorder failed'))
+      recorder.onstop = () => resolve()
     })
-    if (!codec) throw new Error('canvas-2d MP4 rendering requires an encodable browser video codec')
 
-    const videoSource = new CanvasSource(canvas, {
-      codec,
-      bitrate: QUALITY_HIGH,
-      keyFrameInterval: 1,
-    })
-    output.addVideoTrack(videoSource)
-
-    await output.start()
-    const frameCount = Math.max(1, Math.ceil((spec.durationMs / 1000) * spec.fps))
-    const frameDurationSeconds = 1 / spec.fps
-    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-      const timestampSeconds = frameIndex * frameDurationSeconds
-      const timeMs = Math.min(spec.durationMs, timestampSeconds * 1000)
-      await drawFrame(context, spec, timeMs, html2canvas)
-      await videoSource.add(timestampSeconds, frameDurationSeconds)
+    const frameCount = Math.max(1, Math.ceil((spec.durationMs / 1000) * Math.max(1, spec.fps)))
+    const frameDurationMs = 1000 / Math.max(1, spec.fps)
+    try {
+      recorder.start()
+      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+        const timeMs = Math.min(spec.durationMs, frameIndex * frameDurationMs)
+        await drawFrame(context, spec, timeMs, html2canvas)
+        requestCanvasFrame(stream)
+        await wait(frameDurationMs)
+      }
+      if (recorder.state !== 'inactive') recorder.stop()
+      await stopped
+    } finally {
+      stopMediaStream(stream)
     }
-    await output.finalize()
 
-    if (!target.buffer) throw new Error('canvas-2d MP4 renderer finalized without output buffer')
+    if (!chunks.length) throw new Error('canvas-2d video renderer finalized without output chunks')
     return {
-      blob: new Blob([target.buffer], { type: 'video/mp4' }),
+      blob: new Blob(chunks, { type: mimeType }),
       engineId: HTML_VIDEO_ENGINE_IDS.canvas2d,
       durationMs: spec.durationMs,
       fps: spec.fps,
@@ -165,8 +161,8 @@ export const canvas2dAdapter: RenderEngine = {
       renderLog: [
         `frames=${frameCount}`,
         'rasterizer=html2canvas',
-        'muxer=mediabunny',
-        `codec=${codec}`,
+        'recorder=MediaRecorder',
+        `mime=${mimeType}`,
       ],
     }
   },

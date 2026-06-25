@@ -89,7 +89,7 @@ export function testAnimaticCanvasRetainsReferencePlayerAndTimelineShellContract
     'timeline-timecode-divider',
     'timeline-timecode-total',
     '<section className="rate-control">',
-    'className="timeline-rate-select ant-select ant-select-sm ant-select-single ant-select-show-arrow"',
+    'className="timeline-rate-button"',
     '<section ref={scrollRef} className="timeline-editor min-w-0 flex-1 overflow-auto bg-[#0b1020]">',
     '<header className="timeline-editor-header sticky top-0 z-10 bg-[#0f1625]/95 backdrop-blur">',
     'className="timeline-editor-time-area relative border-b border-slate-800"',

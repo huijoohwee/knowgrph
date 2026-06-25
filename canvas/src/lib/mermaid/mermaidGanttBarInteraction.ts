@@ -572,6 +572,82 @@ export function updateMermaidGanttCodeRowTiming(args: {
   return lines.join('\n')
 }
 
+function updateMermaidGanttCodeRowToTiming(args: {
+  absoluteStartMinutes: number
+  code: string
+  durationMinutes: number
+  rowLineIndex: number
+  sourceRange: MermaidGanttSourceRangeMinutes | null
+}): string | null {
+  const lines = String(args.code || '').split('\n')
+  const line = lines[args.rowLineIndex]
+  if (typeof line !== 'string' || !line.includes(':')) return null
+  const metaTokens = readGanttTimingMetaTokens(readGanttTaskTokens(line))
+  const shouldWriteSourceRange = !!args.sourceRange && shouldWriteVideoSequenceSourceRange({ code: args.code, line })
+  lines[args.rowLineIndex] = buildGanttTaskLine({
+    absoluteStartMinutes: args.absoluteStartMinutes,
+    durationMinutes: args.durationMinutes,
+    indent: readGanttLineIndent(line),
+    label: readGanttTaskLabel(line),
+    metaTokens: shouldWriteSourceRange
+      ? upsertMermaidGanttSourceRangeToken(metaTokens, args.sourceRange as MermaidGanttSourceRangeMinutes)
+      : metaTokens,
+  })
+  return lines.join('\n')
+}
+
+export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
+  code: string
+  rowLineIndex: number
+  mode: MermaidGanttBarDragMode
+  deltaMinutes: number
+}): string | null {
+  const nextCode = updateMermaidGanttCodeRowTiming(args)
+  if (!nextCode) return null
+  const groupLineIndexes = readVideoSequenceClipGroupLineIndexes(args)
+  if (groupLineIndexes.length <= 1) return nextCode
+  const selectedLine = String(nextCode || '').split('\n')[args.rowLineIndex]
+  const selectedSpan = buildMermaidGanttTimelineModel(nextCode).taskSpans.find(span => span.lineIndex === args.rowLineIndex)
+  if (typeof selectedLine !== 'string' || !selectedSpan) return nextCode
+  const selectedAbsoluteStartMinutes = readSpanAbsoluteStartMinutes({
+    code: nextCode,
+    line: selectedLine,
+    span: selectedSpan,
+  })
+  if (selectedAbsoluteStartMinutes == null) return nextCode
+  const selectedSourceRange = readMermaidGanttLineSourceRange(selectedLine) || {
+    endMinutes: selectedSpan.startMinutes + selectedSpan.durationMinutes,
+    startMinutes: selectedSpan.startMinutes,
+  }
+  let syncedCode = nextCode
+  for (const lineIndex of groupLineIndexes) {
+    if (lineIndex === args.rowLineIndex) continue
+    syncedCode = updateMermaidGanttCodeRowToTiming({
+      absoluteStartMinutes: selectedAbsoluteStartMinutes,
+      code: syncedCode,
+      durationMinutes: selectedSpan.durationMinutes,
+      rowLineIndex: lineIndex,
+      sourceRange: selectedSourceRange,
+    }) || syncedCode
+  }
+  return syncedCode === args.code ? null : syncedCode
+}
+
+export type MermaidGanttVideoSequenceTimingSyncMode = 'grouped' | 'selected'
+
+export function updateMermaidGanttVideoSequenceClipTiming(args: {
+  code: string
+  rowLineIndex: number
+  mode: MermaidGanttBarDragMode
+  deltaMinutes: number
+  syncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): string | null {
+  if (args.syncMode === 'grouped') {
+    return updateMermaidGanttVideoSequenceClipGroupTiming(args)
+  }
+  return updateMermaidGanttCodeRowTiming(args)
+}
+
 export function splitMermaidGanttCodeRowAtOffset(args: {
   code: string
   rowLineIndex: number
@@ -640,6 +716,18 @@ export function splitMermaidGanttVideoSequenceClipGroupAtOffset(args: {
     if (updated) nextCode = updated
   }
   return nextCode === args.code ? null : nextCode
+}
+
+export function splitMermaidGanttVideoSequenceClipAtOffset(args: {
+  code: string
+  rowLineIndex: number
+  splitOffsetMinutes: number
+  syncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): string | null {
+  if (args.syncMode === 'grouped') {
+    return splitMermaidGanttVideoSequenceClipGroupAtOffset(args)
+  }
+  return splitMermaidGanttCodeRowAtOffset(args)
 }
 
 export function insertMermaidGanttVideoSequenceOperationRow(args: {

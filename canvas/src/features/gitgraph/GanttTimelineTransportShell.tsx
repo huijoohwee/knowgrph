@@ -13,12 +13,19 @@ export type GanttTimelineTransportShellProps = {
 }
 
 export function GanttTimelineTransportShell(args: GanttTimelineTransportShellProps) {
+  const contextDetailsLabel = `Timeline context: ${args.rulerModel.chrome.subtitleLabel}. ${args.chromeModel.contextControls.clipEdit.detailsLabel}`
+  const contextControls = args.chromeModel.contextControls.exportSessions.items.length
+    ? <GanttTimelineTransportContextControls model={args.chromeModel.contextControls} />
+    : null
+
   return (
     <TimelineTransportChrome
       ariaLabel={args.shellModel.ariaLabel}
       chromeClassName={args.shellModel.chromeClassName}
+      contextDetailsLabel={contextDetailsLabel}
+      contextLabel={args.rulerModel.chrome.subtitleLabel}
       currentLabel={args.shellModel.currentLabel}
-      contextControls={<GanttTimelineTransportContextControls model={args.chromeModel.contextControls} />}
+      contextControls={contextControls}
       disabled={args.shellModel.disabled}
       max={args.shellModel.max}
       min={args.shellModel.min}
@@ -33,8 +40,6 @@ export function GanttTimelineTransportShell(args: GanttTimelineTransportShellPro
       step={args.shellModel.step}
       showInlineProgress={args.shellModel.showInlineProgress}
       showRange={args.shellModel.showRange}
-      subtitleLabel={args.rulerModel.chrome.subtitleLabel}
-      titleLabel={args.rulerModel.chrome.titleLabel}
       totalLabel={args.rulerModel.chrome.totalLabel}
       value={args.rulerModel.chrome.value}
       onPlaybackPointerDown={args.shellModel.onPlaybackPointerDown}

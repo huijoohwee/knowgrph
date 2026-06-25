@@ -1,5 +1,5 @@
 import React from 'react'
-import type { VideoSequenceClipEditAction } from '@/components/timeline/VideoSequenceClipEditPanel'
+import type { VideoSequenceClipEditAction } from '@/components/timeline/videoSequenceClipEdit'
 import {
   buildVideoSequenceExportSessionCollection,
   createVideoSequenceExportSessionRecord,
@@ -24,10 +24,11 @@ import { VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS, type VideoSequenceTimelineT
 import {
   insertMermaidGanttVideoSequenceOperationRow,
   replaceFirstMermaidGanttFrontmatterCode,
-  splitMermaidGanttVideoSequenceClipGroupAtOffset,
-  updateMermaidGanttCodeRowTiming,
+  splitMermaidGanttVideoSequenceClipAtOffset,
+  updateMermaidGanttVideoSequenceClipTiming,
   type MermaidGanttBarDragMode,
   type MermaidGanttTimelineTaskSpan,
+  type MermaidGanttVideoSequenceTimingSyncMode,
   type MermaidGanttVideoSequenceOperation,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import type { GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
@@ -47,6 +48,7 @@ export function useGanttTimelineDocumentActions(args: {
 }) {
   const [exportingKind, setExportingKind] = React.useState<VideoSequenceExportKind | ''>('')
   const [recentExportSessions, setRecentExportSessions] = React.useState<VideoSequenceExportSessionRecord[]>([])
+  const [timingSyncMode, setTimingSyncMode] = React.useState<MermaidGanttVideoSequenceTimingSyncMode>('grouped')
   const exportAbortControllerRef = React.useRef<AbortController | null>(null)
   const { setMarkdownDocument, upsertUiToast } = useTimelineDocumentMutationStoreBinding()
   const readDocumentSnapshot = useTimelineDocumentSnapshotReader({
@@ -83,10 +85,11 @@ export function useGanttTimelineDocumentActions(args: {
     if (!args.selectedSpan || args.maxMinutes <= 0) return
     if (toolId === 'cut') {
       commitGanttVideoSequenceCode(
-        splitMermaidGanttVideoSequenceClipGroupAtOffset({
+        splitMermaidGanttVideoSequenceClipAtOffset({
           code: args.code,
           rowLineIndex: args.selectedSpan.lineIndex,
           splitOffsetMinutes: args.positionMinutes - args.selectedSpan.startMinutes,
+          syncMode: timingSyncMode,
         }),
         args.selectedSpan.lineIndex,
       )
@@ -94,11 +97,12 @@ export function useGanttTimelineDocumentActions(args: {
     }
     if (toolId === 'splice') {
       commitGanttVideoSequenceCode(
-        updateMermaidGanttCodeRowTiming({
+        updateMermaidGanttVideoSequenceClipTiming({
           code: args.code,
           rowLineIndex: args.selectedSpan.lineIndex,
           mode: 'move',
           deltaMinutes: Math.round(args.positionMinutes - args.selectedSpan.startMinutes),
+          syncMode: timingSyncMode,
         }),
         args.selectedSpan.lineIndex,
       )
@@ -113,16 +117,17 @@ export function useGanttTimelineDocumentActions(args: {
       }),
       args.selectedSpan.lineIndex + 1,
     )
-  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, commitGanttVideoSequenceCode])
+  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, commitGanttVideoSequenceCode, timingSyncMode])
 
   const handleVideoSequenceClipEdit = React.useCallback((action: VideoSequenceClipEditAction) => {
     if (!args.selectedSpan || args.maxMinutes <= 0) return
     if (action === 'split-at-playhead') {
       commitGanttVideoSequenceCode(
-        splitMermaidGanttVideoSequenceClipGroupAtOffset({
+        splitMermaidGanttVideoSequenceClipAtOffset({
           code: args.code,
           rowLineIndex: args.selectedSpan.lineIndex,
           splitOffsetMinutes: args.positionMinutes - args.selectedSpan.startMinutes,
+          syncMode: timingSyncMode,
         }),
         args.selectedSpan.lineIndex,
       )
@@ -152,15 +157,20 @@ export function useGanttTimelineDocumentActions(args: {
     }
     if (!deltaMinutes) return
     commitGanttVideoSequenceCode(
-      updateMermaidGanttCodeRowTiming({
+      updateMermaidGanttVideoSequenceClipTiming({
         code: args.code,
         rowLineIndex: args.selectedSpan.lineIndex,
         mode,
         deltaMinutes,
+        syncMode: timingSyncMode,
       }),
       args.selectedSpan.lineIndex,
     )
-  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, commitGanttVideoSequenceCode])
+  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, commitGanttVideoSequenceCode, timingSyncMode])
+
+  const handleToggleVideoSequenceTimingSyncMode = React.useCallback(() => {
+    setTimingSyncMode(current => current === 'grouped' ? 'selected' : 'grouped')
+  }, [])
 
   const cancelEditedMediaExport = React.useCallback((kind?: VideoSequenceExportKind) => {
     if (!exportingKind) return false
@@ -369,18 +379,19 @@ export function useGanttTimelineDocumentActions(args: {
     ) {
       return
     }
-    const nextCode = updateMermaidGanttCodeRowTiming({
+    const nextCode = updateMermaidGanttVideoSequenceClipTiming({
       code: args.code,
       rowLineIndex: input.dragState.span.lineIndex,
       mode: input.dragState.mode,
       deltaMinutes: input.effectiveDeltaMinutes,
+      syncMode: timingSyncMode,
     })
     const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(input.dragState.markdownText, nextCode)
     if (!nextMarkdownText || nextMarkdownText === input.dragState.markdownText) return
     setMarkdownDocument(input.dragState.markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
     const nextLine = nextCode.split('\n')[input.dragState.span.lineIndex]?.trim()
     if (nextLine) args.setSelectedRowKey(`${input.dragState.span.lineIndex}:task:${nextLine}`)
-  }, [args.code, args.setSelectedRowKey, readDocumentSnapshot, setMarkdownDocument])
+  }, [args.code, args.setSelectedRowKey, readDocumentSnapshot, setMarkdownDocument, timingSyncMode])
 
   return {
     cancelEditedMediaExport,
@@ -392,7 +403,9 @@ export function useGanttTimelineDocumentActions(args: {
     handleRetryEditedMediaExportRunId,
     handleVideoSequenceClipEdit,
     handleVideoSequenceTool,
+    handleToggleVideoSequenceTimingSyncMode,
     latestRetryableExportSession,
     recentExportSessions,
+    timingSyncMode,
   }
 }

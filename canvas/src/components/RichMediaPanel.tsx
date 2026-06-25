@@ -1,6 +1,7 @@
 import React from 'react'
 import RichMediaIframe from '@/components/RichMediaIframe'
 import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
+import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { useShallow } from 'zustand/react/shallow'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
@@ -46,6 +47,11 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
+  MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
+} from '@/lib/media/mediaFormatPreference'
+import { LS_KEYS } from '@/lib/config'
+import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
@@ -65,6 +71,7 @@ export type RichMediaPanelProps = {
   kind?: RichMediaKind
   interactive?: boolean
   videoControls?: boolean
+  videoPoster?: string
   hideUntilReady?: boolean
   headerPassthrough?: boolean
   resizable?: boolean
@@ -742,6 +749,52 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         }
       : null),
   }), [inlineSrcDocEmbeddedSurfaceHeight, inlineSrcDocPanelContentHeight, panelOwnsInlineSrcDocScroll])
+  const directMediaZoomContentSize = React.useMemo(() => {
+    if (kind === 'video') return { w: 16, h: 9 }
+    if (kind === 'image' || kind === 'svg') return { w: 16, h: 9 }
+    return { w: 16, h: 9 }
+  }, [kind])
+  const directMediaZoomSurface = kind === 'image' || kind === 'svg' || kind === 'video'
+    ? (
+        <section
+          className="h-full w-full overflow-hidden"
+          aria-label={`${title} pan and zoom media preview`}
+          data-kg-rich-media-zoom-pan-viewport="1"
+        >
+          <ZoomPanViewport
+            open={!!mediaSrc}
+            storageKey={LS_KEYS.previewZoomPanMedia}
+            getContentSize={() => directMediaZoomContentSize}
+            fitOnOpen
+            fitKey={`${kind}:${mediaSrc}:${props.videoPoster || ''}`}
+            frameAspectRatio={directMediaZoomContentSize.w / Math.max(1, directMediaZoomContentSize.h)}
+            framePaddingPx={0}
+            wheelZoomBehavior="active"
+            showControls={false}
+            showZoomIndicator={false}
+            frameClassName="bg-transparent"
+            contentFillsFrame
+          >
+            <CardMediaPreview
+              kind={kind === 'svg' ? 'svg' : kind}
+              url={mediaSrc}
+              title={title}
+              interactive={false}
+              fit="contain"
+              videoControls={false}
+              videoPoster={kind === 'video' ? props.videoPoster : undefined}
+              mediaThumbnailDataAttr
+              onVideoElement={kind === 'video' ? props.onVideoElement : undefined}
+              onReady={() => setReady(true)}
+              onError={() => {
+                if (!fallbackToRawSrc()) setReady(true)
+              }}
+              mediaStyle={buildDirectMediaStyle('block', kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
+            />
+          </ZoomPanViewport>
+        </section>
+      )
+    : null
   const resizeHandle = installResize && resizeHandlePlacement === 'root'
     ? <RichMediaPanelResizeHandle placement="root" onPointerDown={onResizePointerDown} />
     : null
@@ -936,20 +989,20 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             onLoad={() => setReady(true)}
           />
         )
-      ) : kind === 'video' || kind === 'audio' ? (
+      ) : directMediaZoomSurface ? (
+        directMediaZoomSurface
+      ) : kind === 'audio' ? (
         <CardMediaPreview
           kind={kind}
           url={mediaSrc}
           title={title}
           interactive={contentInteractive}
           fit="contain"
-          videoControls={kind === 'video' ? props.videoControls ?? true : undefined}
-          onVideoElement={kind === 'video' ? props.onVideoElement : undefined}
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
           }}
-          mediaStyle={buildDirectMediaStyle(kind === 'video' ? 'block' : 'flex', kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
+          mediaStyle={buildDirectMediaStyle('flex', 'rgba(15, 23, 42, 0.06)')}
         />
       ) : (
         <CardMediaPreview
@@ -958,6 +1011,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           title={title}
           interactive={false}
           fit="contain"
+          mediaThumbnailDataAttr
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)
@@ -1010,6 +1064,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-url={rawUrl}
       data-kg-open-url={openUrl}
       data-kg-rich-media-render-surface="1"
+      data-kg-rich-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
+      data-kg-rich-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
+      data-kg-rich-media-shared-pan-drag-zoom={kind === 'image' || kind === 'svg' || kind === 'video' ? '1' : undefined}
       data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}
       data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}

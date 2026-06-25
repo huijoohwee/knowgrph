@@ -14,7 +14,7 @@ type RegisteredVideoSequenceSourceFile = {
 }
 
 const OBJECT_URL_REVOKE_DELAY_MS = 2000
-const pendingObjectUrlRevokes = new Map<string, number>()
+const pendingObjectUrlRevokes = new Map<string, ReturnType<typeof setTimeout>>()
 const registryBySignature = new Map<string, RegisteredVideoSequenceSourceFile>()
 const registry = new Map<string, RegisteredVideoSequenceSourceFile>()
 
@@ -67,7 +67,7 @@ const revokeObjectUrl = (value: string): void => {
 
 const clearPendingObjectUrlRevoke = (value: string): void => {
   const timerId = pendingObjectUrlRevokes.get(value)
-  if (typeof timerId !== 'number') return
+  if (!timerId) return
   pendingObjectUrlRevokes.delete(value)
   if (typeof clearTimeout === 'function') clearTimeout(timerId)
 }

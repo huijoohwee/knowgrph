@@ -138,7 +138,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["htmlVideoRenderer.flowRegistry.richMediaKind","@/__tests__/htmlVideoRenderer.test","testHtmlVideoRendererFlowRegistryAndRichMediaKind"],
   ["htmlVideoRenderer.sourceContracts.sharedOwners","@/__tests__/htmlVideoRenderer.test","testHtmlVideoRendererSourceContractsAvoidParallelStorageAndAdapterImports"],
   ["htmlVideoRenderer.headlessBrowserAdapter.nativeFossRuntime","@/__tests__/htmlVideoRenderer.test","testHtmlVideoHeadlessBrowserAdapterIsNativeFossRuntimeAdapter"],
-  ["htmlVideoRenderer.canvas2dAdapter.browserNativeMp4Runtime","@/__tests__/htmlVideoRenderer.test","testHtmlVideoCanvas2dAdapterIsBrowserNativeMp4RuntimeAdapter"],
+  ["htmlVideoRenderer.canvas2dAdapter.browserNativeRecorderRuntime","@/__tests__/htmlVideoRenderer.test","testHtmlVideoCanvas2dAdapterIsBrowserNativeRecorderRuntimeAdapter"],
   ["htmlVideoRenderer.browserRuntime.canvas2dRegistered","@/__tests__/htmlVideoRenderer.test","testHtmlVideoBrowserRuntimeRegistersCanvas2dWithoutFallbackEngine"],
   ["htmlVideoRenderer.workflow.richMediaPanelPublication","@/__tests__/htmlVideoRenderer.test","testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel"],
   ["mcp.server.agenticCanvasOsRuntime.dryRunPrdTad","@/__tests__/mcpLocalToolContract.test","testKnowgrphAgenticCanvasOsRuntimeCoversDryRunPrdTad"],

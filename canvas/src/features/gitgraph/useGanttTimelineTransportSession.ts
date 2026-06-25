@@ -1,6 +1,7 @@
 import React from 'react'
 import { type VideoSequenceExportPlan } from '@/components/timeline/videoSequenceExport'
 import {
+  type TimelineTransportPlaybackRate,
   useTimelineDocumentTransportController,
   useTimelineDocumentStoreBinding,
   useTimelineTransportStoreBinding,
@@ -35,7 +36,7 @@ export type GanttTimelineTransportSession = {
   maxMinutes: number
   mediaDurationSeconds: number
   monitorScopes: ReturnType<typeof useGanttTimelineTransportPreviewSession>['monitorScopes']
-  playbackRate: number
+  playbackRate: TimelineTransportPlaybackRate
   playbackUnitsPerMs: number
   playing: boolean
   positionMinutes: number
@@ -43,7 +44,7 @@ export type GanttTimelineTransportSession = {
   selectedSpan: MermaidGanttTimelineTaskSpan | null
   setSelectedRowKey: (rowKey: string) => void
   setTransportPlaybackPosition: (position: number) => void
-  setTransportPlaybackRate: (playbackRate: number) => void
+  setTransportPlaybackRate: (playbackRate: TimelineTransportPlaybackRate) => void
   setTransportPlaying: (playing: boolean) => void
   ticks: readonly MermaidGanttTimelineTick[]
   timelineModel: MermaidGanttTimelineModel

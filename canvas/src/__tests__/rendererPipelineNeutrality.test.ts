@@ -228,16 +228,19 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !ganttTransportChromeModelText.includes('handleRetryEditedMediaExportRunId') ||
     !ganttTransportChromeModelText.includes('handleRetryEditedMediaExport(args.latestRetryableExportSession)') ||
     !ganttTransportContextControlsText.includes('GanttTimelineTransportContextControls') ||
-    !ganttTransportContextControlsText.includes('VideoSequenceClipEditPanel') ||
+    ganttTransportContextControlsText.includes('VideoSequenceClipEditPanel') ||
+    !ganttTransportChromeModelText.includes('buildVideoSequenceClipEditDetailsLabel') ||
     !ganttTransportContextControlsText.includes('data-kg-video-sequence-export-session-retry') ||
     !ganttTransportHeaderToolsText.includes('GanttTimelineTransportHeaderTools') ||
     !ganttTransportHeaderToolsText.includes('TimelineVideoSequenceToolButton') ||
+    !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-clip-edit={button.action}') ||
+    ganttTransportHeaderToolsText.indexOf('args.model.clipActionButtons.map') > ganttTransportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') ||
     !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-export={button.dataValue}') ||
     !ganttTransportRulerModelText.includes('useGanttTimelineTransportRulerModel') ||
     !ganttTransportRulerModelText.includes('clampTimelineTransportValue') ||
     !ganttTransportRulerModelText.includes("'--kg-video-sequence-lane-count': args.visibleLaneCount") ||
     !ganttTransportRulerModelText.includes("subtitleLabel: `${args.taskSpans.length} timeline rows`") ||
-    !ganttTransportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
+    ganttTransportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
     !ganttTransportRulerModelText.includes('value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes))') ||
     !ganttTransportRulerText.includes('GanttTimelineTransportRuler') ||
     !ganttTransportRulerText.includes('VideoSequenceTimelineRuler') ||
@@ -258,6 +261,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !ganttTransportShellText.includes('GanttTimelineTransportContextControls') ||
     !ganttTransportShellText.includes('GanttTimelineTransportHeaderTools') ||
     !ganttTransportShellText.includes('GanttTimelineTransportRuler') ||
+    !ganttTransportShellText.includes('contextLabel={args.rulerModel.chrome.subtitleLabel}') ||
+    ganttTransportShellText.includes('titleLabel={args.rulerModel.chrome.titleLabel}') ||
+    ganttTransportShellText.includes('subtitleLabel={args.rulerModel.chrome.subtitleLabel}') ||
     !ganttTransportPlaybackModelText.includes('useGanttTimelineTransportPlaybackModel') ||
     !ganttTransportPlaybackModelText.includes('useGanttTimelinePlaybackControls') ||
     !ganttTransportPlaybackModelText.includes('useTimelineTransportPlayback') ||

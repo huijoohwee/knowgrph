@@ -6,7 +6,9 @@ export type GanttTimelineTransportShellModel = {
   chromeClassName: string
   currentLabel: string
   disabled: boolean
+  hasMediaDurationScale: boolean
   max: number
+  mediaDurationSeconds: number
   min: number
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
@@ -24,7 +26,9 @@ export type GanttTimelineTransportShellModel = {
 export function useGanttTimelineTransportShellModel(args: {
   currentLabel: string
   disabled: boolean
+  hasMediaDurationScale: boolean
   maxMinutes: number
+  mediaDurationSeconds: number
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
   onPlaybackPointerDown?: () => void
@@ -37,7 +41,9 @@ export function useGanttTimelineTransportShellModel(args: {
     chromeClassName: 'timeline-transport-chrome--mermaid-gantt p-2',
     currentLabel: args.currentLabel,
     disabled: args.disabled,
+    hasMediaDurationScale: args.hasMediaDurationScale,
     max: Math.max(1, args.maxMinutes),
+    mediaDurationSeconds: args.mediaDurationSeconds,
     min: 0,
     onPlaybackPointerDown: args.onPlaybackPointerDown,
     onPlaybackRateChange: args.onPlaybackRateChange,
@@ -48,6 +54,8 @@ export function useGanttTimelineTransportShellModel(args: {
     rootProps: {
       'aria-label': 'Gantt-Timeline transport',
       'data-kg-gantt-timeline-transport': 'bottomPanel',
+      'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined,
+      'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined,
       'data-kg-video-sequence-timeline': 'source-backed',
     } as React.HTMLAttributes<HTMLElement>,
     shellClassName: 'timeline-transport-shell--video-sequence',
@@ -57,7 +65,9 @@ export function useGanttTimelineTransportShellModel(args: {
   }), [
     args.currentLabel,
     args.disabled,
+    args.hasMediaDurationScale,
     args.maxMinutes,
+    args.mediaDurationSeconds,
     args.onPlaybackPointerDown,
     args.onPlaybackRateChange,
     args.onTogglePlayback,

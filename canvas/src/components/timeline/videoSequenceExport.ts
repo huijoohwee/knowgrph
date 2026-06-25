@@ -110,6 +110,7 @@ export type VideoSequenceExportSessionCollection = {
   emptyLabel: string
   groups: VideoSequenceExportSessionGroup[]
   latestRetryableSession: VideoSequenceExportSessionRecord | null
+  plan: VideoSequenceExportPlan | null
   retryControl: VideoSequenceExportRetryControl
   surface: VideoSequenceExportSessionSurfaceModel
   surfaceSessions: VideoSequenceExportSessionRecord[]
@@ -589,6 +590,7 @@ export function buildVideoSequenceExportSessionCollection(args: {
     emptyLabel: surface.emptyLabel,
     groups,
     latestRetryableSession,
+    plan: args.plan || null,
     retryControl: resolveVideoSequenceExportRetryControl(latestRetryableSession),
     surface,
     surfaceSessions: surfaceSelection.sessions,

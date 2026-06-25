@@ -4,6 +4,7 @@ import {
   type VideoSequenceTimelineSource,
 } from './videoSequenceTimeline'
 import { resolveVideoSequenceSourceRuntimeUrl } from './videoSequenceSourceRegistry'
+import { loadTimelineMediaReaderSummary } from './timelineMediaReader'
 import type { MermaidGanttSourceRangeMinutes, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { buildMermaidGanttTimelineModel, readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
 
@@ -426,6 +427,13 @@ export function loadTimelinePlanVideoMetadata(args: {
 async function readTimelinePlanSourceMetadata(source: VideoSequenceTimelineSource): Promise<TimelinePlanVideoMetadata | null> {
   const url = resolveTimelinePlanSourceUrl(source)
   if (!url || typeof document === 'undefined') return null
+  const readerSummary = await loadTimelineMediaReaderSummary(url)
+  if (readerSummary.durationSeconds > 0) {
+    return {
+      durationSeconds: readerSummary.durationSeconds,
+      url,
+    }
+  }
   const probe = document.createElement('video')
   probe.preload = 'metadata'
   const durationSeconds = await loadTimelinePlanVideoMetadata({

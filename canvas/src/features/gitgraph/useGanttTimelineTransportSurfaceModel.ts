@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
+import { resolveTimelinePlanSourceUrl } from '@/components/timeline/timelinePlanSync'
 import { useGanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineTransportCommandModel } from './useGanttTimelineTransportCommandModel'
 import { useGanttTimelineTransportInteractionModel } from './useGanttTimelineTransportInteractionModel'
@@ -27,6 +29,14 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
   const transportSession = useGanttTimelineTransportSession({
     code: args.code,
+  })
+  const mediaThumbnailSourceUrl = React.useMemo(() => {
+    const source = transportSession.exportPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source || null
+    return source ? resolveTimelinePlanSourceUrl(source) : ''
+  }, [transportSession.exportPlan])
+  const mediaThumbnailSummary = useTimelineMediaReaderSummary({
+    active: !!mediaThumbnailSourceUrl,
+    url: mediaThumbnailSourceUrl,
   })
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
@@ -84,6 +94,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     positionMinutes: transportSession.positionMinutes,
     scopes: transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
+    sourceThumbnails: mediaThumbnailSummary.thumbnails,
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
     totalLabel: transportSession.totalLabel,
@@ -103,7 +114,9 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   const shellModel = useGanttTimelineTransportShellModel({
     currentLabel: transportSession.currentLabel,
     disabled: transportSession.disabled,
+    hasMediaDurationScale: transportSession.hasMediaDurationScale,
     maxMinutes: transportSession.maxMinutes,
+    mediaDurationSeconds: transportSession.mediaDurationSeconds,
     onPlaybackPointerDown: transportPlaybackModel.handlePlaybackPointerDown,
     onPlaybackRateChange: transportSession.setTransportPlaybackRate,
     onTogglePlayback: transportPlaybackModel.handleTogglePlayback,
