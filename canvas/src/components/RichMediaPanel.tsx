@@ -102,6 +102,7 @@ export type RichMediaPanelProps = {
   scrollOwner?: 'media' | 'panel'
   onInlineContentSize?: (size: { width: number; height: number }) => void
   panelChrome?: 'none' | 'flowEditor'
+  onVideoElement?: (element: HTMLVideoElement | null) => void
   panel?: {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
@@ -943,6 +944,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           interactive={contentInteractive}
           fit="contain"
           videoControls={kind === 'video' ? props.videoControls ?? true : undefined}
+          onVideoElement={kind === 'video' ? props.onVideoElement : undefined}
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)

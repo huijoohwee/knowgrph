@@ -1,7 +1,9 @@
 import {
+  buildVideoSequenceExportSessionCollection,
   buildVideoSequenceExportSessionSurfaceModel,
   buildVideoSequenceExportProgress,
   createVideoSequenceExportSessionRecord,
+  groupVideoSequenceExportSessions,
   reduceVideoSequenceExportSessionRecord,
   resolveVideoSequenceExportEvent,
   resolveVideoSequenceExportOutcome,
@@ -262,6 +264,47 @@ export function testVideoSequenceExportErrorFeedbackContracts() {
       completedSession,
     ],
   })
+  const retriedSession = {
+    ...completedSession,
+    message: 'Downloaded sequence-retry.edited.video.webm',
+    retryOfRunId: completedSession.runId,
+    runId: 'downloaded-retry',
+    startedAtMs: 40,
+    updatedAtMs: 40,
+  }
+  const groupedSessions = groupVideoSequenceExportSessions([
+    retriedSession,
+    completedSession,
+    {
+      ...completedSession,
+      kind: 'audio',
+      message: 'Rendering edited audio...',
+      retryOfRunId: '',
+      runId: 'running-audio',
+      startedAtMs: 35,
+      status: 'running',
+      toastKind: 'neutral',
+      updatedAtMs: 35,
+    },
+  ])
+  const groupedCollection = buildVideoSequenceExportSessionCollection({
+    plan: retryRequest.request.plan,
+    sessions: [
+      retriedSession,
+      completedSession,
+      {
+        ...completedSession,
+        kind: 'audio',
+        message: 'Rendering edited audio...',
+        retryOfRunId: '',
+        runId: 'running-audio',
+        startedAtMs: 35,
+        status: 'running',
+        toastKind: 'neutral',
+        updatedAtMs: 35,
+      },
+    ],
+  })
   const sessionHistory = upsertVideoSequenceExportSessionHistory({
     history: [initialSession],
     limit: 2,
@@ -358,6 +401,25 @@ export function testVideoSequenceExportErrorFeedbackContracts() {
     selectedSessions.sessions[1]?.runId !== 'running-new'
   ) {
     throw new Error('expected export session surface selection to prioritize the latest retryable run, then running/recent sessions, while filtering out disallowed statuses')
+  }
+  if (
+    groupedSessions.length !== 2 ||
+    groupedSessions[0]?.groupRunId !== 'running-audio' ||
+    groupedSessions[1]?.groupRunId !== completedSession.runId ||
+    groupedSessions[1]?.sessions.length !== 2 ||
+    groupedSessions[1]?.representativeSession.runId !== 'downloaded-retry'
+  ) {
+    throw new Error(`expected export session grouping to collapse retry lineage by root run id, got ${JSON.stringify(groupedSessions)}`)
+  }
+  if (
+    groupedCollection.latestRetryableSession?.runId !== 'downloaded-retry' ||
+    groupedCollection.retryControl.kind !== 'video' ||
+    groupedCollection.surface.items.length !== 2 ||
+    groupedCollection.surface.items[0]?.attemptCount !== 2 ||
+    groupedCollection.surface.items[0]?.groupRunId !== completedSession.runId ||
+    groupedCollection.surfaceSessions[0]?.runId !== 'downloaded-retry'
+  ) {
+    throw new Error(`expected export session collection to expose grouped retry lineage and compact surface sessions through one shared contract, got ${JSON.stringify(groupedCollection)}`)
   }
   if (
     resolveVideoSequenceExportSessionToneStyle({ status: 'running', tone: 'neutral' }).styleMode !== 'active' ||

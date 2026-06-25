@@ -19,6 +19,7 @@ import {
 } from '@/components/timeline/videoSequenceExport'
 import {
   buildTimelinePreviewSyncPlan,
+  resolveTimelinePlanSegmentAtPosition,
   resolveTimelinePlanPositionFromSourceTime,
   resolveTimelinePlanSourceTimeAtPosition,
 } from '@/components/timeline/timelinePlanSync'
@@ -42,10 +43,51 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const clipEditText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.tsx')
   const clipEditCssText = readSource('components', 'timeline', 'VideoSequenceClipEditPanel.css')
   const mediaCanvasText = readSource('components', 'MediaCanvas.tsx')
+  const previewMediaCanvasBindingText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasBinding.ts')
+  const previewBootstrapText = readSource('components', 'timeline', 'useTimelinePreviewBootstrap.ts')
+  const previewRouteEntryText = readSource('components', 'timeline', 'useTimelinePreviewRouteEntry.ts')
+  const previewCollectionText = readSource('components', 'timeline', 'useTimelinePreviewCollection.ts')
+  const previewActivitySurfaceModelText = readSource('components', 'timeline', 'useTimelinePreviewActivitySurfaceModel.ts')
+  const previewFamilyCompactionModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilyCompactionModel.ts')
+  const previewFamilyDisclosureControllerText = readSource('components', 'timeline', 'useTimelinePreviewFamilyDisclosureController.ts')
+  const previewFamilyDisclosureModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilyDisclosureModel.ts')
+  const previewFamilyDisclosureSurfaceModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilyDisclosureSurfaceModel.ts')
+  const previewFamilySectionLayoutModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilySectionLayoutModel.ts')
+  const previewFamilySectionChromeModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilySectionChromeModel.ts')
+  const previewFamilySectionBodyModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilySectionBodyModel.ts')
+  const previewFamilySectionsModelText = readSource('components', 'timeline', 'useTimelinePreviewFamilySectionsModel.ts')
+  const previewMediaContextText = readSource('components', 'timeline', 'useTimelinePreviewMediaContext.ts')
+  const previewScopeProjectionText = readSource('components', 'timeline', 'useTimelinePreviewScopeProjection.ts')
+  const previewMonitorContextText = readSource('components', 'timeline', 'useTimelinePreviewMonitorContext.ts')
+  const previewMonitorBindingText = readSource('components', 'timeline', 'useTimelinePreviewMonitorBinding.ts')
+  const previewMediaCanvasRenderModelText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasRenderModel.ts')
+  const previewMediaCanvasRenderText = readSource('components', 'timeline', 'TimelinePreviewMediaCanvasRender.tsx')
+  const previewMediaCanvasFrameModelText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasFrameModel.ts')
+  const previewMediaCanvasFrameText = readSource('components', 'timeline', 'TimelinePreviewMediaCanvasFrame.tsx')
+  const previewSurfaceShellModelText = readSource('components', 'timeline', 'useTimelinePreviewSurfaceShellModel.ts')
+  const timelineSourceActivityModelText = readSource('components', 'timeline', 'useTimelineSourceActivityModel.ts')
+  const previewSurfaceModelText = readSource('components', 'timeline', 'useTimelinePreviewSurfaceModel.ts')
+  const previewSurfaceText = readSource('components', 'timeline', 'TimelinePreviewSurface.tsx')
   const previewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
+  const previewVideoBindingText = readSource('components', 'timeline', 'useTimelinePreviewVideoBinding.ts')
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
   const transportPanelText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
+  const transportRouteModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportRouteModel.ts')
+  const transportSurfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
+  const transportSurfaceText = readSource('features', 'gitgraph', 'GanttTimelineTransportSurface.tsx')
+  const transportCommandModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportCommandModel.ts')
+  const transportChromeModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportChromeModel.ts')
+  const transportContextControlsText = readSource('features', 'gitgraph', 'GanttTimelineTransportContextControls.tsx')
+  const transportHeaderToolsText = readSource('features', 'gitgraph', 'GanttTimelineTransportHeaderTools.tsx')
+  const transportRulerModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportRulerModel.ts')
+  const transportRulerText = readSource('features', 'gitgraph', 'GanttTimelineTransportRuler.tsx')
+  const transportInteractionModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportInteractionModel.ts')
+  const transportShellModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportShellModel.ts')
+  const transportShellText = readSource('features', 'gitgraph', 'GanttTimelineTransportShell.tsx')
+  const transportPlaybackModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPlaybackModel.ts')
+  const transportPreviewSessionText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPreviewSession.ts')
+  const transportSessionText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSession.ts')
   const displayModelText = readSource('features', 'gitgraph', 'useGanttTimelineDisplayModel.ts')
   const mediaDurationText = readSource('features', 'gitgraph', 'useGanttTimelineMediaDuration.ts')
   const playbackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
@@ -82,6 +124,9 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('data-kg-video-sequence-clip-frames="1"') ||
     !rulerText.includes('data-kg-video-sequence-audio-waveform="1"') ||
     !rulerText.includes('data-kg-video-sequence-ruler-scopes="1"') ||
+    !rulerText.includes('data-kg-video-sequence-scope-active-family') ||
+    !rulerText.includes('data-kg-video-sequence-scope-activity-mode') ||
+    !rulerText.includes('data-kg-video-sequence-scope-selection-active') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-strip') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-bars') ||
     rulerText.includes('timeline-video-sequence-ruler-scope-header') ||
@@ -125,27 +170,310 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !sequenceText.includes("export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'") ||
     !sequenceText.includes("export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'audio'") ||
     !sequenceText.includes('VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS') ||
-    !transportPanelText.includes('useGanttTimelineDisplayModel') ||
-    !transportPanelText.includes('useGanttTimelineMediaDuration') ||
-    !transportPanelText.includes('useGanttTimelinePlaybackControls') ||
-    !transportPanelText.includes('useGanttTimelineSelectionSync') ||
-    !transportPanelText.includes('handleVideoSequenceClipEdit') ||
-    !transportPanelText.includes('resolveVisibleVideoSequenceTimelineLaneCount') ||
-    !transportPanelText.includes("'--kg-video-sequence-lane-count': visibleLaneCount") ||
-    !transportPanelText.includes('showInlineProgress={false}') ||
-    !transportPanelText.includes('contextControls={(') ||
+    !transportPanelText.includes('useGanttTimelineTransportRouteModel') ||
+    !transportPanelText.includes('GanttTimelineTransportSurface') ||
+    transportPanelText.includes('useGanttTimelineTransportSurfaceModel') ||
+    transportPanelText.includes('useGanttTimelineTransportSession') ||
+    transportPanelText.includes('useGanttTimelineTransportCommandModel') ||
+    transportPanelText.includes('useGanttTimelineTransportPlaybackModel') ||
+    transportPanelText.includes('useGanttTimelineTransportInteractionModel') ||
+    transportPanelText.includes('useGanttTimelineTransportChromeModel') ||
+    transportPanelText.includes('useGanttTimelineTransportRulerModel') ||
+    transportPanelText.includes('useGanttTimelineTransportShellModel') ||
+    transportPanelText.includes('useGanttTimelineDocumentActions') ||
+    transportPanelText.includes('useGanttTimelineInteractions') ||
+    transportPanelText.includes('useGanttTimelineSelectionSync') ||
+    transportPanelText.includes('useGanttTimelineTransportView') ||
+    transportPanelText.includes('resolveMermaidGanttTimelineRowKeyAtPosition') ||
+    transportPanelText.includes('handleVideoSequenceClipEdit') ||
+    transportPanelText.includes('showInlineProgress={false}') ||
+    transportPanelText.includes('contextControls={<GanttTimelineTransportContextControls') ||
+    transportPanelText.includes('headerAside={<GanttTimelineTransportHeaderTools') ||
+    transportPanelText.includes('ruler={<GanttTimelineTransportRuler') ||
     transportPanelText.includes('rulerAside={(') ||
     transportPanelText.includes('rulerBelow={(') ||
-    !transportPanelText.includes('VideoSequenceClipEditPanel') ||
+    transportPanelText.includes('VideoSequenceClipEditPanel') ||
     transportPanelText.includes('VideoSequenceMonitorPanel') ||
-    !transportPanelText.includes('scopes={monitorScopes}') ||
-    !mediaCanvasText.includes('useTimelineDocumentTransportController') ||
-    !mediaCanvasText.includes('useTimelineDocumentStoreBinding') ||
-    !mediaCanvasText.includes('useTimelineGanttSelectionStoreBinding') ||
-    !mediaCanvasText.includes('resolveTimelinePlanSourceUrl') ||
-    !mediaCanvasText.includes('useTimelineVideoPreviewSyncController') ||
-    !mediaCanvasText.includes('useTimelineTransportSnapshotReader') ||
-    !mediaCanvasText.includes('useTimelineTransportStoreBinding') ||
+    transportPanelText.includes('VideoSequenceTimelineRuler') ||
+    transportPanelText.includes('scopes={monitorScopes}') ||
+    transportPanelText.includes('<TimelineTransportChrome') ||
+    transportPanelText.includes('useGanttTimelinePlaybackControls') ||
+    transportPanelText.includes('useTimelineTransportPlayback({') ||
+    transportPanelText.includes('useTimelinePreviewMonitorBinding') ||
+    transportPanelText.includes('useTimelinePreviewBootstrap') ||
+    transportPanelText.includes('useTimelinePreviewMonitorContext') ||
+    transportPanelText.includes('previewMonitorContext.monitorScopes') ||
+    transportPanelText.includes('previewBootstrap.collection') ||
+    transportPanelText.includes('previewBootstrap.documentKey') ||
+    transportPanelText.includes('previewBootstrap.exportPlan') ||
+    transportPanelText.includes('buildVideoSequenceExportPlan') ||
+    transportPanelText.includes('resolveVisibleVideoSequenceTimelineLaneCount') ||
+    transportPanelText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
+    transportPanelText.includes('buildVideoSequenceTimelineToolStatus') ||
+    transportPanelText.includes('useGanttTimelineDisplayModel') ||
+    transportPanelText.includes('useGanttTimelineMediaDuration') ||
+    transportPanelText.includes('cleanTimelinePreviewDocumentKey') ||
+    transportPanelText.includes('data-kg-video-sequence-export="video"') ||
+    transportPanelText.includes('data-kg-video-sequence-export="audio"') ||
+    transportPanelText.includes('data-kg-video-sequence-export="retry"') ||
+    transportPanelText.includes('timeline-transport-export-session') ||
+    transportPanelText.includes("'--kg-video-sequence-lane-count': visibleLaneCount") ||
+    transportPanelText.includes('subtitleLabel={`${timelineModel.taskSpans.length} timeline rows`}') ||
+    transportPanelText.includes('titleLabel="Gantt-Timeline"') ||
+    transportPanelText.includes('value={clampTimelineTransportValue(positionMinutes, 0, Math.max(1, maxMinutes))}') ||
+    !mediaCanvasText.includes('useTimelinePreviewMediaCanvasBinding') ||
+    !mediaCanvasText.includes('mediaCanvasBinding.frameModel') ||
+    !mediaCanvasText.includes('TimelinePreviewMediaCanvasFrame') ||
+    !previewMediaCanvasBindingText.includes('useCommandMenuRichMediaInventory') ||
+    !previewMediaCanvasBindingText.includes('useTimelineDocumentStoreBinding') ||
+    !previewMediaCanvasBindingText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !previewMediaCanvasBindingText.includes('useTimelinePreviewRouteEntry') ||
+    !previewMediaCanvasBindingText.includes('useTimelinePreviewMediaContext') ||
+    previewMediaCanvasBindingText.includes('useTimelinePreviewBootstrap') ||
+    !previewMediaCanvasBindingText.includes('collection: previewRouteEntry.bootstrap.collection') ||
+    !previewMediaCanvasBindingText.includes('documentKey: previewRouteEntry.bootstrap.documentKey') ||
+    !previewMediaCanvasBindingText.includes('exportPlan: previewRouteEntry.bootstrap.exportPlan') ||
+    !previewMediaCanvasBindingText.includes('intent: previewRouteEntry.intent') ||
+    !previewMediaCanvasBindingText.includes('frameModel: previewMediaContext.mediaCanvasFrame') ||
+    !previewBootstrapText.includes('useTimelinePreviewBootstrap') ||
+    !previewBootstrapText.includes('useTimelinePreviewCollection') ||
+    !previewBootstrapText.includes('cleanTimelinePreviewDocumentKey') ||
+    !previewBootstrapText.includes('const documentKey = cleanTimelinePreviewDocumentKey(args.markdownDocumentName)') ||
+    !previewBootstrapText.includes('() => collection.previewPlan || collection.exportPlan') ||
+    !previewCollectionText.includes('useTimelinePreviewCollection') ||
+    !previewCollectionText.includes('useTimelinePreviewMediaSession') ||
+    !previewCollectionText.includes('shouldIncludeTimelinePreviewCollectionItem') ||
+    !previewMediaContextText.includes('useTimelinePreviewMediaContext') ||
+    !previewMediaContextText.includes('useTimelinePreviewSurfaceModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewActivitySurfaceModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilyCompactionModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilyDisclosureController') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilyDisclosureModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilyDisclosureSurfaceModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilySectionLayoutModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilySectionChromeModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilySectionBodyModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewFamilySectionsModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewMediaCanvasRenderModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewMediaCanvasFrameModel') ||
+    !previewMediaContextText.includes('useTimelinePreviewSurfaceShellModel') ||
+    !previewScopeProjectionText.includes('useTimelinePreviewScopeProjection') ||
+    !previewScopeProjectionText.includes('buildVideoSequenceTimelineScopes') ||
+    !previewScopeProjectionText.includes('sourceCount') ||
+    !previewScopeProjectionText.includes('spanCount') ||
+    !previewMonitorContextText.includes('useTimelinePreviewMonitorContext') ||
+    !previewMonitorContextText.includes('useTimelinePreviewMediaContext') ||
+    !previewMonitorContextText.includes('useTimelinePreviewScopeProjection') ||
+    !previewMonitorContextText.includes('monitorScopes: scopeProjection.monitorScopes') ||
+    !previewMonitorBindingText.includes('useTimelinePreviewMonitorBinding') ||
+    !previewMonitorBindingText.includes('useTimelinePreviewRouteEntry') ||
+    !previewMonitorBindingText.includes('useTimelinePreviewMonitorContext') ||
+    previewMonitorBindingText.includes('useTimelinePreviewBootstrap') ||
+    !previewMonitorBindingText.includes('collection: previewRouteEntry.bootstrap.collection') ||
+    !previewMonitorBindingText.includes('documentKey: previewRouteEntry.bootstrap.documentKey') ||
+    !previewMonitorBindingText.includes('exportPlan: previewRouteEntry.bootstrap.exportPlan') ||
+    !previewMonitorBindingText.includes('intent: previewRouteEntry.intent') ||
+    !previewMonitorBindingText.includes('monitorScopes: previewMonitorContext.monitorScopes') ||
+    !previewRouteEntryText.includes('useTimelinePreviewRouteEntry') ||
+    !previewRouteEntryText.includes('useTimelinePreviewBootstrap') ||
+    !previewRouteEntryText.includes("intent: 'media'") ||
+    !previewRouteEntryText.includes("intent: 'monitor'") ||
+    !previewRouteEntryText.includes("args.intent === 'media' ? previewBootstrap.collection.sequenceMaxMinutes : args.maxMinutes") ||
+    !previewRouteEntryText.includes("args.intent === 'media' ? 0 : args.positionMinutes") ||
+    !previewRouteEntryText.includes('bootstrap: previewBootstrap') ||
+    !transportChromeModelText.includes('useGanttTimelineTransportChromeModel') ||
+    !transportChromeModelText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS.map') ||
+    !transportChromeModelText.includes('exportSessionCollection.surface.items.map') ||
+    !transportChromeModelText.includes('exportSessionCollection.retryControl') ||
+    !transportChromeModelText.includes('handleRetryEditedMediaExportRunId') ||
+    !transportChromeModelText.includes('handleRetryEditedMediaExport(args.latestRetryableExportSession)') ||
+    !transportChromeModelText.includes('Cancel edited video export') ||
+    !transportChromeModelText.includes('Download edited video') ||
+    !transportChromeModelText.includes('Cancel edited audio export') ||
+    !transportChromeModelText.includes('Download edited audio') ||
+    !transportContextControlsText.includes('GanttTimelineTransportContextControls') ||
+    !transportContextControlsText.includes('VideoSequenceClipEditPanel') ||
+    !transportContextControlsText.includes('timeline-transport-export-session') ||
+    !transportContextControlsText.includes('data-kg-video-sequence-export-session-retry') ||
+    !transportHeaderToolsText.includes('GanttTimelineTransportHeaderTools') ||
+    !transportHeaderToolsText.includes('TimelineVideoSequenceToolButton') ||
+    !transportHeaderToolsText.includes('timeline-video-sequence-tool-strip') ||
+    !transportHeaderToolsText.includes('timeline-transport-chrome-actions') ||
+    !transportHeaderToolsText.includes('data-kg-video-sequence-export={button.dataValue}') ||
+    !transportRouteModelText.includes('useGanttTimelineTransportRouteModel') ||
+    !transportRouteModelText.includes('useGanttTimelineTransportSurfaceModel') ||
+    !transportRouteModelText.includes('surfaceModel: transportSurfaceModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportSurfaceModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportSession') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportCommandModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportInteractionModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportChromeModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportRulerModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportPlaybackModel') ||
+    !transportSurfaceModelText.includes('useGanttTimelineTransportShellModel') ||
+    !transportSurfaceModelText.includes('const rulerContentRef = React.useRef<HTMLElement | null>(null)') ||
+    !transportSurfaceText.includes('GanttTimelineTransportSurface') ||
+    !transportSurfaceText.includes('GanttTimelineTransportShell') ||
+    !transportSurfaceText.includes('model: GanttTimelineTransportSurfaceModel') ||
+    !transportSurfaceText.includes('chromeModel={args.model.chromeModel}') ||
+    !transportSurfaceText.includes('rulerModel={args.model.rulerModel}') ||
+    !transportSurfaceText.includes('shellModel={args.model.shellModel}') ||
+    !transportCommandModelText.includes('useGanttTimelineTransportCommandModel') ||
+    !transportCommandModelText.includes('useGanttTimelineDocumentActions') ||
+    !transportCommandModelText.includes('chromeModelCommands') ||
+    !transportCommandModelText.includes('handleCommittedDragUpdate: documentActions.handleCommittedDragUpdate') ||
+    !transportCommandModelText.includes('handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit') ||
+    !transportRulerModelText.includes('useGanttTimelineTransportRulerModel') ||
+    !transportRulerModelText.includes('clampTimelineTransportValue') ||
+    !transportRulerModelText.includes("'--kg-video-sequence-lane-count': args.visibleLaneCount") ||
+    !transportRulerModelText.includes("subtitleLabel: `${args.taskSpans.length} timeline rows`") ||
+    !transportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
+    !transportRulerModelText.includes('value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes))') ||
+    !transportRulerModelText.includes('scopes: args.scopes') ||
+    !transportRulerText.includes('GanttTimelineTransportRuler') ||
+    !transportRulerText.includes('VideoSequenceTimelineRuler') ||
+    !transportRulerText.includes('scopes={args.model.scopes}') ||
+    !transportInteractionModelText.includes('useGanttTimelineTransportInteractionModel') ||
+    !transportInteractionModelText.includes('useGanttTimelineInteractions') ||
+    !transportInteractionModelText.includes('useGanttTimelineTransportView') ||
+    !transportInteractionModelText.includes('useGanttTimelineSelectionSync') ||
+    !transportInteractionModelText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position)') ||
+    !transportInteractionModelText.includes('taskSpans: args.timelineModel.taskSpans') ||
+    !transportShellModelText.includes('useGanttTimelineTransportShellModel') ||
+    !transportShellModelText.includes("ariaLabel: 'Scrub Gantt-timeline position'") ||
+    !transportShellModelText.includes("chromeClassName: 'timeline-transport-chrome--mermaid-gantt p-2'") ||
+    !transportShellModelText.includes("shellClassName: 'timeline-transport-shell--video-sequence'") ||
+    !transportShellModelText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
+    !transportShellModelText.includes("'data-kg-video-sequence-timeline': 'source-backed'") ||
+    !transportShellModelText.includes('showInlineProgress: false') ||
+    !transportShellModelText.includes('showRange: false') ||
+    !transportShellModelText.includes('step: 1') ||
+    !transportShellText.includes('GanttTimelineTransportShell') ||
+    !transportShellText.includes('TimelineTransportChrome') ||
+    !transportShellText.includes('GanttTimelineTransportContextControls') ||
+    !transportShellText.includes('GanttTimelineTransportHeaderTools') ||
+    !transportShellText.includes('GanttTimelineTransportRuler') ||
+    !transportShellText.includes('showInlineProgress={args.shellModel.showInlineProgress}') ||
+    !transportShellText.includes('showRange={args.shellModel.showRange}') ||
+    !transportPlaybackModelText.includes('useGanttTimelineTransportPlaybackModel') ||
+    !transportPlaybackModelText.includes('useGanttTimelinePlaybackControls') ||
+    !transportPlaybackModelText.includes('useTimelineTransportPlayback') ||
+    !transportPlaybackModelText.includes('onPlaybackEnd: playbackControls.handlePlaybackEnd') ||
+    !transportPlaybackModelText.includes('handlePlaybackPointerDown: playbackControls.handlePlaybackPointerDown') ||
+    !transportPlaybackModelText.includes('handleTogglePlayback: playbackControls.handleTogglePlayback') ||
+    !transportPlaybackModelText.includes('active: !args.disabled') ||
+    !transportPlaybackModelText.includes('unitsPerMs: args.playbackUnitsPerMs') ||
+    !transportPreviewSessionText.includes('useGanttTimelineTransportPreviewSession') ||
+    !transportPreviewSessionText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
+    !transportPreviewSessionText.includes('useTimelinePreviewMonitorBinding') ||
+    !transportPreviewSessionText.includes('sourceCount: videoSequenceModel?.sources.length || 0') ||
+    !transportPreviewSessionText.includes('spanCount: args.taskSpans.length') ||
+    !transportPreviewSessionText.includes('buildVideoSequenceExportPlan') ||
+    !transportPreviewSessionText.includes('resolveVideoSequenceExportPlanError') ||
+    !transportSessionText.includes('useGanttTimelineTransportSession') ||
+    !transportSessionText.includes('useTimelineDocumentStoreBinding') ||
+    !transportSessionText.includes('useTimelineGanttSelectionStoreBinding') ||
+    !transportSessionText.includes('useTimelineTransportStoreBinding') ||
+    !transportSessionText.includes('useTimelineDocumentTransportController') ||
+    !transportSessionText.includes('cleanTimelinePreviewDocumentKey') ||
+    !transportSessionText.includes('useGanttTimelineMediaDuration') ||
+    !transportSessionText.includes('useGanttTimelineDisplayModel') ||
+    !transportSessionText.includes('useGanttTimelineTransportPreviewSession') ||
+    !transportSessionText.includes('buildVideoSequenceTimelineToolStatus') ||
+    transportSessionText.includes('buildVideoSequenceExportPlan') ||
+    transportSessionText.includes('resolveVideoSequenceExportPlanError') ||
+    transportSessionText.includes('useTimelinePreviewMonitorBinding') ||
+    transportSessionText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
+    !transportSessionText.includes('resolveVisibleVideoSequenceTimelineLaneCount') ||
+    !previewActivitySurfaceModelText.includes('useTimelinePreviewActivitySurfaceModel') ||
+    !previewActivitySurfaceModelText.includes("args.activityMode === 'selection' || args.activityMode === 'playhead'") ||
+    !previewActivitySurfaceModelText.includes("return 'active'") ||
+    !previewFamilyCompactionModelText.includes('useTimelinePreviewFamilyCompactionModel') ||
+    !previewFamilyCompactionModelText.includes("if (args.intent !== 'media') return false") ||
+    !previewFamilyCompactionModelText.includes('collapsedFamilyCount') ||
+    !previewFamilyDisclosureControllerText.includes('useTimelinePreviewFamilyDisclosureController') ||
+    !previewFamilyDisclosureControllerText.includes('React.useSyncExternalStore') ||
+    !previewFamilyDisclosureControllerText.includes('React.useEffect') ||
+    !previewFamilyDisclosureControllerText.includes('EMPTY_TIMELINE_PREVIEW_FAMILY_DISCLOSURE_SET') ||
+    !previewFamilyDisclosureControllerText.includes('areTimelinePreviewFamilyDisclosureSetsEqual') ||
+    !previewFamilyDisclosureControllerText.includes('autoExpandFamilyId?: string | null') ||
+    !previewFamilyDisclosureControllerText.includes('familyIds: readonly string[]') ||
+    !previewFamilyDisclosureControllerText.includes('if (autoExpandFamilyId && familyIdSet.has(autoExpandFamilyId))') ||
+    !previewFamilyDisclosureModelText.includes('useTimelinePreviewFamilyDisclosureModel') ||
+    !previewFamilyDisclosureModelText.includes('controller: TimelinePreviewFamilyDisclosureController') ||
+    !previewFamilyDisclosureModelText.includes('toggleFamily') ||
+    !previewFamilyDisclosureModelText.includes("return args.expanded ? 'expanded' : 'collapsed'") ||
+    previewFamilyDisclosureModelText.includes('React.useState') ||
+    !previewFamilyDisclosureSurfaceModelText.includes('useTimelinePreviewFamilyDisclosureSurfaceModel') ||
+    !previewFamilyDisclosureSurfaceModelText.includes('headerVisible: toggleVisible') ||
+    !previewFamilyDisclosureSurfaceModelText.includes('Hide variants') ||
+    !previewFamilyDisclosureSurfaceModelText.includes('hidden variant') ||
+    !previewFamilySectionLayoutModelText.includes('useTimelinePreviewFamilySectionLayoutModel') ||
+    !previewFamilySectionLayoutModelText.includes('Rich media canvas sources') ||
+    !previewFamilySectionLayoutModelText.includes('No rich media sources found in the active document.') ||
+    !previewFamilySectionLayoutModelText.includes('sectionAttributes') ||
+    !previewFamilySectionChromeModelText.includes('useTimelinePreviewFamilySectionChromeModel') ||
+    !previewFamilySectionChromeModelText.includes('handleToggle: () => args.familyDisclosure.toggleFamily') ||
+    !previewFamilySectionChromeModelText.includes("icon: sectionLayout.familySurface.toggleMode === 'collapse' ? 'collapse' : 'expand'") ||
+    !previewFamilySectionChromeModelText.includes('dataValue: sectionLayout.familySummaryVisible ? sectionLayout.familySummaryLabel : undefined') ||
+    !previewFamilySectionBodyModelText.includes('useTimelinePreviewFamilySectionBodyModel') ||
+    !previewFamilySectionBodyModelText.includes('cardsLabel: sectionLayout.cardsLabel') ||
+    !previewFamilySectionBodyModelText.includes('props: {') ||
+    !previewFamilySectionBodyModelText.includes('documentKey: args.documentKey') ||
+    !previewFamilySectionBodyModelText.includes('exportPlan: args.exportPlan') ||
+    !previewFamilySectionBodyModelText.includes('sequenceMaxMinutes: args.sequenceMaxMinutes') ||
+    !previewFamilySectionsModelText.includes('useTimelinePreviewFamilySectionsModel') ||
+    !previewFamilySectionsModelText.includes('const bodySectionByFamilyId = new Map(') ||
+    !previewFamilySectionsModelText.includes('const sectionBody = bodySectionByFamilyId.get(sectionChrome.familyId)') ||
+    !previewFamilySectionsModelText.includes('cardsLabel: sectionBody.cardsLabel') ||
+    !previewFamilySectionsModelText.includes('surfaces: sectionBody.surfaces') ||
+    !previewMediaCanvasRenderModelText.includes('useTimelinePreviewMediaCanvasRenderModel') ||
+    !previewMediaCanvasRenderModelText.includes("contentMode: args.surfaceShell.hasItems ? 'sections' : 'empty'") ||
+    !previewMediaCanvasRenderModelText.includes('hostAttributes: {') ||
+    !previewMediaCanvasRenderModelText.includes('listLabel: args.familySections.listLabel') ||
+    !previewMediaCanvasRenderModelText.includes('shellLabel: args.surfaceShell.shellLabel') ||
+    !previewMediaCanvasFrameModelText.includes('useTimelinePreviewMediaCanvasFrameModel') ||
+    !previewMediaCanvasFrameModelText.includes('hostAttributes: args.renderModel.hostAttributes') ||
+    !previewMediaCanvasFrameModelText.includes('renderModel: args.renderModel') ||
+    !previewMediaCanvasFrameText.includes('TimelinePreviewMediaCanvasFrame') ||
+    !previewMediaCanvasFrameText.includes('data-kg-media-canvas-group-count') ||
+    !previewMediaCanvasFrameText.includes('<TimelinePreviewMediaCanvasRender model={args.model.renderModel} />') ||
+    !previewSurfaceShellModelText.includes('useTimelinePreviewSurfaceShellModel') ||
+    !previewSurfaceShellModelText.includes("shellLabel: 'Media canvas'") ||
+    !previewSurfaceShellModelText.includes("titleLabel: 'Media'") ||
+    !previewSurfaceShellModelText.includes('collapsedFamilyCount') ||
+    !previewSurfaceShellModelText.includes('groupCount: args.familySectionLayout.sections.length') ||
+    !previewMediaContextText.includes("autoExpandFamilyId: sourceActivity.activityMode === 'fallback'") ||
+    !previewMediaContextText.includes('familyIds: familyCompaction.families.map(family => family.familyId)') ||
+    !previewMediaContextText.includes('useTimelineSourceActivityModel') ||
+    !timelineSourceActivityModelText.includes('useTimelineSourceActivityModel') ||
+    !timelineSourceActivityModelText.includes('resolveTimelinePlanSegmentAtPosition') ||
+    !timelineSourceActivityModelText.includes('areVideoSequenceExportSourcesEqual') ||
+    !previewSurfaceModelText.includes('useTimelinePreviewSurfaceModel') ||
+    !previewSurfaceModelText.includes('resolveTimelinePreviewFamilyId') ||
+    !previewSurfaceModelText.includes('isTimelinePreviewItemVisibleForSurfaceIntent') ||
+    !mediaCanvasText.includes('<TimelinePreviewMediaCanvasFrame') ||
+    !mediaCanvasText.includes('model={mediaCanvasBinding.frameModel}') ||
+    !previewMediaCanvasRenderText.includes('TimelinePreviewMediaCanvasRender') ||
+    !previewMediaCanvasRenderText.includes('TimelinePreviewSurface') ||
+    !previewMediaCanvasRenderText.includes('aria-label={args.model.listLabel}') ||
+    !previewMediaCanvasRenderText.includes('aria-label={args.model.emptyState.label}') ||
+    !previewMediaCanvasRenderText.includes('{args.model.emptyState.message}') ||
+    !previewMediaCanvasRenderText.includes('data-kg-media-canvas-family-toggle="1"') ||
+    !previewMediaCanvasRenderText.includes('data-kg-media-canvas-family-surface-tone') ||
+    !previewMediaCanvasRenderText.includes('data-kg-media-canvas-family-toggle-mode') ||
+    !previewMediaCanvasRenderText.includes('data-kg-media-canvas-family-summary=') ||
+    !previewMediaCanvasRenderText.includes('data-kg-media-canvas-family-active-id') ||
+    !previewMediaCanvasRenderText.includes('title={section.toggle.title}') ||
+    !previewMediaCanvasRenderText.includes('onClick={section.toggle.handleToggle}') ||
+    !previewMediaCanvasRenderText.includes("section.toggle.icon === 'collapse'") ||
+    !previewMediaCanvasRenderText.includes('key={surface.renderKey}') ||
+    !previewMediaCanvasRenderText.includes('{...surface.props}') ||
+    mediaCanvasText.includes('useTimelinePreviewVideoBinding') ||
+    mediaCanvasText.includes('useTimelineVideoPreviewSyncController') ||
+    mediaCanvasText.includes('useTimelineDocumentTransportController') ||
+    mediaCanvasText.includes('useTimelineTransportSnapshotReader') ||
+    mediaCanvasText.includes('useTimelineTransportStoreBinding') ||
     mediaCanvasText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
     mediaCanvasText.includes('useGraphStore.getState()') ||
     mediaCanvasText.includes('markdownDocumentName: s.markdownDocumentName') ||
@@ -156,6 +484,26 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     mediaCanvasText.includes('timelineTransportPlaying') ||
     mediaCanvasText.includes('timelineTransportPlaybackRate') ||
     mediaCanvasText.includes('resolveTargetSeconds') ||
+    !previewSurfaceText.includes('TimelinePreviewSurface') ||
+    !previewSurfaceText.includes('buildStaticRichMediaPanelOverlayState') ||
+    !previewSurfaceText.includes('useTimelinePreviewVideoBinding') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-active') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-dimmed') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-family-collapsed') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-family-disclosure-state') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-family-expanded') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-family-hidden-count') ||
+    !previewSurfaceText.includes('data-kg-media-canvas-item-style-mode') ||
+    !previewSurfaceText.includes('data-kg-video-sequence-media-sync') ||
+    !previewSurfaceText.includes('videoControls={syncEnabled ? false : undefined}') ||
+    !previewSurfaceText.includes('onVideoElement={args.item.kind ===') ||
+    !previewVideoBindingText.includes('useTimelinePreviewVideoBinding') ||
+    !previewVideoBindingText.includes('useTimelineDocumentTransportController') ||
+    !previewVideoBindingText.includes('useTimelineTransportSnapshotReader') ||
+    !previewVideoBindingText.includes('useTimelineTransportStoreBinding') ||
+    !previewVideoBindingText.includes('useTimelineVideoPreviewSyncController') ||
+    !previewVideoBindingText.includes('handleVideoElement') ||
+    !previewVideoBindingText.includes('readVideo: () => videoElementRef.current') ||
     !playbackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
     !playbackControlsText.includes('handlePlaybackPointerDown') ||
     !playbackControlsText.includes('handleTogglePlayback') ||
@@ -185,13 +533,25 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   ) {
     throw new Error('expected video sequence timeline units to map Gantt geometry to playable media seconds')
   }
-  const scopes = buildVideoSequenceTimelineScopes({ maxMinutes: 6, positionMinutes: 3, sourceCount: 1, spanCount: 8 })
+  const scopes = buildVideoSequenceTimelineScopes({
+    activeFamilyId: 'video-sequence:opening',
+    activityMode: 'selection',
+    maxMinutes: 6,
+    positionMinutes: 3,
+    selectionActive: true,
+    sourceCount: 1,
+    spanCount: 8,
+  })
   if (
     scopes.length !== 6 ||
     scopes.some(scope => scope.samples.length !== 12 || scope.value < 0 || scope.value > 100) ||
     !scopes.some(scope => scope.id === 'luma-waveform') ||
     !scopes.some(scope => scope.id === 'chroma-vectorscope') ||
-    !scopes.some(scope => scope.id === 'audio-waveform')
+    !scopes.some(scope => scope.id === 'audio-waveform') ||
+    scopes[0]?.active !== true ||
+    scopes[0]?.activeFamilyId !== 'video-sequence:opening' ||
+    scopes[0]?.activityMode !== 'selection' ||
+    scopes[0]?.selectionActive !== true
   ) {
     throw new Error(`expected bounded luma/chroma/audio scope samples, got ${JSON.stringify(scopes)}`)
   }
@@ -401,11 +761,17 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     source: sequenceSource,
     sourceDurationSeconds: 15,
   })
+  const playheadSegment = resolveTimelinePlanSegmentAtPosition({
+    plan: exportPlan,
+    positionMinutes: 3,
+  })
   if (
     Math.abs((sourceTime?.sourceTimeSeconds || 0) - 7.5) > 0.0001 ||
-    Math.abs((sourcePosition || 0) - 3) > 0.0001
+    Math.abs((sourcePosition || 0) - 3) > 0.0001 ||
+    playheadSegment?.segment.label !== 'Opening shot splice' ||
+    playheadSegment.contains !== true
   ) {
-    throw new Error(`expected edited video sequence preview sync to resolve through source ranges, got ${JSON.stringify({ sourcePosition, sourceTime })}`)
+    throw new Error(`expected edited video sequence preview sync to resolve through source ranges, got ${JSON.stringify({ playheadSegment, sourcePosition, sourceTime })}`)
   }
   const movedSpliceOrderPlan = buildVideoSequenceExportPlan({
     code: [

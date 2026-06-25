@@ -30,6 +30,12 @@ export type TimelinePlanSourceTimeResolution = {
   sourceTimeSeconds: number
 }
 
+export type TimelinePlanSegmentResolution = {
+  contains: boolean
+  distance: number
+  segment: VideoSequenceExportSegment
+}
+
 export type TimelinePlanVideoMetadata = {
   durationSeconds: number
   url: string
@@ -308,6 +314,36 @@ export function resolveTimelinePlanSourceTimeAtPosition(args: {
   return {
     segment,
     sourceTimeSeconds: clamp(sourceRatio, 0, 1) * args.sourceDurationSeconds,
+  }
+}
+
+export function resolveTimelinePlanSegmentAtPosition(args: {
+  plan: VideoSequenceExportPlan | null
+  positionMinutes: number
+}): TimelinePlanSegmentResolution | null {
+  if (!args.plan?.segments.length) return null
+  const positionMinutes = Math.max(0, args.positionMinutes)
+  const candidates = args.plan.segments
+    .filter(segment => segment.durationMinutes > 0)
+    .map(segment => {
+      const boundedPosition = clamp(positionMinutes, segment.timelineStartMinutes, segment.timelineEndMinutes)
+      const distance = Math.abs(positionMinutes - boundedPosition)
+      const contains = distance < 0.0001
+      const exactStart = Math.abs(positionMinutes - segment.timelineStartMinutes) < 0.0001 ? 0 : 1
+      return { contains, distance, exactStart, segment }
+    })
+    .sort((a, b) =>
+      Number(b.contains) - Number(a.contains)
+      || a.distance - b.distance
+      || a.exactStart - b.exactStart
+      || a.segment.timelineStartMinutes - b.segment.timelineStartMinutes,
+    )
+  const candidate = candidates[0]
+  if (!candidate) return null
+  return {
+    contains: candidate.contains,
+    distance: candidate.distance,
+    segment: candidate.segment,
   }
 }
 

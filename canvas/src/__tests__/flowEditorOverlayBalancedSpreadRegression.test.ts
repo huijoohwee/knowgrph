@@ -428,9 +428,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
     throw new Error('expected Run all workflow output/loading writes to suppress duplicate graph-store writeback while the Flow Editor draft is authoritative')
   }
   if (!workflowWritebackText.includes('if (args.suppressStoreGraphWriteback === true) {')
-    || !workflowWritebackText.includes('if (updatedDraft) args.scheduleWorkflowOutputEdgeRefresh()')
     || !workflowWritebackText.includes('return\n  }\n\n  let updated = false')) {
     throw new Error('expected suppressed Run all writeback to return before any fallback graph-store node mutation')
+  }
+  if (!workflowText.includes('const scheduleRunOutputEdgeRefresh = suppressLayoutMutation ? () => void 0 : scheduleWorkflowOutputEdgeRefresh')) {
+    throw new Error('expected output-only Run all to suppress overlay edge recomputation while normal node runs keep edge refreshes')
+  }
+  if (!workflowText.includes('scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh')) {
+    throw new Error('expected workflow output, loading, and Rich Media Panel patches to use the run-scoped edge refresh gate')
   }
   if (!workflowText.includes('if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })')) {
     throw new Error('expected Rich Media Panel output mirrors to avoid graph-store writeback during output-only Run all')
@@ -440,6 +445,11 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (!workspaceTableSsotText.includes('if (args.workspaceGraphMutationLayoutLockActive === true) return true')) {
     throw new Error('expected shared graph mutation predicate to block layout writes for the whole Run all lifecycle')
+  }
+  if (!overlayEdgesText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")
+    || !overlayEdgesText.includes('if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {')
+    || !overlayEdgesText.includes("pushOverlayEdgeTrace('raf-skip-graph-mutation-lock'")) {
+    throw new Error('expected Flow Editor overlay edges to preserve existing edge DOM while Run all holds the shared graph mutation lock')
   }
   if (!workflowRunAllText.includes('setRunAllLayoutMutationLock(true)')) {
     throw new Error('expected Toolbar Run all to hold the layout mutation lock across async node execution')

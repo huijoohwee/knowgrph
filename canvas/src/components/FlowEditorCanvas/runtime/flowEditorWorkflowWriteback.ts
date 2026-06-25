@@ -54,7 +54,6 @@ export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {
   }
 
   if (args.suppressStoreGraphWriteback === true) {
-    if (updatedDraft) args.scheduleWorkflowOutputEdgeRefresh()
     return
   }
 

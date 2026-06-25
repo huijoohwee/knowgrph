@@ -335,6 +335,7 @@ export function CardMediaPreview({
   iframeEmbedMode,
   iframeScriptPolicy,
   mediaThumbnailDataAttr = false,
+  onVideoElement,
   onReady,
   onError,
 }: {
@@ -358,6 +359,7 @@ export function CardMediaPreview({
   iframeEmbedMode?: 'auto' | 'direct' | 'proxy'
   iframeScriptPolicy?: 'strip' | 'allow'
   mediaThumbnailDataAttr?: boolean
+  onVideoElement?: (element: HTMLVideoElement | null) => void
   onReady?: () => void
   onError?: () => void
 }) {
@@ -437,6 +439,7 @@ export function CardMediaPreview({
         playsInline
         preload="metadata"
         draggable={false}
+        ref={onVideoElement}
         onLoadedMetadata={() => onReady?.()}
         onLoadedData={() => onReady?.()}
         onCanPlay={() => onReady?.()}

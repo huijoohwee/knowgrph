@@ -1,11 +1,14 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { shouldAutoFitToScreen2d, shouldAutoZoomSelection2d } from '@/features/zoom/autoZoom2dPolicy'
 import type { GraphData } from '@/lib/graph/types'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { dispatchRuntimeFitIntentSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 
 export function useAutoZoomModes2d(args: {
   viewportW: number
@@ -60,6 +63,7 @@ export function useAutoZoomModes2d(args: {
         rafId = null
         if (pausedRef.current) return
         const state = useGraphStore.getState()
+        if (isWorkspaceGraphMutationBlocked(state)) return
         if (
           !shouldAutoFitToScreen2d({
             canvas2dRenderer: String(state.canvas2dRenderer || ''),
@@ -89,11 +93,15 @@ export function useAutoZoomModes2d(args: {
           }),
         }
         const schema = state.schema as GraphSchema | null
+        const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)
+          ? buildOverlayTopologyLayoutSignature(graphData)
+          : ''
         const sig = buildAutoFitToScreenSignature({
           nodeCount: nodes.length,
           viewportW: panelDims.width,
           viewportH: panelDims.height,
           graphDataRevision,
+          graphLayoutSignature,
           schema,
           mediaPanelDensity: state.mediaPanelDensity,
           renderMediaAsNodes: state.renderMediaAsNodes === true,
@@ -172,6 +180,7 @@ export function useAutoZoomModes2d(args: {
         rafId = null
         if (pausedRef.current) return
         const state = useGraphStore.getState()
+        if (isWorkspaceGraphMutationBlocked(state)) return
         if (
           !shouldAutoZoomSelection2d({
             canvas2dRenderer: String(state.canvas2dRenderer || ''),

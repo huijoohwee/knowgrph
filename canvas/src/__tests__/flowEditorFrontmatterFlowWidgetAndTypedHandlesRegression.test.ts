@@ -478,8 +478,8 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!text.includes('isTransientOffscreenRichMediaOverlayRoot(el, rect)')) {
     throw new Error('expected overlay edge renderer to reuse shared offscreen Rich Media bootstrap root filtering')
   }
-  if (!text.includes('shouldReplaceFlowEditorOverlayRectCandidate(selectedById.get(id), next)')) {
-    throw new Error('expected overlay edge renderer to choose one canonical visible root per node before endpoint geometry use')
+  if (!text.includes('collectCanonicalFlowEditorOverlayRectEntries(domOverlayRootEntries.map(entry => entry.el))')) {
+    throw new Error('expected overlay edge renderer to choose canonical visible roots through the shared overlay collector before endpoint geometry use')
   }
   if (!text.includes("scheduleTransientOverlayEdgeRetry(['offscreen-rich-media-bootstrap'")) {
     throw new Error('expected overlay edge renderer to retry instead of anchoring edges to offscreen Rich Media bootstrap roots')

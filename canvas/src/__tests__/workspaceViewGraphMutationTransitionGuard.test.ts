@@ -1,6 +1,8 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import type { GraphData } from '@/lib/graph/types'
 import {
   buildWorkspaceGraphMutationBlockKey,
   buildWorkspaceGraphMutationTransitionState,
@@ -143,6 +145,127 @@ export function testWorkspaceCloseTransitionBlocksLayoutCacheMutation() {
       workspaceGraphMutationBlockKey: previousBlockKey,
       layoutPositionCacheByMode: previousLayoutCache,
     } as never)
+  }
+}
+
+export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraphCommit() {
+  const previous = useGraphStore.getState()
+  const previousPatch = {
+    workspaceViewMode: previous.workspaceViewMode,
+    workspaceCanvasPaneOpen: previous.workspaceCanvasPaneOpen,
+    markdownWorkspaceIndexingInFlight: previous.markdownWorkspaceIndexingInFlight,
+    workspaceGraphMutationBlockUntilMs: previous.workspaceGraphMutationBlockUntilMs,
+    workspaceGraphMutationBlockKey: previous.workspaceGraphMutationBlockKey,
+    workspaceGraphMutationLayoutLockActive: previous.workspaceGraphMutationLayoutLockActive,
+    canvas2dRenderer: previous.canvas2dRenderer,
+    graphData: previous.graphData,
+    graphDataRevision: previous.graphDataRevision,
+    graphContentRevision: previous.graphContentRevision,
+    docLocationRevision: previous.docLocationRevision,
+    flowWidgetPinnedByNodeId: previous.flowWidgetPinnedByNodeId,
+    flowWidgetPinnedByNodeIdByGraphMetaKey: previous.flowWidgetPinnedByNodeIdByGraphMetaKey,
+    flowWidgetPosByNodeId: previous.flowWidgetPosByNodeId,
+    flowWidgetPosByNodeIdByGraphMetaKey: previous.flowWidgetPosByNodeIdByGraphMetaKey,
+    flowWidgetWorldPosByNodeId: previous.flowWidgetWorldPosByNodeId,
+    flowWidgetWorldPosByNodeIdByGraphMetaKey: previous.flowWidgetWorldPosByNodeIdByGraphMetaKey,
+  }
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'widgetA', label: 'Widget A', type: 'rich_media_panel', properties: { output: 'before' } },
+      { id: 'widgetB', label: 'Widget B', type: 'ComputeWidget', properties: { output: 'before' } },
+    ],
+    edges: [{ id: 'edgeA', source: 'widgetB', target: 'widgetA' }],
+    metadata: { kind: 'frontmatter-flow', source: 'run-all-layout-lock' },
+  } as never
+  const outputGraph: GraphData = {
+    ...baseGraph,
+    nodes: [
+      { id: 'widgetA', label: 'Widget A', type: 'rich_media_panel', properties: { output: 'after' } },
+      { id: 'widgetB', label: 'Widget B', type: 'ComputeWidget', properties: { output: 'after' } },
+    ],
+    metadata: { kind: 'frontmatter-flow', source: 'run-all-layout-lock', runOutputRevision: 'after' },
+  } as never
+  const outputGraphKey = buildGraphMetaKeyIgnoringPending(outputGraph)
+  const preservedScreen = { widgetA: { top: 10, left: 20 }, widgetB: { top: 210, left: 320 } }
+  const preservedWorld = { widgetA: { x: 100, y: 200 }, widgetB: { x: 300, y: 400 } }
+  const staleReplayScreen = { widgetA: { top: 900, left: 920 }, widgetB: { top: 930, left: 940 } }
+  const staleReplayWorld = { widgetA: { x: 900, y: 920 }, widgetB: { x: 930, y: 940 } }
+
+  try {
+    useGraphStore.setState({
+      workspaceViewMode: 'canvas',
+      workspaceCanvasPaneOpen: false,
+      markdownWorkspaceIndexingInFlight: false,
+      workspaceGraphMutationBlockUntilMs: 0,
+      workspaceGraphMutationBlockKey: '',
+      workspaceGraphMutationLayoutLockActive: true,
+      canvas2dRenderer: 'flowEditor',
+      graphData: baseGraph,
+      flowWidgetPinnedByNodeId: { widgetA: true, widgetB: false },
+      flowWidgetPinnedByNodeIdByGraphMetaKey: {
+        [outputGraphKey]: { widgetA: false, widgetB: false },
+      },
+      flowWidgetPosByNodeId: preservedScreen,
+      flowWidgetPosByNodeIdByGraphMetaKey: {
+        [outputGraphKey]: staleReplayScreen,
+      },
+      flowWidgetWorldPosByNodeId: preservedWorld,
+      flowWidgetWorldPosByNodeIdByGraphMetaKey: {
+        [outputGraphKey]: staleReplayWorld,
+      },
+    } as never)
+
+    useGraphStore.getState().setGraphData(outputGraph)
+    const after = useGraphStore.getState()
+    const committedOutput = String(after.graphData?.nodes?.[0]?.properties?.output || '')
+    if (committedOutput !== 'after') {
+      throw new Error(`expected Run all output graph commit to continue while layout lock is active, got ${committedOutput}`)
+    }
+    if (after.flowWidgetPinnedByNodeId.widgetA !== true) {
+      throw new Error('expected Run all layout lock to preserve Flow Editor widget pin state during graph commit')
+    }
+    if (after.flowWidgetPosByNodeId.widgetA?.top !== 10 || after.flowWidgetPosByNodeId.widgetA?.left !== 20) {
+      throw new Error('expected Run all layout lock to block graph-commit replay of Flow Editor screen positions')
+    }
+    if (after.flowWidgetWorldPosByNodeId.widgetB?.x !== 300 || after.flowWidgetWorldPosByNodeId.widgetB?.y !== 400) {
+      throw new Error('expected Run all layout lock to block graph-commit replay of Flow Editor world positions')
+    }
+  } finally {
+    useGraphStore.setState(previousPatch as never)
+  }
+}
+
+export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases() {
+  const autoZoomPath = resolve(process.cwd(), 'src', 'features', 'zoom', 'useAutoZoomModes2d.ts')
+  const autoZoomText = readFileSync(autoZoomPath, 'utf8')
+  if (!autoZoomText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected auto-zoom scheduler to import the shared workspace graph mutation guard')
+  }
+  if (!autoZoomText.includes('if (isWorkspaceGraphMutationBlocked(state)) return')) {
+    throw new Error('expected auto-fit and selection zoom dispatch to stop while Run all holds the shared graph mutation guard')
+  }
+  if (!autoZoomText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'")) {
+    throw new Error('expected Flow Editor auto-fit signatures to reuse the shared topology/layout signature')
+  }
+  if (!autoZoomText.includes('const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)')) {
+    throw new Error('expected Flow Editor auto-fit to ignore output-only graph revisions and key by semantic layout topology')
+  }
+  const signaturePath = resolve(process.cwd(), 'src', 'lib', 'zoom', 'autoModeSignatures.ts')
+  const signatureText = readFileSync(signaturePath, 'utf8')
+  if (!signatureText.includes('graphLayoutSignature?: string | null')) {
+    throw new Error('expected shared auto-fit signatures to accept a semantic graph layout signature')
+  }
+  if (!signatureText.includes('graphLayoutSignature || graphDataRevision')) {
+    throw new Error('expected shared auto-fit signatures to prefer semantic layout signatures over raw graph revisions')
+  }
+  const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
+  if (!runtimeSceneText.includes("reason: 'workspace-blocked-using-last-usable-transform'")) {
+    throw new Error('expected Flow Editor runtime widgets to keep the last usable zoom transform while Run all blocks graph mutation')
+  }
+  if (!runtimeSceneText.includes("reason: 'workspace-blocked-rejecting-live-runtime-transform'")) {
+    throw new Error('expected Flow Editor runtime widgets to reject transient live zoom transforms while Run all blocks graph mutation')
   }
 }
 

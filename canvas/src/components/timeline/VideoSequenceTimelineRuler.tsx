@@ -292,7 +292,17 @@ export function VideoSequenceTimelineRuler({
         {scopes.length ? (
           <section className="timeline-video-sequence-ruler-scope-strip" aria-label="Video sequence scopes" data-kg-video-sequence-ruler-scopes="1">
             {scopes.map(scope => (
-              <section key={scope.id} className="timeline-video-sequence-ruler-scope" aria-label={`${scope.label} display`} title={scope.label} data-kg-video-sequence-scope={scope.id}>
+              <section
+                key={scope.id}
+                className="timeline-video-sequence-ruler-scope"
+                aria-label={`${scope.label} display`}
+                title={scope.label}
+                data-kg-video-sequence-scope={scope.id}
+                data-kg-video-sequence-scope-active={scope.active ? '1' : undefined}
+                data-kg-video-sequence-scope-active-family={scope.activeFamilyId || undefined}
+                data-kg-video-sequence-scope-activity-mode={scope.activityMode}
+                data-kg-video-sequence-scope-selection-active={scope.selectionActive ? '1' : undefined}
+              >
                 <span className="sr-only">{scope.label}</span>
                 <section className="timeline-video-sequence-ruler-scope-bars" aria-label={`${scope.label} display`}>
                   {scope.samples.map((sample, sampleIndex) => (

@@ -3,14 +3,19 @@ import type { VideoSequenceTimelineSource } from './videoSequenceTimeline'
 
 type RegisteredVideoSequenceSourceFile = {
   file: File
+  fileSignature: string
   objectUrl: string
   originalName: string
   relativePath: string
   mimeHint: string
   byteSize: number
+  lastModifiedMs: number
   registeredAtMs: number
 }
 
+const OBJECT_URL_REVOKE_DELAY_MS = 2000
+const pendingObjectUrlRevokes = new Map<string, number>()
+const registryBySignature = new Map<string, RegisteredVideoSequenceSourceFile>()
 const registry = new Map<string, RegisteredVideoSequenceSourceFile>()
 
 const clean = (value: unknown): string => String(value || '').trim()
@@ -25,6 +30,21 @@ const readFileRelativePath = (file: File): string => {
 const readByteSize = (value: unknown): number => {
   const size = Number(value)
   return Number.isFinite(size) && size >= 0 ? Math.floor(size) : 0
+}
+
+const readLastModifiedMs = (file: File): number => {
+  const value = Number(file.lastModified)
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0
+}
+
+const buildVideoSequenceSourceFileSignature = (file: File): string => {
+  return [
+    cleanKeyPart(readFileRelativePath(file)),
+    cleanKeyPart(file.name),
+    readByteSize(file.size),
+    cleanKeyPart(file.type),
+    readLastModifiedMs(file),
+  ].join('|')
 }
 
 const createObjectUrl = (file: File): string => {
@@ -43,6 +63,26 @@ const revokeObjectUrl = (value: string): void => {
   } catch {
     void 0
   }
+}
+
+const clearPendingObjectUrlRevoke = (value: string): void => {
+  const timerId = pendingObjectUrlRevokes.get(value)
+  if (typeof timerId !== 'number') return
+  pendingObjectUrlRevokes.delete(value)
+  if (typeof clearTimeout === 'function') clearTimeout(timerId)
+}
+
+const scheduleObjectUrlRevoke = (value: string): void => {
+  if (!value || !value.startsWith('blob:') || typeof setTimeout !== 'function') {
+    revokeObjectUrl(value)
+    return
+  }
+  clearPendingObjectUrlRevoke(value)
+  const timerId = setTimeout(() => {
+    pendingObjectUrlRevokes.delete(value)
+    revokeObjectUrl(value)
+  }, OBJECT_URL_REVOKE_DELAY_MS)
+  pendingObjectUrlRevokes.set(value, timerId)
 }
 
 export function buildVideoSequenceSourceRegistryKeys(source: Pick<VideoSequenceTimelineSource, 'originalName' | 'relativePath' | 'mimeHint' | 'byteSize'>): string[] {
@@ -67,16 +107,20 @@ export function buildVideoSequenceSourceRegistryKeys(source: Pick<VideoSequenceT
 export function registerVideoSequenceSourceFiles(files: readonly File[]): void {
   for (const file of Array.from(files || [])) {
     if (inferCorpusMediaKind(file.name, file.type) !== 'video') continue
-    const objectUrl = createObjectUrl(file)
+    const fileSignature = buildVideoSequenceSourceFileSignature(file)
+    const existing = registryBySignature.get(fileSignature) || null
+    const objectUrl = existing?.objectUrl || createObjectUrl(file)
     if (!objectUrl) continue
     const relativePath = readFileRelativePath(file)
     const registered: RegisteredVideoSequenceSourceFile = {
-      file,
+      file: existing?.file || file,
+      fileSignature,
       objectUrl,
       originalName: clean(file.name),
       relativePath,
       mimeHint: clean(file.type),
       byteSize: readByteSize(file.size),
+      lastModifiedMs: readLastModifiedMs(file),
       registeredAtMs: Date.now(),
     }
     const keys = buildVideoSequenceSourceRegistryKeys({
@@ -85,11 +129,13 @@ export function registerVideoSequenceSourceFiles(files: readonly File[]): void {
       mimeHint: registered.mimeHint,
       byteSize: registered.byteSize,
     })
+    clearPendingObjectUrlRevoke(objectUrl)
+    registryBySignature.set(fileSignature, registered)
     const revoked = new Set<string>()
     for (const key of keys) {
       const previous = registry.get(key)
       if (previous?.objectUrl && previous.objectUrl !== objectUrl && !revoked.has(previous.objectUrl)) {
-        revokeObjectUrl(previous.objectUrl)
+        scheduleObjectUrlRevoke(previous.objectUrl)
         revoked.add(previous.objectUrl)
       }
       registry.set(key, registered)

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { VideoSequenceClipEditAction } from '@/components/timeline/VideoSequenceClipEditPanel'
 import {
+  buildVideoSequenceExportSessionCollection,
   createVideoSequenceExportSessionRecord,
   downloadVideoSequenceExport,
   reduceVideoSequenceExportSessionRecord,
@@ -338,16 +339,24 @@ export function useGanttTimelineDocumentActions(args: {
     return true
   }, [args.exportPlan, exportingKind, startEditedMediaExport, upsertUiToast])
 
-  const latestRetryableExportSession = React.useMemo(() => {
-    const [latestSession] = recentExportSessions
-    return resolveVideoSequenceExportRetryRequest({
+  const exportSessionCollection = React.useMemo(() => {
+    return buildVideoSequenceExportSessionCollection({
       exportingKind,
       plan: args.exportPlan,
-      session: latestSession || null,
-    }).request
-      ? latestSession || null
-      : null
+      sessions: recentExportSessions,
+    })
   }, [args.exportPlan, exportingKind, recentExportSessions])
+
+  const handleRetryEditedMediaExportRunId = React.useCallback(async (runId: string) => {
+    const session = exportSessionCollection.groups
+      .flatMap(group => group.sessions)
+      .find(candidate => candidate.runId === runId) || null
+    return handleRetryEditedMediaExport(session)
+  }, [exportSessionCollection.groups, handleRetryEditedMediaExport])
+
+  const latestRetryableExportSession = React.useMemo(() => {
+    return exportSessionCollection.latestRetryableSession
+  }, [exportSessionCollection.latestRetryableSession])
 
   const handleCommittedDragUpdate = React.useCallback((input: {
     dragState: GanttTimelineTransportDragState
@@ -376,9 +385,11 @@ export function useGanttTimelineDocumentActions(args: {
   return {
     cancelEditedMediaExport,
     exportingKind,
+    exportSessionCollection,
     handleCommittedDragUpdate,
     handleDownloadEditedMedia,
     handleRetryEditedMediaExport,
+    handleRetryEditedMediaExportRunId,
     handleVideoSequenceClipEdit,
     handleVideoSequenceTool,
     latestRetryableExportSession,

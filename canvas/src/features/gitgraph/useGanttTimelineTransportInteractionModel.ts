@@ -1,0 +1,84 @@
+import React from 'react'
+import { useGanttTimelineInteractions, type GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
+import { useGanttTimelineSelectionSync } from './useGanttTimelineSelectionSync'
+import { useGanttTimelineTransportView } from './useGanttTimelineTransportView'
+import {
+  resolveMermaidGanttTimelineRowKeyAtPosition,
+  type MermaidGanttTimelineModel,
+} from '@/lib/mermaid/mermaidGanttBarInteraction'
+
+export type GanttTimelineTransportInteractionModel = {
+  canFitTimeline: boolean
+  canZoomIn: boolean
+  canZoomOut: boolean
+  centerTimelinePlayhead: () => void
+  dragPreview: ReturnType<typeof useGanttTimelineInteractions>['dragPreview']
+  draggingRowKey: string
+  handleFitTimeline: () => void
+  handlePositionChange: (value: number) => void
+  handleRulerPointerScrub: ReturnType<typeof useGanttTimelineInteractions>['handleRulerPointerScrub']
+  handleTrackPointerStart: ReturnType<typeof useGanttTimelineInteractions>['handleTrackPointerStart']
+  handleZoomIn: () => void
+  handleZoomOut: () => void
+  playheadPercent: number
+  timelineZoom: number
+}
+
+export function useGanttTimelineTransportInteractionModel(args: {
+  markdownDocumentName: string
+  markdownText: string
+  maxMinutes: number
+  playing: boolean
+  positionMinutes: number
+  rulerContentRef: React.RefObject<HTMLElement | null>
+  selectedRowKey: string
+  setSelectedRowKey: (rowKey: string) => void
+  setTransportPlaybackPosition: (position: number) => void
+  setTransportPlaying: (playing: boolean) => void
+  timelineModel: MermaidGanttTimelineModel
+  onCommitDrag: (args: {
+    dragState: GanttTimelineTransportDragState
+    effectiveDeltaMinutes: number
+  }) => void
+}): GanttTimelineTransportInteractionModel {
+  const interactions = useGanttTimelineInteractions({
+    markdownDocumentName: args.markdownDocumentName,
+    markdownText: args.markdownText,
+    maxMinutes: args.maxMinutes,
+    resolveRowKeyAtPosition: position => resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position),
+    selectedRowKey: args.selectedRowKey,
+    setSelectedRowKey: args.setSelectedRowKey,
+    setTransportPlaybackPosition: args.setTransportPlaybackPosition,
+    setTransportPlaying: args.setTransportPlaying,
+    onCommitDrag: args.onCommitDrag,
+  })
+  const transportView = useGanttTimelineTransportView({
+    maxMinutes: args.maxMinutes,
+    positionMinutes: args.positionMinutes,
+    rulerContentRef: args.rulerContentRef,
+  })
+
+  useGanttTimelineSelectionSync({
+    playing: args.playing,
+    selectedRowKey: args.selectedRowKey,
+    setTransportPlaybackPosition: args.setTransportPlaybackPosition,
+    taskSpans: args.timelineModel.taskSpans,
+  })
+
+  return {
+    canFitTimeline: transportView.canFitTimeline,
+    canZoomIn: transportView.canZoomIn,
+    canZoomOut: transportView.canZoomOut,
+    centerTimelinePlayhead: transportView.centerTimelinePlayhead,
+    dragPreview: interactions.dragPreview,
+    draggingRowKey: interactions.draggingRowKey,
+    handleFitTimeline: transportView.handleFitTimeline,
+    handlePositionChange: interactions.handlePositionChange,
+    handleRulerPointerScrub: interactions.handleRulerPointerScrub,
+    handleTrackPointerStart: interactions.handleTrackPointerStart,
+    handleZoomIn: transportView.handleZoomIn,
+    handleZoomOut: transportView.handleZoomOut,
+    playheadPercent: transportView.playheadPercent,
+    timelineZoom: transportView.timelineZoom,
+  }
+}

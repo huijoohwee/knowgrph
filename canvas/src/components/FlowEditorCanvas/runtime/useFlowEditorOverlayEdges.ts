@@ -13,10 +13,10 @@ import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   FLOW_EDITOR_INTERACTION_FRAME_EVENT,
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
+  collectCanonicalFlowEditorOverlayRectEntries,
   isTransientOffscreenRichMediaOverlayRoot,
   readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
-  shouldReplaceFlowEditorOverlayRectCandidate,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -37,7 +37,7 @@ import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndp
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   type FlowEditorQeTraceWindow,
   isFlowEditorQeTraceEnabled,
@@ -462,6 +462,12 @@ export function useFlowEditorOverlayEdges(args: {
       })
       return
     }
+    if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {
+      pushOverlayEdgeTrace('schedule-skip-graph-mutation-lock', {
+        existingPathCount: overlayEdgePathByIdRef.current.size,
+      })
+      return
+    }
     if (!args.overlayEdgesEnabledRef.current) {
       pushOverlayEdgeTrace('schedule-skip-disabled', {
         workspaceOverlayOpen: workspaceOverlayOpenRef.current ? 1 : 0,
@@ -471,6 +477,12 @@ export function useFlowEditorOverlayEdges(args: {
     if (overlayEdgeRafRef.current != null) return
     overlayEdgeRafRef.current = requestAnimationFrame(() => {
       overlayEdgeRafRef.current = null
+      if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {
+        pushOverlayEdgeTrace('raf-skip-graph-mutation-lock', {
+          existingPathCount: overlayEdgePathByIdRef.current.size,
+        })
+        return
+      }
       const workspaceOverlayOpen = workspaceOverlayOpenRef.current
       const root = args.rootRef.current
       if (!root) {
@@ -761,7 +773,6 @@ export function useFlowEditorOverlayEdges(args: {
 
       const transientOffscreenOverlayIds: string[] = []
       const overlayRectsByNodeId = (() => {
-        const selectedById = new Map<string, { el: HTMLElement; rect: DOMRect }>()
         for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
           const entry = domOverlayRootEntries[i]
           const el = entry?.el
@@ -770,14 +781,15 @@ export function useFlowEditorOverlayEdges(args: {
           const rect = el.getBoundingClientRect()
           if (isTransientOffscreenRichMediaOverlayRoot(el, rect)) {
             transientOffscreenOverlayIds.push(id)
-            continue
           }
-          const next = { el, rect }
-          if (shouldReplaceFlowEditorOverlayRectCandidate(selectedById.get(id), next)) selectedById.set(id, next)
         }
         const map = new Map<string, DOMRect>()
         const elById = new Map<string, HTMLElement>()
-        for (const [id, entry] of selectedById) {
+        const canonicalEntries = collectCanonicalFlowEditorOverlayRectEntries(domOverlayRootEntries.map(entry => entry.el))
+        for (let i = 0; i < canonicalEntries.length; i += 1) {
+          const entry = canonicalEntries[i]
+          const id = readCanonicalFlowEditorOverlayIdentity(entry.id)
+          if (!id || !nodeIds.has(id)) continue
           map.set(id, entry.rect)
           elById.set(id, entry.el)
         }

@@ -28,6 +28,7 @@ import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import { resetComposedPositionWrites } from './graphDataComposedSource'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 function readCanonicalGraphIdentity(raw: unknown): string {
   const id = String(raw || '').trim()
@@ -249,6 +250,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       stableSameSourceTopology
     const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}
     const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
+    const workspaceGraphMutationBlocked = isWorkspaceGraphMutationBlocked(get())
     const carryForwardBalancedFloatingCollectiveState =
       stableSameSourceTopology &&
       !!currentSourceIdentity &&
@@ -368,12 +370,12 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         ...(collapsedKey ? { designFramePosByIdByGraphMetaKey: nextDesignFramePosByKey } : {}),
         ...(collapsedKey ? { designFrameSizeById: nextDesignFrameSize } : {}),
         ...(collapsedKey ? { designFrameSizeByIdByGraphMetaKey: nextDesignFrameSizeByKey } : {}),
-        ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
-        ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
-        ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
-        ...(collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
-        ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
-        ...(collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
       }
     })
     const stateNow = get()
@@ -500,6 +502,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       stableSameSourceTopology
     const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}
     const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
+    const workspaceGraphMutationBlocked = isWorkspaceGraphMutationBlocked(get())
     const carryForwardBalancedFloatingCollectiveState =
       stableSameSourceTopology &&
       !!currentSourceIdentity &&
@@ -614,12 +617,12 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         ...(collapsedKey ? { designFramePosByIdByGraphMetaKey: nextDesignFramePosByKey } : {}),
         ...(collapsedKey ? { designFrameSizeById: nextDesignFrameSize } : {}),
         ...(collapsedKey ? { designFrameSizeByIdByGraphMetaKey: nextDesignFrameSizeByKey } : {}),
-        ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
-        ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
-        ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
-        ...(collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
-        ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
-        ...(collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
+        ...(!workspaceGraphMutationBlocked && collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
       }
     })
     const stateNow = get()

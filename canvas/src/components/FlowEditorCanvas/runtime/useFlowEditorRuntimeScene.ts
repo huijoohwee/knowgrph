@@ -363,6 +363,30 @@ export function useFlowEditorRuntimeScene(args: {
       })
       return null
     }
+    if (workspaceMutationBlocked && lastUsableZoomTransformRef.current) {
+      pushFlowEditorRuntimeSceneTrace({
+        reason: 'workspace-blocked-using-last-usable-transform',
+        sceneNodeCount,
+        positionsReady,
+        workspaceMutationBlocked,
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        transform: lastUsableZoomTransformRef.current,
+      })
+      return lastUsableZoomTransformRef.current
+    }
+    if (workspaceMutationBlocked) {
+      pushFlowEditorRuntimeSceneTrace({
+        reason: 'workspace-blocked-rejecting-live-runtime-transform',
+        sceneNodeCount,
+        positionsReady,
+        workspaceMutationBlocked,
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        transform: liveRuntimeTransform,
+      })
+      return null
+    }
     const next = liveRuntimeTransform
     lastUsableZoomTransformRef.current = next
     pushFlowEditorRuntimeSceneTrace({

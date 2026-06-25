@@ -314,6 +314,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.workspaceView.update.collectiveLayout.initIndexingToggleNoMutation","@/__tests__/workspaceViewCollectiveLayoutRefreshRegression.test","testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutateBalancedLayoutContracts"],
   ["ui.workspaceView.update.d3SceneBuildKey.ignoresWorkspaceGestureToggles","@/__tests__/workspaceViewCollectiveLayoutRefreshRegression.test","testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles"],
   ["ui.workspaceView.graphMutation.rendererSwitchBlocksFlowEditorWidgets","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation"],
+  ["ui.workspaceView.graphMutation.runAllCommitPreservesFlowEditorWidgets","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraphCommit"],
+  ["ui.workspaceView.graphMutation.runAllSuppressesAutoZoom","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases"],
   ["ui.workspaceView.graphMutation.flowEditorBypassesGuarded","@/__tests__/workspaceViewGraphMutationTransitionGuard.test","testFlowEditorOverlayPositionBypassesHonorWorkspaceMutationGuard"],
   ["ui.flowEditor.zoom.fit.normalizesSurfaceOffset","@/__tests__/workspaceViewCollectiveLayoutRefreshRegression.test","testFlowEditorOverlayFitNormalizesSurfaceWindowOffset"],
   ["layout.collectiveFit.centroidBalanced16x9","@/__tests__/collectiveFitBalancedCentroidRegression.test","testCollectiveFitCentersDisconnectedComponentsOnBalancedViewportCentroid"],

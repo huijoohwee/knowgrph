@@ -21,9 +21,13 @@ export type VideoSequenceTimelineLane = {
 }
 
 export type VideoSequenceTimelineScope = {
+  active: boolean
+  activeFamilyId: string
+  activityMode: string
   id: VideoSequenceTimelineScopeId
   label: string
   samples: number[]
+  selectionActive: boolean
   value: number
 }
 
@@ -243,22 +247,37 @@ export function resolveVideoSequenceTimelineUnitsPerMs(args: {
 }
 
 export function buildVideoSequenceTimelineScopes(args: {
+  activeFamilyId?: string
+  activityMode?: string
   maxMinutes: number
   positionMinutes: number
+  selectionActive?: boolean
   sourceCount: number
   spanCount: number
 }): VideoSequenceTimelineScope[] {
   const maxMinutes = Math.max(0, Number.isFinite(args.maxMinutes) ? args.maxMinutes : 0)
   const progress = maxMinutes > 0 ? clampTimelineTransportValue(args.positionMinutes, 0, maxMinutes) / maxMinutes : 0
   const density = Math.max(1, args.sourceCount + args.spanCount)
+  const activityKey = String(args.activeFamilyId || '').trim()
+  const activitySeed = Array.from(activityKey).reduce((total, char, index) => total + char.charCodeAt(0) * (index + 5), density * 19)
+  const activityMode = String(args.activityMode || 'fallback').trim() || 'fallback'
+  const selectionActive = !!args.selectionActive
   return VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS.map((scope, scopeIndex) => {
     const samples = Array.from({ length: 12 }, (_, sampleIndex) => {
-      const phase = (sampleIndex + 1) * (scopeIndex + 2) * 0.37 + progress * Math.PI * 2
-      const shaped = Math.sin(phase) * 0.34 + Math.cos(phase / Math.max(1, density)) * 0.18 + 0.5
+      const phase = (sampleIndex + 1) * (scopeIndex + 2) * 0.37 + progress * Math.PI * 2 + activitySeed * 0.0009
+      const shaped = Math.sin(phase) * 0.34 + Math.cos(phase / Math.max(1, density)) * 0.18 + (selectionActive ? 0.56 : 0.5)
       return Math.round(clampTimelineTransportValue(shaped, 0.06, 0.96) * 100)
     })
     const value = Math.round(samples.reduce((total, sample) => total + sample, 0) / samples.length)
-    return { ...scope, samples, value }
+    return {
+      ...scope,
+      active: scopeIndex === 0 && activityKey.length > 0,
+      activeFamilyId: activityKey,
+      activityMode,
+      samples,
+      selectionActive,
+      value,
+    }
   })
 }
 

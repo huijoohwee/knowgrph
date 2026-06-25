@@ -7,7 +7,8 @@ const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, ' '
 
 export function testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMediaRemounts() {
   const timelinePlanSyncText = readUtf8('src/components/timeline/timelinePlanSync.ts')
-  const mediaCanvasText = readUtf8('src/components/MediaCanvas.tsx')
+  const previewMediaSessionText = readUtf8('src/components/timeline/useTimelinePreviewMediaSession.ts')
+  const sourceRegistryText = readUtf8('src/components/timeline/videoSequenceSourceRegistry.ts')
   const normalizedTimelinePlanSyncText = normalizeWhitespace(timelinePlanSyncText)
   const failureOnlyCleanupSnippet = normalizeWhitespace(`
     if (!durationSeconds) {
@@ -23,10 +24,22 @@ export function testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMedia
   }
 
   if (
-    !mediaCanvasText.includes('key: `video-sequence:${src}`') ||
-    mediaCanvasText.includes('key: `video-sequence:${clean(source.id) || `${label}:${index}`}`')
+    !previewMediaSessionText.includes('key: `video-sequence:${src}`') ||
+    previewMediaSessionText.includes('key: `video-sequence:${clean(source.id) || `${label}:${index}`}`')
   ) {
-    throw new Error('expected Media Canvas video-sequence items to key by resolved source URL so repeated local imports do not remount the same media element')
+    throw new Error('expected preview-session video-sequence items to key by resolved source URL so repeated local imports do not remount the same media element')
+  }
+
+  if (
+    !sourceRegistryText.includes('const registryBySignature = new Map<string, RegisteredVideoSequenceSourceFile>()') ||
+    !sourceRegistryText.includes('buildVideoSequenceSourceFileSignature(file)') ||
+    !sourceRegistryText.includes('const existing = registryBySignature.get(fileSignature) || null') ||
+    !sourceRegistryText.includes('const objectUrl = existing?.objectUrl || createObjectUrl(file)') ||
+    !sourceRegistryText.includes('OBJECT_URL_REVOKE_DELAY_MS = 2000') ||
+    !sourceRegistryText.includes('scheduleObjectUrlRevoke(previous.objectUrl)') ||
+    sourceRegistryText.includes('revokeObjectUrl(previous.objectUrl)')
+  ) {
+    throw new Error('expected video sequence source registry replacements to reuse canonical blob URLs and delay revocation so mounted media does not emit abort churn during valid source refreshes')
   }
 }
 
@@ -37,7 +50,7 @@ export function testVideoSequenceExportKeepsSuccessfulSourceProbesBound() {
     if (!duration) {
       probe.removeAttribute('src')
       probe.load()
-      throw new Error('Unable to load source media.')
+      throw createVideoSequenceExportError('source-load-failed')
     }
     const gapMinutes = Math.max(0, segment.timelineStartMinutes - cursorMinutes)
   `)

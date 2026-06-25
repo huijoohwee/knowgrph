@@ -115,6 +115,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           stampRunLayoutMutationGuard()
         }
       }
+      const scheduleRunOutputEdgeRefresh = suppressLayoutMutation ? () => void 0 : scheduleWorkflowOutputEdgeRefresh
       if (!id) return
       const visitedNodeIds = runOptions?.visitedNodeIds || new Set<string>()
       if (visitedNodeIds.has(id)) return
@@ -220,7 +221,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           resolveNodeByIdAcrossGraphs,
           commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
           updateNode: args.updateNode,
-          scheduleWorkflowOutputEdgeRefresh,
+          scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
           suppressStoreGraphWriteback: suppressLayoutMutation,
           buildPatch,
         }))
@@ -237,7 +238,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           resolveNodeByIdAcrossGraphs,
           commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
           updateNode: args.updateNode,
-          scheduleWorkflowOutputEdgeRefresh,
+          scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
           suppressStoreGraphWriteback: suppressLayoutMutation,
         }))
       }
@@ -298,7 +299,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             patch,
             readLiveDraftGraphData: args.readDraftGraphData,
             commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-            scheduleWorkflowOutputEdgeRefresh,
+            scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
           })
           const liveDraft = args.readDraftGraphData()
           const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
@@ -338,7 +339,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
               patch,
               readLiveDraftGraphData: args.readDraftGraphData,
               commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-              scheduleWorkflowOutputEdgeRefresh,
+              scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
             })
             const liveDraft = args.readDraftGraphData()
             const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)

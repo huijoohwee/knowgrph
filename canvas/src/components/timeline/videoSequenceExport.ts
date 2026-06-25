@@ -78,7 +78,9 @@ export type VideoSequenceExportRetryControl = {
   title: string
 }
 export type VideoSequenceExportSessionSurfaceItem = {
+  attemptCount: number
   detailLabel: string
+  groupRunId: string
   kind: VideoSequenceExportKind
   message: string
   retryButtonLabel: string
@@ -95,7 +97,22 @@ export type VideoSequenceExportSessionSurfaceModel = {
   items: VideoSequenceExportSessionSurfaceItem[]
 }
 export type VideoSequenceExportSessionSurfaceSelection = {
+  groups: VideoSequenceExportSessionGroup[]
   sessions: VideoSequenceExportSessionRecord[]
+}
+export type VideoSequenceExportSessionGroup = {
+  groupRunId: string
+  latestSession: VideoSequenceExportSessionRecord
+  representativeSession: VideoSequenceExportSessionRecord
+  sessions: VideoSequenceExportSessionRecord[]
+}
+export type VideoSequenceExportSessionCollection = {
+  emptyLabel: string
+  groups: VideoSequenceExportSessionGroup[]
+  latestRetryableSession: VideoSequenceExportSessionRecord | null
+  retryControl: VideoSequenceExportRetryControl
+  surface: VideoSequenceExportSessionSurfaceModel
+  surfaceSessions: VideoSequenceExportSessionRecord[]
 }
 export type VideoSequenceExportEvent =
   | {
@@ -448,6 +465,64 @@ export function resolveVideoSequenceExportSessionToneStyle(args: {
   }
 }
 
+function sortVideoSequenceExportSessions(
+  left: VideoSequenceExportSessionRecord,
+  right: VideoSequenceExportSessionRecord,
+): number {
+  if (left.status === 'running' && right.status !== 'running') return -1
+  if (right.status === 'running' && left.status !== 'running') return 1
+  if (left.updatedAtMs !== right.updatedAtMs) return right.updatedAtMs - left.updatedAtMs
+  return right.startedAtMs - left.startedAtMs
+}
+
+function resolveVideoSequenceExportSessionGroupRunId(args: {
+  session: VideoSequenceExportSessionRecord
+  sessionsByRunId: ReadonlyMap<string, VideoSequenceExportSessionRecord>
+}): string {
+  let current = args.session
+  const visited = new Set<string>()
+  while (current.retryOfRunId) {
+    if (visited.has(current.runId)) break
+    visited.add(current.runId)
+    const parent = args.sessionsByRunId.get(current.retryOfRunId)
+    if (!parent) break
+    current = parent
+  }
+  return current.runId
+}
+
+export function groupVideoSequenceExportSessions(
+  sessions: readonly VideoSequenceExportSessionRecord[],
+): VideoSequenceExportSessionGroup[] {
+  const sessionsByRunId = new Map(sessions.map(session => [session.runId, session]))
+  const groupedSessions = new Map<string, VideoSequenceExportSessionRecord[]>()
+  for (const session of sessions) {
+    const groupRunId = resolveVideoSequenceExportSessionGroupRunId({
+      session,
+      sessionsByRunId,
+    })
+    const existingSessions = groupedSessions.get(groupRunId)
+    if (existingSessions) {
+      existingSessions.push(session)
+      continue
+    }
+    groupedSessions.set(groupRunId, [session])
+  }
+  return [...groupedSessions.entries()]
+    .map(([groupRunId, groupSessions]) => {
+      const sessionsSorted = [...groupSessions].sort(sortVideoSequenceExportSessions)
+      const representativeSession = sessionsSorted.find(session => session.status === 'running')
+        || sessionsSorted[0]
+      return {
+        groupRunId,
+        latestSession: sessionsSorted[0],
+        representativeSession,
+        sessions: sessionsSorted,
+      }
+    })
+    .sort((left, right) => sortVideoSequenceExportSessions(left.representativeSession, right.representativeSession))
+}
+
 export function selectVideoSequenceExportSessionSurfaceSessions(args: {
   includeStatuses?: readonly VideoSequenceExportSessionStatus[]
   latestRetryableRunId?: string
@@ -458,18 +533,65 @@ export function selectVideoSequenceExportSessionSurfaceSessions(args: {
   const allowedStatuses = new Set((args.includeStatuses || []).filter(Boolean))
   const hasStatusFilter = allowedStatuses.size > 0
   const latestRetryableRunId = clean(args.latestRetryableRunId)
-  const filtered = args.sessions.filter(session => !hasStatusFilter || allowedStatuses.has(session.status))
-  const prioritized = [...filtered].sort((left, right) => {
-    const leftRetryable = latestRetryableRunId !== '' && left.runId === latestRetryableRunId
-    const rightRetryable = latestRetryableRunId !== '' && right.runId === latestRetryableRunId
+  const groups = groupVideoSequenceExportSessions(args.sessions)
+    .map(group => {
+      if (!hasStatusFilter) return group
+      const filteredSessions = group.sessions.filter(session => allowedStatuses.has(session.status))
+      if (!filteredSessions.length) return null
+      return {
+        ...group,
+        latestSession: filteredSessions[0],
+        representativeSession: filteredSessions.find(session => session.status === 'running') || filteredSessions[0],
+        sessions: filteredSessions,
+      }
+    })
+    .filter(Boolean) as VideoSequenceExportSessionGroup[]
+  const prioritized = [...groups].sort((left, right) => {
+    const leftRetryable = latestRetryableRunId !== '' && left.representativeSession.runId === latestRetryableRunId
+    const rightRetryable = latestRetryableRunId !== '' && right.representativeSession.runId === latestRetryableRunId
     if (leftRetryable !== rightRetryable) return leftRetryable ? -1 : 1
-    if (left.status === 'running' && right.status !== 'running') return -1
-    if (right.status === 'running' && left.status !== 'running') return 1
-    if (left.updatedAtMs !== right.updatedAtMs) return right.updatedAtMs - left.updatedAtMs
-    return right.startedAtMs - left.startedAtMs
+    return sortVideoSequenceExportSessions(left.representativeSession, right.representativeSession)
   })
   return {
-    sessions: prioritized.slice(0, maxItems),
+    groups: prioritized.slice(0, maxItems),
+    sessions: prioritized.slice(0, maxItems).map(group => group.representativeSession),
+  }
+}
+
+export function buildVideoSequenceExportSessionCollection(args: {
+  exportingKind?: VideoSequenceExportKind | ''
+  includeStatuses?: readonly VideoSequenceExportSessionStatus[]
+  maxItems?: number
+  plan: VideoSequenceExportPlan | null | undefined
+  sessions: readonly VideoSequenceExportSessionRecord[]
+}): VideoSequenceExportSessionCollection {
+  const groups = groupVideoSequenceExportSessions(args.sessions)
+  const latestRetryableSession = groups
+    .map(group => group.representativeSession)
+    .find(session => resolveVideoSequenceExportRetryRequest({
+      exportingKind: args.exportingKind,
+      plan: args.plan,
+      session,
+    }).request) || null
+  const surface = buildVideoSequenceExportSessionSurfaceModel({
+    includeStatuses: args.includeStatuses,
+    latestRetryableRunId: latestRetryableSession?.runId,
+    maxItems: args.maxItems,
+    sessions: args.sessions,
+  })
+  const surfaceSelection = selectVideoSequenceExportSessionSurfaceSessions({
+    includeStatuses: args.includeStatuses,
+    latestRetryableRunId: latestRetryableSession?.runId,
+    maxItems: args.maxItems,
+    sessions: args.sessions,
+  })
+  return {
+    emptyLabel: surface.emptyLabel,
+    groups,
+    latestRetryableSession,
+    retryControl: resolveVideoSequenceExportRetryControl(latestRetryableSession),
+    surface,
+    surfaceSessions: surfaceSelection.sessions,
   }
 }
 
@@ -482,7 +604,8 @@ export function buildVideoSequenceExportSessionSurfaceModel(args: {
   const selection = selectVideoSequenceExportSessionSurfaceSessions(args)
   return {
     emptyLabel: 'No recent edited media exports.',
-    items: selection.sessions.map(session => {
+    items: selection.groups.map(group => {
+      const session = group.representativeSession
       const kindLabel = resolveVideoSequenceExportSessionKindLabel(session.kind)
       const statusLabel = resolveVideoSequenceExportSessionStatusLabel(session.status)
       const retryable = clean(args.latestRetryableRunId) !== '' && session.runId === args.latestRetryableRunId
@@ -491,7 +614,9 @@ export function buildVideoSequenceExportSessionSurfaceModel(args: {
         tone: session.toastKind,
       })
       return {
+        attemptCount: group.sessions.length,
         detailLabel: `${kindLabel} • ${statusLabel}`,
+        groupRunId: group.groupRunId,
         kind: session.kind,
         message: session.message,
         retryButtonLabel: retryable ? `Retry ${kindLabel.toLowerCase()}` : 'Retry unavailable',
