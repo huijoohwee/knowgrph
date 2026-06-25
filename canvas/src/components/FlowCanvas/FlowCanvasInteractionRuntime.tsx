@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { EMPTY_STRING_ARRAY, type FlowCanvasInteractionRuntimeProps } from '@/components/FlowCanvas/shared'
 import { CanvasArrangeActionBar } from '@/components/canvas/CanvasArrangeActionBar'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
@@ -199,6 +200,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       return
     }
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    if (isFlowEditor && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
     const widthEffective = viewportW
     applyZoomRequestNative({
       zoomRequest,

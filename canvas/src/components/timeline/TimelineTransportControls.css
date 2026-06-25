@@ -869,7 +869,7 @@
 }
 
 .timeline-transport-ruler--video-sequence {
-  min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 36px));
+  min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 42px));
   background:
     linear-gradient(90deg, rgb(100 116 139 / 0.22) 1px, transparent 1px) repeat-x 0 0 / 12.5% 100%,
     linear-gradient(180deg, rgb(248 250 252 / 1) 0, rgb(248 250 252 / 1) 24px, rgb(241 245 249 / 1) 24px, rgb(241 245 249 / 1) 100%);
@@ -903,7 +903,7 @@
   color: rgb(51 65 85 / 1);
   font-size: 10px;
   font-weight: 700;
-  line-height: 36px;
+  line-height: 42px;
   text-transform: uppercase;
 }
 

@@ -62,9 +62,19 @@ const readErrorReason = (error: unknown): string => {
   return error instanceof Error ? error.message : String(error || 'unknown error')
 }
 
+const readVideoBlobMimeType = (blob: Blob): string => String(blob.type || '').toLowerCase().split(';')[0]?.trim() || ''
+
+const resolveVideoArtifactExtension = (blob: Blob): string => {
+  const mimeType = readVideoBlobMimeType(blob)
+  if (mimeType === 'video/mp4') return 'mp4'
+  if (mimeType === 'video/webm') return 'webm'
+  const subtype = mimeType.startsWith('video/') ? mimeType.slice('video/'.length).replace(/[^a-z0-9]+/g, '') : ''
+  return subtype || 'mp4'
+}
+
 const validateRenderResult = (result: RenderResult, spec: Readonly<RenderSpec>, engineId: string): string | null => {
   if (!(result.blob instanceof Blob)) return 'engine returned a non-Blob result'
-  if (result.blob.type !== 'video/mp4') return 'engine returned a blob that is not video/mp4'
+  if (!readVideoBlobMimeType(result.blob).startsWith('video/')) return 'engine returned a blob that is not video'
   if (result.blob.size <= 0) return 'engine returned an empty video blob'
   if (result.engineId !== engineId) return 'engine returned mismatched engineId'
   if (result.durationMs !== spec.durationMs) return 'engine returned mismatched durationMs'
@@ -79,7 +89,8 @@ const buildRenderUrl = (blob: Blob, renderJobId: string): string => {
     ? URL.createObjectURL
     : null
   if (urlFactory) return urlFactory(blob)
-  return `data:video/mp4;name=${encodeURIComponent(renderJobId)}`
+  const mimeType = readVideoBlobMimeType(blob) || 'video/mp4'
+  return `data:${mimeType};name=${encodeURIComponent(renderJobId)}`
 }
 
 export async function runHtmlVideoRenderJob(args: {
@@ -138,7 +149,7 @@ export async function runHtmlVideoRenderJob(args: {
       workspacePath: args.workspacePath,
       node: args.node,
       kind: 'video',
-      extension: 'mp4',
+      extension: resolveVideoArtifactExtension(result.blob),
       asset,
       fs: args.fs,
       manifestMetadata: [

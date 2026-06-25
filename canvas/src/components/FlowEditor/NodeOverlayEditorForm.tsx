@@ -4,6 +4,10 @@ import { useShallow } from 'zustand/react/shallow'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import {
+  resolveMediaPreviewSurfaceCardProps,
+  resolveMediaPreviewSurfaceSelectionProps,
+} from '@/lib/cards/mediaPreviewSurfaceSelection'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -236,13 +240,15 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
-  const { chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel } = useGraphStore(
+  const { chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, selectNode, setSelectionSource } = useGraphStore(
     useShallow(s => ({
       chatProvider: s.chatProvider,
       chatAuthMode: s.chatAuthMode,
       chatApiKey: s.chatApiKey,
       setChatApiKey: s.setChatApiKey,
       chatModel: s.chatModel,
+      selectNode: s.selectNode,
+      setSelectionSource: s.setSelectionSource,
     })),
   )
   void onSetType
@@ -285,6 +291,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     }
   }
   const nodeHelperSnapshot = nodeHelperSnapshotRef.current.value
+  const selectCompactMediaPreviewNode = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
+    if (event.button !== 0) return
+    const id = String(nodeHelperSnapshot.id || '').trim()
+    if (!id) return
+    setSelectionSource('editor')
+    selectNode(id)
+  }, [nodeHelperSnapshot.id, selectNode, setSelectionSource])
   const safeEdges = edges || EMPTY_GRAPH_EDGES
   const edgesSignature = React.useMemo(() => buildGraphEdgesSemanticSignature(safeEdges), [safeEdges])
   const edgesSnapshotRef = React.useRef<{ key: string; value: ReadonlyArray<GraphEdge> } | null>(null)
@@ -512,6 +525,23 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       node: nodeHelperSnapshot,
     })
   }, [compactPreview, nodeHelperSnapshot])
+  const compactMediaPreviewSelectionProps = React.useMemo(
+    () => resolveMediaPreviewSurfaceSelectionProps({
+      enabled: !!compactPreviewView && compactPreviewView.kind !== 'text',
+      ariaLabel: compactPreviewView && compactPreviewView.kind !== 'text'
+        ? `${String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())} media preview`
+        : undefined,
+      onSelect: selectCompactMediaPreviewNode,
+    }),
+    [compactPreviewView, nodeHelperSnapshot.label, selectCompactMediaPreviewNode],
+  )
+  const compactMediaPreviewCardProps = React.useMemo(
+    () => resolveMediaPreviewSurfaceCardProps({
+      enabled: !!compactPreviewView && compactPreviewView.kind !== 'text',
+      interactive: compactPreviewView?.kind === 'video' || compactPreviewView?.kind === 'audio',
+    }),
+    [compactPreviewView],
+  )
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
@@ -895,7 +925,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             overlayId={String(nodeHelperSnapshot.id || '')}
             title={String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())}
             url={richMediaPreview?.url || ''}
-            srcDoc={richMediaPreview?.kind === 'iframe' ? richMediaPreview.srcDoc : undefined}
+            srcDoc={richMediaPreview?.srcDoc}
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}
@@ -925,6 +955,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               UI_THEME_TOKENS.input.border,
             )}
             data-kg-widget-preview-kind={compactPreviewView.kind}
+            {...compactMediaPreviewSelectionProps}
           >
             {compactPreviewView.kind === 'text' ? (
               <CardInlineTextEditor
@@ -949,11 +980,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     ? compactPreviewView.mediaAlt
                     : String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())
                 }
-                interactive={compactPreviewView.kind === 'video' || compactPreviewView.kind === 'audio'}
+                {...compactMediaPreviewCardProps}
                 fit="contain"
                 className="block h-48 w-full"
                 mediaClassName="block h-48 w-full"
-                videoControls={compactPreviewView.kind === 'video'}
+                videoControls={compactMediaPreviewCardProps.interactive && compactPreviewView.kind === 'video'}
               />
             )}
           </section>

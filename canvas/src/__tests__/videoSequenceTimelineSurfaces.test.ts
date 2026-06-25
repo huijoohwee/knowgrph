@@ -72,7 +72,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const previewSurfaceText = readSource('components', 'timeline', 'TimelinePreviewSurface.tsx')
   const previewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const previewVideoBindingText = readSource('components', 'timeline', 'useTimelinePreviewVideoBinding.ts')
-  const mediaReaderText = readSource('components', 'timeline', 'timelineMediaReader.ts')
+  const mediaReaderText = [readSource('components', 'timeline', 'timelineMediaReader.ts'), readSource('components', 'timeline', 'timelineMediaMetadata.ts')].join('\n')
   const mediaFormatPreferenceText = readSource('lib', 'media', 'mediaFormatPreference.ts')
   const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
   const commandMenuCatalogText = [
@@ -109,6 +109,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const playbackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
   const selectionSyncText = readSource('features', 'gitgraph', 'useGanttTimelineSelectionSync.ts')
   const sequenceText = readSource('components', 'timeline', 'videoSequenceTimeline.ts')
+  const animationEngineText = readSource('components', 'timeline', 'timelineAnimationEngine.ts')
   if (
     controlsText.includes('footer?: React.ReactNode') ||
     controlsText.includes('{footer}') ||
@@ -136,8 +137,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !controlsText.includes('onPlaybackPointerDown') ||
     !controlsCssText.includes('.timeline-player-progress::-webkit-progress-value') ||
     !controlsCssText.includes('.timeline-transport-chrome--mermaid-gantt .timeline-player-progress') ||
-    !controlsCssText.includes('min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 36px))') ||
-    !controlsCssText.includes('line-height: 36px') ||
+    !controlsCssText.includes('min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 42px))') ||
+    !controlsCssText.includes('line-height: 42px') ||
     controlsCssText.includes('.timeline-transport-ruler-layout:has(.timeline-transport-ruler-aside)') ||
     controlsCssText.includes('.timeline-transport-ruler-below') ||
     !clipEditText.includes('buildVideoSequenceClipEditDetailsLabel') ||
@@ -160,6 +161,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !controlsText.includes('{contextControls}') ||
     !rulerText.includes('VideoSequenceTimelineRuler') ||
     !rulerText.includes('TimelineVideoSequenceEmptyState') ||
+    !rulerText.includes('data-kg-video-sequence-timeline="empty"') ||
     !rulerText.includes('data-kg-video-sequence-clip-cues="1"') ||
     !rulerText.includes('data-kg-video-sequence-clip-frames="1"') ||
     !rulerText.includes('data-kg-video-sequence-audio-waveform="1"') ||
@@ -174,11 +176,16 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('timeline-video-sequence-trim-guide') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-strip') ||
     !rulerText.includes('timeline-video-sequence-ruler-scope-bars') ||
+    !rulerText.includes('buildTimelineAnimationState') ||
+    !rulerText.includes("surface: 'bottom-timeline'") ||
+    !rulerText.includes('data-kg-animation-object-opacity') ||
+    !rulerText.includes('data-kg-animation-svg-attribute-target') ||
+    !rulerText.includes('strokeDasharray={animationState.svg.dashArray}') ||
     rulerText.includes('timeline-video-sequence-grade-strip') ||
     rulerText.includes('Color grading controls') ||
     rulerText.includes('timeline-video-sequence-ruler-scope-header') ||
     rulerText.includes('<meter') ||
-    !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 36') ||
+    !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42') ||
     !rulerText.includes('resolveVisibleVideoSequenceTimelineLanes(taskSpans)') ||
     !rulerText.includes('visibleLanes.map(lane =>') ||
     !rulerText.includes('visibleLaneIndexById.get(lane)') ||
@@ -203,10 +210,13 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerCssText.includes('.timeline-video-sequence-clip-timecode') ||
     !rulerCssText.includes('.timeline-video-sequence-audio-waveform-bar') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-scope-strip') ||
+    !rulerCssText.includes('.timeline-video-sequence-editor[data-kg-animation-engine="native"]') ||
+    !rulerCssText.includes('.timeline-video-sequence-motion-vector') ||
+    !rulerCssText.includes('--kg-motion-eased') ||
+    !rulerCssText.includes('@media (prefers-reduced-motion: reduce)') ||
     rulerCssText.includes('.timeline-video-sequence-grade-strip') ||
     rulerCssText.includes('.timeline-video-sequence-ruler-scope-header') ||
-    !rulerCssText.includes('height: 32px') ||
-    !rulerCssText.includes('top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 36px) + 2px)') ||
+    !rulerCssText.includes('height: 38px') || !rulerCssText.includes('top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 42px) + 2px)') ||
     !rulerCssText.includes('grid-template-columns: repeat(6, minmax(5.5rem, 1fr))') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-scope-bar') ||
     rulerCssText.includes('.timeline-video-sequence-slot-grid') ||
@@ -218,6 +228,15 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !sequenceText.includes('buildVideoSequenceTimelineFrameSamples') ||
     !sequenceText.includes('buildVideoSequenceTimelineWaveformSamples') ||
     !sequenceText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !animationEngineText.includes("'css-property'") ||
+    !animationEngineText.includes("'svg-attribute'") ||
+    !animationEngineText.includes("'dom-attribute'") ||
+    !animationEngineText.includes("'js-object'") ||
+    !animationEngineText.includes("'html'") ||
+    !animationEngineText.includes("'canvas-2d'") ||
+    !animationEngineText.includes("'webgl-three'") ||
+    !animationEngineText.includes('data-kg-animation-inspired-by') ||
+    animationEngineText.includes("from 'animejs'") ||
     !sequenceText.includes("export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'") ||
     !sequenceText.includes("export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'audio'") ||
     !sequenceText.includes('VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS') ||
@@ -518,10 +537,12 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !previewMediaCanvasRenderModelText.includes('listLabel: args.familySections.listLabel') ||
     !previewMediaCanvasRenderModelText.includes('shellLabel: args.surfaceShell.shellLabel') ||
     !previewMediaCanvasFrameModelText.includes('useTimelinePreviewMediaCanvasFrameModel') ||
+    !previewMediaCanvasFrameModelText.includes('buildTimelineAnimationState') ||
     !previewMediaCanvasFrameModelText.includes('hostAttributes: args.renderModel.hostAttributes') ||
     !previewMediaCanvasFrameModelText.includes('renderModel: args.renderModel') ||
     !previewMediaCanvasFrameText.includes('TimelinePreviewMediaCanvasFrame') ||
     !previewMediaCanvasFrameText.includes('data-kg-media-canvas-group-count') ||
+    !previewMediaCanvasFrameText.includes('args.model.animationState.attributes') ||
     !previewMediaCanvasFrameText.includes('<TimelinePreviewMediaCanvasRender model={args.model.renderModel} />') ||
     !previewSurfaceShellModelText.includes('useTimelinePreviewSurfaceShellModel') ||
     !previewSurfaceShellModelText.includes("shellLabel: 'Media canvas'") ||
@@ -605,7 +626,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !previewVideoBindingText.includes('useTimelineTransportStoreBinding') ||
     !previewVideoBindingText.includes('useTimelineVideoPreviewSyncController') ||
     !previewVideoBindingText.includes('handleVideoElement') ||
-    !previewVideoBindingText.includes('readerDurationSeconds: mediaReaderSummary.durationSeconds') ||
+    !previewVideoBindingText.includes('mergeTimelineMediaReaderSummaryWithSource') || !previewVideoBindingText.includes('readerDurationSeconds: resolvedMediaReaderSummary.durationSeconds') ||
     !previewVideoBindingText.includes('readVideo: () => videoElementRef.current') ||
     !mediaReaderText.includes('loadTimelineMediaReaderSummary') ||
     mediaReaderText.includes(forbiddenExternalMediaToolkit) ||
@@ -629,7 +650,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !mediaReaderText.includes("format: 'svg'") ||
     !mediaReaderText.includes("mimeType: 'image/svg+xml'") ||
     !mediaReaderText.includes('rasterFormat') ||
-    !mediaReaderText.includes('toSvgDataUrl') ||
+    !mediaReaderText.includes('toSvgDataUrl') || !mediaReaderText.includes('boxEnd < offset + headerSize') ||
     !mediaFormatPreferenceText.includes("MEDIA_IMAGE_FORMAT_PREFERENCE = ['svg', 'webp', 'png', 'jpeg']") ||
     !mediaFormatPreferenceText.includes("MEDIA_VIDEO_FORMAT_PREFERENCE = ['mp4', 'webm']") ||
     !mediaFormatPreferenceText.includes('readPreferredImageFormat') ||
@@ -637,18 +658,19 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-image-format-preference') ||
     !previewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-video-format-preference') ||
     !mediaReaderText.includes("waitForMediaEvent(video, 'seeked'") ||
-    !mediaReaderText.includes('NATIVE_MEDIA_THUMBNAIL_COUNT = 5') ||
+    !mediaReaderText.includes('NATIVE_MEDIA_THUMBNAIL_COUNT = 9') ||
     !mediaReaderText.includes('thumbnails,') ||
     !transportSurfaceModelText.includes('useTimelineMediaReaderSummary') ||
     !transportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
-    !transportSurfaceModelText.includes('sourceThumbnails: mediaThumbnailSummary.thumbnails') ||
-    !transportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') ||
-    !transportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') ||
-    !rulerText.includes('sourceThumbnails = []') ||
+    !transportSurfaceModelText.includes('sourceThumbnails: mediaThumbnailSummary.thumbnails') || !transportSurfaceModelText.includes('sourceThumbnailWindows') ||
+    !transportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') || !transportRulerModelText.includes('sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]') ||
+    !transportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !transportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') ||
+    !rulerText.includes('sourceThumbnails = []') || !rulerText.includes('sourceThumbnailWindows = []') || !rulerText.includes('resolveVideoSequenceClipThumbnails') ||
     !rulerText.includes('data-kg-video-sequence-clip-thumbnail-strip') ||
     !rulerText.includes('data-kg-video-sequence-clip-thumbnail-format') ||
     !rulerText.includes('data-kg-video-sequence-clip-thumbnail-raster-format') ||
     !rulerText.includes('data-kg-video-sequence-clip-thumbnail-time') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-microsecond-time') || !rulerText.includes('data-kg-video-sequence-clip-thumbnail-source-start') ||
     !rulerText.includes('data-kg-video-sequence-clip-thumbnail-preview') ||
     !rulerText.includes('timeline-video-sequence-clip-thumbnail-preview-caption') ||
     !rulerText.includes('timeline-video-sequence-clip-thumbnail-caption') ||
@@ -673,14 +695,17 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !commandMenuCatalogText.includes('useTimelineMediaReaderSummary') ||
     !commandMenuCatalogText.includes('readPreferredImageFormat') ||
     !commandMenuCatalogText.includes('readPreferredVideoFormat') ||
+    !commandMenuCatalogText.includes('buildTimelineAnimationState') ||
+    !commandMenuCatalogText.includes("surface: 'floating-media'") ||
+    !commandMenuCatalogText.includes('animationAttributes') ||
     !commandMenuCatalogText.includes('data-kg-media-image-format-preference') ||
     !commandMenuCatalogText.includes('data-kg-media-video-format-preference') ||
-    !commandMenuCatalogText.includes('MediaThumbnailCaption') ||
-    !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-caption') ||
+    !commandMenuCatalogText.includes('MediaThumbnailCaption') || !commandMenuCatalogText.includes('MediaSourceMetadataRow') || !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-caption') || !commandMenuCatalogText.includes('data-kg-media-source-metadata') ||
     !commandMenuCatalogText.includes('contentType: item.contentType') ||
     !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-format') ||
     !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-raster-format') ||
     !commandMenuCatalogText.includes('data-kg-command-menu-media-thumbnail-time') ||
+    ['data-kg-command-menu-media-metadata-video-codec', 'data-kg-command-menu-media-metadata-audio-codec', 'data-kg-command-menu-media-metadata-frame-rate', 'data-kg-command-menu-media-metadata-bitrate', 'data-kg-command-menu-media-metadata-audio-sample-rate'].some(attr => !commandMenuCatalogText.includes(attr)) ||
     commandMenuCatalogText.indexOf('{mediaActions.map(action => (') < commandMenuCatalogText.indexOf('{uploadedMediaItems.map(item => (') ||
     !playbackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
     !playbackControlsText.includes('handlePlaybackPointerDown') ||

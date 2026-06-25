@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-25
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Native media/timeline animation surfaces | Keep Media Canvas, BottomPanel Timeline, FloatingPanel Timeline, and FloatingPanel Media on one motion contract | Route media/timeline motion through `timelineAnimationEngine.ts`; expose semantic animation attributes and CSS/object/SVG frame data without importing anime.js or creating panel-local animation owners. | `knowgrph/{canvas/src/components/timeline,todo-log.md,docs/documents/{knowgrph-2d-renderer-enhancement-design.md,knowgrph-renderer-document.md,knowgrph-yaml-mermaid-gitgraph-frontmatter-prd-tad.md}}` | Media timeline animation engine | `buildTimelineAnimationState`, `easeTimelineAnimationProgress` | Playback progress, active source count, panel surface, target taxonomy | Native `data-kg-animation-*` attributes, CSS custom properties, object frames, SVG frames | Anime.js informs target coverage only; runtime state stays native, shared, deterministic, and surface-neutral across media/timeline panels. | Mirror AgenticRAG schema notes only when the next docs-map sync is approved; keep Dev-only until explicit Prod/Cloudflare instruction. | 2026-06-25 |
+
 ## 2026-06-24
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

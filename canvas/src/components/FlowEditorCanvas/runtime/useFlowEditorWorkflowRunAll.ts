@@ -3,6 +3,7 @@ import React from 'react'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { UiToastInput } from '@/hooks/store/types'
 import { UI_COPY } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -16,7 +17,7 @@ const waitForRunAllLayoutReleaseFrame = async (): Promise<void> => {
   }))
 }
 
-const setRunAllLayoutMutationLock = (active: boolean): void => {
+export const setRunAllLayoutMutationLock = (active: boolean): void => {
   const state = useGraphStore.getState()
   if (!active) {
     useGraphStore.setState({ workspaceGraphMutationLayoutLockActive: false })
@@ -37,16 +38,30 @@ export function useFlowEditorWorkflowRunAll(args: {
   flowEditorViewActive: boolean
   draftGraphData: GraphData | null
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
-  upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
+  upsertUiToast: (args: UiToastInput) => void
   runWorkflowNode: (nodeId: string, runOptions?: { allowCreateRichMediaPanel?: boolean; suppressLayoutMutation?: boolean; visitedNodeIds?: Set<string> }) => Promise<void>
 }) {
   const runWorkflowAllInFlightRef = React.useRef(false)
   const runWorkflowAllNodes = React.useCallback(async () => {
+    const toastId = 'flow-editor-run-all'
+    const upsertRunAllToast = (toast: Omit<UiToastInput, 'id'>) => {
+      args.upsertUiToast({ id: toastId, ...toast })
+    }
     if (!args.flowEditorViewActive) {
       args.upsertUiToast({ id: 'flow-editor-run-all-not-active', kind: 'neutral', message: 'Open Flow Editor to run all.', ttlMs: 2200 })
       return
     }
-    if (runWorkflowAllInFlightRef.current) return
+    if (runWorkflowAllInFlightRef.current) {
+      upsertRunAllToast({
+        kind: 'neutral',
+        message: 'Run All is already running.',
+        ttlMs: null,
+        dismissible: false,
+        busy: true,
+        log: false,
+      })
+      return
+    }
     runWorkflowAllInFlightRef.current = true
     setRunAllLayoutMutationLock(true)
     try {
@@ -68,12 +83,52 @@ export function useFlowEditorWorkflowRunAll(args: {
       }
       const phaseCounts = runPlan?.phaseCounts || { text: 0, imageFoundation: 0, imageScene: 0, video: 0 }
       const phaseSummary = FLOW_RUN_ALL_PHASES.map(phase => `${phase.label}: ${phaseCounts[phase.id] || 0}`).join(' · ')
-      args.upsertUiToast({ id: 'flow-editor-run-all', kind: 'neutral', message: `Running ${ids.length} nodes in sequence. ${phaseSummary}`, ttlMs: 2600 })
+      upsertRunAllToast({
+        kind: 'neutral',
+        message: `Run All starting: 0/${ids.length} nodes. ${phaseSummary}`,
+        ttlMs: null,
+        dismissible: false,
+        busy: true,
+      })
       for (let index = 0; index < ids.length; index += 1) {
-        await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })
+        const nodeId = ids[index]!
+        const node = nodes.find(candidate => String(candidate.id || '') === nodeId)
+        const label = String(node?.label || node?.type || nodeId).trim() || nodeId
+        upsertRunAllToast({
+          kind: 'neutral',
+          message: `Run All running ${index + 1}/${ids.length}: ${label}`,
+          ttlMs: null,
+          dismissible: false,
+          busy: true,
+          log: false,
+        })
+        await args.runWorkflowNode(nodeId, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })
+        upsertRunAllToast({
+          kind: 'neutral',
+          message: `Run All completed ${index + 1}/${ids.length}: ${label}`,
+          ttlMs: null,
+          dismissible: false,
+          busy: true,
+          log: false,
+        })
         if (typeof requestAnimationFrame === 'function') await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
       }
-      args.upsertUiToast({ id: 'flow-editor-run-all-done', kind: 'neutral', message: `Ran ${ids.length} nodes.`, ttlMs: 2200 })
+      upsertRunAllToast({
+        kind: 'success',
+        message: `Run All complete: ran ${ids.length} node${ids.length === 1 ? '' : 's'}.`,
+        ttlMs: 2600,
+        dismissible: true,
+        busy: false,
+      })
+    } catch (error) {
+      const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
+      upsertRunAllToast({
+        kind: 'error',
+        message: detail ? `Run All failed: ${detail}` : UI_COPY.flowEditorRunFailedToast,
+        ttlMs: 4200,
+        dismissible: true,
+        busy: false,
+      })
     } finally {
       await waitForRunAllLayoutReleaseFrame()
       setRunAllLayoutMutationLock(false)

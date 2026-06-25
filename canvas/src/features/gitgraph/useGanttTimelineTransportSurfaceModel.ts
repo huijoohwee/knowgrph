@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 import { resolveTimelinePlanSourceUrl } from '@/components/timeline/timelinePlanSync'
+import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
 import { useGanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineTransportCommandModel } from './useGanttTimelineTransportCommandModel'
 import { useGanttTimelineTransportInteractionModel } from './useGanttTimelineTransportInteractionModel'
@@ -38,6 +39,18 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     active: !!mediaThumbnailSourceUrl,
     url: mediaThumbnailSourceUrl,
   })
+  const sourceThumbnailWindows = React.useMemo<VideoSequenceTimelineThumbnailWindow[]>(() => {
+    const durationSeconds = mediaThumbnailSummary.durationSeconds
+    if (!transportSession.exportPlan?.segments.length || !mediaThumbnailSourceUrl || durationSeconds <= 0) return []
+    return transportSession.exportPlan.segments
+      .filter(segment => resolveTimelinePlanSourceUrl(segment.source) === mediaThumbnailSourceUrl)
+      .map(segment => ({
+        sourceEndSeconds: segment.sourceEndRatio * durationSeconds,
+        sourceStartSeconds: segment.sourceStartRatio * durationSeconds,
+        timelineEndMinutes: segment.timelineEndMinutes,
+        timelineStartMinutes: segment.timelineStartMinutes,
+      }))
+  }, [mediaThumbnailSourceUrl, mediaThumbnailSummary.durationSeconds, transportSession.exportPlan])
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
     exportPlan: transportSession.exportPlan,
@@ -95,6 +108,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     scopes: transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
     sourceThumbnails: mediaThumbnailSummary.thumbnails,
+    sourceThumbnailWindows,
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
     totalLabel: transportSession.totalLabel,
@@ -117,6 +131,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     hasMediaDurationScale: transportSession.hasMediaDurationScale,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
+    mediaReaderSummary: mediaThumbnailSummary,
     onPlaybackPointerDown: transportPlaybackModel.handlePlaybackPointerDown,
     onPlaybackRateChange: transportSession.setTransportPlaybackRate,
     onTogglePlayback: transportPlaybackModel.handleTogglePlayback,

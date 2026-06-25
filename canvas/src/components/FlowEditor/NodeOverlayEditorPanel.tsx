@@ -189,8 +189,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitFlowEditorInteractionFrame)}
       onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitFlowEditorInteractionFrame)}
       style={{
-        opacity: Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1,
-        height: minimized ? undefined : (showRichMediaPanelBody ? undefined : WIDGET_BASE_SIZE.height),
+        opacity: showRichMediaPanelBody ? 1 : (Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1),
+        width: showRichMediaPanelBody ? `${richMediaPanelViewSize.width}px` : undefined,
+        height: minimized ? undefined : (showRichMediaPanelBody ? `${richMediaPanelViewSize.height}px` : WIDGET_BASE_SIZE.height),
       }}
     >
       <FlowEditorPanelChromeHeader
@@ -220,9 +221,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           data-kg-media-scroll-surface="1"
           className="relative min-h-0 overflow-y-auto overflow-x-hidden"
           style={{
-            width: `${richMediaPanelViewSize.width}px`,
+            width: '100%',
             maxWidth: '100%',
-            height: `${richMediaPanelViewSize.height}px`,
+            flex: '1 1 0%',
             overscrollBehaviorX: 'none',
             overscrollBehaviorY: 'contain',
             pointerEvents: 'auto',
@@ -233,7 +234,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             overlayId={String(node.id || '')}
             title={String(node.label || getRichMediaPanelNodeLabel())}
             url={richMediaPreview?.url || ''}
-            srcDoc={richMediaPreview?.kind === 'iframe' ? richMediaPreview.srcDoc : undefined}
+            srcDoc={richMediaPreview?.srcDoc}
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}

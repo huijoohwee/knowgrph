@@ -108,6 +108,8 @@ export function testAudioMediaUsesSharedCardPanelAndHtmlViewerOwners() {
   const richMediaPanel = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
   const richMediaOverlayLayer = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'), 'utf8')
   const webpageLayoutToGraph = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageLayoutToGraph.ts'), 'utf8')
+  const mediaLightboxPromptParameters = readFileSync(resolve(process.cwd(), 'src', 'lib', 'ui', 'mediaLightboxPromptParameters.ts'), 'utf8')
+  const proceduralMediaGenerator = readFileSync(resolve(process.cwd(), 'src', 'features', 'command-menu', 'proceduralMediaGenerator.ts'), 'utf8')
   const commandMenuCatalogPanel = [
     'MediaCatalogPanel.tsx',
     'MediaCatalogPanelView.tsx',
@@ -151,6 +153,22 @@ export function testAudioMediaUsesSharedCardPanelAndHtmlViewerOwners() {
   }
   if (!webpageLayoutToGraph.includes("t === 'AUDIO'") || !webpageLayoutToGraph.includes("tag === 'VIDEO' ? 'video' : 'audio'")) {
     throw new Error('expected webpage layout graph import to preserve audio media tags through shared media properties')
+  }
+  if (
+    !mediaLightboxPromptParameters.includes('MEDIA_KIND_PARAMETER_OPTIONS') ||
+    !mediaLightboxPromptParameters.includes("{ id: 'kind', label: 'Kind', value: 'video'") ||
+    !proceduralMediaGenerator.includes("PROCEDURAL_MEDIA_ENGINE_ID = 'browser-native-procedural'") ||
+    !proceduralMediaGenerator.includes('canvas.captureStream(VIDEO_FRAME_RATE)') ||
+    !proceduralMediaGenerator.includes('new MediaRecorder(stream') ||
+    !proceduralMediaGenerator.includes('encodeWav') ||
+    proceduralMediaGenerator.toLowerCase().includes('mediabunny') ||
+    !commandMenuCatalogPanel.includes('generateProceduralMediaArtifact') ||
+    !commandMenuCatalogPanel.includes('buildProceduralMediaMarkdown') ||
+    !commandMenuCatalogPanel.includes('buildVideoSequenceTimelineImportMarkdown') ||
+    !commandMenuCatalogPanel.includes("status: 'local'") ||
+    !commandMenuCatalogPanel.includes('setMarkdownDocument(`${artifact.fileName}.video-sequence.timeline.md`, sequenceText)')
+  ) {
+    throw new Error('expected Generate Media to create browser-native procedural image/audio/video artifacts and route video through the shared video-sequence timeline owner')
   }
   if (!htmlViewer.includes('audio[src]') || !htmlViewer.includes('.kg-mediaBody audio')) {
     throw new Error('expected exported HTML viewer to discover and style audio media nodes')

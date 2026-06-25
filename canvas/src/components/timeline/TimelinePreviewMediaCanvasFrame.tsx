@@ -1,4 +1,3 @@
-import { type ReactNode } from 'react'
 import { TimelinePreviewMediaCanvasRender } from './TimelinePreviewMediaCanvasRender'
 import { type TimelinePreviewMediaCanvasFrameModel } from './useTimelinePreviewMediaCanvasFrameModel'
 
@@ -19,6 +18,7 @@ export function TimelinePreviewMediaCanvasFrame(args: TimelinePreviewMediaCanvas
       data-kg-media-canvas-count={args.model.hostAttributes.count}
       data-kg-media-canvas-expanded-family-count={args.model.hostAttributes.expandedFamilyCount}
       data-kg-media-canvas-group-count={args.model.hostAttributes.groupCount}
+      {...args.model.animationState.attributes}
     >
       <TimelinePreviewMediaCanvasRender model={args.model.renderModel} />
     </section>

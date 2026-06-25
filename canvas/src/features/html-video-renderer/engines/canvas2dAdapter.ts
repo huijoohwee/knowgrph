@@ -6,7 +6,7 @@ const CANVAS_2D_RECORDER_MIME_CANDIDATES = MEDIA_VIDEO_RECORDER_MIME_TYPE_CANDID
 const CANVAS_2D_RECORDER_VIDEO_BITS_PER_SECOND = 8_000_000
 
 const assertBrowserCanvasRuntime = () => {
-  if (typeof document === 'undefined' || typeof Image === 'undefined' || typeof Blob === 'undefined' || typeof HTMLCanvasElement === 'undefined') {
+  if (typeof document === 'undefined' || typeof Image === 'undefined' || typeof Blob === 'undefined' || typeof HTMLCanvasElement === 'undefined' || typeof HTMLIFrameElement === 'undefined') {
     throw new Error('canvas-2d video rendering requires a browser runtime')
   }
   if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
@@ -19,6 +19,14 @@ const escapeJsonForScript = (value: unknown): string => JSON.stringify(value ?? 
 const buildFrameStyle = (spec: Readonly<RenderSpec>, timeMs: number): string => {
   const seconds = timeMs / 1000
   return `
+html,
+body {
+  width: ${spec.width}px;
+  height: ${spec.height}px;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
 main[data-kg-html-video-frame-host="1"] {
   width: ${spec.width}px;
   height: ${spec.height}px;
@@ -32,15 +40,46 @@ ${spec.css ?? ''}
 `
 }
 
-const createFrameRenderDocument = (spec: Readonly<RenderSpec>, timeMs: number): {
-  host: HTMLElement
+const buildFrameDocument = (spec: Readonly<RenderSpec>, timeMs: number): string => `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=${spec.width}, height=${spec.height}, initial-scale=1">
+<style>
+${buildFrameStyle(spec, timeMs)}
+</style>
+</head>
+<body>
+<main aria-label="HTML video frame raster host" data-kg-html-video-frame-host="1" data-kg-render-time-ms="${timeMs}" data-kg-render-time-s="${timeMs / 1000}">
+${spec.html}
+</main>
+<script type="application/json" id="knowgrph-html-video-data">${escapeJsonForScript(spec.data ?? {})}</script>
+</body>
+</html>`
+
+const waitForFrameDocument = (frame: HTMLIFrameElement): Promise<Document> => new Promise((resolve, reject) => {
+  const timeout = window.setTimeout(() => {
+    reject(new Error('canvas-2d video renderer timed out while preparing isolated frame document'))
+  }, 2000)
+  frame.onload = () => {
+    window.clearTimeout(timeout)
+    const frameDocument = frame.contentDocument
+    if (!frameDocument?.body) {
+      reject(new Error('canvas-2d video renderer could not access isolated frame document'))
+      return
+    }
+    resolve(frameDocument)
+  }
+})
+
+const createFrameRenderDocument = async (spec: Readonly<RenderSpec>, timeMs: number): Promise<{
+  host: HTMLIFrameElement
   renderRoot: HTMLElement
-} => {
-  const host = document.createElement('main')
+}> => {
+  const host = document.createElement('iframe')
   host.setAttribute('aria-label', 'HTML video frame raster host')
   host.setAttribute('data-kg-html-video-frame-host', '1')
-  host.setAttribute('data-kg-render-time-ms', String(timeMs))
-  host.setAttribute('data-kg-render-time-s', String(timeMs / 1000))
+  host.setAttribute('sandbox', 'allow-scripts allow-same-origin')
   host.style.position = 'fixed'
   host.style.left = '-10000px'
   host.style.top = '0'
@@ -48,18 +87,16 @@ const createFrameRenderDocument = (spec: Readonly<RenderSpec>, timeMs: number): 
   host.style.height = `${spec.height}px`
   host.style.border = '0'
   host.style.overflow = 'hidden'
-
-  const style = document.createElement('style')
-  style.textContent = buildFrameStyle(spec, timeMs)
-  const data = document.createElement('script')
-  data.type = 'application/json'
-  data.id = 'knowgrph-html-video-data'
-  data.textContent = escapeJsonForScript(spec.data ?? {})
-  const content = document.createElement('template')
-  content.innerHTML = spec.html
-  host.append(style, data, content.content.cloneNode(true))
+  host.srcdoc = buildFrameDocument(spec, timeMs)
+  const frameDocumentReady = waitForFrameDocument(host)
   document.body.appendChild(host)
-  return { host, renderRoot: host }
+  const frameDocument = await frameDocumentReady
+  const renderRoot = frameDocument.querySelector('[data-kg-html-video-frame-host="1"]') as HTMLElement | null
+  if (!renderRoot || typeof renderRoot.getBoundingClientRect !== 'function') {
+    host.remove()
+    throw new Error('canvas-2d video renderer could not find isolated frame render root')
+  }
+  return { host, renderRoot }
 }
 
 const drawFrame = async (
@@ -68,7 +105,7 @@ const drawFrame = async (
   timeMs: number,
   html2canvas: (element: HTMLElement, options: Record<string, unknown>) => Promise<HTMLCanvasElement>,
 ): Promise<void> => {
-  const { host, renderRoot } = createFrameRenderDocument(spec, timeMs)
+  const { host, renderRoot } = await createFrameRenderDocument(spec, timeMs)
   try {
     const renderedCanvas = await html2canvas(renderRoot, {
       width: spec.width,

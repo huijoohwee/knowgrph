@@ -57,7 +57,7 @@ export const UI_COPY = {
   flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV rows with port handles in the shared widget layout.',
   flowWidgetChangeName: 'Change node label',
   flowWidgetDuplicate: 'Duplicate',
-  flowWidgetClearOutput: 'Clear output',
+  flowWidgetClearOutput: 'Reset',
   flowWidgetHelp: 'Help',
   flowWidgetRemoveNode: 'Remove',
   flowWidgetMenu: 'More node actions',

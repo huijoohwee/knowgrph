@@ -41,6 +41,12 @@ export const MEDIA_VARIATION_COUNT_PARAMETER_OPTIONS = [
   { value: '4', label: 'x4' },
 ] as const
 
+export const MEDIA_KIND_PARAMETER_OPTIONS = [
+  { value: 'video', label: 'Video' },
+  { value: 'image', label: 'Image' },
+  { value: 'audio', label: 'Audio' },
+] as const
+
 export function normalizeMediaLightboxPromptText(value: string): string {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
@@ -80,7 +86,14 @@ export function buildMediaLightboxPromptParameters(props: {
       options: modelOptions,
     })
   }
-  if (props.kind === 'image') {
+  if (props.kind === 'media') {
+    parameters.push(
+      { id: 'kind', label: 'Kind', value: 'video', options: MEDIA_KIND_PARAMETER_OPTIONS },
+      { id: 'aspectRatio', label: 'Aspect', value: '16:9', options: VIDEO_ASPECT_RATIO_PARAMETER_OPTIONS },
+      { id: 'resolution', label: 'Resolution', value: '720p', options: MEDIA_RESOLUTION_PARAMETER_OPTIONS },
+      { id: 'duration', label: 'Duration', value: '4', options: MEDIA_DURATION_PARAMETER_OPTIONS },
+    )
+  } else if (props.kind === 'image') {
     parameters.push(
       { id: 'aspectRatio', label: 'Aspect', value: 'landscape', options: IMAGE_ASPECT_RATIO_PARAMETER_OPTIONS },
       { id: 'resolution', label: 'Resolution', value: '2K', options: MEDIA_RESOLUTION_PARAMETER_OPTIONS },

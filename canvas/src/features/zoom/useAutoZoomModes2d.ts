@@ -96,16 +96,18 @@ export function useAutoZoomModes2d(args: {
         const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)
           ? buildOverlayTopologyLayoutSignature(graphData)
           : ''
+        const fitGraphDataRevision = graphLayoutSignature ? 0 : graphDataRevision
+        const visibilityFrameKey = graphLayoutSignature ? '' : state.workspaceGraphMutationBlockKey
         const sig = buildAutoFitToScreenSignature({
           nodeCount: nodes.length,
           viewportW: panelDims.width,
           viewportH: panelDims.height,
-          graphDataRevision,
+          graphDataRevision: fitGraphDataRevision,
           graphLayoutSignature,
           schema,
           mediaPanelDensity: state.mediaPanelDensity,
           renderMediaAsNodes: state.renderMediaAsNodes === true,
-          visibilityFrameKey: state.workspaceGraphMutationBlockKey,
+          visibilityFrameKey,
         })
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
@@ -197,9 +199,14 @@ export function useAutoZoomModes2d(args: {
         const zoomOnSelection = expansionEnabled && expansionCfg.zoomOnSelection !== false
         if (!zoomOnSelection) return
         const override = graphOverrideRef.current ? graphOverrideRef.current() : null
-        const graphDataRevision = override?.graphDataRevision ?? state.graphDataRevision
+        const graphData = override?.graphData ?? state.graphData
+        const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)
+          ? buildOverlayTopologyLayoutSignature(graphData)
+          : ''
+        const graphDataRevision = graphLayoutSignature ? 0 : (override?.graphDataRevision ?? state.graphDataRevision)
         const key = buildAutoZoomSelectionSignature({
           graphDataRevision,
+          graphLayoutSignature,
           selectedNodeId: state.selectedNodeId,
           selectedEdgeId: state.selectedEdgeId,
           selectedGroupId: state.selectedGroupId,

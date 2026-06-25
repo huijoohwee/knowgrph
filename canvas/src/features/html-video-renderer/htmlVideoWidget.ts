@@ -22,6 +22,7 @@ const HTML_VIDEO_RENDERER_PORTS: WidgetRegistryPort[] = [
   { portKey: 'css_in', direction: 'input', schemaPath: 'properties.css' },
   { portKey: 'data_json_in', direction: 'input', schemaPath: 'properties.data_json' },
   { portKey: 'videoUrl', direction: 'output', schemaPath: 'properties.videoUrl' },
+  { portKey: 'outputSrcDoc', direction: 'output', schemaPath: 'properties.outputSrcDoc' },
   { portKey: 'outputPath', direction: 'output', schemaPath: 'properties.outputPath' },
   { portKey: 'renderJobId', direction: 'output', schemaPath: 'properties.renderJobId' },
 ]

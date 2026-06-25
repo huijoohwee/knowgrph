@@ -33,11 +33,12 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
 import {
@@ -738,7 +739,8 @@ export function useFlowCanvasRuntime(args: {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
       if (meta?.pending === true) return
     }
-    const initKey = zoomViewKey
+    const flowEditorLayoutSignature = isFlowEditor ? buildOverlayTopologyLayoutSignature(graphDataForFit) : ''
+    const initKey = isFlowEditor ? `flowEditor:${flowEditorLayoutSignature}` : zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const current = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = current.k !== 1 || current.x !== 0 || current.y !== 0
@@ -765,6 +767,7 @@ export function useFlowCanvasRuntime(args: {
     ) return
 
     const state = useGraphStore.getState()
+    if (isFlowEditor && isWorkspaceGraphMutationBlocked(state)) return
     const zoomState = pickZoomStateForView({
       zoomViewKey,
       zoomStateByKey: state.zoomStateByKey,

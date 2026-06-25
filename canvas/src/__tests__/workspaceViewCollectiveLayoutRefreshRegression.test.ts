@@ -60,7 +60,14 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!editorText.includes('data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}')) {
     throw new Error('expected FlowWidgetOverlay widget panel wheel routing to come from the shared pointer policy')
   }
-  if (!editorText.includes('className={pointerPolicy.rootClassName}')) {
+  if (
+    !editorText.includes('className={`${pointerPolicy.rootClassName}')
+    || !editorText.includes('[&_input:disabled]:pointer-events-none')
+    || !editorText.includes('[&_select:disabled]:pointer-events-none')
+    || !editorText.includes('[&_textarea:disabled]:pointer-events-none')
+    || !editorText.includes('onPointerDownCapture={handleRootPointerCapture}')
+    || !editorText.includes('onMouseDownCapture={handleRootPointerCapture}')
+  ) {
     throw new Error('expected FlowWidgetOverlay root pointer routing to come from the shared pointer policy')
   }
   if (!editorText.includes('pointerPolicy.toolbarPointerEventsClassName')) {
@@ -424,7 +431,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (storeWorldGuardIndex < 0 || storeWorldWriteIndex < 0 || storeWorldGuardIndex > storeWorldWriteIndex) {
     throw new Error('expected root Flow widget world-position setter to reject Workspace/Indexing mutation writes')
   }
-  if (!overlayEdgesText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+  if (!overlayEdgesText.includes('isWorkspaceEditorOverlayOpen') || !overlayEdgesText.includes('isWorkspaceGraphMutationBlocked')) {
     throw new Error('expected Flow Editor overlay edge scheduler to use the actual workspace overlay state instead of the expiring mutation guard')
   }
   if (!overlayEdgesText.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
@@ -992,7 +999,7 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     || flowCanvasPointerMoveText.includes('useGraphStore.getState()')) {
     throw new Error('expected native Flow Editor canvas pan pointermove to apply the captured screen-authority session without rereading store mode')
   }
-  if (!flowCanvasListenersText.includes('const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)')
+  if (!flowCanvasListenersText.includes("String(st.canvas2dRenderer || '') === 'flowEditor' && shouldUseFlowEditorScreenAuthorityCollectivePan(st)")
     || !flowCanvasListenersText.includes('readFlowEditorScreenAuthorityPanSnapshot({')
     || !flowCanvasListenersText.includes('useFlowEditorScreenAuthorityPan: pending.useFlowEditorScreenAuthorityPan')
     || flowCanvasListenersText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {

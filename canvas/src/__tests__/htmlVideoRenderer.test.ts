@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   HTML_VIDEO_ENGINE_IDS,
@@ -18,9 +18,12 @@ import {
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_HTML_VIDEO_RENDERER_WIDGET_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
-import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
+import { isRichMediaVideoOutputTargetNode, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
+import { buildHtmlVideoPreviewSrcDocFromNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 
 const validSpec = (): RenderSpec => ({
   html: '<main><h1>Quarterly Update</h1></main>',
@@ -141,6 +144,30 @@ export async function testHtmlVideoRenderJobReturnsStructuredErrorsWithoutEngine
   if (throwing.ok === true || throwing.errorCode !== 'render_failed' || !String(throwing.reason || '').includes('boom')) {
     throw new Error(`expected render_failed, got ${JSON.stringify(throwing)}`)
   }
+
+  const browserNativeWebm = await runHtmlVideoRenderJob({
+    spec: { ...validSpec(), engineHint: 'browser-native-webm' },
+    node,
+    registry: createHtmlVideoEngineRegistry([{
+      engineId: 'browser-native-webm',
+      async render(spec) {
+        return {
+          blob: new Blob([`webm:${spec.html}`], { type: 'video/webm; codecs="vp8"' }),
+          engineId: 'browser-native-webm',
+          durationMs: spec.durationMs,
+          fps: spec.fps,
+          width: spec.width,
+          height: spec.height,
+        }
+      },
+    }]),
+  })
+  if (browserNativeWebm.ok === false) {
+    throw new Error(`expected browser-native video/webm blobs to publish as video artifacts, got ${browserNativeWebm.reason}`)
+  }
+  if (browserNativeWebm.blob.type !== 'video/webm; codecs="vp8"') {
+    throw new Error(`expected browser-native recorder MIME to be preserved, got ${browserNativeWebm.blob.type}`)
+  }
 }
 
 export function testHtmlVideoRendererFlowRegistryAndRichMediaKind() {
@@ -160,8 +187,18 @@ export function testHtmlVideoRendererFlowRegistryAndRichMediaKind() {
   for (const path of ['properties.html', 'properties.css', 'properties.data_json', 'properties.duration_ms', 'properties.fps', 'properties.width', 'properties.height', 'properties.engine_hint']) {
     if (!fieldPaths.has(path)) throw new Error(`expected field path ${path}`)
   }
+  const outputPortPaths = new Set(canonical.ports.filter(port => port.direction === 'output').map(port => port.schemaPath))
+  for (const path of ['properties.videoUrl', 'properties.outputSrcDoc', 'properties.outputPath', 'properties.renderJobId']) {
+    if (!outputPortPaths.has(path)) throw new Error(`expected HTML video output port path ${path}`)
+  }
   const kind = resolveRichMediaWidgetKind({ id: 'html-video-1', type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, label: '', properties: {} })
   if (kind !== 'video') throw new Error(`expected rich media video kind, got ${kind}`)
+  if (!isRichMediaVideoOutputTargetNode({ id: 'html-video-1', type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, label: '', properties: {} })) {
+    throw new Error('expected HTML video renderer to be a video output source target')
+  }
+  if (!isRichMediaVideoOutputTargetNode({ id: 'rich-media-panel-1', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label: '', properties: {} })) {
+    throw new Error('expected Rich Media Panel to accept rendered video output')
+  }
 }
 
 export function testHtmlVideoRendererSourceContractsAvoidParallelStorageAndAdapterImports() {
@@ -244,14 +281,23 @@ export async function testHtmlVideoCanvas2dAdapterIsBrowserNativeRecorderRuntime
     'rasterizer=html2canvas',
     'recorder=MediaRecorder',
     'data-kg-html-video-frame-host',
-    "document.createElement('main')",
+    "document.createElement('iframe')",
     "host.setAttribute('aria-label', 'HTML video frame raster host')",
+    "host.setAttribute('sandbox', 'allow-scripts allow-same-origin')",
+    'host.srcdoc = buildFrameDocument(spec, timeMs)',
+    'const renderRoot = frameDocument.querySelector',
     'host.remove()',
   ]) {
     if (!adapterText.includes(required)) throw new Error(`expected canvas-2d browser MP4 adapter to include ${required}`)
   }
-  if (adapterText.includes("document.createElement('div')") || adapterText.includes('host.innerHTML =')) {
-    throw new Error('expected canvas-2d adapter to use semantic temporary frame markup instead of generic host markup')
+  if (
+    adapterText.includes("document.createElement('div')") ||
+    adapterText.includes("document.createElement('main')") ||
+    adapterText.includes('host.innerHTML =') ||
+    adapterText.includes('host.append(style') ||
+    adapterText.includes('style.textContent = buildFrameStyle')
+  ) {
+    throw new Error('expected canvas-2d adapter to isolate render CSS in a frame document instead of the top document')
   }
   for (const forbidden of [forbiddenExternalMediaToolkit, 'Mp4OutputFormat', 'CanvasSource', 'BufferTarget', 'ffmpeg', '@ffmpeg/', '@hyperframes/', 'Puppeteer']) {
     if (adapterText.includes(forbidden)) throw new Error(`canvas-2d adapter must not require ${forbidden}`)
@@ -305,8 +351,22 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
     "richMediaActiveTab: 'video'",
     "readConnectedHtmlVideoProperty('properties.html', 'html')",
     'createHtmlVideoEngineRegistryFromRuntimeConfig()',
+    'isRichMediaVideoOutputTargetNode(candidate)',
+    'buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)',
+    "richMediaActiveTab: panelArgs.patch.richMediaActiveTab || 'video'",
+    'stabilizeHtmlVideoPreviewPatchForExistingProps',
+    'HTML_VIDEO_PREVIEW_STABILITY_KEYS',
+    'lastRunAt: currentProps.lastRunAt',
+    '!areFlowEditorWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)',
   ]) {
     if (!workflowText.includes(required)) throw new Error(`expected workflow runner to include ${required}`)
+  }
+  const htmlVideoRunBranch = workflowText.slice(
+    workflowText.indexOf("String(node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID"),
+    workflowText.indexOf("const richMediaKind = resolveRichMediaWidgetKind(node)"),
+  )
+  if (htmlVideoRunBranch.includes('setRunLoadingStateForKnownNodeIds({ loading: true')) {
+    throw new Error('expected HTML video preview-capable runs to avoid blanking Rich Media Panel with a loading skeleton')
   }
   const runAllSequenceText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'runAllSequenceSsot.ts'), 'utf8')
   for (const required of [
@@ -314,5 +374,190 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
     "typeId === normalizeText(FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID)) return 'video'",
   ]) {
     if (!runAllSequenceText.includes(required)) throw new Error(`expected run-all sequence to include ${required}`)
+  }
+}
+
+const readVdeoxplnDemoDocumentPath = (): string => {
+  const fromEnv = String(process.env.KNOWGRPH_VDEOXPLN_DEMO_DOC_PATH || '').trim()
+  if (fromEnv) return resolve(fromEnv)
+  return resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-vdeoxpln-demo.md')
+}
+
+const unwrapKtvValue = (value: unknown): unknown => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const record = value as Record<string, unknown>
+  if (Object.prototype.hasOwnProperty.call(record, 'value')) return record.value
+  return value
+}
+
+const readKtvString = (record: Record<string, unknown>, key: string): string => {
+  const value = unwrapKtvValue(record[key])
+  return typeof value === 'string' ? value : ''
+}
+
+const readKtvNumber = (record: Record<string, unknown>, key: string): number => {
+  const value = unwrapKtvValue(record[key])
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWithoutHardcodedRuntimeArtifacts() {
+  const demoPath = readVdeoxplnDemoDocumentPath()
+  if (!existsSync(demoPath)) throw new Error(`expected vdeoxpln validation doc at ${demoPath}`)
+  const markdown = readFileSync(demoPath, 'utf8')
+  const staleRuntimeLiterals = [
+    ['blob', 'http://'].join(':'),
+    ['localhost', '5173'].join(':'),
+    ['outputManifestPath', ''].join(':'),
+    ['outputSavedName', ''].join(':'),
+    ['lastRunAt', ''].join(':'),
+    ['outputLoading', ''].join(':'),
+    ['renderErrorCode', ''].join(':'),
+    ['renderErrorReason', ''].join(':'),
+    'engine returned a blob that is not video',
+  ]
+  for (const staleRuntimeLiteral of staleRuntimeLiterals) {
+    if (markdown.includes(staleRuntimeLiteral)) {
+      throw new Error(`validation input must not persist runtime artifact ${staleRuntimeLiteral}`)
+    }
+  }
+
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(markdown))
+  if (parsed.warnings.length > 0) throw new Error(`expected clean frontmatter parse, got ${parsed.warnings.join('; ')}`)
+  if (parsed.meta.validation_input_forbid_hardcode_in_repo !== true || parsed.meta.copyhardcode_forbid !== true) {
+    throw new Error('expected validation input to declare hardcode-forbid flags')
+  }
+
+  const flow = parsed.meta.flow
+  if (!flow || typeof flow !== 'object' || Array.isArray(flow)) throw new Error('expected frontmatter flow graph')
+  const nodes = (flow as { nodes?: unknown }).nodes
+  if (!Array.isArray(nodes)) throw new Error('expected flow.nodes array')
+  const rendererNode = nodes
+    .filter((node): node is Record<string, unknown> => !!node && typeof node === 'object' && !Array.isArray(node))
+    .find(node => readKtvString(node, 'type') === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID)
+  if (!rendererNode) throw new Error('expected HtmlVideoRenderer node from validation input')
+  const panelNode = nodes
+    .filter((node): node is Record<string, unknown> => !!node && typeof node === 'object' && !Array.isArray(node))
+    .find(node => readKtvString(node, 'type') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  if (!panelNode) throw new Error('expected RichMediaPanel node from validation input')
+  for (const runtimeKey of ['lastRunAt', 'output', 'outputSrcDoc', 'renderErrorCode', 'renderErrorReason']) {
+    if (Object.prototype.hasOwnProperty.call(panelNode, runtimeKey)) {
+      throw new Error(`validation input Rich Media Panel must not persist runtime field ${runtimeKey}`)
+    }
+  }
+
+  const specCandidate = {
+    html: readKtvString(rendererNode, 'html'),
+    css: readKtvString(rendererNode, 'css'),
+    data: JSON.parse(readKtvString(rendererNode, 'data_json') || '{}') as unknown,
+    durationMs: readKtvNumber(rendererNode, 'duration_ms'),
+    fps: readKtvNumber(rendererNode, 'fps'),
+    width: readKtvNumber(rendererNode, 'width'),
+    height: readKtvNumber(rendererNode, 'height'),
+    engineHint: readKtvString(rendererNode, 'engine_hint'),
+  }
+  const validated = validateRenderSpec(specCandidate)
+  if (validated.ok === false) throw new Error(`expected validation doc Render_Spec to validate: ${validated.reason}`)
+  if (validated.spec.engineHint !== HTML_VIDEO_ENGINE_IDS.canvas2d) throw new Error('expected validation doc to select canvas-2d')
+  if (validated.spec.durationMs !== 6000 || validated.spec.fps !== 24) {
+    throw new Error('expected validation doc to expose the URL-to-video 6s/24fps composition')
+  }
+  if (!String(validated.spec.css || '').includes('@keyframes') || !validated.spec.html.includes('data-duration=')) {
+    throw new Error('expected validation doc Render_Spec to carry runnable animation timing')
+  }
+  const responsivePreviewSrcDoc = buildHtmlVideoPreviewSrcDocFromNode({
+    id: 'html-video-preview-validation',
+    type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
+    label: FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
+    properties: {
+      html: specCandidate.html,
+      css: specCandidate.css,
+      data_json: JSON.stringify(specCandidate.data),
+      duration_ms: specCandidate.durationMs,
+      fps: specCandidate.fps,
+      width: specCandidate.width,
+      height: specCandidate.height,
+      engine_hint: specCandidate.engineHint,
+    },
+  })
+  for (const requiredPreviewFragment of [
+    'data-kg-html-video-preview-frame',
+    'data-kg-html-video-preview-stage',
+    'aspect-ratio:1280/720',
+    'ResizeObserver',
+    '--kg-html-video-preview-scale',
+    '--kg-html-video-preview-width',
+    '--kg-html-video-preview-height',
+    'var scale=frameWidth/sourceWidth;',
+    'stage.style.setProperty("--kg-html-video-preview-width",sourceWidth+"px")',
+    'stage.style.setProperty("--kg-html-video-preview-height",sourceHeight+"px")',
+    'section[data-kg-html-video-preview-stage]{position:absolute;left:0;top:0;width:1280px;height:720px;overflow:hidden;transform-origin:0 0;transform:scale(var(--kg-html-video-preview-scale,1));}',
+    'frame.style.width=frameWidth+"px"',
+    'frame.style.height=frameHeight+"px"',
+  ]) {
+    if (!responsivePreviewSrcDoc.includes(requiredPreviewFragment)) {
+      throw new Error(`expected responsive 16:9 HTML video preview fragment ${requiredPreviewFragment}`)
+    }
+  }
+  const data = validated.spec.data as {
+    animation?: { driver?: unknown; targets?: unknown; keyframes?: unknown }
+    composition?: { id?: unknown }
+    sourceCapture?: { url?: unknown; viewports?: unknown; extract?: unknown }
+    timelineTracks?: unknown
+    workspaceFiles?: unknown
+  }
+  if (data.composition?.id !== 'knowgrph-vdeoxpln-url-to-video-demo') {
+    throw new Error('expected validation doc data_json to identify the URL-to-video composition')
+  }
+  if (data.sourceCapture?.url !== 'https://airvio.co/knowgrph' || !Array.isArray(data.sourceCapture.viewports) || data.sourceCapture.viewports.length !== 3) {
+    throw new Error('expected validation doc data_json to expose URL capture viewports')
+  }
+  if (data.animation?.driver !== 'css-keyframes' || !Array.isArray(data.animation.targets)) {
+    throw new Error('expected validation doc data_json to expose animation metadata')
+  }
+  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length < 5) {
+    throw new Error('expected validation doc data_json to expose render timeline tracks')
+  }
+  if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some((entry) => {
+    return !!entry && typeof entry === 'object' && String((entry as { path?: unknown }).path || '') === 'url-to-video/storyboard.md'
+  })) {
+    throw new Error('expected validation doc data_json to expose storyboard workspace output')
+  }
+
+  const renderResult = await runHtmlVideoRenderJob({
+    spec: validated.spec,
+    node: {
+      id: readKtvString(rendererNode, 'id') || 'html-video-validation-node',
+      type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
+      label: readKtvString(rendererNode, 'label') || FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
+      properties: {},
+    },
+    registry: createHtmlVideoEngineRegistry([mockEngine(validated.spec.engineHint)]),
+  })
+  if (renderResult.ok === false) throw new Error(`expected validation doc Render_Spec to render, got ${renderResult.reason}`)
+  if (renderResult.blob.type !== 'video/mp4' || renderResult.engineId !== HTML_VIDEO_ENGINE_IDS.canvas2d) {
+    throw new Error('expected validation doc render to produce a canvas-2d video/mp4 result')
+  }
+  const previewSrcDoc = buildHtmlVideoPreviewSrcDocFromNode({
+    id: readKtvString(rendererNode, 'id') || 'html-video-validation-node',
+    type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
+    label: readKtvString(rendererNode, 'label') || FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
+    properties: {
+      html: validated.spec.html,
+      css: validated.spec.css,
+      data_json: JSON.stringify(validated.spec.data || {}),
+      duration_ms: validated.spec.durationMs,
+      fps: validated.spec.fps,
+      width: validated.spec.width,
+      height: validated.spec.height,
+      engine_hint: validated.spec.engineHint,
+    },
+  })
+  if (!previewSrcDoc.includes('knowgrph-html-video-data') || !previewSrcDoc.includes('@keyframes') || !previewSrcDoc.includes('Source page to MP4 composition')) {
+    throw new Error('expected validation doc to produce a runnable inline HTML preview fallback')
+  }
+
+  const thisTestText = readFileSync(resolve(process.cwd(), 'src', '__tests__', 'htmlVideoRenderer.test.ts'), 'utf8')
+  if (thisTestText.includes(validated.spec.html) || thisTestText.includes(validated.spec.css)) {
+    throw new Error('test must ingest validation source instead of copying HTML/CSS payloads into repo fixtures')
   }
 }

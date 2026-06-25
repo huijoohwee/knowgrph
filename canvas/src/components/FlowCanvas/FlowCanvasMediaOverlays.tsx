@@ -856,7 +856,7 @@ export default function FlowCanvasMediaOverlays(args: {
                 requestCommit()
               }
             } : undefined}
-            flowEditorInteractionMode={flowEditorOverlayInteractionMode}
+            flowEditorInteractionMode={flowEditorSurfaceInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
             flowEditorSurfaceId={flowEditorOverlaySurfaceId}
             style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, zIndex: overlayZIndex }}

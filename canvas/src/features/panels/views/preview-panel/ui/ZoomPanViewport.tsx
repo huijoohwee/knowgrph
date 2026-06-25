@@ -9,6 +9,7 @@ import {
   UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import type { MediaPreviewSurfaceSelectionProps } from '@/lib/cards/mediaPreviewSurfaceSelection'
 
 type ContentSize = { w: number; h: number }
 type Pan = { x: number; y: number }
@@ -45,8 +46,10 @@ type ZoomPanViewportProps = {
   showZoomIndicator?: boolean
   frameClassName?: string
   contentFillsFrame?: boolean
+  transparentBackground?: boolean
   disablePan?: boolean
   lockViewportAtFitScale?: boolean
+  frameSelectionProps?: MediaPreviewSurfaceSelectionProps
 }
 
 export default function ZoomPanViewport({
@@ -67,8 +70,10 @@ export default function ZoomPanViewport({
   showZoomIndicator = false,
   frameClassName,
   contentFillsFrame = false,
+  transparentBackground = false,
   disablePan = false,
   lockViewportAtFitScale = false,
+  frameSelectionProps,
 }: ZoomPanViewportProps) {
   const viewportRef = React.useRef<HTMLElement | null>(null)
   const frameRef = React.useRef<HTMLElement | null>(null)
@@ -170,6 +175,25 @@ export default function ZoomPanViewport({
     scheduleApply({ zoom: nextZoom, pan: { x: 0, y: 0 } })
   }, [contentFillsFrame, fitZoomMax, fitZoomMin, frameSize.h, frameSize.w, getContentSize, scheduleApply])
 
+  const shouldStartPanDrag = React.useCallback((down: PointerEvent): boolean => {
+    if (disablePan) return false
+    if (down.pointerType === 'mouse' && down.button === 2) return false
+    return true
+  }, [disablePan])
+
+  const applyPanDragMove = React.useCallback((clientX: number, clientY: number): void => {
+    const st = dragRef.current
+    if (!st || !st.active) return
+    const dx = clientX - st.startX
+    const dy = clientY - st.startY
+    scheduleApply({ zoom: zoomRef.current, pan: { x: st.baseX + dx, y: st.baseY + dy } })
+  }, [scheduleApply])
+
+  const endPanDrag = React.useCallback((): void => {
+    wheelActiveRef.current = false
+    dragRef.current = null
+  }, [])
+
   React.useEffect(() => {
     if (!open) return
     if (lockViewportAtFitScale) {
@@ -191,7 +215,7 @@ export default function ZoomPanViewport({
   }, [fitKey, fitOnOpen, fitToViewport, open])
 
   return (
-    <section className={`w-full h-full flex flex-col ${UI_THEME_TOKENS.panel.bg}`}>
+    <section className={`w-full h-full flex flex-col ${transparentBackground ? 'bg-transparent' : UI_THEME_TOKENS.panel.bg}`}>
       {showControls ? (
         <section className={`${UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME} shrink-0 px-3 py-1 flex items-center justify-end gap-2 border-b ${UI_THEME_TOKENS.panel.divider} text-xs ${UI_THEME_TOKENS.text.secondary}`}>
           <button
@@ -229,7 +253,7 @@ export default function ZoomPanViewport({
       <section
         ref={viewportRef}
         data-kg-canvas-wheel-ignore="true"
-        className={`flex-1 min-h-0 ${UI_THEME_TOKENS.panel.bg} overflow-hidden`}
+        className={`flex-1 min-h-0 ${transparentBackground ? 'bg-transparent' : UI_THEME_TOKENS.panel.bg} overflow-hidden`}
         onWheel={(e) => {
           if (lockViewportAtFitScale) return
           const isModifierZoom = e.altKey
@@ -256,9 +280,9 @@ export default function ZoomPanViewport({
           if (nextZoom === prevZoom) return
           scheduleApply({ zoom: nextZoom, pan: prevPan })
         }}
-        onPointerDown={(e) => {
+        onPointerDownCapture={(e) => {
           if (lockViewportAtFitScale) return
-          if (disablePan) return
+          if (!shouldStartPanDrag(e.nativeEvent)) return
           wheelActiveRef.current = true
           didUserInteractRef.current = true
           const prevPan = panRef.current
@@ -267,28 +291,19 @@ export default function ZoomPanViewport({
           startPointerDrag({
             ev: e.nativeEvent,
             cursor: 'grabbing',
-            shouldStart: down => {
-              if (disablePan) return false
-              if (down.pointerType === 'mouse' && down.button !== 0) return false
-              return true
-            },
+            shouldStart: shouldStartPanDrag,
             onMove: mv => {
-              const st = dragRef.current
-              if (!st || !st.active) return
-              const dx = mv.clientX - st.startX
-              const dy = mv.clientY - st.startY
-              scheduleApply({ zoom: zoomRef.current, pan: { x: st.baseX + dx, y: st.baseY + dy } })
+              applyPanDragMove(mv.clientX, mv.clientY)
             },
-            onEnd: () => {
-              wheelActiveRef.current = false
-              dragRef.current = null
-            },
-            onCancel: () => {
-              wheelActiveRef.current = false
-              dragRef.current = null
-            },
+            onEnd: endPanDrag,
+            onCancel: endPanDrag,
           })
         }}
+        onPointerMoveCapture={(e) => {
+          applyPanDragMove(e.clientX, e.clientY)
+        }}
+        onPointerUpCapture={endPanDrag}
+        onPointerCancelCapture={endPanDrag}
         onPointerLeave={() => {
           wheelActiveRef.current = false
         }}
@@ -298,6 +313,7 @@ export default function ZoomPanViewport({
             <section
               ref={frameRef}
               className={['relative overflow-hidden', frameClassName || ''].filter(Boolean).join(' ')}
+              {...frameSelectionProps}
               style={{
                 width: `${Math.max(1, frameSize.w)}px`,
                 height: `${Math.max(1, frameSize.h)}px`,

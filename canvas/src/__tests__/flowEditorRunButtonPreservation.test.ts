@@ -24,6 +24,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { clearRichMediaOutputProperties } from '@/features/chat/richMediaRun'
 
 // ---------------------------------------------------------------------------
 // Template node definitions (from knowgrph-flow-editor-computing-flow-template.md)
@@ -969,4 +970,68 @@ export function testFlowEditorRunButtonPreservation_ExportWorkflowBundle_Functio
       'Requirement 3.5: the file download capability must be preserved for explicit export actions.'
     )
   }
+}
+
+export function testFlowEditorRunButtonPreservation_ResetAllAndWidgetResetUseSharedRuntimeCleanup() {
+  const root = process.cwd()
+  const toolbarText = readFileSync(resolve(root, 'src', 'components', 'Toolbar.tsx'), 'utf8')
+  const canvasUtilsText = readFileSync(resolve(root, 'src', 'features', 'canvas', 'utils.ts'), 'utf8')
+  const workflowActionsText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts'), 'utf8')
+  const nodeToolbarText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx'), 'utf8')
+
+  for (const snippet of [
+    'WORKFLOW_RESET_ALL_EVENT',
+    'emitWorkflowResetAll',
+    "source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'",
+  ]) {
+    if (!canvasUtilsText.includes(snippet)) throw new Error(`expected reset-all canvas event contract snippet: ${snippet}`)
+  }
+  for (const snippet of [
+    "title={canResetAll ? 'Reset all' : 'Reset all (Flow Editor only)'}",
+    'emitToolbarResetAll()',
+    '<RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />',
+  ]) {
+    if (!toolbarText.includes(snippet)) throw new Error(`expected Toolbar Reset all button snippet: ${snippet}`)
+  }
+  if (toolbarText.indexOf("title={canRunAll ? 'Run all'") > toolbarText.indexOf("title={canResetAll ? 'Reset all'")) {
+    throw new Error('expected Toolbar Reset all button to render to the right of Run all')
+  }
+  for (const snippet of [
+    'window.addEventListener(WORKFLOW_RESET_ALL_EVENT',
+    'const resetWorkflowOutputs = React.useCallback(() => {',
+    'clearRichMediaOutputProperties(currentProps)',
+    'bumpFlowEditorDraftGraphDataRevision({ ...draft, nodes: nextNodes })',
+  ]) {
+    if (!workflowActionsText.includes(snippet)) throw new Error(`expected Flow Editor Reset all runtime snippet: ${snippet}`)
+  }
+
+  const runIndex = nodeToolbarText.indexOf('title={UI_COPY.flowWidgetRun}')
+  const resetIndex = nodeToolbarText.indexOf('title={UI_LABELS.clearOutput}')
+  const importUrlIndex = nodeToolbarText.indexOf('title="Import URL"')
+  if (runIndex < 0 || resetIndex < 0) throw new Error('expected widget toolbar to include Run and Reset controls')
+  if (!(runIndex < resetIndex && (importUrlIndex < 0 || resetIndex < importUrlIndex))) {
+    throw new Error('expected widget Reset control to render immediately to the right of Run before secondary controls')
+  }
+
+  const cleaned = clearRichMediaOutputProperties({
+    prompt: 'keep authored prompt',
+    output: 'stale output',
+    outputSrcDoc: '<main>old preview</main>',
+    outputLoading: true,
+    outputLoadingKind: 'video',
+    renderErrorCode: 'render_failed',
+    renderErrorReason: 'old failure',
+    renderJobId: 'old-job',
+    videoUrl: 'blob:http://localhost/old',
+    outputPath: '/tmp/old.mp4',
+    outputManifestPath: '/tmp/old.json',
+    outputStorageUrl: 'https://example.test/old.mp4',
+    lastRunAt: '2026-06-25T00:00:00.000Z',
+  })
+  for (const staleKey of ['output', 'outputSrcDoc', 'outputLoading', 'outputLoadingKind', 'renderErrorCode', 'renderErrorReason', 'renderJobId', 'videoUrl', 'outputPath', 'outputManifestPath', 'outputStorageUrl', 'lastRunAt']) {
+    if (Object.prototype.hasOwnProperty.call(cleaned, staleKey)) {
+      throw new Error(`expected shared reset cleanup to remove ${staleKey}`)
+    }
+  }
+  if (cleaned.prompt !== 'keep authored prompt') throw new Error('expected shared reset cleanup to preserve authored input fields')
 }

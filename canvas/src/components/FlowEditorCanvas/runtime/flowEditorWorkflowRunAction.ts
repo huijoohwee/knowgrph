@@ -10,7 +10,7 @@ import { UI_COPY, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, FLOW_SWARM_PREDICTION_N
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
+import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, isRichMediaVideoOutputTargetNode, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
 import { getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
@@ -21,7 +21,7 @@ import {
   runShowrunnerWidgetProperties,
 } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-video-renderer/htmlVideoEngineRegistry'
-import { runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
+import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
 import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
   resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
@@ -40,6 +40,7 @@ import {
   resolveFlowEditorWorkflowDownstreamRunTargetIds,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowDownstreamRunTargets'
 import {
+  areFlowEditorWorkflowRecordValuesEqual,
   setFlowEditorWorkflowRunLoadingStateForKnownNodeIds,
   updateFlowEditorWorkflowOutputForKnownNodeIds,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
@@ -72,6 +73,32 @@ export type FlowEditorWorkflowNodeRunnerArgs = {
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   scheduleOverlayEdgeUpdate: () => void
+}
+
+const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
+  'output',
+  'outputSrcDoc',
+  'outputMimeType',
+  'outputModel',
+  'renderErrorCode',
+  'renderErrorReason',
+  'richMediaActiveTab',
+] as const
+
+function stabilizeHtmlVideoPreviewPatchForExistingProps(
+  currentProps: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const outputSrcDoc = typeof patch.outputSrcDoc === 'string' ? patch.outputSrcDoc : ''
+  if (!outputSrcDoc || currentProps.outputSrcDoc !== outputSrcDoc) return patch
+  for (const key of HTML_VIDEO_PREVIEW_STABILITY_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
+    if (!Object.is(currentProps[key], patch[key])) return patch
+  }
+  return {
+    ...patch,
+    lastRunAt: currentProps.lastRunAt,
+  }
 }
 
 export function resolveFlowEditorBaseGraphKind(graphData: GraphData | null | undefined): string {
@@ -317,7 +344,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             graphData: graphForRun,
           }).filter(targetId => {
             const candidate = resolveNodeByIdAcrossGraphs(targetId)
-            return resolveRichMediaWidgetKind(candidate) === 'video'
+            return isRichMediaVideoOutputTargetNode(candidate)
           })
           const panelNodeIds = downstreamPanelTargetIds.length > 0
             ? downstreamPanelTargetIds
@@ -330,10 +357,16 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
               appendDraftNode: args.appendDraftNode,
             })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
           for (const panelNodeId of panelNodeIds) {
-            const patch = {
+            const rawPatch = {
               ...panelArgs.patch,
-              richMediaActiveTab: 'video',
+              richMediaActiveTab: panelArgs.patch.richMediaActiveTab || 'video',
             }
+            const liveDraftBeforePatch = args.readDraftGraphData()
+            const existingPanelBeforePatch = Array.isArray(liveDraftBeforePatch?.nodes)
+              ? liveDraftBeforePatch!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || resolveNodeByIdAcrossGraphs(panelNodeId)
+              : resolveNodeByIdAcrossGraphs(panelNodeId)
+            const existingPanelBeforePatchProps = (existingPanelBeforePatch?.properties || {}) as Record<string, unknown>
+            const patch = stabilizeHtmlVideoPreviewPatchForExistingProps(existingPanelBeforePatchProps, rawPatch)
             const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
               panelNodeId,
               patch,
@@ -346,7 +379,10 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
               ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
               : resolveNodeByIdAcrossGraphs(panelNodeId))
             const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-            if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
+            const nextPanelProps = { ...existingPanelProps, ...patch }
+            if (!suppressLayoutMutation && !areFlowEditorWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)) {
+              args.updateNode(panelNodeId, { properties: nextPanelProps as never })
+            }
           }
         })
       }
@@ -475,7 +511,6 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
       }
 
       if (String(node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) {
-        setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'video' })
         try {
           const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
             context: workflowNodeResolutionContext,
@@ -509,6 +544,27 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             fs: await getWorkspaceFs(),
           })
           if (result.ok === false) {
+            const outputSrcDoc = buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)
+            if (outputSrcDoc.trim()) {
+              const previewPatch = {
+                output: result.reason || 'HTML video encoder unavailable; rendered inline HTML preview.',
+                outputSrcDoc,
+                outputMimeType: 'text/html; charset=utf-8',
+                outputModel: String(result.engineId || rawNodeProperties.engine_hint || 'html-video-preview').trim(),
+                renderErrorCode: result.errorCode,
+                renderErrorReason: result.reason,
+                richMediaActiveTab: 'auto',
+                lastRunAt: new Date().toISOString(),
+              }
+              updateRunOutputForKnownNodeIds(nodeProps => ({
+                ...clearRichMediaOutputProperties(nodeProps),
+                ...stabilizeHtmlVideoPreviewPatchForExistingProps(nodeProps, previewPatch),
+              }))
+              publishVideoRunOutputToRichMediaPanel({
+                anchorNode: node,
+                patch: previewPatch,
+              })
+            }
             args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'warning', message: result.reason || UI_COPY.flowEditorRunFailedToast, ttlMs: 3200 })
             return
           }

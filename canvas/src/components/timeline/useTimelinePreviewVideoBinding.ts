@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTimelineVideoPreviewSyncController } from './timelinePreviewSync'
 import { type VideoSequenceExportPlan } from './videoSequenceExport'
-import { useTimelineMediaReaderSummary } from './timelineMediaReader'
+import { mergeTimelineMediaReaderSummaryWithSource, useTimelineMediaReaderSummary } from './timelineMediaReader'
 import {
   useTimelineDocumentTransportController,
   useTimelineTransportSnapshotReader,
@@ -27,6 +27,10 @@ export function useTimelinePreviewVideoBinding(args: {
     active: syncEnabled,
     url: args.mediaKey,
   })
+  const resolvedMediaReaderSummary = React.useMemo(
+    () => mergeTimelineMediaReaderSummaryWithSource(mediaReaderSummary, args.source),
+    [args.source, mediaReaderSummary],
+  )
   const {
     transportDocumentKey,
     transportPosition,
@@ -69,7 +73,7 @@ export function useTimelinePreviewVideoBinding(args: {
     playing,
     readTransportSnapshot,
     readVideo: () => videoElementRef.current,
-    readerDurationSeconds: mediaReaderSummary.durationSeconds,
+    readerDurationSeconds: resolvedMediaReaderSummary.durationSeconds,
     setTransportPlaybackPosition,
     setTransportPlaying,
     source: args.source,
@@ -77,7 +81,7 @@ export function useTimelinePreviewVideoBinding(args: {
 
   return {
     handleVideoElement,
-    mediaReaderSummary,
+    mediaReaderSummary: resolvedMediaReaderSummary,
     syncEnabled,
   }
 }

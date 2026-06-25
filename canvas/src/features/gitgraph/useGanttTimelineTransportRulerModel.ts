@@ -1,5 +1,6 @@
 import React from 'react'
 import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
+import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
 import { type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
 import {
@@ -27,6 +28,7 @@ export type GanttTimelineTransportRulerModel = {
     scopes: readonly VideoSequenceTimelineScope[]
     selectedRowKey: string
     sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+    sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
     onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
@@ -47,6 +49,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   scopes: readonly VideoSequenceTimelineScope[]
   selectedRowKey: string
   sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+  sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
   totalLabel: string
@@ -83,6 +86,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       scopes: args.scopes,
       selectedRowKey: args.selectedRowKey,
       sourceThumbnails: args.sourceThumbnails,
+      sourceThumbnailWindows: args.sourceThumbnailWindows,
       taskSpans: args.taskSpans,
       timelineZoom: args.timelineZoom,
     },
@@ -101,6 +105,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.scopes,
     args.selectedRowKey,
     args.sourceThumbnails,
+    args.sourceThumbnailWindows,
     args.taskSpans,
     args.timelineZoom,
     args.totalLabel,

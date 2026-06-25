@@ -12,6 +12,7 @@ export const FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen' as const
 export const MEDIA_LIBRARY_OPEN_TOP_EVENT = 'kg:mediaLibraryOpenTop' as const
 export const CHAT_INPUT_APPEND_EVENT = 'kg:chatInputAppend' as const
 export const WORKFLOW_RUN_ALL_EVENT = 'kg:workflowRunAll' as const
+export const WORKFLOW_RESET_ALL_EVENT = 'kg:workflowResetAll' as const
 
 export type PropsPanelOpenEventDetail = {
   clientX?: number
@@ -30,6 +31,10 @@ export type ChatInputAppendEventDetail = {
 }
 
 export type WorkflowRunAllEventDetail = {
+  source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
+}
+
+export type WorkflowResetAllEventDetail = {
   source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
 }
 
@@ -89,6 +94,10 @@ export function emitChatInputAppend(detail?: ChatInputAppendEventDetail): void {
 
 export function emitWorkflowRunAll(detail?: WorkflowRunAllEventDetail): void {
   emitCanvasCustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT, detail)
+}
+
+export function emitWorkflowResetAll(detail?: WorkflowResetAllEventDetail): void {
+  emitCanvasCustomEvent<WorkflowResetAllEventDetail>(WORKFLOW_RESET_ALL_EVENT, detail)
 }
 
 export function emitRendererPanelOpen(): void {

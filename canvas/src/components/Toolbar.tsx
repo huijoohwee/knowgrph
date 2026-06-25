@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download } from 'lucide-react';
+import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play, Download, RotateCcw } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS } from '@/lib/config';
@@ -15,9 +15,11 @@ import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelec
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { emitFloatingPanelOpen, emitWorkflowRunAll } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen, emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
+import { setRunAllLayoutMutationLock } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowRunAll'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import {
   UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
@@ -41,6 +43,19 @@ const TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS = 120
 const TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS = 520
 
 const emitToolbarRunAll = () => emitWorkflowRunAll({ source: 'toolbar' })
+const emitToolbarResetAll = () => emitWorkflowResetAll({ source: 'toolbar' })
+const shouldPrimeFlowEditorRunAllLayoutLock = (args: {
+  canRunAll: boolean
+  canvas2dRenderer: unknown
+  runAllFloatingPanelTab: unknown
+}): boolean => {
+  return args.canRunAll && args.canvas2dRenderer === 'flowEditor' && !args.runAllFloatingPanelTab
+}
+const primeFlowEditorRunAllLayoutLockFromToolbar = (): void => {
+  const graphStore = useGraphStore.getState()
+  disableAutoZoomModesForUserGesture(graphStore)
+  setRunAllLayoutMutationLock(true)
+}
 
 export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const {
@@ -81,6 +96,7 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const searchPanelRef = useRef<HTMLElement>(null);
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
+  const canResetAll = canvas2dRenderer === 'flowEditor'
   const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
   const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && runAllFloatingPanelTab === 'strybldr')
   const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
@@ -144,13 +160,14 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   }, [isMainPanelOpen, isNarrowViewport])
 
   return (
-	    <nav
-	      ref={toolbarNavRef}
-	      className={`${navClassBase} ${shouldUseToolbarRowScroll ? uiToolbarTouchRowScrollClassName : ''}`}
+    <nav
+      ref={toolbarNavRef}
+      className={`${navClassBase} ${shouldUseToolbarRowScroll ? uiToolbarTouchRowScrollClassName : ''}`}
       role="navigation"
-	      aria-label="Main Toolbar"
-	      data-kg-canvas-wheel-ignore="true"
-	    >
+      aria-label="Main Toolbar"
+      data-kg-canvas-pointer-ignore="true"
+      data-kg-canvas-wheel-ignore="true"
+    >
       <React.Suspense fallback={null}>
         <ToolbarMenuLauncherLazy
           onOpenMainPanel={openMainPanel}
@@ -284,10 +301,18 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
         className="App-toolbar__btn"
         title={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
         tooltipContent={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
+        onPointerDownCapture={() => {
+          if (shouldPrimeFlowEditorRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
+            primeFlowEditorRunAllLayoutLockFromToolbar()
+          }
+        }}
         onClick={() => {
           if (!canRunAll) {
             pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor or Strybldr to run all.', ttlMs: 2200 })
             return
+          }
+          if (shouldPrimeFlowEditorRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
+            primeFlowEditorRunAllLayoutLockFromToolbar()
           }
           if (runAllFloatingPanelTab) {
             const graphStore = useGraphStore.getState()
@@ -308,6 +333,21 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
         showTooltip
       >
         <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={canResetAll ? 'Reset all' : 'Reset all (Flow Editor only)'}
+        tooltipContent={canResetAll ? 'Reset all' : 'Reset all (Flow Editor only)'}
+        onClick={() => {
+          if (!canResetAll) {
+            pushUiToast({ id: 'toolbar-reset-all-disabled', kind: 'neutral', message: 'Open Flow Editor to reset workflow outputs.', ttlMs: 2200 })
+            return
+          }
+          emitToolbarResetAll()
+        }}
+        showTooltip
+      >
+        <RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
       <hr className="App-toolbar__divider" aria-hidden="true" />

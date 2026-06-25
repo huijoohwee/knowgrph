@@ -141,6 +141,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["htmlVideoRenderer.canvas2dAdapter.browserNativeRecorderRuntime","@/__tests__/htmlVideoRenderer.test","testHtmlVideoCanvas2dAdapterIsBrowserNativeRecorderRuntimeAdapter"],
   ["htmlVideoRenderer.browserRuntime.canvas2dRegistered","@/__tests__/htmlVideoRenderer.test","testHtmlVideoBrowserRuntimeRegistersCanvas2dWithoutFallbackEngine"],
   ["htmlVideoRenderer.workflow.richMediaPanelPublication","@/__tests__/htmlVideoRenderer.test","testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel"],
+  ["htmlVideoRenderer.validationInput.vdeoxplnAnimatedMp4","@/__tests__/htmlVideoRenderer.test","testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWithoutHardcodedRuntimeArtifacts"],
   ["mcp.server.agenticCanvasOsRuntime.dryRunPrdTad","@/__tests__/mcpLocalToolContract.test","testKnowgrphAgenticCanvasOsRuntimeCoversDryRunPrdTad"],
   ["mcp.server.videoRemixRuntime.prdTadAcceptanceShape","@/__tests__/mcpLocalToolContract.test","testKnowgrphVideoRemixRuntimeCoversPrdTadAcceptanceShape"],
   ["mcp.server.resourceTemplateContract.sharedAndStable","@/__tests__/mcpLocalToolContract.test","testKnowgrphMcpResourceTemplateContractStaysSharedAndStable"],

@@ -46,6 +46,10 @@ export type VideoSequenceTimelineSource = {
   sourceUrl: string
   mimeHint: string
   byteSize: number | null
+  durationSeconds?: number
+  frameRate?: number
+  displayWidth?: number
+  displayHeight?: number
   importMode: VideoSequenceTimelineImportMode | ''
 }
 
@@ -119,6 +123,11 @@ const readByteSize = (value: unknown): number | null => {
   return Math.floor(size)
 }
 
+const readPositiveNumber = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
 const readImportMode = (value: unknown): VideoSequenceTimelineImportMode | '' => {
   const mode = clean(value)
   return mode === 'file' || mode === 'folder' || mode === 'url' || mode === 'workspace' ? mode : ''
@@ -147,6 +156,10 @@ const normalizeVideoSequenceSource = (value: unknown): VideoSequenceTimelineSour
     sourceUrl,
     mimeHint,
     byteSize: readByteSize(record.byteSize),
+    displayHeight: readPositiveNumber(record.displayHeight),
+    displayWidth: readPositiveNumber(record.displayWidth),
+    durationSeconds: readPositiveNumber(record.durationSeconds),
+    frameRate: readPositiveNumber(record.frameRate),
     importMode: readImportMode(record.importMode),
   }
 }

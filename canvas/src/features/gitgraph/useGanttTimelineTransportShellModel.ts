@@ -1,4 +1,5 @@
 import React from 'react'
+import type { TimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 import { type TimelineTransportPlaybackRate } from '@/components/timeline/timelineTransport'
 
 export type GanttTimelineTransportShellModel = {
@@ -29,6 +30,7 @@ export function useGanttTimelineTransportShellModel(args: {
   hasMediaDurationScale: boolean
   maxMinutes: number
   mediaDurationSeconds: number
+  mediaReaderSummary: TimelineMediaReaderSummary
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
   onPlaybackPointerDown?: () => void
@@ -56,6 +58,14 @@ export function useGanttTimelineTransportShellModel(args: {
       'data-kg-gantt-timeline-transport': 'bottomPanel',
       'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined,
       'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined,
+      'data-kg-video-sequence-media-reader': args.mediaReaderSummary.status,
+      'data-kg-video-sequence-media-reader-byte-size': args.mediaReaderSummary.byteSize > 0 ? args.mediaReaderSummary.byteSize : undefined,
+      'data-kg-video-sequence-media-reader-bytes-read': args.mediaReaderSummary.bytesRead > 0 ? args.mediaReaderSummary.bytesRead : undefined,
+      'data-kg-video-sequence-media-reader-format': args.mediaReaderSummary.formatName || undefined,
+      'data-kg-video-sequence-media-reader-mime-type': args.mediaReaderSummary.mimeType || undefined,
+      'data-kg-video-sequence-media-reader-primary-audio-codec': args.mediaReaderSummary.primaryAudioCodec || undefined,
+      'data-kg-video-sequence-media-reader-primary-video-codec': args.mediaReaderSummary.primaryVideoCodec || undefined,
+      'data-kg-video-sequence-media-reader-read-ratio': args.mediaReaderSummary.metadataReadRatio > 0 ? args.mediaReaderSummary.metadataReadRatio : undefined,
       'data-kg-video-sequence-timeline': 'source-backed',
     } as React.HTMLAttributes<HTMLElement>,
     shellClassName: 'timeline-transport-shell--video-sequence',
@@ -68,6 +78,7 @@ export function useGanttTimelineTransportShellModel(args: {
     args.hasMediaDurationScale,
     args.maxMinutes,
     args.mediaDurationSeconds,
+    args.mediaReaderSummary,
     args.onPlaybackPointerDown,
     args.onPlaybackRateChange,
     args.onTogglePlayback,

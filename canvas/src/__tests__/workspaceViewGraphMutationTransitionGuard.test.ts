@@ -8,7 +8,7 @@ import {
   buildWorkspaceGraphMutationTransitionState,
   isWorkspaceGraphMutationBlocked,
 } from '@/features/workspace-table/workspaceTableSsot'
-import { buildAutoFitToScreenSignature } from '@/lib/zoom/autoModeSignatures'
+import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 
 export function testWorkspaceGraphMutationTransitionUsesSemanticKeyAndExpiry() {
   const key = buildWorkspaceGraphMutationBlockKey({
@@ -82,11 +82,41 @@ export function testWorkspaceGraphMutationTransitionKeysAutoFitVisibility() {
   if (closedSig === openedSig) {
     throw new Error('expected workspace open/close semantic keys to create distinct auto-fit visibility signatures')
   }
+  const flowEditorClosedSig = buildAutoFitToScreenSignature({
+    ...base,
+    graphDataRevision: 0,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    visibilityFrameKey: '',
+  })
+  const flowEditorOpenedSig = buildAutoFitToScreenSignature({
+    ...base,
+    graphDataRevision: 99,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    visibilityFrameKey: '',
+  })
+  if (flowEditorClosedSig !== flowEditorOpenedSig) {
+    throw new Error('expected Flow Editor auto-fit signatures to ignore output-only revisions and mutation visibility keys')
+  }
+  const flowEditorSelectionBefore = buildAutoZoomSelectionSignature({
+    graphDataRevision: 1,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    selectedNodeId: 'html_video_mp4_panel',
+    selectedEdgeId: null,
+  })
+  const flowEditorSelectionAfter = buildAutoZoomSelectionSignature({
+    graphDataRevision: 2,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    selectedNodeId: 'html_video_mp4_panel',
+    selectedEdgeId: null,
+  })
+  if (flowEditorSelectionBefore !== flowEditorSelectionAfter) {
+    throw new Error('expected Flow Editor selection auto-zoom signatures to ignore output-only graph revisions')
+  }
 
   const autoZoomPath = resolve(process.cwd(), 'src', 'features', 'zoom', 'useAutoZoomModes2d.ts')
   const autoZoomText = readFileSync(autoZoomPath, 'utf8')
-  if (!autoZoomText.includes('visibilityFrameKey: state.workspaceGraphMutationBlockKey')) {
-    throw new Error('expected 2D auto-fit signatures to include the shared workspace graph visibility key')
+  if (!autoZoomText.includes("const visibilityFrameKey = graphLayoutSignature ? '' : state.workspaceGraphMutationBlockKey")) {
+    throw new Error('expected 2D auto-fit signatures to suppress mutation visibility keys only for Flow Editor layout signatures')
   }
   if (!autoZoomText.includes('workspaceGraphMutationBlockKey: s.workspaceGraphMutationBlockKey')) {
     throw new Error('expected 2D auto-fit scheduling to subscribe to workspace graph visibility key changes')
@@ -237,6 +267,46 @@ export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraph
 }
 
 export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases() {
+  const flowEditorFitBefore = buildAutoFitToScreenSignature({
+    nodeCount: 3,
+    viewportW: 866,
+    viewportH: 962,
+    graphDataRevision: 1,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    schema: null,
+    mediaPanelDensity: 'comfortable',
+    renderMediaAsNodes: true,
+    visibilityFrameKey: '',
+  })
+  const flowEditorFitAfter = buildAutoFitToScreenSignature({
+    nodeCount: 3,
+    viewportW: 866,
+    viewportH: 962,
+    graphDataRevision: 2,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    schema: null,
+    mediaPanelDensity: 'comfortable',
+    renderMediaAsNodes: true,
+    visibilityFrameKey: '',
+  })
+  if (flowEditorFitBefore !== flowEditorFitAfter) {
+    throw new Error('expected Flow Editor auto-fit signatures to ignore output-only Run all revisions and mutation visibility keys')
+  }
+  const flowEditorSelectionBefore = buildAutoZoomSelectionSignature({
+    graphDataRevision: 1,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    selectedNodeId: 'html_video_mp4_panel',
+    selectedEdgeId: null,
+  })
+  const flowEditorSelectionAfter = buildAutoZoomSelectionSignature({
+    graphDataRevision: 2,
+    graphLayoutSignature: 'flow-editor-topology-layout',
+    selectedNodeId: 'html_video_mp4_panel',
+    selectedEdgeId: null,
+  })
+  if (flowEditorSelectionBefore !== flowEditorSelectionAfter) {
+    throw new Error('expected Flow Editor selection auto-zoom signatures to ignore output-only Run all graph revisions')
+  }
   const autoZoomPath = resolve(process.cwd(), 'src', 'features', 'zoom', 'useAutoZoomModes2d.ts')
   const autoZoomText = readFileSync(autoZoomPath, 'utf8')
   if (!autoZoomText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
@@ -250,6 +320,12 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   }
   if (!autoZoomText.includes('const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)')) {
     throw new Error('expected Flow Editor auto-fit to ignore output-only graph revisions and key by semantic layout topology')
+  }
+  if (!autoZoomText.includes("const visibilityFrameKey = graphLayoutSignature ? '' : state.workspaceGraphMutationBlockKey")) {
+    throw new Error('expected Flow Editor auto-fit to ignore mutation visibility keys when semantic layout topology is stable')
+  }
+  if (!autoZoomText.includes('graphLayoutSignature,')) {
+    throw new Error('expected selection auto-zoom signatures to receive the semantic Flow Editor layout signature')
   }
   const signaturePath = resolve(process.cwd(), 'src', 'lib', 'zoom', 'autoModeSignatures.ts')
   const signatureText = readFileSync(signaturePath, 'utf8')
@@ -270,8 +346,33 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!runtimeSceneText.includes('screenLeft: rect.left') || !runtimeSceneText.includes('screenX: item.x + surfaceOffsetLeft')) {
     throw new Error('expected Flow Editor DOM collective recovery to preserve viewport screen coordinates separately from surface-relative bounds')
   }
+  const flowRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
+  const flowRuntimeText = readFileSync(flowRuntimePath, 'utf8')
+  if (!flowRuntimeText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected native FlowCanvas runtime fit to import the shared workspace graph mutation guard')
+  }
+  if (!flowRuntimeText.includes('if (isFlowEditor && isWorkspaceGraphMutationBlocked(state)) return')) {
+    throw new Error('expected native FlowCanvas runtime fit to stop while Run all holds the shared graph mutation guard')
+  }
+  if (!flowRuntimeText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'")) {
+    throw new Error('expected native FlowCanvas runtime fit to reuse the shared Flow Editor topology/layout signature')
+  }
+  if (!flowRuntimeText.includes('const initKey = isFlowEditor ? `flowEditor:${flowEditorLayoutSignature}` : zoomViewKey')) {
+    throw new Error('expected Flow Editor init fit to ignore output-only zoom key churn')
+  }
+  const interactionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
+  const interactionRuntimeText = readFileSync(interactionRuntimePath, 'utf8')
+  if (!interactionRuntimeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected native FlowCanvas zoom request runtime to import the shared workspace graph mutation guard')
+  }
+  if (!interactionRuntimeText.includes('if (isFlowEditor && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
+    throw new Error('expected native FlowCanvas zoom requests to stop while Run all holds the shared graph mutation guard')
+  }
   const runAllPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
   const runAllText = readFileSync(runAllPath, 'utf8')
+  if (!runAllText.includes('export const setRunAllLayoutMutationLock = (active: boolean): void =>')) {
+    throw new Error('expected Run all layout lock to be shared by toolbar and workflow runtime')
+  }
   if (runAllText.includes('flow-editor-run-all:release')) {
     throw new Error('expected Run all release to avoid stamping a fresh workspace mutation key that can trigger post-run auto-fit')
   }
@@ -291,6 +392,20 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   }
   if (!runActionText.includes('const ok = await state.applyMarkdownDocumentToGraph(canonicalPath, canonicalText, { force: true })')) {
     throw new Error('expected manual KGC graph apply to preserve canonical document behavior')
+  }
+  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx')
+  const toolbarText = readFileSync(toolbarPath, 'utf8')
+  if (!toolbarText.includes("import { setRunAllLayoutMutationLock } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowRunAll'")) {
+    throw new Error('expected Toolbar Run all to reuse the shared Flow Editor layout lock helper')
+  }
+  if (!toolbarText.includes("import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'")) {
+    throw new Error('expected Toolbar Run all to treat Flow Editor execution as a user gesture before auto-fit can recompute')
+  }
+  if (!toolbarText.includes('onPointerDownCapture={() => {') || !toolbarText.includes('primeFlowEditorRunAllLayoutLockFromToolbar()')) {
+    throw new Error('expected Toolbar Run all to prime the layout lock before click dispatch')
+  }
+  if (!toolbarText.includes('data-kg-canvas-pointer-ignore="true"')) {
+    throw new Error('expected Toolbar root to advertise the shared canvas pointer-ignore contract')
   }
   const sourceComposePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts')
   const sourceComposeText = readFileSync(sourceComposePath, 'utf8')

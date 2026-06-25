@@ -17,6 +17,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       selectedRowKey={args.model.selectedRowKey}
       scopes={args.model.scopes}
       sourceThumbnails={args.model.sourceThumbnails}
+      sourceThumbnailWindows={args.model.sourceThumbnailWindows}
       taskSpans={args.model.taskSpans}
       timelineZoom={args.model.timelineZoom}
       onRulerPointerDown={args.model.onRulerPointerDown}

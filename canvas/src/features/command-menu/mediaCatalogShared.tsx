@@ -46,10 +46,26 @@ export function useNativeVideoMediaThumbnail(args: {
   kind: string
   url: string
 }): {
+  audioChannelCount: number
+  audioCodec: string
+  audioSampleRate: number
+  audioTrackCount: number
+  averageVideoBitrate: number
+  averageVideoFrameRate: number
+  byteSize: number
+  bytesRead: number
+  containerBrand: string
+  durationSeconds: number
   format: string
+  formatName: string
+  metadataLabel: string
+  mimeType: string
   rasterFormat: string
+  resolution: string
   timestampSeconds: number | null
   url: string
+  videoCodec: string
+  videoTrackCount: number
 } {
   const explicitFormat = readPreferredImageFormat(args.explicitThumbnailUrl, args.contentType || '')
   const active = args.kind === 'video' && !args.explicitThumbnailUrl && !!args.url
@@ -58,13 +74,58 @@ export function useNativeVideoMediaThumbnail(args: {
     url: args.url,
   })
   const thumbnail = summary.thumbnails[0] || null
+  const resolution = summary.displayWidth > 0 && summary.displayHeight > 0 ? `${summary.displayWidth}x${summary.displayHeight}` : ''
+  const metadataLabel = [
+    summary.formatName,
+    summary.mimeType,
+    resolution,
+    summary.durationSeconds > 0 ? `${summary.durationSeconds.toFixed(2)}s` : '',
+    summary.primaryVideoCodec,
+    summary.primaryAudioCodec,
+    summary.averageVideoFrameRate > 0 ? `${Number.isInteger(summary.averageVideoFrameRate) ? summary.averageVideoFrameRate : summary.averageVideoFrameRate.toFixed(2)}fps` : '',
+  ].filter(Boolean).join(' ')
   return {
+    audioChannelCount: summary.audioChannelCount,
+    audioCodec: summary.primaryAudioCodec,
+    audioSampleRate: summary.audioSampleRate,
+    audioTrackCount: summary.audioTrackCount,
+    averageVideoBitrate: summary.averageVideoBitrate,
+    averageVideoFrameRate: summary.averageVideoFrameRate,
+    byteSize: summary.byteSize,
+    bytesRead: summary.bytesRead,
+    containerBrand: summary.containerBrand,
+    durationSeconds: summary.durationSeconds,
     format: thumbnail?.format || explicitFormat,
+    formatName: summary.formatName,
+    metadataLabel,
+    mimeType: summary.mimeType,
     rasterFormat: thumbnail?.rasterFormat || (isPreferredRasterImageFormat(explicitFormat) ? explicitFormat : ''),
+    resolution,
     timestampSeconds: thumbnail ? thumbnail.timestampSeconds : null,
     url: args.explicitThumbnailUrl || thumbnail?.dataUrl || '',
+    videoCodec: summary.primaryVideoCodec,
+    videoTrackCount: summary.videoTrackCount,
   }
 }
+
+const readNativeVideoMediaThumbnailMetadataAttrs = (thumbnail: ReturnType<typeof useNativeVideoMediaThumbnail>): React.ImgHTMLAttributes<HTMLImageElement> => ({
+  'data-kg-command-menu-media-metadata': thumbnail.metadataLabel ? 'native' : undefined,
+  'data-kg-command-menu-media-metadata-audio-channels': thumbnail.audioChannelCount > 0 ? thumbnail.audioChannelCount : undefined,
+  'data-kg-command-menu-media-metadata-audio-codec': thumbnail.audioCodec || undefined,
+  'data-kg-command-menu-media-metadata-audio-sample-rate': thumbnail.audioSampleRate > 0 ? thumbnail.audioSampleRate : undefined,
+  'data-kg-command-menu-media-metadata-audio-tracks': thumbnail.audioTrackCount > 0 ? thumbnail.audioTrackCount : undefined,
+  'data-kg-command-menu-media-metadata-bitrate': thumbnail.averageVideoBitrate > 0 ? thumbnail.averageVideoBitrate : undefined,
+  'data-kg-command-menu-media-metadata-byte-size': thumbnail.byteSize > 0 ? thumbnail.byteSize : undefined,
+  'data-kg-command-menu-media-metadata-bytes-read': thumbnail.bytesRead > 0 ? thumbnail.bytesRead : undefined,
+  'data-kg-command-menu-media-metadata-container-brand': thumbnail.containerBrand || undefined,
+  'data-kg-command-menu-media-metadata-duration': thumbnail.durationSeconds > 0 ? thumbnail.durationSeconds : undefined,
+  'data-kg-command-menu-media-metadata-format': thumbnail.formatName || undefined,
+  'data-kg-command-menu-media-metadata-frame-rate': thumbnail.averageVideoFrameRate > 0 ? thumbnail.averageVideoFrameRate : undefined,
+  'data-kg-command-menu-media-metadata-mime-type': thumbnail.mimeType || undefined,
+  'data-kg-command-menu-media-metadata-resolution': thumbnail.resolution || undefined,
+  'data-kg-command-menu-media-metadata-video-codec': thumbnail.videoCodec || undefined,
+  'data-kg-command-menu-media-metadata-video-tracks': thumbnail.videoTrackCount > 0 ? thumbnail.videoTrackCount : undefined,
+}) as React.ImgHTMLAttributes<HTMLImageElement>
 
 export const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
 export const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
@@ -80,6 +141,7 @@ export function mediaListThumbnailFrameClassName(extraClassName?: string): strin
 
 export function MediaThumbnailCaption(props: {
   format: string
+  metadataLabel?: string
   rasterFormat: string
   timestampSeconds: number | null
 }) {
@@ -87,7 +149,7 @@ export function MediaThumbnailCaption(props: {
     .filter(Boolean)
     .join('/')
   const timeLabel = props.timestampSeconds === null ? '' : `${props.timestampSeconds.toFixed(2)}s`
-  const label = [timeLabel, formatLabel].filter(Boolean).join(' ')
+  const label = [timeLabel, formatLabel, props.metadataLabel].filter(Boolean).join(' ')
   if (!label) return null
   return (
     <span
@@ -124,6 +186,7 @@ export function MediaCandidateThumb({
   })
   const thumbnail = generatedThumbnail.url
   const openHref = readRichMediaOpenHref(item)
+  const infoLabel = [getCommandMenuMediaDescription(item), generatedThumbnail.metadataLabel].filter(Boolean).join(' | ')
   if (thumbnail) {
     return (
       <span
@@ -138,10 +201,10 @@ export function MediaCandidateThumb({
         onDragStart={event => onDragStart(event, item)}
       >
         <MediaKindOverlay Icon={resolveMediaKindOverlayIcon(item.kind)} label={item.kind} appearance="hover" />
-        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaInfoOverlay label={infoLabel} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
-        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
-        <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+        <img src={thumbnail} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} {...readNativeVideoMediaThumbnailMetadataAttrs(generatedThumbnail)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+        <MediaThumbnailCaption format={generatedThumbnail.format} metadataLabel={generatedThumbnail.metadataLabel} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
       </span>
     )
   }
@@ -157,7 +220,7 @@ export function MediaCandidateThumb({
       onMouseMove={event => continueMediaMouseDrag(event, buildCommandMenuMediaDragPayload(item))}
       onDragStart={event => onDragStart(event, item)}
     >
-      <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={getCommandMenuMediaDescription(item)} />
+      <MediaListThumbnailIconFrame Icon={Icon} label={item.kind} infoLabel={infoLabel} />
     </span>
   )
 }
@@ -178,6 +241,7 @@ export function MediaCandidatePreview({
   const thumbnail = generatedThumbnail.url
   const Icon = resolveMediaKindOverlayIcon(item.kind)
   const openHref = readRichMediaOpenHref(item)
+  const infoLabel = [getCommandMenuMediaDescription(item), generatedThumbnail.metadataLabel].filter(Boolean).join(' | ')
   if (thumbnail) {
     return (
       <figure
@@ -192,10 +256,10 @@ export function MediaCandidatePreview({
         onDragStart={event => onDragStart(event, item)}
       >
         <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
-        <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+        <MediaInfoOverlay label={infoLabel} appearance="hover" />
         <MediaOpenLinkOverlay href={openHref} appearance="hover" />
-        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
-        <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+        <img src={thumbnail} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} {...readNativeVideoMediaThumbnailMetadataAttrs(generatedThumbnail)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+        <MediaThumbnailCaption format={generatedThumbnail.format} metadataLabel={generatedThumbnail.metadataLabel} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
       </figure>
     )
   }
@@ -212,7 +276,7 @@ export function MediaCandidatePreview({
       onDragStart={event => onDragStart(event, item)}
     >
       <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
-      <MediaInfoOverlay label={getCommandMenuMediaDescription(item)} appearance="hover" />
+      <MediaInfoOverlay label={infoLabel} appearance="hover" />
       <MediaOpenLinkOverlay href={openHref} appearance="hover" />
       <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />
     </figure>
@@ -237,6 +301,7 @@ export function UploadedMediaPreview({
     kind: item.kind,
     url: item.linkUrl,
   })
+  const generatedInfoLabel = [infoLabel, generatedThumbnail.metadataLabel].filter(Boolean).join(' | ')
   return (
     <button
       type="button"
@@ -258,13 +323,13 @@ export function UploadedMediaPreview({
       }}
     >
       <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
-      <MediaInfoOverlay label={infoLabel} appearance="hover" />
+      <MediaInfoOverlay label={generatedInfoLabel} appearance="hover" />
       <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
       <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
       {generatedThumbnail.url ? (
         <>
-          <img src={generatedThumbnail.url} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
-          <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
+          <img src={generatedThumbnail.url} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} {...readNativeVideoMediaThumbnailMetadataAttrs(generatedThumbnail)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+          <MediaThumbnailCaption format={generatedThumbnail.format} metadataLabel={generatedThumbnail.metadataLabel} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
         </>
       ) : (
         <Icon className={cn('h-7 w-7', UI_THEME_TOKENS.text.tertiary)} strokeWidth={1.7} aria-hidden />

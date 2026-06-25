@@ -106,7 +106,7 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     "flowWidgetOpenInSidepane: 'Open sidepane'",
     "flowWidgetConvertToLoop: 'Convert to loop'",
     "flowWidgetDuplicate: 'Duplicate'",
-    "flowWidgetClearOutput: 'Clear output'",
+    "flowWidgetClearOutput: 'Reset'",
     "flowWidgetRemoveNode: 'Remove'",
   ]) {
     if (!copyText.includes(snippet)) {
@@ -117,7 +117,7 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     "updateKvEntry: 'Update KV entry'",
     "openInSidepane: 'Open sidepane'",
     "convertToLoopNode: 'Convert to loop'",
-    "clearOutput: 'Clear output'",
+    "clearOutput: 'Reset'",
     "removeNode: 'Remove'",
   ]) {
     if (!metaText.includes(snippet)) {

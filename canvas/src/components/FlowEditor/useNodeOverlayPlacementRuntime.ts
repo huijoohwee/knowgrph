@@ -31,6 +31,12 @@ import { isFrontmatterManagedOverlayNode, resolveFrontmatterBalancedFallbackPos 
 import { computeViewportSafeInlineCenterShiftPx } from '@/lib/ui/viewportToolbarPlacement'
 import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { FLOW_EDITOR_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import {
+  coerceRichMediaPanelSizePx,
+  resolveRichMediaAspectRatioValue,
+  resolveRichMediaAspectSelection,
+} from '@/lib/render/richMediaSsot'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 type AppliedOverlayPlacement = {
@@ -40,6 +46,24 @@ type AppliedOverlayPlacement = {
   zoomK: number
   offsetLeft: number
   offsetTop: number
+}
+
+function readRichMediaOverlayFrameSize(node: { type?: unknown; properties?: unknown } | null | undefined): { width: number; height: number } | null {
+  if (!node || String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return null
+  const props = node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+    ? node.properties as Record<string, unknown>
+    : null
+  if (!props) return null
+  const width = Number(props['visual:width'])
+  const height = Number(props['visual:height'])
+  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return null
+  return coerceRichMediaPanelSizePx({
+    width,
+    height,
+    minWidthPx: 1,
+    minHeightPx: 1,
+    targetAspect: resolveRichMediaAspectRatioValue(resolveRichMediaAspectSelection({ width, height })),
+  })
 }
 
 function shouldUseFrontmatterBalancedFallbackForScreenAuthority(args: {
@@ -474,14 +498,21 @@ export function useNodeOverlayPlacementRuntime(args: {
   const applyOverlayPosition = React.useCallback((opts?: ApplyOverlayPositionOptions) => {
     const el = asideRef.current
     if (!el) return
+    const n = nodeRef.current
+    const richMediaFrameSize = readRichMediaOverlayFrameSize(n as { type?: unknown; properties?: unknown })
     if (!cssInitRef.current) {
       cssInitRef.current = true
       el.style.left = '0px'
       el.style.top = '0px'
-      el.style.width = `${WIDGET_BASE_SIZE.width}px`
       el.style.transformOrigin = 'top left'
       el.style.willChange = 'transform'
     }
+    const frameWidth = richMediaFrameSize?.width || WIDGET_BASE_SIZE.width
+    const frameHeight = richMediaFrameSize?.height || WIDGET_BASE_SIZE.height
+    const nextFrameWidth = `${frameWidth}px`
+    const nextFrameHeight = `${frameHeight}px`
+    if (el.style.width !== nextFrameWidth) el.style.width = nextFrameWidth
+    if (el.style.height !== nextFrameHeight) el.style.height = nextFrameHeight
     const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
     const storeZoom = getEffectiveZoomStateForKey({
       zoomViewKey,
@@ -496,7 +527,6 @@ export function useNodeOverlayPlacementRuntime(args: {
     }
     const placementTransform = z || { k: 1, x: 0, y: 0 }
     const zoomK = Number.isFinite(placementTransform.k) ? placementTransform.k : 1
-    const n = nodeRef.current
     const frontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, n)
     const frontmatterVisibleViewportAuthority = frontmatterManagedNode
     const screenAuthorityVisibleViewport = frontmatterVisibleViewportAuthority
@@ -511,7 +541,10 @@ export function useNodeOverlayPlacementRuntime(args: {
     const frontmatterPanelScaleZoomK = readScreenAuthorityFollowZoomK(zoomK, frontmatterVisibleViewportAuthority)
     const panelScale = readPanelScaleForZoom(frontmatterPanelScaleZoomK, frontmatterManagedNode, frontmatterVisibleViewportAuthority ? { width: screenAuthorityViewportWidth, height: screenAuthorityViewportHeight } : null)
     if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)
-    const scaled = computeWidgetScaledSize(panelScale)
+    const baseScaled = computeWidgetScaledSize(panelScale)
+    const scaled = richMediaFrameSize
+      ? { width: richMediaFrameSize.width * panelScale, height: richMediaFrameSize.height * panelScale }
+      : baseScaled
     scaledSizeRef.current = scaled
     const rawFrontmatterBalancedFallbackPos = resolveFrontmatterBalancedFallbackPos({
       enabled: frontmatterManagedNode,

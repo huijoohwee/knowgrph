@@ -7,7 +7,7 @@ import { ResponsiveInlineIconBadge } from '@/lib/ui/ResponsiveInlineIconBadge'
 import { MediaInfoOverlay, MediaKindOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { cn } from '@/lib/utils'
-import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, type MediaPanelActionSpec } from './mediaCatalogTypes'
+import { LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS, MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, type MediaCatalogSourceMetadataItem, type MediaPanelActionSpec } from './mediaCatalogTypes'
 import {
   MediaCandidatePreview,
   MediaCandidateThumb,
@@ -17,6 +17,7 @@ import {
   isMediaRowControlTarget,
   mediaCardClassName,
   mediaListItemClassName,
+  mediaListThumbnailFrameClassName,
   shouldHandleMediaRowPointer,
 } from './mediaCatalogShared'
 
@@ -242,6 +243,112 @@ function MediaCandidateNameEditor({
       }}
       autoFocus
     />
+  )
+}
+
+const formatSourceMetadataDuration = (value: number): string => value > 0 ? `${value.toFixed(2)}s` : ''
+const formatSourceMetadataBytes = (value: number | null | undefined): string => {
+  const bytes = Number(value || 0)
+  if (!Number.isFinite(bytes) || bytes <= 0) return ''
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}mb`
+  return `${Math.ceil(bytes / 1024)}kb`
+}
+const formatSourceMetadataBitrate = (value: number): string => value > 0 ? `${(value / 1_000_000).toFixed(1)}mbps` : ''
+const formatSourceMetadataFrameRate = (value: number): string => value > 0 ? `${Number.isInteger(value) ? value : value.toFixed(2)}fps` : ''
+const formatSourceMetadataSampleRate = (value: number): string => value > 0 ? `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)}khz` : ''
+
+const buildSourceMetadataTags = (item: MediaCatalogSourceMetadataItem): string[] => {
+  const summary = item.summary
+  return [
+    summary.formatName,
+    summary.mimeType || item.mimeHint,
+    summary.primaryVideoCodec,
+    summary.primaryAudioCodec,
+    summary.displayWidth > 0 && summary.displayHeight > 0 ? `${summary.displayWidth}x${summary.displayHeight}` : '',
+    formatSourceMetadataFrameRate(summary.averageVideoFrameRate),
+    formatSourceMetadataDuration(summary.durationSeconds),
+    summary.audioChannelCount > 0 ? `${summary.audioChannelCount}ch` : '',
+    formatSourceMetadataSampleRate(summary.audioSampleRate),
+    formatSourceMetadataBitrate(summary.averageVideoBitrate),
+    formatSourceMetadataBytes(summary.byteSize || item.byteSize),
+  ].filter(Boolean)
+}
+
+const sourceMetadataAttrs = (item: MediaCatalogSourceMetadataItem): React.HTMLAttributes<HTMLElement> => ({
+  'data-kg-command-menu-media-metadata': item.summary.status === 'ready' ? 'native' : item.summary.status,
+  'data-kg-command-menu-media-metadata-audio-channels': item.summary.audioChannelCount > 0 ? item.summary.audioChannelCount : undefined,
+  'data-kg-command-menu-media-metadata-audio-codec': item.summary.primaryAudioCodec || undefined,
+  'data-kg-command-menu-media-metadata-audio-sample-rate': item.summary.audioSampleRate > 0 ? item.summary.audioSampleRate : undefined,
+  'data-kg-command-menu-media-metadata-audio-tracks': item.summary.audioTrackCount > 0 ? item.summary.audioTrackCount : undefined,
+  'data-kg-command-menu-media-metadata-bitrate': item.summary.averageVideoBitrate > 0 ? item.summary.averageVideoBitrate : undefined,
+  'data-kg-command-menu-media-metadata-byte-size': item.summary.byteSize > 0 ? item.summary.byteSize : item.byteSize || undefined,
+  'data-kg-command-menu-media-metadata-bytes-read': item.summary.bytesRead > 0 ? item.summary.bytesRead : undefined,
+  'data-kg-command-menu-media-metadata-container-brand': item.summary.containerBrand || undefined,
+  'data-kg-command-menu-media-metadata-duration': item.summary.durationSeconds > 0 ? item.summary.durationSeconds : undefined,
+  'data-kg-command-menu-media-metadata-format': item.summary.formatName || undefined,
+  'data-kg-command-menu-media-metadata-frame-rate': item.summary.averageVideoFrameRate > 0 ? item.summary.averageVideoFrameRate : undefined,
+  'data-kg-command-menu-media-metadata-mime-type': item.summary.mimeType || item.mimeHint || undefined,
+  'data-kg-command-menu-media-metadata-read-ratio': item.summary.metadataReadRatio > 0 ? item.summary.metadataReadRatio : undefined,
+  'data-kg-command-menu-media-metadata-resolution': item.summary.displayWidth > 0 && item.summary.displayHeight > 0 ? `${item.summary.displayWidth}x${item.summary.displayHeight}` : undefined,
+  'data-kg-command-menu-media-metadata-video-codec': item.summary.primaryVideoCodec || undefined,
+  'data-kg-command-menu-media-metadata-video-tracks': item.summary.videoTrackCount > 0 ? item.summary.videoTrackCount : undefined,
+}) as React.HTMLAttributes<HTMLElement>
+
+function MediaSourceMetadataThumbnail({ item, rounded = true }: { item: MediaCatalogSourceMetadataItem; rounded?: boolean }) {
+  const thumbnail = item.summary.thumbnails[0] || null
+  const metadataAttrs = sourceMetadataAttrs(item)
+  if (thumbnail) {
+    return (
+      <span className={rounded ? mediaListThumbnailFrameClassName('items-center justify-center') : 'block h-full w-full'} data-kg-media-source-metadata-thumbnail="1">
+        <MediaKindOverlay Icon={Video} label="video" appearance="hover" />
+        <MediaInfoOverlay label={buildSourceMetadataTags(item).join(' | ') || item.sourceUrl} appearance="hover" />
+        <img src={thumbnail.dataUrl} alt="" className={cn('h-full w-full object-cover', rounded && 'rounded')} data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={thumbnail.format} data-kg-command-menu-media-thumbnail-raster-format={thumbnail.rasterFormat} data-kg-command-menu-media-thumbnail-time={thumbnail.timestampSeconds} {...(metadataAttrs as React.ImgHTMLAttributes<HTMLImageElement>)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+      </span>
+    )
+  }
+  return <MediaListThumbnailIconFrame Icon={Video} label="video" infoLabel={buildSourceMetadataTags(item).join(' | ') || item.sourceUrl} />
+}
+
+export function MediaSourceMetadataRow({ item }: { item: MediaCatalogSourceMetadataItem }) {
+  const tags = buildSourceMetadataTags(item)
+  return (
+    <article className={cn('grid min-w-0 gap-2 rounded border p-2 text-left shadow-sm', 'grid-cols-[6.875rem_minmax(0,1fr)]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-media-source-metadata="video-sequence" data-kg-command-menu-media-kind="video" {...sourceMetadataAttrs(item)}>
+      <MediaSourceMetadataThumbnail item={item} />
+      <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${item.name} source metadata`}>
+        <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
+          <h3 className={cn('m-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)} title={item.name}>{item.name}</h3>
+          <span className={cn('shrink-0 font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>source</span>
+        </header>
+        <section className="flex min-w-0 flex-wrap items-center gap-1" data-kg-media-list-row-section="meta">
+          {tags.map(tag => <span key={tag} className={cn('rounded border px-1.5 py-0.5 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary)}>{tag}</span>)}
+        </section>
+        <p className={cn('m-0 truncate text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={item.sourceUrl} data-kg-media-list-row-section="description">
+          Source-backed video sequence metadata
+        </p>
+      </section>
+    </article>
+  )
+}
+
+export function MediaSourceMetadataCard({ item }: { item: MediaCatalogSourceMetadataItem }) {
+  const tags = buildSourceMetadataTags(item)
+  return (
+    <article className={mediaCardClassName()} data-kg-media-source-metadata="video-sequence" data-kg-command-menu-media-kind="video" {...sourceMetadataAttrs(item)}>
+      <figure className={cn('group relative m-0 aspect-[16/9] w-full overflow-hidden border-b', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}>
+        <MediaSourceMetadataThumbnail item={item} rounded={false} />
+      </figure>
+      <header className="flex min-w-0 items-start justify-between gap-2 px-2 pt-2">
+        <section className="min-w-0">
+          <h3 className={cn('m-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)} title={item.name}>{item.name}</h3>
+          <p className={cn('m-0 mt-1 truncate font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>source-backed</p>
+        </section>
+        <ResponsiveInlineIconBadge Icon={Video} label="video" />
+      </header>
+      <section className="flex min-w-0 flex-wrap gap-1 px-2 pt-2">
+        {tags.map(tag => <span key={tag} className={cn('rounded border px-1.5 py-0.5 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary)}>{tag}</span>)}
+      </section>
+      <p className={cn('m-0 mt-2 truncate px-2 pb-2 text-[11px]', UI_THEME_TOKENS.text.tertiary)} title={item.sourceUrl}>Source-backed video sequence metadata</p>
+    </article>
   )
 }
 

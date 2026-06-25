@@ -8,6 +8,8 @@ import {
   computeRichMediaPanelAspectResizeSizePx,
   coerceRichMediaPanelChromeSizePx,
   coerceRichMediaPanelSizePx,
+  resolveRichMediaAspectRatioValue,
+  resolveRichMediaAspectSelection,
   resolveRichMediaPanelSelectedTab,
 } from '@/lib/render/richMediaSsot'
 import {
@@ -44,6 +46,12 @@ export function useRichMediaWidgetPreview(args: {
     richMediaPanelHasStoredHeight
       ? Math.max(RICH_MEDIA_ASPECT_MIN_HEIGHT, Math.round(rawStoredHeight as number))
       : RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height
+  const richMediaPanelTargetAspect = React.useMemo(() => {
+    return resolveRichMediaAspectRatioValue(resolveRichMediaAspectSelection({
+      width: richMediaPanelStoredWidth,
+      height: richMediaPanelStoredHeight,
+    }))
+  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
 
   const richMediaPanelBaseSize = React.useMemo(() => {
     const { viewportWidth, viewportHeight } = readViewportSize()
@@ -54,22 +62,28 @@ export function useRichMediaWidgetPreview(args: {
       viewportH: viewportHeight,
       minWidthPx: RICH_MEDIA_ASPECT_MIN_WIDTH,
       minHeightPx: RICH_MEDIA_ASPECT_MIN_HEIGHT,
+      targetAspect: richMediaPanelTargetAspect,
     })
     return { width: coerced.width, height: coerced.height }
-  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
+  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth, richMediaPanelTargetAspect])
 
   const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
+  const richMediaPanelViewSizeRef = React.useRef(richMediaPanelBaseSize)
   const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
   const richMediaPanelManualResizeRef = React.useRef(richMediaPanelHasStoredWidth || richMediaPanelHasStoredHeight)
 
   React.useEffect(() => {
     if (!enabled) return
-	    setRichMediaPanelViewSize(prev => (
-	      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
-	        ? prev
-	        : richMediaPanelBaseSize
-	    ))
+    setRichMediaPanelViewSize(prev => {
+      if (prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height) return prev
+      richMediaPanelViewSizeRef.current = richMediaPanelBaseSize
+      return richMediaPanelBaseSize
+    })
   }, [enabled, richMediaPanelBaseSize])
+
+  React.useEffect(() => {
+    richMediaPanelViewSizeRef.current = richMediaPanelViewSize
+  }, [richMediaPanelViewSize])
 
   React.useEffect(() => {
     richMediaPanelManualResizeRef.current = richMediaPanelHasStoredWidth || richMediaPanelHasStoredHeight
@@ -129,8 +143,8 @@ export function useRichMediaWidgetPreview(args: {
 
   const handleRichMediaResizeStart = React.useCallback(() => {
     richMediaPanelManualResizeRef.current = true
-    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
-  }, [richMediaPanelViewSize])
+    richMediaPanelResizeStartRef.current = richMediaPanelViewSizeRef.current
+  }, [])
 
   const handleRichMediaResize = React.useCallback((args0: { dx: number; dy: number }) => {
     const { viewportWidth, viewportHeight } = readViewportSize()
@@ -139,6 +153,7 @@ export function useRichMediaWidgetPreview(args: {
       startHeight: richMediaPanelResizeStartRef.current.height,
       dx: args0.dx,
       dy: args0.dy,
+      targetAspect: richMediaPanelTargetAspect,
     })
     const coerced = coerceRichMediaPanelSizePx({
       width: aspectResize.width,
@@ -147,25 +162,31 @@ export function useRichMediaWidgetPreview(args: {
       viewportH: viewportHeight,
       minWidthPx: RICH_MEDIA_ASPECT_MIN_WIDTH,
       minHeightPx: RICH_MEDIA_ASPECT_MIN_HEIGHT,
+      targetAspect: richMediaPanelTargetAspect,
     })
-    setRichMediaPanelViewSize({ width: coerced.width, height: coerced.height })
-  }, [])
+    const nextSize = { width: coerced.width, height: coerced.height }
+    richMediaPanelViewSizeRef.current = nextSize
+    setRichMediaPanelViewSize(nextSize)
+  }, [richMediaPanelTargetAspect])
 
   const handleRichMediaResizeEnd = React.useCallback(() => {
     const { viewportWidth, viewportHeight } = readViewportSize()
+    const latestSize = richMediaPanelViewSizeRef.current
     const coerced = coerceRichMediaPanelSizePx({
-      width: richMediaPanelViewSize.width,
-      height: richMediaPanelViewSize.height,
+      width: latestSize.width,
+      height: latestSize.height,
       viewportW: viewportWidth,
       viewportH: viewportHeight,
       minWidthPx: RICH_MEDIA_ASPECT_MIN_WIDTH,
       minHeightPx: RICH_MEDIA_ASPECT_MIN_HEIGHT,
+      targetAspect: richMediaPanelTargetAspect,
     })
+    richMediaPanelViewSizeRef.current = coerced
     onPatchProperties({
       'visual:width': coerced.width,
       'visual:height': coerced.height,
     })
-  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
+  }, [onPatchProperties, richMediaPanelTargetAspect])
 
   const handleRichMediaContentSize = React.useCallback((size: RichMediaPanelInlineContentSize) => {
     if (!enabled) return
@@ -182,11 +203,13 @@ export function useRichMediaWidgetPreview(args: {
         viewportH: viewportHeight,
         minWidthPx: RICH_MEDIA_ASPECT_MIN_WIDTH,
         minHeightPx: RICH_MEDIA_ASPECT_MIN_HEIGHT,
+        targetAspect: richMediaPanelTargetAspect,
       })
       if (prev.width === next.width && prev.height === next.height) return prev
+      richMediaPanelViewSizeRef.current = next
       return next
     })
-  }, [enabled, richMediaPanelBaseSize.height, richMediaPanelBaseSize.width, richMediaPanelHasStoredHeight, richMediaPanelHasStoredWidth])
+  }, [enabled, richMediaPanelBaseSize.height, richMediaPanelBaseSize.width, richMediaPanelHasStoredHeight, richMediaPanelHasStoredWidth, richMediaPanelTargetAspect])
 
   return {
     richMediaPanelState,

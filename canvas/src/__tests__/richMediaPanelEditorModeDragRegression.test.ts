@@ -199,16 +199,24 @@ export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
   const panelText = readFileSync(panelPath, 'utf8')
   if (!panelText.includes("from 'grph-shared/dom/overlayPointerGuards'")
     || !panelText.includes('readOverlayPointerTargetState')
-    || !panelText.includes('isOverlayPanStartButtonEvent(native)')
     || !panelText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
     throw new Error('expected RichMediaPanel to reuse shared overlay pointer target/button guards')
+  }
+  const overlayDragPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanelOverlayDrag.ts')
+  const overlayDragText = readFileSync(overlayDragPath, 'utf8')
+  if (!overlayDragText.includes("from 'grph-shared/dom/overlayPointerGuards'")
+    || !overlayDragText.includes('readOverlayPointerTargetState')
+    || !overlayDragText.includes('isOverlayPanStartButtonEvent(native)')
+    || !overlayDragText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
+    throw new Error('expected RichMediaPanel overlay drag owner to reuse shared overlay pointer target/button guards')
   }
 
   const pointerGuardPath = resolve(process.cwd(), '..', 'grph-shared', 'src', 'dom', 'overlayPointerGuards.ts')
   const pointerGuardText = readFileSync(pointerGuardPath, 'utf8')
   if (!pointerGuardText.includes('export function readOverlayPointerTargetState')
     || !pointerGuardText.includes('export function shouldBlockOverlayPanTarget')
-    || !pointerGuardText.includes('export function isOverlayPanStartButtonEvent')) {
+    || !pointerGuardText.includes('export function isOverlayPanStartButtonEvent')
+    || !pointerGuardText.includes('selectableSurface: \'[data-kg-rich-media-selectable-surface="1"]\'')) {
     throw new Error('expected shared overlay pointer guard to own target classification, pan blocking, and button interpretation')
   }
 

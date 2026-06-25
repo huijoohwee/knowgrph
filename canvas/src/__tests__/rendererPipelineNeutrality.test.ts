@@ -50,6 +50,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const timelineSourceActivityModelText = readFileSync(resolve(root, 'components', 'timeline', 'useTimelineSourceActivityModel.ts'), 'utf8')
   const timelinePreviewSurfaceModelText = readFileSync(resolve(root, 'components', 'timeline', 'useTimelinePreviewSurfaceModel.ts'), 'utf8')
   const timelinePreviewSurfaceText = readFileSync(resolve(root, 'components', 'timeline', 'TimelinePreviewSurface.tsx'), 'utf8')
+  const timelineAnimationEngineText = readFileSync(resolve(root, 'components', 'timeline', 'timelineAnimationEngine.ts'), 'utf8')
   const animaticTimelineModelText = readFileSync(resolve(root, 'components', 'AnimaticCanvas', 'useAnimaticTimelineModel.ts'), 'utf8')
   const responsiveToolbarCssText = readFileSync(resolve(root, 'styles', 'responsive-toolbar.css'), 'utf8')
   const toolbarRendererViewText = readFileSync(resolve(root, 'features', 'toolbar', 'ToolbarToolMenuRendererView.tsx'), 'utf8')
@@ -127,6 +128,14 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !mediaCanvasText.includes('mediaCanvasBinding.frameModel') ||
     !mediaCanvasText.includes('TimelinePreviewMediaCanvasFrame') ||
     !timelinePreviewMediaCanvasFrameText.includes('data-kg-media-canvas="1"') ||
+    !timelineAnimationEngineText.includes("'css-property'") ||
+    !timelineAnimationEngineText.includes("'svg-attribute'") ||
+    !timelineAnimationEngineText.includes("'dom-attribute'") ||
+    !timelineAnimationEngineText.includes("'js-object'") ||
+    !timelineAnimationEngineText.includes("'html'") ||
+    !timelineAnimationEngineText.includes("'canvas-2d'") ||
+    !timelineAnimationEngineText.includes("'webgl-three'") ||
+    timelineAnimationEngineText.includes("from 'animejs'") ||
     !timelinePreviewMediaCanvasBindingText.includes('useCommandMenuRichMediaInventory') ||
     !timelinePreviewMediaCanvasBindingText.includes('useTimelineDocumentStoreBinding') ||
     !timelinePreviewMediaCanvasBindingText.includes('useTimelineGanttSelectionStoreBinding') ||
@@ -321,10 +330,12 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !timelinePreviewMediaCanvasRenderModelText.includes('listLabel: args.familySections.listLabel') ||
     !timelinePreviewMediaCanvasRenderModelText.includes('shellLabel: args.surfaceShell.shellLabel') ||
     !timelinePreviewMediaCanvasFrameModelText.includes('useTimelinePreviewMediaCanvasFrameModel') ||
+    !timelinePreviewMediaCanvasFrameModelText.includes('buildTimelineAnimationState') ||
     !timelinePreviewMediaCanvasFrameModelText.includes('hostAttributes: args.renderModel.hostAttributes') ||
     !timelinePreviewMediaCanvasFrameModelText.includes('renderModel: args.renderModel') ||
     !timelinePreviewMediaCanvasFrameText.includes('TimelinePreviewMediaCanvasFrame') ||
     !timelinePreviewMediaCanvasFrameText.includes('data-kg-media-canvas-group-count') ||
+    !timelinePreviewMediaCanvasFrameText.includes('args.model.animationState.attributes') ||
     !timelinePreviewMediaCanvasFrameText.includes('<TimelinePreviewMediaCanvasRender model={args.model.renderModel} />') ||
     !timelinePreviewSurfaceShellModelText.includes('useTimelinePreviewSurfaceShellModel') ||
     !timelinePreviewSurfaceShellModelText.includes("shellLabel: 'Media canvas'") ||
@@ -352,6 +363,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-item-family-expanded') ||
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-item-family-hidden-count') ||
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-item-style-mode') ||
+    !timelinePreviewSurfaceText.includes('buildTimelineAnimationState') ||
     !timelinePreviewSurfaceText.includes('useTimelinePreviewVideoBinding')
   ) {
     throw new Error('expected Media renderer to reuse shared rich-media inventory, RichMediaPanel state/chrome, and video-sequence source model')
@@ -600,7 +612,7 @@ export function testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic() {
   if (text.includes('return { ...graphData, nodes: [], edges: [] }')) {
     throw new Error('expected flowchart path to avoid synthetic empty graph placeholders')
   }
-  if (!perDocumentUiStateText.includes('isCanvas2dRendererId(raw.canvas2dRenderer)')) {
+  if (!perDocumentUiStateText.includes('isCanvas2dRendererId(record.canvas2dRenderer)')) {
     throw new Error('expected per-document UI persistence to reuse the shared 2D renderer id validator')
   }
   if (!canvasSliceText.includes('isCanvas2dRendererId(v) ? v : DEFAULT_CANVAS_2D_RENDERER')) {

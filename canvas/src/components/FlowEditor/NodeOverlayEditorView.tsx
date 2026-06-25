@@ -25,14 +25,6 @@ type RichMediaPanelToolbarProps = Pick<
   'richMediaViewToggle' | 'richMediaMediaSelector' | 'richMediaAspectToggle' | 'richMediaTextModeToggle' | 'openExternalAction'
 >
 
-function readRichMediaPanelFrameWidthPx(richMediaWidgetPreview: unknown): number | null {
-  if (!richMediaWidgetPreview || typeof richMediaWidgetPreview !== 'object') return null
-  const viewSize = (richMediaWidgetPreview as { richMediaPanelViewSize?: unknown }).richMediaPanelViewSize
-  if (!viewSize || typeof viewSize !== 'object') return null
-  const width = Number((viewSize as { width?: unknown }).width)
-  return Number.isFinite(width) && width > 0 ? Math.max(1, Math.round(width)) : null
-}
-
 export function NodeOverlayEditorView(args: {
   asideRef: React.RefObject<HTMLElement | null>
   flowEditorSurfaceId?: string
@@ -158,9 +150,6 @@ export function NodeOverlayEditorView(args: {
     spacePanUserSelectUnlockRef,
   } = args
   const pointerPolicy = resolveFlowEditorWidgetSurfacePointerPolicy()
-  const richMediaPanelFrameWidthPx = isRichMediaPanelWidget
-    ? readRichMediaPanelFrameWidthPx(richMediaWidgetPreview)
-    : null
   const safeToolbarInlineShiftPx = Number.isFinite(toolbarInlineShiftPx) ? toolbarInlineShiftPx : 0
   const safeToolbarMaxWidthPx = Number.isFinite(toolbarMaxWidthPx) && toolbarMaxWidthPx > 0 ? toolbarMaxWidthPx : undefined
   const toolbarMotionRef = React.useRef<HTMLElement | null>(null)
@@ -174,6 +163,49 @@ export function NodeOverlayEditorView(args: {
     return () => controller.abort()
   }, [active, toolbarVisible])
 
+  const handleRootPointerCapture = React.useCallback((ev: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
+    const t = ev.target
+    const el = t instanceof Element ? t : null
+    const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable="true"]')
+    if (active && ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
+      if (el?.closest('[data-kg-flow-node-drag-handle="true"]')) return
+    }
+    if (active && ev.button === 0 && isSpacePanHeld()) {
+      if (!isInteractiveControl) {
+        if (!spacePanUserSelectUnlockRef.current) {
+          lockGlobalUserSelect()
+          let unsubscribeGlobalUnlock = () => void 0
+          const unlock = () => {
+            if (!spacePanUserSelectUnlockRef.current) return
+            spacePanUserSelectUnlockRef.current = null
+            unlockGlobalUserSelect()
+            try {
+              unsubscribeGlobalUnlock()
+            } catch {
+              void 0
+            }
+          }
+          try {
+            unsubscribeGlobalUnlock = subscribeGlobalCancelEvents({
+              listener: unlock,
+              capture: true,
+              visibilityBehavior: 'any',
+            })
+            spacePanUserSelectUnlockRef.current = unlock
+          } catch {
+            unlock()
+          }
+        }
+      }
+    }
+    if (active && ev.button === 0 && isInteractiveControl) return
+    const id = String(node.id || '').trim()
+    if (!id) return
+    setSelectionSource('editor')
+    selectNode(id)
+    setToolbarVisible(true)
+  }, [active, node.id, pinnedInCanvas, selectNode, setSelectionSource, setToolbarVisible, spacePanUserSelectUnlockRef])
+
   return (
     <aside
       ref={asideRef}
@@ -183,53 +215,12 @@ export function NodeOverlayEditorView(args: {
       data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}
       data-kg-widget-pinned={pinnedInCanvas ? '1' : '0'}
       data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}
-      className={pointerPolicy.rootClassName}
+      className={`${pointerPolicy.rootClassName} [&_input:disabled]:pointer-events-none [&_select:disabled]:pointer-events-none [&_textarea:disabled]:pointer-events-none`}
       style={{
         zIndex: overlayZIndex,
-        ...(richMediaPanelFrameWidthPx != null ? { width: `${richMediaPanelFrameWidthPx}px` } : null),
       }}
-      onPointerDownCapture={(ev) => {
-        const t = ev.target
-        const el = t instanceof Element ? t : null
-        const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable="true"]')
-        if (active && ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
-          if (el?.closest('[data-kg-flow-node-drag-handle="true"]')) return
-        }
-        if (active && ev.button === 0 && isSpacePanHeld()) {
-          if (!isInteractiveControl) {
-            if (!spacePanUserSelectUnlockRef.current) {
-              lockGlobalUserSelect()
-              let unsubscribeGlobalUnlock = () => void 0
-              const unlock = () => {
-                if (!spacePanUserSelectUnlockRef.current) return
-                spacePanUserSelectUnlockRef.current = null
-                unlockGlobalUserSelect()
-                try {
-                  unsubscribeGlobalUnlock()
-                } catch {
-                  void 0
-                }
-              }
-              try {
-                unsubscribeGlobalUnlock = subscribeGlobalCancelEvents({
-                  listener: unlock,
-                  capture: true,
-                  visibilityBehavior: 'any',
-                })
-                spacePanUserSelectUnlockRef.current = unlock
-              } catch {
-                unlock()
-              }
-            }
-          }
-        }
-        if (active && ev.button === 0 && isInteractiveControl) return
-        const id = String(node.id || '').trim()
-        if (!id) return
-        setSelectionSource('editor')
-        selectNode(id)
-        setToolbarVisible(true)
-      }}
+      onPointerDownCapture={handleRootPointerCapture}
+      onMouseDownCapture={handleRootPointerCapture}
     >
       <section className="relative">
         <section

@@ -869,7 +869,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportSurfaceModelText.includes('playbackUnitsPerMs: transportSession.playbackUnitsPerMs') ||
     !ganttTransportSurfaceModelText.includes('hasMediaDurationScale: transportSession.hasMediaDurationScale') ||
     !ganttTransportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
-    !ganttTransportSurfaceModelText.includes('sourceThumbnails: mediaThumbnailSummary.thumbnails') ||
+    !ganttTransportSurfaceModelText.includes('sourceThumbnails: mediaThumbnailSummary.thumbnails') || !ganttTransportSurfaceModelText.includes('sourceThumbnailWindows') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportSurface') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportShell') ||
     !ganttTransportSurfaceText.includes('model: GanttTimelineTransportSurfaceModel') ||
@@ -929,12 +929,12 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     ganttTransportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
     !ganttTransportRulerModelText.includes('value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes))') ||
     !ganttTransportRulerModelText.includes("'data-kg-gantt-timeline-ruler': 'bottomPanel'") ||
-    !ganttTransportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') ||
+    !ganttTransportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') || !ganttTransportRulerModelText.includes('sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]') ||
     !ganttTransportRulerModelText.includes('scopes: args.scopes') ||
     !ganttTransportRulerText.includes('GanttTimelineTransportRuler') ||
     !ganttTransportRulerText.includes('VideoSequenceTimelineRuler') ||
     !ganttTransportRulerText.includes('onSelectRowKey={args.model.onSelectRowKey}') ||
-    !ganttTransportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') ||
+    !ganttTransportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !ganttTransportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') ||
     !ganttTransportRulerText.includes('scopes={args.model.scopes}') ||
     !ganttTransportShellModelText.includes('useGanttTimelineTransportShellModel') ||
     !ganttTransportShellModelText.includes("ariaLabel: 'Scrub Gantt-timeline position'") ||
@@ -1032,7 +1032,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !timelinePreviewVideoBindingText.includes('useTimelineTransportStoreBinding') ||
     !timelinePreviewVideoBindingText.includes('useTimelineVideoPreviewSyncController') ||
     !timelinePreviewVideoBindingText.includes('useTimelineMediaReaderSummary') ||
-    !timelinePreviewVideoBindingText.includes('readerDurationSeconds: mediaReaderSummary.durationSeconds') ||
+    !timelinePreviewVideoBindingText.includes('mergeTimelineMediaReaderSummaryWithSource') || !timelinePreviewVideoBindingText.includes('readerDurationSeconds: resolvedMediaReaderSummary.durationSeconds') ||
     !timelinePreviewVideoBindingText.includes('handleVideoElement') ||
     !timelinePreviewVideoBindingText.includes('readVideo: () => videoElementRef.current') ||
     !videoSequenceExportText.includes('renderVideoSequenceExport') ||
@@ -1224,9 +1224,9 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-reader-frame-rate') ||
     !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-reader-resolution') ||
     !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-count') ||
-    !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-strip') ||
-    !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-format') ||
-    !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-raster-format') ||
+    timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-strip') ||
+    timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-format') ||
+    timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-raster-format') ||
     !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-image-format-preference') ||
     !timelinePreviewSurfaceText.includes('data-kg-video-sequence-media-thumbnail-video-format-preference') ||
     !mediaFormatPreferenceText.includes("MEDIA_IMAGE_FORMAT_PREFERENCE = ['svg', 'webp', 'png', 'jpeg']") ||

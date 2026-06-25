@@ -3,6 +3,9 @@ import { INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID, INLINE_UPLOAD_MEDIA_VAR
 import { type CommandMenuRichMediaItem, renameCommandMenuRichMediaMarkdownHref, useCommandMenuRichMediaInventory } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, useCommandMenuMediaNameDrafts, writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { mergeTimelineMediaReaderSummaryWithSource, useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
+import { resolveTimelinePlanSourceUrl } from '@/components/timeline/timelinePlanSync'
+import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { deleteUploadedMediaFromKnowgrphStorage, listUploadedMediaFromKnowgrphStorage, renameUploadedMediaInKnowgrphStorage, type UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
 import { buildUploadedMediaPanelItemFromStorage, buildUploadedMediaPanelItemId, mergeUploadedMediaPanelItems, readStoredUploadedMediaPanelItems, readUploadedMediaFileName, readUploadedMediaPanelDedupeKey, UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, writeStoredUploadedMediaPanelItems, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -10,13 +13,16 @@ import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPane
 import { importUrlToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelImportUrl'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { MEDIA_LIBRARY_OPEN_TOP_EVENT } from '@/features/canvas/utils'
+import { buildVideoSequenceTimelineImportMarkdown } from '@/features/markdown-workspace/workspaceImport/videoSequenceTimelineImport'
 import { MediaCatalogPanelView } from './MediaCatalogPanelView'
-import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, MEDIA_NEW_ACTIONS, readStoredMediaCatalogLayout, readStoredMediaDescriptionDrafts, readStoredMediaFieldDrafts, writeStoredMediaCatalogLayout, writeStoredMediaDescriptionDrafts, writeStoredMediaFieldDrafts, type MediaCatalogLayout, type MediaPanelActionSpec, type UploadedMediaDescriptionDrafts, type UploadedMediaFieldDrafts } from './mediaCatalogTypes'
+import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, MEDIA_NEW_ACTIONS, readStoredMediaCatalogLayout, readStoredMediaDescriptionDrafts, readStoredMediaFieldDrafts, writeStoredMediaCatalogLayout, writeStoredMediaDescriptionDrafts, writeStoredMediaFieldDrafts, type MediaCatalogLayout, type MediaCatalogSourceMetadataItem, type MediaPanelActionSpec, type UploadedMediaDescriptionDrafts, type UploadedMediaFieldDrafts } from './mediaCatalogTypes'
 import { buildUploadedMediaMarkdown } from './mediaCatalogUploadedItems'
 import { getUploadedMediaDescriptionKey, buildCommandMenuMediaDragPayload, buildUploadedMediaDragPayload, getMediaNameSyncKey, readRichMediaInsertUrl, startMediaDrag } from './mediaCatalogShared'
+import { buildProceduralMediaMarkdown, generateProceduralMediaArtifact, readProceduralMediaGenerationSettings, type ProceduralMediaArtifact } from './proceduralMediaGenerator'
 
 export function MediaCatalogPanel() {
 
@@ -30,8 +36,8 @@ export function MediaCatalogPanel() {
   const [mediaDescriptionDrafts, setMediaDescriptionDrafts] = React.useState<UploadedMediaDescriptionDrafts>(readStoredMediaDescriptionDrafts)
   const [mediaFieldDrafts, setMediaFieldDrafts] = React.useState<UploadedMediaFieldDrafts>(readStoredMediaFieldDrafts)
   const [lightboxItem, setLightboxItem] = React.useState<UploadedMediaPanelItem | null>(null)
-  const [generateLightboxOpen, setGenerateLightboxOpen] = React.useState(false)
-  const [generateMediaPrompt, setGenerateMediaPrompt] = React.useState('')
+  const [generateLightboxOpen, setGenerateLightboxOpen] = React.useState(false), [generateMediaBusy, setGenerateMediaBusy] = React.useState(false)
+  const [generateMediaPrompt, setGenerateMediaPrompt] = React.useState(''), [generatedMediaItem, setGeneratedMediaItem] = React.useState<UploadedMediaPanelItem | null>(null)
   const [importUrlPromptOpen, setImportUrlPromptOpen] = React.useState(false)
   const [importUrlDraft, setImportUrlDraft] = React.useState('')
   const [importUrlBusy, setImportUrlBusy] = React.useState(false)
@@ -45,6 +51,8 @@ export function MediaCatalogPanel() {
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const setSourceFiles = useGraphStore(s => s.setSourceFiles)
+  const setBottomSurfaceCollapsed = useGraphStore(s => s.setBottomSurfaceCollapsed)
+  const setBottomSurfaceTab = useGraphStore(s => s.setBottomSurfaceTab)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const { items } = useCommandMenuRichMediaInventory()
   const uploadedMediaKeys = React.useMemo(() => new Set(uploadedMediaItems.flatMap(item => {
@@ -67,6 +75,40 @@ export function MediaCatalogPanel() {
     [items, uploadedMediaKeys],
   )
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
+  const videoSequenceMetadataSource = React.useMemo(() => {
+    const sourceTexts = [
+      markdownDocumentText,
+      ...sourceFiles.map(file => String(file?.text || '')),
+    ]
+    for (const sourceText of sourceTexts) {
+      if (!sourceText.includes('kgVideoSequence')) continue
+      const timelineModel = readVideoSequenceTimelineModelFromMarkdown(sourceText)
+      const source = timelineModel?.sources.find(candidate => resolveTimelinePlanSourceUrl(candidate))
+      if (source) return source
+    }
+    return null
+  }, [markdownDocumentText, sourceFiles])
+  const videoSequenceMetadataSourceUrl = videoSequenceMetadataSource ? resolveTimelinePlanSourceUrl(videoSequenceMetadataSource) : ''
+  const videoSequenceMetadataSummaryRaw = useTimelineMediaReaderSummary({
+    active: !!videoSequenceMetadataSourceUrl,
+    url: videoSequenceMetadataSourceUrl,
+  })
+  const videoSequenceMetadataSummary = React.useMemo(
+    () => mergeTimelineMediaReaderSummaryWithSource(videoSequenceMetadataSummaryRaw, videoSequenceMetadataSource),
+    [videoSequenceMetadataSource, videoSequenceMetadataSummaryRaw],
+  )
+  const sourceMetadataItem = React.useMemo<MediaCatalogSourceMetadataItem | null>(() => {
+    if (!videoSequenceMetadataSource || !videoSequenceMetadataSourceUrl) return null
+    return {
+      byteSize: videoSequenceMetadataSource.byteSize,
+      id: videoSequenceMetadataSource.id || videoSequenceMetadataSourceUrl,
+      importMode: videoSequenceMetadataSource.importMode,
+      mimeHint: videoSequenceMetadataSource.mimeHint,
+      name: videoSequenceMetadataSource.originalName || videoSequenceMetadataSource.relativePath || videoSequenceMetadataSourceUrl,
+      sourceUrl: videoSequenceMetadataSourceUrl,
+      summary: videoSequenceMetadataSummary,
+    }
+  }, [videoSequenceMetadataSource, videoSequenceMetadataSourceUrl, videoSequenceMetadataSummary])
   const mediaActions = React.useMemo(
     () => [
       ...MEDIA_NEW_ACTIONS,
@@ -75,7 +117,7 @@ export function MediaCatalogPanel() {
     [],
   )
   const generatePromptParameters = React.useMemo(
-    () => buildMediaLightboxPromptParameters({ kind: 'image' }),
+    () => buildMediaLightboxPromptParameters({ kind: 'media' }),
     [],
   )
   const scrollMediaPanelToTop = React.useCallback((behavior: ScrollBehavior = 'auto') => {
@@ -180,6 +222,67 @@ export function MediaCatalogPanel() {
     }
     setSourceFiles([...currentSourceFiles, nextFile])
   }, [setSourceFiles])
+  const materializeGeneratedMediaSource = React.useCallback((artifact: ProceduralMediaArtifact, url: string) => {
+    const sourceId = `media-procedural:${artifact.id}`
+    const currentSourceFiles = useGraphStore.getState().sourceFiles || []
+    const mediaText = buildProceduralMediaMarkdown({ artifact, url })
+    const mediaFile = {
+      id: sourceId, name: `${artifact.fileName}.media.md`, text: mediaText, enabled: true, geoLayerEnabled: false, status: 'idle' as const, parsedTextHash: '',
+      source: { kind: 'local' as const, path: `workspace:/media/${artifact.fileName}.media.md` },
+    }
+    setSourceFiles([...currentSourceFiles.filter(file => String(file?.id || '') !== sourceId), mediaFile])
+    if (artifact.kind === 'video') {
+      const sequenceText = buildVideoSequenceTimelineImportMarkdown([{
+        byteSize: artifact.sizeBytes, displayHeight: artifact.height, displayWidth: artifact.width, durationSeconds: artifact.durationSeconds, frameRate: artifact.frameRate, importMode: 'workspace', mimeHint: artifact.contentType, originalName: artifact.fileName, relativePath: artifact.fileName, sourceUrl: url,
+      }])
+      setBottomSurfaceTab('timeline')
+      setBottomSurfaceCollapsed(false)
+      setMarkdownDocument(`${artifact.fileName}.video-sequence.timeline.md`, sequenceText)
+      return
+    }
+    setMarkdownDocument(`${artifact.fileName}.media.md`, mediaText)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab, setMarkdownDocument, setSourceFiles])
+  const removeGeneratedMediaSources = React.useCallback((item: UploadedMediaPanelItem) => {
+    if (!item.id.startsWith('procedural-media:')) return
+    const signature = item.id.slice('procedural-media:'.length)
+    const nextSourceFiles = sourceFiles.filter(file => {
+      const id = String(file?.id || '')
+      const text = String(file?.text || '')
+      return !id.includes(signature) && !text.includes(item.linkUrl)
+    })
+    if (nextSourceFiles.length !== sourceFiles.length) setSourceFiles(nextSourceFiles)
+  }, [setSourceFiles, sourceFiles])
+  const handleGenerateMedia = React.useCallback(async (prompt: string, parameters?: MediaLightboxPromptParameters) => {
+    if (generateMediaBusy) return
+    const settings = readProceduralMediaGenerationSettings(prompt, parameters)
+    setGenerateMediaBusy(true)
+    pushUiToast({ id: 'media:procedural-generate', kind: 'neutral', message: 'Generating media…', ttlMs: null, dismissible: false, busy: true })
+    try {
+      const artifact = await generateProceduralMediaArtifact(settings)
+      const localUrl = URL.createObjectURL(artifact.blob)
+      objectUrlsRef.current.add(localUrl)
+      const item: UploadedMediaPanelItem = {
+        id: `procedural-media:${artifact.id}`,
+        name: artifact.fileName,
+        kind: artifact.kind,
+        localUrl,
+        linkUrl: localUrl,
+        contentType: artifact.contentType,
+        sizeBytes: artifact.sizeBytes,
+        status: 'local',
+        storage: null,
+        error: null,
+      }
+      setGeneratedMediaItem(item)
+      setUploadedMediaItems(prev => [item, ...prev.filter(candidate => candidate.id !== item.id)])
+      materializeGeneratedMediaSource(artifact, localUrl)
+      pushUiToast({ id: 'media:procedural-generate', kind: 'success', message: `Generated ${artifact.kind} media`, ttlMs: UI_TOAST_TTL_MS.actionFeedback, dismissible: false })
+    } catch (error) {
+      pushUiToast({ id: 'media:procedural-generate', kind: 'error', message: `Generation failed: ${error instanceof Error ? error.message : 'Request failed'}`, ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
+    } finally {
+      setGenerateMediaBusy(false)
+    }
+  }, [generateMediaBusy, materializeGeneratedMediaSource, pushUiToast])
   const handleUploadMediaFiles = React.useCallback(async (fileList: FileList | null) => {
     await uploadFilesToUploadedMediaPanel({
       files: Array.from(fileList || []),
@@ -343,12 +446,14 @@ export function MediaCatalogPanel() {
       writeStoredUploadedMediaPanelItems(next)
       return next
     })
+    if (generatedMediaItem?.id === item.id) setGeneratedMediaItem(null)
+    removeGeneratedMediaSources(item)
     if (!item.storage) return
     removeUploadedMediaSources(item.storage)
     void deleteUploadedMediaFromKnowgrphStorage({ storage: item.storage }).catch(() => {
       void 0
     })
-  }, [removeUploadedMediaSources])
+  }, [generatedMediaItem?.id, removeGeneratedMediaSources, removeUploadedMediaSources])
   const handleSelectUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
     if (!item.storage || item.status !== 'synced') return
     appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage: item.storage })
@@ -444,6 +549,8 @@ export function MediaCatalogPanel() {
     <MediaCatalogPanelView
       catalogLayout={catalogLayout}
       generateLightboxOpen={generateLightboxOpen}
+      generateMediaBusy={generateMediaBusy}
+      generatedMediaItem={generatedMediaItem}
       generateMediaPrompt={generateMediaPrompt}
       generatePromptParameters={generatePromptParameters}
       importUrlBusy={importUrlBusy}
@@ -458,6 +565,7 @@ export function MediaCatalogPanel() {
       mediaNameDrafts={mediaNameDrafts}
       panelRef={panelRef}
       panelTextClass={panelTypography.panelTextClass}
+      sourceMetadataItem={sourceMetadataItem}
       uploadInputRef={uploadInputRef}
       uploadedMediaItems={uploadedMediaItems}
       onCloseGenerateLightbox={() => setGenerateLightboxOpen(false)}
@@ -468,7 +576,7 @@ export function MediaCatalogPanel() {
       onDragUploadedMedia={handleDragUploadedMedia}
       onFieldChange={handleUploadedMediaFieldChange}
       onGeneratePromptChange={setGenerateMediaPrompt}
-      onGeneratePromptSubmit={nextPrompt => setGenerateMediaPrompt(nextPrompt)}
+      onGeneratePromptSubmit={handleGenerateMedia}
       onImportUrlChange={setImportUrlDraft}
       onImportUrlConfirm={handleImportMediaUrl}
       onImportUrlPromptOpenChange={setImportUrlPromptOpen}

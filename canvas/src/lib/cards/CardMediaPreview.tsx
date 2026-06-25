@@ -10,6 +10,7 @@ import {
   type CardMediaPlaceholderVariant,
   type CardMediaSkeletonVariant,
 } from '@/lib/cards/cardMediaPreviewUtils'
+import { resolveMediaPreviewSelectableDataAttr } from '@/lib/cards/mediaPreviewSurfaceSelection'
 
 type SkeletonBlock = {
   width: string
@@ -335,6 +336,7 @@ export function CardMediaPreview({
   iframeEmbedMode,
   iframeScriptPolicy,
   mediaThumbnailDataAttr = false,
+  mediaSelectableSurfaceDataAttr = false,
   onVideoElement,
   onReady,
   onError,
@@ -359,6 +361,7 @@ export function CardMediaPreview({
   iframeEmbedMode?: 'auto' | 'direct' | 'proxy'
   iframeScriptPolicy?: 'strip' | 'allow'
   mediaThumbnailDataAttr?: boolean
+  mediaSelectableSurfaceDataAttr?: boolean
   onVideoElement?: (element: HTMLVideoElement | null) => void
   onReady?: () => void
   onError?: () => void
@@ -367,6 +370,7 @@ export function CardMediaPreview({
   const mediaSrcDoc = typeof srcDoc === 'string' ? srcDoc.trim() : ''
   const fallbackHref = normalizeCardMediaUrl(href)
   const rootClassName = ['h-full w-full', className].filter(Boolean).join(' ')
+  const selectableSurfaceDataAttr = resolveMediaPreviewSelectableDataAttr(mediaSelectableSurfaceDataAttr)
   const mediaPointerStyle: React.CSSProperties = {
     pointerEvents: interactive ? 'auto' : 'none',
   }
@@ -404,6 +408,7 @@ export function CardMediaPreview({
         data-kg-card-media-interactive={interactive ? '1' : undefined}
         data-kg-card-media-loading="lazy"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
         loading="lazy"
         decoding="async"
@@ -429,6 +434,7 @@ export function CardMediaPreview({
         data-kg-card-media-interactive={interactive ? '1' : undefined}
         data-kg-card-media-preload="metadata"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
         className={['block h-full w-full select-none', mediaClassName].filter(Boolean).join(' ')}
         aria-label={title}
         controls={videoControls ?? interactive}
@@ -466,6 +472,7 @@ export function CardMediaPreview({
         data-kg-card-media-interactive={interactive ? '1' : undefined}
         data-kg-card-media-preload="metadata"
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
         style={{
           background: 'rgba(2, 6, 23, 0.06)',
           padding: 12,
@@ -518,6 +525,7 @@ export function CardMediaPreview({
         data-kg-card-media-interactive={interactive ? '1' : undefined}
         data-kg-card-media-srcdoc={mediaSrcDoc ? '1' : undefined}
         data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
         onLoad={() => onReady?.()}
         style={{
           background: 'transparent',

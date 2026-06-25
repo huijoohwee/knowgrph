@@ -397,7 +397,11 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   const widgetOverlayEntrypointText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'FlowWidgetOverlay.tsx'), 'utf8')
   const flowEditorCanvasSharedText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx'), 'utf8')
   const nodeOverlayPanelText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
+  const nodeOverlayViewText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'), 'utf8')
   const nodeOverlayFormText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
+  const cardMediaPreviewText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'CardMediaPreview.tsx'), 'utf8')
+  const mediaSurfaceSelectionText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts'), 'utf8')
+  const zoomPanViewportText = readFileSync(resolve(root, 'src', 'features', 'panels', 'views', 'preview-panel', 'ui', 'ZoomPanViewport.tsx'), 'utf8')
   const widgetInnerPanelScrollText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts'), 'utf8')
   const richMediaPanelDefaultsText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelDefaults.ts'), 'utf8')
   const flowCanvasMediaOverlaysText = readFileSync(resolve(root, 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
@@ -427,6 +431,52 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes('iframeSrcDoc={normalizedInlineSrcDoc}')) {
     throw new Error('expected RichMediaPanel iframe srcdoc rendering to consume normalized shared srcdoc')
   }
+  if (!componentText.includes('&& !effectiveInlineSrcDoc')) {
+    throw new Error('expected RichMediaPanel inline srcdoc previews to bypass the empty text editor placeholder')
+  }
+  if (!nodeOverlayFormText.includes('resolveMediaPreviewSurfaceCardProps')
+    || !nodeOverlayFormText.includes('const compactMediaPreviewSelectionProps = React.useMemo')
+    || !nodeOverlayFormText.includes('const compactMediaPreviewCardProps = React.useMemo')
+    || !nodeOverlayFormText.includes('resolveMediaPreviewSurfaceSelectionProps({')
+    || !nodeOverlayFormText.includes('resolveMediaPreviewSurfaceCardProps({')
+    || !nodeOverlayFormText.includes('enabled: !!compactPreviewView && compactPreviewView.kind !== \'text\'')
+    || !nodeOverlayFormText.includes('{...compactMediaPreviewSelectionProps}')
+    || !nodeOverlayFormText.includes('{...compactMediaPreviewCardProps}')
+    || !nodeOverlayFormText.includes("setSelectionSource('editor')")
+    || !nodeOverlayFormText.includes('selectNode(id)')) {
+    throw new Error('expected compact Rich Media widget previews to reuse the shared selectable media preview surface helper')
+  }
+  if (!componentText.includes('resolveMediaPreviewSurfaceCardProps')
+    || !componentText.includes('const directMediaPreviewSelectionProps = React.useMemo')
+    || !componentText.includes('const directMediaPreviewCardProps = React.useMemo')
+    || !componentText.includes('resolveMediaPreviewSurfaceSelectionProps({')
+    || !componentText.includes('resolveMediaPreviewSurfaceCardProps({')
+    || !componentText.includes('frameSelectionProps={directMediaPreviewSelectionProps}')
+    || !componentText.includes('{...directMediaPreviewCardProps}')
+    || !zoomPanViewportText.includes('frameSelectionProps?: MediaPreviewSurfaceSelectionProps')
+    || !zoomPanViewportText.includes('{...frameSelectionProps}')) {
+    throw new Error('expected expanded Rich Media pan/zoom preview frames to reuse the shared selectable media preview surface helper')
+  }
+  if (!cardMediaPreviewText.includes('mediaSelectableSurfaceDataAttr?: boolean')
+    || !cardMediaPreviewText.includes('resolveMediaPreviewSelectableDataAttr(mediaSelectableSurfaceDataAttr)')
+    || !cardMediaPreviewText.includes('data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}')
+    || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceSelectionProps')
+    || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
+    || !mediaSurfaceSelectionText.includes('event.preventDefault()')
+    || !mediaSurfaceSelectionText.includes('event.stopPropagation()')
+    || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceCardProps')
+    || !mediaSurfaceSelectionText.includes('interactive: args.enabled ? false : args.interactive === true')
+    || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSelectableDataAttr')
+    || !mediaSurfaceSelectionText.includes("export const MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR = 'data-kg-rich-media-selectable-surface'")) {
+    throw new Error('expected shared CardMediaPreview media elements to carry the Rich Media selectable marker when requested')
+  }
+  if (!nodeOverlayViewText.includes('[&_input:disabled]:pointer-events-none')
+    || !nodeOverlayViewText.includes('[&_select:disabled]:pointer-events-none')
+    || !nodeOverlayViewText.includes('[&_textarea:disabled]:pointer-events-none')
+    || !nodeOverlayViewText.includes('onMouseDownCapture={handleRootPointerCapture}')
+    || !nodeOverlayViewText.includes('onPointerDownCapture={handleRootPointerCapture}')) {
+    throw new Error('expected inactive Flow Editor widget fields to pass pointer targeting to the widget root selection handler')
+  }
   if (!componentText.includes("frameMode?: 'panel' | 'surface'")) {
     throw new Error('expected RichMediaPanel to expose a shared unframed surface mode')
   }
@@ -450,6 +500,17 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   }
   if (!componentText.includes('export function RichMediaPanelResizeHandle') || !componentText.includes('export function beginRichMediaPanelResizeDrag')) {
     throw new Error('expected RichMediaPanel resize handle UI and drag behavior to stay in the shared panel owner')
+  }
+  for (const snippet of [
+    'data-kg-rich-media-resize-handle="1"',
+    'data-kg-canvas-wheel-ignore="true"',
+    'data-kg-overlay-pan-ignore="true"',
+    'data-kg-canvas-overlay-control="true"',
+    "targetEl?.closest('[data-kg-rich-media-resize-handle=\"1\"]')",
+  ]) {
+    if (!componentText.includes(snippet)) {
+      throw new Error(`expected shared Rich Media Panel resize handle to be protected from canvas pan forwarding: ${snippet}`)
+    }
   }
   if (!componentText.includes('data-kg-rich-media-resize-handle-shape="corner"')) {
     throw new Error('expected shared Rich Media Panel resize handle to render as a bottom-right corner bracket')

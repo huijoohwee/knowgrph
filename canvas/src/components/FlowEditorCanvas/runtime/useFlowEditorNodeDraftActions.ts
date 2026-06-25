@@ -107,18 +107,20 @@ export function useFlowEditorNodeDraftActions(args: {
     const draft = (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null
     const node = (draft?.nodes || []).find(n => String(n.id || '') === id) || null
     if (!node) return
+    const nextProperties = clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>)
     const kind = resolveRichMediaWidgetKind(node)
     if (kind || String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      updateNodeById(id, { properties: clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>) as never })
+      updateNodeById(id, { properties: nextProperties as never })
       args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: kind ? `Cleared ${kind} output.` : 'Cleared rich media panel output.', ttlMs: 2200 })
       return
     }
     if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-      updateNodeById(id, { properties: { ...((node.properties || {}) as Record<string, unknown>), output: '' } as never })
+      updateNodeById(id, { properties: nextProperties as never })
       args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: 'Cleared text output.', ttlMs: 2200 })
       return
     }
-    args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: 'Clear output is not implemented in MVP.', ttlMs: 2200 })
+    updateNodeById(id, { properties: nextProperties as never })
+    args.upsertUiToast({ id: `flow-editor-clear-output-${id}`, kind: 'neutral', message: 'Reset workflow output.', ttlMs: 2200 })
   }, [args, updateNodeById])
 
   const setNodeLabelById = React.useCallback((nodeId: string, label: string) => {

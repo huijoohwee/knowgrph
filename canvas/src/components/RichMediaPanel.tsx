@@ -20,6 +20,10 @@ import {
   CardMediaLoadingSkeleton,
   CardMediaPreview,
 } from '@/lib/cards/CardMediaPreview'
+import {
+  resolveMediaPreviewSurfaceCardProps,
+  resolveMediaPreviewSurfaceSelectionProps,
+} from '@/lib/cards/mediaPreviewSurfaceSelection'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
@@ -207,6 +211,9 @@ export function RichMediaPanelResizeHandle(props: {
       data-kg-resize-handle="se"
       data-kg-rich-media-resize-handle="1"
       data-kg-rich-media-resize-placement={props.placement || 'root'}
+      data-kg-canvas-wheel-ignore="true"
+      data-kg-overlay-pan-ignore="true"
+      data-kg-canvas-overlay-control="true"
       style={{
         position: 'absolute',
         right: 0,
@@ -293,10 +300,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }, [kind, rawUrl])
 
   const inlineSrcDoc = React.useMemo(() => {
-    if (kind !== 'iframe') return ''
     const s = typeof props.srcDoc === 'string' ? props.srcDoc.trim() : ''
     return s
-  }, [kind, props.srcDoc])
+  }, [props.srcDoc])
   const [grabMapsPoiPreviewSrcDoc, setGrabMapsPoiPreviewSrcDoc] = React.useState<string>(() => {
     const payload = readLatestGrabMapsPoiRichMediaPreview()
     if (!payload) return ''
@@ -457,6 +463,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const showPanelTextSurface = Boolean(
     panel
     && panelSelectedTab === 'text'
+    && !effectiveInlineSrcDoc
     && (canInlineEditPanelText || panelDisplayText.trim()),
   )
   const showPanelInlineTextEditor = showPanelTextSurface && canInlineEditPanelText
@@ -598,10 +605,15 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }, [installHeaderDrag, props, selectSelf])
   const handleRootDragStartCapture = React.useCallback((e: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): boolean => {
     const targetEl = e.target instanceof Element ? e.target : null
+    if (targetEl?.closest('[data-kg-rich-media-resize-handle="1"]')) return false
     const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
     const pointerTarget = readOverlayPointerTargetState(targetEl)
     const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
     const nativePointerEvent = e.nativeEvent as PointerEvent | undefined
+    if (!isHeaderTarget && pointerTarget.isSelectableSurface) {
+      selectSelf(nativePointerEvent || null)
+      return false
+    }
     const canForwardPointerDown =
       typeof props.forwardPointerTo === 'function'
       && typeof props.shouldForwardPointerDown === 'function'
@@ -656,7 +668,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     : ''
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
-    position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
+    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
     ...(!useSurfaceFrame && flowEditorFrontmatterDocumentMode
       ? {
           borderRadius: '12px',
@@ -686,7 +698,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }
   const bodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
-    position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
+    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
     padding: 0,
     overflow: panelOwnsInlineSrcDocScroll ? 'visible' : undefined,
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
@@ -713,6 +725,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     display, width: '100%', height: '100%', border: 0,
     borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
     background, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+    position: 'relative',
     pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
   })
   const inlineSrcDocSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
@@ -754,13 +767,63 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (kind === 'image' || kind === 'svg') return { w: 16, h: 9 }
     return { w: 16, h: 9 }
   }, [kind])
+  const directVideoFallbackSrcDoc = kind === 'video' ? normalizedInlineSrcDoc : ''
+  const directMediaPreviewSelectionProps = React.useMemo(
+    () => resolveMediaPreviewSurfaceSelectionProps({
+      enabled: kind === 'image' || kind === 'svg' || kind === 'video',
+      ariaLabel: `${title} pan and zoom media preview`,
+      onSelect: event => selectSelf(event.nativeEvent as PointerEvent),
+    }),
+    [kind, selectSelf, title],
+  )
+  const directMediaPreviewCardProps = React.useMemo(
+    () => resolveMediaPreviewSurfaceCardProps({
+      enabled: kind === 'image' || kind === 'svg' || kind === 'video',
+      interactive: false,
+    }),
+    [kind],
+  )
   const directMediaZoomSurface = kind === 'image' || kind === 'svg' || kind === 'video'
     ? (
         <section
-          className="h-full w-full overflow-hidden"
-          aria-label={`${title} pan and zoom media preview`}
+          className="relative h-full w-full overflow-hidden"
           data-kg-rich-media-zoom-pan-viewport="1"
+          style={{
+            pointerEvents: 'auto',
+            background: 'transparent',
+          }}
         >
+          {directVideoFallbackSrcDoc ? (
+            <section
+              aria-hidden="true"
+              data-kg-rich-media-video-srcdoc-fallback="1"
+              className="absolute inset-0 overflow-hidden"
+              style={{
+                zIndex: 0,
+                pointerEvents: 'none',
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              }}
+            >
+              <SharedWebpageSurface
+                renderMode="iframe"
+                webpageUrl={openUrl || rawUrl}
+                title={`${title} HTML preview`}
+                iframeSrc="about:blank"
+                iframeSrcDoc={directVideoFallbackSrcDoc}
+                iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                iframeScrolling="no"
+                iframeReferrerPolicy="no-referrer"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                  background: 'transparent',
+                  pointerEvents: 'none',
+                }}
+              />
+            </section>
+          ) : null}
           <ZoomPanViewport
             open={!!mediaSrc}
             storageKey={LS_KEYS.previewZoomPanMedia}
@@ -774,14 +837,19 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             showZoomIndicator={false}
             frameClassName="bg-transparent"
             contentFillsFrame
+            transparentBackground
+            frameSelectionProps={directMediaPreviewSelectionProps}
           >
             <CardMediaPreview
               kind={kind === 'svg' ? 'svg' : kind}
               url={mediaSrc}
               title={title}
-              interactive={false}
+              {...directMediaPreviewCardProps}
               fit="contain"
               videoControls={false}
+              videoMuted={kind === 'video' ? true : undefined}
+              videoAutoPlay={kind === 'video' ? true : undefined}
+              videoLoop={kind === 'video' ? true : undefined}
               videoPoster={kind === 'video' ? props.videoPoster : undefined}
               mediaThumbnailDataAttr
               onVideoElement={kind === 'video' ? props.onVideoElement : undefined}
@@ -789,7 +857,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               onError={() => {
                 if (!fallbackToRawSrc()) setReady(true)
               }}
-              mediaStyle={buildDirectMediaStyle('block', kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
+              mediaStyle={buildDirectMediaStyle('block', kind === 'video' && directVideoFallbackSrcDoc ? 'transparent' : kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
             />
           </ZoomPanViewport>
         </section>

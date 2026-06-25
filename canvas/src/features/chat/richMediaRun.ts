@@ -4,6 +4,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import {
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
@@ -136,6 +137,12 @@ export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): 
   return null
 }
 
+export const isRichMediaVideoOutputTargetNode = (node: GraphNode | null | undefined): boolean => {
+  if (!node) return false
+  if (cleanString(node.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return true
+  return resolveRichMediaWidgetKind(node) === 'video'
+}
+
 export const clearRichMediaOutputProperties = (properties: Record<string, unknown> | null | undefined): Record<string, unknown> => {
   const next = { ...(properties || {}) }
   delete next.imageUrl
@@ -153,6 +160,7 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.media_kind
   delete next.outputPath
   delete next.outputManifestPath
+  delete next.outputStorageUrl
   delete next.output
   delete next.outputMimeType
   delete next.outputModel
@@ -161,6 +169,9 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.outputSrcDoc
   delete next.outputLoading
   delete next.outputLoadingKind
+  delete next.renderErrorCode
+  delete next.renderErrorReason
+  delete next.renderJobId
   delete next.lastRunAt
   return next
 }
@@ -337,10 +348,15 @@ const persistGeneratedAsset = async (args: {
       blob: args.asset.blob,
     })
   }
+  const assetMimeType = cleanString(args.asset.blob.type)
+  const videoExtension = cleanString(args.extension).replace(/^\./, '') || 'mp4'
+  const acceptMimeType = args.kind === 'video'
+    ? (assetMimeType.startsWith('video/') ? assetMimeType : 'video/mp4')
+    : 'image/png'
   const saved = await saveBlobWithPicker(args.asset.blob, suggestedName, {
     description: args.kind === 'video' ? 'Video Files' : 'Image Files',
     accept: args.kind === 'video'
-      ? { 'video/mp4': ['.mp4'] }
+      ? { [acceptMimeType]: [`.${videoExtension}`] }
       : { 'image/png': ['.png'] },
   })
   if (!saved) downloadBlob(args.asset.blob, suggestedName)

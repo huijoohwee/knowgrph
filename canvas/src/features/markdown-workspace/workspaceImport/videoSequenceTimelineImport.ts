@@ -11,6 +11,10 @@ export type VideoSequenceImportAsset = {
   sourceUrl?: string | null
   mimeHint?: string | null
   byteSize?: number | null
+  durationSeconds?: number | null
+  frameRate?: number | null
+  displayWidth?: number | null
+  displayHeight?: number | null
   importMode: CorpusSourceUnit['provenance']['importMode']
 }
 
@@ -22,6 +26,11 @@ const cleanInline = (value: unknown): string => String(value || '').replace(/\s+
 const cleanPath = (value: unknown): string => String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 
 const stripExtension = (name: string): string => String(name || '').replace(/\.[a-z0-9]+$/i, '').trim()
+
+const readPositiveNumber = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
 
 const sanitizeFilenamePart = (value: unknown): string => {
   const safe = cleanInline(value)
@@ -101,6 +110,16 @@ export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArra
     if (mimeHint) lines.push(`    mimeHint: ${yamlQuote(mimeHint)}`)
     const byteSize = Number(asset.byteSize)
     if (Number.isFinite(byteSize) && byteSize >= 0) lines.push(`    byteSize: ${Math.floor(byteSize)}`)
+    const durationSeconds = readPositiveNumber(asset.durationSeconds)
+    if (durationSeconds > 0) lines.push(`    durationSeconds: ${durationSeconds}`)
+    const frameRate = readPositiveNumber(asset.frameRate)
+    if (frameRate > 0) lines.push(`    frameRate: ${frameRate}`)
+    const displayWidth = readPositiveNumber(asset.displayWidth)
+    const displayHeight = readPositiveNumber(asset.displayHeight)
+    if (displayWidth > 0 && displayHeight > 0) {
+      lines.push(`    displayWidth: ${Math.round(displayWidth)}`)
+      lines.push(`    displayHeight: ${Math.round(displayHeight)}`)
+    }
     return lines
   })
   const sourceYaml = sourceLines.length > 0 ? ['kgVideoSequenceSources:', ...sourceLines] : []

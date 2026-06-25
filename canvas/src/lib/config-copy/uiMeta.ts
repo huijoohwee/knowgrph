@@ -220,7 +220,7 @@ export const UI_LABELS = {
   showFields: 'Show Fields',
   changeName: 'Change name',
   duplicate: 'Duplicate',
-  clearOutput: 'Clear output',
+  clearOutput: 'Reset',
   removeNode: 'Remove',
   more: 'More',
   openInSidepane: 'Open sidepane',

@@ -4,21 +4,24 @@ import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRic
 import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '@/lib/command-menu/commandMenuMediaNameSync'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { MediaLightbox, type MediaLightboxPromptParameter } from '@/lib/ui/MediaLightbox'
+import { MediaLightbox, type MediaLightboxPromptParameter, type MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR, MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR } from '@/lib/media/mediaFormatPreference'
 import { cn } from '@/lib/utils'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
-import type { MediaCatalogLayout, MediaPanelActionSpec, UploadedMediaDescriptionDrafts, UploadedMediaFieldDrafts } from './mediaCatalogTypes'
+import { buildTimelineAnimationState } from '@/components/timeline/timelineAnimationEngine'
+import type { MediaCatalogLayout, MediaCatalogSourceMetadataItem, MediaPanelActionSpec, UploadedMediaDescriptionDrafts, UploadedMediaFieldDrafts } from './mediaCatalogTypes'
 import { getMediaNameSyncKey } from './mediaCatalogShared'
-import { MediaActionCard, MediaActionRow, MediaCandidateCard, MediaCandidateRow } from './mediaCatalogCandidateItems'
+import { MediaActionCard, MediaActionRow, MediaCandidateCard, MediaCandidateRow, MediaSourceMetadataCard, MediaSourceMetadataRow } from './mediaCatalogCandidateItems'
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
 
 type MediaCatalogPanelViewProps = {
   catalogLayout: MediaCatalogLayout
   generateLightboxOpen: boolean
+  generateMediaBusy: boolean
   generateMediaPrompt: string
   generatePromptParameters: readonly MediaLightboxPromptParameter[]
+  generatedMediaItem: UploadedMediaPanelItem | null
   importUrlBusy: boolean
   importUrlDraft: string
   importUrlPromptOpen: boolean
@@ -31,6 +34,7 @@ type MediaCatalogPanelViewProps = {
   mediaNameDrafts: CommandMenuMediaNameDrafts
   panelRef: React.RefObject<HTMLElement | null>
   panelTextClass: string
+  sourceMetadataItem: MediaCatalogSourceMetadataItem | null
   uploadInputRef: React.RefObject<HTMLInputElement | null>
   uploadedMediaItems: UploadedMediaPanelItem[]
   onCloseGenerateLightbox: () => void
@@ -41,7 +45,7 @@ type MediaCatalogPanelViewProps = {
   onDragUploadedMedia: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onGeneratePromptChange: (nextPrompt: string) => void
-  onGeneratePromptSubmit: (nextPrompt: string) => void
+  onGeneratePromptSubmit: (nextPrompt: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>
   onImportUrlChange: (nextUrl: string) => void
   onImportUrlConfirm: (url: string) => void
   onImportUrlPromptOpenChange: (open: boolean) => void
@@ -61,8 +65,10 @@ type MediaCatalogPanelViewProps = {
 export function MediaCatalogPanelView({
   catalogLayout,
   generateLightboxOpen,
+  generateMediaBusy,
   generateMediaPrompt,
   generatePromptParameters,
+  generatedMediaItem,
   importUrlBusy,
   importUrlDraft,
   importUrlPromptOpen,
@@ -75,6 +81,7 @@ export function MediaCatalogPanelView({
   mediaNameDrafts,
   panelRef,
   panelTextClass,
+  sourceMetadataItem,
   uploadInputRef,
   uploadedMediaItems,
   onCloseGenerateLightbox,
@@ -101,8 +108,16 @@ export function MediaCatalogPanelView({
   onSelectUploadedMedia,
   onUploadMediaFiles,
 }: MediaCatalogPanelViewProps) {
+  const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
+  const animationState = React.useMemo(() => buildTimelineAnimationState({
+    active: mediaItemCount > 0,
+    itemCount: mediaItemCount,
+    progress: mediaItemCount > 0 ? Math.min(1, mediaItemCount / 12) : 0,
+    surface: 'floating-media',
+  }), [mediaActions.length, mediaItemCount])
+  const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
-    <section ref={panelRef} className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1" data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR} data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}>
+    <section ref={panelRef} className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1" data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR} data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR} {...animationAttributes} style={animationStyle}>
       <MediaLightbox
         open={!!lightboxItem}
         src={lightboxItem?.linkUrl || ''}
@@ -112,14 +127,15 @@ export function MediaCatalogPanelView({
       />
       <MediaLightbox
         open={generateLightboxOpen}
-        src=""
-        alt="Generated media output"
-        kind="image"
+        src={generatedMediaItem?.linkUrl || ''}
+        alt={generatedMediaItem?.name || 'Generated media output'}
+        kind={generatedMediaItem?.kind || 'image'}
         title="Generate Media"
         descriptionLabel="Prompt"
         promptValue={generateMediaPrompt}
         promptPlaceholder="Describe the media to generate"
         promptSubmitLabel="Generate media"
+        promptSubmitting={generateMediaBusy}
         promptParameters={generatePromptParameters}
         onPromptChange={onGeneratePromptChange}
         onPromptSubmit={onGeneratePromptSubmit}
@@ -212,6 +228,7 @@ export function MediaCatalogPanelView({
       <section ref={mediaListRef} tabIndex={-1} data-kg-media-list="1">
         {catalogLayout === 'list' ? (
           <section className="grid min-w-0 gap-2" aria-label="Media list" data-kg-media-list-rows="3">
+            {sourceMetadataItem ? <MediaSourceMetadataRow item={sourceMetadataItem} /> : null}
             {uploadedMediaItems.map(item => (
               <UploadedMediaRow
                 key={item.id}
@@ -250,6 +267,7 @@ export function MediaCatalogPanelView({
           </section>
         ) : (
           <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
+            {sourceMetadataItem ? <MediaSourceMetadataCard item={sourceMetadataItem} /> : null}
             {uploadedMediaItems.map(item => (
               <UploadedMediaCard
                 key={item.id}

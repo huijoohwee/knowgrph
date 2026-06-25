@@ -182,6 +182,18 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
+        {showClearOutputAction ? (
+          <IconButton
+            title={UI_LABELS.clearOutput}
+            tooltipContent={UI_COPY.flowWidgetClearOutput}
+            showTooltip
+            onClick={onClearOutput}
+            className="App-toolbar__btn"
+          >
+            <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
+
         {args.importUrlAction?.visible ? (
           <IconButton
             ref={importUrlButtonRef}
@@ -347,18 +359,6 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             className="App-toolbar__btn"
           >
             <Copy className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
-        ) : null}
-
-        {showClearOutputAction ? (
-          <IconButton
-            title={UI_LABELS.clearOutput}
-            tooltipContent={UI_COPY.flowWidgetClearOutput}
-            showTooltip
-            onClick={onClearOutput}
-            className="App-toolbar__btn"
-          >
-            <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
           </IconButton>
         ) : null}
 

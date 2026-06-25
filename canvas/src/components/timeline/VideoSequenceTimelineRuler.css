@@ -27,9 +27,34 @@
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone) {
-  height: 32px;
+  height: 38px;
   overflow: visible;
   border-radius: 6px;
+}
+
+.timeline-video-sequence-editor[data-kg-animation-engine="native"] {
+  --kg-motion-eased: 0;
+  --kg-motion-opacity: 1;
+  --kg-motion-scale: 1;
+  --kg-motion-translate-x: 0px;
+}
+
+.timeline-video-sequence-motion-vector {
+  position: absolute;
+  right: 8px;
+  left: 8px;
+  top: 7px;
+  z-index: 0;
+  height: 10px;
+  color: rgb(37 99 235 / calc(0.22 + var(--kg-motion-eased, 0) * 0.28));
+  pointer-events: none;
+}
+
+.timeline-video-sequence-motion-vector path {
+  transition:
+    stroke-dasharray 140ms ease-out,
+    stroke-dashoffset 140ms ease-out,
+    color 140ms ease-out;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone)::before,
@@ -79,6 +104,10 @@
     inset 0 1px 0 rgb(255 255 255 / 0.36),
     0 0 0 2px rgb(37 99 235 / 0.48),
     0 3px 8px rgb(15 23 42 / 0.22);
+  transform: translateX(var(--kg-motion-translate-x, 0px)) scale(var(--kg-motion-scale, 1));
+  transition:
+    box-shadow 140ms ease-out,
+    transform 140ms ease-out;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip-move {
@@ -200,11 +229,11 @@
 
 .timeline-video-sequence-clip-thumbnail-strip {
   position: absolute;
-  inset: 2px 16px;
+  inset: 3px 16px;
   z-index: 4;
   display: flex;
   min-width: 0;
-  gap: 2px;
+  gap: 3px;
   align-items: stretch;
   overflow: visible;
   border-radius: 4px;
@@ -213,7 +242,7 @@
 
 .timeline-video-sequence-clip-thumbnail {
   position: relative;
-  min-width: 20px;
+  min-width: 24px;
   flex: 1 1 0;
   margin: 0;
   padding: 0;
@@ -331,8 +360,7 @@
 }
 
 .timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-caption,
-.timeline-video-sequence-clip-thumbnail:focus-visible .timeline-video-sequence-clip-thumbnail-caption,
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip--selected .timeline-video-sequence-clip-thumbnail-caption {
+.timeline-video-sequence-clip-thumbnail:focus-visible .timeline-video-sequence-clip-thumbnail-caption {
   opacity: 1;
   transform: translateY(0);
 }
@@ -404,7 +432,7 @@
   position: absolute;
   right: 0;
   left: 0;
-  top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 36px) + 2px);
+  top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 42px) + 2px);
   z-index: 1;
   display: grid;
   height: 24px;
@@ -438,6 +466,18 @@
   flex: 1 1 0;
   border-radius: 999px 999px 0 0;
   background: linear-gradient(180deg, rgb(34 211 238 / 0.88), rgb(37 99 235 / 0.8));
+  opacity: var(--kg-motion-opacity, 1);
+  transition:
+    height 140ms ease-out,
+    opacity 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-video-sequence-motion-vector path,
+  .timeline-video-sequence-ruler-content .timeline-transport-track-clip--selected,
+  .timeline-video-sequence-ruler-scope-bar {
+    transition: none;
+  }
 }
 
 @media (max-width: 900px) {

@@ -4,6 +4,7 @@ export type OverlayPointerTargetSelectors = {
   interactiveControl: string
   playableMedia: string
   header: string
+  selectableSurface: string
 }
 
 export type OverlayPointerTargetState = {
@@ -13,6 +14,7 @@ export type OverlayPointerTargetState = {
   isInteractiveControl: boolean
   isPlayableMedia: boolean
   isHeader: boolean
+  isSelectableSurface: boolean
 }
 
 export const DEFAULT_OVERLAY_POINTER_TARGET_SELECTORS: OverlayPointerTargetSelectors = {
@@ -21,6 +23,7 @@ export const DEFAULT_OVERLAY_POINTER_TARGET_SELECTORS: OverlayPointerTargetSelec
   interactiveControl: 'textarea,input,select,button,a,[contenteditable="true"]',
   playableMedia: '[data-kg-card-media-interactive="1"],iframe,video,audio',
   header: '[data-kg-rich-media-flow-editor-header="1"]',
+  selectableSurface: '[data-kg-rich-media-selectable-surface="1"]',
 }
 
 export function readOverlayPointerTargetState(
@@ -35,6 +38,7 @@ export function readOverlayPointerTargetState(
     isInteractiveControl: !!element?.closest(selectors.interactiveControl),
     isPlayableMedia: !!element?.closest(selectors.playableMedia),
     isHeader: !!element?.closest(selectors.header),
+    isSelectableSurface: !!element?.closest(selectors.selectableSurface),
   }
 }
 

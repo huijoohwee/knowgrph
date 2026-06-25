@@ -1,8 +1,18 @@
 import React from 'react'
 import { INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID, type InlineCommandMenuActionSpec } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import type { TimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 
 export type MediaCatalogLayout = 'grid' | 'list'
 export type MediaPanelActionSpec = InlineCommandMenuActionSpec
+export type MediaCatalogSourceMetadataItem = {
+  byteSize: number | null
+  id: string
+  importMode: string
+  mimeHint: string
+  name: string
+  sourceUrl: string
+  summary: TimelineMediaReaderSummary
+}
 export type UploadedMediaDescriptionDrafts = Record<string, string>
 export type UploadedMediaFieldDrafts = Record<string, string>
 

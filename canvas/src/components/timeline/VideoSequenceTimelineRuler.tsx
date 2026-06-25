@@ -1,6 +1,7 @@
 import React from 'react'
 import { Blend, Film, Filter, Gauge, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, type LucideIcon } from 'lucide-react'
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
+import { buildTimelineAnimationState } from './timelineAnimationEngine'
 import {
   MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
   MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
@@ -27,13 +28,55 @@ import type {
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import './VideoSequenceTimelineRuler.css'
 
-export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 36
+export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
 export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
 export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 28 + VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX
+export type VideoSequenceTimelineThumbnailWindow = {
+  sourceEndSeconds: number
+  sourceStartSeconds: number
+  timelineEndMinutes: number
+  timelineStartMinutes: number
+}
+
 const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'>, string> = {
   'resize-end': 'end',
   'resize-start': 'start',
+}
+const VIDEO_SEQUENCE_THUMBNAIL_WINDOW_EPSILON = 0.001
+
+function resolveVideoSequenceThumbnailWindow(args: {
+  span: MermaidGanttTimelineTaskSpan
+  windows: readonly VideoSequenceTimelineThumbnailWindow[]
+}): VideoSequenceTimelineThumbnailWindow | null {
+  return args.windows.find(window =>
+    Math.abs(window.timelineStartMinutes - args.span.startMinutes) <= VIDEO_SEQUENCE_THUMBNAIL_WINDOW_EPSILON &&
+    Math.abs(window.timelineEndMinutes - args.span.endMinutes) <= VIDEO_SEQUENCE_THUMBNAIL_WINDOW_EPSILON,
+  ) || null
+}
+
+function resolveVideoSequenceClipThumbnails(args: {
+  sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+  span: MermaidGanttTimelineTaskSpan
+  windows: readonly VideoSequenceTimelineThumbnailWindow[]
+}): readonly TimelineMediaReaderThumbnail[] {
+  if (!args.sourceThumbnails.length) return []
+  if (!args.windows.length) return args.sourceThumbnails
+  const window = resolveVideoSequenceThumbnailWindow({ span: args.span, windows: args.windows })
+  if (!window) return []
+  const sourceStart = Math.min(window.sourceStartSeconds, window.sourceEndSeconds)
+  const sourceEnd = Math.max(window.sourceStartSeconds, window.sourceEndSeconds)
+  const withinWindow = args.sourceThumbnails.filter(thumbnail =>
+    thumbnail.timestampSeconds >= sourceStart - 0.05 &&
+    thumbnail.timestampSeconds <= sourceEnd + 0.05,
+  )
+  if (withinWindow.length) return withinWindow
+  const midpointSeconds = sourceStart + (sourceEnd - sourceStart) / 2
+  return args.sourceThumbnails
+    .slice()
+    .sort((left, right) => Math.abs(left.timestampSeconds - midpointSeconds) - Math.abs(right.timestampSeconds - midpointSeconds))
+    .slice(0, Math.min(2, args.sourceThumbnails.length))
+    .sort((left, right) => left.timestampSeconds - right.timestampSeconds)
 }
 
 function resolveActiveVideoSequenceResizeMode(args: {
@@ -107,11 +150,20 @@ export function TimelineVideoSequenceEmptyState({
   compact: boolean
 }) {
   const minHeight = resolveVideoSequenceRulerMinHeight()
+  const animationState = React.useMemo(() => buildTimelineAnimationState({
+    active: false,
+    itemCount: VIDEO_SEQUENCE_TIMELINE_LANES.length,
+    progress: 0,
+    surface: 'bottom-timeline',
+  }), [])
+  const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
     <section
       className={`timeline-video-sequence-empty ${compact ? 'timeline-video-sequence-empty--compact' : ''}`}
       aria-label="Timeline video sequence editor"
       data-kg-video-sequence-timeline="empty"
+      {...animationAttributes}
+      style={animationStyle}
     >
       <header className="timeline-video-sequence-empty-header">
         <section className="timeline-video-sequence-empty-title">
@@ -151,6 +203,7 @@ export function VideoSequenceTimelineRuler({
   playheadPercent,
   selectedRowKey,
   sourceThumbnails = [],
+  sourceThumbnailWindows = [],
   scopes = [],
   taskSpans,
   timelineZoom,
@@ -166,6 +219,7 @@ export function VideoSequenceTimelineRuler({
   playheadPercent: number
   selectedRowKey: string
   sourceThumbnails?: readonly TimelineMediaReaderThumbnail[]
+  sourceThumbnailWindows?: readonly VideoSequenceTimelineThumbnailWindow[]
   scopes?: readonly VideoSequenceTimelineScope[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
@@ -176,8 +230,23 @@ export function VideoSequenceTimelineRuler({
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes(taskSpans), [taskSpans])
   const visibleLaneIndexById = React.useMemo(() => new Map<VideoSequenceTimelineLaneId, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
   const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
+  const animationState = React.useMemo(() => buildTimelineAnimationState({
+    active: !!draggingRowKey || !!selectedRowKey,
+    itemCount: taskSpans.length,
+    progress: playheadPercent / 100,
+    surface: 'bottom-timeline',
+  }), [draggingRowKey, playheadPercent, selectedRowKey, taskSpans.length])
+  const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
-    <section className="timeline-video-sequence-editor" aria-label="Video sequence editor" style={{ minHeight }}>
+    <section
+      className="timeline-video-sequence-editor"
+      aria-label="Video sequence editor"
+      {...animationAttributes}
+      style={{ minHeight, ...(animationStyle || {}) }}
+      data-kg-animation-object-opacity={animationState.objectFrame.opacity}
+      data-kg-animation-object-scale={animationState.objectFrame.scale}
+      data-kg-animation-object-translate-x={animationState.objectFrame.translateX}
+    >
       <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
         {visibleLanes.map(lane => (
           <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-lane-label={lane.id}>
@@ -197,6 +266,25 @@ export function VideoSequenceTimelineRuler({
         data-kg-gantt-timeline-zoom={String(timelineZoom)}
         onPointerDown={onRulerPointerDown}
       >
+        <svg
+          className="timeline-video-sequence-motion-vector"
+          aria-hidden="true"
+          focusable="false"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 10"
+          data-kg-animation-svg-attribute-target="1"
+        >
+          <path
+            d="M0 5 C18 1 34 9 50 5 S82 1 100 5"
+            fill="none"
+            pathLength={animationState.svg.pathLength}
+            stroke="currentColor"
+            strokeDasharray={animationState.svg.dashArray}
+            strokeDashoffset={animationState.svg.dashOffset}
+            strokeLinecap="round"
+            strokeWidth="1.5"
+          />
+        </svg>
         <span className="timeline-transport-playhead" style={{ left: `clamp(14px, ${playheadPercent}%, calc(100% - 14px))` }} data-kg-gantt-timeline-playhead="1" aria-hidden="true">
           <span className="timeline-transport-playhead-marker" />
         </span>
@@ -219,7 +307,9 @@ export function VideoSequenceTimelineRuler({
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
           const showMediaCues = !verticalMarker && (lane === 'video' || lane === 'image' || lane === 'scene')
-          const nativeFrameSamples = !verticalMarker && lane === 'video' ? sourceThumbnails : []
+          const nativeFrameSamples = !verticalMarker && lane === 'video'
+            ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, span, windows: sourceThumbnailWindows })
+            : []
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
@@ -267,6 +357,8 @@ export function VideoSequenceTimelineRuler({
                   data-kg-video-sequence-clip-thumbnail-count={nativeFrameSamples.length}
                   data-kg-video-sequence-clip-thumbnail-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
                   data-kg-video-sequence-clip-thumbnail-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
+                  data-kg-video-sequence-clip-thumbnail-source-start={nativeFrameSamples.length ? nativeFrameSamples[0]?.timestampSeconds : undefined}
+                  data-kg-video-sequence-clip-thumbnail-source-end={nativeFrameSamples.length ? nativeFrameSamples[nativeFrameSamples.length - 1]?.timestampSeconds : undefined}
                 >
                   {nativeFrameSamples.map(thumbnail => (
                     <button
@@ -276,6 +368,7 @@ export function VideoSequenceTimelineRuler({
                       aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}
                       data-kg-video-sequence-clip-thumbnail="1"
                       data-kg-video-sequence-clip-thumbnail-format={thumbnail.format}
+                      data-kg-video-sequence-clip-thumbnail-microsecond-time={Math.max(0, Math.round(thumbnail.timestampSeconds * 1_000_000))}
                       data-kg-video-sequence-clip-thumbnail-raster-format={thumbnail.rasterFormat}
                       data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
                       onClick={event => {

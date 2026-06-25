@@ -8,7 +8,12 @@ import {
   computePanelFrameSizeFromWidth16x9,
 } from '@/lib/render/mediaPanelLayout'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
-import { computeRichMediaPanelAspectResizeSizePx } from '@/lib/render/richMediaSsot'
+import {
+  coerceRichMediaPanelSizePx,
+  computeRichMediaPanelAspectResizeSizePx,
+  RICH_MEDIA_PANEL_FRAME_ASPECT,
+  RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT,
+} from '@/lib/render/richMediaSsot'
 
 export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
@@ -196,11 +201,35 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     startHeight: 401,
     dx: 90,
     dy: 12,
+    targetAspect: RICH_MEDIA_PANEL_FRAME_ASPECT,
   })
   const widgetAspect = widgetResize.width / Math.max(1, widgetResize.height)
-  const widgetStartAspect = 360 / 401
-  if (Math.abs(widgetAspect - widgetStartAspect) > 0.005) {
-    throw new Error(`expected Flow Editor widget resize math to preserve starting panel aspect ${widgetStartAspect}, got ${widgetAspect}`)
+  if (Math.abs(widgetAspect - RICH_MEDIA_PANEL_FRAME_ASPECT) > 0.005) {
+    throw new Error(`expected Flow Editor widget resize math to normalize stale panel aspect to 16:9, got ${widgetAspect}`)
+  }
+  const staleWidePanel = coerceRichMediaPanelSizePx({
+    width: 965,
+    height: 188,
+    viewportW: 1253,
+    viewportH: 998,
+    minWidthPx: 220,
+    minHeightPx: 160,
+    targetAspect: RICH_MEDIA_PANEL_FRAME_ASPECT,
+  })
+  const staleWidePanelAspect = staleWidePanel.width / Math.max(1, staleWidePanel.height)
+  if (Math.abs(staleWidePanelAspect - RICH_MEDIA_PANEL_FRAME_ASPECT) > 0.005) {
+    throw new Error(`expected Flow Editor widget load coercion to repair stale non-16:9 saved dimensions, got ${staleWidePanelAspect}`)
+  }
+  const portraitResize = computeRichMediaPanelAspectResizeSizePx({
+    startWidth: 220,
+    startHeight: 391,
+    dx: 80,
+    dy: 4,
+    targetAspect: RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT,
+  })
+  const portraitAspect = portraitResize.width / Math.max(1, portraitResize.height)
+  if (Math.abs(portraitAspect - RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT) > 0.005) {
+    throw new Error(`expected Flow Editor widget resize math to preserve 9:16 toolbar-selected aspect, got ${portraitAspect}`)
   }
 
   const flowEditorHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useRichMediaWidgetPreview.ts')
@@ -208,16 +237,135 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
   if (!flowEditorHookText.includes('computeRichMediaPanelAspectResizeSizePx')) {
     throw new Error('expected Flow Editor Rich Media Panel resize to reuse shared aspect-preserving resize math')
   }
+  for (const snippet of [
+    'const richMediaPanelViewSizeRef = React.useRef(richMediaPanelBaseSize)',
+    'resolveRichMediaAspectSelection',
+    'resolveRichMediaAspectRatioValue',
+    'const richMediaPanelTargetAspect = React.useMemo',
+    'targetAspect: richMediaPanelTargetAspect',
+    'richMediaPanelViewSizeRef.current = nextSize',
+    'const latestSize = richMediaPanelViewSizeRef.current',
+    'width: latestSize.width',
+    'height: latestSize.height',
+  ]) {
+    if (!flowEditorHookText.includes(snippet)) {
+      throw new Error(`expected Flow Editor Rich Media Panel resize end to commit latest drag size without stale React state: ${snippet}`)
+    }
+  }
   if (flowEditorHookText.includes('richMediaPanelResizeStartRef.current.width + args0.dx') || flowEditorHookText.includes('richMediaPanelResizeStartRef.current.height + args0.dy')) {
     throw new Error('expected Flow Editor Rich Media Panel resize to avoid independent width/height delta resizing')
   }
   const flowEditorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const flowEditorViewText = readFileSync(flowEditorViewPath, 'utf8')
-  if (!flowEditorViewText.includes('readRichMediaPanelFrameWidthPx') || !flowEditorViewText.includes('richMediaPanelFrameWidthPx')) {
-    throw new Error('expected Flow Editor Rich Media Panel shell to read the shared resized panel width')
+  if (flowEditorViewText.includes('readRichMediaPanelFrameWidthPx') || flowEditorViewText.includes('richMediaPanelFrameWidthPx')) {
+    throw new Error('expected Flow Editor Rich Media Panel wrapper to avoid duplicate width ownership outside the panel frame')
   }
-  if (!flowEditorViewText.includes("width: `${richMediaPanelFrameWidthPx}px`")) {
-    throw new Error('expected Flow Editor Rich Media Panel shell width to follow shared resize width')
+  const flowEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const flowEditorPanelText = readFileSync(flowEditorPanelPath, 'utf8')
+  for (const snippet of [
+    'width: showRichMediaPanelBody ? `${richMediaPanelViewSize.width}px` : undefined',
+    'height: minimized ? undefined : (showRichMediaPanelBody ? `${richMediaPanelViewSize.height}px` : WIDGET_BASE_SIZE.height)',
+    'opacity: showRichMediaPanelBody ? 1 : (Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1)',
+    "width: '100%'",
+    "flex: '1 1 0%'",
+    "pointerEvents: 'auto'",
+    'srcDoc={richMediaPreview?.srcDoc}',
+    'style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}',
+  ]) {
+    if (!flowEditorPanelText.includes(snippet)) {
+      throw new Error(`expected Flow Editor Rich Media Panel outer frame to own selected-aspect resize dimensions: ${snippet}`)
+    }
+  }
+  if (flowEditorPanelText.includes('richMediaPreviewPassThrough')) {
+    throw new Error('expected Flow Editor Rich Media Panel media surface to remain selectable instead of passing pointer events through the body')
+  }
+  if (flowEditorPanelText.includes("height: `${richMediaPanelViewSize.height}px`")) {
+    throw new Error('expected Flow Editor Rich Media Panel body to avoid owning the fixed resize height')
+  }
+  const placementRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
+  const placementRuntimeText = readFileSync(placementRuntimePath, 'utf8')
+  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
+  const mediaSurfaceSelectionPath = resolve(process.cwd(), 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts')
+  const mediaSurfaceSelectionText = readFileSync(mediaSurfaceSelectionPath, 'utf8')
+  for (const snippet of [
+    "position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')",
+    'data-kg-rich-media-frame-mode={useSurfaceFrame ? \'surface\' : undefined}',
+    'interactive={false}',
+    'const directMediaPreviewSelectionProps = React.useMemo',
+    'const directMediaPreviewCardProps = React.useMemo',
+    'resolveMediaPreviewSurfaceSelectionProps({',
+    'resolveMediaPreviewSurfaceCardProps({',
+    'frameSelectionProps={directMediaPreviewSelectionProps}',
+    '{...directMediaPreviewCardProps}',
+    'pointerTarget.isSelectableSurface',
+    'selectSelf(nativePointerEvent || null)',
+    'data-kg-rich-media-video-srcdoc-fallback="1"',
+    'className="relative h-full w-full overflow-hidden"',
+    "const directVideoFallbackSrcDoc = kind === 'video' ? normalizedInlineSrcDoc : ''",
+    'transparentBackground',
+    "videoMuted={kind === 'video' ? true : undefined}",
+    "videoAutoPlay={kind === 'video' ? true : undefined}",
+    "videoLoop={kind === 'video' ? true : undefined}",
+  ]) {
+    if (!richMediaPanelText.includes(snippet)) {
+      throw new Error(`expected embedded Rich Media Panel surface to remain inside Flow Editor panel stacking: ${snippet}`)
+    }
+  }
+  if (richMediaPanelText.includes('className="relative z-10 h-full w-full overflow-hidden"') || richMediaPanelText.includes("position: 'relative', zIndex: 1")) {
+    throw new Error('expected embedded Rich Media Panel media preview to share normal form stacking instead of creating an elevated preview layer')
+  }
+  if (!mediaSurfaceSelectionText.includes("MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR = 'data-kg-rich-media-selectable-surface'")
+    || !mediaSurfaceSelectionText.includes("MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE = '1'")
+    || !mediaSurfaceSelectionText.includes('resolveMediaPreviewSurfaceSelectionProps')
+    || !mediaSurfaceSelectionText.includes('resolveMediaPreviewSurfaceCardProps')
+    || !mediaSurfaceSelectionText.includes('interactive: args.enabled ? false : args.interactive === true')
+    || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
+    || !mediaSurfaceSelectionText.includes('event.preventDefault()')
+    || !mediaSurfaceSelectionText.includes('event.stopPropagation()')) {
+    throw new Error('expected embedded Rich Media media preview selection event ownership to live in the shared media preview surface helper')
+  }
+  if (mediaSurfaceSelectionText.includes('data-kg-canvas-overlay-control="true"')) {
+    throw new Error('expected embedded Rich Media Panel media preview selection to avoid canvas overlay-control elevation')
+  }
+  const zoomPanViewportPath = resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'preview-panel', 'ui', 'ZoomPanViewport.tsx')
+  const zoomPanViewportText = readFileSync(zoomPanViewportPath, 'utf8')
+  for (const snippet of [
+    'transparentBackground?: boolean',
+    "transparentBackground ? 'bg-transparent' : UI_THEME_TOKENS.panel.bg",
+    'frameSelectionProps?: MediaPreviewSurfaceSelectionProps',
+    'const shouldStartPanDrag = React.useCallback',
+    'const applyPanDragMove = React.useCallback',
+    'const endPanDrag = React.useCallback',
+    'onPointerDownCapture={(e) => {',
+    "down.pointerType === 'mouse' && down.button === 2",
+    'onPointerMoveCapture={(e) => {',
+    'onPointerUpCapture={endPanDrag}',
+    'onPointerCancelCapture={endPanDrag}',
+    '{...frameSelectionProps}',
+  ]) {
+    if (!zoomPanViewportText.includes(snippet)) {
+      throw new Error(`expected embedded Rich Media media surface to avoid panel-background gutters: ${snippet}`)
+    }
+  }
+  if (richMediaPanelText.includes('data-kg-rich-media-zoom-pan-viewport="1"\n          {...directMediaPreviewSelectionProps}')) {
+    throw new Error('expected expanded Rich Media selectable surface props on the inner media frame, not the outer body-sized viewport')
+  }
+  for (const snippet of [
+    'readRichMediaOverlayFrameSize',
+    'FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
+    'resolveRichMediaAspectSelection',
+    'resolveRichMediaAspectRatioValue',
+    'coerceRichMediaPanelSizePx',
+    "Number(props['visual:width'])",
+    "Number(props['visual:height'])",
+    'const richMediaFrameSize = readRichMediaOverlayFrameSize',
+    'if (el.style.width !== nextFrameWidth) el.style.width = nextFrameWidth',
+    'if (el.style.height !== nextFrameHeight) el.style.height = nextFrameHeight',
+  ]) {
+    if (!placementRuntimeText.includes(snippet)) {
+      throw new Error(`expected Flow Editor placement runtime to align Rich Media wrapper geometry with the selected-aspect panel frame: ${snippet}`)
+    }
   }
 }
 

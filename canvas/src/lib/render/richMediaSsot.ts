@@ -41,7 +41,7 @@ export type RichMediaPanelPreviewSpec =
       kind: RichMediaDirectPreviewKind
       url: string
       openUrl?: string
-      srcDoc?: undefined
+      srcDoc?: string
       interactive: boolean
     }
   | {
@@ -70,6 +70,9 @@ export const RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL = 'Media Selector' as const
 
 export type ResolvedRichMediaPanelTab = Exclude<RichMediaPanelTab, 'auto'>
 export type RichMediaPanelAspectSelection = '16:9' | '9:16'
+export const RICH_MEDIA_PANEL_LANDSCAPE_FRAME_ASPECT = 16 / 9
+export const RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT = 9 / 16
+export const RICH_MEDIA_PANEL_FRAME_ASPECT = RICH_MEDIA_PANEL_LANDSCAPE_FRAME_ASPECT
 
 export type RichMediaPanelDisplayArgs = {
   renderMediaAsNodes: unknown
@@ -215,6 +218,7 @@ export function buildRichMediaPanelPreviewSpec(args: {
       kind: selectedTab,
       url: selectedUrl || String(renderSpec?.url || ''),
       openUrl: selectedUrl || rawOpenUrl || String(renderSpec?.url || ''),
+      srcDoc: selectedTab === 'video' ? String(renderSpec?.srcDoc || outputSrcDoc || '') || undefined : undefined,
       interactive: selectedTab === 'video' ? renderSpec?.interactive !== false : renderSpec?.interactive === true,
     }
   }
@@ -242,6 +246,10 @@ export function resolveRichMediaAspectSelection(args: {
   const horizontal = 16 / 9
   const vertical = 9 / 16
   return Math.abs(ratio - horizontal) <= Math.abs(ratio - vertical) ? '16:9' : '9:16'
+}
+
+export function resolveRichMediaAspectRatioValue(selection: RichMediaPanelAspectSelection | null | undefined): number {
+  return selection === '9:16' ? RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT : RICH_MEDIA_PANEL_LANDSCAPE_FRAME_ASPECT
 }
 
 export function resolveToggledRichMediaAspectSize(args: {
@@ -303,6 +311,7 @@ export function coerceRichMediaPanelSizePx(args: {
   minHeightPx?: number
   maxViewportWidthRatio?: number
   maxViewportHeightRatio?: number
+  targetAspect?: number
 }): { width: number; height: number } {
   const minWidthPx =
     typeof args.minWidthPx === 'number' && Number.isFinite(args.minWidthPx) ? Math.max(1, Math.floor(args.minWidthPx)) : 220
@@ -333,7 +342,12 @@ export function coerceRichMediaPanelSizePx(args: {
   if (vw != null) maxW = Math.max(minWidthPx, Math.floor(vw * maxViewportWidthRatio))
   if (vh != null) maxH = Math.max(minHeightPx, Math.floor(vh * maxViewportHeightRatio))
 
-  const aspect = Math.max(0.05, Math.min(20, w0 / Math.max(1, h0)))
+  const rawTargetAspect =
+    typeof args.targetAspect === 'number' && Number.isFinite(args.targetAspect) ? args.targetAspect : Number(args.targetAspect)
+  const targetAspect = Number.isFinite(rawTargetAspect) && rawTargetAspect > 0
+    ? Math.max(0.05, Math.min(20, rawTargetAspect))
+    : null
+  const aspect = targetAspect ?? Math.max(0.05, Math.min(20, w0 / Math.max(1, h0)))
   const minScale = Math.max(minWidthPx / w0, minHeightPx / h0)
   const maxScale = Math.min(maxW / w0, maxH / h0)
   const scale = minScale > maxScale
@@ -341,7 +355,7 @@ export function coerceRichMediaPanelSizePx(args: {
     : Math.max(minScale, Math.min(1, maxScale))
 
   let width = Math.max(1, Math.round(w0 * scale))
-  let height = Math.max(1, Math.round(h0 * scale))
+  let height = Math.max(1, Math.round(targetAspect ? width / aspect : h0 * scale))
   if (width < minWidthPx) {
     width = minWidthPx
     height = Math.max(1, Math.round(width / aspect))
@@ -374,6 +388,7 @@ export function computeRichMediaPanelAspectResizeSizePx(args: {
   startHeight: unknown
   dx: unknown
   dy: unknown
+  targetAspect?: number
 }): { width: number; height: number } {
   const rawW = typeof args.startWidth === 'number' && Number.isFinite(args.startWidth) ? args.startWidth : Number(args.startWidth)
   const rawH = typeof args.startHeight === 'number' && Number.isFinite(args.startHeight) ? args.startHeight : Number(args.startHeight)
@@ -383,7 +398,11 @@ export function computeRichMediaPanelAspectResizeSizePx(args: {
   const dy = typeof args.dy === 'number' && Number.isFinite(args.dy) ? args.dy : Number(args.dy)
   const deltaX = Number.isFinite(dx) ? dx : 0
   const deltaY = Number.isFinite(dy) ? dy : 0
-  const aspect = Math.max(0.05, Math.min(20, startWidth / Math.max(1, startHeight)))
+  const rawTargetAspect =
+    typeof args.targetAspect === 'number' && Number.isFinite(args.targetAspect) ? args.targetAspect : Number(args.targetAspect)
+  const aspect = Number.isFinite(rawTargetAspect) && rawTargetAspect > 0
+    ? Math.max(0.05, Math.min(20, rawTargetAspect))
+    : Math.max(0.05, Math.min(20, startWidth / Math.max(1, startHeight)))
   if (Math.abs(deltaY) > Math.abs(deltaX)) {
     const height = Math.max(1, Math.round(startHeight + deltaY))
     return {
@@ -407,6 +426,7 @@ export function coerceRichMediaPanelChromeSizePx(args: {
   minHeightPx?: number
   maxViewportWidthRatio?: number
   maxViewportHeightRatio?: number
+  targetAspect?: number
 }): { width: number; height: number } {
   const minWidthPx =
     typeof args.minWidthPx === 'number' && Number.isFinite(args.minWidthPx) ? Math.max(1, Math.floor(args.minWidthPx)) : 220
@@ -430,10 +450,40 @@ export function coerceRichMediaPanelChromeSizePx(args: {
       : 0.92
   const maxW = vw != null ? Math.max(minWidthPx, Math.floor(vw * maxViewportWidthRatio)) : Infinity
   const maxH = vh != null ? Math.max(minHeightPx, Math.floor(vh * maxViewportHeightRatio)) : Infinity
-  return {
-    width: Math.max(minWidthPx, Math.min(maxW, Math.round(w0))),
-    height: Math.max(minHeightPx, Math.min(maxH, Math.round(h0))),
+  const rawTargetAspect =
+    typeof args.targetAspect === 'number' && Number.isFinite(args.targetAspect) ? args.targetAspect : Number(args.targetAspect)
+  const aspect = Number.isFinite(rawTargetAspect) && rawTargetAspect > 0
+    ? Math.max(0.05, Math.min(20, rawTargetAspect))
+    : null
+  if (!aspect) {
+    return {
+      width: Math.max(minWidthPx, Math.min(maxW, Math.round(w0))),
+      height: Math.max(minHeightPx, Math.min(maxH, Math.round(h0))),
+    }
   }
+  let width = Math.max(minWidthPx, Math.round(w0))
+  let height = Math.max(1, Math.round(width / aspect))
+  if (height < minHeightPx) {
+    height = minHeightPx
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  if (width > maxW) {
+    width = Math.max(1, Math.floor(maxW))
+    height = Math.max(1, Math.round(width / aspect))
+  }
+  if (height > maxH) {
+    height = Math.max(1, Math.floor(maxH))
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  if (width < minWidthPx) {
+    width = minWidthPx
+    height = Math.max(1, Math.round(width / aspect))
+  }
+  if (height < minHeightPx) {
+    height = minHeightPx
+    width = Math.max(1, Math.round(height * aspect))
+  }
+  return { width, height }
 }
 
 export function resolveRichMediaPanelInteractive(args: {

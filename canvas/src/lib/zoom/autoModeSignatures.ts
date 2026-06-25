@@ -30,6 +30,7 @@ export function buildAutoFitToScreenSignature(args: {
 
 export function buildAutoZoomSelectionSignature(args: {
   graphDataRevision: number
+  graphLayoutSignature?: string | null
   selectedNodeId: string | null
   selectedEdgeId: string | null
   selectedGroupId?: string | null
@@ -59,6 +60,7 @@ export function buildAutoZoomSelectionSignature(args: {
   const e = edgeIds.map(v => String(v || '').trim()).filter(Boolean).sort().join(',')
   const g = groupIds.map(v => String(v || '').trim()).filter(Boolean).sort().join(',')
   const rev = Math.max(0, Math.floor(Number(args.graphDataRevision) || 0))
+  const graphLayoutSignature = String(args.graphLayoutSignature || '').trim()
   if (!n && !e && !g) return ''
-  return `${n}|${e}|${g}|${rev}`
+  return `${n}|${e}|${g}|${graphLayoutSignature || rev}`
 }

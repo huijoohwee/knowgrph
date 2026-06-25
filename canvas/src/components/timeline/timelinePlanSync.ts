@@ -427,6 +427,7 @@ export function loadTimelinePlanVideoMetadata(args: {
 async function readTimelinePlanSourceMetadata(source: VideoSequenceTimelineSource): Promise<TimelinePlanVideoMetadata | null> {
   const url = resolveTimelinePlanSourceUrl(source)
   if (!url || typeof document === 'undefined') return null
+  const declaredDurationSeconds = Number(source.durationSeconds)
   const readerSummary = await loadTimelineMediaReaderSummary(url)
   if (readerSummary.durationSeconds > 0) {
     return {
@@ -434,6 +435,7 @@ async function readTimelinePlanSourceMetadata(source: VideoSequenceTimelineSourc
       url,
     }
   }
+  if (Number.isFinite(declaredDurationSeconds) && declaredDurationSeconds > 0) return { durationSeconds: declaredDurationSeconds, url }
   const probe = document.createElement('video')
   probe.preload = 'metadata'
   const durationSeconds = await loadTimelinePlanVideoMetadata({

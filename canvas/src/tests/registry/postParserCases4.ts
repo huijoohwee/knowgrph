@@ -283,6 +283,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["flowEditor.runButton.preservation.pbt.behavioralIdentity","@/__tests__/flowEditorRunButtonPreservation.test","testFlowEditorRunButtonPreservation_PBT_BehavioralIdentity"],
   ["flowEditor.runButton.preservation.runDownstream.targetResolutionContract","@/__tests__/flowEditorRunButtonPreservation.test","testFlowEditorRunButtonPreservation_RunDownstream_TargetResolutionContract"],
   ["flowEditor.runButton.preservation.exportWorkflowBundle.functionPreserved","@/__tests__/flowEditorRunButtonPreservation.test","testFlowEditorRunButtonPreservation_ExportWorkflowBundle_FunctionPreserved"],
+  ["flowEditor.runButton.preservation.resetAll.sharedRuntimeCleanup","@/__tests__/flowEditorRunButtonPreservation.test","testFlowEditorRunButtonPreservation_ResetAllAndWidgetResetUseSharedRuntimeCleanup"],
   ["flowEditor.runButton.preservation.editButton.opensFieldEditor","@/__tests__/flowEditorRunButtonPreservationProperty.test","testFlowEditorRunButtonPreservation_EditButton_OpensFieldEditor"],
   ["flowEditor.runButton.preservation.resetButton.clearsOutputs","@/__tests__/flowEditorRunButtonPreservationProperty.test","testFlowEditorRunButtonPreservation_ResetButton_ClearsOutputs"],
   ["flowEditor.runButton.preservation.sideEffects.runStatusAndMutated","@/__tests__/flowEditorRunButtonPreservationProperty.test","testFlowEditorRunButtonPreservation_SideEffects_RunStatusAndMutated"],
