@@ -15,6 +15,25 @@ import {
   RICH_MEDIA_PANEL_PORTRAIT_FRAME_ASPECT,
 } from '@/lib/render/richMediaSsot'
 
+function readRichMediaPanelSourceBundle(): string {
+  const root = resolve(process.cwd(), 'src', 'components')
+  const files = [
+    'RichMediaPanel.tsx',
+    'RichMediaPanel.types.ts',
+    'RichMediaPanelSurface.tsx',
+    'RichMediaPanelShell.tsx',
+    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelTextSurface.tsx',
+    'RichMediaPanelIframeSurface.tsx',
+    'RichMediaPanelDirectMediaSurface.tsx',
+    'RichMediaPanelResizeHandle.tsx',
+    'RichMediaPanelOpenOverlay.tsx',
+    'useRichMediaPanelMediaState.ts',
+    'useRichMediaPanelSurfaceState.ts',
+  ]
+  return files.map(file => readFileSync(resolve(root, file), 'utf8')).join('\n')
+}
+
 export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const text = readFileSync(p, 'utf8')
@@ -33,42 +52,32 @@ export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
 }
 
 export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
-  const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes("'kg-mediaBody'")) {
+  const surfaceStateText = readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
+  const shellText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelShell.tsx'), 'utf8')
+  const typesText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.types.ts'), 'utf8')
+  if (!surfaceStateText.includes("'kg-mediaBody'")) {
     throw new Error('expected shared Rich Media Panel to keep a dedicated panel frame render surface')
   }
-  if (!text.includes('data-kg-rich-media-render-surface="1"')) {
+  if (!surfaceStateText.includes("'data-kg-rich-media-render-surface': '1'")) {
     throw new Error('expected shared Rich Media Panel frame to expose a dedicated semantic render-surface marker')
   }
-  if (!text.includes("position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')")) {
+  if (!surfaceStateText.includes("position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')")) {
     throw new Error('expected shared Rich Media Panel root frame to establish the resize-anchor containing block')
   }
-  if (text.includes('{showPanelMarkdownPreview ? (\n          <section') || text.includes(') : isEmptyPanel ? (\n          <section') || text.includes(') : panelIsLoading ? (\n          <section')) {
-    throw new Error('expected shared Rich Media Panel body render states to forbid generic HTML division element surfaces')
+  if (!shellText.includes('<RichMediaPanelResizeHandle placement="root" onPointerDown={model.onResizePointerDown} />')) {
+    throw new Error('expected shared Rich Media Panel resize handle to stay mounted at the root frame owner')
   }
-  const bodyStart = text.indexOf("'kg-mediaBody'")
-  const resizeHandle = text.indexOf("const resizeHandle = installResize && resizeHandlePlacement === 'root'")
-  const renderSurfaceStart = text.indexOf('const renderSurfaceChildren = (')
-  const renderedSurfaceStart = text.indexOf('const renderedSurface = showFlowEditorChrome ? (')
-  const rootFrameResizeHandle = text.indexOf('{renderedSurface}\n      {resizeHandle}')
-  if (bodyStart < 0 || resizeHandle < 0 || renderSurfaceStart < 0 || renderedSurfaceStart < 0 || rootFrameResizeHandle < 0) {
-    throw new Error('expected shared Rich Media Panel to define frame surface, shared render-surface fragment, and root-level resize handle markup')
-  }
-  if (!(resizeHandle < renderSurfaceStart && renderSurfaceStart < renderedSurfaceStart)) {
-    throw new Error('expected shared Rich Media Panel resize handle to be declared outside the body render-surface fragment')
-  }
-  if (text.includes('showHeader?: boolean') || text.includes('data-kg-media-panel-header="1"')) {
+  if (typesText.includes('showHeader?: boolean') || shellText.includes('data-kg-media-panel-header="1"')) {
     throw new Error('expected shared Rich Media Panel to remove the legacy headered variant while using the current Flow Editor chrome contract')
   }
   if (
-    !text.includes("panelChrome?: 'none' | 'flowEditor'")
-    || !text.includes("from '@/components/FlowEditor/FlowEditorPanelChrome'")
-    || !text.includes('data-kg-rich-media-flow-editor-body="1"')
+    !typesText.includes("panelChrome?: 'none' | 'flowEditor'")
+    || !shellText.includes("from '@/components/FlowEditor/FlowEditorPanelChrome'")
+    || !shellText.includes('data-kg-rich-media-flow-editor-body="1"')
   ) {
     throw new Error('expected shared Rich Media Panel to expose reusable Flow Editor chrome without resurrecting the legacy header contract')
   }
-  if (!text.includes('getFlowEditorPanelChromeClassName(uiPanelTextFontClass)')) {
+  if (!surfaceStateText.includes('getFlowEditorPanelChromeClassName(mediaState.uiPanelTextFontClass)')) {
     throw new Error('expected shared Rich Media Panel root to reuse Flow Editor panel shell classes for optional chrome')
   }
 }
@@ -284,29 +293,28 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
   }
   const placementRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
   const placementRuntimeText = readFileSync(placementRuntimePath, 'utf8')
-  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
+  const richMediaPanelText = readRichMediaPanelSourceBundle()
   const mediaSurfaceSelectionPath = resolve(process.cwd(), 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts')
   const mediaSurfaceSelectionText = readFileSync(mediaSurfaceSelectionPath, 'utf8')
   for (const snippet of [
     "position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')",
-    'data-kg-rich-media-frame-mode={useSurfaceFrame ? \'surface\' : undefined}',
+    "'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined",
     'interactive={false}',
     'const directMediaPreviewSelectionProps = React.useMemo',
     'const directMediaPreviewCardProps = React.useMemo',
     'resolveMediaPreviewSurfaceSelectionProps({',
     'resolveMediaPreviewSurfaceCardProps({',
-    'frameSelectionProps={directMediaPreviewSelectionProps}',
-    '{...directMediaPreviewCardProps}',
+    'frameSelectionProps={model.directMediaPreviewSelectionProps}',
+    '{...model.directMediaPreviewCardProps}',
     'pointerTarget.isSelectableSurface',
     'selectSelf(nativePointerEvent || null)',
     'data-kg-rich-media-video-srcdoc-fallback="1"',
     'className="relative h-full w-full overflow-hidden"',
-    "const directVideoFallbackSrcDoc = kind === 'video' ? normalizedInlineSrcDoc : ''",
+    'model.directVideoFallbackSrcDoc',
     'transparentBackground',
-    "videoMuted={kind === 'video' ? true : undefined}",
-    "videoAutoPlay={kind === 'video' ? true : undefined}",
-    "videoLoop={kind === 'video' ? true : undefined}",
+    "videoMuted={model.kind === 'video' ? true : undefined}",
+    "videoAutoPlay={model.kind === 'video' ? true : undefined}",
+    "videoLoop={model.kind === 'video' ? true : undefined}",
   ]) {
     if (!richMediaPanelText.includes(snippet)) {
       throw new Error(`expected embedded Rich Media Panel surface to remain inside Flow Editor panel stacking: ${snippet}`)

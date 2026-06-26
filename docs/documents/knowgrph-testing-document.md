@@ -41,6 +41,11 @@
 - Run `tsx src/tests/ci.ts animatic.timelineBeatMetadata.graphWritebackSyncsMarkdownDocument` and `tsx src/tests/ci.ts animatic.itemBeatRef.nodeWritebackSyncsMarkdownDocument` for graph-owned Animatic runtime regressions that validate `updateGraphMetadata` / `updateNode` writeback into canonical `markdownDocumentText`.
 - Use the serializer prefix for focused utility/debug work inside `animaticTimeline.ts`; use the graph-writeback labels for end-to-end Animatic runtime ownership and Editor Workspace sync checks.
 
+**Rich-media targeted smoke**:
+- Run `npm run test:smoke:rich-media` for the repo-native focused bundle that exercises shared `RichMediaPanel` regressions without a browser.
+- Run `npm run test:smoke:rich-media:browser` for the Dev-only live-route smoke that mounts `canvas/src/features/testing/RichMediaBrowserSmokePage.tsx`, drives `canvas/scripts/verify_rich_media_browser_smoke.py`, and writes `data/outputs/rich-media-browser-smoke.png`.
+- Browser smoke scope is deterministic runtime coverage only: markdown preview/edit, inline `srcDoc`, snapshot iframe, click-to-open overlay, image zoom wheel, video HTML fallback, audio, and flow-editor chrome visibility. Flow-editor drag/resize callback counters stay in focused component regressions until a deterministic browser drag harness exists.
+
 ---
 
 ## Component Responsibility Matrix

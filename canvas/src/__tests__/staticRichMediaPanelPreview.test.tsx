@@ -105,7 +105,10 @@ export async function testStaticRichMediaPanelPreviewRendersImageVideoAndIframe(
     }
 
     const iframes = Array.from(doc.querySelectorAll('iframe')) as HTMLIFrameElement[]
-    if (iframes.length < 2) throw new Error('expected iframes to render')
+    const snapshots = Array.from(doc.querySelectorAll('[data-kg-webpage-snapshot="1"]')) as HTMLElement[]
+    if (iframes.length + snapshots.length < 2) {
+      throw new Error(`expected webpage iframe or snapshot previews to render, iframes=${iframes.length} snapshots=${snapshots.length}`)
+    }
     for (const iframe of iframes) {
       const srcdoc = iframe.getAttribute('srcdoc') || ''
       if (!srcdoc.trim()) throw new Error('expected iframe srcdoc to be populated')

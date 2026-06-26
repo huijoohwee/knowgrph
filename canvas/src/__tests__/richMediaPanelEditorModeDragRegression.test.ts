@@ -6,27 +6,50 @@ import {
 } from 'grph-shared/dom/wheelGuards'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
+function readRichMediaPanelSourceBundle(): string {
+  const root = resolve(process.cwd(), 'src', 'components')
+  const files = [
+    'RichMediaPanel.tsx',
+    'RichMediaPanel.types.ts',
+    'RichMediaPanelSurface.tsx',
+    'RichMediaPanelShell.tsx',
+    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelTextSurface.tsx',
+    'RichMediaPanelIframeSurface.tsx',
+    'RichMediaPanelDirectMediaSurface.tsx',
+    'RichMediaPanelResizeHandle.tsx',
+    'RichMediaPanelOpenOverlay.tsx',
+    'useRichMediaPanelMediaState.ts',
+    'useRichMediaPanelSurfaceState.ts',
+  ]
+  return files.map(file => readFileSync(resolve(root, file), 'utf8')).join('\n')
+}
+
 export function testRichMediaPanelEditorModeDisablesInteractiveContentForDragging() {
-  const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+  const surfaceStatePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
+  const surfaceStateText = readFileSync(surfaceStatePath, 'utf8')
+  if (!surfaceStateText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({')) {
     throw new Error('expected RichMediaPanel to read canonical workspace overlay-open state for drag behavior')
   }
-  if (!text.includes('const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen')) {
+  if (!surfaceStateText.includes('const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen')) {
     throw new Error('expected RichMediaPanel to gate click-to-open overlay only while the workspace overlay is actually open')
   }
-  if (!text.includes('pointerEvents: shouldHideSurfaceUntilReady ? \'none\' : (headerPassthrough ? \'none\' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? \'auto\' : ((contentInteractive || canClickToOpen) ? \'auto\' : \'none\')))')) {
+  if (
+    !surfaceStateText.includes('pointerEvents: shouldHideSurfaceUntilReady')
+    || !surfaceStateText.includes(': workspaceEditorOverlayOpen || canvasOverlayProxyEnabled')
+    || !surfaceStateText.includes(": (contentInteractive || canClickToOpen ? 'auto' : 'none'),")
+  ) {
     throw new Error('expected RichMediaPanel pointer-events behavior to depend on workspace overlay-open and shared overlay proxy state, not editor mode alone')
   }
 }
 
 export async function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll() {
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const panelText = readFileSync(panelPath, 'utf8')
-  if (!panelText.includes('const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true')) {
+  const surfaceStatePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
+  const surfaceStateText = readFileSync(surfaceStatePath, 'utf8')
+  if (!surfaceStateText.includes('const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true')) {
     throw new Error('expected RichMediaPanel to isolate explicit modifier-wheel zoom forwarding in Flow Editor frontmatter document mode')
   }
-  if (!panelText.includes('shouldForwardWheel: forwardModifierWheelZoomOnly ? e => e.ctrlKey === true || e.metaKey === true : undefined')) {
+  if (!surfaceStateText.includes('shouldForwardWheel: forwardModifierWheelZoomOnly ? event => event.ctrlKey === true || event.metaKey === true : undefined')) {
     throw new Error('expected RichMediaPanel to forward only explicit ctrl/cmd wheel zoom while preserving normal panel scroll')
   }
 
@@ -195,8 +218,7 @@ export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
     throw new Error('expected Markdown design overlay wrappers to let shared native wheel forwarding receive panel-origin wheel events')
   }
 
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const panelText = readFileSync(panelPath, 'utf8')
+  const panelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
   if (!panelText.includes("from 'grph-shared/dom/overlayPointerGuards'")
     || !panelText.includes('readOverlayPointerTargetState')
     || !panelText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
@@ -237,12 +259,11 @@ export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
 }
 
 export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant() {
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const overlayEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
-  const panelText = readFileSync(panelPath, 'utf8')
+  const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')

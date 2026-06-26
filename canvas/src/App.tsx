@@ -14,6 +14,9 @@ const PerformanceAutomationReadoutLazy = lazy(async () => ({
   default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
 }))
 const ToastHostLazy = lazy(() => import('@/components/ui/ToastHost'))
+const RichMediaBrowserSmokePageLazy = lazy(async () => ({
+  default: (await import('@/features/testing/RichMediaBrowserSmokePage')).RichMediaBrowserSmokePage,
+}))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
@@ -29,6 +32,13 @@ export default function App() {
   const performanceAutomationReadoutEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false
     return new URLSearchParams(window.location.search).get('kgAutomationPerf') === '1'
+  }, [])
+  const richMediaBrowserSmokeRequested = useMemo(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    const pathname = String(window.location.pathname || '')
+    const kgPath = String(params.get('kgPath') || '')
+    return pathname === '/__smoke__/rich-media' || kgPath === '/__smoke__/rich-media'
   }, [])
   useEffect(() => {
     let cancelled = false
@@ -166,7 +176,14 @@ export default function App() {
       </Suspense>
       <ErrorBoundary>
         <Routes>
-          <Route path="/*" element={<Canvas />} />
+          <Route
+            path="/*"
+            element={richMediaBrowserSmokeRequested ? (
+              <Suspense fallback={null}>
+                <RichMediaBrowserSmokePageLazy />
+              </Suspense>
+            ) : <Canvas />}
+          />
         </Routes>
       </ErrorBoundary>
     </Router>

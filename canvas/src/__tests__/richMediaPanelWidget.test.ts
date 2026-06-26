@@ -26,6 +26,25 @@ import {
 
 type ParsedGraphData = Parameters<typeof computeFlowConnectedValuesBySchemaPath>[0]['graphData']
 
+function readRichMediaPanelSourceBundle(root: string): string {
+  const componentRoot = resolve(root, 'src', 'components')
+  const files = [
+    'RichMediaPanel.tsx',
+    'RichMediaPanel.types.ts',
+    'RichMediaPanelSurface.tsx',
+    'RichMediaPanelShell.tsx',
+    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelTextSurface.tsx',
+    'RichMediaPanelIframeSurface.tsx',
+    'RichMediaPanelDirectMediaSurface.tsx',
+    'RichMediaPanelResizeHandle.tsx',
+    'RichMediaPanelOpenOverlay.tsx',
+    'useRichMediaPanelMediaState.ts',
+    'useRichMediaPanelSurfaceState.ts',
+  ]
+  return files.map(file => readFileSync(resolve(componentRoot, file), 'utf8')).join('\n')
+}
+
 function buildWidgetRegistryForGraphData(graphData: ParsedGraphData) {
   const documentRegistryRaw = ((graphData?.metadata || {}) as Record<string, unknown>)[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   const documentWidgetRegistry = Array.isArray(documentRegistryRaw) ? documentRegistryRaw : []
@@ -386,7 +405,7 @@ export async function testRichMediaPanelChartOutputSrcDocReusesSharedPreviewSpec
 
 export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   const root = process.cwd()
-  const componentText = readFileSync(resolve(root, 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const componentText = readRichMediaPanelSourceBundle(root)
   const ssotText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaSsot.ts'), 'utf8')
   const mediaSpecText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts'), 'utf8')
   const srcDocText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelSrcDoc.ts'), 'utf8')
@@ -429,7 +448,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes('borderRadius: 0')) {
     throw new Error('expected inline srcdoc Rich Media Panel iframe to avoid a nested rounded frame')
   }
-  if (!componentText.includes('iframeSrcDoc={normalizedInlineSrcDoc}')) {
+  if (!componentText.includes('iframeSrcDoc={model.normalizedInlineSrcDoc}')) {
     throw new Error('expected RichMediaPanel iframe srcdoc rendering to consume normalized shared srcdoc')
   }
   if (!srcDocText.includes('buildRichMediaPanelSrcDocTimelineTransportScript')
@@ -439,7 +458,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !srcDocText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE')) {
     throw new Error('expected Rich Media Panel srcdoc normalization to inject the shared timeline transport bridge for stored render artifacts')
   }
-  if (!componentText.includes('&& !effectiveInlineSrcDoc')) {
+  if (!componentText.includes('&& !mediaState.effectiveInlineSrcDoc')) {
     throw new Error('expected RichMediaPanel inline srcdoc previews to bypass the empty text editor placeholder')
   }
   if (!nodeOverlayFormText.includes('resolveMediaPreviewSurfaceCardProps')
@@ -459,9 +478,9 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !componentText.includes('const directMediaPreviewCardProps = React.useMemo')
     || !componentText.includes('resolveMediaPreviewSurfaceSelectionProps({')
     || !componentText.includes('resolveMediaPreviewSurfaceCardProps({')
-    || !componentText.includes('frameSelectionProps={directMediaPreviewSelectionProps}')
+    || !componentText.includes('frameSelectionProps={model.directMediaPreviewSelectionProps}')
     || !componentText.includes('iframeSelectableSurfaceDataAttr')
-    || !componentText.includes('{...directMediaPreviewCardProps}')
+    || !componentText.includes('{...model.directMediaPreviewCardProps}')
     || !zoomPanViewportText.includes('frameSelectionProps?: MediaPreviewSurfaceSelectionProps')
     || !zoomPanViewportText.includes('{...frameSelectionProps}')
     || !zoomPanViewportText.includes("frameSelectionProps?.[MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]")
@@ -520,7 +539,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     'data-kg-canvas-wheel-ignore="true"',
     'data-kg-overlay-pan-ignore="true"',
     'data-kg-canvas-overlay-control="true"',
-    "targetEl?.closest('[data-kg-rich-media-resize-handle=\"1\"]')",
+    "targetElement?.closest('[data-kg-rich-media-resize-handle=\"1\"]')",
   ]) {
     if (!componentText.includes(snippet)) {
       throw new Error(`expected shared Rich Media Panel resize handle to be protected from canvas pan forwarding: ${snippet}`)
@@ -587,7 +606,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes("pointerEvents: 'auto'") || componentText.includes("pointerEvents: allowPanelContentPointerEvents ? 'auto' : 'none'")) {
     throw new Error('expected RichMediaPanel embedded markdown scroll surfaces to stay pointer-targetable instead of falling through to canvas zoom')
   }
-  if (!componentText.includes("data-kg-rich-media-frame-mode={useSurfaceFrame ? 'surface' : undefined}")) {
+  if (!componentText.includes("'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined")) {
     throw new Error('expected RichMediaPanel unframed surface mode to be observable on the shared root')
   }
   if (!nodeOverlayPanelText.includes('frameMode="surface"') || !nodeOverlayFormText.includes('frameMode="surface"')) {
