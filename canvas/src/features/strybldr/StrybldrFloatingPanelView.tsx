@@ -13,19 +13,12 @@ import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { notifyWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
-import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS, generateRunImageWithBytePlus, generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
+import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS, generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
 import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { resolveChatModelSelectionValues } from '@/lib/chatProviderSelection'
-import { uploadMediaFileToKnowgrphStorage } from '@/lib/storage/uploadedMediaStorage'
-import {
-  buildUploadedMediaPanelItemFromStorage,
-  mergeUploadedMediaPanelItems,
-  readStoredUploadedMediaPanelItems,
-  writeStoredUploadedMediaPanelItems,
-} from '@/lib/storage/uploadedMediaPanelItems'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { getStrybldrImageFile } from './strybldrImageFileRegistry'
-import { applyStrybldrImageArtifactToGraphData, applyStrybldrVideoArtifactToGraphData, buildStrybldrImageHandoffMarkdown, buildStrybldrLocalImageDataUri, buildStrybldrVideoHandoffFromGraphData, buildStrybldrVideoHandoffMarkdown, isStrybldrImageGenerationIntent, mergeStrybldrElementsIntoGraphData, updateStrybldrStoryboardMarkdownCardOverride } from './strybldrStoryboard'
+import { applyStrybldrVideoArtifactToGraphData, buildStrybldrVideoHandoffFromGraphData, buildStrybldrVideoHandoffMarkdown, clearStrybldrVideoArtifactMarkdownOverrides, mergeStrybldrElementsIntoGraphData, resolveStrybldrVideoArtifactTargetNodeId, updateStrybldrStoryboardMarkdownCardOverride } from './strybldrStoryboard'
 import type { StrybldrElement } from './strybldrTypes'
 import { runStrybldrDetrObjectDetection } from './strybldrLocalVision'
 import {
@@ -85,112 +78,6 @@ const runStrybldrProviderWithTimeout = <T,>(promise: Promise<T>, timeoutMs: numb
   ]).finally(() => {
     if (timer) clearTimeout(timer)
   })
-}
-
-const sanitizeStrybldrStoragePathSegment = (value: unknown, fallback: string): string => {
-  const cleaned = readString(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return cleaned || fallback
-}
-
-const readBlobExtension = (blob: Blob): string => {
-  const type = readString(blob.type).toLowerCase()
-  if (type.includes('svg')) return 'svg'
-  if (type.includes('webp')) return 'webp'
-  if (type.includes('jpeg') || type.includes('jpg')) return 'jpg'
-  return 'png'
-}
-
-const dataImageUrlToBlob = async (value: unknown): Promise<Blob | null> => {
-  const url = readString(value)
-  if (!/^data:image\//i.test(url)) return null
-  try {
-    const response = await fetch(url)
-    if (!response.ok) return null
-    return await response.blob()
-  } catch {
-    return null
-  }
-}
-
-const createStrybldrGeneratedImageFile = (args: {
-  blob: Blob | null
-  targetNodeId: string
-  title?: string | null
-}): File | null => {
-  if (!args.blob || typeof File !== 'function') return null
-  const stem = sanitizeStrybldrStoragePathSegment(args.title || args.targetNodeId, 'image')
-  const extension = readBlobExtension(args.blob)
-  const contentType = readString(args.blob.type) || (extension === 'svg' ? 'image/svg+xml' : 'image/png')
-  return new File([args.blob], `${stem}.${extension}`, { type: contentType })
-}
-
-const persistStrybldrGeneratedImageMediaAsset = async (args: {
-  blob: Blob | null
-  targetNodeId: string
-  title?: string | null
-}): Promise<{ outputPath: string | null; storageUrl: string | null }> => {
-  const file = createStrybldrGeneratedImageFile(args)
-  if (!file) return { outputPath: null, storageUrl: null }
-  try {
-    const storage = await uploadMediaFileToKnowgrphStorage({
-      file,
-      uploadNow: true,
-    })
-    if (!storage) return { outputPath: null, storageUrl: null }
-    const panelItem = buildUploadedMediaPanelItemFromStorage(storage)
-    if (panelItem) {
-      writeStoredUploadedMediaPanelItems(mergeUploadedMediaPanelItems([
-        panelItem,
-        ...readStoredUploadedMediaPanelItems(),
-      ]))
-    }
-    return {
-      outputPath: storage.publicPath || null,
-      storageUrl: storage.accessUrl || storage.publicUrl || null,
-    }
-  } catch {
-    return {
-      storageUrl: null,
-      outputPath: null,
-    }
-  }
-}
-
-const markStrybldrImageRunPending = (args: {
-  graphData: ReturnType<typeof useGraphStore.getState>['graphData']
-  targetNodeId: string
-  setGraphDataPreservingLayout: (graphData: NonNullable<ReturnType<typeof useGraphStore.getState>['graphData']>) => void
-}): void => {
-  const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
-  if (!args.graphData || !args.targetNodeId || nodes.length === 0) return
-  let changed = false
-  const nextGraph = {
-    ...args.graphData,
-    nodes: nodes.map(node => {
-      if (!isCanonicalNodeIdEqual(readString(node.id), args.targetNodeId)) return node
-      changed = true
-      const props = node.properties || {}
-      return {
-        ...node,
-        properties: {
-          ...props,
-          outputLoading: true,
-          outputLoadingKind: 'image',
-          lastRunAt: new Date().toISOString(),
-          strybldrImageStatus: 'generating',
-          outputSrcDoc: null,
-          imageUrl: null,
-          mediaKind: 'image',
-          mediaUrl: null,
-          renderUrl: null,
-        },
-      }
-    }),
-  }
-  if (changed) args.setGraphDataPreservingLayout(nextGraph)
 }
 
 const readBoolean = (value: unknown): boolean => value === true || String(value || '').trim().toLowerCase() === 'true'
@@ -485,13 +372,16 @@ export function StrybldrFloatingPanelView({
     }
     const started = performance.now()
     const provider = normalizeChatProviderId(chatProvider)
-    const targetNodeId = readString(selectedNodeId || selectedCard?.id)
+    const targetNodeId = graphData
+      ? resolveStrybldrVideoArtifactTargetNodeId({
+        graphData,
+        targetNodeId: selectedNodeId,
+      })
+      : ''
     const targetNode = (Array.isArray(graphData?.nodes) ? graphData.nodes : [])
       .find(node => targetNodeId && isCanonicalNodeIdEqual(readString(node.id), targetNodeId))
     const targetProps = targetNode?.properties || {}
     const targetModel = readString(targetProps.chatModel) || readString(targetProps.model) || readString(chatModel)
-    const targetPrompt = readString(targetProps.prompt) || readString(selectedCard?.prompt) || readString(targetProps.action) || readString(selectedCard?.action) || handoff.prompt
-    const targetTitle = readString(targetNode?.label) || readString(targetProps.title) || readString(selectedCard?.title)
     const modelSelection = targetModel
       ? resolveChatModelSelectionValues({
         currentEndpointUrl: chatEndpointUrl,
@@ -499,91 +389,18 @@ export function StrybldrFloatingPanelView({
         model: targetModel,
       })
       : null
-    const effectiveProvider = modelSelection?.chatProvider || provider
-    const effectiveEndpointUrl = modelSelection?.chatEndpointUrl || chatEndpointUrl || getChatDefaultEndpointUrlForProvider(provider)
-    const effectiveModel = modelSelection?.chatModel || targetModel || null
-    const imageIntent = isStrybldrImageGenerationIntent([
-      targetProps.action,
-      targetProps.prompt,
-      selectedCard?.action,
-      selectedCard?.prompt,
-      targetProps.chatModel,
-      targetProps.model,
-    ].map(readString).filter(Boolean).join('\n'))
     let artifactProvider: string = provider
     let paidCallCount = 0
     let status: 'generated' | 'copied' | 'fallback' = 'fallback'
     let model: string | null = null
     let renderUrl: string | null = null
     let sourceUrl: string | null = null
-    let imageUrl: string | null = null
-    let imageBlob: Blob | null = null
     let errorReason: string | null = null
     let copyReason: string | null = null
     const hasLocalAnimatic = !!readString(handoff.localAnimaticHtml)
-    if (imageIntent && targetNodeId) {
-      markStrybldrImageRunPending({
-        graphData,
-        targetNodeId,
-        setGraphDataPreservingLayout,
-      })
-    }
     setVideoRunning(true)
     try {
-      if (imageIntent) {
-        artifactProvider = effectiveProvider
-        model = effectiveModel || 'strybldr-local-image-v1'
-        if (effectiveProvider === CHAT_PROVIDER_BYTEPLUS && !(chatAuthMode === 'byok' && !readString(chatApiKey))) {
-          const asset = await runStrybldrProviderWithTimeout(
-            generateRunImageWithBytePlus({
-              config: {
-                provider: effectiveProvider,
-                endpointUrl: effectiveEndpointUrl || getChatDefaultEndpointUrlForProvider(effectiveProvider),
-                apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
-                chatModel: effectiveModel,
-              },
-              prompt: targetPrompt,
-              options: {
-                model: effectiveModel,
-                referenceImageUrl: handoff.referenceImageUrl,
-              },
-            }),
-            VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS,
-            `BytePlus image generation did not complete within ${VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS}ms.`,
-          )
-          if (asset) {
-            status = 'generated'
-            model = asset.model
-            imageUrl = asset.renderUrl
-            imageBlob = asset.blob
-            renderUrl = asset.renderUrl
-            sourceUrl = asset.sourceUrl || null
-            paidCallCount = 1
-          } else {
-            errorReason = 'BytePlus returned no image asset.'
-          }
-        } else if (effectiveProvider === CHAT_PROVIDER_BYTEPLUS && chatAuthMode === 'byok' && !readString(chatApiKey)) {
-          errorReason = 'BytePlus BYOK API key is not configured.'
-        } else {
-          errorReason = `${effectiveProvider} image generation is not wired to a live Strybldr provider.`
-        }
-        if (!imageUrl) {
-          artifactProvider = 'knowgrph-local-image'
-          model = effectiveModel || 'strybldr-local-image-v1'
-          imageUrl = buildStrybldrLocalImageDataUri({
-            title: targetTitle,
-            prompt: targetPrompt,
-            action: targetProps.action || selectedCard?.action,
-            provider: effectiveProvider,
-            model,
-          })
-          imageBlob = await dataImageUrlToBlob(imageUrl)
-          renderUrl = imageUrl
-          sourceUrl = null
-          status = 'generated'
-          paidCallCount = 0
-        }
-      } else if (provider === CHAT_PROVIDER_BYTEPLUS && !(chatAuthMode === 'byok' && !readString(chatApiKey))) {
+      if (provider === CHAT_PROVIDER_BYTEPLUS && !(chatAuthMode === 'byok' && !readString(chatApiKey))) {
         const asset = await runStrybldrProviderWithTimeout(
           generateRunVideoWithBytePlus({
             config: {
@@ -635,125 +452,76 @@ export function StrybldrFloatingPanelView({
     try {
       const fs = await getWorkspaceFs()
       await fs.ensureSeed()
-      const imageStorage = imageUrl
-        ? await persistStrybldrGeneratedImageMediaAsset({
-          blob: imageBlob || await dataImageUrlToBlob(imageUrl),
-          targetNodeId,
-          title: targetTitle,
-        })
-        : { outputPath: null, storageUrl: null }
-      const visibleImageUrl = imageStorage.storageUrl || imageStorage.outputPath || imageUrl
-      if (visibleImageUrl && imageUrl && visibleImageUrl !== imageUrl) {
-        imageUrl = visibleImageUrl
-        renderUrl = visibleImageUrl
-      }
-      const artifactText = imageUrl
-        ? buildStrybldrImageHandoffMarkdown({
-          title: targetTitle,
-          prompt: targetPrompt,
-          provider: artifactProvider,
-          model,
-          imageUrl,
-          errorReason,
-          elapsedMs: performance.now() - started,
-          paidCallCount,
-          cacheHit: false,
-        })
-        : buildStrybldrVideoHandoffMarkdown({
-          handoff,
-          status,
-          provider: artifactProvider,
-          model,
-          renderUrl,
-          sourceUrl,
-          errorReason,
-          copyReason,
-          elapsedMs: performance.now() - started,
-          paidCallCount,
-          cacheHit: false,
-        })
+      const artifactText = buildStrybldrVideoHandoffMarkdown({
+        handoff,
+        status,
+        provider: artifactProvider,
+        model,
+        renderUrl,
+        sourceUrl,
+        errorReason,
+        copyReason,
+        elapsedMs: performance.now() - started,
+        paidCallCount,
+        cacheHit: false,
+      })
       const createdPath = await fs.createFile({
         parentPath: WORKSPACE_ROOT_PATH,
-        name: `${imageUrl ? 'strybldr-image' : status === 'fallback' ? 'strybldr-video-fallback' : 'strybldr-video'}-${Date.now().toString(36)}.md`,
+        name: `${status === 'fallback' ? 'strybldr-video-fallback' : 'strybldr-video'}-${Date.now().toString(36)}.md`,
         text: artifactText,
       })
-      const graphWithVisibleArtifact = imageUrl
-        ? applyStrybldrImageArtifactToGraphData({
-          graphData,
-          targetNodeId,
-          artifactPath: createdPath,
-          artifactText,
-          provider: artifactProvider,
-          model,
-          imageUrl,
-          prompt: targetPrompt,
-        })
-        : applyStrybldrVideoArtifactToGraphData({
-          graphData,
-          targetNodeId,
-          handoff,
-          status,
-          artifactPath: createdPath,
-          artifactText,
-          provider: artifactProvider,
-          model,
-          renderUrl,
-          sourceUrl,
-        })
+      const graphWithVisibleArtifact = applyStrybldrVideoArtifactToGraphData({
+        graphData,
+        targetNodeId,
+        handoff,
+        status,
+        artifactPath: createdPath,
+        artifactText,
+        provider: artifactProvider,
+        model,
+        renderUrl,
+        sourceUrl,
+      })
       if (graphWithVisibleArtifact) {
         setGraphDataPreservingLayout(graphWithVisibleArtifact)
       }
+      const baseMarkdownText = clearStrybldrVideoArtifactMarkdownOverrides({
+        text: markdownDocumentText || '',
+        targetNodeId,
+      }) || markdownDocumentText || ''
       const nextMarkdownText = targetNodeId
         ? updateStrybldrStoryboardMarkdownCardOverride({
-          text: markdownDocumentText || '',
+          text: baseMarkdownText,
           nodeId: targetNodeId,
-          patch: imageUrl
-            ? {
-          output: [
-                'Generated Strybldr image handoff.',
-                createdPath ? `Artifact: ${createdPath}` : '',
-                imageStorage.outputPath ? `Media: ${imageStorage.outputPath}` : '',
-                `Image: ${imageUrl}`,
-                targetPrompt ? `Prompt: ${targetPrompt}` : '',
-              ].filter(Boolean).join('\n'),
-              outputSrcDoc: null,
-              imageUrl,
-              mediaKind: 'image',
-              mediaUrl: imageUrl,
-              renderUrl: imageUrl,
-              sourceUrl: null,
-            }
-            : {
-              output: [
-                status === 'generated'
-                  ? 'Generated Strybldr local animatic handoff.'
-                  : status === 'copied'
-                    ? 'Generated Strybldr source video copy handoff.'
-                    : 'Generated Strybldr fallback handoff.',
-                createdPath ? `Artifact: ${createdPath}` : '',
-                renderUrl ? `Render: ${renderUrl}` : '',
-                sourceUrl ? `Source: ${sourceUrl}` : '',
-              ].filter(Boolean).join('\n'),
-              outputSrcDoc: handoff.localAnimaticHtml || null,
-              imageUrl: null,
-              mediaKind: handoff.localAnimaticHtml ? 'iframe' : 'video',
-              mediaUrl: renderUrl || sourceUrl || createdPath,
-              renderUrl,
-              sourceUrl,
-            },
+          patch: {
+            output: [
+              status === 'generated'
+                ? 'Generated Strybldr local animatic handoff.'
+                : status === 'copied'
+                  ? 'Generated Strybldr source video copy handoff.'
+                  : 'Generated Strybldr fallback handoff.',
+              createdPath ? `Artifact: ${createdPath}` : '',
+              renderUrl ? `Render: ${renderUrl}` : '',
+              sourceUrl ? `Source: ${sourceUrl}` : '',
+            ].filter(Boolean).join('\n'),
+            outputSrcDoc: handoff.localAnimaticHtml || null,
+            imageUrl: null,
+            mediaKind: handoff.localAnimaticHtml ? 'iframe' : 'video',
+            mediaUrl: renderUrl || sourceUrl || createdPath,
+            renderUrl,
+            sourceUrl,
+          },
         })
         : null
       if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
         setMarkdownDocument(markdownDocumentName, nextMarkdownText)
       }
       notifyWorkspaceFsChanged({ op: 'createFile', path: createdPath })
-      addHistory(imageUrl ? 'Strybldr image generated' : status === 'generated' ? 'Strybldr video generated' : status === 'copied' ? 'Strybldr video copied' : 'Strybldr video fallback')
+      addHistory(status === 'generated' ? 'Strybldr video generated' : status === 'copied' ? 'Strybldr video copied' : 'Strybldr video fallback')
       pushUiToast({
         id: 'strybldr:video:done',
         kind: status === 'fallback' ? 'warning' : 'success',
-        message: imageUrl
-          ? 'Strybldr image output generated.'
-          : status === 'generated'
+        message: status === 'generated'
           ? 'Strybldr video output generated.'
           : status === 'copied'
             ? 'Strybldr source video output generated.'
@@ -770,7 +538,7 @@ export function StrybldrFloatingPanelView({
     } finally {
       setVideoRunning(false)
     }
-  }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatModel, chatProvider, graphData, markdownDocumentName, markdownDocumentText, pushUiToast, selectedCard, selectedNodeId, setGraphDataPreservingLayout, setMarkdownDocument, videoRunning])
+  }, [addHistory, chatApiKey, chatAuthMode, chatEndpointUrl, chatModel, chatProvider, graphData, markdownDocumentName, markdownDocumentText, pushUiToast, selectedNodeId, setGraphDataPreservingLayout, setMarkdownDocument, videoRunning])
 
   const runAllFromMountedPanel = React.useCallback(() => {
       const now = performance.now()

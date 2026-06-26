@@ -27,6 +27,11 @@ export type StoryboardMediaSelectionSlot = {
   href: string
 }
 
+const isStoryboardRelatedTargetInside = (currentTarget: HTMLElement, relatedTarget: EventTarget | null): boolean => {
+  if (!(relatedTarget instanceof Node)) return false
+  return currentTarget.contains(relatedTarget)
+}
+
 const isStoryboardDisplayReference = (
   reference: StoryboardCardReference,
 ): reference is StoryboardCardReference & { kind: StoryboardDisplayMedia['kind'] } =>
@@ -242,7 +247,7 @@ function StoryboardMediaSelectionSlotView(props: {
     setDropActive(true)
   }, [onDropMedia])
   const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+    if (!isStoryboardRelatedTargetInside(event.currentTarget, event.relatedTarget)) setDropActive(false)
   }, [])
   const handleDrop = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (!onDropMedia) return
@@ -258,7 +263,7 @@ function StoryboardMediaSelectionSlotView(props: {
     setDropActive(true)
   }, [onDropMedia])
   const handlePointerLeave = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+    if (!isStoryboardRelatedTargetInside(event.currentTarget, event.relatedTarget)) setDropActive(false)
   }, [])
   const handlePointerUp = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (!onDropMedia) return
@@ -275,7 +280,7 @@ function StoryboardMediaSelectionSlotView(props: {
     setDropActive(true)
   }, [onDropMedia])
   const handleMouseLeave = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropActive(false)
+    if (!isStoryboardRelatedTargetInside(event.currentTarget, event.relatedTarget)) setDropActive(false)
   }, [])
   const handleMouseUp = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     if (!onDropMedia) return

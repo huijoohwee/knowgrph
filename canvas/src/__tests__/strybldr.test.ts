@@ -13,9 +13,12 @@ import {
   buildStrybldrVideoHandoffFromGraphData,
   buildStrybldrVideoHandoffMarkdown,
   applyStrybldrVideoArtifactToGraphData,
+  clearStrybldrVideoArtifactMarkdownOverrides,
   isStrybldrImageGenerationIntent,
   mergeStrybldrElementsIntoGraphData,
+  parseStrybldrStoryboardMarkdown,
   removeStrybldrStoryboardMarkdownElement,
+  resolveStrybldrVideoArtifactTargetNodeId,
   serializeStrybldrStoryboardMarkdown,
   updateStrybldrStoryboardMarkdownCardOverride,
 } from '@/features/strybldr/strybldrStoryboard'
@@ -209,6 +212,7 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(!text.includes('\n  cards:\n'), 'expected starter template not to store runtime card override payloads')
   assert(!text.includes('seedream-'), 'expected starter template not to store provider-specific generated model ids')
   assert(!text.includes('outputSrcDoc:'), 'expected starter template not to store generated rich-media srcdoc payloads')
+  assert(!text.includes('video-url'), 'expected starter template not to store placeholder media URLs')
   assert(!text.includes('Generated Strybldr'), 'expected starter template not to store generated runtime handoff copy')
   assert(!text.includes('New storyboard card'), 'expected starter template not to store ad hoc duplicated storyboard cards')
   const parsed = await loadGraphDataFromTextViaParser(starterName, text, {
@@ -1311,6 +1315,84 @@ export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia(
   const reparsedCard = reparsedBoard.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
   assert((reparsedCard?.media?.kind === 'image' || reparsedCard?.media?.kind === 'svg') && reparsedCard.media.url === imageUrl, 'expected generated image media to survive Strybldr Markdown reparse')
   assert(!reparsedCard?.media?.srcDoc, 'expected generated image reparse not to resurrect stale iframe srcdoc')
+}
+
+export function testStrybldrVideoPromptsDoNotMisrouteToImageIntent() {
+  const videoPrompt = 'Create a short video storyboard beat from Strybldr starter source frame.'
+  assert(!isStrybldrImageGenerationIntent(videoPrompt), 'expected video storyboard prompts with frame wording to stay on the video path')
+  const explicitImagePrompt = 'Generate image on wukong as a clean storyboard source frame.'
+  assert(isStrybldrImageGenerationIntent(explicitImagePrompt), 'expected explicit image prompts to keep routing to image generation')
+}
+
+export function testStrybldrGenerateVideoPathStaysVideoOnly() {
+  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  assert(panelText.includes('title="Generate Video"'), 'expected Strybldr floating panel to expose the Generate Video action')
+  assert(!panelText.includes('const imageIntent = isStrybldrImageGenerationIntent('), 'expected Generate Video to avoid prompt-driven image intent routing')
+  assert(!panelText.includes('generateRunImageWithBytePlus('), 'expected Generate Video to avoid the image provider branch')
+  assert(!panelText.includes('Strybldr image output generated.'), 'expected Generate Video completion toast to stay video-only')
+  assert(!panelText.includes('selectedNodeId || selectedCard?.id'), 'expected Generate Video to avoid falling back to the first editable card when resolving the artifact target')
+}
+
+export function testStrybldrVideoArtifactTargetPrefersStoryboardFrameOverElementCard() {
+  const graphData = {
+    nodes: [
+      {
+        id: 'starter-source-brief-card',
+        type: 'StoryboardElement',
+        properties: {
+          lane: 'Elements',
+          strybldrRunId: 'strybldr-starter-template',
+          strybldrSourceUnitId: 'strybldr-starter-source',
+        } as never,
+      },
+      {
+        id: 'strybldr:frame:3595615238',
+        type: 'StoryboardFrame',
+        properties: {
+          lane: 'Storyboard',
+          strybldrRunId: 'strybldr-starter-template',
+          strybldrSourceUnitId: 'strybldr-starter-source',
+        } as never,
+      },
+    ],
+    edges: [],
+  } as never
+  const resolvedTargetNodeId = resolveStrybldrVideoArtifactTargetNodeId({
+    graphData,
+    targetNodeId: 'starter-source-brief-card',
+  })
+  assert(resolvedTargetNodeId === 'strybldr:frame:3595615238', `expected video artifacts to prefer the storyboard frame target, got ${resolvedTargetNodeId}`)
+}
+
+export function testStrybldrVideoArtifactCleanupKeepsOnlyTargetOverride() {
+  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', 'knowgrph-strybldr-starter-template.md')
+  const baseText = fs.readFileSync(starterPath, 'utf8')
+  const withSourceArtifact = updateStrybldrStoryboardMarkdownCardOverride({
+    text: baseText,
+    nodeId: 'strybldr:source:3725310941',
+    patch: {
+      output: 'Generated Strybldr local animatic handoff.',
+      outputSrcDoc: '<html><body>source</body></html>',
+      mediaKind: 'iframe',
+      mediaUrl: 'source-url',
+    },
+  })
+  const withTargetPrompt = updateStrybldrStoryboardMarkdownCardOverride({
+    text: String(withSourceArtifact || ''),
+    nodeId: 'strybldr:frame:3595615238',
+    patch: {
+      prompt: 'keep me',
+    },
+  })
+  const cleaned = clearStrybldrVideoArtifactMarkdownOverrides({
+    text: String(withTargetPrompt || ''),
+    targetNodeId: 'strybldr:frame:3595615238',
+  })
+  const parsed = parseStrybldrStoryboardMarkdown(String(cleaned || ''))
+  const sourceCard = (parsed?.cards || []).find(card => card.nodeId === 'strybldr:source:3725310941') || null
+  const targetCard = (parsed?.cards || []).find(card => card.nodeId === 'strybldr:frame:3595615238') || null
+  assert(!sourceCard, 'expected stale source artifact override to be removed entirely')
+  assert(targetCard?.prompt === 'keep me', `expected target card non-artifact overrides to remain, got ${JSON.stringify(targetCard)}`)
 }
 
 export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic() {

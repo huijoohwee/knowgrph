@@ -254,6 +254,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'onDropMedia?: (card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => void',
     'onDropMedia={props.onDropMedia ? (slot, payload) => props.onDropMedia?.(props.card, slot, payload) : undefined}',
     'buildStoryboardMediaPromptParameters({ kind: lightboxKind, model: props.model })',
+    'const isStoryboardRelatedTargetInside = (currentTarget: HTMLElement, relatedTarget: EventTarget | null): boolean => {',
     'const [lightboxSlotId, setLightboxSlotId] = React.useState<string | null>(null)',
     'const lightboxSlot = lightboxSlotId ? slots.find(slot => slot.id === lightboxSlotId) || null : null',
     'onPromptSubmit={props.onGenerateMediaPrompt ? (prompt, parameters) => props.onGenerateMediaPrompt?.(props.card, prompt, parameters) : undefined}',

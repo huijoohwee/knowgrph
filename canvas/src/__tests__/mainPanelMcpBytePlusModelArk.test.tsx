@@ -34,6 +34,8 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
+const LEGACY_MODELARK_AUTH_ENV = ['MODEL', 'ARK_API_KEY'].join('')
+
 const withRenderedHub = async (
   hub: 'integrations' | 'mcp',
   assertions: (container: Element) => void,
@@ -71,6 +73,7 @@ const withRenderedHub = async (
 const assertNoSecretOrProviderEndpointMaterial = (text: string): void => {
   ;[
     '<ARK_API_KEY>',
+    LEGACY_MODELARK_AUTH_ENV,
     'Authorization: Bearer',
     'sk-',
     'YOUR_BYTEPLUS_API_KEY',

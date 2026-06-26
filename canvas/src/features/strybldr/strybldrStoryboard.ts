@@ -53,6 +53,7 @@ const cleanMultilineText = (value: unknown): string => String(value ?? '').repla
 
 const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
+const STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS = ['output', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 const escapeRegExp = (value: string): string => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -109,9 +110,13 @@ const wrapSvgTextLines = (value: unknown, maxLines = 5): string[] => {
 export const isStrybldrImageGenerationIntent = (value: unknown): boolean => {
   const text = cleanText(value).toLowerCase()
   if (!text) return false
-  const hasImageTerm = /\b(image|picture|photo|poster|portrait|illustration|thumbnail|cover|frame|visual|wukong|seedream|dall[- ]?e|gpt[- ]?image|png|jpeg|jpg)\b/.test(text)
+  const hasExplicitImageTerm = /\b(image|picture|photo|poster|portrait|illustration|thumbnail|cover|visual|wukong|seedream|dall[- ]?e|gpt[- ]?image|png|jpeg|jpg)\b/.test(text)
+  const hasFrameTerm = /\bframe\b/.test(text)
+  const hasVideoTerm = /\b(video|animatic|clip|movie|motion|sequence)\b/.test(text)
   const hasGenerationTerm = /\b(generate|create|render|draw|make|produce|compose)\b/.test(text)
-  return hasImageTerm && (hasGenerationTerm || /\b(wukong|seedream|dall[- ]?e|gpt[- ]?image)\b/.test(text))
+  const hasImageProviderTerm = /\b(wukong|seedream|dall[- ]?e|gpt[- ]?image)\b/.test(text)
+  const hasImageTerm = hasExplicitImageTerm || (hasFrameTerm && !hasVideoTerm)
+  return hasImageTerm && (hasGenerationTerm || hasImageProviderTerm)
 }
 
 export const buildStrybldrLocalImageDataUri = (args: {
@@ -482,6 +487,40 @@ export const updateStrybldrStoryboardMarkdownCardOverride = (args: {
   const nextCards = index >= 0 ? currentCards.slice() : currentCards.concat(next)
   if (hasOverride) nextCards[index >= 0 ? index : nextCards.length - 1] = next
   else if (index >= 0) nextCards.splice(index, 1)
+  const nextPayload = { ...rawPayload }
+  if (nextCards.length > 0) nextPayload.cards = nextCards
+  else delete nextPayload.cards
+  return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
+}
+
+export const clearStrybldrVideoArtifactMarkdownOverrides = (args: {
+  text: string
+  targetNodeId?: string | null
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  const targetNodeId = cleanText(args.targetNodeId)
+  if (!doc) return null
+  const currentCards = Array.isArray(rawPayload?.cards) ? rawPayload.cards as unknown[] : []
+  if (currentCards.length === 0) return args.text
+  let changed = false
+  const nextCards = currentCards.flatMap(card => {
+    if (!card || typeof card !== 'object' || Array.isArray(card)) return []
+    const current = { ...(card as StrybldrCardOverride) }
+    const nodeId = cleanText(current.nodeId)
+    if (!nodeId || nodeId === targetNodeId) return [current]
+    const hasArtifactOverride = STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS.some(key => cleanMultilineText(current[key]))
+    if (!hasArtifactOverride) return [current]
+    for (const key of STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(current, key)) continue
+      delete current[key]
+      changed = true
+    }
+    const hasRemainingOverride = STRYBLDR_CARD_OVERRIDE_TEXT_KEYS.some(key => cleanMultilineText(current[key]))
+      || STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS.some(key => Number.isFinite(Number(current[key])))
+    return hasRemainingOverride ? [current] : []
+  })
+  if (!changed) return args.text
   const nextPayload = { ...rawPayload }
   if (nextCards.length > 0) nextPayload.cards = nextCards
   else delete nextPayload.cards
@@ -1946,6 +1985,17 @@ const isStrybldrRuntimeNode = (node: GraphNode): boolean => {
   return /\bruntime\b/i.test([lane, type, title, cleanText(node.id)].join(' '))
 }
 
+const isStrybldrVideoArtifactTargetNode = (node: GraphNode): boolean => {
+  const props = node.properties || {}
+  const lane = cleanText(props.lane || props.status || props.group)
+  const type = cleanText(node.type || props.type || props.kind)
+  return type === 'StoryboardFrame'
+    || /^storyboard$/i.test(lane)
+    || type === 'ExplainerVideoSnapshot'
+    || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    || (isStrybldrRuntimeNode(node) && /^(video|iframe)$/i.test(cleanText(props.mediaKind)))
+}
+
 const isStrybldrStoryboardNode = (node: GraphNode): boolean => {
   const props = node.properties || {}
   return Boolean(
@@ -1958,17 +2008,21 @@ const isStrybldrStoryboardNode = (node: GraphNode): boolean => {
   )
 }
 
-const resolveStrybldrVideoArtifactTargetNodeId = (args: {
+export const resolveStrybldrVideoArtifactTargetNodeId = (args: {
   graphData: GraphData
   targetNodeId?: string | null
 }): string => {
   const nodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
   const targetNodeId = cleanText(args.targetNodeId)
-  if (targetNodeId && nodes.some(node => cleanText(node.id) === targetNodeId && isStrybldrStoryboardNode(node))) return targetNodeId
+  if (targetNodeId && nodes.some(node => cleanText(node.id) === targetNodeId && isStrybldrStoryboardNode(node) && isStrybldrVideoArtifactTargetNode(node))) return targetNodeId
+  const storyboardNode = nodes.find(node => isStrybldrStoryboardNode(node) && isStrybldrVideoArtifactTargetNode(node) && cleanText(node.type || node.properties?.type || node.properties?.kind) === 'StoryboardFrame')
+  if (storyboardNode?.id) return cleanText(storyboardNode.id)
+  const storyboardLaneNode = nodes.find(node => isStrybldrStoryboardNode(node) && isStrybldrVideoArtifactTargetNode(node) && /^storyboard$/i.test(cleanText(node.properties?.lane)))
+  if (storyboardLaneNode?.id) return cleanText(storyboardLaneNode.id)
   const runtimeNode = nodes.find(node => isStrybldrStoryboardNode(node) && isStrybldrRuntimeNode(node))
   if (runtimeNode?.id) return cleanText(runtimeNode.id)
-  const firstStrybldrNode = nodes.find(isStrybldrStoryboardNode)
-  return cleanText(firstStrybldrNode?.id)
+  const firstVideoTargetNode = nodes.find(node => isStrybldrStoryboardNode(node) && isStrybldrVideoArtifactTargetNode(node))
+  return cleanText(firstVideoTargetNode?.id)
 }
 
 export const applyStrybldrVideoArtifactToGraphData = (args: {
