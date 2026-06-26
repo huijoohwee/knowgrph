@@ -9,6 +9,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
   return (
     <VideoSequenceTimelineRuler
       contentRef={args.model.contentRef}
+      disabledLaneIds={args.model.disabledLaneIds}
       displayTicks={args.model.displayTicks}
       dragPreview={args.model.dragPreview}
       draggingRowKey={args.model.draggingRowKey}
@@ -22,6 +23,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       timelineZoom={args.model.timelineZoom}
       onRulerPointerDown={args.model.onRulerPointerDown}
       onSelectRowKey={args.model.onSelectRowKey}
+      onSelectRowPosition={args.model.onSelectRowPosition}
       onTrackPointerStart={args.model.onTrackPointerStart}
     />
   )

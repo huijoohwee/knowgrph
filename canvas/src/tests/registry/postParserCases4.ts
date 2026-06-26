@@ -1,6 +1,12 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["ui.videoSequence.previewSync.sourceRanges","@/__tests__/videoSequencePreviewSyncRegression.test","testSelectedVideoPreviewSyncUsesStableSourceRanges"],
+  ["ui.videoSequence.timeline.emptyBars","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequenceTimelineSkipsEmptyBarsAndLanes"],
+  ["ui.videoSequence.previewSync.emptyGaps","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequencePreviewSyncKeepsVideoGapsEmpty"],
+  ["ui.videoSequence.previewSync.mediaCanvasTransportPosition","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync"],
+  ["ui.videoSequence.previewSync.transportSourceTimeLabel","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequenceTransportReadoutUsesPreviewSourceTime"],
+  ["ui.timelineAnimation.nativeRuntime.sourceBacked","@/__tests__/timelineAnimationNativeRuntime.test","testTimelineAnimationNativeRuntimeIsSourceBacked"],
   ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
   ["ui.videoSequence.localImport.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMediaRemounts"],
   ["ui.videoSequence.export.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceExportKeepsSuccessfulSourceProbesBound"],

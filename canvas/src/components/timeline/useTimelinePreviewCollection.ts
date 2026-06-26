@@ -67,7 +67,7 @@ export function useTimelinePreviewCollection(args: {
   const items = React.useMemo<TimelinePreviewCollectionItem[]>(() => {
     const previewItems: TimelinePreviewCollectionItem[] = session.items.map(sourceItem => ({
       key: sourceItem.key,
-      kind: 'video',
+      kind: sourceItem.kind,
       label: sourceItem.label,
       openUrl: sourceItem.openUrl,
       source: 'video-sequence',

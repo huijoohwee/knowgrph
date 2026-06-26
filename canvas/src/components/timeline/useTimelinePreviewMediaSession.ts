@@ -16,6 +16,7 @@ import {
 } from './timelinePlanSync'
 
 export type TimelinePreviewMediaSourceItem = {
+  kind: 'image' | 'video' | 'audio'
   key: string
   label: string
   openUrl: string
@@ -36,7 +37,19 @@ const readTimelinePreviewMediaSourceLabel = (source: VideoSequenceTimelineSource
   return clean(source.originalName)
     || clean(source.relativePath).split('/').filter(Boolean).pop()
     || clean(source.sourceUrl)
-    || 'Video source'
+    || 'Media source'
+}
+
+const readTimelinePreviewMediaSourceKind = (source: VideoSequenceTimelineSource): TimelinePreviewMediaSourceItem['kind'] => {
+  const signature = [
+    source.mimeHint,
+    source.originalName,
+    source.relativePath,
+    source.sourceUrl,
+  ].join(' ').toLowerCase()
+  if (/\b(?:audio|mpeg|mp3|wav|aac|m4a|opus|ogg)\b|\.m(?:p3|4a)\b|\.(?:wav|aac|opus|ogg)\b/.test(signature)) return 'audio'
+  if (/\bimage\b|\.avif\b|\.gif\b|\.jpe?g\b|\.png\b|\.svg\b|\.webp\b/.test(signature)) return 'image'
+  return 'video'
 }
 
 export function useTimelinePreviewMediaSession(args: {
@@ -75,6 +88,7 @@ export function useTimelinePreviewMediaSession(args: {
       if (!src) return []
       return [{
         key: `video-sequence:${src}`,
+        kind: readTimelinePreviewMediaSourceKind(source),
         label: readTimelinePreviewMediaSourceLabel(source),
         openUrl: readVideoSequenceSourcePlayableUrl(source) || src,
         source,

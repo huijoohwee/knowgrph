@@ -169,6 +169,7 @@ export {
   areVideoSequenceExportSourcesEqual,
   buildVideoSequenceExportPlan,
   buildTimelinePreviewSyncPlan,
+  buildTimelinePreviewThumbnailPlan,
   resolveTimelinePlanPositionFromSourceTime,
   resolveTimelinePlanSourceTimeAtPosition,
   type TimelinePlanSourceTimeResolution,

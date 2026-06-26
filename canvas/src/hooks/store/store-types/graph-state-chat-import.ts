@@ -195,6 +195,8 @@ export interface GraphStateChatImport {
   setFloatingPanelView: (view: FloatingPanelView) => void;
   mermaidDiagramSelectedRowKeyByKind: MermaidDiagramSelectedRowKeyByKind;
   setMermaidDiagramSelectedRowKey: (kind: MermaidDiagramSelectionKind, rowKey: string | null) => void;
+  videoSequenceTimelineLaneVisibility: Record<string, boolean>;
+  setVideoSequenceTimelineLaneVisibility: (laneId: string, visible: boolean) => void;
   timelineTransportDocumentKey: string;
   timelineTransportPosition: number;
   timelineTransportPlaying: boolean;

@@ -337,6 +337,7 @@ export function CardMediaPreview({
   iframeScriptPolicy,
   mediaThumbnailDataAttr = false,
   mediaSelectableSurfaceDataAttr = false,
+  onMediaElement,
   onVideoElement,
   onReady,
   onError,
@@ -362,6 +363,7 @@ export function CardMediaPreview({
   iframeScriptPolicy?: 'strip' | 'allow'
   mediaThumbnailDataAttr?: boolean
   mediaSelectableSurfaceDataAttr?: boolean
+  onMediaElement?: (element: HTMLMediaElement | null) => void
   onVideoElement?: (element: HTMLVideoElement | null) => void
   onReady?: () => void
   onError?: () => void
@@ -445,7 +447,10 @@ export function CardMediaPreview({
         playsInline
         preload="metadata"
         draggable={false}
-        ref={onVideoElement}
+        ref={element => {
+          onVideoElement?.(element)
+          onMediaElement?.(element)
+        }}
         onLoadedMetadata={() => onReady?.()}
         onLoadedData={() => onReady?.()}
         onCanPlay={() => onReady?.()}
@@ -489,6 +494,7 @@ export function CardMediaPreview({
           controls
           preload="metadata"
           draggable={false}
+          ref={onMediaElement}
           onLoadedMetadata={() => onReady?.()}
           onCanPlay={() => onReady?.()}
           onError={() => onError?.()}

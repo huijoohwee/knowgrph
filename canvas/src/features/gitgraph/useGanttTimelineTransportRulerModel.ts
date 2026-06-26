@@ -2,7 +2,7 @@ import React from 'react'
 import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
 import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
-import { type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
+import { type VideoSequenceTimelineLaneId, type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
 import {
   type MermaidGanttBarDragMode,
   type MermaidGanttTimelineDragPreview,
@@ -31,8 +31,10 @@ export type GanttTimelineTransportRulerModel = {
     sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
+    disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
     onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
     onSelectRowKey: (rowKey: string) => void
+    onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
     onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
   }
 }
@@ -54,8 +56,10 @@ export function useGanttTimelineTransportRulerModel(args: {
   timelineZoom: number
   totalLabel: string
   visibleLaneCount: number
+  disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
+  onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
 }): GanttTimelineTransportRulerModel {
   return React.useMemo(() => ({
@@ -76,11 +80,13 @@ export function useGanttTimelineTransportRulerModel(args: {
     ruler: {
       contentRef: args.contentRef,
       displayTicks: args.displayTicks,
+      disabledLaneIds: args.disabledLaneIds,
       dragPreview: args.dragPreview,
       draggingRowKey: args.draggingRowKey,
       maxMinutes: args.maxMinutes,
       onRulerPointerDown: args.onRulerPointerDown,
       onSelectRowKey: args.onSelectRowKey,
+      onSelectRowPosition: args.onSelectRowPosition,
       onTrackPointerStart: args.onTrackPointerStart,
       playheadPercent: args.playheadPercent,
       scopes: args.scopes,
@@ -94,11 +100,13 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.compact,
     args.contentRef,
     args.displayTicks,
+    args.disabledLaneIds,
     args.dragPreview,
     args.draggingRowKey,
     args.maxMinutes,
     args.onRulerPointerDown,
     args.onSelectRowKey,
+    args.onSelectRowPosition,
     args.onTrackPointerStart,
     args.playheadPercent,
     args.positionMinutes,

@@ -60,7 +60,10 @@ export function useGanttTimelineTransportInteractionModel(args: {
 
   useGanttTimelineSelectionSync({
     playing: args.playing,
+    positionMinutes: args.positionMinutes,
+    resolveRowKeyAtPosition: position => resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position),
     selectedRowKey: args.selectedRowKey,
+    setSelectedRowKey: args.setSelectedRowKey,
     setTransportPlaybackPosition: args.setTransportPlaybackPosition,
     taskSpans: args.timelineModel.taskSpans,
   })

@@ -1,6 +1,10 @@
 import React from 'react'
 import { useCommandMenuRichMediaInventory } from '@/lib/command-menu/commandMenuRichMediaInventory'
-import { useTimelineDocumentStoreBinding } from './timelineTransport'
+import {
+  clampTimelineTransportValue,
+  useTimelineDocumentStoreBinding,
+  useTimelineTransportStoreBinding,
+} from './timelineTransport'
 import { useTimelineGanttSelectionStoreBinding } from './timelineSurfaceBindings'
 import { type TimelinePreviewMediaCanvasFrameModel } from './useTimelinePreviewMediaCanvasFrameModel'
 import { useTimelinePreviewMediaContext } from './useTimelinePreviewMediaContext'
@@ -13,6 +17,7 @@ export type TimelinePreviewMediaCanvasBinding = {
 export function useTimelinePreviewMediaCanvasBinding(): TimelinePreviewMediaCanvasBinding {
   const { items } = useCommandMenuRichMediaInventory()
   const { markdownDocumentName, markdownText } = useTimelineDocumentStoreBinding()
+  const { transportDocumentKey, transportPosition } = useTimelineTransportStoreBinding()
   const { selectedRowKey } = useTimelineGanttSelectionStoreBinding()
   const previewRouteEntry = useTimelinePreviewRouteEntry({
     intent: 'media',
@@ -21,13 +26,24 @@ export function useTimelinePreviewMediaCanvasBinding(): TimelinePreviewMediaCanv
     markdownText,
     selectedRowKey,
   })
+  const positionMinutes = React.useMemo(() => (
+    transportDocumentKey === previewRouteEntry.bootstrap.documentKey
+      ? clampTimelineTransportValue(transportPosition, 0, previewRouteEntry.maxMinutes)
+      : previewRouteEntry.positionMinutes
+  ), [
+    previewRouteEntry.bootstrap.documentKey,
+    previewRouteEntry.maxMinutes,
+    previewRouteEntry.positionMinutes,
+    transportDocumentKey,
+    transportPosition,
+  ])
   const previewMediaContext = useTimelinePreviewMediaContext({
     collection: previewRouteEntry.bootstrap.collection,
     documentKey: previewRouteEntry.bootstrap.documentKey,
     exportPlan: previewRouteEntry.bootstrap.exportPlan,
     intent: previewRouteEntry.intent,
     maxMinutes: previewRouteEntry.maxMinutes,
-    positionMinutes: previewRouteEntry.positionMinutes,
+    positionMinutes,
     selectedRowKey: previewRouteEntry.selectedRowKey,
   })
   return React.useMemo(() => ({

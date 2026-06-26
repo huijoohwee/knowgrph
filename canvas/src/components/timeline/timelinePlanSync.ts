@@ -13,6 +13,7 @@ export type VideoSequenceExportSegment = {
   hasGrade: boolean
   hasMask: boolean
   label: string
+  sourceLineIndex: number
   source: VideoSequenceTimelineSource
   sourceEndRatio: number
   sourceStartRatio: number
@@ -83,7 +84,7 @@ const readStableTaskId = (line: string): string => {
 }
 
 const normalizeSegmentKey = (value: string): string => {
-  return clean(value).replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=_splice|$)/gi, '')
+  return clean(value).replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|fbf|detached|nested|morph|text|modifier|record|filter|audio|speed)(?=(?:_splice)*$|$)/gi, '')
 }
 
 const normalizeSourceKey = (value: string): string => {
@@ -108,6 +109,29 @@ const sourceIdentityKeys = (source: VideoSequenceTimelineSource): string[] => {
     source.relativePath,
     source.originalName,
   ].map(value => clean(value).toLowerCase()).filter(Boolean)
+}
+
+const readVideoSequenceTimelineSourceKind = (source: VideoSequenceTimelineSource): 'image' | 'video' | 'audio' => {
+  const signature = [
+    source.mimeHint,
+    source.originalName,
+    source.relativePath,
+    source.sourceUrl,
+  ].join(' ').toLowerCase()
+  if (/\b(?:audio|mpeg|mp3|wav|aac|m4a|opus|ogg)\b|\.m(?:p3|4a)\b|\.(?:wav|aac|opus|ogg)\b/.test(signature)) return 'audio'
+  if (/\bimage\b|\.avif\b|\.gif\b|\.jpe?g\b|\.png\b|\.svg\b|\.webp\b/.test(signature)) return 'image'
+  return 'video'
+}
+
+const canTimelineSegmentDriveMediaPreview = (
+  segment: SourceSegmentDraft,
+  source: VideoSequenceTimelineSource,
+): boolean => {
+  const lane = resolveVideoSequenceTimelineLane(segment.span)
+  const sourceKind = readVideoSequenceTimelineSourceKind(source)
+  if (lane === 'audio') return sourceKind === 'audio'
+  if (lane === 'image' || lane === 'scene') return sourceKind === 'image'
+  return lane === 'video' && sourceKind === 'video'
 }
 
 export function areVideoSequenceExportSourcesEqual(
@@ -162,7 +186,9 @@ const buildSourceSegmentsForLane = (
 function buildVideoSequencePlanFromSegments(args: {
   durationMinutes: number
   filenameHint?: string | null
+  includeSpanRowKeys?: ReadonlySet<string>
   maskSegments: Set<string>
+  mediaPreviewOnly?: boolean
   gradeSegments: Set<string>
   sourceRangeMode?: 'sequence' | 'timeline'
   segments: readonly SourceSegmentDraft[]
@@ -181,7 +207,13 @@ function buildVideoSequencePlanFromSegments(args: {
     .map((segment): SourceSegmentRange => {
       const duration = Math.max(0, segment.span.durationMinutes)
       if (segment.sourceRangeMinutes) {
-        const durationMinutes = Math.max(0.0001, args.durationMinutes, segment.sourceRangeMinutes.endMinutes)
+        const source = findSourceForKey(args.sources, segment.sourceKey)
+        const durationMinutes = Math.max(
+          0.0001,
+          source?.durationSeconds || 0,
+          args.durationMinutes,
+          segment.sourceRangeMinutes.endMinutes,
+        )
         return {
           ...segment,
           sourceEndRatio: clamp(segment.sourceRangeMinutes.endMinutes / durationMinutes, 0, 1),
@@ -208,8 +240,10 @@ function buildVideoSequencePlanFromSegments(args: {
   const segments = sourceRanges
     .sort((a, b) => a.span.startMinutes - b.span.startMinutes || a.span.lineIndex - b.span.lineIndex)
     .flatMap(segment => {
+      if (args.includeSpanRowKeys?.size && !args.includeSpanRowKeys.has(segment.span.rowKey)) return []
       const source = findSourceForKey(args.sources, segment.sourceKey)
       if (!source) return []
+      if (args.mediaPreviewOnly && !canTimelineSegmentDriveMediaPreview(segment, source)) return []
       const duration = Math.max(0, segment.span.durationMinutes)
       return [{
         durationMinutes: duration,
@@ -217,6 +251,7 @@ function buildVideoSequencePlanFromSegments(args: {
         hasMask: args.maskSegments.has(segment.segmentKey),
         label: segment.span.label,
         source,
+        sourceLineIndex: segment.span.lineIndex,
         sourceEndRatio: segment.sourceEndRatio,
         sourceStartRatio: segment.sourceStartRatio,
         timelineEndMinutes: segment.span.endMinutes,
@@ -261,24 +296,50 @@ export function buildTimelinePreviewSyncPlan(args: {
 }): VideoSequenceExportPlan | null {
   const model = buildMermaidGanttTimelineModel(args.code)
   if (!model.taskSpans.length || !args.sources.length) return null
+  const selectedRowKey = clean(args.selectedRowKey)
   const selectedSpan = args.selectedRowKey
     ? model.taskSpans.find(span => span.rowKey === args.selectedRowKey)
     : null
+  if (selectedRowKey && !selectedSpan) return null
   const selectedLane = selectedSpan ? resolveVideoSequenceTimelineLane(selectedSpan) : 'video'
   const selectedLaneSegments = buildSourceSegmentsForLane(model.taskSpans, selectedLane)
+  const selectedSegmentCount = selectedSpan
+    ? selectedLaneSegments.filter(segment => segment.span.rowKey === selectedSpan.rowKey).length
+    : 0
   const segments = selectedLaneSegments.length ? selectedLaneSegments : buildSourceSegmentsForLane(model.taskSpans, 'video')
+  return buildVideoSequencePlanFromSegments({
+    durationMinutes: model.durationMinutes,
+    filenameHint: args.filenameHint,
+    includeSpanRowKeys: selectedSegmentCount ? new Set([selectedSpan?.rowKey || '']) : undefined,
+    gradeSegments: buildOperationSet(model.taskSpans, 'grade'),
+    maskSegments: buildOperationSet(model.taskSpans, 'mask'),
+    mediaPreviewOnly: !!selectedSpan,
+    sourceRangeMode: selectedSpan ? 'timeline' : 'sequence',
+    segments,
+    sources: args.sources,
+  })
+}
+
+export function buildTimelinePreviewThumbnailPlan(args: {
+  code: string
+  sources: readonly VideoSequenceTimelineSource[]
+  filenameHint?: string | null
+}): VideoSequenceExportPlan | null {
+  const model = buildMermaidGanttTimelineModel(args.code)
+  if (!model.taskSpans.length || !args.sources.length) return null
   return buildVideoSequencePlanFromSegments({
     durationMinutes: model.durationMinutes,
     filenameHint: args.filenameHint,
     gradeSegments: buildOperationSet(model.taskSpans, 'grade'),
     maskSegments: buildOperationSet(model.taskSpans, 'mask'),
     sourceRangeMode: 'timeline',
-    segments,
+    segments: buildSourceSegmentsForLane(model.taskSpans, 'video'),
     sources: args.sources,
   })
 }
 
 export function resolveTimelinePlanSourceTimeAtPosition(args: {
+  allowNearestSegment?: boolean
   plan: VideoSequenceExportPlan | null
   positionMinutes: number
   source: VideoSequenceTimelineSource
@@ -302,9 +363,11 @@ export function resolveTimelinePlanSourceTimeAtPosition(args: {
         || a.distance - b.distance
         || aExactStart - bExactStart
         || a.segment.timelineStartMinutes - b.segment.timelineStartMinutes
+        || b.segment.sourceLineIndex - a.segment.sourceLineIndex
     })
   const candidate = candidates[0]
   if (!candidate) return null
+  if (!args.allowNearestSegment && !candidate.contains) return null
   const { boundedPosition, segment } = candidate
   const timelineRatio = clamp(
     (boundedPosition - segment.timelineStartMinutes) / Math.max(segment.durationMinutes, 0.0001),
@@ -337,7 +400,8 @@ export function resolveTimelinePlanSegmentAtPosition(args: {
       Number(b.contains) - Number(a.contains)
       || a.distance - b.distance
       || a.exactStart - b.exactStart
-      || a.segment.timelineStartMinutes - b.segment.timelineStartMinutes,
+      || a.segment.timelineStartMinutes - b.segment.timelineStartMinutes
+      || b.segment.sourceLineIndex - a.segment.sourceLineIndex,
     )
   const candidate = candidates[0]
   if (!candidate) return null
@@ -372,12 +436,13 @@ export function resolveTimelinePlanPositionFromSourceTime(args: {
       const preferredDistance = typeof args.preferredPositionMinutes === 'number'
         ? Math.abs(positionMinutes - args.preferredPositionMinutes)
         : 0
-      return { contains, distance, positionMinutes, preferredDistance }
+      return { contains, distance, positionMinutes, preferredDistance, sourceLineIndex: segment.sourceLineIndex }
     })
     .sort((a, b) =>
       Number(b.contains) - Number(a.contains)
       || a.distance - b.distance
       || a.preferredDistance - b.preferredDistance
+      || b.sourceLineIndex - a.sourceLineIndex
       || a.positionMinutes - b.positionMinutes,
     )
   return candidates[0]?.positionMinutes ?? null

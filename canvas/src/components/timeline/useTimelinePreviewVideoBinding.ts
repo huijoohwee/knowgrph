@@ -1,5 +1,8 @@
 import React from 'react'
-import { useTimelineVideoPreviewSyncController } from './timelinePreviewSync'
+import {
+  resolveTimelineVideoPreviewTargetSeconds,
+  useTimelineVideoPreviewSyncController,
+} from './timelinePreviewSync'
 import { type VideoSequenceExportPlan } from './videoSequenceExport'
 import { mergeTimelineMediaReaderSummaryWithSource, useTimelineMediaReaderSummary } from './timelineMediaReader'
 import {
@@ -16,7 +19,7 @@ export function useTimelinePreviewVideoBinding(args: {
   mediaKey: string
   source?: VideoSequenceTimelineSource | null
 }) {
-  const videoElementRef = React.useRef<HTMLVideoElement | null>(null)
+  const videoElementRef = React.useRef<HTMLMediaElement | null>(null)
   const syncEnabled = !!(
     args.source
     && args.mediaKey
@@ -58,9 +61,26 @@ export function useTimelinePreviewVideoBinding(args: {
     transportDocumentKey,
     transportPosition,
   })
-  const handleVideoElement = React.useCallback((element: HTMLVideoElement | null) => {
+  const handleVideoElement = React.useCallback((element: HTMLMediaElement | null) => {
     videoElementRef.current = element
   }, [])
+  const playbackGap = React.useMemo(() => {
+    if (!syncEnabled || resolvedMediaReaderSummary.durationSeconds <= 0) return false
+    return resolveTimelineVideoPreviewTargetSeconds({
+      exportPlan: args.exportPlan,
+      maxPosition: args.maxPosition,
+      positionMinutes: playbackPosition,
+      source: args.source || null,
+      sourceDurationSeconds: resolvedMediaReaderSummary.durationSeconds,
+    }) == null
+  }, [
+    args.exportPlan,
+    args.maxPosition,
+    args.source,
+    playbackPosition,
+    resolvedMediaReaderSummary.durationSeconds,
+    syncEnabled,
+  ])
 
   useTimelineVideoPreviewSyncController({
     active: syncEnabled,
@@ -82,6 +102,7 @@ export function useTimelinePreviewVideoBinding(args: {
   return {
     handleVideoElement,
     mediaReaderSummary: resolvedMediaReaderSummary,
+    playbackGap,
     syncEnabled,
   }
 }

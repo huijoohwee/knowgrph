@@ -1,6 +1,8 @@
 import React from 'react'
 import {
   buildVideoSequenceExportPlan,
+  buildTimelinePreviewSyncPlan,
+  buildTimelinePreviewThumbnailPlan,
   resolveVideoSequenceExportPlanError,
   type VideoSequenceExportPlan,
 } from '@/components/timeline/videoSequenceExport'
@@ -12,6 +14,8 @@ export type GanttTimelineTransportPreviewSession = {
   exportPlan: VideoSequenceExportPlan | null
   exportPlanError: string
   monitorScopes: ReturnType<typeof useTimelinePreviewMonitorBinding>['monitorScopes']
+  previewPlan: VideoSequenceExportPlan | null
+  thumbnailPlan: VideoSequenceExportPlan | null
 }
 
 export function useGanttTimelineTransportPreviewSession(args: {
@@ -44,15 +48,36 @@ export function useGanttTimelineTransportPreviewSession(args: {
     }),
     [args.code, args.markdownDocumentName, videoSequenceModel?.sources],
   )
+  const previewPlan = React.useMemo(
+    () => buildTimelinePreviewSyncPlan({
+      code: args.code,
+      filenameHint: args.markdownDocumentName,
+      selectedRowKey: args.selectedRowKey,
+      sources: videoSequenceModel?.sources || [],
+    }),
+    [args.code, args.markdownDocumentName, args.selectedRowKey, videoSequenceModel?.sources],
+  )
+  const thumbnailPlan = React.useMemo(
+    () => buildTimelinePreviewThumbnailPlan({
+      code: args.code,
+      filenameHint: args.markdownDocumentName,
+      sources: videoSequenceModel?.sources || [],
+    }),
+    [args.code, args.markdownDocumentName, videoSequenceModel?.sources],
+  )
   const exportPlanError = React.useMemo(() => resolveVideoSequenceExportPlanError(exportPlan), [exportPlan])
 
   return React.useMemo(() => ({
     exportPlan,
     exportPlanError,
     monitorScopes: previewMonitorBinding.monitorScopes,
+    previewPlan,
+    thumbnailPlan,
   }), [
     exportPlan,
     exportPlanError,
     previewMonitorBinding.monitorScopes,
+    previewPlan,
+    thumbnailPlan,
   ])
 }

@@ -11,6 +11,7 @@ import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimeli
 import {
   buildVideoSequenceTimelineToolStatus,
   resolveVisibleVideoSequenceTimelineLaneCount,
+  type VideoSequenceTimelineLaneId,
 } from '@/components/timeline/videoSequenceTimeline'
 import {
   buildMermaidGanttTimelineModel,
@@ -40,6 +41,7 @@ export type GanttTimelineTransportSession = {
   playbackUnitsPerMs: number
   playing: boolean
   positionMinutes: number
+  previewPlan: VideoSequenceExportPlan | null
   selectedRowKey: string
   selectedSpan: MermaidGanttTimelineTaskSpan | null
   setSelectedRowKey: (rowKey: string) => void
@@ -47,6 +49,7 @@ export type GanttTimelineTransportSession = {
   setTransportPlaybackRate: (playbackRate: TimelineTransportPlaybackRate) => void
   setTransportPlaying: (playing: boolean) => void
   ticks: readonly MermaidGanttTimelineTick[]
+  thumbnailPlan: VideoSequenceExportPlan | null
   timelineModel: MermaidGanttTimelineModel
   toolStatus: ReturnType<typeof buildVideoSequenceTimelineToolStatus>
   totalLabel: string
@@ -55,6 +58,7 @@ export type GanttTimelineTransportSession = {
 
 export function useGanttTimelineTransportSession(args: {
   code: string
+  disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]
 }): GanttTimelineTransportSession {
   const { markdownDocumentName, markdownText } = useTimelineDocumentStoreBinding()
   const { selectedRowKey, setSelectedRowKey } = useTimelineGanttSelectionStoreBinding()
@@ -68,8 +72,8 @@ export function useGanttTimelineTransportSession(args: {
   const timelineModel = React.useMemo(() => buildMermaidGanttTimelineModel(args.code), [args.code])
   const ticks = React.useMemo(() => buildMermaidGanttTimelineTicks(timelineModel), [timelineModel])
   const visibleLaneCount = React.useMemo(
-    () => resolveVisibleVideoSequenceTimelineLaneCount(timelineModel.taskSpans),
-    [timelineModel.taskSpans],
+    () => resolveVisibleVideoSequenceTimelineLaneCount(timelineModel.taskSpans, { disabledLaneIds: args.disabledLaneIds }),
+    [args.disabledLaneIds, timelineModel.taskSpans],
   )
   const maxMinutes = Math.max(0, timelineModel.durationMinutes)
   const disabled = !args.code || maxMinutes <= 0
@@ -109,6 +113,8 @@ export function useGanttTimelineTransportSession(args: {
   })
   const exportPlan = previewSession.exportPlan
   const exportPlanError = previewSession.exportPlanError
+  const previewPlan = previewSession.previewPlan
+  const thumbnailPlan = previewSession.thumbnailPlan
   const mediaDurationSeconds = useGanttTimelineMediaDuration(exportPlan)
   const {
     currentLabel,
@@ -120,6 +126,7 @@ export function useGanttTimelineTransportSession(args: {
     maxMinutes,
     mediaDurationSeconds,
     positionMinutes,
+    previewPlan,
     ticks,
   })
 
@@ -140,6 +147,7 @@ export function useGanttTimelineTransportSession(args: {
     playbackUnitsPerMs,
     playing,
     positionMinutes,
+    previewPlan,
     selectedRowKey,
     selectedSpan,
     setSelectedRowKey,
@@ -147,6 +155,7 @@ export function useGanttTimelineTransportSession(args: {
     setTransportPlaybackRate,
     setTransportPlaying,
     ticks,
+    thumbnailPlan,
     timelineModel,
     toolStatus,
     totalLabel,

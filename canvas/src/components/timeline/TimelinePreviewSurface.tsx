@@ -37,12 +37,12 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
     () => args.item.panel || buildStaticRichMediaPanelOverlayState({ renderKind: args.item.kind }),
     [args.item.kind, args.item.panel],
   )
-  const { handleVideoElement, mediaReaderSummary, syncEnabled } = useTimelinePreviewVideoBinding({
+  const { handleVideoElement, mediaReaderSummary, playbackGap, syncEnabled } = useTimelinePreviewVideoBinding({
     documentKey: args.documentKey,
     exportPlan: args.exportPlan,
     maxPosition: args.sequenceMaxMinutes,
     mediaKey: args.item.src,
-    source: args.item.source === 'video-sequence' && args.item.kind === 'video'
+    source: args.item.source === 'video-sequence' && (args.item.kind === 'video' || args.item.kind === 'audio')
       ? args.item.videoSequenceSource || null
       : null,
   })
@@ -82,6 +82,7 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
       data-kg-media-canvas-source={args.item.source}
       data-kg-media-canvas-rich-media-panel="1"
       data-kg-video-sequence-media-sync={syncEnabled ? '1' : undefined}
+      data-kg-video-sequence-playback-gap={playbackGap ? 'empty' : undefined}
       data-kg-video-sequence-media-reader={syncEnabled ? mediaReaderSummary.status : undefined}
       data-kg-video-sequence-media-reader-audio-tracks={syncEnabled ? mediaReaderSummary.audioTrackCount : undefined}
       data-kg-video-sequence-media-reader-audio-channels={syncEnabled && mediaReaderSummary.audioChannelCount > 0 ? mediaReaderSummary.audioChannelCount : undefined}
@@ -117,12 +118,25 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
         interactive
         videoControls={syncEnabled ? false : undefined}
         videoPoster={videoPoster}
+        onMediaElement={args.item.kind === 'video' || args.item.kind === 'audio' ? handleVideoElement : undefined}
         onVideoElement={args.item.kind === 'video' ? handleVideoElement : undefined}
         panelChrome="flowEditor"
         scrollOwner="media"
         panel={panelState}
-        style={{ height: '100%' }}
+        style={{ height: '100%', visibility: playbackGap ? 'hidden' : undefined }}
       />
+      {playbackGap ? (
+        <section
+          aria-hidden="true"
+          className="absolute inset-0"
+          data-kg-video-sequence-empty-playback-surface="1"
+          style={{
+            background: 'rgb(2, 6, 23)',
+            borderRadius: 'inherit',
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
     </article>
   )
 }

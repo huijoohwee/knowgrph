@@ -329,7 +329,7 @@ function shouldWriteVideoSequenceSourceRange(args: {
 function normalizeVideoSequenceClipGroupId(value: string): string {
   return String(value || '')
     .trim()
-    .replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=_splice$|$)/gi, '')
+    .replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=(?:_splice)*$|$)/gi, '')
 }
 
 function resolveVideoSequenceClipGroupKey(line: string): string {

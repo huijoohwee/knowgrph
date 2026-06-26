@@ -87,7 +87,8 @@ const EMPTY_TIMELINE_MEDIA_READER_SUMMARY: TimelineMediaReaderSummary = {
 
 const TIMELINE_MEDIA_READER_CACHE = new Map<string, Promise<TimelineMediaReaderSummary>>()
 const NATIVE_MEDIA_METADATA_TIMEOUT_MS = 3000
-const NATIVE_MEDIA_THUMBNAIL_COUNT = 9
+const NATIVE_MEDIA_THUMBNAIL_MIN_COUNT = 9
+const NATIVE_MEDIA_THUMBNAIL_MAX_COUNT = 24
 const NATIVE_MEDIA_THUMBNAIL_HEIGHT = 90
 const NATIVE_MEDIA_THUMBNAIL_MAX_WIDTH = 160
 const NATIVE_MEDIA_THUMBNAIL_TIMEOUT_MS = 4500
@@ -168,6 +169,14 @@ const resolveThumbnailTimestamps = (durationSeconds: number, count: number): num
   })
 }
 
+const resolveNativeMediaThumbnailCount = (durationSeconds: number): number => {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return NATIVE_MEDIA_THUMBNAIL_MIN_COUNT
+  return Math.min(
+    NATIVE_MEDIA_THUMBNAIL_MAX_COUNT,
+    Math.max(NATIVE_MEDIA_THUMBNAIL_MIN_COUNT, Math.ceil(durationSeconds)),
+  )
+}
+
 const readCanvasRasterThumbnail = (canvas: HTMLCanvasElement): {
   dataUrl: string
   format: Exclude<PreferredMediaImageFormat, 'svg'>
@@ -235,7 +244,7 @@ async function loadNativeVideoThumbnails(args: {
     const metadataReady = await metadataReadyPromise
     if (!metadataReady) return []
     const thumbnails: TimelineMediaReaderThumbnail[] = []
-    for (const timestampSeconds of resolveThumbnailTimestamps(args.durationSeconds, NATIVE_MEDIA_THUMBNAIL_COUNT)) {
+    for (const timestampSeconds of resolveThumbnailTimestamps(args.durationSeconds, resolveNativeMediaThumbnailCount(args.durationSeconds))) {
       const seekReadyPromise = waitForMediaEvent(video, 'seeked', NATIVE_MEDIA_THUMBNAIL_TIMEOUT_MS)
       video.currentTime = timestampSeconds
       const seekReady = await seekReadyPromise

@@ -16,6 +16,12 @@ import {
   type GanttTimelineTransportShellModel,
 } from './useGanttTimelineTransportShellModel'
 import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
+import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
+import {
+  VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  formatVideoSequenceTimelineSecondsOffset,
+} from '@/components/timeline/videoSequenceTimeline'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type GanttTimelineTransportSurfaceModel = {
   chromeModel: GanttTimelineTransportChromeModel
@@ -28,29 +34,68 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   compact: boolean
 }): GanttTimelineTransportSurfaceModel {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
+  const videoSequenceTimelineLaneVisibility = useGraphStore(state => state.videoSequenceTimelineLaneVisibility)
+  const disabledLaneIds = React.useMemo(() => (
+    VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS.filter(laneId => videoSequenceTimelineLaneVisibility?.[laneId] !== true)
+  ), [videoSequenceTimelineLaneVisibility])
   const transportSession = useGanttTimelineTransportSession({
     code: args.code,
+    disabledLaneIds,
   })
-  const mediaThumbnailSourceUrl = React.useMemo(() => {
-    const source = transportSession.exportPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source || null
+  const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan
+  const mediaPreviewSourceUrl = React.useMemo(() => {
+    if (selectedPreviewEmpty) return ''
+    const source = transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || transportSession.thumbnailPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || transportSession.exportPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || null
     return source ? resolveTimelinePlanSourceUrl(source) : ''
-  }, [transportSession.exportPlan])
-  const mediaThumbnailSummary = useTimelineMediaReaderSummary({
-    active: !!mediaThumbnailSourceUrl,
-    url: mediaThumbnailSourceUrl,
+  }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const thumbnailSourceUrl = React.useMemo(() => {
+    const source = transportSession.thumbnailPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || transportSession.exportPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
+      || null
+    return source ? resolveTimelinePlanSourceUrl(source) : ''
+  }, [transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const mediaPreviewSummary = useTimelineMediaReaderSummary({
+    active: !!mediaPreviewSourceUrl,
+    url: mediaPreviewSourceUrl,
+  })
+  const thumbnailSummary = useTimelineMediaReaderSummary({
+    active: !!thumbnailSourceUrl,
+    url: thumbnailSourceUrl,
   })
   const sourceThumbnailWindows = React.useMemo<VideoSequenceTimelineThumbnailWindow[]>(() => {
-    const durationSeconds = mediaThumbnailSummary.durationSeconds
-    if (!transportSession.exportPlan?.segments.length || !mediaThumbnailSourceUrl || durationSeconds <= 0) return []
-    return transportSession.exportPlan.segments
-      .filter(segment => resolveTimelinePlanSourceUrl(segment.source) === mediaThumbnailSourceUrl)
+    const durationSeconds = thumbnailSummary.durationSeconds
+    const thumbnailPlan = transportSession.thumbnailPlan || transportSession.exportPlan
+    if (!thumbnailPlan?.segments.length || !thumbnailSourceUrl || durationSeconds <= 0) return []
+    return thumbnailPlan.segments
+      .filter(segment => resolveTimelinePlanSourceUrl(segment.source) === thumbnailSourceUrl)
       .map(segment => ({
         sourceEndSeconds: segment.sourceEndRatio * durationSeconds,
         sourceStartSeconds: segment.sourceStartRatio * durationSeconds,
         timelineEndMinutes: segment.timelineEndMinutes,
         timelineStartMinutes: segment.timelineStartMinutes,
       }))
-  }, [mediaThumbnailSourceUrl, mediaThumbnailSummary.durationSeconds, transportSession.exportPlan])
+  }, [thumbnailSourceUrl, thumbnailSummary.durationSeconds, transportSession.exportPlan, transportSession.thumbnailPlan])
+  const sourceBackedDisplayModel = useGanttTimelineDisplayModel({
+    maxMinutes: transportSession.maxMinutes,
+    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
+    positionMinutes: transportSession.positionMinutes,
+    previewPlan: selectedPreviewEmpty ? null : transportSession.previewPlan,
+    sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds,
+    ticks: transportSession.ticks,
+  })
+  const emptySelectionCurrentLabel = selectedPreviewEmpty && transportSession.selectedSpan
+    ? formatVideoSequenceTimelineSecondsOffset(Math.max(0, Math.min(
+      transportSession.selectedSpan.durationMinutes,
+      transportSession.positionMinutes - transportSession.selectedSpan.startMinutes,
+    )))
+    : sourceBackedDisplayModel.currentLabel
+  const emptySelectionTotalLabel = selectedPreviewEmpty && transportSession.selectedSpan
+    ? formatVideoSequenceTimelineSecondsOffset(transportSession.selectedSpan.durationMinutes)
+    : sourceBackedDisplayModel.totalLabel
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
     exportPlan: transportSession.exportPlan,
@@ -87,7 +132,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     handleZoomIn: transportInteractionModel.handleZoomIn,
     handleZoomOut: transportInteractionModel.handleZoomOut,
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: transportSession.mediaDurationSeconds,
+    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
     playheadMinutes: transportSession.positionMinutes,
     selectedSpan: transportSession.selectedSpan,
     toolStatus: transportSession.toolStatus,
@@ -96,22 +141,27 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   const rulerModel = useGanttTimelineTransportRulerModel({
     compact: args.compact,
     contentRef: rulerContentRef,
-    displayTicks: transportSession.displayTicks,
+    displayTicks: sourceBackedDisplayModel.displayTicks,
+    disabledLaneIds,
     dragPreview: transportInteractionModel.dragPreview,
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
     onSelectRowKey: transportSession.setSelectedRowKey,
+    onSelectRowPosition: (rowKey, positionMinutes) => {
+      transportSession.setTransportPlaybackPosition(positionMinutes)
+      transportSession.setSelectedRowKey(rowKey)
+    },
     onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
     playheadPercent: transportInteractionModel.playheadPercent,
     positionMinutes: transportSession.positionMinutes,
     scopes: transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
-    sourceThumbnails: mediaThumbnailSummary.thumbnails,
+    sourceThumbnails: thumbnailSummary.thumbnails,
     sourceThumbnailWindows,
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
-    totalLabel: transportSession.totalLabel,
+    totalLabel: emptySelectionTotalLabel,
     visibleLaneCount: transportSession.visibleLaneCount,
   })
   const transportPlaybackModel = useGanttTimelineTransportPlaybackModel({
@@ -126,18 +176,19 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     setTransportPlaying: transportSession.setTransportPlaying,
   })
   const shellModel = useGanttTimelineTransportShellModel({
-    currentLabel: transportSession.currentLabel,
+    currentLabel: emptySelectionCurrentLabel,
     disabled: transportSession.disabled,
-    hasMediaDurationScale: transportSession.hasMediaDurationScale,
+    hasMediaDurationScale: selectedPreviewEmpty ? false : transportSession.hasMediaDurationScale,
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: transportSession.mediaDurationSeconds,
-    mediaReaderSummary: mediaThumbnailSummary,
+    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
+    mediaReaderSummary: mediaPreviewSummary,
     onPlaybackPointerDown: transportPlaybackModel.handlePlaybackPointerDown,
     onPlaybackRateChange: transportSession.setTransportPlaybackRate,
     onTogglePlayback: transportPlaybackModel.handleTogglePlayback,
     onValueChange: transportInteractionModel.handlePositionChange,
     playbackRate: transportSession.playbackRate,
     playing: transportSession.playing,
+    timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed',
   })
 
   return {

@@ -5,7 +5,7 @@ import { type VideoSequenceTimelineSource } from './videoSequenceTimeline'
 import { type TimelinePreviewCollection } from './useTimelinePreviewCollection'
 import { type TimelinePreviewSurfaceFamily, type TimelinePreviewSurfaceModel } from './useTimelinePreviewSurfaceModel'
 
-export type TimelineSourceActivityMode = 'selection' | 'playhead' | 'fallback'
+export type TimelineSourceActivityMode = 'selection' | 'playhead' | 'fallback' | 'empty'
 
 export type TimelinePreviewFamilyActivity = {
   active: boolean
@@ -37,8 +37,12 @@ function resolveTimelinePreviewFamilyForSource(args: {
   ) || null
 }
 
-function resolveTimelineSourceActivityPlan(collection: TimelinePreviewCollection): VideoSequenceExportPlan | null {
-  return collection.exportPlan || collection.previewPlan || null
+function resolveTimelineSourceActivityPlan(args: {
+  collection: TimelinePreviewCollection
+  selectionActive: boolean
+}): VideoSequenceExportPlan | null {
+  if (args.selectionActive) return args.collection.previewPlan || null
+  return args.collection.previewPlan || args.collection.exportPlan || null
 }
 
 export function useTimelineSourceActivityModel(args: {
@@ -49,9 +53,19 @@ export function useTimelineSourceActivityModel(args: {
 }): TimelineSourceActivityModel {
   return React.useMemo(() => {
     const selectionActive = typeof args.selectedRowKey === 'string' && args.selectedRowKey.trim().length > 0
-    const selectedSegment = args.collection.previewPlan?.segments[0] || null
+    const activityPlan = resolveTimelineSourceActivityPlan({
+      collection: args.collection,
+      selectionActive,
+    })
+    const selectedSegmentResolution = selectionActive
+      ? resolveTimelinePlanSegmentAtPosition({
+        plan: args.collection.previewPlan,
+        positionMinutes: args.positionMinutes,
+      })
+      : null
+    const selectedSegment = selectedSegmentResolution?.contains ? selectedSegmentResolution.segment : null
     const playheadSegment = resolveTimelinePlanSegmentAtPosition({
-      plan: resolveTimelineSourceActivityPlan(args.collection),
+      plan: activityPlan,
       positionMinutes: args.positionMinutes,
     })?.segment || null
     const selectedFamily = resolveTimelinePreviewFamilyForSource({
@@ -62,14 +76,16 @@ export function useTimelineSourceActivityModel(args: {
       source: playheadSegment?.source || null,
       surfaceModel: args.surfaceModel,
     })
-    const activeFamily = selectedFamily || playheadFamily || args.surfaceModel.groups[0] || null
+    const activeFamily = selectedFamily || playheadFamily || (selectionActive ? null : args.surfaceModel.groups[0] || null)
     const activeSegment = selectedSegment || playheadSegment || null
-    const activeSource = activeSegment?.source || activeFamily?.primaryItem.videoSequenceSource || null
+    const activeSource = activeSegment?.source || (selectionActive ? null : activeFamily?.primaryItem.videoSequenceSource || null)
     const activityMode: TimelineSourceActivityMode = selectedFamily
       ? 'selection'
       : playheadFamily
         ? 'playhead'
-        : 'fallback'
+        : selectionActive
+          ? 'empty'
+          : 'fallback'
     return {
       activeFamily,
       activeFamilyId: activeFamily?.familyId || '',

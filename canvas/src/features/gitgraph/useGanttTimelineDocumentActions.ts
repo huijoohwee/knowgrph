@@ -20,7 +20,11 @@ import {
   useTimelineDocumentMutationStoreBinding,
   useTimelineDocumentSnapshotReader,
 } from '@/components/timeline/timelineSurfaceBindings'
-import { VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS, type VideoSequenceTimelineToolId } from '@/components/timeline/videoSequenceTimeline'
+import {
+  VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS,
+  resolveVideoSequenceTimelineLane,
+  type VideoSequenceTimelineToolId,
+} from '@/components/timeline/videoSequenceTimeline'
 import {
   insertMermaidGanttVideoSequenceOperationRow,
   replaceFirstMermaidGanttFrontmatterCode,
@@ -34,6 +38,16 @@ import {
 import type { GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
 
 const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
+const SOURCE_BACKED_VIDEO_LANES = new Set(['video', 'image', 'scene'])
+
+function resolveDirectEditTimingSyncMode(args: {
+  span: MermaidGanttTimelineTaskSpan
+  timingSyncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): MermaidGanttVideoSequenceTimingSyncMode {
+  return SOURCE_BACKED_VIDEO_LANES.has(resolveVideoSequenceTimelineLane(args.span))
+    ? args.timingSyncMode
+    : 'selected'
+}
 
 export function useGanttTimelineDocumentActions(args: {
   code: string
@@ -89,7 +103,7 @@ export function useGanttTimelineDocumentActions(args: {
           code: args.code,
           rowLineIndex: args.selectedSpan.lineIndex,
           splitOffsetMinutes: args.positionMinutes - args.selectedSpan.startMinutes,
-          syncMode: timingSyncMode,
+          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
         }),
         args.selectedSpan.lineIndex,
       )
@@ -102,7 +116,7 @@ export function useGanttTimelineDocumentActions(args: {
           rowLineIndex: args.selectedSpan.lineIndex,
           mode: 'move',
           deltaMinutes: Math.round(args.positionMinutes - args.selectedSpan.startMinutes),
-          syncMode: timingSyncMode,
+          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
         }),
         args.selectedSpan.lineIndex,
       )
@@ -127,7 +141,7 @@ export function useGanttTimelineDocumentActions(args: {
           code: args.code,
           rowLineIndex: args.selectedSpan.lineIndex,
           splitOffsetMinutes: args.positionMinutes - args.selectedSpan.startMinutes,
-          syncMode: timingSyncMode,
+          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
         }),
         args.selectedSpan.lineIndex,
       )
@@ -162,7 +176,7 @@ export function useGanttTimelineDocumentActions(args: {
         rowLineIndex: args.selectedSpan.lineIndex,
         mode,
         deltaMinutes,
-        syncMode: timingSyncMode,
+        syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
       }),
       args.selectedSpan.lineIndex,
     )
@@ -384,7 +398,7 @@ export function useGanttTimelineDocumentActions(args: {
       rowLineIndex: input.dragState.span.lineIndex,
       mode: input.dragState.mode,
       deltaMinutes: input.effectiveDeltaMinutes,
-      syncMode: timingSyncMode,
+      syncMode: resolveDirectEditTimingSyncMode({ span: input.dragState.span, timingSyncMode }),
     })
     const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(input.dragState.markdownText, nextCode)
     if (!nextMarkdownText || nextMarkdownText === input.dragState.markdownText) return

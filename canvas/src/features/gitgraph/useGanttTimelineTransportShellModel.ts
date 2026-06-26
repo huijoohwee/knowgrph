@@ -33,6 +33,7 @@ export function useGanttTimelineTransportShellModel(args: {
   mediaReaderSummary: TimelineMediaReaderSummary
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
+  timelineMode: 'empty' | 'source-backed'
   onPlaybackPointerDown?: () => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
@@ -66,7 +67,7 @@ export function useGanttTimelineTransportShellModel(args: {
       'data-kg-video-sequence-media-reader-primary-audio-codec': args.mediaReaderSummary.primaryAudioCodec || undefined,
       'data-kg-video-sequence-media-reader-primary-video-codec': args.mediaReaderSummary.primaryVideoCodec || undefined,
       'data-kg-video-sequence-media-reader-read-ratio': args.mediaReaderSummary.metadataReadRatio > 0 ? args.mediaReaderSummary.metadataReadRatio : undefined,
-      'data-kg-video-sequence-timeline': 'source-backed',
+      'data-kg-video-sequence-timeline': args.timelineMode,
     } as React.HTMLAttributes<HTMLElement>,
     shellClassName: 'timeline-transport-shell--video-sequence',
     showInlineProgress: false,
@@ -85,5 +86,6 @@ export function useGanttTimelineTransportShellModel(args: {
     args.onValueChange,
     args.playbackRate,
     args.playing,
+    args.timelineMode,
   ])
 }

@@ -18,12 +18,38 @@ const TARGET_EPSILON_SECONDS = 0.25
 
 const clean = (value: unknown): string => String(value || '').trim()
 
-const markVideoPlaybackFallback = (video: HTMLVideoElement) => {
+const markVideoPlaybackFallback = (video: HTMLMediaElement) => {
   video.setAttribute('data-kg-video-sequence-playback-fallback', 'seek')
 }
 
-const clearVideoPlaybackFallback = (video: HTMLVideoElement) => {
+const clearVideoPlaybackFallback = (video: HTMLMediaElement) => {
   video.removeAttribute('data-kg-video-sequence-playback-fallback')
+}
+
+const markVideoPlaybackGap = (video: HTMLMediaElement) => {
+  if (!video.hasAttribute('data-kg-video-sequence-playback-gap-previous-opacity')) {
+    video.setAttribute('data-kg-video-sequence-playback-gap-previous-opacity', video.style.opacity || '')
+  }
+  video.setAttribute('data-kg-video-sequence-playback-gap', 'empty')
+  video.style.opacity = '0'
+}
+
+const clearVideoPlaybackGap = (video: HTMLMediaElement) => {
+  const previousOpacity = video.getAttribute('data-kg-video-sequence-playback-gap-previous-opacity')
+  video.removeAttribute('data-kg-video-sequence-playback-gap')
+  video.removeAttribute('data-kg-video-sequence-playback-gap-previous-opacity')
+  video.style.opacity = previousOpacity || ''
+}
+
+const enableVideoSequenceAudioPlayback = (video: HTMLMediaElement) => {
+  video.muted = false
+  video.defaultMuted = false
+  if (video.volume <= 0) video.volume = 1
+  video.setAttribute('data-kg-video-sequence-audio-playback', 'audible')
+}
+
+const isVideoPlaybackGap = (video: HTMLMediaElement): boolean => {
+  return video.getAttribute('data-kg-video-sequence-playback-gap') === 'empty'
 }
 
 export function resolveTimelineVideoPreviewDurationSeconds(args: {
@@ -44,6 +70,7 @@ export function resolveTimelineVideoPreviewTargetSeconds(args: {
   sourceDurationSeconds: number
 }): number | null {
   if (!Number.isFinite(args.sourceDurationSeconds) || args.sourceDurationSeconds <= 0) return null
+  const hasSourceBackedPlan = Boolean(args.source && args.exportPlan?.segments.length)
   const resolvedSourceTime = args.source
     ? resolveTimelinePlanSourceTimeAtPosition({
       plan: args.exportPlan,
@@ -52,7 +79,9 @@ export function resolveTimelineVideoPreviewTargetSeconds(args: {
       sourceDurationSeconds: args.sourceDurationSeconds,
     })
     : null
-  return resolvedSourceTime?.sourceTimeSeconds ?? resolveVideoSequenceTimelineMediaSeconds({
+  if (resolvedSourceTime) return resolvedSourceTime.sourceTimeSeconds
+  if (hasSourceBackedPlan) return null
+  return resolveVideoSequenceTimelineMediaSeconds({
     durationSeconds: args.sourceDurationSeconds,
     maxMinutes: args.maxPosition,
     positionMinutes: args.positionMinutes,
@@ -95,7 +124,7 @@ export function useTimelineVideoPreviewSyncController(args: {
   playing: boolean
   readerDurationSeconds?: number
   readTransportSnapshot: TimelineTransportSnapshotReader
-  readVideo: () => HTMLVideoElement | null
+  readVideo: () => HTMLMediaElement | null
   setTransportPlaybackPosition: (nextPosition: number) => void
   setTransportPlaying: (nextPlaying: boolean) => void
   source?: VideoSequenceTimelineSource | null
@@ -106,7 +135,7 @@ export function useTimelineVideoPreviewSyncController(args: {
     playbackFallbackRef.current = false
   }, [args.documentKey, args.mediaKey])
 
-  const resolveTargetSeconds = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): number | null => {
+  const resolveTargetSeconds = React.useCallback((video: HTMLMediaElement, nextPositionMinutes: number): number | null => {
     const sourceDurationSeconds = resolveTimelineVideoPreviewDurationSeconds({
       nativeDurationSeconds: video.duration,
       readerDurationSeconds: args.readerDurationSeconds,
@@ -120,16 +149,22 @@ export function useTimelineVideoPreviewSyncController(args: {
     })
   }, [args.exportPlan, args.maxPosition, args.readerDurationSeconds, args.source])
 
-  const applyVideoTime = React.useCallback((video: HTMLVideoElement, nextPositionMinutes: number): void => {
+  const applyVideoTime = React.useCallback((video: HTMLMediaElement, nextPositionMinutes: number): void => {
     const targetSeconds = resolveTargetSeconds(video, nextPositionMinutes)
-    if (targetSeconds == null) return
+    if (targetSeconds == null) {
+      markVideoPlaybackGap(video)
+      if (!video.paused) video.pause()
+      return
+    }
+    clearVideoPlaybackGap(video)
     if (Math.abs((video.currentTime || 0) - targetSeconds) > TARGET_EPSILON_SECONDS) {
       video.currentTime = targetSeconds
     }
   }, [resolveTargetSeconds])
 
-  const requestNativePlayback = React.useCallback((video: HTMLVideoElement): void => {
+  const requestNativePlayback = React.useCallback((video: HTMLMediaElement): void => {
     if (!video.paused || playbackFallbackRef.current) return
+    enableVideoSequenceAudioPlayback(video)
     const play = typeof video.play === 'function' ? video.play.bind(video) : null
     if (!play) {
       playbackFallbackRef.current = true
@@ -160,6 +195,7 @@ export function useTimelineVideoPreviewSyncController(args: {
         applyVideoTime(video, args.readTransportSnapshot().position)
       }
       const writeTransportPosition = () => {
+        if (isVideoPlaybackGap(video)) return
         const current = args.readTransportSnapshot()
         const sourceDurationSeconds = resolveTimelineVideoPreviewDurationSeconds({
           nativeDurationSeconds: video.duration,
@@ -182,6 +218,7 @@ export function useTimelineVideoPreviewSyncController(args: {
         }
       }
       const writePlaying = () => {
+        if (isVideoPlaybackGap(video)) return
         if (video.paused || video.ended) writeTransportPosition()
         args.setTransportPlaying(!video.paused && !video.ended)
       }
@@ -234,7 +271,8 @@ export function useTimelineVideoPreviewSyncController(args: {
       if (detail.playing) {
         playbackFallbackRef.current = false
         clearVideoPlaybackFallback(video)
-        requestNativePlayback(video)
+        enableVideoSequenceAudioPlayback(video)
+        if (!isVideoPlaybackGap(video)) requestNativePlayback(video)
       } else if (!video.paused) {
         playbackFallbackRef.current = false
         clearVideoPlaybackFallback(video)
@@ -253,9 +291,10 @@ export function useTimelineVideoPreviewSyncController(args: {
     if (!video) return
     applyVideoTime(video, args.playbackPosition)
     if (video.playbackRate !== args.playbackRate) video.playbackRate = args.playbackRate
-    if (args.playing && video.paused) {
-      requestNativePlayback(video)
-    } else if (!args.playing && !video.paused) {
+    if (args.playing) {
+      enableVideoSequenceAudioPlayback(video)
+      if (video.paused && !isVideoPlaybackGap(video)) requestNativePlayback(video)
+    } else if (!video.paused) {
       playbackFallbackRef.current = false
       clearVideoPlaybackFallback(video)
       video.pause()

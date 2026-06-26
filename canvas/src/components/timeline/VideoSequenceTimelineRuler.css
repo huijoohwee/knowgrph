@@ -14,7 +14,14 @@
 }
 
 .timeline-transport-track-clip--lane-adjustment,
+.timeline-transport-track-clip--lane-detached,
+.timeline-transport-track-clip--lane-fbf,
 .timeline-transport-track-clip--lane-keyframe,
+.timeline-transport-track-clip--lane-morph,
+.timeline-transport-track-clip--lane-nested,
+.timeline-transport-track-clip--lane-modifier,
+.timeline-transport-track-clip--lane-record,
+.timeline-transport-track-clip--lane-text,
 .timeline-transport-track-clip--lane-transition {
   border-color: rgb(190 24 93 / 0.88);
   background: rgb(236 72 153 / 0.86);
@@ -34,8 +41,16 @@
 
 .timeline-video-sequence-editor[data-kg-animation-engine="native"] {
   --kg-motion-eased: 0;
+  --kg-motion-frame-duration: 83ms;
+  --kg-motion-frame-rate: 12;
+  --kg-motion-fbf-frame-rate: 12;
   --kg-motion-opacity: 1;
+  --kg-motion-radius: 4px;
+  --kg-motion-rotation: 0deg;
   --kg-motion-scale: 1;
+  --kg-motion-shadow-alpha: 0.14;
+  --kg-motion-timeline-frame-duration: 42ms;
+  --kg-motion-timeline-frame-rate: 24;
   --kg-motion-translate-x: 0px;
 }
 
@@ -103,7 +118,7 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.36),
     0 0 0 2px rgb(37 99 235 / 0.48),
-    0 3px 8px rgb(15 23 42 / 0.22);
+    0 3px 8px rgb(15 23 42 / var(--kg-motion-shadow-alpha, 0.22));
   transform: translateX(var(--kg-motion-translate-x, 0px)) scale(var(--kg-motion-scale, 1));
   transition:
     box-shadow 140ms ease-out,
@@ -218,7 +233,11 @@
 
 .timeline-video-sequence-clip-frame-strip,
 .timeline-video-sequence-clip-cues,
-.timeline-video-sequence-audio-waveform {
+.timeline-video-sequence-audio-waveform,
+.timeline-video-sequence-keyframe-strip,
+.timeline-video-sequence-morph-strip,
+.timeline-video-sequence-nested-strip,
+.timeline-video-sequence-text-strip {
   position: absolute;
   z-index: 0;
   display: flex;
@@ -240,6 +259,14 @@
   pointer-events: auto;
 }
 
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-mask .timeline-video-sequence-clip-thumbnail-strip,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-grade .timeline-video-sequence-clip-thumbnail-strip,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-audio .timeline-video-sequence-clip-thumbnail-strip {
+  z-index: 1;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .timeline-video-sequence-clip-thumbnail {
   position: relative;
   min-width: 24px;
@@ -256,6 +283,12 @@
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
+}
+
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-mask .timeline-video-sequence-clip-thumbnail,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-grade .timeline-video-sequence-clip-thumbnail,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-audio .timeline-video-sequence-clip-thumbnail {
+  pointer-events: none;
 }
 
 .timeline-video-sequence-clip-thumbnail img {
@@ -428,11 +461,96 @@
   box-shadow: 0 0 0 1px rgb(8 145 178 / 0.08);
 }
 
+.timeline-video-sequence-keyframe-strip {
+  inset: 0 10px;
+  z-index: 3;
+}
+
+.timeline-video-sequence-keyframe {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgb(255 255 255 / 0.86);
+  border-radius: 2px;
+  background: rgb(251 191 36 / 0.96);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.26);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.timeline-video-sequence-morph-strip {
+  inset: 6px 12px;
+  gap: 4px;
+  align-items: center;
+}
+
+.timeline-video-sequence-morph-node {
+  display: block;
+  min-width: 10px;
+  height: 12px;
+  flex: 1 1 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at var(--kg-video-sequence-morph-node, 50%) 50%, rgb(255 255 255 / 0.72), transparent 42%),
+    linear-gradient(90deg, rgb(14 165 233 / 0.62), rgb(236 72 153 / 0.58));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
+}
+
+.timeline-video-sequence-text-strip {
+  inset: 6px 12px;
+  gap: 3px;
+  align-items: center;
+}
+
+.timeline-video-sequence-text-range {
+  display: block;
+  min-width: 12px;
+  height: 10px;
+  flex: 1 1 0;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 0.82) var(--kg-video-sequence-text-range, 50%), rgb(255 255 255 / 0.22) 0),
+    rgb(15 23 42 / 0.2);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+}
+
+.timeline-video-sequence-nested-strip {
+  inset: 5px 13px;
+  gap: 3px;
+  align-items: center;
+}
+
+.timeline-video-sequence-nested-frame {
+  display: block;
+  min-width: 11px;
+  height: 14px;
+  flex: 1 1 0;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 0.72) 0 1px, transparent 1px),
+    linear-gradient(180deg, rgb(255 255 255 / 0.48), transparent 42%),
+    radial-gradient(circle at var(--kg-video-sequence-nested-frame, 50%) 42%, rgb(250 204 21 / 0.78), transparent 36%),
+    linear-gradient(135deg, rgb(14 165 233 / 0.62), rgb(236 72 153 / 0.58));
+  background-size:
+    calc(100% / var(--kg-video-sequence-nested-phase, 2)) 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.2),
+    0 1px 3px rgb(15 23 42 / 0.18);
+  opacity: var(--kg-motion-opacity, 1);
+  transform: translateY(calc((var(--kg-video-sequence-nested-phase, 2) - 2) * 1px));
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
 .timeline-video-sequence-ruler-scope-strip {
   position: absolute;
   right: 0;
   left: 0;
-  top: calc(24px + (var(--kg-video-sequence-lane-count, 11) * 42px) + 2px);
+  top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * 42px) + 2px);
   z-index: 1;
   display: grid;
   height: 24px;
@@ -475,6 +593,10 @@
 @media (prefers-reduced-motion: reduce) {
   .timeline-video-sequence-motion-vector path,
   .timeline-video-sequence-ruler-content .timeline-transport-track-clip--selected,
+  .timeline-video-sequence-keyframe,
+  .timeline-video-sequence-morph-node,
+  .timeline-video-sequence-nested-frame,
+  .timeline-video-sequence-text-range,
   .timeline-video-sequence-ruler-scope-bar {
     transition: none;
   }

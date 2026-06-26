@@ -122,6 +122,27 @@ export const createUiInitialState = (
         return { mermaidDiagramSelectedRowKeyByKind: next } as Partial<GraphState>
       }),
 
+    videoSequenceTimelineLaneVisibility: {
+      audio: true,
+      grade: false,
+      mask: false,
+      video: true,
+    },
+    setVideoSequenceTimelineLaneVisibility: (laneId: string, visible: boolean) =>
+      set(state => {
+        const normalizedLaneId = String(laneId || '').trim().toLowerCase()
+        if (!normalizedLaneId) return {}
+        const current = state.videoSequenceTimelineLaneVisibility || {}
+        const nextVisible = visible === true
+        if (current[normalizedLaneId] === nextVisible) return {}
+        return {
+          videoSequenceTimelineLaneVisibility: {
+            ...current,
+            [normalizedLaneId]: nextVisible,
+          },
+        } as Partial<GraphState>
+      }),
+
     timelineTransportDocumentKey: '',
     timelineTransportPosition: 0,
     timelineTransportPlaying: false,

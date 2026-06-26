@@ -235,6 +235,12 @@ export const useGraphStore = create<GraphState>()(
       lifecycleStage: 'idle',
       documentSemanticMode: 'document',
       frontmatterModeEnabled: true,
+      videoSequenceTimelineLaneVisibility: {
+        audio: true,
+        grade: false,
+        mask: false,
+        video: true,
+      },
       uiLogEntries: [],
       chatExchangeLogs: [],
     });

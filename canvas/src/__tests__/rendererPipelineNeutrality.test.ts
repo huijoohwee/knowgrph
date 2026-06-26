@@ -132,9 +132,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !timelineAnimationEngineText.includes("'svg-attribute'") ||
     !timelineAnimationEngineText.includes("'dom-attribute'") ||
     !timelineAnimationEngineText.includes("'js-object'") ||
-    !timelineAnimationEngineText.includes("'html'") ||
-    !timelineAnimationEngineText.includes("'canvas-2d'") ||
-    !timelineAnimationEngineText.includes("'webgl-three'") ||
+    !["'html'", "'canvas-2d'", "'webgl-three'", "'data-kg-animation-inspired-by': 'motionkit'", "'data-kg-animation-reference': 'blender'", 'TimelineAnimationKeyframe', 'TimelineAnimationProperty', 'TimelineAnimationLayerMode', 'TimelineAnimationNestedMode', 'TimelineAnimationRenderPass', 'TimelineTextAnimationKeyframe', 'TimelineTextAnimationScope', 'TimelineTextAnimationProperty', 'TimelineVectorMorphShape', 'TimelineVectorBooleanOperation', 'buildTimelineTextKeyframes', 'buildTimelineVectorMorphPath', 'data-kg-animation-frame-count', 'data-kg-animation-fbf-workflow', 'data-kg-animation-layer-panel', 'data-kg-animation-nested', 'data-kg-animation-nested-composite', 'data-kg-animation-nested-fps', 'data-kg-animation-text-keyframes', 'data-kg-animation-text-properties', 'data-kg-animation-text-scopes', 'data-kg-animation-text-font-size', 'data-kg-animation-text-color', 'data-kg-animation-text-letter-spacing', 'data-kg-animation-text-line-height', 'data-kg-animation-vector-morph', 'data-kg-animation-vector-morph-interpolated-path', 'data-kg-animation-vector-morph-shapes', 'data-kg-animation-vector-morph-boolean-ops', 'data-kg-animation-recording-mode'].every(token => timelineAnimationEngineText.includes(token)) ||
     timelineAnimationEngineText.includes("from 'animejs'") ||
     !timelinePreviewMediaCanvasBindingText.includes('useCommandMenuRichMediaInventory') ||
     !timelinePreviewMediaCanvasBindingText.includes('useTimelineDocumentStoreBinding') ||

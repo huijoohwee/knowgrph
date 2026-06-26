@@ -1,13 +1,19 @@
-import type { MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import type { MermaidGanttSourceRangeMinutes, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { clampTimelineTransportValue } from './timelineTransport'
 import { isLikelyAbsoluteFsPath, buildLocalFsFetchPath } from '@/lib/url'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { isPlainObject } from '@/lib/graph/value'
 
-export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'effect'
-export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'filter' | 'audio'
+export type VideoSequenceTimelineToolId = 'cut' | 'splice' | 'mask' | 'grade' | 'speed' | 'adjustment' | 'transition' | 'keyframe' | 'fbf' | 'detached' | 'nested' | 'morph' | 'text' | 'modifier' | 'record' | 'filter' | 'effect'
+export type VideoSequenceTimelineLaneId = 'video' | 'image' | 'scene' | 'mask' | 'grade' | 'effect' | 'adjustment' | 'transition' | 'keyframe' | 'fbf' | 'detached' | 'nested' | 'morph' | 'text' | 'modifier' | 'record' | 'filter' | 'audio'
 export type VideoSequenceTimelineImportMode = 'file' | 'folder' | 'url' | 'workspace'
+export type VideoSequenceTimelineSourceCoverageMode = 'authored' | 'source-covered'
 export type VideoSequenceTimelineScopeId = 'live-preview' | 'luma-waveform' | 'chroma-vectorscope' | 'histogram' | 'audio-waveform' | 'audio-mix'
+export type VideoSequenceTimelineProjectionOptions = {
+  disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]
+  sourceCoverageMode?: VideoSequenceTimelineSourceCoverageMode
+}
 
 export type VideoSequenceTimelineTool = {
   id: VideoSequenceTimelineToolId
@@ -69,6 +75,13 @@ export const VIDEO_SEQUENCE_TIMELINE_TOOLS: readonly VideoSequenceTimelineTool[]
   { id: 'adjustment', label: 'Adjustment', title: 'Add adjustment layer for selected clip' },
   { id: 'transition', label: 'Transition', title: 'Add transition lane for selected clip' },
   { id: 'keyframe', label: 'Keyframe', title: 'Add keyframe lane for selected clip' },
+  { id: 'fbf', label: 'FBF', title: 'Add frame-by-frame cel lane with onion skinning' },
+  { id: 'detached', label: 'Detached', title: 'Add persistent detached layer lane' },
+  { id: 'nested', label: 'Nested', title: 'Add nested timeline and frame-by-frame composition lane' },
+  { id: 'morph', label: 'Morph', title: 'Add vector morph lane for selected clip' },
+  { id: 'text', label: 'Text', title: 'Add text animation lane for selected clip' },
+  { id: 'modifier', label: 'Modifier', title: 'Add stroke trim, follow path, or loop mode without keyframes' },
+  { id: 'record', label: 'Record', title: 'Enable playhead recording for automatic keyframes' },
   { id: 'filter', label: 'Filter', title: 'Add filter lane for selected clip' },
   { id: 'effect', label: 'Effect', title: 'Add effect lane for selected clip' },
 ] as const
@@ -83,9 +96,18 @@ export const VIDEO_SEQUENCE_TIMELINE_LANES: readonly VideoSequenceTimelineLane[]
   { id: 'adjustment', label: 'Adjust' },
   { id: 'transition', label: 'Trans' },
   { id: 'keyframe', label: 'Keys' },
+  { id: 'fbf', label: 'FBF' },
+  { id: 'detached', label: 'Persist' },
+  { id: 'nested', label: 'Nest' },
+  { id: 'morph', label: 'Morph' },
+  { id: 'text', label: 'Text' },
+  { id: 'modifier', label: 'Mods' },
+  { id: 'record', label: 'Rec' },
   { id: 'filter', label: 'Filter' },
   { id: 'audio', label: 'Audio' },
 ] as const
+
+export const VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['mask', 'grade'] as const
 
 const VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS: readonly Pick<VideoSequenceTimelineScope, 'id' | 'label'>[] = [
   { id: 'live-preview', label: 'Live preview' },
@@ -103,6 +125,13 @@ export const VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS: readonly VideoSequenceT
   'adjustment',
   'transition',
   'keyframe',
+  'fbf',
+  'detached',
+  'nested',
+  'morph',
+  'text',
+  'modifier',
+  'record',
   'filter',
   'effect',
 ] as const
@@ -201,9 +230,16 @@ export function readVideoSequenceSourcePlayableUrl(source: VideoSequenceTimeline
 export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskSpan): VideoSequenceTimelineLaneId {
   const signature = `${span.label} ${span.raw}`.toLowerCase()
   if (/\baudio|sound|voice|music\b/.test(signature)) return 'audio'
+  if (/\bnested|composite|child timeline|timeline inside|inside timeline|timeline[-\s]?in[-\s]?fbf|fbf[-\s]?in[-\s]?timeline|timeline inside frame[-\s]?by[-\s]?frame|frame[-\s]?by[-\s]?frame inside timeline\b/.test(signature) || /_nested\b/.test(signature)) return 'nested'
+  if (/\bfbf|frame[-\s]?by[-\s]?frame|cel|onion|onion skin\b/.test(signature) || /_fbf\b/.test(signature)) return 'fbf'
+  if (/\bdetached|persistent|continuous|background|ui chrome\b/.test(signature) || /_detached\b/.test(signature)) return 'detached'
   if (/\bimage|still|plate|photo|frame\b/.test(signature) || /_image\b/.test(signature)) return 'image'
   if (/\bscene\b/.test(signature) || /_scene\b/.test(signature)) return 'scene'
   if (/\bkeyframe|key\b/.test(signature) || /_keyframe\b/.test(signature)) return 'keyframe'
+  if (/\bmorph|shape|vector|path|rectangle|ellipse|polygon|star|boolean|union|subtract|intersect|exclude\b/.test(signature) || /_morph\b/.test(signature)) return 'morph'
+  if (/\btext|caption|title|subtitle|type|character|segment|node|font|font size|letter spacing|line height|tracking\b/.test(signature) || /_text\b/.test(signature)) return 'text'
+  if (/\bmodifier|stroke trim|follow path|loop|ping-pong|ping pong\b/.test(signature) || /_modifier\b/.test(signature)) return 'modifier'
+  if (/\brecord|recording|auto[-\s]?key\b/.test(signature) || /_record\b/.test(signature)) return 'record'
   if (/\btransition|dissolve|wipe|fade\b/.test(signature) || /_transition\b/.test(signature)) return 'transition'
   if (/\badjust|adjustment|layer\b/.test(signature) || /_adjustment\b/.test(signature)) return 'adjustment'
   if (/\bfilter|blur|sharpen|denoise\b/.test(signature) || /_filter\b/.test(signature)) return 'filter'
@@ -213,14 +249,73 @@ export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskS
   return 'video'
 }
 
-export function resolveVisibleVideoSequenceTimelineLanes(taskSpans: readonly MermaidGanttTimelineTaskSpan[]): readonly VideoSequenceTimelineLane[] {
-  const activeLaneIds = new Set(taskSpans.map(span => resolveVideoSequenceTimelineLane(span)))
-  const visibleLanes = VIDEO_SEQUENCE_TIMELINE_LANES.filter(lane => activeLaneIds.has(lane.id))
-  return visibleLanes.length ? visibleLanes : VIDEO_SEQUENCE_TIMELINE_LANES
+export function shouldRenderVideoSequenceTimelineSpan(span: MermaidGanttTimelineTaskSpan): boolean {
+  if (/(^|[:,\s])vert([,\s]|$)/i.test(span.raw)) return true
+  return clean(span.label).length > 0 && span.durationMinutes > 0.0001 && span.endMinutes > span.startMinutes
 }
 
-export function resolveVisibleVideoSequenceTimelineLaneCount(taskSpans: readonly MermaidGanttTimelineTaskSpan[]): number {
-  return resolveVisibleVideoSequenceTimelineLanes(taskSpans).length
+const readVideoSequenceSpanSourceRange = (span: MermaidGanttTimelineTaskSpan): MermaidGanttSourceRangeMinutes => {
+  return readMermaidGanttTaskSourceRangeMinutes(span.raw) || {
+    endMinutes: span.endMinutes,
+    startMinutes: span.startMinutes,
+  }
+}
+
+const isVideoSequenceSourceRangeCovered = (
+  range: MermaidGanttSourceRangeMinutes,
+  videoRanges: readonly MermaidGanttSourceRangeMinutes[],
+): boolean => {
+  const epsilon = 0.0001
+  let cursor = range.startMinutes
+  for (const videoRange of videoRanges) {
+    if (videoRange.endMinutes <= cursor + epsilon) continue
+    if (videoRange.startMinutes > cursor + epsilon) return false
+    cursor = Math.max(cursor, videoRange.endMinutes)
+    if (cursor >= range.endMinutes - epsilon) return true
+  }
+  return false
+}
+
+export function resolveRenderableVideoSequenceTimelineSpans(
+  taskSpans: readonly MermaidGanttTimelineTaskSpan[],
+  options: VideoSequenceTimelineProjectionOptions = {},
+): readonly MermaidGanttTimelineTaskSpan[] {
+  const baseSpans = taskSpans.filter(shouldRenderVideoSequenceTimelineSpan)
+  const disabledLaneIds = new Set(options.disabledLaneIds || [])
+  const enabledBaseSpans = disabledLaneIds.size
+    ? baseSpans.filter(span => !disabledLaneIds.has(resolveVideoSequenceTimelineLane(span)))
+    : baseSpans
+  if (options.sourceCoverageMode !== 'source-covered') return enabledBaseSpans
+  const videoRanges = baseSpans
+    .filter(span => resolveVideoSequenceTimelineLane(span) === 'video')
+    .map(readVideoSequenceSpanSourceRange)
+    .sort((left, right) => left.startMinutes - right.startMinutes || left.endMinutes - right.endMinutes)
+  if (!videoRanges.length) return enabledBaseSpans
+  return enabledBaseSpans.filter(span => {
+    const lane = resolveVideoSequenceTimelineLane(span)
+    if (lane === 'video' || lane === 'image' || lane === 'scene') return true
+    return isVideoSequenceSourceRangeCovered(readVideoSequenceSpanSourceRange(span), videoRanges)
+  })
+}
+
+export function resolveVisibleVideoSequenceTimelineLanes(
+  taskSpans: readonly MermaidGanttTimelineTaskSpan[],
+  options: VideoSequenceTimelineProjectionOptions = {},
+): readonly VideoSequenceTimelineLane[] {
+  const activeLaneIds = new Set(resolveRenderableVideoSequenceTimelineSpans(taskSpans, options).map(span => resolveVideoSequenceTimelineLane(span)))
+  const disabledLaneIds = new Set(options.disabledLaneIds || [])
+  const candidateLanes = disabledLaneIds.size
+    ? VIDEO_SEQUENCE_TIMELINE_LANES.filter(lane => !disabledLaneIds.has(lane.id))
+    : VIDEO_SEQUENCE_TIMELINE_LANES
+  const visibleLanes = candidateLanes.filter(lane => activeLaneIds.has(lane.id))
+  return visibleLanes.length ? visibleLanes : candidateLanes
+}
+
+export function resolveVisibleVideoSequenceTimelineLaneCount(
+  taskSpans: readonly MermaidGanttTimelineTaskSpan[],
+  options: VideoSequenceTimelineProjectionOptions = {},
+): number {
+  return resolveVisibleVideoSequenceTimelineLanes(taskSpans, options).length
 }
 
 export function formatVideoSequenceTimelineSecondsOffset(valueSeconds: number): string {
@@ -348,6 +443,13 @@ export function buildVideoSequenceTimelineToolStatus(args: {
     adjustment: true,
     transition: true,
     keyframe: true,
+    fbf: true,
+    detached: true,
+    nested: true,
+    morph: true,
+    text: true,
+    modifier: true,
+    record: true,
     filter: true,
     effect: true,
   }

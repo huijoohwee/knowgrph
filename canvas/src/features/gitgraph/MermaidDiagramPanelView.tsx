@@ -16,6 +16,18 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
 export type MermaidDiagramPanelRenderMode = 'diagram' | 'list' | 'split'
+export type MermaidDiagramPanelRowFilter = (row: MermaidDiagramCodeModel['rows'][number], index: number) => boolean
+export type MermaidDiagramPanelRowTreeNode = {
+  depth: number
+  expanded?: boolean
+  hasChildren?: boolean
+  leadingControl?: React.ReactNode
+}
+export type MermaidDiagramPanelRowTreeResolver = (args: {
+  row: MermaidDiagramCodeModel['rows'][number]
+  index: number
+  key: string
+}) => MermaidDiagramPanelRowTreeNode | null | undefined
 
 const escapeSvgText = (value: unknown): string => String(value || '')
   .replace(/[&<>"']/g, char => (
@@ -224,6 +236,8 @@ export function MermaidDiagramPanelView({
   surface,
   renderMode = surface === 'bottomPanel' ? 'diagram' : 'list',
   onSelectedRowKeyChange,
+  rowFilter,
+  rowTree,
 }: {
   code: string
   model: MermaidDiagramCodeModel
@@ -235,6 +249,8 @@ export function MermaidDiagramPanelView({
   surface: 'floatingPanel' | 'bottomPanel'
   renderMode?: MermaidDiagramPanelRenderMode
   onSelectedRowKeyChange?: (rowKey: string | null) => void
+  rowFilter?: MermaidDiagramPanelRowFilter
+  rowTree?: MermaidDiagramPanelRowTreeResolver
 }) {
   const showDiagram = renderMode !== 'list'
   const showRowList = renderMode !== 'diagram'
@@ -250,6 +266,11 @@ export function MermaidDiagramPanelView({
   }, [kind, onSelectedRowKeyChange, setMermaidDiagramSelectedRowKey])
   const rowListRef = React.useRef<HTMLElement | null>(null)
   const panelAriaLabel = showDiagram ? `${title} Mermaid diagram` : `${title} Mermaid rows`
+  const rowEntries = React.useMemo(() => {
+    return model.rows
+      .map((row, index) => ({ index, key: resolveDiagramRowKey(row, index), row }))
+      .filter(entry => rowFilter ? rowFilter(entry.row, entry.index) : true)
+  }, [model.rows, rowFilter])
   React.useEffect(() => {
     if (!selectedRowKey) return
     if (model.rows.some((row, index) => resolveDiagramRowKey(row, index) === selectedRowKey)) return
@@ -294,7 +315,9 @@ export function MermaidDiagramPanelView({
           <section className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{title}</section>
           {showRowList ? (
             <section className={cn('truncate text-[11px]', UI_THEME_TOKENS.text.secondary)}>
-              {model.rows.length} parsed rows
+              {rowEntries.length === model.rows.length
+                ? `${model.rows.length} parsed rows`
+                : `${rowEntries.length} / ${model.rows.length} parsed rows`}
             </section>
           ) : null}
         </section>
@@ -320,9 +343,59 @@ export function MermaidDiagramPanelView({
             UI_THEME_TOKENS.panel.border,
           )}
           data-kg-mermaid-diagram-command-list="1"
+          data-kg-mermaid-diagram-command-tree={rowTree ? '1' : undefined}
         >
-          {model.rows.map((row, index) => {
-            const key = resolveDiagramRowKey(row, index)
+          {rowTree ? (
+            <ul className="flex flex-col" role="tree" aria-label={`${title} Mermaid row tree`}>
+              {rowEntries.map(({ index, key, row }) => {
+                const selected = key === selectedRowKey
+                const treeNode = rowTree({ row, index, key }) || { depth: 1 }
+                const rowClassName = [
+                  'flex w-full min-w-0 items-center gap-2 border-b border-[var(--kg-border)] px-2 py-1.5 text-left last:border-b-0',
+                  selected
+                    ? 'text-[var(--kg-text-primary)] shadow-[inset_3px_0_0_var(--kg-canvas-accent)] ring-2 ring-inset ring-[var(--kg-canvas-accent)]'
+                    : selectedRowKey
+                      ? 'text-[var(--kg-text-tertiary)] opacity-45 hover:opacity-90'
+                      : 'text-[var(--kg-text-secondary)] hover:bg-[var(--kg-panel-bg-hover)]',
+                ].join(' ')
+                const depth = Math.max(1, Math.floor(Number(treeNode.depth || 1)))
+                return (
+                  <li key={key || row.key} role="none">
+                    <article
+                      role="treeitem"
+                      aria-level={depth}
+                      aria-selected={selected}
+                      aria-expanded={treeNode.hasChildren ? !!treeNode.expanded : undefined}
+                      tabIndex={0}
+                      className={rowClassName}
+                      style={{
+                        ...(selected ? {
+                          backgroundColor: 'color-mix(in srgb, var(--kg-canvas-accent) 16%, var(--kg-panel-bg))',
+                        } : undefined),
+                        paddingLeft: `${8 + (depth - 1) * 18}px`,
+                      }}
+                      data-kg-mermaid-diagram-command-row="1"
+                      data-kg-mermaid-diagram-command-kind={row.kind}
+                      data-kg-mermaid-diagram-command-line={row.lineIndex}
+                      data-kg-mermaid-diagram-command-selected={selected ? '1' : undefined}
+                      data-kg-mermaid-diagram-command-treeitem="1"
+                      onClick={() => setSelectedRowKey(key)}
+                      onKeyDown={event => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        setSelectedRowKey(key)
+                      }}
+                    >
+                      {treeNode.leadingControl}
+                      <span className="w-16 shrink-0 text-[10px] uppercase tracking-normal text-[var(--kg-text-tertiary)]">{row.kind}</span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{row.label}</span>
+                      <span className="shrink-0 text-[10px] text-[var(--kg-text-tertiary)]">L{row.lineNumber}</span>
+                    </article>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : rowEntries.map(({ index, key, row }) => {
             const selected = key === selectedRowKey
             return (
               <button

@@ -51,6 +51,14 @@ export function useTimelinePreviewActivitySurfaceModel(args: {
   surfaceModel: TimelinePreviewSurfaceModel
 }): TimelinePreviewActivitySurfaceModel {
   return React.useMemo(() => {
+    if (args.activityMode === 'empty') {
+      return {
+        activityMode: args.activityMode,
+        count: 0,
+        families: [],
+        items: [],
+      }
+    }
     const familyActivityById = new Map(args.familyActivity.map(activity => [activity.familyId, activity]))
     const shouldDimInactive = args.activityMode === 'selection' || args.activityMode === 'playhead'
     const families = args.surfaceModel.groups.map(family => {

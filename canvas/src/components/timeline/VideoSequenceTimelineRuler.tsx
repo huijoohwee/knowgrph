@@ -1,22 +1,22 @@
 import React from 'react'
-import { Blend, Film, Filter, Gauge, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, type LucideIcon } from 'lucide-react'
+import { Blend, Film, Filter, Gauge, GitCompareArrows, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, Type, type LucideIcon } from 'lucide-react'
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
 import { buildTimelineAnimationState } from './timelineAnimationEngine'
+import { MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR, MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR } from '@/lib/media/mediaFormatPreference'
 import {
-  MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
-  MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
-} from '@/lib/media/mediaFormatPreference'
-import {
+  VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   VIDEO_SEQUENCE_TIMELINE_LANES,
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
   buildVideoSequenceTimelineCueSamples,
   buildVideoSequenceTimelineFrameSamples,
   buildVideoSequenceTimelineWaveformSamples,
   formatVideoSequenceTimelineSecondsOffset,
+  resolveRenderableVideoSequenceTimelineSpans,
   resolveVideoSequenceTimelineLane,
   resolveVisibleVideoSequenceTimelineLanes,
   type VideoSequenceTimelineLane,
   type VideoSequenceTimelineLaneId,
+  type VideoSequenceTimelineProjectionOptions,
   type VideoSequenceTimelineScope,
   type VideoSequenceTimelineToolId,
 } from './videoSequenceTimeline'
@@ -26,8 +26,8 @@ import type {
   MermaidGanttTimelineTaskSpan,
   MermaidGanttTimelineTick,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import './VideoSequenceTimelineRuler.css'
-
 export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
 export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
@@ -44,6 +44,11 @@ const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode,
   'resize-start': 'start',
 }
 const VIDEO_SEQUENCE_THUMBNAIL_WINDOW_EPSILON = 0.001
+const VIDEO_SEQUENCE_SOURCE_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['video', 'image', 'scene'])
+const VIDEO_SEQUENCE_OPERATION_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['mask', 'grade', 'audio'])
+const VIDEO_SEQUENCE_BOTTOM_PANEL_PROJECTION_OPTIONS = {
+  disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+} as const
 
 function resolveVideoSequenceThumbnailWindow(args: {
   span: MermaidGanttTimelineTaskSpan
@@ -55,14 +60,43 @@ function resolveVideoSequenceThumbnailWindow(args: {
   ) || null
 }
 
-function resolveVideoSequenceClipThumbnails(args: {
-  sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+function resolveVideoSequenceSpanThumbnailWindow(args: {
+  allowTimelineFallback: boolean
   span: MermaidGanttTimelineTaskSpan
   windows: readonly VideoSequenceTimelineThumbnailWindow[]
+}): VideoSequenceTimelineThumbnailWindow | null {
+  const sourceRange = readMermaidGanttTaskSourceRangeMinutes(args.span.raw)
+  if (sourceRange) {
+    return {
+      sourceEndSeconds: Math.max(sourceRange.startMinutes + 0.0001, sourceRange.endMinutes),
+      sourceStartSeconds: Math.max(0, sourceRange.startMinutes),
+      timelineEndMinutes: args.span.endMinutes,
+      timelineStartMinutes: args.span.startMinutes,
+    }
+  }
+  const existingWindow = resolveVideoSequenceThumbnailWindow({ span: args.span, windows: args.windows })
+  if (existingWindow) return existingWindow
+  if (!sourceRange && !args.allowTimelineFallback) return null
+  const fallbackStart = args.span.startMinutes
+  const fallbackEnd = args.span.endMinutes
+  const sourceStartSeconds = Math.max(0, fallbackStart)
+  const sourceEndSeconds = Math.max(sourceStartSeconds + 0.0001, fallbackEnd)
+  if (!Number.isFinite(sourceStartSeconds) || !Number.isFinite(sourceEndSeconds)) return null
+  return {
+    sourceEndSeconds,
+    sourceStartSeconds,
+    timelineEndMinutes: args.span.endMinutes,
+    timelineStartMinutes: args.span.startMinutes,
+  }
+}
+
+function resolveVideoSequenceClipThumbnails(args: {
+  sourceWindow: VideoSequenceTimelineThumbnailWindow | null
+  sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+  span: MermaidGanttTimelineTaskSpan
 }): readonly TimelineMediaReaderThumbnail[] {
   if (!args.sourceThumbnails.length) return []
-  if (!args.windows.length) return args.sourceThumbnails
-  const window = resolveVideoSequenceThumbnailWindow({ span: args.span, windows: args.windows })
+  const window = args.sourceWindow
   if (!window) return []
   const sourceStart = Math.min(window.sourceStartSeconds, window.sourceEndSeconds)
   const sourceEnd = Math.max(window.sourceStartSeconds, window.sourceEndSeconds)
@@ -71,12 +105,20 @@ function resolveVideoSequenceClipThumbnails(args: {
     thumbnail.timestampSeconds <= sourceEnd + 0.05,
   )
   if (withinWindow.length) return withinWindow
-  const midpointSeconds = sourceStart + (sourceEnd - sourceStart) / 2
-  return args.sourceThumbnails
-    .slice()
-    .sort((left, right) => Math.abs(left.timestampSeconds - midpointSeconds) - Math.abs(right.timestampSeconds - midpointSeconds))
-    .slice(0, Math.min(2, args.sourceThumbnails.length))
-    .sort((left, right) => left.timestampSeconds - right.timestampSeconds)
+  return []
+}
+
+function resolveVideoSequenceThumbnailTimelinePosition(args: {
+  span: MermaidGanttTimelineTaskSpan
+  thumbnail: TimelineMediaReaderThumbnail
+  window: VideoSequenceTimelineThumbnailWindow | null
+}): number {
+  if (!args.window) return args.span.startMinutes
+  const sourceStart = Math.min(args.window.sourceStartSeconds, args.window.sourceEndSeconds)
+  const sourceEnd = Math.max(args.window.sourceStartSeconds, args.window.sourceEndSeconds)
+  const sourceSpan = Math.max(0.0001, sourceEnd - sourceStart)
+  const sourceRatio = Math.min(1, Math.max(0, (args.thumbnail.timestampSeconds - sourceStart) / sourceSpan))
+  return args.span.startMinutes + Math.max(0, args.span.durationMinutes) * sourceRatio
 }
 
 function resolveActiveVideoSequenceResizeMode(args: {
@@ -95,12 +137,19 @@ const VIDEO_SEQUENCE_TOOL_ICONS: Record<VideoSequenceTimelineToolId, LucideIcon>
   adjustment: Blend,
   cut: Scissors,
   effect: Sparkles,
+  detached: Layers,
+  fbf: Film,
   filter: Filter,
   grade: Palette,
   keyframe: KeyRound,
   mask: Layers,
+  modifier: Sparkles,
+  morph: GitCompareArrows,
+  nested: GitCompareArrows,
+  record: Gauge,
   speed: Gauge,
   splice: SplitSquareVertical,
+  text: Type,
   transition: SlidersHorizontal,
 }
 
@@ -149,13 +198,14 @@ export function TimelineVideoSequenceEmptyState({
 }: {
   compact: boolean
 }) {
-  const minHeight = resolveVideoSequenceRulerMinHeight()
+  const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes([], VIDEO_SEQUENCE_BOTTOM_PANEL_PROJECTION_OPTIONS), [])
+  const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   const animationState = React.useMemo(() => buildTimelineAnimationState({
     active: false,
-    itemCount: VIDEO_SEQUENCE_TIMELINE_LANES.length,
+    itemCount: visibleLanes.length,
     progress: 0,
     surface: 'bottom-timeline',
-  }), [])
+  }), [visibleLanes.length])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
     <section
@@ -177,8 +227,8 @@ export function TimelineVideoSequenceEmptyState({
         </nav>
       </header>
       <section className="timeline-video-sequence-empty-grid" aria-label="Video sequence lanes" style={{ minHeight }}>
-        <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle()}>
-          {VIDEO_SEQUENCE_TIMELINE_LANES.map(lane => (
+        <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
+          {visibleLanes.map(lane => (
             <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-lane-label={lane.id}>
               {lane.label}
             </section>
@@ -207,8 +257,10 @@ export function VideoSequenceTimelineRuler({
   scopes = [],
   taskSpans,
   timelineZoom,
+  disabledLaneIds = VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   onRulerPointerDown,
   onSelectRowKey,
+  onSelectRowPosition,
   onTrackPointerStart,
 }: {
   contentRef: React.RefObject<HTMLElement | null>
@@ -223,11 +275,17 @@ export function VideoSequenceTimelineRuler({
   scopes?: readonly VideoSequenceTimelineScope[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
+  disabledLaneIds?: VideoSequenceTimelineProjectionOptions['disabledLaneIds']
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
+  onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
 }) {
-  const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes(taskSpans), [taskSpans])
+  const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>(() => ({
+    disabledLaneIds,
+  }), [disabledLaneIds])
+  const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
+  const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const visibleLaneIndexById = React.useMemo(() => new Map<VideoSequenceTimelineLaneId, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
   const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   const animationState = React.useMemo(() => buildTimelineAnimationState({
@@ -246,6 +304,17 @@ export function VideoSequenceTimelineRuler({
       data-kg-animation-object-opacity={animationState.objectFrame.opacity}
       data-kg-animation-object-scale={animationState.objectFrame.scale}
       data-kg-animation-object-translate-x={animationState.objectFrame.translateX}
+      data-kg-animation-easing-curve={animationState.easing.curve}
+      data-kg-animation-frame-by-frame={animationState.frameByFrame.frameCount}
+      data-kg-animation-frame-rate={animationState.frameByFrame.frameRate}
+      data-kg-animation-frame-timing={animationState.frameByFrame.timing}
+      data-kg-animation-layer-modifiers={animationState.modifiers.join(' ')}
+      data-kg-animation-layer-panel={animationState.layerPanel.dragSort ? `${animationState.layerPanel.contextMenu} ${animationState.layerPanel.inlineRenameKey} ${animationState.layerPanel.grouping}` : undefined}
+      data-kg-animation-layer-modes={animationState.layerPanel.layerModes.join(' ')}
+      data-kg-animation-layer-properties={animationState.propertyTokens}
+      data-kg-animation-loop-modes={animationState.loopModes.join(' ')}
+      data-kg-animation-recording-enabled={animationState.recording.enabled ? '1' : undefined}
+      data-kg-animation-vector-morph-path={animationState.vectorMorph.pathSample}
     >
       <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
         {visibleLanes.map(lane => (
@@ -275,7 +344,7 @@ export function VideoSequenceTimelineRuler({
           data-kg-animation-svg-attribute-target="1"
         >
           <path
-            d="M0 5 C18 1 34 9 50 5 S82 1 100 5"
+            d={animationState.vectorMorph.pathSample}
             fill="none"
             pathLength={animationState.svg.pathLength}
             stroke="currentColor"
@@ -294,7 +363,7 @@ export function VideoSequenceTimelineRuler({
             <span>{tick.label}</span>
           </span>
         ))}
-        {taskSpans.map((span, index) => {
+        {renderableSpans.map((span, index) => {
           const verticalMarker = /(^|[:,\s])vert([,\s]|$)/i.test(span.raw)
           const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
@@ -306,9 +375,21 @@ export function VideoSequenceTimelineRuler({
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
-          const showMediaCues = !verticalMarker && (lane === 'video' || lane === 'image' || lane === 'scene')
-          const nativeFrameSamples = !verticalMarker && lane === 'video'
-            ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, span, windows: sourceThumbnailWindows })
+          const showsMediaContent = !verticalMarker && (
+            VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
+            VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane)
+          )
+          const showMediaCues = showsMediaContent && lane !== 'audio'
+          const allowTimelineFallbackThumbnails = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane)
+          const thumbnailWindow = showsMediaContent
+            ? resolveVideoSequenceSpanThumbnailWindow({
+                allowTimelineFallback: allowTimelineFallbackThumbnails,
+                span,
+                windows: sourceThumbnailWindows,
+              })
+            : null
+          const nativeFrameSamples = showsMediaContent
+            ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
             : []
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
@@ -327,6 +408,22 @@ export function VideoSequenceTimelineRuler({
                 sampleCount: Math.max(8, Math.round(durationMinutes * 3)),
                 seedText: `${span.label} ${span.raw}`,
               })
+            : []
+          const keyframeSamples = lane === 'keyframe' && !verticalMarker ? animationState.keyframes : []
+          const morphSamples = lane === 'morph' && !verticalMarker
+            ? buildVideoSequenceTimelineCueSamples({
+                sampleCount: Math.max(5, Math.round(durationMinutes * 1.4)),
+                seedText: `${span.label} ${span.raw} morph`,
+              })
+            : []
+          const textSamples = lane === 'text' && !verticalMarker
+            ? buildVideoSequenceTimelineFrameSamples({
+                sampleCount: Math.max(4, Math.round(durationMinutes * 1.2)),
+                seedText: `${span.label} ${span.raw} text`,
+              })
+            : []
+          const nestedSamples = (lane === 'nested' || lane === 'fbf' || lane === 'keyframe') && !verticalMarker
+            ? buildVideoSequenceTimelineFrameSamples({ sampleCount: Math.max(4, Math.round(durationMinutes * 1.1)), seedText: `${span.label} ${span.raw} nested` })
             : []
           const clipStartLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes)
           const clipEndLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes + durationMinutes)
@@ -347,6 +444,19 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-lane={lane}
               data-kg-video-sequence-trim-start={clipStartLabel}
               data-kg-video-sequence-trim-end={clipEndLabel}
+              data-kg-video-sequence-motion-easing={animationState.easing.mode}
+              data-kg-video-sequence-frame-rate={animationState.frameByFrame.frameRate}
+              data-kg-video-sequence-frame-timing={animationState.frameByFrame.timing}
+              data-kg-video-sequence-layer-mode={lane === 'detached' ? 'detached-continuous' : lane === 'fbf' ? 'animated-frame' : undefined}
+              data-kg-video-sequence-motion-modifiers={animationState.modifiers.join(' ')}
+              data-kg-video-sequence-motion-properties={animationState.propertyTokens}
+              data-kg-video-sequence-motion-loop-modes={animationState.loopModes.join(' ')}
+              data-kg-video-sequence-nested-animation={animationState.nested.modes.join(' ')}
+              data-kg-video-sequence-nested-composite={animationState.nested.compositeOrder}
+              data-kg-video-sequence-nested-fps={`timeline:${animationState.nested.timelineFrameRate} fbf:${animationState.nested.fbfFrameRate}`}
+              data-kg-video-sequence-nested-render-passes={animationState.nested.renderPasses.join(' ')}
+              data-kg-video-sequence-recording-mode={animationState.recording.enabled ? 'playhead-auto-key' : undefined}
+              data-kg-video-sequence-motion-work-area={`${animationState.workArea.start}-${animationState.workArea.end}`}
               title={span.label}
             >
               {nativeFrameSamples.length ? (
@@ -373,7 +483,11 @@ export function VideoSequenceTimelineRuler({
                       data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
                       onClick={event => {
                         event.stopPropagation()
-                        onSelectRowKey(span.rowKey)
+                        onSelectRowPosition(span.rowKey, resolveVideoSequenceThumbnailTimelinePosition({
+                          span,
+                          thumbnail,
+                          window: thumbnailWindow,
+                        }))
                       }}
                       onPointerDown={event => {
                         event.stopPropagation()
@@ -452,6 +566,50 @@ export function VideoSequenceTimelineRuler({
                       className="timeline-video-sequence-audio-waveform-bar"
                       style={{ height: `${Math.max(4, sample / 4)}px` }}
                     />
+                  ))}
+                </section>
+              ) : null}
+              {keyframeSamples.length ? (
+                <section className="timeline-video-sequence-keyframe-strip" aria-label={`${span.label} keyframes`} data-kg-video-sequence-keyframes="1">
+                  {keyframeSamples.map(keyframe => (
+                    <span
+                      key={`keyframe:${span.rowKey}:${keyframe.offset}`}
+                      className="timeline-video-sequence-keyframe"
+                      style={{ left: `${keyframe.offset * 100}%` }}
+                      title={`${keyframe.easing} ${Math.round(keyframe.offset * 100)}%`}
+                      data-kg-video-sequence-keyframe-easing={keyframe.easing}
+                      data-kg-video-sequence-keyframe-offset={keyframe.offset}
+                      data-kg-video-sequence-keyframe-value={keyframe.value}
+                    />
+                  ))}
+                </section>
+              ) : null}
+              {morphSamples.length ? (
+                <section className="timeline-video-sequence-morph-strip" aria-label={`${span.label} vector morph samples`} data-kg-video-sequence-vector-morph="1" data-kg-video-sequence-vector-morph-boolean-ops={animationState.vectorMorph.booleanOperations.join(' ')} data-kg-video-sequence-vector-morph-path={animationState.vectorMorph.interpolatedPath} data-kg-video-sequence-vector-morph-shapes={animationState.vectorMorph.shapeFamilies.join(' ')}>
+                  {morphSamples.map((sample, sampleIndex) => (
+                    <span
+                      key={`morph:${span.rowKey}:${sampleIndex}`}
+                      className="timeline-video-sequence-morph-node"
+                      style={{ '--kg-video-sequence-morph-node': `${sample}%` } as React.CSSProperties}
+                    />
+                  ))}
+                </section>
+              ) : null}
+              {textSamples.length ? (
+                <section className="timeline-video-sequence-text-strip" aria-label={`${span.label} text animation ranges`} data-kg-video-sequence-text-animation="1" data-kg-video-sequence-text-keyframes={animationState.text.keyframes.length} data-kg-video-sequence-text-properties={animationState.text.properties.join(' ')} data-kg-video-sequence-text-scopes={animationState.text.scopes.join(' ')}>
+                  {textSamples.map((sample, sampleIndex) => (
+                    <span
+                      key={`text:${span.rowKey}:${sampleIndex}`}
+                      className="timeline-video-sequence-text-range"
+                      style={{ '--kg-video-sequence-text-range': `${sample}%` } as React.CSSProperties}
+                    />
+                  ))}
+                </section>
+              ) : null}
+              {nestedSamples.length ? (
+                <section className="timeline-video-sequence-nested-strip" aria-label={`${span.label} nested animation composite`} data-kg-video-sequence-nested-composite-strip="1">
+                  {nestedSamples.map((sample, sampleIndex) => (
+                    <span key={`nested:${span.rowKey}:${sampleIndex}`} className="timeline-video-sequence-nested-frame" style={{ '--kg-video-sequence-nested-frame': `${sample}%`, '--kg-video-sequence-nested-phase': `${(sampleIndex % 3) + 1}` } as React.CSSProperties} />
                   ))}
                 </section>
               ) : null}
