@@ -625,6 +625,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdown.frontmatterFlowGraph.fidelity.agenticCanvasOsDemo.architectureEventModeling","@/__tests__/markdownFrontmatterFlowGraphPublishedDynamicPanels.test","testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling"],
   ["parser.mermaid.typedDiagrams.frontmatterGitGraphAndGantt","@/__tests__/mermaidGanttPanelRouting.test","testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter"],
   ["parser.mermaid.typedDiagrams.graphMetadata","@/__tests__/mermaidGanttPanelRouting.test","testTypedMermaidDiagramResolverReadsParsedGraphMetadata"],
+  ["parser.mermaid.typedDiagrams.neutralFlowTimelinePayload","@/__tests__/mermaidGanttPanelRouting.test","testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload"],
   ["ui.mermaidPanels.gitGraphGantt.directSvgGeometrySelection","@/__tests__/mermaidGanttPanelRouting.test","testInteractiveMermaidSelectionAnnotatesSiblingChartGeometry"],
   ["ui.mermaidPanels.gitGraphGantt.sharedRouting","@/__tests__/mermaidGanttPanelRouting.test","testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities"],
   ["chat.responseContract.storage.kgcEnforcesQueryResponsiveBeforePersistence","@/__tests__/chatResponseContractPrompt.test","testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence"],

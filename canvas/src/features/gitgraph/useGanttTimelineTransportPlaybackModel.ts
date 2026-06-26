@@ -19,9 +19,11 @@ export function useGanttTimelineTransportPlaybackModel(args: {
 }): GanttTimelineTransportPlaybackModel {
   const playbackControls = useGanttTimelinePlaybackControls({
     documentKey: args.documentKey,
+    maxMinutes: args.maxMinutes,
     playbackRate: args.playbackRate,
     playing: args.playing,
     positionMinutes: args.positionMinutes,
+    setTransportPlaybackPosition: args.onPositionChange,
     setTransportPlaying: args.setTransportPlaying,
   })
 

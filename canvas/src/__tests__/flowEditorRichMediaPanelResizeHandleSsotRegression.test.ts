@@ -41,7 +41,7 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   if (!text.includes('data-kg-rich-media-render-surface="1"')) {
     throw new Error('expected shared Rich Media Panel frame to expose a dedicated semantic render-surface marker')
   }
-  if (!text.includes("position: panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')")) {
+  if (!text.includes("position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative')")) {
     throw new Error('expected shared Rich Media Panel root frame to establish the resize-anchor containing block')
   }
   if (text.includes('{showPanelMarkdownPreview ? (\n          <section') || text.includes(') : isEmptyPanel ? (\n          <section') || text.includes(') : panelIsLoading ? (\n          <section')) {
@@ -320,6 +320,9 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     || !mediaSurfaceSelectionText.includes('resolveMediaPreviewSurfaceSelectionProps')
     || !mediaSurfaceSelectionText.includes('resolveMediaPreviewSurfaceCardProps')
     || !mediaSurfaceSelectionText.includes('interactive: args.enabled ? false : args.interactive === true')
+    || !mediaSurfaceSelectionText.includes('const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
+    || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimSurfaceEvent')
+    || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimSurfaceEvent')
     || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
     || !mediaSurfaceSelectionText.includes('event.preventDefault()')
     || !mediaSurfaceSelectionText.includes('event.stopPropagation()')) {
@@ -343,6 +346,8 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     'onPointerUpCapture={endPanDrag}',
     'onPointerCancelCapture={endPanDrag}',
     '{...frameSelectionProps}',
+    "frameSelectionProps?.[MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]",
+    'data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}',
   ]) {
     if (!zoomPanViewportText.includes(snippet)) {
       throw new Error(`expected embedded Rich Media media surface to avoid panel-background gutters: ${snippet}`)

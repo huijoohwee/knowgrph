@@ -21,6 +21,7 @@ import {
   RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
   RICH_MEDIA_PANEL_SRCDOC_STYLE_ID,
+  RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID,
 } from '@/lib/render/richMediaPanelSrcDoc'
 
 type ParsedGraphData = Parameters<typeof computeFlowConnectedValuesBySchemaPath>[0]['graphData']
@@ -431,6 +432,13 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes('iframeSrcDoc={normalizedInlineSrcDoc}')) {
     throw new Error('expected RichMediaPanel iframe srcdoc rendering to consume normalized shared srcdoc')
   }
+  if (!srcDocText.includes('buildRichMediaPanelSrcDocTimelineTransportScript')
+    || !srcDocText.includes('window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__')
+    || !srcDocText.includes('var raf=0,pending=null,retry=0')
+    || !srcDocText.includes('requestAnimationFrame(applyPending)')
+    || !srcDocText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE')) {
+    throw new Error('expected Rich Media Panel srcdoc normalization to inject the shared timeline transport bridge for stored render artifacts')
+  }
   if (!componentText.includes('&& !effectiveInlineSrcDoc')) {
     throw new Error('expected RichMediaPanel inline srcdoc previews to bypass the empty text editor placeholder')
   }
@@ -452,15 +460,21 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !componentText.includes('resolveMediaPreviewSurfaceSelectionProps({')
     || !componentText.includes('resolveMediaPreviewSurfaceCardProps({')
     || !componentText.includes('frameSelectionProps={directMediaPreviewSelectionProps}')
+    || !componentText.includes('iframeSelectableSurfaceDataAttr')
     || !componentText.includes('{...directMediaPreviewCardProps}')
     || !zoomPanViewportText.includes('frameSelectionProps?: MediaPreviewSurfaceSelectionProps')
-    || !zoomPanViewportText.includes('{...frameSelectionProps}')) {
+    || !zoomPanViewportText.includes('{...frameSelectionProps}')
+    || !zoomPanViewportText.includes("frameSelectionProps?.[MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]")
+    || !zoomPanViewportText.includes('data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}')) {
     throw new Error('expected expanded Rich Media pan/zoom preview frames to reuse the shared selectable media preview surface helper')
   }
   if (!cardMediaPreviewText.includes('mediaSelectableSurfaceDataAttr?: boolean')
     || !cardMediaPreviewText.includes('resolveMediaPreviewSelectableDataAttr(mediaSelectableSurfaceDataAttr)')
     || !cardMediaPreviewText.includes('data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}')
     || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceSelectionProps')
+    || !mediaSurfaceSelectionText.includes('const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
+    || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimSurfaceEvent')
+    || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimSurfaceEvent')
     || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
     || !mediaSurfaceSelectionText.includes('event.preventDefault()')
     || !mediaSurfaceSelectionText.includes('event.stopPropagation()')
@@ -658,6 +672,10 @@ export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
   const resizeScriptCount = normalized.split(`id="${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}"`).length - 1
   if (resizeScriptCount !== 1) {
     throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared resize script, got ${resizeScriptCount}`)
+  }
+  const timelineScriptCount = normalized.split(`id="${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}"`).length - 1
+  if (timelineScriptCount !== 1) {
+    throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared timeline transport script, got ${timelineScriptCount}`)
   }
   if (!normalized.includes(RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE)) {
     throw new Error('expected Rich Media Panel srcdoc resize script to publish the shared size message type')

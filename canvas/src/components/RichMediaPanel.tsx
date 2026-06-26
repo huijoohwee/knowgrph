@@ -9,6 +9,7 @@ import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontm
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import {
+  resolveRichMediaPlayableUrl,
   resolveRichMediaPanelSelectedTab,
 } from '@/lib/render/richMediaSsot'
 import {
@@ -32,6 +33,17 @@ import {
   normalizeRichMediaPanelInlineSrcDoc,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
 } from '@/lib/render/richMediaPanelSrcDoc'
+import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
+import {
+  TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT,
+  type TimelineTransportPlaybackRequestDetail,
+} from '@/components/timeline/videoSequenceTimeline'
+import {
+  RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE,
+  RICH_MEDIA_TIMELINE_TRANSPORT_MS_PER_UNIT,
+  resolveRichMediaTimelineDurationUnits,
+  resolveRichMediaTimelineMediaTargetSeconds,
+} from '@/lib/render/richMediaTimelineSync'
 import {
   isDirectPlayableCardMedia,
   type CardMediaPlaceholderVariant,
@@ -253,6 +265,10 @@ export function RichMediaPanelResizeHandle(props: {
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const inlineSrcDocFrameRef = React.useRef<HTMLIFrameElement | null>(null)
+  const directVideoFallbackFrameRef = React.useRef<HTMLIFrameElement | null>(null)
+  const inlineSrcDocTimelineFrameBurstTimeoutsRef = React.useRef<number[]>([])
+  const directMediaElementRef = React.useRef<HTMLMediaElement | null>(null)
+  const [directMediaElement, setDirectMediaElement] = React.useState<HTMLMediaElement | null>(null)
   const lastPointerDownAtRef = React.useRef(0)
   const forwardWheelTo = props.forwardWheelTo
   const onPanelChange = props.onPanelChange
@@ -289,11 +305,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       void 0
     }
   }, [safeOpenUrl])
-  const proxiedUrl = React.useMemo(() => {
-    if (kind === 'iframe') return rawUrl
-    return applyImageLikeProxySrc(rawUrl)
-  }, [kind, rawUrl])
-
   const iframeEmbed = React.useMemo(() => {
     if (kind !== 'iframe') return null
     return resolveIframeEmbed({ url: rawUrl })
@@ -343,6 +354,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       title,
     })
   }, [effectiveInlineSrcDoc, title])
+  const playableRawUrl = React.useMemo(() => resolveRichMediaPlayableUrl({
+    fallbackSrcDocAvailable: kind === 'video' && !!normalizedInlineSrcDoc,
+    url: rawUrl,
+  }), [kind, normalizedInlineSrcDoc, rawUrl])
+  const proxiedUrl = React.useMemo(() => {
+    if (kind === 'iframe') return rawUrl
+    return applyImageLikeProxySrc(playableRawUrl)
+  }, [kind, playableRawUrl, rawUrl])
   const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
   React.useEffect(() => {
     setInlineSrcDocContentSize(null)
@@ -434,6 +453,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     uiPanelMonospaceTextClass,
     isFlowEditorRenderer,
     flowEditorFrontmatterDocumentModeFromStore,
+    timelineTransportDocumentKey,
+    timelineTransportPosition,
+    timelineTransportPlaying,
+    timelineTransportPlaybackRate,
+    markdownDocumentName,
+    graphData,
+    graphDataRevision,
   } = useGraphStore(
     useShallow(s => ({
       richMediaPanelMode: s.richMediaPanelMode,
@@ -448,8 +474,181 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         frontmatterModeEnabled: s.frontmatterModeEnabled === true,
         documentSemanticMode: String(s.documentSemanticMode || ''),
       }),
+      timelineTransportDocumentKey: s.timelineTransportDocumentKey || '',
+      timelineTransportPosition: Number.isFinite(s.timelineTransportPosition) ? s.timelineTransportPosition : 0,
+      timelineTransportPlaying: s.timelineTransportPlaying === true,
+      timelineTransportPlaybackRate: s.timelineTransportPlaybackRate || 1,
+      markdownDocumentName: s.markdownDocumentName || '',
+      graphData: s.graphData,
+      graphDataRevision: s.graphDataRevision || 0,
     })),
   )
+  const timelineDurationUnits = React.useMemo(
+    () => resolveRichMediaTimelineDurationUnits(graphData),
+    [graphData, graphDataRevision],
+  )
+  const timelineDocumentKey = React.useMemo(
+    () => cleanTimelinePreviewDocumentKey(markdownDocumentName),
+    [markdownDocumentName],
+  )
+  const resolveTimelineTransportFrame = React.useCallback((override?: Partial<TimelineTransportPlaybackRequestDetail>) => {
+    if (!normalizedInlineSrcDoc) return
+    const documentKey = cleanTimelinePreviewDocumentKey(override?.documentKey || timelineTransportDocumentKey)
+    if (!timelineDocumentKey || documentKey !== timelineDocumentKey) return null
+    const positionSource = typeof override?.position === 'number' ? override.position : timelineTransportPosition
+    const playbackRateSource = typeof override?.playbackRate === 'number' ? override.playbackRate : timelineTransportPlaybackRate
+    const position = Number.isFinite(positionSource) ? Math.max(0, positionSource) : 0
+    return {
+      type: RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE,
+      documentKey: timelineDocumentKey,
+      position,
+      timeMs: position * RICH_MEDIA_TIMELINE_TRANSPORT_MS_PER_UNIT,
+      playing: typeof override?.playing === 'boolean' ? override.playing : timelineTransportPlaying,
+      playbackRate: Number.isFinite(playbackRateSource) && playbackRateSource > 0 ? playbackRateSource : 1,
+    }
+  }, [
+    normalizedInlineSrcDoc,
+    timelineDocumentKey,
+    timelineTransportDocumentKey,
+    timelineTransportPlaybackRate,
+    timelineTransportPlaying,
+    timelineTransportPosition,
+  ])
+  const postTimelineFrameToSrcDocPreview = React.useCallback((
+    frame: HTMLIFrameElement | null,
+    override?: Partial<TimelineTransportPlaybackRequestDetail>,
+  ) => {
+    const payload = resolveTimelineTransportFrame(override)
+    if (!payload) return
+    const targetWindow = frame?.contentWindow
+    if (!targetWindow) return
+    targetWindow.postMessage(payload, '*')
+  }, [resolveTimelineTransportFrame])
+  const postInlineSrcDocTimelineFrame = React.useCallback((override?: Partial<TimelineTransportPlaybackRequestDetail>) => {
+    postTimelineFrameToSrcDocPreview(inlineSrcDocFrameRef.current, override)
+    postTimelineFrameToSrcDocPreview(directVideoFallbackFrameRef.current, override)
+  }, [postTimelineFrameToSrcDocPreview])
+  const clearInlineSrcDocTimelineFrameBurst = React.useCallback(() => {
+    for (const timeoutId of inlineSrcDocTimelineFrameBurstTimeoutsRef.current) {
+      window.clearTimeout(timeoutId)
+    }
+    inlineSrcDocTimelineFrameBurstTimeoutsRef.current = []
+  }, [])
+  const scheduleInlineSrcDocTimelineFrameBurst = React.useCallback((override?: Partial<TimelineTransportPlaybackRequestDetail>) => {
+    if (typeof window === 'undefined') return
+    clearInlineSrcDocTimelineFrameBurst()
+    postInlineSrcDocTimelineFrame(override)
+    inlineSrcDocTimelineFrameBurstTimeoutsRef.current = [50, 150, 350, 750, 1200].map(delayMs => window.setTimeout(() => {
+      postInlineSrcDocTimelineFrame(override)
+    }, delayMs))
+  }, [clearInlineSrcDocTimelineFrameBurst, postInlineSrcDocTimelineFrame])
+  React.useEffect(() => {
+    return () => clearInlineSrcDocTimelineFrameBurst()
+  }, [clearInlineSrcDocTimelineFrameBurst])
+  React.useEffect(() => {
+    postInlineSrcDocTimelineFrame()
+  }, [postInlineSrcDocTimelineFrame])
+  React.useEffect(() => {
+    if (timelineTransportPlaying) return
+    scheduleInlineSrcDocTimelineFrameBurst()
+  }, [scheduleInlineSrcDocTimelineFrameBurst, timelineTransportPlaying])
+  const handleDirectMediaElement = React.useCallback((element: HTMLMediaElement | null) => {
+    directMediaElementRef.current = element
+    setDirectMediaElement(prev => (prev === element ? prev : element))
+    props.onMediaElement?.(element)
+  }, [props.onMediaElement])
+  const handleDirectVideoElement = React.useCallback((element: HTMLVideoElement | null) => {
+    props.onVideoElement?.(element)
+  }, [props.onVideoElement])
+  const syncDirectMediaElementToTimeline = React.useCallback((
+    media: HTMLMediaElement,
+    override?: Partial<TimelineTransportPlaybackRequestDetail>,
+  ) => {
+    if (kind !== 'video' && kind !== 'audio') return
+    const documentKey = cleanTimelinePreviewDocumentKey(override?.documentKey || timelineTransportDocumentKey)
+    if (!timelineDocumentKey || documentKey !== timelineDocumentKey) return
+    const positionSource = typeof override?.position === 'number' ? override.position : timelineTransportPosition
+    const playing = typeof override?.playing === 'boolean' ? override.playing : timelineTransportPlaying
+    const playbackRateSource = typeof override?.playbackRate === 'number' ? override.playbackRate : timelineTransportPlaybackRate
+    const playbackRate = Number.isFinite(playbackRateSource) && playbackRateSource > 0 ? playbackRateSource : 1
+    const mediaDuration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0
+    const targetSecondsRaw = resolveRichMediaTimelineMediaTargetSeconds({
+      mediaDurationSeconds: mediaDuration,
+      positionUnits: positionSource,
+      timelineDurationUnits,
+    })
+    const targetSeconds = Number.isFinite(media.duration) && media.duration > 0
+      ? Math.min(media.duration, targetSecondsRaw)
+      : targetSecondsRaw
+    const drift = Math.abs((Number.isFinite(media.currentTime) ? media.currentTime : 0) - targetSeconds)
+    if (!playing || drift > 0.18) {
+      try {
+        media.currentTime = targetSeconds
+      } catch {
+        void 0
+      }
+    }
+    if (media.playbackRate !== playbackRate) media.playbackRate = playbackRate
+    if (playing) {
+      if (media.paused) {
+        try {
+          const maybePromise = media.play()
+          if (maybePromise && typeof maybePromise.catch === 'function') maybePromise.catch(() => undefined)
+        } catch {
+          void 0
+        }
+      }
+    } else if (!media.paused) {
+      try {
+        media.pause()
+      } catch {
+        void 0
+      }
+    }
+  }, [
+    kind,
+    timelineDocumentKey,
+    timelineDurationUnits,
+    timelineTransportDocumentKey,
+    timelineTransportPlaybackRate,
+    timelineTransportPlaying,
+    timelineTransportPosition,
+  ])
+  React.useEffect(() => {
+    if (kind !== 'video' && kind !== 'audio') return
+    const media = directMediaElement || directMediaElementRef.current
+    if (!media) return
+    const syncDirectMediaElement = () => syncDirectMediaElementToTimeline(media)
+    syncDirectMediaElement()
+    media.addEventListener('loadedmetadata', syncDirectMediaElement)
+    media.addEventListener('durationchange', syncDirectMediaElement)
+    return () => {
+      media.removeEventListener('loadedmetadata', syncDirectMediaElement)
+      media.removeEventListener('durationchange', syncDirectMediaElement)
+    }
+  }, [
+    directMediaElement,
+    kind,
+    syncDirectMediaElementToTimeline,
+  ])
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handlePlaybackRequest = (event: Event) => {
+      const detail = (event as CustomEvent<TimelineTransportPlaybackRequestDetail>).detail
+      if (!detail || cleanTimelinePreviewDocumentKey(detail.documentKey) !== timelineDocumentKey) return
+      if (detail.playing) postInlineSrcDocTimelineFrame(detail)
+      else scheduleInlineSrcDocTimelineFrameBurst(detail)
+      const media = directMediaElementRef.current
+      if (media) syncDirectMediaElementToTimeline(media, detail)
+    }
+    window.addEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+    return () => window.removeEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+  }, [
+    postInlineSrcDocTimelineFrame,
+    scheduleInlineSrcDocTimelineFrameBurst,
+    syncDirectMediaElementToTimeline,
+    timelineDocumentKey,
+  ])
   const flowEditorFrontmatterDocumentMode =
     props.flowEditorFrontmatterDocumentMode === true || flowEditorFrontmatterDocumentModeFromStore
   const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
@@ -768,6 +967,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     return { w: 16, h: 9 }
   }, [kind])
   const directVideoFallbackSrcDoc = kind === 'video' ? normalizedInlineSrcDoc : ''
+  const directVideoUsesInlinePreview = kind === 'video' && !!directVideoFallbackSrcDoc
   const directMediaPreviewSelectionProps = React.useMemo(
     () => resolveMediaPreviewSurfaceSelectionProps({
       enabled: kind === 'image' || kind === 'svg' || kind === 'video',
@@ -793,7 +993,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             background: 'transparent',
           }}
         >
-          {directVideoFallbackSrcDoc ? (
+          {directVideoFallbackSrcDoc && !directVideoUsesInlinePreview ? (
             <section
               aria-hidden="true"
               data-kg-rich-media-video-srcdoc-fallback="1"
@@ -810,6 +1010,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 title={`${title} HTML preview`}
                 iframeSrc="about:blank"
                 iframeSrcDoc={directVideoFallbackSrcDoc}
+                iframeRef={directVideoFallbackFrameRef}
                 iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 iframeScrolling="no"
                 iframeReferrerPolicy="no-referrer"
@@ -821,11 +1022,15 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                   background: 'transparent',
                   pointerEvents: 'none',
                 }}
+                onLoad={() => {
+                  setReady(true)
+                  scheduleInlineSrcDocTimelineFrameBurst()
+                }}
               />
             </section>
           ) : null}
           <ZoomPanViewport
-            open={!!mediaSrc}
+            open={!!mediaSrc || directVideoUsesInlinePreview}
             storageKey={LS_KEYS.previewZoomPanMedia}
             getContentSize={() => directMediaZoomContentSize}
             fitOnOpen
@@ -840,25 +1045,51 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             transparentBackground
             frameSelectionProps={directMediaPreviewSelectionProps}
           >
-            <CardMediaPreview
-              kind={kind === 'svg' ? 'svg' : kind}
-              url={mediaSrc}
-              title={title}
-              {...directMediaPreviewCardProps}
-              fit="contain"
-              videoControls={false}
-              videoMuted={kind === 'video' ? true : undefined}
-              videoAutoPlay={kind === 'video' ? true : undefined}
-              videoLoop={kind === 'video' ? true : undefined}
-              videoPoster={kind === 'video' ? props.videoPoster : undefined}
-              mediaThumbnailDataAttr onMediaElement={props.onMediaElement}
-              onVideoElement={kind === 'video' ? props.onVideoElement : undefined}
-              onReady={() => setReady(true)}
-              onError={() => {
-                if (!fallbackToRawSrc()) setReady(true)
-              }}
-              mediaStyle={buildDirectMediaStyle('block', kind === 'video' && directVideoFallbackSrcDoc ? 'transparent' : kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
-            />
+            {directVideoUsesInlinePreview ? (
+              <SharedWebpageSurface
+                renderMode="iframe"
+                webpageUrl={openUrl || rawUrl}
+                title={`${title} HTML preview`}
+                iframeSrc="about:blank"
+                iframeSrcDoc={directVideoFallbackSrcDoc}
+                iframeRef={directVideoFallbackFrameRef}
+                iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                iframeLoading="eager"
+                iframeScrolling="no"
+                iframeReferrerPolicy="no-referrer"
+                iframeSelectableSurfaceDataAttr
+                className="block h-full w-full select-none border-0"
+                style={{
+                  background: 'transparent',
+                  pointerEvents: 'none',
+                }}
+                onLoad={() => {
+                  setReady(true)
+                  scheduleInlineSrcDocTimelineFrameBurst()
+                }}
+              />
+            ) : (
+              <CardMediaPreview
+                kind={kind === 'svg' ? 'svg' : kind}
+                url={mediaSrc}
+                title={title}
+                {...directMediaPreviewCardProps}
+                fit="contain"
+                videoControls={false}
+                videoMuted={kind === 'video' ? true : undefined}
+                videoAutoPlay={kind === 'video' ? true : undefined}
+                videoLoop={kind === 'video' ? true : undefined}
+                videoPoster={kind === 'video' ? props.videoPoster : undefined}
+                mediaThumbnailDataAttr
+                onMediaElement={handleDirectMediaElement}
+                onVideoElement={kind === 'video' ? handleDirectVideoElement : undefined}
+                onReady={() => setReady(true)}
+                onError={() => {
+                  if (!fallbackToRawSrc()) setReady(true)
+                }}
+                mediaStyle={buildDirectMediaStyle('block', kind === 'video' ? 'rgba(2, 6, 23, 0.72)' : 'rgba(15, 23, 42, 0.06)')}
+              />
+            )}
           </ZoomPanViewport>
         </section>
       )
@@ -1018,7 +1249,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               iframeScrolling={panelOwnsInlineSrcDocScroll ? 'no' : undefined}
               iframeReferrerPolicy="no-referrer"
               style={inlineSrcDocSurfaceStyle}
-              onLoad={() => setReady(true)}
+              onLoad={() => {
+                setReady(true)
+                scheduleInlineSrcDocTimelineFrameBurst()
+              }}
             />
           </section>
         ) : iframeEmbed?.direct ? (
@@ -1065,7 +1299,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           url={mediaSrc}
           title={title}
           interactive={contentInteractive}
-          fit="contain" onMediaElement={props.onMediaElement}
+          fit="contain"
+          onMediaElement={handleDirectMediaElement}
           onReady={() => setReady(true)}
           onError={() => {
             if (!fallbackToRawSrc()) setReady(true)

@@ -17,10 +17,7 @@ import {
 } from './useGanttTimelineTransportShellModel'
 import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
-import {
-  VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
-  formatVideoSequenceTimelineSecondsOffset,
-} from '@/components/timeline/videoSequenceTimeline'
+import { VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS } from '@/components/timeline/videoSequenceTimeline'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type GanttTimelineTransportSurfaceModel = {
@@ -79,23 +76,14 @@ export function useGanttTimelineTransportSurfaceModel(args: {
         timelineStartMinutes: segment.timelineStartMinutes,
       }))
   }, [thumbnailSourceUrl, thumbnailSummary.durationSeconds, transportSession.exportPlan, transportSession.thumbnailPlan])
-  const sourceBackedDisplayModel = useGanttTimelineDisplayModel({
+  const transportClockDisplayModel = useGanttTimelineDisplayModel({
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
+    mediaDurationSeconds: transportSession.mediaDurationSeconds,
     positionMinutes: transportSession.positionMinutes,
     previewPlan: selectedPreviewEmpty ? null : transportSession.previewPlan,
     sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds,
     ticks: transportSession.ticks,
   })
-  const emptySelectionCurrentLabel = selectedPreviewEmpty && transportSession.selectedSpan
-    ? formatVideoSequenceTimelineSecondsOffset(Math.max(0, Math.min(
-      transportSession.selectedSpan.durationMinutes,
-      transportSession.positionMinutes - transportSession.selectedSpan.startMinutes,
-    )))
-    : sourceBackedDisplayModel.currentLabel
-  const emptySelectionTotalLabel = selectedPreviewEmpty && transportSession.selectedSpan
-    ? formatVideoSequenceTimelineSecondsOffset(transportSession.selectedSpan.durationMinutes)
-    : sourceBackedDisplayModel.totalLabel
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
     exportPlan: transportSession.exportPlan,
@@ -132,7 +120,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     handleZoomIn: transportInteractionModel.handleZoomIn,
     handleZoomOut: transportInteractionModel.handleZoomOut,
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
+    mediaDurationSeconds: transportSession.mediaDurationSeconds,
     playheadMinutes: transportSession.positionMinutes,
     selectedSpan: transportSession.selectedSpan,
     toolStatus: transportSession.toolStatus,
@@ -141,7 +129,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   const rulerModel = useGanttTimelineTransportRulerModel({
     compact: args.compact,
     contentRef: rulerContentRef,
-    displayTicks: sourceBackedDisplayModel.displayTicks,
+    displayTicks: transportClockDisplayModel.displayTicks,
     disabledLaneIds,
     dragPreview: transportInteractionModel.dragPreview,
     draggingRowKey: transportInteractionModel.draggingRowKey,
@@ -161,7 +149,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     sourceThumbnailWindows,
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
-    totalLabel: emptySelectionTotalLabel,
+    totalLabel: transportClockDisplayModel.totalLabel,
     visibleLaneCount: transportSession.visibleLaneCount,
   })
   const transportPlaybackModel = useGanttTimelineTransportPlaybackModel({
@@ -176,11 +164,11 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     setTransportPlaying: transportSession.setTransportPlaying,
   })
   const shellModel = useGanttTimelineTransportShellModel({
-    currentLabel: emptySelectionCurrentLabel,
+    currentLabel: transportClockDisplayModel.currentLabel,
     disabled: transportSession.disabled,
-    hasMediaDurationScale: selectedPreviewEmpty ? false : transportSession.hasMediaDurationScale,
+    hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale,
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds,
+    mediaDurationSeconds: transportSession.mediaDurationSeconds,
     mediaReaderSummary: mediaPreviewSummary,
     onPlaybackPointerDown: transportPlaybackModel.handlePlaybackPointerDown,
     onPlaybackRateChange: transportSession.setTransportPlaybackRate,

@@ -45,8 +45,9 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
     if (event.button !== 0) return
     args.onSelect?.(event)
   }
-  const claimSurfaceClick = (event: React.MouseEvent<HTMLElement>) => {
+  const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {
     selectSurface(event)
+    if (event.button !== 0) return
     try {
       event.preventDefault()
     } catch {
@@ -58,12 +59,15 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
       void 0
     }
   }
+  const claimSurfaceClick = (event: React.MouseEvent<HTMLElement>) => {
+    claimSurfaceEvent(event)
+  }
   return {
     role: 'group',
     'aria-label': args.ariaLabel,
     [MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]: MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE,
-    onPointerDownCapture: selectSurface,
-    onMouseDownCapture: selectSurface,
+    onPointerDownCapture: claimSurfaceEvent,
+    onMouseDownCapture: claimSurfaceEvent,
     onClickCapture: claimSurfaceClick,
   }
 }

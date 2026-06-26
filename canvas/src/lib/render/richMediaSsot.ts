@@ -178,6 +178,23 @@ export function shouldShowRichMediaFloatingToolbar(args: {
   return hasPanelState || args.hasMultiKinds === true || selectedTab === 'text' || hasOpenUrl
 }
 
+export function resolveRichMediaPlayableUrl(args: {
+  fallbackSrcDocAvailable?: boolean
+  url: unknown
+}): string {
+  const raw = typeof args.url === 'string' ? args.url.trim() : ''
+  if (!raw || !raw.startsWith('blob:')) return raw
+  if (typeof window === 'undefined') return raw
+  const currentOrigin = typeof window.location?.origin === 'string' ? window.location.origin : ''
+  if (!currentOrigin) return raw
+  try {
+    const blobOrigin = new URL(raw).origin
+    return blobOrigin && blobOrigin !== 'null' && blobOrigin === currentOrigin ? raw : ''
+  } catch {
+    return ''
+  }
+}
+
 export function buildRichMediaPanelPreviewSpec(args: {
   node: GraphNode
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -201,6 +218,11 @@ export function buildRichMediaPanelPreviewSpec(args: {
     title: String(args.node.label || args.node.id || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   })
   const renderSpec = getNodeMediaSpec(renderNode)
+  const fallbackSrcDoc = String(renderSpec?.srcDoc || outputSrcDoc || '')
+  const playableVideoUrl = resolveRichMediaPlayableUrl({
+    fallbackSrcDocAvailable: !!fallbackSrcDoc.trim(),
+    url: rawVideoUrl || (renderSpec?.kind === 'video' ? renderSpec.url : ''),
+  })
   const selectedTab = resolveRichMediaPanelSelectedTab({
     activeTab: panel.activeTab,
     hasText: panel.hasText,
@@ -213,12 +235,21 @@ export function buildRichMediaPanelPreviewSpec(args: {
     hasInlineSrcDoc: !!String(renderSpec?.srcDoc || rawOutputSrcDoc || '').trim(),
   }) || 'text'
   if (selectedTab === 'video' || selectedTab === 'image') {
-    const selectedUrl = selectedTab === 'video' ? rawVideoUrl : rawImageUrl
+    const selectedUrl = selectedTab === 'video' ? playableVideoUrl : rawImageUrl
+    if (selectedTab === 'video' && !selectedUrl && fallbackSrcDoc.trim()) {
+      return {
+        kind: 'iframe',
+        url: '',
+        openUrl: rawImageUrl || rawAudioUrl || rawMediaUrl || '',
+        srcDoc: fallbackSrcDoc,
+        interactive: renderSpec?.interactive !== false,
+      }
+    }
     return {
       kind: selectedTab,
-      url: selectedUrl || String(renderSpec?.url || ''),
+      url: selectedTab === 'video' ? selectedUrl : selectedUrl || String(renderSpec?.url || ''),
       openUrl: selectedUrl || rawOpenUrl || String(renderSpec?.url || ''),
-      srcDoc: selectedTab === 'video' ? String(renderSpec?.srcDoc || outputSrcDoc || '') || undefined : undefined,
+      srcDoc: selectedTab === 'video' ? fallbackSrcDoc || undefined : undefined,
       interactive: selectedTab === 'video' ? renderSpec?.interactive !== false : renderSpec?.interactive === true,
     }
   }

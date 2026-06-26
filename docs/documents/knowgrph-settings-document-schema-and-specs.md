@@ -397,6 +397,8 @@ graphHoverPreview.showEdgeProperties:
 | Proceed with build          | Do not fail build process                            | Settings UI always has flow metadata               |
 ---
 
+Release/publish parity treats those generated JSON artifacts as canonical output: `canvas/public/settings-flow.json` feeds the generated public-route compatibility surface `huijoohwee/knowgrph/settings-flow.json`, while `canvas/src/features/settings/settings-flow.schema.json` stays the source-owned schema companion. Refresh them through the code-derived builder only; never hand-patch the publish copy downstream.
+
 ## Testing & Quality Standards
 
 **Test Coverage Metrics**

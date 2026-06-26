@@ -35,6 +35,7 @@ import {
   updateMermaidGanttVideoSequenceClipGroupTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import {
+  buildMermaidGanttCodeFromNeutralTimelinePayload,
   parseMermaidDiagramCodeModel,
   readFrontmatterMermaidDiagramCodes,
   readYamlFrontmatterMermaidDiagramCodes,
@@ -253,6 +254,62 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   )
   if (!eventModelingCode.includes('RunStarted')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Event Modeling code')
+  }
+}
+
+export function testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload() {
+  const timelinePayload = {
+    title: 'URL to MP4 Agent Demo',
+    timelineTracks: [
+      { id: 'capture', label: 'Capture URL', startMs: 0, durationMs: 1200 },
+      { id: 'extract', label: 'Extract identity', startMs: 1200, durationMs: 1200 },
+      { id: 'storyboard', label: 'Storyboard scenes', startMs: 2400, durationMs: 1200 },
+      { id: 'compose', label: 'Animate HTML', startMs: 3600, durationMs: 1200 },
+      { id: 'artifact', label: 'Persist MP4', startMs: 4800, durationMs: 1200 },
+    ],
+    timelineLanes: [
+      { id: 'lane:capture', label: 'Source capture', tracks: ['capture', 'extract'] },
+      { id: 'lane:render', label: 'Composition render', tracks: ['storyboard', 'compose', 'artifact'] },
+    ],
+  }
+  const directCode = buildMermaidGanttCodeFromNeutralTimelinePayload(timelinePayload)
+  if (
+    !directCode.includes('gantt') ||
+    !directCode.includes('section Source capture') ||
+    !directCode.includes('Capture URL : capture, 00:00, 1m') ||
+    !directCode.includes('Persist MP4 : artifact, 00:05, 1m')
+  ) {
+    throw new Error(`expected neutral timeline payload to convert to source-backed Mermaid Gantt code, got ${directCode}`)
+  }
+
+  const graphData = {
+    type: 'Graph',
+    nodes: [{
+      id: 'html_video_source_spec',
+      type: 'InputWidget',
+      label: 'Programmatic Video Render Spec',
+      properties: {
+        data_json: {
+          key: 'data_json',
+          type: 'json',
+          value: JSON.stringify(timelinePayload),
+        },
+      },
+    }],
+    edges: [],
+    metadata: {},
+  }
+  const ganttCode = resolveMermaidDiagramCode(
+    readFrontmatterMermaidDiagramCodes(graphData, 'gantt'),
+    'gantt',
+  )
+  if (!ganttCode.includes('URL to MP4 Agent Demo') || !ganttCode.includes('section Composition render')) {
+    throw new Error('expected parsed Flow Editor graph data_json timelineTracks to resolve as Gantt code')
+  }
+  const model = parseMermaidDiagramCodeModel(ganttCode, 'gantt')
+  const rows = model.rows.filter(row => row.kind === 'task')
+  if (rows.length !== 5 || !rows.some(row => row.label === 'Animate HTML')) {
+    throw new Error(`expected neutral Flow Editor timeline payload to expose five Gantt task rows, got ${JSON.stringify(rows)}`)
   }
 }
 
@@ -892,10 +949,13 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
     ganttTransportSurfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||
     ganttTransportSurfaceModelText.includes('transportSession.setTransportPlaying(false)') ||
-    !ganttTransportSurfaceModelText.includes('emptySelectionCurrentLabel') ||
-    !ganttTransportSurfaceModelText.includes('emptySelectionTotalLabel') ||
-    !ganttTransportSurfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false : transportSession.hasMediaDurationScale') ||
-    !ganttTransportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
+    !ganttTransportSurfaceModelText.includes('transportClockDisplayModel') ||
+    ganttTransportSurfaceModelText.includes('emptySelectionCurrentLabel') ||
+    ganttTransportSurfaceModelText.includes('emptySelectionTotalLabel') ||
+    ganttTransportSurfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false') ||
+    ganttTransportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
+    !ganttTransportSurfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
+    !ganttTransportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !ganttTransportSurfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
     !ganttTransportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !ganttTransportSurfaceModelText.includes('sourceThumbnailWindows') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportSurface') ||

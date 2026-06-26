@@ -1,6 +1,7 @@
 import React from 'react'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
+import { resolveMediaPreviewSelectableDataAttr } from '@/lib/cards/mediaPreviewSurfaceSelection'
 
 export type SharedWebpageSurfaceFrameProps = {
   title: string
@@ -24,6 +25,7 @@ export type SharedWebpageSurfaceProps = {
   iframeReferrerPolicy?: React.HTMLAttributeReferrerPolicy
   iframeRef?: React.Ref<HTMLIFrameElement>
   iframeScrolling?: 'auto' | 'yes' | 'no'
+  iframeSelectableSurfaceDataAttr?: boolean
   onLoad?: React.ReactEventHandler<HTMLIFrameElement>
   iframeRenderer?: (props: SharedWebpageSurfaceFrameProps) => React.ReactNode
 }
@@ -69,6 +71,7 @@ export function SharedWebpageSurface(props: SharedWebpageSurfaceProps) {
       referrerPolicy={props.iframeReferrerPolicy || 'no-referrer'}
       ref={props.iframeRef}
       scrolling={props.iframeScrolling}
+      data-kg-rich-media-selectable-surface={resolveMediaPreviewSelectableDataAttr(props.iframeSelectableSurfaceDataAttr === true)}
       style={props.style}
       onLoad={props.onLoad}
     />

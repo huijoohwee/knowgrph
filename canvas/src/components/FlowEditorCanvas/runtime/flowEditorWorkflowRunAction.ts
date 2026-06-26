@@ -569,6 +569,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
             return
           }
           const renderUrl = result.outputStorageUrl || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(result.blob) : '')
+          const outputSrcDoc = buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)
           const outputPatch = {
             ...buildRichMediaWidgetOutputPatch({
               kind: 'video',
@@ -580,6 +581,7 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
               outputPath: result.outputPath,
               outputManifestPath: result.outputManifestPath,
             }),
+            ...(outputSrcDoc.trim() ? { outputSrcDoc } : null),
             renderJobId: result.renderJobId,
             engineId: result.engineId,
             richMediaActiveTab: 'video',

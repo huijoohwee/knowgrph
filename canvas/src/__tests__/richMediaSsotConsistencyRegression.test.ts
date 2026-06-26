@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   buildRichMediaPanelOverlayState,
+  buildRichMediaPanelPreviewSpec,
   buildStaticRichMediaPanelOverlayState,
   listDisplayRichMediaOverlayNodes,
   normalizeRichMediaPanelDensity,
   normalizeRichMediaPanelTab,
   readRichMediaDisplayMode,
+  resolveRichMediaPlayableUrl,
   resolveRichMediaSurfaceMode,
   resolveRichMediaAspectSelection,
   resolveRichMediaPanelInteractive,
@@ -14,6 +16,7 @@ import {
   resolveToggledRichMediaAspectSize,
 } from '@/lib/render/richMediaSsot'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
 
 export function testRichMediaSsotConsistencyRegression() {
   if (readRichMediaDisplayMode(false) !== 'circle-only') {
@@ -105,6 +108,39 @@ export function testRichMediaSsotConsistencyRegression() {
     }) !== true
   ) {
     throw new Error('expected frontmatter Flow Editor document mode to preserve Rich Media overlay interaction without the manual toggle')
+  }
+  const previousWindow = (globalThis as { window?: unknown }).window
+  ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5173' } }
+  try {
+    const staleBlobUrl = 'blob:http://localhost:5174/stale-video'
+    const sameOriginBlobUrl = 'blob:http://localhost:5173/current-video'
+    if (resolveRichMediaPlayableUrl({ url: staleBlobUrl, fallbackSrcDocAvailable: true })) {
+      throw new Error('expected stale cross-origin dev blob videoUrl to yield to the inline Rich Media srcdoc fallback')
+    }
+    if (resolveRichMediaPlayableUrl({ url: staleBlobUrl })) {
+      throw new Error('expected stale cross-origin dev blob videoUrl to be treated as unplayable without fallback')
+    }
+    if (resolveRichMediaPlayableUrl({ url: sameOriginBlobUrl, fallbackSrcDocAvailable: true }) !== sameOriginBlobUrl) {
+      throw new Error('expected same-origin blob videoUrl to remain playable')
+    }
+    const staleBlobPanelNode = {
+      id: 'rendered-mp4-artifact',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: 'Rendered MP4 Artifact',
+      properties: {
+        outputSrcDoc: '<main data-composition-id="demo"><section>Inline artifact fallback</section></main>',
+        videoUrl: staleBlobUrl,
+      },
+    }
+    const staleBlobPanel = buildRichMediaPanelOverlayState({ node: staleBlobPanelNode as never })
+    const staleBlobPreview = staleBlobPanel
+      ? buildRichMediaPanelPreviewSpec({ node: staleBlobPanelNode as never, panel: staleBlobPanel })
+      : null
+    if (!staleBlobPreview || staleBlobPreview.kind !== 'iframe' || !String(staleBlobPreview.srcDoc || '').includes('Inline artifact fallback')) {
+      throw new Error(`expected stale Rich Media blob videoUrl to render the inline artifact fallback, got ${JSON.stringify(staleBlobPreview)}`)
+    }
+  } finally {
+    ;(globalThis as { window?: unknown }).window = previousWindow
   }
   const staticVideoPanel = buildStaticRichMediaPanelOverlayState({ renderKind: 'video' })
   if (staticVideoPanel.activeTab !== 'video' || staticVideoPanel.hasVideo !== true || staticVideoPanel.isLoading !== false) {
@@ -347,6 +383,10 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (!sharedWebpageSurfaceText.includes('export function SharedWebpageSurface(')) {
     throw new Error('expected webpage snapshot/embed rendering to be centralized in one shared surface helper upstream')
+  }
+  if (!sharedWebpageSurfaceText.includes('iframeSelectableSurfaceDataAttr?: boolean')
+    || !sharedWebpageSurfaceText.includes('resolveMediaPreviewSelectableDataAttr(props.iframeSelectableSurfaceDataAttr === true)')) {
+    throw new Error('expected shared iframe surfaces to reuse the Rich Media selectable surface marker helper')
   }
   if (!sharedWebpageSnapshotSurfaceText.includes('export function SharedWebpageSnapshotSurface(')) {
     throw new Error('expected webpage snapshot card rendering to be centralized in one shared snapshot surface helper upstream')

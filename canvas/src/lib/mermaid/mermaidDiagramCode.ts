@@ -29,6 +29,19 @@ export type MermaidDiagramCodeModel = {
   rows: MermaidDiagramCommandRow[]
 }
 
+type NeutralTimelineTrack = {
+  durationMs: number
+  id: string
+  label: string
+  startMs: number
+}
+
+type NeutralTimelineLane = {
+  id: string
+  label: string
+  tracks: string[]
+}
+
 const MERMAID_TYPED_TYPE_BY_KIND: Record<MermaidStructuredDiagramKind, string> = {
   flowchart: 'mermaid_flowchart',
   gitgraph: 'mermaid_gitgraph',
@@ -60,6 +73,154 @@ const pushUniqueCode = (out: string[], code: string): void => {
   const next = readCode(code)
   if (!next || out.includes(next)) return
   out.push(next)
+}
+
+const readNeutralTimelineString = (value: unknown): string => (
+  typeof value === 'string' ? String(value || '').trim() : ''
+)
+
+const readNeutralTimelineNumber = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const sanitizeNeutralTimelineLabel = (value: unknown, fallback: string): string => {
+  const cleaned = readNeutralTimelineString(value).replace(/[:\n\r]/g, ' ').replace(/\s+/g, ' ').trim()
+  return cleaned || fallback
+}
+
+const readNeutralTimelineRecordValue = (value: unknown): unknown => {
+  if (!isPlainObject(value)) return value
+  const record = value as Record<string, unknown>
+  return Object.prototype.hasOwnProperty.call(record, 'value') ? record.value : value
+}
+
+const parseNeutralTimelinePayload = (value: unknown): unknown => {
+  const unwrapped = readNeutralTimelineRecordValue(value)
+  if (typeof unwrapped !== 'string') return unwrapped
+  const text = unwrapped.trim()
+  if (!text || !/^[{[]/.test(text)) return unwrapped
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return unwrapped
+  }
+}
+
+const normalizeNeutralTimelineTrack = (value: unknown, index: number): NeutralTimelineTrack | null => {
+  const parsed = parseNeutralTimelinePayload(value)
+  if (!isPlainObject(parsed)) return null
+  const record = parsed as Record<string, unknown>
+  const label = sanitizeNeutralTimelineLabel(record.label, `Track ${index + 1}`)
+  const id = readNeutralTimelineString(record.id) || label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || `track_${index + 1}`
+  const startMs = Math.max(0, readNeutralTimelineNumber(record.startMs ?? record.start ?? record.offsetMs))
+  const durationMs = Math.max(0, readNeutralTimelineNumber(record.durationMs ?? record.duration))
+  if (durationMs <= 0) return null
+  return { durationMs, id, label, startMs }
+}
+
+const normalizeNeutralTimelineLane = (value: unknown, index: number): NeutralTimelineLane | null => {
+  const parsed = parseNeutralTimelinePayload(value)
+  if (!isPlainObject(parsed)) return null
+  const record = parsed as Record<string, unknown>
+  const label = sanitizeNeutralTimelineLabel(record.label, `Lane ${index + 1}`)
+  const id = readNeutralTimelineString(record.id) || label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || `lane_${index + 1}`
+  const tracks = Array.isArray(record.tracks)
+    ? record.tracks.map(item => readNeutralTimelineString(item)).filter(Boolean)
+    : []
+  return { id, label, tracks }
+}
+
+const resolveNeutralTimelineUnitMs = (tracks: readonly NeutralTimelineTrack[]): number => {
+  const maxEndMs = tracks.reduce((max, track) => Math.max(max, track.startMs + track.durationMs), 0)
+  return maxEndMs > 0 && maxEndMs <= 60000 ? 1000 : 60000
+}
+
+const formatNeutralTimelineClock = (ms: number, unitMs: number): string => {
+  const totalMinutes = Math.max(0, Math.round(ms / Math.max(1, unitMs)))
+  const hours = Math.floor(totalMinutes / 60) % 24
+  const minutes = totalMinutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+const formatNeutralTimelineDurationMinutes = (ms: number, unitMs: number): string => {
+  return `${Math.max(1, Math.round(ms / Math.max(1, unitMs)))}m`
+}
+
+const readNeutralTimelineTitle = (payload: Record<string, unknown>): string => (
+  sanitizeNeutralTimelineLabel(payload.title, 'Video Sequence Timeline')
+)
+
+export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown): string => {
+  const payload = parseNeutralTimelinePayload(value)
+  if (!isPlainObject(payload)) return ''
+  const record = payload as Record<string, unknown>
+  const tracks = Array.isArray(record.timelineTracks)
+    ? record.timelineTracks.map(normalizeNeutralTimelineTrack).filter((item): item is NeutralTimelineTrack => !!item)
+    : []
+  if (!tracks.length) return ''
+  const unitMs = resolveNeutralTimelineUnitMs(tracks)
+  const trackById = new Map(tracks.map(track => [track.id, track]))
+  const lanes = Array.isArray(record.timelineLanes)
+    ? record.timelineLanes.map(normalizeNeutralTimelineLane).filter((item): item is NeutralTimelineLane => !!item)
+    : []
+  const assignedTrackIds = new Set<string>()
+  const lines = [
+    'gantt',
+    `  title ${readNeutralTimelineTitle(record)}`,
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+  ]
+  const pushLane = (lane: NeutralTimelineLane): void => {
+    const laneTracks = lane.tracks.map(id => trackById.get(id)).filter((item): item is NeutralTimelineTrack => !!item)
+    if (!laneTracks.length) return
+    lines.push(`  section ${sanitizeNeutralTimelineLabel(lane.label, lane.id)}`)
+    for (const track of laneTracks) {
+      assignedTrackIds.add(track.id)
+      lines.push(`  ${track.label} : ${track.id}, ${formatNeutralTimelineClock(track.startMs, unitMs)}, ${formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)}`)
+    }
+  }
+  for (const lane of lanes) pushLane(lane)
+  const unassigned = tracks.filter(track => !assignedTrackIds.has(track.id))
+  if (unassigned.length) {
+    lines.push('  section Timeline')
+    for (const track of unassigned) {
+      lines.push(`  ${track.label} : ${track.id}, ${formatNeutralTimelineClock(track.startMs, unitMs)}, ${formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+const collectNeutralTimelineGanttCodes = (
+  value: unknown,
+  out: string[],
+  state: { depth: number; visited: number },
+): void => {
+  if (state.depth > MAX_TYPED_SCAN_DEPTH || state.visited > MAX_TYPED_SCAN_NODES) return
+  state.visited += 1
+  const parsed = parseNeutralTimelinePayload(value)
+  const code = buildMermaidGanttCodeFromNeutralTimelinePayload(parsed)
+  if (code) pushUniqueCode(out, code)
+  if (Array.isArray(parsed)) {
+    state.depth += 1
+    for (const item of parsed) collectNeutralTimelineGanttCodes(item, out, state)
+    state.depth -= 1
+    return
+  }
+  if (!isPlainObject(parsed)) return
+  state.depth += 1
+  for (const item of Object.values(parsed as Record<string, unknown>)) {
+    collectNeutralTimelineGanttCodes(item, out, state)
+  }
+  state.depth -= 1
+}
+
+export const readNeutralTimelineGanttCodes = (
+  value: unknown,
+): string[] => {
+  const out: string[] = []
+  collectNeutralTimelineGanttCodes(value, out, { depth: 0, visited: 0 })
+  return out
 }
 
 const collectTypedMermaidDiagramCodes = (
@@ -155,6 +316,9 @@ export const readFrontmatterMermaidDiagramCodes = (
   if (frontmatterMeta) {
     for (const code of readTypedMermaidDiagramCodes(frontmatterMeta, kind)) pushUniqueCode(out, code)
     pushUniqueCode(out, readCode((frontmatterMeta as Record<string, unknown>).mermaid))
+  }
+  if (kind === 'gantt') {
+    for (const code of readNeutralTimelineGanttCodes(graphData)) pushUniqueCode(out, code)
   }
   return out
 }

@@ -1,3 +1,5 @@
+import { MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR, MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE } from '@/lib/cards/mediaPreviewSurfaceSelection'
+
 export const FLOW_EDITOR_OVERLAY_MODE_SELECTOR = '[data-kg-flow-editor-mode="1"]'
 export const FLOW_EDITOR_OVERLAY_SURFACE_ATTR = 'data-kg-flow-editor-surface'
 export const FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR = 'data-kg-flow-editor-surface-root'
@@ -12,7 +14,7 @@ export const CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR =
   `[data-kg-flow-node-drag-handle="true"],[data-kg-canvas-overlay-drag-handle="true"],${CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR}`
 
 export const FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR =
-  'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"],[data-kg-card-inline-edit="1"]'
+  `input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"],[data-kg-card-inline-edit="1"],[${MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR}="${MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE}"]`
 
 export const FLOW_EDITOR_INTERACTION_FRAME_EVENT = 'kg-flow-editor-interaction-frame'
 

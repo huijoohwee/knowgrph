@@ -807,10 +807,13 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     transportSurfaceModelText.includes('selectedPreviewEmpty || !transportSession.playing') ||
     transportSurfaceModelText.includes('transportSession.setTransportPlaying(false)') ||
     !transportSurfaceModelText.includes('disabled: transportSession.disabled') ||
-    !transportSurfaceModelText.includes('emptySelectionCurrentLabel') ||
-    !transportSurfaceModelText.includes('emptySelectionTotalLabel') ||
-    !transportSurfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false : transportSession.hasMediaDurationScale') ||
-    !transportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
+    !transportSurfaceModelText.includes('transportClockDisplayModel') ||
+    transportSurfaceModelText.includes('emptySelectionCurrentLabel') ||
+    transportSurfaceModelText.includes('emptySelectionTotalLabel') ||
+    transportSurfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false') ||
+    transportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
+    !transportSurfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
+    !transportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !transportSurfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
     !previewSyncText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
     !previewSyncText.includes('resolveTimelineVideoPreviewDurationSeconds') ||

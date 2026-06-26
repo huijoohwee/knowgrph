@@ -14,6 +14,8 @@ import {
 } from '@/components/timeline/timelinePlanSync'
 import { resolveTimelineVideoPreviewTargetSeconds } from '@/components/timeline/timelinePreviewSync'
 import { resolveGanttTimelineDisplaySourceTime } from '@/features/gitgraph/useGanttTimelineDisplayModel'
+import { resolveGanttTimelinePlaybackStartPosition } from '@/features/gitgraph/useGanttTimelinePlaybackControls'
+import { resolveRichMediaTimelineMediaTargetSeconds } from '@/lib/render/richMediaTimelineSync'
 
 const root = process.cwd()
 
@@ -307,6 +309,22 @@ export function testVideoSequencePreviewSyncKeepsVideoGapsEmpty() {
 }
 
 export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync() {
+  const scaledArtifactTarget = resolveRichMediaTimelineMediaTargetSeconds({
+    mediaDurationSeconds: 17.775,
+    positionUnits: 4.8,
+    timelineDurationUnits: 6,
+  })
+  if (Math.abs(scaledArtifactTarget - 14.22) > 0.001) {
+    throw new Error(`expected Rich Media rendered artifact sync to scale timeline position into media duration, got ${scaledArtifactTarget}`)
+  }
+  const restartPosition = resolveGanttTimelinePlaybackStartPosition({
+    maxMinutes: 6,
+    playing: false,
+    positionMinutes: 6,
+  })
+  if (restartPosition !== 0) {
+    throw new Error(`expected terminal Gantt transport play action to restart from the source timeline start, got ${restartPosition}`)
+  }
   const bindingText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasBinding.ts')
   const routeEntryText = readSource('components', 'timeline', 'useTimelinePreviewRouteEntry.ts')
   const mediaSessionText = readSource('components', 'timeline', 'useTimelinePreviewMediaSession.ts')
@@ -316,6 +334,11 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
   const sourceActivityText = readSource('components', 'timeline', 'useTimelineSourceActivityModel.ts')
   const activitySurfaceText = readSource('components', 'timeline', 'useTimelinePreviewActivitySurfaceModel.ts')
   const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
+  const nodeOverlayEditorFormText = readSource('components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const richMediaTimelineSyncText = readSource('lib', 'render', 'richMediaTimelineSync.ts')
+  const ganttPlaybackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
+  const ganttTransportPlaybackModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPlaybackModel.ts')
+  const htmlVideoFlowNodeText = readSource('features', 'html-video-renderer', 'htmlVideoFlowNode.ts')
   const cardMediaPreviewText = readSource('lib', 'cards', 'CardMediaPreview.tsx')
   if (
     !bindingText.includes('useTimelineTransportStoreBinding') ||
@@ -340,10 +363,54 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !previewSyncText.includes("video.setAttribute('data-kg-video-sequence-audio-playback', 'audible')") ||
     !previewSyncText.includes('enableVideoSequenceAudioPlayback(video)') ||
     !richMediaPanelText.includes('onMediaElement?: (element: HTMLMediaElement | null) => void') ||
+    !richMediaPanelText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE') ||
+    !richMediaPanelText.includes('resolveTimelineTransportFrame') ||
+    !richMediaPanelText.includes('documentKey !== timelineDocumentKey') ||
+    !richMediaPanelText.includes('postInlineSrcDocTimelineFrame') ||
+    !richMediaPanelText.includes('scheduleInlineSrcDocTimelineFrameBurst') ||
+    !richMediaPanelText.includes('[50, 150, 350, 750, 1200]') ||
+    !richMediaPanelText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !richMediaPanelText.includes('syncDirectMediaElementToTimeline(media, detail)') ||
+    !richMediaPanelText.includes('iframeRef={directVideoFallbackFrameRef}') ||
+    !richMediaPanelText.includes('const directVideoUsesInlinePreview = kind ===') ||
+    !richMediaPanelText.includes('open={!!mediaSrc || directVideoUsesInlinePreview}') ||
+    !richMediaPanelText.includes('directVideoUsesInlinePreview ? (') ||
+    !richMediaPanelText.includes('iframeLoading="eager"') ||
+    !richMediaPanelText.includes('iframeSelectableSurfaceDataAttr') ||
+    !richMediaPanelText.includes('directMediaElementRef') ||
+    !richMediaPanelText.includes('resolveRichMediaPlayableUrl') ||
+    !richMediaPanelText.includes('const playableRawUrl = React.useMemo') ||
+    !richMediaPanelText.includes('applyImageLikeProxySrc(playableRawUrl)') ||
+    !richMediaPanelText.includes('resolveRichMediaTimelineDurationUnits') ||
+    !richMediaPanelText.includes('resolveRichMediaTimelineMediaTargetSeconds') ||
+    !richMediaPanelText.includes("media.addEventListener('loadedmetadata', syncDirectMediaElement)") ||
+    !richMediaPanelText.includes("media.removeEventListener('durationchange', syncDirectMediaElement)") ||
+    !richMediaPanelText.includes('media.currentTime = targetSeconds') ||
+    !richMediaPanelText.includes('media.play()') ||
+    !nodeOverlayEditorFormText.includes('compactPreviewMediaElementRef') ||
+    !nodeOverlayEditorFormText.includes('compactPreviewMediaElementHandler') ||
+    !nodeOverlayEditorFormText.includes('syncCompactPreviewMediaToTimeline(media, detail)') ||
+    !nodeOverlayEditorFormText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !nodeOverlayEditorFormText.includes('resolveRichMediaTimelineMediaTargetSeconds') ||
+    !nodeOverlayEditorFormText.includes('onMediaElement={compactPreviewIsPlayableMedia ? compactPreviewMediaElementHandler : undefined}') ||
+    !richMediaTimelineSyncText.includes('resolveRichMediaTimelineDurationUnits') ||
+    !richMediaTimelineSyncText.includes('buildMermaidGanttTimelineModel(ganttCode).durationMinutes') ||
+    !ganttPlaybackControlsText.includes('resolveGanttTimelinePlaybackStartPosition') ||
+    !ganttPlaybackControlsText.includes('args.setTransportPlaybackPosition(nextPosition)') ||
+    !ganttPlaybackControlsText.includes('requestTimelineTransportPlayback(nextPlaying, nextPosition)') ||
+    !ganttTransportPlaybackModelText.includes('maxMinutes: args.maxMinutes') ||
+    !ganttTransportPlaybackModelText.includes('setTransportPlaybackPosition: args.onPositionChange') ||
+    !htmlVideoFlowNodeText.includes('window.__knowgrphRenderFrame=async function(timeMs)') ||
+    !htmlVideoFlowNodeText.includes('window.__knowgrphRenderFrame(0)') ||
+    !htmlVideoFlowNodeText.includes('window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__=true') ||
+    !htmlVideoFlowNodeText.includes('payload.type!=="knowgrph:timeline-transport-frame"') ||
+    !htmlVideoFlowNodeText.includes('startTransportPlayback(timeMs,payload.playbackRate)') ||
+    !htmlVideoFlowNodeText.includes('cancelTransportPlayback()') ||
+    !htmlVideoFlowNodeText.includes('node.style.animationDelay="-"+Math.max(0,seconds)+"s"') ||
     !cardMediaPreviewText.includes('onMediaElement?: (element: HTMLMediaElement | null) => void') ||
     !cardMediaPreviewText.includes('ref={onMediaElement}')
   ) {
-    throw new Error('expected Media canvas preview context to use shared transport position and native image/audio/video source kinds so timeline preview bars stay in sync with Rich Media preview')
+    throw new Error('expected Media canvas and Rich Media iframe previews to use shared transport position and native image/audio/video source kinds so timeline preview bars stay in sync with Rich Media preview')
   }
 }
 
@@ -415,7 +482,7 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     Math.abs((readoutFromLateSourceRange?.currentSeconds || 0) - 4) > 0.0001 ||
     readoutFromLateSourceRange?.totalSeconds !== 15 ||
     !displayModelText.includes('sourceDurationSeconds') ||
-    !surfaceModelText.includes('sourceBackedDisplayModel') ||
+    !surfaceModelText.includes('transportClockDisplayModel') ||
     !timelinePlanSyncText.includes('source?.durationSeconds || 0') ||
     !timelinePlanSyncText.includes('segment.sourceRangeMinutes.endMinutes') ||
     !surfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
@@ -424,9 +491,12 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     surfaceModelText.includes('selectedPreviewEmpty || !transportSession.playing') ||
     surfaceModelText.includes('transportSession.setTransportPlaying(false)') ||
     !surfaceModelText.includes('disabled: transportSession.disabled') ||
-    !surfaceModelText.includes('emptySelectionCurrentLabel') ||
-    !surfaceModelText.includes('emptySelectionTotalLabel') ||
-    !surfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false : transportSession.hasMediaDurationScale') ||
+    surfaceModelText.includes('emptySelectionCurrentLabel') ||
+    surfaceModelText.includes('emptySelectionTotalLabel') ||
+    surfaceModelText.includes('hasMediaDurationScale: selectedPreviewEmpty ? false') ||
+    surfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
+    !surfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
+    !surfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !surfaceModelText.includes('const mediaPreviewSourceUrl = React.useMemo') ||
     !surfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
     !surfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds') ||

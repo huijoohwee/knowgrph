@@ -2,11 +2,13 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { normalizeSemanticHtmlContainers } from '@/lib/html/semanticHtml'
+import { RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE } from '@/lib/render/richMediaTimelineSync'
 import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export const RICH_MEDIA_PANEL_SRCDOC_ATTR = 'data-kg-rich-media-panel-srcdoc'
 export const RICH_MEDIA_PANEL_SRCDOC_STYLE_ID = 'kg-rich-media-panel-srcdoc-reset'
 export const RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-resize'
+export const RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-timeline-transport'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE = 'kg-rich-media-panel-srcdoc-size'
 
 const richMediaPanelSrcDocCache = new LRUCache<string, string>(64, 2 * 60_000)
@@ -73,6 +75,61 @@ function buildRichMediaPanelSrcDocResizeScript(): string {
   ].join('')
 }
 
+function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
+  return [
+    `<script id="${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}">`,
+    '(function(){',
+    'if(window.__KNOWGRPH_RICH_MEDIA_TIMELINE_BRIDGE__)return;',
+    'window.__KNOWGRPH_RICH_MEDIA_TIMELINE_BRIDGE__=true;',
+    `var messageType=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE)};`,
+    'var raf=0,pending=null,retry=0;',
+    'function cancel(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
+    'function render(timeMs){',
+    'var fn=window.__knowgrphRenderFrame;',
+    'if(typeof fn!=="function")return false;',
+    'try{fn(timeMs);}catch(e){}',
+    'return true;',
+    '}',
+    'function applyPending(){',
+    'if(window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__)return;',
+    'var payload=pending||{timeMs:0,playing:false,playbackRate:1};',
+    'var timeMs=Number.isFinite(Number(payload.timeMs))?Number(payload.timeMs):0;',
+    'if(!render(timeMs)){',
+    'if(retry>=120)return;',
+    'retry+=1;',
+    'requestAnimationFrame(applyPending);',
+    'return;',
+    '}',
+    'retry=0;',
+    'if(payload.playing){start(timeMs,payload.playbackRate);}else{cancel();}',
+    '}',
+    'function start(startTimeMs,playbackRate){',
+    'cancel();',
+    'var baseTimeMs=Number.isFinite(Number(startTimeMs))?Math.max(0,Number(startTimeMs)):0;',
+    'var rate=Number.isFinite(Number(playbackRate))&&Number(playbackRate)>0?Number(playbackRate):1;',
+    'var nowFn=performance&&typeof performance.now==="function"?function(){return performance.now();}:function(){return Date.now();};',
+    'var baseNow=nowFn();',
+    'function tick(){',
+    'var nextTimeMs=baseTimeMs+Math.max(0,nowFn()-baseNow)*rate;',
+    'if(!render(nextTimeMs)){cancel();return;}',
+    'raf=requestAnimationFrame(tick);',
+    '}',
+    'raf=requestAnimationFrame(tick);',
+    '}',
+    'window.addEventListener("message",function(event){',
+    'var payload=event&&event.data;',
+    'if(!payload||typeof payload!=="object"||payload.type!==messageType)return;',
+    'if(window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__)return;',
+    'pending=payload;',
+    'applyPending();',
+    '});',
+    'window.addEventListener("load",function(){applyPending();},{passive:true});',
+    'requestAnimationFrame(applyPending);',
+    '})();',
+    '</script>',
+  ].join('')
+}
+
 function markHtmlElement(srcDoc: string): string {
   if (srcDoc.includes(`${RICH_MEDIA_PANEL_SRCDOC_ATTR}=`)) return srcDoc
   if (/<html\b/i.test(srcDoc)) {
@@ -89,10 +146,12 @@ function injectStyleIntoDocument(args: {
   const markedSrcDoc = markHtmlElement(args.srcDoc)
   const existingResetStylePattern = new RegExp(`<style\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}["'])[^>]*>[\\s\\S]*?<\\/style>`, 'i')
   const existingResizeScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
-  const script = buildRichMediaPanelSrcDocResizeScript()
+  const existingTimelineScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
+  const script = `${buildRichMediaPanelSrcDocResizeScript()}${buildRichMediaPanelSrcDocTimelineTransportScript()}`
   const srcDoc = markedSrcDoc
     .replace(existingResetStylePattern, '')
     .replace(existingResizeScriptPattern, '')
+    .replace(existingTimelineScriptPattern, '')
   if (/<\/head\s*>/i.test(srcDoc)) return srcDoc.replace(/<\/head\s*>/i, `${args.style}${script}</head>`)
   if (/<head\b[^>]*>/i.test(srcDoc)) return srcDoc.replace(/<head\b[^>]*>/i, match => `${match}${args.style}${script}`)
   if (/<html\b[^>]*>/i.test(srcDoc)) {

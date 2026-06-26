@@ -9,7 +9,10 @@ import {
   UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME,
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-import type { MediaPreviewSurfaceSelectionProps } from '@/lib/cards/mediaPreviewSurfaceSelection'
+import {
+  MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR,
+  type MediaPreviewSurfaceSelectionProps,
+} from '@/lib/cards/mediaPreviewSurfaceSelection'
 
 type ContentSize = { w: number; h: number }
 type Pan = { x: number; y: number }
@@ -95,6 +98,7 @@ export default function ZoomPanViewport({
   const stored = React.useMemo(() => lsJson(storageKey, { zoom: 1, panX: 0, panY: 0 }, parseStoredState), [storageKey])
   const [zoom, setZoom] = React.useState(() => clampZoom(stored.zoom))
   const [pan, setPan] = React.useState<Pan>(() => ({ x: stored.panX, y: stored.panY }))
+  const selectableSurfaceDataAttr = frameSelectionProps?.[MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]
 
   React.useEffect(() => {
     zoomRef.current = zoom
@@ -320,8 +324,12 @@ export default function ZoomPanViewport({
                 touchAction: 'none',
               }}
             >
-              <section className="w-full h-full flex items-center justify-center">
+              <section
+                className="w-full h-full flex items-center justify-center"
+                data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
+              >
                 <section
+                  data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
                   style={{
                     ...(contentFillsFrame
                       ? {

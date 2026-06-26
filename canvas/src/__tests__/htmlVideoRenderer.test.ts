@@ -353,6 +353,7 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
     'createHtmlVideoEngineRegistryFromRuntimeConfig()',
     'isRichMediaVideoOutputTargetNode(candidate)',
     'buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)',
+    '...(outputSrcDoc.trim() ? { outputSrcDoc } : null)',
     "richMediaActiveTab: panelArgs.patch.richMediaActiveTab || 'video'",
     'stabilizeHtmlVideoPreviewPatchForExistingProps',
     'HTML_VIDEO_PREVIEW_STABILITY_KEYS',

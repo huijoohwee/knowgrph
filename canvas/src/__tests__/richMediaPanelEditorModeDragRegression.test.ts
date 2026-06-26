@@ -213,11 +213,18 @@ export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
 
   const pointerGuardPath = resolve(process.cwd(), '..', 'grph-shared', 'src', 'dom', 'overlayPointerGuards.ts')
   const pointerGuardText = readFileSync(pointerGuardPath, 'utf8')
+  const overlayProxyPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
+  const overlayProxyText = readFileSync(overlayProxyPath, 'utf8')
   if (!pointerGuardText.includes('export function readOverlayPointerTargetState')
     || !pointerGuardText.includes('export function shouldBlockOverlayPanTarget')
     || !pointerGuardText.includes('export function isOverlayPanStartButtonEvent')
     || !pointerGuardText.includes('selectableSurface: \'[data-kg-rich-media-selectable-surface="1"]\'')) {
     throw new Error('expected shared overlay pointer guard to own target classification, pan blocking, and button interpretation')
+  }
+  if (!overlayProxyText.includes("import { MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR, MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE } from '@/lib/cards/mediaPreviewSurfaceSelection'")
+    || !overlayProxyText.includes('[${MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR}="${MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE}"]')
+    || !overlayProxyText.includes('FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR')) {
+    throw new Error('expected Flow Editor overlay proxy to classify shared media preview selectable surfaces as protected overlay interaction targets')
   }
 
   const overlayInteractionsPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useOverlayInteractions2d.ts')

@@ -87,6 +87,15 @@ import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredential
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { getChatProviderLabel } from '@/lib/chatEndpoint'
+import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
+import {
+  TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT,
+  type TimelineTransportPlaybackRequestDetail,
+} from '@/components/timeline/videoSequenceTimeline'
+import {
+  resolveRichMediaTimelineDurationUnits,
+  resolveRichMediaTimelineMediaTargetSeconds,
+} from '@/lib/render/richMediaTimelineSync'
 
 const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
 
@@ -240,7 +249,22 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
-  const { chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, selectNode, setSelectionSource } = useGraphStore(
+  const {
+    chatProvider,
+    chatAuthMode,
+    chatApiKey,
+    setChatApiKey,
+    chatModel,
+    selectNode,
+    setSelectionSource,
+    timelineTransportDocumentKey,
+    timelineTransportPosition,
+    timelineTransportPlaying,
+    timelineTransportPlaybackRate,
+    markdownDocumentName,
+    graphData,
+    graphDataRevision,
+  } = useGraphStore(
     useShallow(s => ({
       chatProvider: s.chatProvider,
       chatAuthMode: s.chatAuthMode,
@@ -249,6 +273,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       chatModel: s.chatModel,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
+      timelineTransportDocumentKey: s.timelineTransportDocumentKey || '',
+      timelineTransportPosition: Number.isFinite(s.timelineTransportPosition) ? s.timelineTransportPosition : 0,
+      timelineTransportPlaying: s.timelineTransportPlaying === true,
+      timelineTransportPlaybackRate: s.timelineTransportPlaybackRate || 1,
+      markdownDocumentName: s.markdownDocumentName || '',
+      graphData: s.graphData,
+      graphDataRevision: s.graphDataRevision || 0,
     })),
   )
   void onSetType
@@ -542,6 +573,111 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     }),
     [compactPreviewView],
   )
+  const compactPreviewMediaElementRef = React.useRef<HTMLMediaElement | null>(null)
+  const [compactPreviewMediaElement, setCompactPreviewMediaElement] = React.useState<HTMLMediaElement | null>(null)
+  const timelineDocumentKey = React.useMemo(
+    () => cleanTimelinePreviewDocumentKey(markdownDocumentName),
+    [markdownDocumentName],
+  )
+  const timelineDurationUnits = React.useMemo(
+    () => resolveRichMediaTimelineDurationUnits(graphData),
+    [graphData, graphDataRevision],
+  )
+  const compactPreviewKind = compactPreviewView?.kind || 'text'
+  const compactPreviewIsPlayableMedia = compactPreviewKind === 'video' || compactPreviewKind === 'audio'
+  const compactPreviewMediaUrl = compactPreviewView && compactPreviewView.kind !== 'text'
+    ? compactPreviewView.mediaUrl
+    : ''
+  const compactPreviewMediaElementHandler = React.useCallback((element: HTMLMediaElement | null) => {
+    compactPreviewMediaElementRef.current = element
+    setCompactPreviewMediaElement(prev => (prev === element ? prev : element))
+  }, [])
+  const syncCompactPreviewMediaToTimeline = React.useCallback((
+    media: HTMLMediaElement,
+    override?: Partial<TimelineTransportPlaybackRequestDetail>,
+  ) => {
+    if (!compactPreviewIsPlayableMedia) return
+    const documentKey = cleanTimelinePreviewDocumentKey(override?.documentKey || timelineTransportDocumentKey)
+    if (!timelineDocumentKey || documentKey !== timelineDocumentKey) return
+    const positionSource = typeof override?.position === 'number' ? override.position : timelineTransportPosition
+    const playing = typeof override?.playing === 'boolean' ? override.playing : timelineTransportPlaying
+    const playbackRateSource = typeof override?.playbackRate === 'number' ? override.playbackRate : timelineTransportPlaybackRate
+    const playbackRate = Number.isFinite(playbackRateSource) && playbackRateSource > 0 ? playbackRateSource : 1
+    const mediaDuration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0
+    const targetSecondsRaw = resolveRichMediaTimelineMediaTargetSeconds({
+      mediaDurationSeconds: mediaDuration,
+      positionUnits: Number.isFinite(positionSource) ? Math.max(0, positionSource) : 0,
+      timelineDurationUnits,
+    })
+    const targetSeconds = mediaDuration > 0 ? Math.min(mediaDuration, targetSecondsRaw) : targetSecondsRaw
+    const currentTime = Number.isFinite(media.currentTime) ? media.currentTime : 0
+    if (!playing || Math.abs(currentTime - targetSeconds) > 0.18) {
+      try {
+        media.currentTime = targetSeconds
+      } catch {
+        void 0
+      }
+    }
+    if (media.playbackRate !== playbackRate) media.playbackRate = playbackRate
+    if (playing) {
+      if (media.paused) {
+        try {
+          const maybePromise = media.play()
+          if (maybePromise && typeof maybePromise.catch === 'function') maybePromise.catch(() => undefined)
+        } catch {
+          void 0
+        }
+      }
+      return
+    }
+    if (!media.paused) {
+      try {
+        media.pause()
+      } catch {
+        void 0
+      }
+    }
+  }, [
+    compactPreviewIsPlayableMedia,
+    timelineDocumentKey,
+    timelineDurationUnits,
+    timelineTransportDocumentKey,
+    timelineTransportPlaybackRate,
+    timelineTransportPlaying,
+    timelineTransportPosition,
+  ])
+  React.useEffect(() => {
+    if (!compactPreviewIsPlayableMedia) return
+    const media = compactPreviewMediaElement || compactPreviewMediaElementRef.current
+    if (!media) return
+    const syncCompactPreviewMedia = () => syncCompactPreviewMediaToTimeline(media)
+    syncCompactPreviewMedia()
+    media.addEventListener('loadedmetadata', syncCompactPreviewMedia)
+    media.addEventListener('durationchange', syncCompactPreviewMedia)
+    return () => {
+      media.removeEventListener('loadedmetadata', syncCompactPreviewMedia)
+      media.removeEventListener('durationchange', syncCompactPreviewMedia)
+    }
+  }, [
+    compactPreviewIsPlayableMedia,
+    compactPreviewMediaElement,
+    compactPreviewMediaUrl,
+    syncCompactPreviewMediaToTimeline,
+  ])
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handlePlaybackRequest = (event: Event) => {
+      const detail = (event as CustomEvent<TimelineTransportPlaybackRequestDetail>).detail
+      if (!detail || cleanTimelinePreviewDocumentKey(detail.documentKey) !== timelineDocumentKey) return
+      const media = compactPreviewMediaElementRef.current
+      if (media) syncCompactPreviewMediaToTimeline(media, detail)
+    }
+    window.addEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+    return () => window.removeEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
+  }, [
+    syncCompactPreviewMediaToTimeline,
+    timelineDocumentKey,
+  ])
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
@@ -985,6 +1121,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 className="block h-48 w-full"
                 mediaClassName="block h-48 w-full"
                 videoControls={compactMediaPreviewCardProps.interactive && compactPreviewView.kind === 'video'}
+                onMediaElement={compactPreviewIsPlayableMedia ? compactPreviewMediaElementHandler : undefined}
               />
             )}
           </section>
