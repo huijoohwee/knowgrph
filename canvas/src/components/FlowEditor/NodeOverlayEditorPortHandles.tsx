@@ -276,9 +276,9 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
-          if (p.dir !== 'out' || !clickable) return
+          if (!clickable) return
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
-          startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId })
+          if (p.dir === 'out') startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId })
         }}
         onClick={e => {
           try {
@@ -286,6 +286,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
+          if (e.detail !== 0) return
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         disabled={!clickable}

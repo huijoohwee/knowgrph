@@ -334,7 +334,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["canvas.storyboard.providerVideo.renderableEmbedThumbnail","@/__tests__/storyboardModel.test","testStoryboardBoardModelResolvesProviderVideoToRenderableEmbedAndThumbnail"],
   ["canvas.storyboard.generatedOutputAudio.mediaProjection","@/__tests__/storyboardModel.test","testStoryboardBoardModelProjectsGeneratedOutputAndAudioMedia"],
   ["canvas.storyboard.droppedGenericMedia.visibleCardMedia","@/__tests__/storyboardModel.test","testStoryboardBoardModelProjectsDroppedGenericMediaIntoVisibleCardMedia"],
-  ["canvas.storyboard.richMediaPanel.sharedDataflow","@/__tests__/storyboardModel.test","testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards"],
+  ["canvas.storyboard.richMediaPanel.sharedDataflow","@/__tests__/storyboardModel.test","testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards"], ["canvas.storyboard.portEdge.richMediaReference","@/__tests__/storyboardPortEdgeIntegration.test","testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard"],
   ["canvas.mediaInventory.countsAudioKinds","@/__tests__/nodeMediaInventory.test","testBuildNodeMediaInventoryCountsKindsAcrossCanonicalMediaSpecs"],
   ["canvas.mediaInventory.mediaNodesSectionSharedAudioCount","@/__tests__/nodeMediaInventory.test","testMediaNodesSectionUsesSharedInventoryHelper"],
   ["canvas.mediaInventory.richMediaMetricsSharedAudioCount","@/__tests__/nodeMediaInventory.test","testUseRichMediaOverlays2dUsesSharedInventoryHelperForMetrics"],

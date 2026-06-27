@@ -547,6 +547,7 @@ export const buildStoryboardBoardModel = (args: {
 }): StoryboardBoardModel => {
   const semanticKey = buildStoryboardSemanticKey(args)
   const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
+  const cardNodes = nodes.filter(node => !isStoryboardCanvasRichMediaPanelNode(node))
   const connectedValuesByNodeId = args.connectedValuesByNodeId || (
     args.widgetRegistry
       ? computeRichMediaOverlayConnectedValuesByNodeId({
@@ -554,11 +555,11 @@ export const buildStoryboardBoardModel = (args: {
           registry: args.widgetRegistry,
           graphRevision: args.graphRevision,
           graphSemanticKey: semanticKey,
+          extraNodeIds: cardNodes.map(node => String(node.id || '').trim()).filter(Boolean),
           includeMediaSpecNodes: true,
         })
       : null
   )
-  const cardNodes = nodes.filter(node => !isStoryboardCanvasRichMediaPanelNode(node))
   const allCards = cardNodes.map((node, index) => buildCardModel(
     resolveStoryboardRenderNode({ node, connectedValuesByNodeId }),
     index,
