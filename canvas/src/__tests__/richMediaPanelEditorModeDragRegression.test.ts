@@ -264,24 +264,28 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
   const sharedToolbarPropsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'richMediaOverlayToolbarProps.ts')
+  const panelChromePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
   const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
   const graphCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
+  const richMediaShellPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanelShell.tsx')
   const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
   const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
   const sharedToolbarPropsText = readFileSync(sharedToolbarPropsPath, 'utf8')
+  const panelChromeText = readFileSync(panelChromePath, 'utf8')
   const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
   const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
   const graphCanvasToolbarText = readFileSync(graphCanvasToolbarPath, 'utf8')
+  const richMediaShellText = readFileSync(richMediaShellPath, 'utf8')
 
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
   }
-  if (!sharedToolbarPropsText.includes("navClassName: args?.navClassName || 'absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2'")) {
-    throw new Error('expected shared 2D Rich Media toolbar placement to clear the panel header')
+  if (!sharedToolbarPropsText.includes("navClassName: args?.navClassName || 'absolute left-full top-1/2 z-30 ml-2 -translate-y-1/2'")) {
+    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the Flow Editor side-docked Rich Media toolbar')
   }
   if (panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
     throw new Error('expected RichMediaPanel to stop deriving floating-toolbar visibility locally after upstream toolbar consolidation')
@@ -291,6 +295,27 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   }
   if (panelText.includes('data-kg-panel-action="1"')) {
     throw new Error('expected RichMediaPanel to remove the legacy inline header action variant after consolidation')
+  }
+  for (const snippet of [
+    "const hasValidateAction = showValidate && typeof onValidate === 'function'",
+    "const hasHeaderActions = hasValidateAction || hasFieldToggleAction || hasMinimizeAction || hasPinAction",
+    '{hasHeaderActions ? (',
+  ]) {
+    if (!panelChromeText.includes(snippet)) {
+      throw new Error(`expected FlowEditorPanelChrome to suppress inert Rich Media header action variants: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "showPinToggle={typeof props.onHeaderTogglePinned === 'function'}",
+    "showValidate={typeof props.onHeaderValidate === 'function'}",
+    "showMinimizeToggle={typeof props.onHeaderToggleMinimized === 'function'}",
+  ]) {
+    if (!richMediaShellText.includes(snippet)) {
+      throw new Error(`expected RichMediaPanelShell not to force stale header controls without callbacks: ${snippet}`)
+    }
+  }
+  if (richMediaShellText.includes('showPinToggle={true}')) {
+    throw new Error('expected RichMediaPanelShell not to force stale Rich Media header pin controls without callbacks')
   }
   if (!overlayEditorPanelText.includes("from '@/components/RichMediaPanel'")
     || !overlayEditorPanelText.includes('<RichMediaPanel')) {

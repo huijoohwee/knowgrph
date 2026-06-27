@@ -11,12 +11,13 @@ import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/grap
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
-import { startFlowPortHandlePointerDrag } from '@/components/FlowEditor/flowPortHandlePointerDrag'
+import { startFlowPortHandleMouseDrag, startFlowPortHandlePointerDrag } from '@/components/FlowEditor/flowPortHandlePointerDrag'
+import { Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -184,6 +185,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     } as unknown as GraphNode
     return getNodeRectDimensions2d(n, args.schema || ({ behavior: {} } as GraphSchema))
   }, [args.node?.id, args.node?.properties, args.node?.type, args.schema])
+  const lastPointerActivationAtRef = React.useRef(0)
 
   const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
@@ -267,6 +269,8 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           top: `${Math.max(0, Math.min(100, p.topPct))}%`,
           width: `${railWidthPx}px`,
           height: `${hitSizePx}px`,
+          minWidth: `${PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX}px`,
+          minHeight: `${PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX}px`,
           transform: 'translateY(-50%)',
           ...(isIn ? { left: 0 } : { right: 0 }),
         }}
@@ -277,8 +281,21 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             void 0
           }
           if (!clickable) return
+          lastPointerActivationAtRef.current = Date.now()
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
           if (p.dir === 'out') startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId })
+        }}
+        onMouseDown={e => {
+          try {
+            e.stopPropagation()
+          } catch {
+            void 0
+          }
+          if (!clickable) return
+          if (Date.now() - lastPointerActivationAtRef.current < 120) return
+          lastPointerActivationAtRef.current = Date.now()
+          handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
+          if (p.dir === 'out') startFlowPortHandleMouseDrag({ event: e, sourceNodeId: nodeId })
         }}
         onClick={e => {
           try {
@@ -286,7 +303,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
-          if (e.detail !== 0) return
+          if (e.detail !== 0 && Date.now() - lastPointerActivationAtRef.current < 120) return
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         disabled={!clickable}
@@ -316,7 +333,11 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   if (!hasAny) return null
 
   return (
-    <nav className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME} aria-label="Node port handles">
+    <nav
+      className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}
+      aria-label="Node port handles"
+      style={{ zIndex: Z_INDEX_GRAPH_OVERLAY_SELECTED }}
+    >
       <section className={cn('absolute inset-y-0 left-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
         {(handles.in || []).map((h, idx) => (
           <Dot key={h.id} handleId={h.id} dir="in" idx={idx} topPct={h.topPct} />

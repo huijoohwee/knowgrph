@@ -41,8 +41,10 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
 
   const inputButtons = host.querySelectorAll('button[aria-label^="Input handle"]')
   const outputButtons = host.querySelectorAll('button[aria-label^="Output handle"]')
+  const portHandleSurface = host.querySelector('nav[aria-label="Node port handles"]') as HTMLElement | null
   if (inputButtons.length !== 1) throw new Error(`expected 1 input handle button, got ${inputButtons.length}`)
   if (outputButtons.length !== 1) throw new Error(`expected 1 output handle button, got ${outputButtons.length}`)
+  if (!portHandleSurface?.style.zIndex) throw new Error('expected port handle surface to own an elevated z-index above media bodies')
 
   const inputDisabled = (inputButtons[0] as HTMLButtonElement).disabled
   const outputDisabled = (outputButtons[0] as HTMLButtonElement).disabled

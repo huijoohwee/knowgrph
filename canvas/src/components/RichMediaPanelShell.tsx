@@ -36,7 +36,9 @@ export function RichMediaPanelShell(args: {
             title={model.title}
             minimized={props.headerMinimized === true}
             showFieldToggle={false}
-            showPinToggle={true}
+            showPinToggle={typeof props.onHeaderTogglePinned === 'function'}
+            showValidate={typeof props.onHeaderValidate === 'function'}
+            showMinimizeToggle={typeof props.onHeaderToggleMinimized === 'function'}
             pinned={props.headerPinned === true}
             richMediaHeader={true}
             dragHandle={Boolean(props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd)}

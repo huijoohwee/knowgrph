@@ -363,7 +363,7 @@ export default function FlowEditorCanvasRuntime(
     selectedNodeId,
     toolMode,
     pendingEdgeSourceId,
-    pendingEdgeSourcePortKey,
+    pendingEdgeSourcePortKey, extraGraphNodesById: pendingOverlayNodesById,
     pendingSelectNodeIdRef,
     setSelectionSource: setSelectionSourceForActions,
     selectNode,

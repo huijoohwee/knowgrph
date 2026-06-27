@@ -14,8 +14,10 @@ import {
 } from '@/lib/config.flow-editor'
 import type { GraphData } from '@/lib/graph/types'
 
+const buildTestImageDataUri = (semanticId: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><title>${semanticId}</title></svg>`)}`
+
 export function testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard() {
-  const imageUrl = 'https://example.test/reference-frame.jpg'
+  const imageUrl = buildTestImageDataUri('media-source')
   const graphData: GraphData = {
     type: 'Graph',
     nodes: [
@@ -63,13 +65,13 @@ export function testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard() 
     widgetRegistry: registry,
   })
   const targetCard = board.lanes.flatMap(lane => lane.cards).find(card => card.id === 'storyboard-target')
-  if (targetCard?.media?.url !== imageUrl || targetCard.media.kind !== 'image') {
+  if (targetCard?.media?.url !== imageUrl || (targetCard.media.kind !== 'image' && targetCard.media.kind !== 'svg')) {
     throw new Error(`expected connected reference image in target card, got ${JSON.stringify(targetCard?.media)}`)
   }
 }
 
 export function testStoryboardCardPortEdgeProjectsImageOutputIntoRichMediaPanel() {
-  const imageUrl = 'https://example.test/card-output-frame.jpg'
+  const imageUrl = buildTestImageDataUri('storyboard-source')
   const graphData: GraphData = {
     type: 'Graph',
     nodes: [

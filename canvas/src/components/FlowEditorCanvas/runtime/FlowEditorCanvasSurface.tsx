@@ -85,6 +85,7 @@ export default function FlowEditorCanvasSurface(props: {
       graphData: props.storyboardSourceGraphData || null,
       graphRevision: graphContentRevision || graphDataRevision || 0,
       schema,
+      widgetRegistry: props.widgetRegistry,
     })
   }, [graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive])
   const storyboardHiddenNodeIds = React.useMemo(() => {
@@ -92,11 +93,12 @@ export default function FlowEditorCanvasSurface(props: {
     const board = buildStoryboardBoardModel({
       graphData: storyboardGraphData,
       graphRevision: graphContentRevision || graphDataRevision || 0,
+      widgetRegistry: props.widgetRegistry,
     })
     return board.lanes
       .flatMap(lane => lane.cards.map(card => String(card.id || '').trim()))
       .filter(Boolean)
-  }, [graphContentRevision, graphDataRevision, storyboardCardsActive, storyboardGraphData])
+  }, [graphContentRevision, graphDataRevision, props.widgetRegistry, storyboardCardsActive, storyboardGraphData])
   const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride
   const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined
   const screenAuthorityPanRef = React.useRef<null | {
@@ -420,6 +422,8 @@ export default function FlowEditorCanvasSurface(props: {
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}
         schema={schema}
+        widgetRegistry={props.widgetRegistry}
+        zoomViewKeyRef={props.zoomViewKeyRef}
       />
 
       {props.noGraphLoaded && !props.geospatialWidgetPanelMode && (

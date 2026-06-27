@@ -8,6 +8,7 @@ export function assertStoryboard2dMediaDropContract() {
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/FlowEditorCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
   const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
   const flowCanvasMediaOverlaysSource = readFileSync(new URL('../components/FlowCanvas/FlowCanvasMediaOverlays.tsx', import.meta.url), 'utf8')
+  const flowCanvasZoomRequestSource = readFileSync(new URL('../components/FlowCanvas/applyZoomRequestNative.ts', import.meta.url), 'utf8')
   const mediaOverlayLayoutLoopSource = readFileSync(new URL('../lib/render/mediaOverlayLayoutLoop2d.ts', import.meta.url), 'utf8')
   const graphStoryboardCardOverlaySource = [graphStoryboardOverlaySource, graphStoryboardMediaDropSlotSource, graphStoryboardMediaDropHookSource].join('\n')
 
@@ -24,6 +25,30 @@ export function assertStoryboard2dMediaDropContract() {
   }
   if (!flowCanvasGraphStateSource.includes("...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot)")) {
     throw new Error('expected Storyboard Rich Media Panel overlays to stay visible when click-selection auto-opens the node')
+  }
+  if (
+    !graphStoryboardOverlaySource.includes("const requestZoom = useGraphStore(s => s.requestZoom)")
+    || !graphStoryboardOverlaySource.includes("requestZoom('fit', { intent: 'fitToView' })")
+    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef')
+    || !flowEditorSurfaceSource.includes('zoomViewKeyRef={props.zoomViewKeyRef}')
+  ) {
+    throw new Error('expected Storyboard 2D fixed-card overlay to seed offscreen startup through the shared FlowCanvas zoom request path')
+  }
+  if (
+    graphStoryboardOverlaySource.includes('commitZoomTransformToStore')
+    || graphStoryboardOverlaySource.includes('const transform = fittedTransform || currentTransform')
+    || graphStoryboardOverlaySource.includes('transform: fittedTransform')
+    || graphStoryboardOverlaySource.includes('transform = fitTransform')
+  ) {
+    throw new Error('expected Storyboard 2D fixed-card overlay to render from the live FlowCanvas transform instead of overriding pan/zoom with a private fit transform')
+  }
+  for (const snippet of [
+    "import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'",
+    'isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))',
+  ]) {
+    if (!flowCanvasZoomRequestSource.includes(snippet)) {
+      throw new Error(`expected FlowCanvas zoom requests to reuse the shared Flow Editor renderer predicate for Storyboard: ${snippet}`)
+    }
   }
   for (const snippet of [
     'projectWithWorldTransformScale?: boolean',

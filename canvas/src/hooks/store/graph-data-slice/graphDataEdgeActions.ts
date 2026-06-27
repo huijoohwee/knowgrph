@@ -2,6 +2,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
 import { canAddEdge, validateEdgeProperties } from '@/features/schema/validation'
 import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { syncGraphFieldsWithGraphData, withGraphDataRevision } from '@/hooks/store/graphDataSliceUtils'
 import {
   buildLayersFromSourceFiles,
@@ -27,21 +28,28 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
     }
     if (!graphData) return
     if (isComposedGraphData(graphData)) {
-      const srcParsed = parseComposedId(String(edge.source || ''))
-      const tgtParsed = parseComposedId(String(edge.target || ''))
+      const resolvedSourceId = String(resolveGraphNodeByCanonicalId(graphData, edge.source)?.id || edge.source || '').trim()
+      const resolvedTargetId = String(resolveGraphNodeByCanonicalId(graphData, edge.target)?.id || edge.target || '').trim()
+      const normalizedEdge: GraphEdge = {
+        ...edge,
+        source: resolvedSourceId,
+        target: resolvedTargetId,
+      }
+      const srcParsed = parseComposedId(resolvedSourceId)
+      const tgtParsed = parseComposedId(resolvedTargetId)
       if ((srcParsed && tgtParsed && srcParsed.layerId !== tgtParsed.layerId) || (!srcParsed && !tgtParsed)) {
         const preferredLayerId = resolvePreferredComposedLayerId({ get })
         if (!preferredLayerId) return
       }
       const layerId =
         srcParsed?.layerId || tgtParsed?.layerId || resolvePreferredComposedLayerId({ get }) || ''
-      const innerSource = srcParsed?.innerId || String(edge.source || '').trim()
-      const innerTarget = tgtParsed?.innerId || String(edge.target || '').trim()
+      const innerSource = srcParsed?.innerId || resolvedSourceId
+      const innerTarget = tgtParsed?.innerId || resolvedTargetId
       if (!layerId || !innerSource || !innerTarget) return
-      const parsedId = parseComposedId(edge.id)
-      const innerId = parsedId?.innerId || String(edge.id || '').trim()
+      const parsedId = parseComposedId(normalizedEdge.id)
+      const innerId = parsedId?.innerId || String(normalizedEdge.id || '').trim()
       const viewEdge: GraphEdge = {
-        ...edge,
+        ...normalizedEdge,
         id: `${layerId}::${innerId}`,
         source: `${layerId}::${innerSource}`,
         target: `${layerId}::${innerTarget}`,

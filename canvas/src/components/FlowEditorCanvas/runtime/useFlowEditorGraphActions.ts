@@ -6,6 +6,7 @@ import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 
 export function useFlowEditorGraphActions(args: {
@@ -18,6 +19,7 @@ export function useFlowEditorGraphActions(args: {
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
   pendingEdgeSourcePortKey: string | null
+  extraGraphNodesById?: Readonly<Record<string, GraphNode>> | null
   pendingSelectNodeIdRef: React.MutableRefObject<string | null>
   setSelectionSource: (source: 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void
   selectNode: (nodeId: string | null) => void
@@ -29,15 +31,79 @@ export function useFlowEditorGraphActions(args: {
   setPendingEdgeSourcePortKey: React.Dispatch<React.SetStateAction<string | null>>
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
 }) {
+  const materializeConnectedMediaValue = React.useCallback((materializeArgs: {
+    sourceNode: GraphNode | null
+    targetNode: GraphNode | null
+    sourcePort: string | null
+    targetPort: string | null
+  }) => {
+    const sourcePort = String(materializeArgs.sourcePort || '').trim()
+    const targetPort = String(materializeArgs.targetPort || '').trim()
+    if (!sourcePort || !targetPort) return
+    if (!/^(mediaUrl|imageUrl|videoUrl)$/i.test(targetPort)) return
+    const sourceProperties = (materializeArgs.sourceNode?.properties || {}) as Record<string, unknown>
+    const targetProperties = (materializeArgs.targetNode?.properties || {}) as Record<string, unknown>
+    const sourceCandidates = [
+      sourceProperties[sourcePort],
+      sourceProperties[targetPort],
+      sourceProperties.mediaUrl,
+      sourceProperties.renderUrl,
+      sourceProperties.sourceUrl,
+      sourceProperties.url,
+    ]
+    const value = sourceCandidates
+      .map(candidate => (typeof candidate === 'string' ? candidate.trim() : ''))
+      .find(Boolean) || ''
+    if (!value) return
+    if (String(targetProperties[targetPort] || '').trim() === value) return
+    const liveGraphData = useGraphStore.getState().graphData as GraphData | null
+    const rawTargetId = String(materializeArgs.targetNode?.id || '').trim()
+    const resolvedTargetId = String(resolveGraphNodeByCanonicalId(liveGraphData, rawTargetId)?.id || '').trim()
+    const targetIds = Array.from(new Set([resolvedTargetId, rawTargetId].filter(Boolean)))
+    if (targetIds.length === 0) return
+    for (const targetId of targetIds) {
+      useGraphStore.getState().updateNode(targetId, {
+        properties: {
+          ...targetProperties,
+          [targetPort]: value,
+        } as never,
+      })
+    }
+  }, [])
+
+  const readLiveGraphData = React.useCallback((): GraphData | null => {
+    return (useGraphStore.getState().graphData as GraphData | null) || null
+  }, [])
+
+  const readAuthoringGraphData = React.useCallback((): GraphData | null => {
+    const base = args.draftGraphDataRef.current || readLiveGraphData() || args.draftGraphData || args.baseGraphData || null
+    const extraNodesById = args.extraGraphNodesById || null
+    if (!base || !extraNodesById) return base
+    const nodes = Array.isArray(base.nodes) ? base.nodes : []
+    const nodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+    const extraNodes = Object.values(extraNodesById).filter(node => {
+      const id = String(node?.id || '').trim()
+      return id && !nodeIds.has(id)
+    })
+    if (extraNodes.length === 0) return base
+    return { ...base, nodes: [...nodes, ...extraNodes] }
+  }, [args, readLiveGraphData])
+
+  const readCommittedNodeIds = React.useCallback((): Set<string> => {
+    const committed = readLiveGraphData() || args.draftGraphDataRef.current || args.draftGraphData || null
+    return new Set(((committed?.nodes || []) as GraphNode[]).map(node => String(node.id || '')).filter(Boolean))
+  }, [args, readLiveGraphData])
+
   const beginAddEdgeFromNode = React.useCallback(
     (nodeId: string, portKey?: string | null) => {
       const id = String(nodeId || '').trim()
       if (!id) return
       if (!args.active) return
-      if (!args.draftGraphData) return
-      const nodeIds = new Set((args.draftGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
+      const authoringGraphData = readAuthoringGraphData()
+      if (!authoringGraphData) return
+      const nodeIds = new Set((authoringGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
       if (!nodeIds.has(id)) return
-      const nodeById = new Map((args.draftGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
+      const nodeById = new Map((authoringGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
       const node = nodeById.get(id) || null
       const explicit = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
       const defaultPortKey = explicit || pickDefaultFlowPortKey(node, 'out') || null
@@ -48,7 +114,7 @@ export function useFlowEditorGraphActions(args: {
       args.setPendingEdgeSourceId(id)
       args.setPendingEdgeSourcePortKey(defaultPortKey)
     },
-    [args],
+    [args, readAuthoringGraphData],
   )
 
   const finalizePendingEdge = React.useCallback(
@@ -57,8 +123,10 @@ export function useFlowEditorGraphActions(args: {
       if (!id) return
       if (!args.active) return
       if (args.toolMode !== 'addEdge') return
-      if (!args.draftGraphData) return
-      const nodeIds = new Set((args.draftGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
+      const authoringGraphData = readAuthoringGraphData()
+      if (!authoringGraphData) return
+      const baseNodeIds = readCommittedNodeIds()
+      const nodeIds = new Set((authoringGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
       if (!nodeIds.has(id)) return
       if (!args.pendingEdgeSourceId) {
         args.setPendingEdgeSourceId(id)
@@ -67,7 +135,7 @@ export function useFlowEditorGraphActions(args: {
       }
       if (args.pendingEdgeSourceId === id) return
 
-      const nodeById = new Map((args.draftGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
+      const nodeById = new Map((authoringGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
       const sourceNode = nodeById.get(args.pendingEdgeSourceId) || null
       const targetNode = nodeById.get(id) || null
       const explicitSource =
@@ -80,7 +148,7 @@ export function useFlowEditorGraphActions(args: {
 
       const result = finalizeEdgeAuthoring({
         mode: 'create',
-        data: args.draftGraphData,
+        data: authoringGraphData,
         schema: args.schema,
         label: 'linksTo',
         selectedEdgeId: null,
@@ -112,13 +180,18 @@ export function useFlowEditorGraphActions(args: {
       }
 
       if (result.kind === 'create') {
+        const sourceNode = nodeById.get(String(args.pendingEdgeSourceId || '')) || null
+        const targetNode = nodeById.get(id) || null
+        if (sourceNode && !baseNodeIds.has(String(sourceNode.id || ''))) args.addNode(sourceNode)
+        if (targetNode && !baseNodeIds.has(String(targetNode.id || ''))) args.addNode(targetNode)
         args.addEdge(result.edge)
+        materializeConnectedMediaValue({ sourceNode, targetNode, sourcePort, targetPort })
         args.setPendingEdgeSourceId(null)
         args.setPendingEdgeSourcePortKey(null)
         args.setToolMode('select')
       }
     },
-    [args],
+    [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds],
   )
 
   React.useEffect(() => {

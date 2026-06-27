@@ -9,6 +9,7 @@ import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCan
 import { buildStoryboardBoardModel, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { computeFlowEditorOverlayScreenBox, type FlowEditorOverlayDragTransform } from '@/lib/flowEditor/overlayWorldDrag'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
@@ -23,7 +24,6 @@ import { cn } from '@/lib/utils'
 
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
 const DEFAULT_GRID_GAP = 64
-const STORYBOARD_CARD_FIT_PADDING = 48
 
 type StoryboardCardPlacement = {
   x: number
@@ -54,40 +54,6 @@ const isScreenBoxVisible = (box: { left: number; top: number; scale: number }, s
   const width = Math.max(1, size.width) * Math.max(0.001, box.scale)
   const height = Math.max(1, size.height) * Math.max(0.001, box.scale)
   return width > 0 && height > 0 && box.left + width > 0 && box.top + height > 0 && box.left < viewport.width && box.top < viewport.height
-}
-
-const computeStoryboardCardFitTransform = (args: {
-  cards: readonly StoryboardCardModel[]
-  fixedCardPlacements: ReadonlyMap<string, StoryboardCardPlacement>
-  nodeById: ReadonlyMap<string, GraphNode>
-  viewport: { width: number; height: number }
-}): FlowEditorOverlayDragTransform | null => {
-  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
-  for (let i = 0; i < args.cards.length; i += 1) {
-    const card = args.cards[i]!
-    const node = args.nodeById.get(card.id)
-    if (!node) continue
-    const fixedPlacement = args.fixedCardPlacements.get(card.id)
-    const nodeCenter = readNodeCenter(node)
-    const x = fixedPlacement?.x ?? nodeCenter?.x ?? 0
-    const y = fixedPlacement?.y ?? nodeCenter?.y ?? 0
-    const { width, height } = readNodeCardSize(node)
-    bounds.minX = Math.min(bounds.minX, x - width / 2)
-    bounds.minY = Math.min(bounds.minY, y - height / 2)
-    bounds.maxX = Math.max(bounds.maxX, x + width / 2)
-    bounds.maxY = Math.max(bounds.maxY, y + height / 2)
-  }
-  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY) || !Number.isFinite(bounds.maxX) || !Number.isFinite(bounds.maxY)) return null
-  const boundsWidth = Math.max(1, bounds.maxX - bounds.minX)
-  const boundsHeight = Math.max(1, bounds.maxY - bounds.minY)
-  const fitWidth = Math.max(1, args.viewport.width - STORYBOARD_CARD_FIT_PADDING * 2)
-  const fitHeight = Math.max(1, args.viewport.height - STORYBOARD_CARD_FIT_PADDING * 2)
-  const k = Math.min(1, Math.max(0.08, Math.min(fitWidth / boundsWidth, fitHeight / boundsHeight)))
-  return {
-    k,
-    x: (args.viewport.width - boundsWidth * k) / 2 - bounds.minX * k,
-    y: (args.viewport.height - boundsHeight * k) / 2 - bounds.minY * k,
-  }
 }
 
 const ceilToStep = (value: number, step: number): number => {
@@ -169,11 +135,12 @@ export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
   graphData: GraphData | null
   graphRevision: number
   schema: GraphSchema | null | undefined
+  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
 }): GraphData | null => {
-  const { graphData, graphRevision, schema } = args
+  const { graphData, graphRevision, schema, widgetRegistry } = args
   const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []
   if (!graphData || nodes.length === 0) return graphData
-  const board = buildStoryboardBoardModel({ graphData, graphRevision })
+  const board = buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry })
   const nodeById = new Map<string, GraphNode>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
@@ -361,8 +328,10 @@ export function StoryboardCardOverlayLayer2d(props: {
   graphRevision: number
   getTransform: () => FlowEditorOverlayDragTransform | null
   schema: GraphSchema | null
+  widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
+  zoomViewKeyRef: React.MutableRefObject<string | null>
 }) {
-  const { active, getTransform, graphData, graphRevision, schema } = props
+  const { active, getTransform, graphData, graphRevision, schema, widgetRegistry, zoomViewKeyRef } = props
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -375,13 +344,15 @@ export function StoryboardCardOverlayLayer2d(props: {
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
+  const requestZoom = useGraphStore(s => s.requestZoom)
   const fixedLayoutEnabled = strybldrStoryboardBoardLayoutMode === 'fixed'
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
+  const initialFitCommitKeyRef = React.useRef('')
   const board = React.useMemo(
-    () => buildStoryboardBoardModel({ graphData, graphRevision }),
-    [graphData, graphRevision],
+    () => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }),
+    [graphData, graphRevision, widgetRegistry],
   )
   const nodeById = React.useMemo(() => {
     const out = new Map<string, GraphNode>()
@@ -512,7 +483,7 @@ export function StoryboardCardOverlayLayer2d(props: {
         width: Math.max(1, Math.floor(viewportRect?.width || 1)),
         height: Math.max(1, Math.floor(viewportRect?.height || 1)),
       }
-      let visibleCount = 0
+      let visibleCardCount = 0
       const pending: Array<{ card: StoryboardCardModel; el: HTMLElement; node: GraphNode; x: number; y: number; width: number; height: number }> = []
       for (let i = 0; i < cards.length; i += 1) {
         const card = cards[i]!
@@ -530,17 +501,19 @@ export function StoryboardCardOverlayLayer2d(props: {
           width,
           height,
         })
-        if (isScreenBoxVisible(currentBox, { width, height }, viewport)) visibleCount += 1
+        if (isScreenBoxVisible(currentBox, { width, height }, viewport)) visibleCardCount += 1
         pending.push({ card, el, node, x, y, width, height })
       }
-      const fittedTransform = visibleCount === 0
-        ? computeStoryboardCardFitTransform({ cards, fixedCardPlacements, nodeById, viewport })
-        : null
-      const transform = fittedTransform || currentTransform
+      const zoomViewKey = String(zoomViewKeyRef.current || '').trim()
+      const initialFitKey = `${zoomViewKey}:${graphRevision}:${viewport.width}x${viewport.height}:${cards.length}`
+      if (visibleCardCount === 0 && zoomViewKey && initialFitCommitKeyRef.current !== initialFitKey) {
+        initialFitCommitKeyRef.current = initialFitKey
+        requestZoom('fit', { intent: 'fitToView' })
+      }
       for (let i = 0; i < pending.length; i += 1) {
         const { el, x, y, width, height } = pending[i]!
         const box = computeFlowEditorOverlayScreenBox({
-          transform,
+          transform: currentTransform,
           centerWorld: { x, y },
           width,
           height,
@@ -552,7 +525,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     }
     frame = window.requestAnimationFrame(update)
     return () => window.cancelAnimationFrame(frame)
-  }, [active, cards, fixedCardPlacements, getTransform, nodeById])
+  }, [active, cards, fixedCardPlacements, getTransform, graphRevision, nodeById, requestZoom, zoomViewKeyRef])
 
   if (!active || cards.length === 0) return null
   return (

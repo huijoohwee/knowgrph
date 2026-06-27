@@ -92,6 +92,11 @@ export function FlowEditorPanelChromeHeader(props: {
     width: 'max(8px, calc(var(--kg-media-panel-header-h, 28px) * 0.46))',
     height: 'max(8px, calc(var(--kg-media-panel-header-h, 28px) * 0.46))',
   } : undefined
+  const hasValidateAction = showValidate && typeof onValidate === 'function'
+  const hasFieldToggleAction = showFieldToggle && typeof onToggleHideFields === 'function'
+  const hasMinimizeAction = showMinimizeToggle && typeof onToggleMinimized === 'function'
+  const hasPinAction = showPinToggle && typeof onTogglePinned === 'function'
+  const hasHeaderActions = hasValidateAction || hasFieldToggleAction || hasMinimizeAction || hasPinAction
   const stopHeaderControlPointerDown = React.useCallback((event: React.PointerEvent) => {
     try {
       event.stopPropagation()
@@ -128,8 +133,9 @@ export function FlowEditorPanelChromeHeader(props: {
             >{title}</h3>}
         </section>
 
+        {hasHeaderActions ? (
         <nav className="flex items-center gap-1" style={richMediaNavStyle} aria-label={UI_LABELS.flowWidget}>
-          {showValidate ? <IconButton
+          {hasValidateAction ? <IconButton
             title={UI_LABELS.flowWidgetValidate}
             tooltipContent={UI_LABELS.flowWidgetValidate}
             showTooltip
@@ -142,7 +148,7 @@ export function FlowEditorPanelChromeHeader(props: {
             <CheckCircle className={iconSizeClass} style={richMediaIconStyle} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           </IconButton> : null}
 
-          {showFieldToggle ? (
+          {hasFieldToggleAction ? (
             <IconButton
               title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
               tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
@@ -161,7 +167,7 @@ export function FlowEditorPanelChromeHeader(props: {
             </IconButton>
           ) : null}
 
-          {showMinimizeToggle ? <IconButton
+          {hasMinimizeAction ? <IconButton
             title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}
             tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
             showTooltip
@@ -178,7 +184,7 @@ export function FlowEditorPanelChromeHeader(props: {
             )}
           </IconButton> : null}
 
-          {showPinToggle ? (
+          {hasPinAction ? (
             <IconButton
               title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
               tooltipContent={pinned ? UI_COPY.flowWidgetUnpin : UI_COPY.flowWidgetPin}
@@ -197,6 +203,7 @@ export function FlowEditorPanelChromeHeader(props: {
             </IconButton>
           ) : null}
         </nav>
+        ) : null}
       </section>
     </header>
   )

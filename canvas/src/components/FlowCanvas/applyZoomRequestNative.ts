@@ -25,6 +25,7 @@ import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanva
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
+import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -275,18 +276,18 @@ export const applyZoomRequestNative = (args: {
   })
   const isFlowEditorFitLikeRequest =
     state.canvasRenderMode === '2d'
-    && state.canvas2dRenderer === 'flowEditor'
+    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && (
       args.zoomRequest.type === 'reset'
       || args.zoomRequest.type === 'fit'
     )
   const isFlowEditorCollectiveOutRequest =
     state.canvasRenderMode === '2d'
-    && state.canvas2dRenderer === 'flowEditor'
+    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && args.zoomRequest.type === 'out'
   const isFlowEditorContextualZoomRequest =
     state.canvasRenderMode === '2d'
-    && state.canvas2dRenderer === 'flowEditor'
+    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && (
       args.zoomRequest.type === 'in'
       || args.zoomRequest.type === 'out'
@@ -294,7 +295,7 @@ export const applyZoomRequestNative = (args: {
   const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest
   const hasFlowEditorGraphFitData =
     state.canvasRenderMode === '2d'
-    && state.canvas2dRenderer === 'flowEditor'
+    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0

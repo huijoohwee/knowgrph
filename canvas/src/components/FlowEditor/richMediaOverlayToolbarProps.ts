@@ -32,7 +32,7 @@ export function buildSharedRichMediaOverlayToolbarProps(args?: {
 }): SharedRichMediaOverlayToolbarProps {
   return {
     ariaLabel: 'Rich Media panel actions',
-    navClassName: args?.navClassName || 'absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2',
+    navClassName: args?.navClassName || 'absolute left-full top-1/2 z-30 ml-2 -translate-y-1/2',
     navStyle: RICH_MEDIA_OVERLAY_TOOLBAR_NAV_STYLE,
     active: true,
     iconSizeClass: 'h-3.5 w-3.5',

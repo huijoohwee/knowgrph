@@ -3,6 +3,7 @@ import { readNodePortHandleVisualMetrics } from '@/components/GraphCanvas/portHa
 
 export const PORT_HANDLE_STROKE_CLASS = 'border-[color:var(--kg-canvas-accent)]'
 export const PORT_HANDLE_LINE_CLASS = 'bg-[color:var(--kg-canvas-accent)]'
+export const PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX = 24
 
 export function readPortHandleUiMetrics(
   schema: GraphSchema | null,
