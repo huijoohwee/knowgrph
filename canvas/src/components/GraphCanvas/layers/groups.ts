@@ -153,9 +153,9 @@ export const createGroupsLayer = (args: {
   }
 
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups').style('pointer-events', 'none')
-  const hitLayer = g.append('g').attr('data-kg-layer', 'groups-hit')
-  const labelsLayer = g.append('g').attr('data-kg-layer', 'group-labels')
-  const resizeHandlesLayer = g.append('g').attr('data-kg-layer', 'group-resize-handles')
+  const hitLayer = g.append('g').attr('data-kg-layer', 'groups-hit').style('pointer-events', 'all')
+  const labelsLayer = g.append('g').attr('data-kg-layer', 'group-labels').style('pointer-events', 'all')
+  const resizeHandlesLayer = g.append('g').attr('data-kg-layer', 'group-resize-handles').style('pointer-events', 'all')
 
   const itemSel = shapesLayer
     .selectAll<SVGGElement, GroupDatum>('g')

@@ -15,6 +15,7 @@ import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 export {
   DEFAULT_NODE_MEDIA_KIND,
   NODE_MEDIA_KINDS,
+  buildNodeMediaProperties,
   patchNodeMediaProperties,
   buildNodeMediaInventory,
   getNodeImagePreviewUrls,

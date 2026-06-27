@@ -11,6 +11,7 @@ import {
   buildUploadedMediaDragPayload,
   continueMediaMouseDrag,
   continueMediaPointerDrag,
+  finishMediaDrag,
   isMediaRowControlTarget,
   mediaCardClassName,
   mediaListItemClassName,
@@ -101,14 +102,24 @@ export function UploadedMediaRow({
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
       data-kg-media-list-row-layout="3-rows"
-      onPointerDownCapture={event => {
+      onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
-        event.preventDefault()
-        event.stopPropagation()
-        onSelect(item)
+        startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onPointerMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onMouseDown={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onMouseMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
       }}
       onClick={event => {
-        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        if (isMediaRowControlTarget(event.target)) return
         onSelect(item)
       }}
       onKeyDown={event => {
@@ -131,6 +142,7 @@ export function UploadedMediaRow({
         onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
         onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
         onDragStart={event => onDragStart(event, item)}
+        onDragEnd={finishMediaDrag}
         onClick={event => {
           event.stopPropagation()
           onPreview(item)
@@ -142,7 +154,25 @@ export function UploadedMediaRow({
         <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
         {generatedThumbnail.url ? (
           <>
-            <img src={generatedThumbnail.url} alt="" className="h-full w-full rounded object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+            <img
+              src={generatedThumbnail.url}
+              alt=""
+              className="h-full w-full rounded object-cover"
+              data-kg-command-menu-media-thumbnail="1"
+              data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined}
+              data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined}
+              data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined}
+              loading="lazy"
+              decoding="async"
+              {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS}
+              draggable={true}
+              onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+              onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+              onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+              onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+              onDragStart={event => onDragStart(event, item)}
+              onDragEnd={finishMediaDrag}
+            />
             <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
           </>
         ) : (
@@ -291,14 +321,24 @@ export function UploadedMediaCard({
       data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
-      onPointerDownCapture={event => {
+      onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
-        event.preventDefault()
-        event.stopPropagation()
-        onSelect(item)
+        startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onPointerMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onMouseDown={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+      }}
+      onMouseMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
       }}
       onClick={event => {
-        if (event.detail !== 0 || isMediaRowControlTarget(event.target)) return
+        if (isMediaRowControlTarget(event.target)) return
         onSelect(item)
       }}
       onKeyDown={event => {

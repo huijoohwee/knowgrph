@@ -28,6 +28,8 @@ import { listUploadedMediaFromKnowgrphStorage } from '@/lib/storage/uploadedMedi
 import {
   buildUploadedMediaPanelItemFromStorage,
   mergeUploadedMediaPanelItems,
+  readUploadedMediaPanelItemRuntimeUrl,
+  readUploadedMediaStorageRuntimeUrl,
   readStoredUploadedMediaPanelItems,
   UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT,
   writeStoredUploadedMediaPanelItems,
@@ -177,7 +179,7 @@ function replaceCurrentLine(args: {
 
 function buildUploadedMediaInlineCommandCandidate(item: UploadedMediaPanelItem): InlineMediaCommandCandidate | null {
   if (item.status !== 'synced' || !item.storage) return null
-  const url = String(item.linkUrl || item.storage.accessUrl || '').trim()
+  const url = readUploadedMediaPanelItemRuntimeUrl(item)
   if (!url) return null
   const sourceKey = String(item.storage.contentHash || item.storage.objectKey || item.id).trim()
   return {
@@ -388,11 +390,12 @@ export function CardInlineTextCommandMenus(props: {
       focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
       return
     }
+    const runtimeUrl = readUploadedMediaStorageRuntimeUrl(first.storage) || first.item.linkUrl
     insertMediaCommand({
       id: `uploaded-${first.item.id}`,
       kind: first.item.kind,
-      url: first.storage.accessUrl || first.item.linkUrl,
-      thumbnailUrl: first.item.kind === 'image' ? first.storage.accessUrl || first.item.linkUrl : undefined,
+      url: runtimeUrl,
+      thumbnailUrl: first.item.kind === 'image' ? runtimeUrl : undefined,
       label: first.item.name,
       sourceKey: first.storage.contentHash,
       description: 'Uploaded media from Cloudflare storage',

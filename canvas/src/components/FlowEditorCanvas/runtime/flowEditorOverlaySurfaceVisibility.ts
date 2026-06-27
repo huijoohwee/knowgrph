@@ -1,5 +1,5 @@
 import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { getCanvas2dSurfaceId, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { getCanvas2dSurfaceId, isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 import { buildCanonicalNodeIdSet, canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
@@ -119,6 +119,7 @@ function shouldPartitionForeignRendererGraphFromFlowCanvas(graphData: GraphData 
   if (!graphData || isFrontmatterFlowGraph(graphData)) return false
   const renderer = readDeclaredCanvas2dRenderer(graphData)
   if (!renderer) return false
+  if (isFlowEditorSharedCanvas2dRenderer(renderer)) return false
   const surface = getCanvas2dSurfaceId(renderer)
   return surface !== 'flow' && surface !== 'flowEditor'
 }

@@ -406,7 +406,16 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const sharedCardMarkdownUtilsText = readSource('lib', 'cards', 'cardMarkdownPreviewUtils.ts')
   const sharedCardInlineText = readSource('lib', 'cards', 'CardInlineTextEditor.tsx')
   const sharedCardMediaUtilsText = readSource('lib', 'cards', 'cardMediaPreviewUtils.ts')
-  const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
+  const richMediaPanelText = [
+    readSource('components', 'RichMediaPanel.tsx'),
+    readSource('components', 'RichMediaPanelDirectMediaSurface.tsx'),
+    readSource('components', 'RichMediaPanelIframeSurface.tsx'),
+    readSource('components', 'RichMediaPanelTextSurface.tsx'),
+    readSource('components', 'RichMediaPanelContentStack.tsx'),
+    readSource('components', 'RichMediaPanelShell.tsx'),
+    readSource('components', 'RichMediaPanel.types.ts'),
+    readSource('components', 'useRichMediaPanelSurfaceState.ts'),
+  ].join('\n')
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
@@ -478,7 +487,7 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     || !richMediaPanelText.includes('data-kg-rich-media-inline-edit="1"')
     || !richMediaPanelText.includes('editActivation="click"')
     || !richMediaPanelText.includes('onCommit={nextValue => {')
-    || !richMediaPanelText.includes("props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: next })")
+    || !richMediaPanelText.includes("props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: nextText })")
   ) {
     throw new Error('expected RichMediaPanel text mode inline edits to reuse the shared Storyboard Card inline editor')
   }
@@ -531,10 +540,14 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (!renderConfigText.includes("flowchart: {\n    surfaceId: 'd3'") || !renderConfigText.includes("d3: {\n    surfaceId: 'd3'")) {
     throw new Error('expected D3 Graph and Flowchart renderers to share the D3 canvas surface')
   }
-  if (!canvasViewportText.includes("active2dSurface === 'd3'") || !canvasViewportText.includes('<GraphCanvasLazy active />')) {
-    throw new Error('expected shared D3/Flowchart surface to mount GraphCanvas')
+  if (
+    !canvasViewportText.includes("const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'")
+    || !canvasViewportText.includes('<SharedGraphCanvasLazy active />')
+    || !canvasViewportText.includes('active2dSurface === \'storyboard\' ? <FlowEditorCanvasLazy active flowEditorSurfaceId="storyboard" storyboardCardsMode /> : null')
+  ) {
+    throw new Error('expected Storyboard to mount the Flow Editor canvas surface while D3 Graph stays graph-only')
   }
-  if (!storyboardCanvasText.includes("import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'")) {
+  if (!storyboardCanvasText.includes("from '@/lib/cards/CardMediaPreview'") || !storyboardCanvasText.includes('CardMediaPreview')) {
     throw new Error('expected Storyboard cards to reuse the shared card media surface')
   }
   if (!storyboardCanvasText.includes('title="Reference"') || storyboardCanvasText.includes('<img src={reference.url}')) {
@@ -647,12 +660,12 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     || !sharedCardMarkdownUtilsText.includes('readCardMarkdownPreviewMediaLabel')
     || !markdownInlineRendererText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
     || !markdownInlineRendererText.includes('CardPreviewInlineMediaPill')
-    || !markdownInlineRendererText.includes("fit={cardPreviewMode ? 'cover' : 'contain'}")
+    || !markdownInlineRendererText.includes("fit={inlineMediaChipMode ? 'cover' : 'contain'}")
     || !markdownInlineRendererText.includes('fallbackLabel="Image"')
     || !markdownInlineRendererText.includes('fallbackLabel="Video"')
     || !safeHtmlRendererText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
     || !safeHtmlRendererText.includes('renderCardPreviewInlineMediaPill')
-    || !safeHtmlRendererText.includes("fit={cardPreviewMode ? 'cover' : 'contain'}")
+    || !safeHtmlRendererText.includes("fit={inlineMediaChipMode ? 'cover' : 'contain'}")
     || !markdownMediaUiText.includes("fit={cardPreviewMode === true ? 'cover' : 'contain'}")
   ) {
     throw new Error('expected card-preview inline image and video surfaces to use shared mention-style media pill classes')
@@ -661,10 +674,11 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     !sharedCardMarkdownUtilsText.includes('rounded-full')
     || !sharedCardMarkdownUtilsText.includes('h-3')
     || !sharedCardMarkdownUtilsText.includes('items-center')
-    || !sharedCardMarkdownUtilsText.includes('align-middle')
-    || !sharedCardMarkdownUtilsText.includes('px-2 py-0.5 text-[11px] leading-4')
+    || !sharedCardMarkdownUtilsText.includes('align-baseline')
+    || !sharedCardMarkdownUtilsText.includes('[font-size:inherit]')
+    || !sharedCardMarkdownUtilsText.includes('[line-height:inherit]')
     || !sharedCardMarkdownUtilsText.includes('mr-1')
-    || !sharedCardMarkdownUtilsText.includes('truncate leading-4')
+    || !sharedCardMarkdownUtilsText.includes('truncate [line-height:inherit]')
     || !sharedCardMarkdownUtilsText.includes('max-w-[9rem]')
     || !sharedCardMarkdownUtilsText.includes('border-[color:var(--kg-border)]')
     || !sharedCardMarkdownUtilsText.includes('text-[color:var(--kg-text-secondary)]')

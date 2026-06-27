@@ -48,12 +48,12 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   }
   const screenAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'screenAuthorityCollectivePan.ts')
   const screenAuthorityText = readFileSync(screenAuthorityPath, 'utf8')
-  if (!wheelText.includes("import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'")
+  if (!wheelText.includes('isFlowEditorSharedSurfaceRenderer')
     || !wheelText.includes('const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)')) {
     throw new Error('expected FlowCanvas wheel proxy to use the shared Flow Editor screen-authority predicate')
   }
   if (!screenAuthorityText.includes('isFlowEditorFrontmatterDocumentModeRequested')
-    || !screenAuthorityText.includes("canvas2dRenderer === 'flowEditor'")
+    || !screenAuthorityText.includes('isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')
     || !screenAuthorityText.includes('|| isFlowEditorFrontmatterDocumentModeRequested({')) {
     throw new Error('expected the shared Flow Editor screen-authority predicate to own the frontmatter-document mode gate')
   }

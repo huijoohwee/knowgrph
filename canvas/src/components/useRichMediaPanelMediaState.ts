@@ -20,6 +20,7 @@ import {
   TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT,
   type TimelineTransportPlaybackRequestDetail,
 } from '@/components/timeline/videoSequenceTimeline'
+import type { WorkspaceViewMode } from '@/hooks/store/types'
 import {
   RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE,
   RICH_MEDIA_TIMELINE_TRANSPORT_MS_PER_UNIT,
@@ -73,7 +74,7 @@ export type RichMediaPanelMediaState = {
   uiPanelMonospaceTextClass: string
   uiPanelTextFontClass: string
   workspaceCanvasPaneOpen: boolean
-  workspaceViewMode: string
+  workspaceViewMode: WorkspaceViewMode
 }
 
 export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMediaPanelMediaState {

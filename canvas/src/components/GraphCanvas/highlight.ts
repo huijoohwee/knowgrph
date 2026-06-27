@@ -126,8 +126,9 @@ export const computeNodeVisual = (
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaOpacity * baseLayerOpacity))
   const visualOpacity = getVisualOpacity(node)
   const withVisualOpacity = (opacity: number) => Math.max(0, Math.min(1, opacity * visualOpacity))
+  const preserveBody = (node.properties || {})['visual:preserveBody'] === true
   const withMediaHiding = (v: NodeVisual): NodeVisual => {
-    if (!isMediaNode) return v
+    if (!isMediaNode || preserveBody) return v
     return { ...v, fill: 'transparent', stroke: 'transparent' }
   }
   

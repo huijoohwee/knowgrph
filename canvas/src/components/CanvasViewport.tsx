@@ -22,7 +22,7 @@ const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportGeospatialOverlay').then(mod => ({ default: mod.CanvasViewportGeospatialOverlay })),
 )
 
-const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
+const SharedGraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const DashboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/DashboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const GalleryCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/GalleryCanvas'), { retries: 2, retryDelayMs: 50 }))
 const MediaCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/MediaCanvas'), { retries: 2, retryDelayMs: 50 }))
@@ -38,7 +38,6 @@ const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidG
 const MermaidGanttCanvasLazy = React.lazy(() => import('@/components/MermaidGanttCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const AnimaticCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/AnimaticCanvas'), { retries: 2, retryDelayMs: 50 }))
-const StoryboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }))
 const FlowEditorWidgetDropBridgeLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorWidgetDropBridge'), { retries: 2, retryDelayMs: 50 }))
 const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
@@ -105,7 +104,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     )
   const active2dSurface = workspaceFrontmatterFlowEditorSurfaceActive ? 'flowEditor' : rawActive2dSurface
   const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive
-  const d3SurfaceActive = active2dSurface === 'd3'
+  const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema, timelineEnabled, bottomSurfaceCollapsed, bottomSurfaceTab } = useGraphStore(
     useShallow(s => ({
@@ -181,8 +180,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
       <React.Suspense fallback={null}>
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
-            <section className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
-              {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
+            <section
+              className={`absolute inset-0 ${sharedGraphCanvasSurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
+              aria-hidden={!sharedGraphCanvasSurfaceActive}
+              data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}
+            >
+              {sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null}
             </section>
             <section className={`absolute inset-0 ${active2dSurface === 'dashboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'dashboard'}>
               {active2dSurface === 'dashboard' ? <DashboardCanvasLazy active /> : null}
@@ -208,12 +211,6 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <section className={`absolute inset-0 ${active2dSurface === 'animatic' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'animatic'}>
               {active2dSurface === 'animatic' ? <AnimaticCanvasLazy active /> : null}
             </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
-              {active2dSurface === 'storyboard' ? <StoryboardCanvasLazy active /> : null}
-              {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
-                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
-              ) : null}
-            </section>
             <section className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
               {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
             </section>
@@ -221,6 +218,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
               {active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null}
               {active2dSurface === 'flowEditor' && floatingPanelOpen && floatingPanelView === 'view' ? (
                 <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="flow-editor.md" />
+              ) : null}
+            </section>
+            <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
+              {active2dSurface === 'storyboard' ? <FlowEditorCanvasLazy active flowEditorSurfaceId="storyboard" storyboardCardsMode /> : null}
+              {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
+                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
               ) : null}
             </section>
           </section>

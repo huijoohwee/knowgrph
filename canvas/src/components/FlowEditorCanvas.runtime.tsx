@@ -33,16 +33,39 @@ import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTop
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+
+function appendPendingOverlayNodesToGraphData(graphData: GraphData | null, pendingNodesById: Record<string, GraphNode>): GraphData | null {
+  const pendingNodes = Object.values(pendingNodesById).filter(node => String(node?.id || '').trim())
+  if (pendingNodes.length <= 0) return graphData
+  const base = graphData || { context: '', type: 'Graph', nodes: [], edges: [] }
+  const nodes = Array.isArray(base.nodes) ? base.nodes : []
+  const existingIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
+  const additions = pendingNodes.filter(node => {
+    const id = String(node?.id || '').trim()
+    if (!id || existingIds.has(id)) return false
+    existingIds.add(id)
+    return true
+  })
+  if (additions.length <= 0) return graphData
+  return {
+    ...base,
+    nodes: [...nodes, ...additions],
+    edges: Array.isArray(base.edges) ? base.edges : [],
+  }
+}
 
 export default function FlowEditorCanvasRuntime(
   {
     active = true,
     flowEditorSurfaceId: flowEditorSurfaceIdProp,
+    storyboardCardsMode = false,
     widgetDropCaptureEnabled = false,
     geospatialWidgetPanelMode = false,
   }: {
     active?: boolean
     flowEditorSurfaceId?: string
+    storyboardCardsMode?: boolean
     widgetDropCaptureEnabled?: boolean
     geospatialWidgetPanelMode?: boolean
   },
@@ -189,7 +212,21 @@ export default function FlowEditorCanvasRuntime(
   const pendingOpenWidgetNodeIdRef = React.useRef<string | null>(null)
   const [overlayNodeIdOverride, setOverlayNodeIdOverride] = React.useState<string | null>(null)
   const [pendingOverlayNode, setPendingOverlayNode] = React.useState<GraphNode | null>(null)
+  const [pendingOverlayNodesById, setPendingOverlayNodesById] = React.useState<Record<string, GraphNode>>({})
   const pendingOverlayNodeIdRef = React.useRef<string | null>(null)
+  const registerPendingOverlayNode = React.useCallback<React.Dispatch<React.SetStateAction<GraphNode | null>>>((nextPendingNode) => {
+    setPendingOverlayNode(prev => {
+      const resolvedNode = typeof nextPendingNode === 'function' ? nextPendingNode(prev) : nextPendingNode
+      const id = String(resolvedNode?.id || '').trim()
+      if (id && resolvedNode) {
+        setPendingOverlayNodesById(prevNodes => {
+          if (prevNodes[id] === resolvedNode) return prevNodes
+          return { ...prevNodes, [id]: resolvedNode }
+        })
+      }
+      return resolvedNode
+    })
+  }, [])
   const overlayNodeIdOverrideWasSelectedRef = React.useRef(false)
   const overlayNodeIdOverrideUntilMsRef = React.useRef<number>(0)
   const reservedNodeIdsRef = React.useRef<Set<string>>(new Set())
@@ -216,7 +253,6 @@ export default function FlowEditorCanvasRuntime(
     activeDocumentKey,
     selectedEdgeId,
   })
-
   const overlayTopologyLayoutSignature = React.useMemo(() => {
     return buildOverlayTopologyLayoutSignature(renderGraphDataOverride || flowEditorBaseGraphData || baseGraphData || null)
   }, [baseGraphData, flowEditorBaseGraphData, renderGraphDataOverride])
@@ -322,6 +358,7 @@ export default function FlowEditorCanvasRuntime(
   const { appendDraftNode, beginAddEdgeFromNode, finalizePendingEdge } = useFlowEditorGraphActions({
     active,
     draftGraphData,
+    draftGraphDataRef,
     baseGraphData: (baseGraphData || null) as GraphData | null,
     schema,
     selectedNodeId,
@@ -340,7 +377,7 @@ export default function FlowEditorCanvasRuntime(
     upsertUiToast,
   })
 
-  const { addNodeFromRegistryAtWorld } = useFlowEditorWidgetDropBridge({
+  const { addNodeFromRegistryAtWorld, addRichMediaPanelFromMediaAtWorld } = useFlowEditorWidgetDropBridge({
     active,
     widgetDropCaptureEnabled,
     widgetDropBridgeOnly,
@@ -363,7 +400,7 @@ export default function FlowEditorCanvasRuntime(
     scheduleForceSelect,
     setCanvasWindowOffsetFromRect,
     setOverlayNodeIdOverride,
-    setPendingOverlayNode,
+    setPendingOverlayNode: registerPendingOverlayNode,
     setLastDroppedWidgetToken,
     upsertUiToast,
   })
@@ -589,6 +626,31 @@ export default function FlowEditorCanvasRuntime(
     if (!overlayEdgeHostActive) return
     scheduleOverlayEdgeUpdate()
   }, [overlayEdgeHostActive, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
+  const flowCanvasGraphDataWithPendingOverlays = React.useMemo(
+    () => appendPendingOverlayNodesToGraphData(flowCanvasGraphDataOverride, pendingOverlayNodesById),
+    [flowCanvasGraphDataOverride, pendingOverlayNodesById],
+  )
+  React.useEffect(() => {
+    setPendingOverlayNodesById(prev => {
+      let next: Record<string, GraphNode> | null = null
+      for (const id of Object.keys(prev)) {
+        if (!resolveGraphNodeByCanonicalId(flowCanvasGraphDataOverride, id)) continue
+        if (!next) next = { ...prev }
+        delete next[id]
+      }
+      return next || prev
+    })
+    const pendingId = String(pendingOverlayNodeIdRef.current || '').trim()
+    if (!pendingId) return
+    if (!resolveGraphNodeByCanonicalId(flowCanvasGraphDataOverride, pendingId)) return
+    pendingOverlayNodeIdRef.current = null
+    setPendingOverlayNode(null)
+  }, [flowCanvasGraphDataOverride])
+  const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {
+    if (!storyboardCardsMode || flowCanvasGraphDataWithPendingOverlays) return flowCanvasGraphDataWithPendingOverlays
+    return { context: '', type: 'Graph', nodes: [], edges: [] }
+  }, [flowCanvasGraphDataWithPendingOverlays, storyboardCardsMode])
+  const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
@@ -602,7 +664,9 @@ export default function FlowEditorCanvasRuntime(
       canInteract={canInteract}
       canEdit={canEdit}
       geospatialWidgetPanelMode={geospatialWidgetPanelMode}
-      renderGraphDataOverride={flowCanvasGraphDataOverride}
+      storyboardCardsMode={storyboardCardsMode}
+      storyboardSourceGraphData={storyboardCanvasGraphDataOverride}
+      renderGraphDataOverride={storyboardCanvasGraphDataOverride}
       flowEditorViewActive={flowEditorViewActive}
       draftGraphDataRevision={draftGraphDataRevision}
       baseGraphDataRevision={baseGraphDataRevision}
@@ -612,7 +676,7 @@ export default function FlowEditorCanvasRuntime(
       overlayOnlyActive={overlayOnlyActive}
       overlayEdgesSvgRef={overlayEdgesSvgRef}
       overlayEditorElements={overlayEditorElements as unknown as React.ReactNode}
-      noGraphLoaded={noGraphLoaded}
+      noGraphLoaded={surfaceNoGraphLoaded}
       toolMode={toolMode}
       pendingEdgeSourceId={pendingEdgeSourceId}
       inspectorPortalHost={inspectorPortalHost}
@@ -623,6 +687,7 @@ export default function FlowEditorCanvasRuntime(
       getLiveZoomTransform={getLiveZoomTransform}
       zoomViewKeyRef={zoomViewKeyRef}
       addNodeFromRegistryAtWorld={addNodeFromRegistryAtWorld}
+      addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
       upsertUiToast={upsertUiToast}
       createPortal={createPortal}
     />

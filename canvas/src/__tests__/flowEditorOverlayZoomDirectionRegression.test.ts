@@ -218,7 +218,7 @@ export function testFlowEditorLiveCollectiveScaleFollowsZoomWithoutViewportFitCl
   const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
   const mediaViewportText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'flowCanvasMediaLayoutViewport.ts'), 'utf8')
   assertTextIncludes(mediaText, [
-    "fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined",
+    'fitToViewport: flowEditorSharedSurfaceRendererMode ? false : undefined',
     'computeCollectiveFollowZoomK({',
     'const readMediaLayoutViewport = React.useCallback',
     'readLayoutViewport: readMediaLayoutViewport',
@@ -410,7 +410,7 @@ export function testFlowEditorOverlayZoomUsesProportionalScreenProjection() {
     throw new Error('expected rich media overlay layout loop to detect zoom-scale changes separately from pan changes')
   }
   assertTextIncludes(mediaLoopText, ['scaleLayoutOnZoom?: boolean', 'zoomLayoutBaseBoxById', 'projectCollectiveScreenLayoutForZoom({'], 'expected rich media overlay layout loop to support proportional zoom layout projection')
-  assertTextIncludes(mediaOverlaysText, ["scaleLayoutOnZoom: canvas2dRenderer === 'flowEditor'"], 'expected Flow Editor rich-media overlays to opt into proportional zoom layout projection')
+  assertTextIncludes(mediaOverlaysText, ['scaleLayoutOnZoom: flowEditorSharedSurfaceRendererMode'], 'expected Flow Editor shared rich-media overlays to opt into proportional zoom layout projection')
 }
 
 type ProbeRect = {

@@ -193,6 +193,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   svg.attr('data-kg-layout-frozen', null)
 
   const g = svg.append('g')
+    .attr('data-kg-layer', 'scene-root')
+    .attr('role', 'presentation')
+    .attr('aria-hidden', 'true')
+    .attr('focusable', 'false')
+    .style('pointer-events', 'none')
   gRef.current = g
 
   createDefs(svg)

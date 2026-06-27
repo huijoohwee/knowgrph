@@ -2,6 +2,7 @@ import React from 'react'
 import * as d3 from 'd3'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { FlowCanvasRichMediaOverlayToolbar } from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'
 import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
@@ -14,7 +15,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
-import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
+import { canonicalNodeIdSetHas, isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
@@ -29,6 +30,7 @@ import {
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
@@ -154,8 +156,9 @@ export default function FlowCanvasMediaOverlays(args: {
       documentSemanticMode,
     })
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
-  const richMediaInfiniteCanvasMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'
-  const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'
+  const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
+  const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
+  const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
   const graphSchema = schema as GraphSchema
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
@@ -187,6 +190,8 @@ export default function FlowCanvasMediaOverlays(args: {
   const workspaceMutationBlockedRef = React.useRef(false)
   const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)
   const [, setWorkspaceMutationBlockedKey] = React.useState(0)
+  const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')
+  const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
 
   const cancelMediaOverlayInteractionState = React.useCallback(() => {
@@ -382,7 +387,7 @@ export default function FlowCanvasMediaOverlays(args: {
     onInteractionFrame?.()
   }, [onInteractionFrame])
   React.useEffect(() => {
-    if (canvas2dRenderer !== 'flowEditor') {
+    if (!flowEditorSharedSurfaceRendererMode) {
       registerInteractionFrameLayoutScheduler?.(null)
       return () => registerInteractionFrameLayoutScheduler?.(null)
     }
@@ -391,7 +396,7 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     registerInteractionFrameLayoutScheduler?.(scheduleLayout)
     return () => registerInteractionFrameLayoutScheduler?.(null)
-  }, [canvas2dRenderer, registerInteractionFrameLayoutScheduler])
+  }, [flowEditorSharedSurfaceRendererMode, registerInteractionFrameLayoutScheduler])
   const stopEvent = React.useCallback((event: React.SyntheticEvent) => {
     try {
       event.stopPropagation()
@@ -405,7 +410,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
     const layoutViewport = clampMediaLayoutViewportToFrame16x9(readMediaLayoutViewport())
     const sizingZoomK = (() => {
-      if (canvas2dRenderer !== 'flowEditor') return zoomK
+      if (!flowEditorSharedSurfaceRendererMode) return zoomK
       const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
       if (
         flowEditorZoomBaselineKRef.current == null
@@ -429,9 +434,9 @@ export default function FlowCanvasMediaOverlays(args: {
       quantizeStep: 0.02,
       hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
       hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
-      fitToViewport: canvas2dRenderer === 'flowEditor' ? false : undefined,
+      fitToViewport: flowEditorSharedSurfaceRendererMode ? false : undefined,
     })
-  }, [canvas2dRenderer, readMediaLayoutViewport])
+  }, [flowEditorSharedSurfaceRendererMode, readMediaLayoutViewport])
 
   const writeRichMediaResizeTrace = React.useCallback((parts: Array<string | number>) => {
     try {
@@ -561,7 +566,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [active, handleFrame, mediaOverlayDragInteractionMode, runtimeRef, writeRichMediaResizeTrace])
 
   React.useEffect(() => {
-    if (canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas') return
+    if (flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas') return
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
     mediaOverlayPanRef.current = null
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
@@ -570,7 +575,7 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayResizeRef.current = null
     mediaOverlayPanelSizeOverrideRef.current.clear()
     mediaOverlayPanelSizeTargetWorldRef.current.clear()
-  }, [canvas2dRenderer])
+  }, [canvas2dRenderer, flowEditorSharedSurfaceRendererMode])
 
   React.useEffect(() => {
     if (!mediaOverlayDragInteractionMode) {
@@ -647,7 +652,7 @@ export default function FlowCanvasMediaOverlays(args: {
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width,
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height,
       ),
-      scaleLayoutOnZoom: canvas2dRenderer === 'flowEditor',
+      scaleLayoutOnZoom: flowEditorSharedSurfaceRendererMode,
       getPanelSizeForId: id => {
         if (!richMediaInfiniteCanvasMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
@@ -731,7 +736,10 @@ export default function FlowCanvasMediaOverlays(args: {
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaNodes.map((node, index) => {
-        const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
+        const isSelected =
+          canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
+          || isCanonicalNodeIdEqual(selectedNodeId, node.id)
+          || isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)
         const mediaOverlayInteractionPolicy = resolveFlowCanvasMediaOverlayInteractionPolicy({
           rendererInteractionMode: mediaOverlayDragInteractionMode,
           workspaceMutationBlocked,
@@ -749,9 +757,8 @@ export default function FlowCanvasMediaOverlays(args: {
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
         return (
-          <RichMediaPanel
+          <section
             key={node.id}
-            overlayId={node.id}
             ref={el => {
               if (!el) {
                 mediaOverlayElsRef.current.delete(node.id)
@@ -759,112 +766,99 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayElsRef.current.set(node.id, el)
             }}
-            className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}
-            title={node.title}
-            url={node.url}
-            srcDoc={node.srcDoc}
-            openUrl={node.openUrl}
-            kind={node.kind}
-            panelChrome="flowEditor"
-            interactive={resolveRichMediaPanelInteractive({
-              nodeInteractive: node.interactive,
-              renderMediaAsNodes,
-              infiniteCanvasInteractionMode,
-              canvasRenderMode: '2d',
-              canvas2dRenderer,
-              frontmatterModeEnabled,
-              documentSemanticMode,
-            })}
-            panel={node.panel}
-            onPanelChange={next => {
-              if (!node.panel) return
-              commitRichMediaPanelChange({ nodeId: node.id, next, updateNode })
-            }}
-            forwardWheelTo={() => canvasRef.current}
-            onOverlayPanStart={overlayInteractionEnabled ? payload => beginMediaOverlayPan(payload) : undefined}
-            onOverlayPan={overlayInteractionEnabled ? payload => {
-              mediaOverlayPanMoveLatestRef.current = payload
-              if (!mediaOverlayPanMoveSchedulerRef.current) {
-                mediaOverlayPanMoveSchedulerRef.current = createRafLatestScheduler(applyMediaOverlayPanMove)
-              }
-              mediaOverlayPanMoveSchedulerRef.current.schedule(payload)
-            } : undefined}
-            onOverlayPanEnd={overlayInteractionEnabled ? payload => {
-              const drag = mediaOverlayPanRef.current
-              if (!drag || drag.pointerId !== payload.pointerId) return
-              mediaOverlayPanMoveSchedulerRef.current?.cancel()
-              if (mediaOverlayPanMoveLatestRef.current?.pointerId === payload.pointerId) {
-                applyMediaOverlayPanMove(mediaOverlayPanMoveLatestRef.current)
-              }
-              mediaOverlayPanMoveLatestRef.current = null
-              mediaOverlayPanRef.current = null
-              requestCommit()
-            } : undefined}
-            onHeaderDragStart={headerDragInteractionActive ? ({ pointerId }) => beginMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
-            onHeaderDrag={headerDragInteractionActive ? ({ dx, dy, pointerId }) => {
-              const queued = { id: node.id, pointerId, dx, dy }
-              mediaOverlayHeaderMoveLatestRef.current = queued
-              if (!mediaOverlayHeaderMoveSchedulerRef.current) {
-                mediaOverlayHeaderMoveSchedulerRef.current = createRafLatestScheduler(entry => applyMediaOverlayHeaderDragMove(entry.id, entry))
-              }
-              mediaOverlayHeaderMoveSchedulerRef.current.schedule(queued)
-            } : undefined}
-            onHeaderDragEnd={headerDragInteractionActive ? ({ pointerId }) => {
-              const drag = mediaOverlayHeaderDragRef.current
-              if (!drag || drag.id !== node.id || drag.pointerId !== pointerId) return
-              mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
-              if (mediaOverlayHeaderMoveLatestRef.current?.id === node.id && mediaOverlayHeaderMoveLatestRef.current.pointerId === pointerId) {
-                applyMediaOverlayHeaderDragMove(node.id, mediaOverlayHeaderMoveLatestRef.current)
-              }
-              mediaOverlayHeaderMoveLatestRef.current = null
-              mediaOverlayHeaderDragRef.current = null
-              requestCommit()
-            } : undefined}
-            resizable={resizeHandleVisible}
-            onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
-            onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => {
-              const queued = { id: node.id, pointerId, dx, dy }
-              mediaOverlayResizeMoveLatestRef.current = queued
-              if (!mediaOverlayResizeMoveSchedulerRef.current) {
-                mediaOverlayResizeMoveSchedulerRef.current = createRafLatestScheduler(entry => applyMediaOverlayResizeMove(entry.id, entry))
-              }
-              mediaOverlayResizeMoveSchedulerRef.current.schedule(queued)
-            } : undefined}
-            onResizeEnd={resizeInteractionActive ? ({ pointerId }) => {
-              const drag = mediaOverlayResizeRef.current
-              if (!drag || drag.id !== node.id || drag.pointerId !== pointerId) return
-              mediaOverlayResizeMoveSchedulerRef.current?.cancel()
-              if (mediaOverlayResizeMoveLatestRef.current?.id === node.id && mediaOverlayResizeMoveLatestRef.current.pointerId === pointerId) {
-                applyMediaOverlayResizeMove(node.id, mediaOverlayResizeMoveLatestRef.current)
-              }
-              mediaOverlayResizeMoveLatestRef.current = null
-              mediaOverlayResizeRef.current = null
-              if (!workspaceMutationBlockedRef.current) {
-                try {
-                  const store = useGraphStore.getState() as {
-                    graphData?: GraphData | null
-                    updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void
-                  }
-                  const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
-                  void store.graphData
-                  store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
-                } catch {
-                  void 0
-                }
-                writeRichMediaResizeTrace(['phase=end', `id=${node.id}`, `pid=${pointerId}`, `finalW=${drag.lastW}`, `finalH=${drag.lastH}`])
-                mediaOverlayLayoutScheduleRef.current?.()
-                requestCommit()
-              }
-            } : undefined}
-            flowEditorInteractionMode={flowEditorSurfaceInteractionMode}
-            flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
-            flowEditorSurfaceId={flowEditorOverlaySurfaceId}
+            className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`}
+            data-kg-rich-media-flow-editor-overlay-shell="1"
+            data-kg-rich-media-flow-editor-chrome="1"
+            data-kg-rich-media-panel="1"
             style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, zIndex: overlayZIndex }}
-            onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-            onClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-            onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-            onContextMenuCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-          />
+            onPointerDownCapture={() => setActiveRichMediaPanelId(node.id)}
+          >
+            <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
+            <RichMediaPanel
+              overlayId={node.id}
+              className="relative h-full w-full pointer-events-auto"
+              title={node.title}
+              url={node.url}
+              srcDoc={node.srcDoc}
+              openUrl={node.openUrl}
+              kind={node.kind}
+              panelChrome="flowEditor"
+              interactive={resolveRichMediaPanelInteractive({ nodeInteractive: node.interactive, renderMediaAsNodes, infiniteCanvasInteractionMode, canvasRenderMode: '2d', canvas2dRenderer, frontmatterModeEnabled, documentSemanticMode })}
+              panel={node.panel}
+              onPanelChange={next => {
+                if (!node.panel) return
+                commitRichMediaPanelChange({ nodeId: node.id, next, updateNode })
+              }}
+              forwardWheelTo={() => canvasRef.current}
+              onOverlayPanStart={overlayInteractionEnabled ? payload => beginMediaOverlayPan(payload) : undefined}
+              onOverlayPan={overlayInteractionEnabled ? payload => {
+                mediaOverlayPanMoveLatestRef.current = payload
+                if (!mediaOverlayPanMoveSchedulerRef.current) mediaOverlayPanMoveSchedulerRef.current = createRafLatestScheduler(applyMediaOverlayPanMove)
+                mediaOverlayPanMoveSchedulerRef.current.schedule(payload)
+              } : undefined}
+              onOverlayPanEnd={overlayInteractionEnabled ? payload => {
+                const drag = mediaOverlayPanRef.current
+                if (!drag || drag.pointerId !== payload.pointerId) return
+                mediaOverlayPanMoveSchedulerRef.current?.cancel()
+                if (mediaOverlayPanMoveLatestRef.current?.pointerId === payload.pointerId) applyMediaOverlayPanMove(mediaOverlayPanMoveLatestRef.current)
+                mediaOverlayPanMoveLatestRef.current = null
+                mediaOverlayPanRef.current = null
+                requestCommit()
+              } : undefined}
+              onHeaderDragStart={headerDragInteractionActive ? ({ pointerId }) => beginMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
+              onHeaderDrag={headerDragInteractionActive ? ({ dx, dy, pointerId }) => {
+                const queued = { id: node.id, pointerId, dx, dy }
+                mediaOverlayHeaderMoveLatestRef.current = queued
+                if (!mediaOverlayHeaderMoveSchedulerRef.current) mediaOverlayHeaderMoveSchedulerRef.current = createRafLatestScheduler(entry => applyMediaOverlayHeaderDragMove(entry.id, entry))
+                mediaOverlayHeaderMoveSchedulerRef.current.schedule(queued)
+              } : undefined}
+              onHeaderDragEnd={headerDragInteractionActive ? ({ pointerId }) => {
+                const drag = mediaOverlayHeaderDragRef.current
+                if (!drag || drag.id !== node.id || drag.pointerId !== pointerId) return
+                mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
+                if (mediaOverlayHeaderMoveLatestRef.current?.id === node.id && mediaOverlayHeaderMoveLatestRef.current.pointerId === pointerId) applyMediaOverlayHeaderDragMove(node.id, mediaOverlayHeaderMoveLatestRef.current)
+                mediaOverlayHeaderMoveLatestRef.current = null
+                mediaOverlayHeaderDragRef.current = null
+                requestCommit()
+              } : undefined}
+              resizable={resizeHandleVisible}
+              onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
+              onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => {
+                const queued = { id: node.id, pointerId, dx, dy }
+                mediaOverlayResizeMoveLatestRef.current = queued
+                if (!mediaOverlayResizeMoveSchedulerRef.current) mediaOverlayResizeMoveSchedulerRef.current = createRafLatestScheduler(entry => applyMediaOverlayResizeMove(entry.id, entry))
+                mediaOverlayResizeMoveSchedulerRef.current.schedule(queued)
+              } : undefined}
+              onResizeEnd={resizeInteractionActive ? ({ pointerId }) => {
+                const drag = mediaOverlayResizeRef.current
+                if (!drag || drag.id !== node.id || drag.pointerId !== pointerId) return
+                mediaOverlayResizeMoveSchedulerRef.current?.cancel()
+                if (mediaOverlayResizeMoveLatestRef.current?.id === node.id && mediaOverlayResizeMoveLatestRef.current.pointerId === pointerId) applyMediaOverlayResizeMove(node.id, mediaOverlayResizeMoveLatestRef.current)
+                mediaOverlayResizeMoveLatestRef.current = null
+                mediaOverlayResizeRef.current = null
+                if (!workspaceMutationBlockedRef.current) {
+                  try {
+                    const store = useGraphStore.getState() as { graphData?: GraphData | null; updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
+                    const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
+                    void store.graphData
+                    store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
+                  } catch {
+                    void 0
+                  }
+                  writeRichMediaResizeTrace(['phase=end', `id=${node.id}`, `pid=${pointerId}`, `finalW=${drag.lastW}`, `finalH=${drag.lastH}`])
+                  mediaOverlayLayoutScheduleRef.current?.()
+                  requestCommit()
+                }
+              } : undefined}
+              flowEditorInteractionMode={flowEditorSurfaceInteractionMode}
+              flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
+              flowEditorSurfaceId={flowEditorOverlaySurfaceId}
+              onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onContextMenuCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+            />
+          </section>
         )
       })}
     </section>

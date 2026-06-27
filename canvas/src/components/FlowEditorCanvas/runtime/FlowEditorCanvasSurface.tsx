@@ -1,9 +1,21 @@
 import React from 'react'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import FlowCanvas from '@/components/FlowCanvas'
+import {
+  StoryboardCardOverlayLayer2d,
+  applyFixedStoryboardCardPlacementsToGraphData2d,
+} from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'
+import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
 import { readFlowWidgetDragPayloadFromDataTransfer } from '@/lib/flowEditor/widgetDrag'
+import {
+  MEDIA_POINTER_DRAG_DROP_EVENT,
+  clearMediaPointerDragPayload,
+  hasMediaDragPayload,
+  readMediaDragPayload,
+  type MediaPointerDragDropDetail,
+} from '@/lib/ui/mediaDragPayload'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -31,6 +43,8 @@ export default function FlowEditorCanvasSurface(props: {
   canInteract: boolean
   canEdit: boolean
   geospatialWidgetPanelMode?: boolean
+  storyboardCardsMode?: boolean
+  storyboardSourceGraphData?: GraphData | null
   renderGraphDataOverride: GraphData | null
   flowEditorViewActive: boolean
   draftGraphDataRevision: number
@@ -52,9 +66,35 @@ export default function FlowEditorCanvasSurface(props: {
   getLiveZoomTransform: () => { k: number; x: number; y: number } | null
   zoomViewKeyRef: React.MutableRefObject<string | null>
   addNodeFromRegistryAtWorld: (args: { entry: WidgetRegistryEntry; x: number; y: number }) => void
+  addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; x: number; y: number }) => string
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const graphContentRevision = useGraphStore(s => s.graphContentRevision)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const schema = useGraphStore(s => s.schema)
+  const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'
+  const storyboardGraphData = React.useMemo(() => {
+    if (!storyboardCardsActive) return null
+    return applyFixedStoryboardCardPlacementsToGraphData2d({
+      graphData: props.storyboardSourceGraphData || null,
+      graphRevision: graphContentRevision || graphDataRevision || 0,
+      schema,
+    })
+  }, [graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive])
+  const storyboardHiddenNodeIds = React.useMemo(() => {
+    if (!storyboardCardsActive) return []
+    const board = buildStoryboardBoardModel({
+      graphData: storyboardGraphData,
+      graphRevision: graphContentRevision || graphDataRevision || 0,
+    })
+    return board.lanes
+      .flatMap(lane => lane.cards.map(card => String(card.id || '').trim()))
+      .filter(Boolean)
+  }, [graphContentRevision, graphDataRevision, storyboardCardsActive, storyboardGraphData])
+  const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride
+  const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined
   const screenAuthorityPanRef = React.useRef<null | {
     pointerId: number
     startClientX: number
@@ -63,6 +103,45 @@ export default function FlowEditorCanvasSurface(props: {
     transform: { k: number; x: number; y: number }
     started: boolean
   }>(null)
+  const readSurfaceDrop = React.useCallback((clientX: number, clientY: number) => {
+    const rect = props.rootRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    props.setCanvasWindowOffsetFromRect(rect)
+    const sx = clientX - rect.left
+    const sy = clientY - rect.top
+    if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
+    return screenToWorld({
+      transform: props.getLiveZoomTransform() || getEffectiveZoomStateForKey({
+        zoomViewKey: props.zoomViewKeyRef.current,
+        zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+        zoomState: useGraphStore.getState().zoomState,
+      }),
+      sx,
+      sy,
+    })
+  }, [props])
+
+  const appendMediaPanelAtClientPoint = React.useCallback((payload: import('@/lib/ui/mediaDragPayload').MediaDragPayload, clientX: number, clientY: number) => {
+    if (props.geospatialWidgetPanelMode || !props.canEdit) return false
+    const mediaUrl = String(payload?.url || '').trim()
+    if (!mediaUrl) return false
+    const pos = readSurfaceDrop(clientX, clientY)
+    if (!pos) return false
+    const dropKey = `media:${mediaUrl}:${Math.round(pos.x)}:${Math.round(pos.y)}`
+    if (props.shouldDedupeWidgetDrop(dropKey)) return true
+    const actualId = props.addRichMediaPanelFromMediaAtWorld({ media: { ...payload, url: mediaUrl }, x: pos.x, y: pos.y })
+    if (!actualId) return false
+    props.upsertUiToast({ id: 'flow-editor-drop-media', kind: 'neutral', message: 'Created Rich Media Panel node.', ttlMs: 1500 })
+    clearMediaPointerDragPayload()
+    return true
+  }, [props, readSurfaceDrop])
+
+  const isMediaPointerDropDistanceAccepted = React.useCallback((detail: MediaPointerDragDropDetail) => {
+    if (!Number.isFinite(detail.startClientX) || !Number.isFinite(detail.startClientY)) return true
+    const dx = detail.clientX - Number(detail.startClientX)
+    const dy = detail.clientY - Number(detail.startClientY)
+    return Math.hypot(dx, dy) >= 6
+  }, [])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -195,6 +274,24 @@ export default function FlowEditorCanvasSurface(props: {
     props.zoomViewKeyRef,
   ])
 
+  React.useEffect(() => {
+    if (!props.active || props.geospatialWidgetPanelMode || !props.canEdit || typeof window === 'undefined') return
+    const handleCanvasPointerDragDrop = (event: Event) => {
+      const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
+      if (!detail?.payload) return
+      if (!isMediaPointerDropDistanceAccepted(detail)) return
+      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY)) return
+      try {
+        event.preventDefault()
+        event.stopPropagation()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop, true)
+    return () => window.removeEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop, true)
+  }, [appendMediaPanelAtClientPoint, isMediaPointerDropDistanceAccepted, props.active, props.canEdit, props.geospatialWidgetPanelMode])
+
   return (
     <section
       ref={props.rootRef}
@@ -203,6 +300,15 @@ export default function FlowEditorCanvasSurface(props: {
       data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}
       onDragOverCapture={(ev) => {
         if (props.geospatialWidgetPanelMode || !props.canEdit) return
+        if (ev.dataTransfer && hasMediaDragPayload(ev.dataTransfer)) {
+          ev.preventDefault()
+          try {
+            ev.dataTransfer.dropEffect = 'copy'
+          } catch {
+            void 0
+          }
+          return
+        }
         ev.preventDefault()
         try {
           ev.dataTransfer.dropEffect = 'copy'
@@ -212,6 +318,14 @@ export default function FlowEditorCanvasSurface(props: {
       }}
       onDropCapture={(ev) => {
         if (props.geospatialWidgetPanelMode || !props.canEdit) return
+        if (ev.dataTransfer && hasMediaDragPayload(ev.dataTransfer)) {
+          const mediaPayload = readMediaDragPayload(ev.dataTransfer)
+          if (mediaPayload && appendMediaPanelAtClientPoint(mediaPayload, ev.clientX, ev.clientY)) {
+            ev.preventDefault()
+            ev.stopPropagation()
+          }
+          return
+        }
         const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => ev.dataTransfer.getData(mime) })
         if (!payload) return
         const entry = (props.widgetRegistry || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
@@ -257,8 +371,11 @@ export default function FlowEditorCanvasSurface(props: {
           active={props.active}
           flowEditorSurfaceId={props.flowEditorSurfaceId}
           allowNodeDragOverride={props.canInteract}
-          graphDataOverride={props.renderGraphDataOverride}
+          graphDataOverride={flowCanvasGraphDataOverride}
           graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
+          hideNodeIds={flowCanvasHiddenNodeIds}
+          hidePortHandleNodeIds={flowCanvasHiddenNodeIds}
+          excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}
           exposeRuntimeRef={ref => {
             props.flowRuntimeRefRef.current = ref
           }}
@@ -282,6 +399,13 @@ export default function FlowEditorCanvasSurface(props: {
       )}
 
       {props.overlayEditorElements}
+      <StoryboardCardOverlayLayer2d
+        active={storyboardCardsActive}
+        getTransform={props.getLiveZoomTransform}
+        graphData={storyboardGraphData}
+        graphRevision={graphContentRevision || graphDataRevision || 0}
+        schema={schema}
+      />
 
       {props.noGraphLoaded && !props.geospatialWidgetPanelMode && (
         <aside className="absolute top-3 left-3 z-[220]" aria-label="Flow Editor Status">

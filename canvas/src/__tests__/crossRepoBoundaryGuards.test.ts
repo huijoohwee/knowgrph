@@ -365,9 +365,10 @@ export function testCanvasViewportMountsOnlyActiveRendererSurface() {
   const text = readFileSync(viewportPath, 'utf8')
   const canvasPageText = readFileSync(canvasPagePath, 'utf8')
   const requiredSnippets = [
-    "d3SurfaceActive ? <GraphCanvasLazy active /> : null",
+    "sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null",
     "active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null",
     "active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null",
+    "active2dSurface === 'storyboard' ? <FlowEditorCanvasLazy active flowEditorSurfaceId=\"storyboard\" storyboardCardsMode /> : null",
     "canvasRenderMode === '2d' && (",
   ]
   const missing = requiredSnippets.filter(s => !text.includes(s))

@@ -249,6 +249,10 @@ export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | und
   return id === 'flowEditor'
 }
 
+export const isFlowEditorSharedCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'flowEditor' || id === 'storyboard'
+}
+
 export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flow'
 }

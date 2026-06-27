@@ -23,6 +23,7 @@ import {
 } from '@/lib/render/richMediaPanelNode'
 import type { CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 import { normalizeCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 export { buildRichMediaPanelOverlayState, buildStaticRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 export type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 export { getRichMediaPanelNodeLabel, isRichMediaPanelNode, resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaPanelNode'
@@ -106,6 +107,7 @@ export function isRichMediaPanelDisplayEnabled(args: unknown): boolean {
   if (normalized.renderMediaAsNodes === true) return true
   const surfaceMode = resolveRichMediaSurfaceMode(normalized)
   if (surfaceMode !== '2d') return false
+  if (isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(normalized.canvas2dRenderer))) return true
   return isFlowEditorFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(normalized.canvas2dRenderer || ''),
     frontmatterModeEnabled: normalized.frontmatterModeEnabled === true,
@@ -195,6 +197,26 @@ export function resolveRichMediaPlayableUrl(args: {
   }
 }
 
+function readRichMediaPanelGenericMediaUrl(props: Record<string, unknown>): {
+  audioUrl: string
+  imageUrl: string
+  mediaUrl: string
+  videoUrl: string
+} {
+  const mediaUrl = (
+    typeof props.mediaUrl === 'string' ? props.mediaUrl : typeof props.media_url === 'string' ? props.media_url : ''
+  ).trim()
+  const mediaKind = (
+    typeof props.mediaKind === 'string' ? props.mediaKind : typeof props.media_kind === 'string' ? props.media_kind : ''
+  ).trim().toLowerCase()
+  return {
+    audioUrl: mediaKind === 'audio' ? mediaUrl : '',
+    imageUrl: mediaKind === 'image' || mediaKind === 'svg' ? mediaUrl : '',
+    mediaUrl,
+    videoUrl: mediaKind === 'video' ? mediaUrl : '',
+  }
+}
+
 export function buildRichMediaPanelPreviewSpec(args: {
   node: GraphNode
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -207,10 +229,11 @@ export function buildRichMediaPanelPreviewSpec(args: {
     connectedValuesBySchemaPath: args.connectedValuesBySchemaPath,
   })
   const props = (renderNode.properties || {}) as Record<string, unknown>
-  const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
-  const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
-  const rawAudioUrl = typeof props.audioUrl === 'string' ? props.audioUrl.trim() : ''
-  const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
+  const genericMedia = readRichMediaPanelGenericMediaUrl(props)
+  const rawImageUrl = (typeof props.imageUrl === 'string' ? props.imageUrl.trim() : '') || genericMedia.imageUrl
+  const rawVideoUrl = (typeof props.videoUrl === 'string' ? props.videoUrl.trim() : '') || genericMedia.videoUrl
+  const rawAudioUrl = (typeof props.audioUrl === 'string' ? props.audioUrl.trim() : '') || genericMedia.audioUrl
+  const rawMediaUrl = genericMedia.mediaUrl
   const rawOpenUrl = rawImageUrl || rawVideoUrl || rawAudioUrl || rawMediaUrl
   const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
   const outputSrcDoc = normalizeRichMediaPanelInlineSrcDoc({

@@ -11,6 +11,7 @@ import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 export function useFlowEditorGraphActions(args: {
   active: boolean
   draftGraphData: GraphData | null
+  draftGraphDataRef: React.MutableRefObject<GraphData | null>
   baseGraphData: GraphData | null
   schema: GraphSchema
   selectedNodeId: string | null
@@ -129,7 +130,7 @@ export function useFlowEditorGraphActions(args: {
 
   const appendDraftNode = React.useCallback(
     (nodeArgs: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => {
-      const base: GraphData = (args.draftGraphData || args.baseGraphData || {
+      const base: GraphData = (args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData || {
         context: '',
         type: 'Graph',
         nodes: [],
@@ -162,7 +163,8 @@ export function useFlowEditorGraphActions(args: {
         if (!nodeId || beforeIds.has(nodeId)) return false
         return String(node.type || '').trim() === type && String(node.label || '').trim() === label
       })?.id
-      const actualId = String(exactId || composedId || insertedId || id).trim() || id
+      const actualId = String(exactId || composedId || insertedId || '').trim()
+      if (!actualId) return ''
       args.pendingSelectNodeIdRef.current = actualId
       return actualId
     },

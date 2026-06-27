@@ -37,6 +37,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -1059,10 +1060,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       />
       <svg
         ref={svgRef}
+        aria-hidden="true" focusable="false" role="presentation"
         className={`${CANVAS_INTERACTIVE_CLASS} z-10`}
-        data-kg-canvas-interactive="1"
-        viewBox={`0 0 ${Math.max(1, width)} ${Math.max(1, height)}`}
-        preserveAspectRatio="xMidYMid meet"
+        data-kg-canvas-interactive="1" data-kg-canvas-svg-viewport="presentation" style={{ pointerEvents: 'visiblePainted' }}
+        viewBox={`0 0 ${Math.max(1, width)} ${Math.max(1, height)}`} preserveAspectRatio="xMidYMid meet"
         onPointerDownCapture={() => {
           try {
             resetGlobalUserSelectLock()
@@ -1075,9 +1076,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
             void 0
           }
         }}
-        onPointerDown={marquee.svgPointerHandlers.onPointerDown}
-        onPointerMove={marquee.svgPointerHandlers.onPointerMove}
-        onPointerUp={marquee.svgPointerHandlers.onPointerUp}
+        onPointerDown={marquee.svgPointerHandlers.onPointerDown} onPointerMove={marquee.svgPointerHandlers.onPointerMove} onPointerUp={marquee.svgPointerHandlers.onPointerUp}
       />
       <RichMediaOverlayLayer2d
         active={active}
@@ -1099,7 +1098,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           setOverlayInteractionActive(true)
           overlayInteractions.beginHeaderDrag(id, clientX, clientY)
         }}
-        onHeaderDrag={({ dx, dy }) => overlayInteractions.moveHeaderDrag(dx, dy)}
+        onHeaderDrag={({ clientX, clientY, dx, dy }) => overlayInteractions.moveHeaderDrag(dx, dy, clientX, clientY)}
         onHeaderDragEnd={() => {
           overlayInteractions.endHeaderDrag()
           setOverlayInteractionActive(false)

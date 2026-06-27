@@ -181,7 +181,7 @@ export const createLinksHitLayer = (args: {
       })
   })()
 
-  const linkRoot = g.append('g').attr('data-kg-layer', 'links-hit');
+  const linkRoot = g.append('g').attr('data-kg-layer', 'links-hit').style('pointer-events', 'all');
   const withPath = eligibleEdges.filter(e => shouldUsePathForEdge(e, schema))
   const withoutPath = eligibleEdges.filter(e => !shouldUsePathForEdge(e, schema))
 
@@ -280,7 +280,7 @@ export const createLinksLayer = (args: {
       })
   })()
 
-  const linkRoot = g.append('g').attr('data-kg-layer', 'links')
+  const linkRoot = g.append('g').attr('data-kg-layer', 'links').style('pointer-events', 'none')
 
   const withPath = eligibleEdges.filter(e => shouldUsePathForEdge(e, schema))
   const withoutPath = eligibleEdges.filter(e => !shouldUsePathForEdge(e, schema))

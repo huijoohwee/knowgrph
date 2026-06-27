@@ -263,11 +263,15 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const overlayEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
+  const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
   const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
   const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
+  const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
+  const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
 
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
@@ -311,6 +315,32 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   }
   if (!overlayEditorText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
     throw new Error('expected NodeOverlayEditor to own the Rich Media open-source action through the real outer widget floating toolbar')
+  }
+  for (const snippet of [
+    "from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'",
+    '<FlowCanvasRichMediaOverlayToolbar',
+    'data-kg-rich-media-flow-editor-overlay-shell="1"',
+    "const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')",
+    'isCanonicalNodeIdEqual(selectedNodeId, node.id)',
+    'isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)',
+    'onPointerDownCapture={() => setActiveRichMediaPanelId(node.id)}',
+    'visible={isSelected}',
+  ]) {
+    if (!flowCanvasOverlayText.includes(snippet)) {
+      throw new Error(`expected Flow Editor Rich Media overlay owner to mount the shared floating toolbar shell: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'",
+    '<NodeOverlayEditorActionsToolbar',
+    'onOpenInSidepane={openInSidepane}',
+    'onDuplicate={duplicate}',
+    'onRemove={remove}',
+    'maxWidthPx={WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX}',
+  ]) {
+    if (!flowCanvasToolbarText.includes(snippet)) {
+      throw new Error(`expected Flow Editor Rich Media overlay owner to reuse the shared floating toolbar variant: ${snippet}`)
+    }
   }
   if (!toolbarHookText.includes("import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
     throw new Error('expected Rich Media toolbar wiring to import the shared node-overlay external action helper')

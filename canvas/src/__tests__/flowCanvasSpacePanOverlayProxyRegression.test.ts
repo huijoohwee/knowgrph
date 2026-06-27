@@ -36,8 +36,8 @@ export function testFlowCanvasSpacePanCanStartFromOverlay() {
     throw new Error('expected FlowCanvas overlay space-pan proxy to reuse the shared Flow Editor screen-authority gate SSOT')
   }
   if (!text.includes('const flowEditorOverlayInteractionMode =')
-    || !text.includes("String(st.canvas2dRenderer || '') === 'flowEditor'")) {
-    throw new Error('expected FlowCanvas overlay pan proxy to activate for the Flow Editor renderer, not frontmatter-only documents')
+    || !text.includes('isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer)')) {
+    throw new Error('expected FlowCanvas overlay pan proxy to activate for shared Flow Editor surface renderers, not frontmatter-only documents')
   }
   if (!text.includes('flowEditorSurfaceId: ctx.args.flowEditorSurfaceId')) {
     throw new Error('expected FlowCanvas overlay space-pan proxy to forward the active Flow Editor surface identity into shared overlay proxy resolution')

@@ -3,6 +3,19 @@ import { coerceMediaUrl } from '@/lib/url'
 export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'audio', 'iframe'] as const
 export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
 export const DEFAULT_NODE_MEDIA_KIND: NodeMediaKind = NODE_MEDIA_KINDS[0]
+const NODE_MEDIA_COMPATIBILITY_URL_KEYS = [
+  'media',
+  'mediaKind',
+  'mediaUrl',
+  'image',
+  'imageUrl',
+  'video',
+  'videoUrl',
+  'audio',
+  'audioUrl',
+  'audio_url',
+  'iframe_url',
+] as const
 
 export function patchNodeMediaProperties(args: {
   properties?: Record<string, unknown> | null | undefined
@@ -34,21 +47,36 @@ export function buildNodeMediaProperties(args: {
   url: string
   interactive?: boolean
   extra?: Record<string, unknown>
+  includeCamelGeneric?: boolean
 }): Record<string, unknown> {
-  const url = String(args.url || '').trim()
-  if (!url) return { ...(args.extra || {}) }
+  const url = coerceMediaUrl(args.url)
+  const base = { ...(args.extra || {}) }
+  NODE_MEDIA_COMPATIBILITY_URL_KEYS.forEach(key => {
+    delete base[key]
+  })
+  if (!url) {
+    return patchNodeMediaProperties({
+      properties: base,
+      kind: args.kind,
+      url,
+      interactive: args.interactive === true,
+    })
+  }
   const next = patchNodeMediaProperties({
+    properties: base,
     kind: args.kind,
     url,
     interactive: args.interactive === true,
   })
-  next.media = url
-  if (args.kind === 'video') next.video = url
-  else if (args.kind === 'audio') next.audio = url
-  else if (args.kind === 'iframe') next.iframe_url = url
-  else next.image = url
-  return {
-    ...next,
-    ...(args.extra || {}),
+  const normalizedKind = String(next.media_kind || DEFAULT_NODE_MEDIA_KIND) as NodeMediaKind
+  if (args.includeCamelGeneric === true) {
+    next.mediaKind = normalizedKind
+    next.mediaUrl = url
   }
+  next.media = url
+  if (normalizedKind === 'video') next.video = url
+  else if (normalizedKind === 'audio') next.audio = url
+  else if (normalizedKind === 'iframe') next.iframe_url = url
+  else next.image = url
+  return next
 }

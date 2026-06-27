@@ -19,6 +19,7 @@ import {
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
+import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -87,7 +88,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     frontmatterModeEnabled: frontmatterModeEnabled === true,
     documentSemanticMode: String(documentSemanticMode || ''),
   })
-  const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'
+  const flowEditorOverlayInteractionMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
 
   const clonedGraphData = React.useMemo(() => {
     if (!renderGraphData) return null
@@ -215,8 +216,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   }, [sceneGraphCanonicalNodeById, selectedNodeId, selectedNodeIdsSnapshot])
 
   const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
-    if (canvas2dRenderer !== 'flowEditor') return undefined
-    const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode
+    if (!flowEditorOverlayInteractionMode) return undefined
+    const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'
     const candidateRawIds = [
       ...openWidgetNodeIdsSnapshot,
       ...excludeRichMediaOverlayNodeIdsSnapshot,
@@ -227,12 +228,20 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       candidateRawIds,
       excludeAllRichMediaPanelNodes,
     })
+    for (let i = 0; i < excludeRichMediaOverlayNodeIdsSnapshot.length; i += 1) {
+      const rawId = excludeRichMediaOverlayNodeIdsSnapshot[i]
+      const resolved = getCanonicalNodeLookupValue(sceneGraphCanonicalNodeById, rawId)
+      const id = String(resolved?.id || rawId || '').trim()
+      if (id) out.add(id)
+    }
     return out.size > 0 ? out : undefined
   }, [
     canvas2dRenderer,
     excludeRichMediaOverlayNodeIdsSnapshot,
     flowEditorFrontmatterInteractionMode,
+    flowEditorOverlayInteractionMode,
     openWidgetNodeIdsSnapshot,
+    sceneGraphCanonicalNodeById,
     sceneGraphData,
     sceneGraphNodeById,
   ])

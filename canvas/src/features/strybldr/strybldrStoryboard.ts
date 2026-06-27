@@ -54,6 +54,8 @@ const cleanMultilineText = (value: unknown): string => String(value ?? '').repla
 const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 const STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS = ['output', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
+const STRYBLDR_D3_STORYBOARD_CARD_WIDTH = 288
+const STRYBLDR_D3_STORYBOARD_CARD_HEIGHT = 162
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 const escapeRegExp = (value: string): string => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -1603,6 +1605,32 @@ const applyStrybldrCardOverride = (
   }
 }
 
+const withStrybldrD3StoryboardCardSurface = (node: GraphNode): GraphNode => {
+  const properties = { ...(node.properties || {}) } as Record<string, JSONValue>
+  if (typeof properties['visual:shape'] !== 'string' || !cleanText(properties['visual:shape'])) {
+    properties['visual:shape'] = asJson('rect')
+  }
+  if (typeof properties['visual:width'] !== 'number' || !Number.isFinite(properties['visual:width']) || properties['visual:width'] <= 0) {
+    properties['visual:width'] = asJson(STRYBLDR_D3_STORYBOARD_CARD_WIDTH)
+  }
+  if (typeof properties['visual:height'] !== 'number' || !Number.isFinite(properties['visual:height']) || properties['visual:height'] <= 0) {
+    properties['visual:height'] = asJson(STRYBLDR_D3_STORYBOARD_CARD_HEIGHT)
+  }
+  if (typeof properties['visual:fill'] !== 'string' || !cleanText(properties['visual:fill'])) {
+    properties['visual:fill'] = asJson('var(--kg-panel-bg)')
+  }
+  if (typeof properties['visual:stroke'] !== 'string' || !cleanText(properties['visual:stroke'])) {
+    properties['visual:stroke'] = asJson('var(--kg-border)')
+  }
+  if (properties['visual:preserveBody'] !== true) {
+    properties['visual:preserveBody'] = asJson(true)
+  }
+  if (properties['visual:hideLabel'] !== true) {
+    properties['visual:hideLabel'] = asJson(true)
+  }
+  return { ...node, properties }
+}
+
 export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphData => {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
@@ -1619,7 +1647,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const media = buildStrybldrSourceMediaFields(source)
     sourceNodeIdByUnit.set(source.sourceUnitId, sourceNodeId)
     frameNodeIdByUnit.set(source.sourceUnitId, frameNodeId)
-    nodes.push(applyStrybldrCardOverride({
+    nodes.push(withStrybldrD3StoryboardCardSurface(applyStrybldrCardOverride({
       id: sourceNodeId,
       label: title,
       type: 'StrybldrImageSource',
@@ -1645,8 +1673,8 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         confidence: asJson(1),
         evidenceKind: asJson('source-metadata'),
       },
-    }, cardOverridesByNodeId.get(sourceNodeId)))
-    nodes.push(applyStrybldrCardOverride({
+    }, cardOverridesByNodeId.get(sourceNodeId))))
+    nodes.push(withStrybldrD3StoryboardCardSurface(applyStrybldrCardOverride({
       id: frameNodeId,
       label: `${title} Frame`,
       type: 'StoryboardFrame',
@@ -1672,7 +1700,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         confidence: asJson(0.5),
         evidenceKind: asJson('source-metadata'),
       },
-    }, cardOverridesByNodeId.get(frameNodeId)))
+    }, cardOverridesByNodeId.get(frameNodeId))))
     edges.push(createEdge(sourceNodeId, frameNodeId, 'frames'))
   }
 
@@ -1684,7 +1712,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const elementId = cleanText(element.id) || `strybldr:element:${shortHash(`${element.sourceUnitId}:${element.label}:${element.order}`)}`
     const media = source ? buildStrybldrSourceMediaFields(source) : null
     const mediaUrl = media?.mediaUrl || cleanText(source?.originalName)
-    nodes.push(applyStrybldrCardOverride({
+    nodes.push(withStrybldrD3StoryboardCardSurface(applyStrybldrCardOverride({
       id: elementId,
       label: element.label,
       type: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
@@ -1713,7 +1741,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         ['flow:widgetTypeId']: asJson(FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID),
         ['flow:widgetFormId']: asJson(FLOW_STORYBOARD_ELEMENT_FORM_ID),
       },
-    }, cardOverridesByNodeId.get(elementId)))
+    }, cardOverridesByNodeId.get(elementId))))
     edges.push(createEdge(frameNodeId, elementId, 'containsElement'))
   }
 

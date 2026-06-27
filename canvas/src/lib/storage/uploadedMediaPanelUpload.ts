@@ -7,6 +7,7 @@ import {
   buildUploadedMediaPanelItemId,
   mergeUploadedMediaPanelItems,
   readUploadedMediaFileName,
+  readUploadedMediaStorageRuntimeUrl,
   writeStoredUploadedMediaPanelItems,
   type UploadedMediaPanelItem,
 } from '@/lib/storage/uploadedMediaPanelItems'
@@ -63,6 +64,7 @@ export async function uploadFilesToUploadedMediaPanel(args: {
       }
       let syncedItem: UploadedMediaPanelItem | null = null
       args.setItems(prev => {
+        const accessUrl = readUploadedMediaStorageRuntimeUrl(storage)
         const next = mergeUploadedMediaPanelItems(prev.map(item => {
           if (item.id !== id) return item
           syncedItem = {
@@ -70,8 +72,8 @@ export async function uploadFilesToUploadedMediaPanel(args: {
             id: buildUploadedMediaPanelItemId(storage),
             name: readUploadedMediaFileName(storage),
             status: 'synced' as const,
-            linkUrl: storage.accessUrl,
-            storage,
+            linkUrl: accessUrl,
+            storage: { ...storage, accessUrl },
             error: null,
           }
           return syncedItem
@@ -79,13 +81,14 @@ export async function uploadFilesToUploadedMediaPanel(args: {
         writeStoredUploadedMediaPanelItems(next)
         return next
       })
+      const fallbackAccessUrl = readUploadedMediaStorageRuntimeUrl(storage)
       const resultItem = syncedItem || {
         ...initialItem,
         id: buildUploadedMediaPanelItemId(storage),
         name: readUploadedMediaFileName(storage),
         status: 'synced' as const,
-        linkUrl: storage.accessUrl,
-        storage,
+        linkUrl: fallbackAccessUrl,
+        storage: { ...storage, accessUrl: fallbackAccessUrl },
         error: null,
       }
       const result = { item: resultItem, storage }

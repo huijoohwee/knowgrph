@@ -125,6 +125,8 @@ export const createNodesLayer = (args: {
   const shouldHideNodeBody = (d: GraphNode): boolean => {
     const id = String(d.id)
     if (panelOnlyNodeIdSet?.has(id)) return true
+    const props = (d.properties || {}) as Record<string, unknown>
+    if (props['visual:preserveBody'] === true) return false
     if (!renderMediaAsNodes) return false
     const spec = mediaByNodeId.get(id)
     if (!spec) return false
@@ -139,7 +141,7 @@ export const createNodesLayer = (args: {
 
   const mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null = null;
 
-  const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
+  const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes').style('pointer-events', 'all');
 
   const eligibleNodes = (() => {
     if (!Array.isArray(renderNodes) || renderNodes.length < 2) return renderNodes
@@ -457,7 +459,7 @@ export const createNodesLayer = (args: {
   const portHandlesEnabled = portHandlesCfg.enabled
   const portHandlesSel = (() => {
     if (!portHandlesEnabled) return null
-    const portLayer = g.append('g').attr('data-kg-layer', 'port-handles')
+    const portLayer = g.append('g').attr('data-kg-layer', 'port-handles').style('pointer-events', 'all')
     const data = listFlowPortHandleDatums2d({ schema, nodes: renderNodes, edges: graphData.edges || [] })
     if (!data.length) return null
     return portLayer.selectAll<SVGCircleElement, FlowPortHandleDatum2d>('circle')

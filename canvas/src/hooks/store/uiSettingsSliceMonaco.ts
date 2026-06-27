@@ -10,7 +10,9 @@ type SetGraph = StoreApi<GraphState>['setState']
 
 const readMarkdownViewerMediaMode = (raw: unknown): 'chip' | 'image' => String(raw || '').trim() === 'image' ? 'image' : 'chip'
 const readStoryboardCardAspectMode = (raw: unknown): '16:9' | '9:16' => String(raw || '').trim() === '9:16' ? '9:16' : '16:9'
-const readStoryboardBoardLayoutMode = (raw: unknown): 'flex' | 'fixed' => String(raw || '').trim() === 'fixed' ? 'fixed' : 'flex'
+const STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT = 'fixed' as const
+const readStoryboardBoardLayoutMode = (raw: unknown): 'flex' | 'fixed' =>
+  String(raw || STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT).trim() === 'flex' ? 'flex' : STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT
 
 export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageReaders)=> {
   const { lsBool, readMonacoLoadMode, writeLsString } = readers
@@ -39,7 +41,7 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
     writeLsString(LS_KEYS.strybldrStoryboardCardAspectMode, next)
     set({ strybldrStoryboardCardAspectMode: next })
   },
-  strybldrStoryboardBoardLayoutMode: readStoryboardBoardLayoutMode(readers.readLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, 'flex')),
+  strybldrStoryboardBoardLayoutMode: readStoryboardBoardLayoutMode(readers.readLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT)),
   setStrybldrStoryboardBoardLayoutMode: (v: 'flex' | 'fixed') => {
     const next = v === 'fixed' ? 'fixed' : 'flex'
     writeLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, next)

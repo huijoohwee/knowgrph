@@ -2,6 +2,29 @@ import { readFileSync } from 'node:fs'
 
 export function testStoryboardCanvasKeepsNativeRendererContract() {
   const source = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
+  const canvasViewportSource = readFileSync(new URL('../components/CanvasViewport.tsx', import.meta.url), 'utf8')
+  const flowEditorRuntimeSource = readFileSync(new URL('../components/FlowEditorCanvas.runtime.tsx', import.meta.url), 'utf8')
+  const flowEditorGraphActionsSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/useFlowEditorGraphActions.ts', import.meta.url), 'utf8')
+  const flowEditorSurfaceSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx', import.meta.url), 'utf8')
+  const flowEditorWidgetDropBridgeSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts', import.meta.url), 'utf8')
+  const graphCanvasRootSource = readFileSync(new URL('../components/GraphCanvasRoot/GraphCanvasRootImpl.tsx', import.meta.url), 'utf8')
+  const graphStoryboardOverlaySource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const graphCanvasSceneSource = readFileSync(new URL('../components/GraphCanvas/scene.ts', import.meta.url), 'utf8')
+  const graphCanvasZoomSource = readFileSync(new URL('../components/GraphCanvas/zoom.ts', import.meta.url), 'utf8')
+  const graphRichMediaOverlaySource = readFileSync(new URL('../components/GraphCanvasRoot/components/RichMediaOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
+  const richMediaSsotSource = readFileSync(new URL('../lib/render/richMediaSsot.ts', import.meta.url), 'utf8')
+  const configRenderSource = readFileSync(new URL('../lib/config.render.ts', import.meta.url), 'utf8')
+  const screenAuthorityPanSource = readFileSync(new URL('../lib/flowEditor/screenAuthorityCollectivePan.ts', import.meta.url), 'utf8')
+  const graphCanvasNodesLayerSource = readFileSync(new URL('../components/GraphCanvas/layers/nodes.ts', import.meta.url), 'utf8')
+  const graphCanvasLinksLayerSource = readFileSync(new URL('../components/GraphCanvas/layers/links.ts', import.meta.url), 'utf8')
+  const graphCanvasLabelsLayerSource = readFileSync(new URL('../components/GraphCanvas/layers/labels.ts', import.meta.url), 'utf8')
+  const graphCanvasEdgeLabelsLayerSource = readFileSync(new URL('../components/GraphCanvas/layers/edgeLabels.ts', import.meta.url), 'utf8')
+  const graphCanvasGroupsLayerSource = readFileSync(new URL('../components/GraphCanvas/layers/groups.ts', import.meta.url), 'utf8')
+  const graphOverlayInteractionsSource = readFileSync(new URL('../components/GraphCanvasRoot/hooks/useOverlayInteractions2d.ts', import.meta.url), 'utf8')
+  const flowEditorOverlayDragSource = readFileSync(new URL('../lib/flowEditor/overlayWorldDrag.ts', import.meta.url), 'utf8')
+  const flowEditorDragHandlersSource = readFileSync(new URL('../components/FlowEditor/useNodeOverlayDragHandlers.ts', import.meta.url), 'utf8')
+  const mediaOverlayLayoutLoopSource = readFileSync(new URL('../lib/render/mediaOverlayLayoutLoop2d.ts', import.meta.url), 'utf8')
   const infiniteZoomSource = readFileSync(new URL('../components/StoryboardCanvas/useStoryboardInfiniteZoom.ts', import.meta.url), 'utf8')
   const infiniteMetricsSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomMetrics.ts', import.meta.url), 'utf8')
   const infiniteRequestSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomRequest.ts', import.meta.url), 'utf8')
@@ -9,6 +32,268 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const mediaLightboxSource = readFileSync(new URL('../lib/ui/MediaLightbox.tsx', import.meta.url), 'utf8')
   const mediaLightboxPromptParametersSource = readFileSync(new URL('../lib/ui/mediaLightboxPromptParameters.ts', import.meta.url), 'utf8')
   const mediaKindOverlaySource = readFileSync(new URL('../lib/ui/MediaKindOverlay.tsx', import.meta.url), 'utf8')
+  if (
+    !canvasViewportSource.includes("const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'")
+    || !canvasViewportSource.includes('data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}')
+    || !canvasViewportSource.includes('sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null')
+    || !canvasViewportSource.includes('active2dSurface === \'storyboard\' ? <FlowEditorCanvasLazy active flowEditorSurfaceId="storyboard" storyboardCardsMode /> : null')
+  ) {
+    throw new Error('expected Storyboard 2D renderer to reuse the Flow Editor canvas surface without routing through the D3 Graph renderer')
+  }
+  if (
+    canvasViewportSource.includes("active2dSurface === 'd3' || active2dSurface === 'storyboard'")
+    || graphCanvasRootSource.includes('StoryboardCardOverlayLayer2d')
+    || graphCanvasRootSource.includes('applyFixedStoryboardCardPlacementsToGraphData2d')
+    || graphCanvasRootSource.includes('data-kg-canvas-svg-underlay')
+    || graphCanvasZoomSource.includes('__kgWindowViewportDestroy')
+    || graphCanvasZoomSource.includes("svgEl.getAttribute('data-kg-canvas-svg-underlay') === 'storyboard'")
+  ) {
+    throw new Error('expected Storyboard 2D renderer to avoid GraphCanvas/D3 underlay interference')
+  }
+  if (canvasViewportSource.includes('StoryboardCanvasLazy')) {
+    throw new Error('expected CanvasViewport to stop mounting the custom Storyboard canvas surface for the Storyboard 2D renderer')
+  }
+  for (const snippet of [
+    'storyboardCardsMode = false',
+    'storyboardCardsMode={storyboardCardsMode}',
+    'function appendPendingOverlayNodesToGraphData(graphData: GraphData | null, pendingNodesById: Record<string, GraphNode>): GraphData | null',
+    'const [pendingOverlayNodesById, setPendingOverlayNodesById] = React.useState<Record<string, GraphNode>>({})',
+    'const registerPendingOverlayNode = React.useCallback<React.Dispatch<React.SetStateAction<GraphNode | null>>>((nextPendingNode) => {',
+    'const flowCanvasGraphDataWithPendingOverlays = React.useMemo(',
+    'appendPendingOverlayNodesToGraphData(flowCanvasGraphDataOverride, pendingOverlayNodesById)',
+    'setPendingOverlayNodesById(prev => {',
+    'delete next[id]',
+    'resolveGraphNodeByCanonicalId(flowCanvasGraphDataOverride, pendingId)',
+    'pendingOverlayNodeIdRef.current = null',
+    'setPendingOverlayNode(null)',
+    'const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {',
+    "return { context: '', type: 'Graph', nodes: [], edges: [] }",
+    'const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded',
+    'storyboardSourceGraphData={storyboardCanvasGraphDataOverride}',
+    'renderGraphDataOverride={storyboardCanvasGraphDataOverride}',
+    'noGraphLoaded={surfaceNoGraphLoaded}',
+  ]) {
+    if (!flowEditorRuntimeSource.includes(snippet)) {
+      throw new Error(`expected FlowEditorCanvas runtime to own Storyboard card-surface snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'",
+    "const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'",
+    'applyFixedStoryboardCardPlacementsToGraphData2d({',
+    "from '@/components/StoryboardCanvas/storyboardModel'",
+    'const board = buildStoryboardBoardModel({',
+    'flatMap(lane => lane.cards.map(card => String(card.id || \'\').trim()))',
+    'const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride',
+    'const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined',
+    'graphDataOverride={flowCanvasGraphDataOverride}',
+    'hideNodeIds={flowCanvasHiddenNodeIds}',
+    'hidePortHandleNodeIds={flowCanvasHiddenNodeIds}',
+    '<StoryboardCardOverlayLayer2d',
+    'active={storyboardCardsActive}',
+    'graphData={storyboardGraphData}',
+  ]) {
+    if (!flowEditorSurfaceSource.includes(snippet)) {
+      throw new Error(`expected FlowEditorCanvas surface to own Storyboard fixed-card geometry snippet: ${snippet}`)
+    }
+  }
+  if (flowEditorSurfaceSource.includes('return nodes.map(node => String(node?.id || \'\').trim()).filter(Boolean)')) {
+    throw new Error('expected Storyboard fixed-card mode to hide only card-overlay nodes so dropped Rich Media Panels stay visible on FlowCanvas')
+  }
+  for (const snippet of [
+    "return id === 'flowEditor' || id === 'storyboard'",
+    'isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(canvas2dRenderer))',
+    'isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(normalized.canvas2dRenderer))',
+    "const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'",
+  ]) {
+    if (
+      !configRenderSource.includes(snippet)
+      && !screenAuthorityPanSource.includes(snippet)
+      && !richMediaSsotSource.includes(snippet)
+      && !flowCanvasGraphStateSource.includes(snippet)
+    ) {
+      throw new Error(`expected Storyboard shared FlowEditor surface to keep dropped Rich Media Panel overlays visible: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'draftGraphDataRef: React.MutableRefObject<GraphData | null>',
+    'args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData',
+  ]) {
+    if (!flowEditorGraphActionsSource.includes(snippet)) {
+      throw new Error(`expected FlowEditor graph actions to append dropped Rich Media Panels against the live draft graph: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'MEDIA_POINTER_DRAG_DROP_EVENT',
+    'clearMediaPointerDragPayload',
+    'hasMediaDragPayload',
+    'readMediaDragPayload',
+    'appendMediaPanelAtClientPoint',
+    'isMediaPointerDropDistanceAccepted',
+    'addRichMediaPanelFromMediaAtWorld',
+    "window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop, true)",
+    'onDropCapture={(ev) => {',
+    'readMediaDragPayload(ev.dataTransfer)',
+    'Created Rich Media Panel node.',
+  ]) {
+    if (!flowEditorSurfaceSource.includes(snippet)) {
+      throw new Error(`expected FlowEditorCanvas surface to own shared media-to-Rich-Media-Panel landing snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'hasMediaDragPayload',
+    'readMediaDragPayload',
+    'MEDIA_POINTER_DRAG_DROP_EVENT',
+    'appendMediaPanelFromDrop',
+    'appendMediaPanelAtClientPoint',
+    'isMediaPointerDropDistanceAccepted',
+    'addRichMediaPanelFromMediaAtWorld({ media: { ...mediaPayload, url: mediaUrl }, x: pos.x, y: pos.y })',
+    "id: 'flow-editor-drop-media'",
+    'Created Rich Media Panel node.',
+    "document.addEventListener('drop', onDropCapture, true)",
+    'window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, onMediaPointerDragDropCapture, true)',
+  ]) {
+    if (!flowEditorWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected FlowEditor widget drop bridge to accept shared media drops into Rich Media Panel nodes: ${snippet}`)
+    }
+  }
+  if (
+    flowEditorWidgetDropBridgeSource.includes('args.setPendingOverlayNode(null)')
+    || flowEditorWidgetDropBridgeSource.includes('args.pendingOverlayNodeIdRef.current = null')
+  ) {
+    throw new Error('expected pending dropped overlays to stay visible until the shared runtime confirms the committed render graph contains the node')
+  }
+  if (graphCanvasRootSource.includes('appendGraphCanvasMediaNode') || graphCanvasRootSource.includes('MEDIA_POINTER_DRAG_DROP_EVENT') || graphCanvasRootSource.includes('readMediaDragPayload')) {
+    throw new Error('expected GraphCanvasRoot to avoid shared media-to-Rich-Media-Panel mutation ownership')
+  }
+  for (const snippet of [
+    'buildStoryboardBoardModel',
+    'data-kg-storyboard-fixed-card-overlay="1"',
+    'data-kg-storyboard-fixed-card="1"',
+    'Storyboard card ${card.title}',
+    'computeFlowEditorOverlayScreenBox({',
+    'scale(${box.scale})',
+    'strybldrStoryboardBoardLayoutMode',
+    'visibleLanes',
+    'centerLaneOffset',
+    'for (let laneIndex = 0; laneIndex < visibleLanes.length; laneIndex += 1)',
+    'for (let rowIndex = 0; rowIndex < lane.cards.length; rowIndex += 1)',
+    'readSnapGridConfigFromSchema',
+    'snapPointToGrid',
+    'buildFixedStoryboardCardPlacements2d',
+    'applyFixedStoryboardCardPlacementsToGraphData2d',
+    'fx: placement.x',
+    'fy: placement.y',
+    'CardInlineTextEditor',
+    'NodeOverlayEditorActionsToolbar',
+    'buildStoryboardToolbarProps',
+    'buildStoryboardToolbarActionBindings',
+    'data-kg-storyboard-fixed-card-lane',
+    'onCommitLane',
+    'onCommitTitle',
+    'onCommitSummary',
+    'onOpenInSidepane',
+    'onDuplicate',
+    'onRemove',
+    'const toolbarProps = buildStoryboardToolbarProps({',
+    'const toolbarActionBindings = buildStoryboardToolbarActionBindings({',
+    'buildGraphNodeCanonicalTextPatch',
+    'GRAPH_KEYWORD_LANE_PROPERTY_KEYS',
+    'const snappedTopLeft = snapPointToGrid({',
+    'data-kg-storyboard-fixed-card-layout={fixedLayoutEnabled ? \'fixed\' : \'flex\'}',
+    'data-kg-storyboard-fixed-card-grid={fixedLayoutEnabled ? \'1\' : \'0\'}',
+  ]) {
+    if (!graphStoryboardOverlaySource.includes(snippet)) {
+      throw new Error(`expected shared Canvas surface to restore Storyboard card overlay snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'NodeOverlayEditorActionsToolbar',
+    'WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX',
+    'data-kg-rich-media-overlay-shell="1"',
+    'data-kg-rich-media-overlay-shell-id={n.id}',
+    'const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some',
+    'onOpenInSidepane={() => openPanelInSidepane(n.id)}',
+    'onDuplicate={() => duplicatePanel(n.id)}',
+    'onRemove={() => removePanel(n.id)}',
+    'className="relative h-full w-full pointer-events-auto"',
+  ]) {
+    if (!graphRichMediaOverlaySource.includes(snippet)) {
+      throw new Error(`expected Storyboard shared Canvas Rich Media panel overlay to restore shared bubble-toolbar snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "from '@/lib/flowEditor/overlayWorldDrag'",
+    'computeFlowEditorOverlayPointerGrabOffset({',
+    'computeFlowEditorOverlayDraggedWorldPoint({',
+    'readFlowEditorOverlayCanvasOffset(svgEl)',
+    'snapToGrid: false',
+    'snapToGrid: true',
+  ]) {
+    if (!graphOverlayInteractionsSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Rich Media drag to reuse Flow Editor overlay-world drag helper snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "from '@/lib/flowEditor/overlayWorldDrag'",
+    'computeFlowEditorOverlayPointerGrabOffset({',
+    'computeFlowEditorOverlayDraggedWorldPoint({',
+  ]) {
+    if (!flowEditorDragHandlersSource.includes(snippet)) {
+      throw new Error(`expected Flow Editor widget drag to reuse shared overlay-world drag helper snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "import { screenToWorld, worldToScreen } from '@/lib/zoom/viewport'",
+    'computeFlowEditorOverlayPointerGrabOffset',
+    'computeFlowEditorOverlayDraggedWorldPoint',
+    'computeFlowEditorOverlayScreenBox',
+    'readSnapGridConfigFromSchema',
+    'snapPointToGrid',
+  ]) {
+    if (!flowEditorOverlayDragSource.includes(snippet)) {
+      throw new Error(`expected Flow Editor overlay-world drag helper to own shared projection/snap snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "snapToGrid: true",
+  ]) {
+    if (!graphOverlayInteractionsSource.includes(snippet)) {
+      throw new Error(`expected Rich Media overlay drag to stay snapped to grid: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'readSnapGridConfigFromSchema',
+    'snapPanelTopLeftToGrid',
+    'const snappedWorldTopLeft = snapPointToGrid(worldTopLeft, snapGrid)',
+    'const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h }',
+  ]) {
+    if (!mediaOverlayLayoutLoopSource.includes(snippet)) {
+      throw new Error(`expected Rich Media layout loop to snap rendered panel top-left to grid: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "attr('data-kg-layer', 'scene-root')",
+    "attr('role', 'presentation')",
+    "attr('aria-hidden', 'true')",
+    "attr('focusable', 'false')",
+    "style('pointer-events', 'none')",
+  ]) {
+    if (!graphCanvasSceneSource.includes(snippet)) {
+      throw new Error(`expected shared scene root to be transform-only instead of a noisy generic SVG target: ${snippet}`)
+    }
+  }
+  for (const [sourceName, layerSource] of [
+    ['nodes', graphCanvasNodesLayerSource],
+    ['links', graphCanvasLinksLayerSource],
+    ['labels', graphCanvasLabelsLayerSource],
+    ['edge-labels', graphCanvasEdgeLabelsLayerSource],
+    ['groups', graphCanvasGroupsLayerSource],
+  ] as const) {
+    if (!layerSource.includes("style('pointer-events', 'all')")) {
+      throw new Error(`expected ${sourceName} layer to opt into pointer events under the non-hit-testable scene root`)
+    }
+  }
   for (const snippet of [
     'Visual Brief',
     'STORYBOARD_CARD_RATIO_CLASS_BY_MODE',
@@ -60,6 +345,43 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "from '@/components/StoryboardCanvas/storyboardSelectAction'",
     "from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'",
     "from '@/components/StoryboardCanvas/storyboardDuplicateRouting'",
+    "from '@/lib/canvas/graph-elements/mediaSpec'",
+    "from '@/lib/config.flow-editor'",
+    "import RichMediaPanel from '@/components/RichMediaPanel'",
+    'STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY',
+    "from '@/lib/render/richMediaSsot'",
+    'buildRichMediaPanelOverlayState',
+    'buildRichMediaPanelPreviewSpec',
+    'commitRichMediaPanelChange',
+    'function StoryboardCanvasRichMediaPanelNode',
+    'data-kg-storyboard-canvas-rich-media-panel="1"',
+    '<RichMediaPanel',
+    'panelChrome="flowEditor"',
+    'canvasRichMediaPanelNodes.map',
+    'props[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY] === true',
+    "from '@/features/flow-editor-manager/resolveWidgetRegistry'",
+    'FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
+    'FLOW_RICH_MEDIA_PANEL_NODE_LABEL',
+    'FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID',
+    'FLOW_RICH_MEDIA_PANEL_FORM_ID',
+    'FLOW_WIDGET_TYPE_ID_KEY',
+    'FLOW_WIDGET_FORM_ID_KEY',
+    'buildStoryboardCanvasRichMediaPanelProperties',
+    '[FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID',
+    '[FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID',
+    '[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true',
+    'richMediaActiveTab: payload.kind',
+    "if (payload.kind === 'image') next.imageUrl = cleanUrl",
+    "if (payload.kind === 'video') next.videoUrl = cleanUrl",
+    "if (payload.kind === 'audio') next.audioUrl = cleanUrl",
+    'type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
+    'updateOpenWidgetNodeIds(prev => (prev.includes(selectedId) ? prev : [...prev, selectedId]))',
+    'const handleWindowNativeMediaDragOver = (event: DragEvent) => {',
+    'const handleWindowNativeMediaDrop = (event: DragEvent) => {',
+    "window.addEventListener('dragover', handleWindowNativeMediaDragOver, true)",
+    "window.addEventListener('drop', handleWindowNativeMediaDrop, true)",
+    'buildNodeMediaProperties({',
+    'includeCamelGeneric: true',
     'runCard: runStoryboardCard',
     'const generateStoryboardCardMediaFromPrompt = React.useCallback((card: StoryboardCardModel, prompt: string, parameters?: MediaLightboxPromptParameters) => {',
     'parameters?: MediaLightboxPromptParameters',
@@ -326,15 +648,30 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     throw new Error('expected Storyboard media slots to avoid starter-style hardcoded missing-media copy')
   }
   for (const snippet of [
-    "import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'",
+    "MEDIA_POINTER_DRAG_DROP_EVENT, clearMediaPointerDragPayload, hasMediaDragPayload, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail",
     'STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS',
     'STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND',
+    'buildStoryboardCardPrimaryMediaDropSlot',
     'const handleDropStoryboardMedia = React.useCallback((card: StoryboardCardModel, slot: StoryboardMediaSelectionSlot, payload: MediaDragPayload) => {',
     'mediaUrl: cleanUrl',
     'mediaKind: payload.kind',
     'const referenceKey = STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND[payload.kind]',
     '[referenceKey]: uniqueReferences',
     'onDropMedia={handleDropStoryboardMedia}',
+    'const cardDropProps = storyboardDrag.createCardDropProps({ rowId: card.id, groupKey: lane.id })',
+    'data-kg-storyboard-card-media-drop="1"',
+    'const handleDropStoryboardCanvasMediaNode = React.useCallback',
+    "addHistory('Storyboard canvas media')",
+    'const handleStoryboardCanvasMediaNativeDrop = React.useCallback',
+    'handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)',
+    'window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop)',
+    "window.addEventListener('pointerup', handleWindowPointerMediaRelease, true)",
+    'onDropCapture={handleStoryboardCanvasMediaNativeDrop}',
+    'onPointerUpCapture={handleStoryboardCanvasPointerMediaDrop}',
+    'onDragOver={handleStoryboardCardMediaNativeDragOver}',
+    'onDrop={handleStoryboardCardMediaNativeDrop}',
+    'onPointerUp={handleStoryboardCardPointerMediaDrop}',
+    'onMouseUp={handleStoryboardCardPointerMediaDrop}',
   ]) {
     if (!source.includes(snippet)) {
       throw new Error(`expected StoryboardCanvas to wire shared Media drag/drop into 2D Renderer card media: ${snippet}`)

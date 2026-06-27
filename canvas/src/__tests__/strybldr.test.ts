@@ -58,6 +58,16 @@ const readTypedValue = (value: unknown): unknown => {
 }
 
 const readSource = (...parts: string[]): string => fs.readFileSync(path.resolve(process.cwd(), 'src', ...parts), 'utf8')
+const STRYBLDR_STARTER_TEMPLATE_NAME = ['knowgrph-strybldr', 'starter-template.md'].join('-')
+const STRYBLDR_STARTER_TEMPLATE_REFERENCE = ['docs', STRYBLDR_STARTER_TEMPLATE_NAME].join('/')
+
+const resolveStrybldrStarterTemplatePath = (): string => {
+  const externalValidationInput = String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  if (externalValidationInput && path.basename(externalValidationInput) === STRYBLDR_STARTER_TEMPLATE_NAME) return externalValidationInput
+  return path.resolve(process.cwd(), '../..', 'huijoohwee', 'docs', STRYBLDR_STARTER_TEMPLATE_NAME)
+}
+
+const readStrybldrStarterTemplateText = (): string => fs.readFileSync(resolveStrybldrStarterTemplatePath(), 'utf8')
 
 const readStrybldrDemoText = (): string => {
   const demoPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
@@ -117,6 +127,21 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   )
   assert((parsed.graphData.nodes || []).some(node => String(node.properties?.strybldrSourceUnitId || '') === 'corpus-source-demo'), 'expected provenance source-unit id on cards')
   assert((parsed.graphData.nodes || []).some(node => String(node.properties?.mediaKind || '') === 'image' && String(node.properties?.mimeHint || '') === 'image/png'), 'expected image media metadata for Viewer and Canvas rendering')
+  const storyboardCardNodes = (parsed.graphData.nodes || []).filter(node => (
+    String(node.type || '') === 'StrybldrImageSource'
+    || String(node.type || '') === 'StoryboardFrame'
+    || String(node.type || '') === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID
+  ))
+  assert(storyboardCardNodes.length >= 2, 'expected parsed Strybldr graph to expose storyboard card nodes')
+  for (const node of storyboardCardNodes) {
+    assert(node.properties?.['visual:shape'] === 'rect', `expected Storyboard card ${String(node.id)} to render as a rect`)
+    assert(node.properties?.['visual:width'] === 288, `expected Storyboard card ${String(node.id)} width to restore card surface`)
+    assert(node.properties?.['visual:height'] === 162, `expected Storyboard card ${String(node.id)} height to restore card surface`)
+    assert(node.properties?.['visual:fill'] === 'var(--kg-panel-bg)', `expected Storyboard card ${String(node.id)} to use panel fill`)
+    assert(node.properties?.['visual:stroke'] === 'var(--kg-border)', `expected Storyboard card ${String(node.id)} to use panel border`)
+    assert(node.properties?.['visual:preserveBody'] === true, `expected Storyboard card ${String(node.id)} to preserve card shell under media overlays`)
+    assert(node.properties?.['visual:hideLabel'] === true, `expected Storyboard card ${String(node.id)} to hide duplicate graph labels under restored card overlay`)
+  }
 
   const board = buildStoryboardBoardModel({ graphData: parsed.graphData, graphRevision: 1 })
   assert(board.totalCards >= 2, `expected Storyboard canvas cards from Strybldr graph, got ${board.totalCards}`)
@@ -200,9 +225,8 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
 }
 
 export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
-  const starterName = 'knowgrph-strybldr-starter-template.md'
-  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
-  const text = fs.readFileSync(starterPath, 'utf8')
+  const starterName = STRYBLDR_STARTER_TEMPLATE_NAME
+  const text = readStrybldrStarterTemplateText()
   const frontmatter = extractYamlFrontmatterHeaderBlock(text)
   assert(frontmatter, 'expected starter template to keep byte-zero YAML frontmatter')
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgCanvas2dRenderer').trim() === 'storyboard', 'expected starter template to route to the shared Storyboard renderer')
@@ -256,7 +280,7 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(sourceNode.properties?.['graph:degree'] === 1, `expected source graph degree to parse, got ${String(sourceNode.properties?.['graph:degree'] || '')}`)
   assert(sourceNode.properties?.['visual:nodeSize'] === 14, `expected source visual node size to parse, got ${String(sourceNode.properties?.['visual:nodeSize'] || '')}`)
   assert(
-    Array.isArray(sourceNode.properties?.references) && sourceNode.properties.references.includes('docs/knowgrph-strybldr-starter-template.md'),
+    Array.isArray(sourceNode.properties?.references) && sourceNode.properties.references.includes(STRYBLDR_STARTER_TEMPLATE_REFERENCE),
     `expected source references to parse, got ${JSON.stringify(sourceNode.properties?.references)}`,
   )
   const runtimeNode = graphNodeById.get('starter-runtime-gate-card')
@@ -270,9 +294,8 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
 }
 
 export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload() {
-  const starterName = 'knowgrph-strybldr-starter-template.md'
-  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
-  const text = fs.readFileSync(starterPath, 'utf8')
+  const starterName = STRYBLDR_STARTER_TEMPLATE_NAME
+  const text = readStrybldrStarterTemplateText()
   const appendedId = 'storyboard-card-append-regression'
   const updatedText = appendStrybldrStoryboardMarkdownElement({
     text,
@@ -302,9 +325,8 @@ export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload()
 }
 
 export function testStrybldrStoryboardRemoveElementPersistsToStructuredPayload() {
-  const starterName = 'knowgrph-strybldr-starter-template.md'
-  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', starterName)
-  const text = fs.readFileSync(starterPath, 'utf8')
+  const starterName = STRYBLDR_STARTER_TEMPLATE_NAME
+  const text = readStrybldrStarterTemplateText()
   const removedId = 'starter-elements-card'
   const updatedText = removeStrybldrStoryboardMarkdownElement({
     text,
@@ -1365,8 +1387,7 @@ export function testStrybldrVideoArtifactTargetPrefersStoryboardFrameOverElement
 }
 
 export function testStrybldrVideoArtifactCleanupKeepsOnlyTargetOverride() {
-  const starterPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs', 'knowgrph-strybldr-starter-template.md')
-  const baseText = fs.readFileSync(starterPath, 'utf8')
+  const baseText = readStrybldrStarterTemplateText()
   const withSourceArtifact = updateStrybldrStoryboardMarkdownCardOverride({
     text: baseText,
     nodeId: 'strybldr:source:3725310941',

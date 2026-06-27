@@ -11,6 +11,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 
 export type FlowEditorScreenAuthorityPanSnapshot = {
   surfaceId: string
@@ -20,13 +21,17 @@ export type FlowEditorScreenAuthorityPanSnapshot = {
 
 export const FLOW_EDITOR_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT = 'kg-flow-editor-screen-authority-collective-pan'
 
+export function isFlowEditorSharedSurfaceRenderer(canvas2dRenderer: unknown): boolean {
+  return isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(canvas2dRenderer))
+}
+
 export function shouldUseFlowEditorScreenAuthorityCollectivePan(args: {
   canvas2dRenderer?: unknown
   frontmatterModeEnabled?: boolean
   documentSemanticMode?: unknown
 }): boolean {
   const canvas2dRenderer = String(args.canvas2dRenderer || '')
-  return canvas2dRenderer === 'flowEditor'
+  return isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
     || isFlowEditorFrontmatterDocumentModeRequested({
       canvas2dRenderer,
       frontmatterModeEnabled: args.frontmatterModeEnabled === true,

@@ -1082,7 +1082,7 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
   const text = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const requiredSnippets = [
     'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
-    "const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'",
+    'const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)', "const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'",
     'resolveFlowCanvasMediaOverlayInteractionPolicy',
     'const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive',
     'const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive',
@@ -1097,7 +1097,7 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',
-    "if (canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas') return",
+    "if (flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas') return",
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {

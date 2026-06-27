@@ -18,6 +18,7 @@ import {
   resolveFlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
+  isFlowEditorSharedSurfaceRenderer,
   readFlowEditorScreenAuthorityPanSnapshot,
   shouldUseFlowEditorScreenAuthorityCollectivePan,
   type FlowEditorScreenAuthorityPanSnapshot,
@@ -99,7 +100,7 @@ export function bindFlowNativeInteractionListeners(args: {
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
     const flowEditorOverlayInteractionMode =
-      String(st.canvas2dRenderer || '') === 'flowEditor' && shouldUseFlowEditorScreenAuthorityCollectivePan(st)
+      isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer) && shouldUseFlowEditorScreenAuthorityCollectivePan(st)
     if (!flowEditorOverlayInteractionMode) return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return

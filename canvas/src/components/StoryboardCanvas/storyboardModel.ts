@@ -11,6 +11,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/richMediaSsot'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
+import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, readGraphKeywordTermsFromProperties } from '@/lib/graph/keywordTerms'
 import {
   GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
@@ -22,6 +23,7 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
+export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
 const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
 const LANE_PROPERTY_KEYS = GRAPH_KEYWORD_LANE_PROPERTY_KEYS
@@ -152,6 +154,12 @@ const readNumber = (value: unknown): number | null => {
 
 const readNodeProperties = (node: GraphNode): GraphNodeProperties => {
   return isPlainObject(node.properties) ? (node.properties as GraphNodeProperties) : {}
+}
+
+const isStoryboardCanvasRichMediaPanelNode = (node: GraphNode): boolean => {
+  const properties = readNodeProperties(node)
+  if (properties[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY] === true) return true
+  return isRichMediaPanelNode(node) && MEDIA_PROPERTY_KEYS.some(key => !!readString(properties[key]))
 }
 
 const readFirstPropertyString = (properties: GraphNodeProperties, keys: readonly string[]): string => {
@@ -550,7 +558,8 @@ export const buildStoryboardBoardModel = (args: {
         })
       : null
   )
-  const allCards = nodes.map((node, index) => buildCardModel(
+  const cardNodes = nodes.filter(node => !isStoryboardCanvasRichMediaPanelNode(node))
+  const allCards = cardNodes.map((node, index) => buildCardModel(
     resolveStoryboardRenderNode({ node, connectedValuesByNodeId }),
     index,
   ))

@@ -45,6 +45,11 @@ const encodeBase64Url = (value: string): string => {
   }
 }
 
+const readRuntimeUrlBase = (): string => {
+  const origin = typeof window !== 'undefined' ? String(window.location?.origin || '').trim() : ''
+  return origin || 'https://example.invalid'
+}
+
 export const buildUploadedMediaAccessUrl = (args: {
   publicUrl: string
   runId: string
@@ -59,7 +64,7 @@ export const buildUploadedMediaAccessUrl = (args: {
   }))
   if (!authToken) return publicUrl
   try {
-    const url = new URL(publicUrl, typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid')
+    const url = new URL(publicUrl, readRuntimeUrlBase())
     url.searchParams.set('kg_media_token', authToken)
     return url.toString()
   } catch {
@@ -112,7 +117,7 @@ export type UploadedMediaStorageResult = {
 }
 
 const readMediaAssetAuthToken = (storage: Pick<UploadedMediaStorageResult, 'accessUrl' | 'publicUrl' | 'runId'>): string => {
-  const fallbackBase = typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid'
+  const fallbackBase = readRuntimeUrlBase()
   const fromAccessUrl = (() => {
     try {
       return new URL(storage.accessUrl, fallbackBase).searchParams.get('kg_media_token') || ''
@@ -285,7 +290,7 @@ export const uploadMediaFileToKnowgrphStorage = async (args: {
   const publicUrl = resolveKnowgrphStorageApiUrl(publicPath, baseUrl)
   const contentType = normalizeString(args.file.type) || 'application/octet-stream'
   const accessUrl = buildUploadedMediaAccessUrl({ publicUrl, runId })
-  const authToken = new URL(accessUrl, typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid').searchParams.get('kg_media_token') || ''
+  const authToken = new URL(accessUrl, readRuntimeUrlBase()).searchParams.get('kg_media_token') || ''
   if (!authToken) return null
 
   const writeResponse = await fetchImpl(resolveKnowgrphStorageApiUrl(publicPath, baseUrl), {

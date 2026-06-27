@@ -25,6 +25,7 @@ import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { resolveFlowEditorFocusedEdgeIds } from '@/lib/flowEditor/flowEditorPortRows'
+import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 export { pickGraphDataForFlowRenderer }
@@ -207,7 +208,7 @@ export default function FlowCanvas({
   })
   const initKey = zoomViewKey
   const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
-  const isFlowEditor = canvas2dRenderer === 'flowEditor'
+  const isFlowEditor = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
   const flowEditorTransformGuardSnippet = () => {
     if (isFlowEditor && alreadyInitializedForKey) return
   }
@@ -248,9 +249,9 @@ export default function FlowCanvas({
 
   const handleInteractionFrame = React.useCallback(() => {
     lastUserInteractionAtMsRef.current = Date.now()
-    if (canvas2dRenderer === 'flowEditor') mediaOverlayInteractionFrameSchedulerRef.current?.()
+    if (isFlowEditor) mediaOverlayInteractionFrameSchedulerRef.current?.()
     onInteractionFrame?.()
-  }, [canvas2dRenderer, onInteractionFrame])
+  }, [isFlowEditor, onInteractionFrame])
   const registerMediaOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
     mediaOverlayInteractionFrameSchedulerRef.current = scheduler
   }, [])
@@ -258,12 +259,12 @@ export default function FlowCanvas({
 
   const drawRafRef = React.useRef<number | null>(null)
   const shouldSuppressWorkspacePreInitCanvasDraw = React.useCallback((): boolean => {
-    if (canvas2dRenderer !== 'flowEditor') return false
+    if (!isFlowEditor) return false
     if (workspaceEditorOverlayOpen !== true) return false
     const interactedRecently = Date.now() - lastUserInteractionAtMsRef.current <= WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS
     if (interactedRecently) return false
     return lastInitTransformZoomViewKeyRef.current !== zoomViewKey
-  }, [canvas2dRenderer, workspaceEditorOverlayOpen, zoomViewKey])
+  }, [isFlowEditor, workspaceEditorOverlayOpen, zoomViewKey])
   const scheduleFlowDraw = React.useCallback((opts?: { force?: boolean }) => {
     const force = opts?.force === true
     if (!force && shouldSuppressWorkspacePreInitCanvasDraw()) {
@@ -391,7 +392,7 @@ export default function FlowCanvas({
     runtimeRef,
     graphDataForZoomRef: collisionGraphDataRef,
     schemaRef: collisionSchemaRef,
-    disableRelaxOnCommit: canvas2dRenderer === 'flowEditor',
+    disableRelaxOnCommit: isFlowEditor,
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -401,7 +402,7 @@ export default function FlowCanvas({
     positionsDirtySinceCommitRef,
     lastCommittedPositionsRef,
     buildDrawArgs,
-    allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'flowEditor',
+    allowLayoutCommitWhenWorkspaceBlocked: isFlowEditor,
   })
 
   useFlowCanvasRuntime({

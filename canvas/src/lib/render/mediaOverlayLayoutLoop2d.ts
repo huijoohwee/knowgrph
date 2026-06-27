@@ -14,6 +14,7 @@ import {
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
 import { projectCollectiveScreenLayoutForZoom } from '@/lib/canvas/overlayWidgetZoom'
+import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 export type MediaOverlayLayoutItem = { id: string }
 
 export type MediaOverlayLayoutLoop = {
@@ -291,6 +292,19 @@ export function startMediaOverlayLayoutLoop2d(args: {
 
     const collisionEnabled = args.collision?.enabled !== false
     const schema = args.schema || null
+    const snapGrid = readSnapGridConfigFromSchema(schema)
+    const snapPanelTopLeftToGrid = (pos: { left: number; top: number }) => {
+      if (!snapGrid.enabled) return pos
+      const worldTopLeft = {
+        x: t.invertX(pos.left),
+        y: t.invertY(pos.top),
+      }
+      const snappedWorldTopLeft = snapPointToGrid(worldTopLeft, snapGrid)
+      return {
+        left: t.applyX(snappedWorldTopLeft.x),
+        top: t.applyY(snappedWorldTopLeft.y),
+      }
+    }
     const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; el: HTMLElement }>()
     for (let i = 0; i < preferred.length; i += 1) {
       const p = preferred[i]!
@@ -415,7 +429,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const pos = nextById.get(p.id) || { left: p.left, top: p.top }
       applyMediaPanelCssVars(p.el, useSizing.vars)
       applyMediaEagerLoadingOnce(p.el)
-      const nextBox = { left: quantizePanelPos(pos.left), top: quantizePanelPos(pos.top), w: p.w, h: p.h }
+      const snappedPos = snapPanelTopLeftToGrid(pos)
+      const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h }
       const prevBox = lastAppliedBoxById.get(p.id) || null
       const boxChanged = !prevBox
         || Math.abs(prevBox.left - nextBox.left) >= 1

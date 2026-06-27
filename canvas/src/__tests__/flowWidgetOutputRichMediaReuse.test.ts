@@ -416,14 +416,12 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
   if (!overlayText.includes("from '@/lib/graph/canonicalNodeIds'") || !overlayText.includes('canonicalNodeIdSetHas')) {
     throw new Error('expected FlowCanvas media overlays to reuse shared canonical node-id set membership helper')
   }
-  if (!overlayText.includes('const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)')) {
-    throw new Error('expected FlowCanvas media overlay selection checks to use shared canonical set membership instead of ad hoc rescans')
+  if (!overlayText.includes('canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)') || !overlayText.includes('isCanonicalNodeIdEqual(selectedNodeId, node.id)') || !overlayText.includes('isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)')) throw new Error('expected FlowCanvas media overlay selection checks to use shared canonical membership plus active rich-media panel state')
+  if (!stateText.includes('const flowEditorOverlayInteractionMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')) {
+    throw new Error('expected FlowCanvas overlay interactions to use the shared Flow Editor surface renderer gate as interaction SSOT')
   }
-  if (!stateText.includes("const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'")) {
-    throw new Error('expected FlowCanvas overlay interactions to use renderer-level FlowEditor gate as interaction SSOT')
-  }
-  if (!overlayText.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
-    throw new Error('expected FlowCanvas media overlay pan/drag handlers to use the renderer-level Flow Editor/Flow Canvas interaction gate')
+  if (!overlayText.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected FlowCanvas media overlay pan/drag handlers to use the shared Flow Editor surface/Flow Canvas interaction gate')
   }
   if (overlayText.includes('isFlowEditorFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas rich-media overlay runtime to remove stale frontmatter-only interaction gate references')
@@ -490,6 +488,7 @@ export function testRichMediaPanelHeaderDragStaysAvailableInPanMode() {
   const designShellText = readFileSync(checkedSources[3]!.path, 'utf8')
   const flowCanvasOverlayText = readFileSync(checkedSources[4]!.path, 'utf8')
   const richMediaPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const richMediaPanelSurfaceStateText = readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
 
   const spacePanGuards = [
     ['D3 overlay interaction hook', d3HookText],
@@ -502,10 +501,10 @@ export function testRichMediaPanelHeaderDragStaysAvailableInPanMode() {
       throw new Error(`expected ${label} to preserve the explicit space-pan header drag guard`)
     }
   }
-  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
+  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Flow Canvas media overlay drag ownership to stay renderer-scoped instead of pointer-mode scoped')
   }
-  if (!richMediaPanelText.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header=\"1\"]')")) {
+  if (!richMediaPanelSurfaceStateText.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header=\"1\"]')")) {
     throw new Error('expected RichMediaPanel header drag to stay scoped to the reusable Flow Editor card header')
   }
   if (!designOverlayText.includes("const explicitAnchorId = String(anchorByBlockIdRef.current?.[b.id] || '').trim()")) {

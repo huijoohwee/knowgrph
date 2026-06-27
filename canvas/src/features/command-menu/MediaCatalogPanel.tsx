@@ -8,7 +8,7 @@ import { resolveTimelinePlanSourceUrl } from '@/components/timeline/timelinePlan
 import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
 import { writeWorkspaceSourceTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { deleteUploadedMediaFromKnowgrphStorage, listUploadedMediaFromKnowgrphStorage, renameUploadedMediaInKnowgrphStorage, type UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
-import { buildUploadedMediaPanelItemFromStorage, buildUploadedMediaPanelItemId, mergeUploadedMediaPanelItems, readStoredUploadedMediaPanelItems, readUploadedMediaFileName, readUploadedMediaPanelDedupeKey, UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, writeStoredUploadedMediaPanelItems, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import { buildUploadedMediaPanelItemFromStorage, buildUploadedMediaPanelItemId, mergeUploadedMediaPanelItems, readStoredUploadedMediaPanelItems, readUploadedMediaFileName, readUploadedMediaPanelDedupeKey, readUploadedMediaPanelItemRuntimeUrl, readUploadedMediaStorageRuntimeUrl, UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, writeStoredUploadedMediaPanelItems, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { importUrlToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelImportUrl'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
@@ -162,7 +162,7 @@ export function MediaCatalogPanel() {
       if (cloudflareItems.length === 0) return
       setUploadedMediaItems(prev => {
         const next = mergeUploadedMediaPanelItems([...cloudflareItems, ...prev.map(item => (
-          item.status === 'synced' ? { ...item, linkUrl: item.storage?.accessUrl || item.linkUrl } : item
+          item.status === 'synced' ? { ...item, linkUrl: readUploadedMediaPanelItemRuntimeUrl(item) } : item
         ))])
         writeStoredUploadedMediaPanelItems(next)
         return next
@@ -203,7 +203,7 @@ export function MediaCatalogPanel() {
     const text = buildUploadedMediaMarkdown({
       name: args.name,
       kind: args.kind,
-      url: args.storage.accessUrl,
+      url: readUploadedMediaStorageRuntimeUrl(args.storage),
       contentHash: args.storage.contentHash,
       objectKey: args.storage.objectKey,
     })
@@ -375,7 +375,7 @@ export function MediaCatalogPanel() {
       const renamedText = buildUploadedMediaMarkdown({
         name: nextName,
         kind: storage.stageId === 'audio' || storage.stageId === 'video' ? storage.stageId : 'image',
-        url: storage.accessUrl,
+        url: readUploadedMediaStorageRuntimeUrl(storage),
         contentHash: storage.contentHash,
         objectKey: storage.objectKey,
       })
@@ -430,7 +430,10 @@ export function MediaCatalogPanel() {
       setUploadedMediaItems(prev => {
         const next = mergeUploadedMediaPanelItems(prev.map(candidate => (
           candidate.id === item.id || readUploadedMediaPanelDedupeKey(candidate) === storage.contentHash
-            ? { ...candidate, id: buildUploadedMediaPanelItemId(storage), name: readUploadedMediaFileName(storage), linkUrl: storage.accessUrl, storage }
+            ? (() => {
+                const accessUrl = readUploadedMediaStorageRuntimeUrl(storage)
+                return { ...candidate, id: buildUploadedMediaPanelItemId(storage), name: readUploadedMediaFileName(storage), linkUrl: accessUrl, storage: { ...storage, accessUrl } }
+              })()
             : candidate
         )))
         writeStoredUploadedMediaPanelItems(next)
@@ -459,7 +462,7 @@ export function MediaCatalogPanel() {
     appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage: item.storage })
     const inserted = insertMediaIntoActiveCardInlineTextEditor({
       kind: item.kind,
-      url: item.storage.accessUrl || item.linkUrl,
+      url: readUploadedMediaPanelItemRuntimeUrl(item),
       label: item.name,
       sourceKey: item.storage.contentHash,
     })

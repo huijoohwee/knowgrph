@@ -9,7 +9,10 @@ import {
   resolveFlowEditorOverlayProxyTarget,
   type FlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import {
+  isFlowEditorSharedSurfaceRenderer,
+  shouldUseFlowEditorScreenAuthorityCollectivePan,
+} from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-zoom'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
@@ -111,7 +114,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   const onWindowWheelCapture = (e: WheelEvent) => {
     if (!ctx.args.active) return
     const st = ctx.readViewportInteractionSnapshot()
-    const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
+    const isFlowEditor = isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer)
     const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
     if (!flowEditorOverlayInteractionMode) return
     const resolved = resolveFlowEditorOverlayProxyTarget({

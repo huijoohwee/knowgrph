@@ -44,6 +44,8 @@ export type RichMediaPanelSurfaceState = {
   flowEditorInteractionMode: boolean
   flowEditorRichMediaOverlayRoot: boolean
   forwardingEnabled: boolean
+  handleRootMouseDownCapture: React.MouseEventHandler<HTMLElement>
+  handleRootPointerDownCapture: React.PointerEventHandler<HTMLElement>
   iframeSurfaceStyle: React.CSSProperties
   inlineSrcDocEmbeddedSurfaceHeight: string
   inlineSrcDocEmbeddedSurfaceStyle: React.CSSProperties
@@ -227,10 +229,10 @@ export function useRichMediaPanelSurfaceState(
     return startRichMediaPanelHeaderDrag(native, props)
   }, [installHeaderDrag, props, selectSelf])
   const handleRootDragStartCapture = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
-    const targetElement = event.target instanceof Element ? event.target : null
-    if (targetElement?.closest('[data-kg-rich-media-resize-handle="1"]')) return false
-    const isHeaderTarget = Boolean(targetElement?.closest('[data-kg-rich-media-flow-editor-header="1"]'))
-    const pointerTarget = readOverlayPointerTargetState(targetElement)
+    const targetEl = event.target instanceof Element ? event.target : null
+    if (targetEl?.closest('[data-kg-rich-media-resize-handle="1"]')) return false
+    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
+    const pointerTarget = readOverlayPointerTargetState(targetEl)
     const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
     const nativePointerEvent = event.nativeEvent as PointerEvent | undefined
     if (!isHeaderTarget && pointerTarget.isSelectableSurface) {
@@ -344,6 +346,9 @@ export function useRichMediaPanelSurfaceState(
   }
   const chromeBodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
+    flex: '1 1 0%',
+    minHeight: 0,
+    overflow: 'hidden',
     padding: 'var(--kg-media-panel-padding, 6px)',
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
     position: 'relative',
@@ -446,6 +451,8 @@ export function useRichMediaPanelSurfaceState(
     flowEditorInteractionMode,
     flowEditorRichMediaOverlayRoot,
     forwardingEnabled,
+    handleRootMouseDownCapture,
+    handleRootPointerDownCapture,
     iframeSurfaceStyle,
     inlineSrcDocEmbeddedSurfaceHeight,
     inlineSrcDocEmbeddedSurfaceStyle,

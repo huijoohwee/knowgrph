@@ -1,9 +1,9 @@
 import React from 'react'
 import { type LucideIcon } from 'lucide-react'
 import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
-import { readUploadedMediaPanelDedupeKey, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import { readUploadedMediaPanelDedupeKey, readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { beginMediaPointerDragPayload, writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { beginMediaPointerDragPayload, finishMediaPointerDragPayloadAt, writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { isPreferredRasterImageFormat, readPreferredImageFormat } from '@/lib/media/mediaFormatPreference'
@@ -317,6 +317,7 @@ export function UploadedMediaPreview({
       onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
       onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
       onDragStart={event => onDragStart(event, item)}
+      onDragEnd={finishMediaDrag}
       onClick={event => {
         event.stopPropagation()
         onPreview(item)
@@ -328,7 +329,26 @@ export function UploadedMediaPreview({
       <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
       {generatedThumbnail.url ? (
         <>
-          <img src={generatedThumbnail.url} alt="" className="h-full w-full object-cover" data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined} {...readNativeVideoMediaThumbnailMetadataAttrs(generatedThumbnail)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+          <img
+            src={generatedThumbnail.url}
+            alt=""
+            className="h-full w-full object-cover"
+            data-kg-command-menu-media-thumbnail="1"
+            data-kg-command-menu-media-thumbnail-format={generatedThumbnail.format || undefined}
+            data-kg-command-menu-media-thumbnail-raster-format={generatedThumbnail.rasterFormat || undefined}
+            data-kg-command-menu-media-thumbnail-time={generatedThumbnail.timestampSeconds ?? undefined}
+            {...readNativeVideoMediaThumbnailMetadataAttrs(generatedThumbnail)}
+            loading="lazy"
+            decoding="async"
+            {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS}
+            draggable={true}
+            onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+            onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
+            onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+            onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
+            onDragStart={event => onDragStart(event, item)}
+            onDragEnd={finishMediaDrag}
+          />
           <MediaThumbnailCaption format={generatedThumbnail.format} metadataLabel={generatedThumbnail.metadataLabel} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
         </>
       ) : (
@@ -384,7 +404,7 @@ export function buildCommandMenuMediaDragPayload(item: CommandMenuRichMediaItem)
 
 export function buildUploadedMediaDragPayload(item: UploadedMediaPanelItem): MediaDragPayload | null {
   if (item.kind !== 'image' && item.kind !== 'audio' && item.kind !== 'video') return null
-  const url = String(item.storage?.accessUrl || item.linkUrl || '').trim()
+  const url = readUploadedMediaPanelItemRuntimeUrl(item)
   if (!url) return null
   return {
     kind: item.kind,
@@ -398,19 +418,19 @@ export function startMediaDrag(event: React.DragEvent<HTMLElement>, payload: Med
   if (!payload) return
   event.stopPropagation()
   writeMediaDragPayload(event.dataTransfer, payload)
-  beginMediaPointerDragPayload(payload)
+  beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
 }
 
 export function startMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
   if (!payload) return
   event.stopPropagation()
-  beginMediaPointerDragPayload(payload)
+  beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
 }
 
 export function startMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
   if (!payload) return
   event.stopPropagation()
-  beginMediaPointerDragPayload(payload)
+  beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
 }
 
 export function continueMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
@@ -423,4 +443,9 @@ export function continueMediaMouseDrag(event: React.MouseEvent<HTMLElement>, pay
   if (!payload || event.buttons !== 1) return
   event.stopPropagation()
   beginMediaPointerDragPayload(payload)
+}
+
+export function finishMediaDrag(event: React.DragEvent<HTMLElement> | React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>): void {
+  event.stopPropagation()
+  finishMediaPointerDragPayloadAt(event.clientX, event.clientY)
 }

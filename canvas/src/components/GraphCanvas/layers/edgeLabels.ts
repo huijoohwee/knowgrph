@@ -37,7 +37,7 @@ export const createEdgeLabelsLayer = (args: {
   const fontSize = typeof fontSizeRaw === 'number' && Number.isFinite(fontSizeRaw) && fontSizeRaw > 0 ? fontSizeRaw : 12
   const maxChars = Math.max(6, Math.min(60, estimateMaxCharsForWidthPx(160, fontSize)))
 
-  const root = g.append('g').attr('data-kg-layer', 'edge-labels')
+  const root = g.append('g').attr('data-kg-layer', 'edge-labels').style('pointer-events', 'all')
   const labelSel = root
     .selectAll<SVGTextElement, GraphEdge>('text')
     .data(edges, d => String(d.id))

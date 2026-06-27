@@ -1,9 +1,15 @@
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import {
+  FLOW_RICH_MEDIA_PANEL_FORM_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphData } from '@/lib/graph/types'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 
 const makeGraph = (): GraphData => ({
   type: 'Graph',
@@ -216,6 +222,91 @@ export function testStoryboardBoardModelProjectsGeneratedOutputAndAudioMedia() {
   }
 }
 
+export function testStoryboardBoardModelProjectsDroppedGenericMediaIntoVisibleCardMedia() {
+  const imageUrl = 'https://example.com/uploads/storyboard-drop.png?kg_media_token=fresh'
+  const videoUrl = 'https://example.com/uploads/storyboard-drop.mp4?kg_media_token=fresh'
+  const panelVideoUrl = 'https://example.com/uploads/storyboard-panel-drop.mp4?kg_media_token=fresh'
+  const board = buildStoryboardBoardModel({
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'image-drop',
+          label: 'Dropped Image',
+          type: 'StoryboardFrame',
+          properties: {
+            ...buildNodeMediaProperties({
+              kind: 'image',
+              url: imageUrl,
+              includeCamelGeneric: true,
+            }),
+            lane: 'Runtime',
+            outputSrcDoc: '',
+            renderUrl: '',
+            imageUrl: '',
+            order: 1,
+          },
+        },
+        {
+          id: 'video-drop',
+          label: 'Dropped Video',
+          type: 'StoryboardFrame',
+          properties: {
+            ...buildNodeMediaProperties({
+              kind: 'video',
+              url: videoUrl,
+              includeCamelGeneric: true,
+            }),
+            lane: 'Runtime',
+            outputSrcDoc: '',
+            renderUrl: '',
+            videoUrl: '',
+            order: 2,
+          },
+        },
+        {
+          id: 'rich-media-panel-drop',
+          label: 'Dropped Rich Media Panel',
+          type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+          properties: {
+            ...buildNodeMediaProperties({
+              kind: 'video',
+              url: panelVideoUrl,
+              includeCamelGeneric: true,
+            }),
+            [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+            [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+            lane: 'Runtime',
+            output: '',
+            outputSrcDoc: '',
+            richMediaActiveTab: 'video',
+            videoUrl: panelVideoUrl,
+            order: 3,
+          },
+        },
+      ],
+      edges: [],
+    },
+    graphRevision: 13,
+  })
+  const cards = board.lanes.flatMap(lane => lane.cards)
+  const imageCard = cards.find(card => card.id === 'image-drop') || null
+  const videoCard = cards.find(card => card.id === 'video-drop') || null
+  const panelCard = cards.find(card => card.id === 'rich-media-panel-drop') || null
+  if (imageCard?.media?.kind !== 'image' || imageCard.media.url !== imageUrl) {
+    throw new Error(`expected dropped generic image media to project as visible Storyboard card media, got ${JSON.stringify(imageCard?.media)}`)
+  }
+  if (videoCard?.media?.kind !== 'video' || videoCard.media.url !== videoUrl) {
+    throw new Error(`expected dropped generic video media to project as visible Storyboard card media, got ${JSON.stringify(videoCard?.media)}`)
+  }
+  if (panelCard) {
+    throw new Error(`expected dropped Rich Media Panel node type to stay out of Storyboard card shells, got ${JSON.stringify(panelCard)}`)
+  }
+  if (imageCard.href !== imageUrl || videoCard.href !== videoUrl) {
+    throw new Error(`expected dropped media card hrefs to preserve runtime media URLs, got ${JSON.stringify({ imageHref: imageCard?.href, videoHref: videoCard?.href })}`)
+  }
+}
+
 export function testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards() {
   const registry: WidgetRegistryEntry[] = [
     {
@@ -246,8 +337,8 @@ export function testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards
       id: 'rich-media-panel',
       isEnabled: true,
       nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-      widgetTypeId: 'rich-media',
-      formId: 'richMediaPanel',
+      widgetTypeId: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
       fields: [],
       ports: [
         { portKey: 'output', direction: 'input', schemaPath: 'output' },
@@ -287,8 +378,8 @@ export function testStoryboardBoardModelUsesSharedDataflowForRichMediaPanelCards
         label: 'Rich Media Panel',
         type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
         properties: {
-          [FLOW_WIDGET_TYPE_ID_KEY]: 'rich-media',
-          [FLOW_WIDGET_FORM_ID_KEY]: 'richMediaPanel',
+          [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+          [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
           lane: 'Outputs',
           richMediaActiveTab: 'text',
         },

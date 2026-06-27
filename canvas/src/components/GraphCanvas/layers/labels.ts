@@ -31,7 +31,7 @@ export const createLabelsLayer = (args: {
 
   const nodes = panelOnlyNodeIdSet ? rawNodes.filter(n => !panelOnlyNodeIdSet.has(String(n.id))) : rawNodes;
 
-  const labelLayer = g.append('g').attr('data-kg-layer', 'labels');
+  const labelLayer = g.append('g').attr('data-kg-layer', 'labels').style('pointer-events', 'all');
   
   const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode })
   const labelFontSize = labelPresentation.nodeFontSizePx
@@ -42,6 +42,7 @@ export const createLabelsLayer = (args: {
   const isWordCloudNode = (d: GraphNode): boolean => isWordCloudLabelNode2d(d)
   const getLabelOpacityForNode = (d: GraphNode): number => {
     const props = (d.properties || {}) as Record<string, unknown>
+    if (props['visual:hideLabel'] === true) return 0
     const raw = props['visual:opacity']
     const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : Number.NaN
     if (!Number.isFinite(n)) return 1

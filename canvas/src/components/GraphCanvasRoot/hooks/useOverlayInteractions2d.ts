@@ -9,11 +9,15 @@ import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
-import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
-import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
-import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
+import { computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { readMergedGraphNodeLookup, type MergedGraphNodeLookupCache } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
+import {
+  computeFlowEditorOverlayDraggedWorldPoint,
+  computeFlowEditorOverlayPointerGrabOffset,
+  readFlowEditorOverlayCanvasOffset,
+  type FlowEditorOverlayDragPoint,
+} from '@/lib/flowEditor/overlayWorldDrag'
 
 export function useOverlayInteractions2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -35,7 +39,21 @@ export function useOverlayInteractions2d(args: {
     }
   }, [])
 
-  const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number; workspaceViewModeAtStart: 'canvas' | 'editor' }>(null)
+  const headerDragRef = useRef<null | {
+    id: string
+    baseX: number
+    baseY: number
+    structured: boolean
+    frozen: boolean
+    lastDx: number
+    lastDy: number
+    startClientX: number
+    startClientY: number
+    lastClientX: number
+    lastClientY: number
+    grabOffsetWorld: FlowEditorOverlayDragPoint
+    workspaceViewModeAtStart: 'canvas' | 'editor'
+  }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
   const overlayNodeLookupRef = useRef<MergedGraphNodeLookupCache>({
     graphSemanticKey: '',
@@ -55,7 +73,7 @@ export function useOverlayInteractions2d(args: {
   }, [graphDataRevision, sceneGraphDataRef, simulationRef])
 
   const headerDragMoveSchedulerRef = useRef(
-    createRafValueScheduler((args0: { dx: number; dy: number }) => {
+    createRafValueScheduler((args0: { dx: number; dy: number; clientX: number; clientY: number }) => {
       const st = headerDragRef.current
       if (!st) return
       if (!shouldStartHeaderDrag()) return
@@ -66,14 +84,15 @@ export function useOverlayInteractions2d(args: {
       if (!node) return
       st.lastDx = args0.dx
       st.lastDy = args0.dy
+      st.lastClientX = args0.clientX
+      st.lastClientY = args0.clientY
       const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      const p = computeOverlayDraggedPoint2d({
-        baseX: st.baseX,
-        baseY: st.baseY,
-        dxClientPx: args0.dx,
-        dyClientPx: args0.dy,
-        zoomK: k,
+      const p = computeFlowEditorOverlayDraggedWorldPoint({
+        transform: t,
+        canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+        pointerClient: { x: args0.clientX, y: args0.clientY },
+        grabOffsetWorld: st.grabOffsetWorld,
+        baseWorld: { x: st.baseX, y: st.baseY },
         schema: schemaRef.current,
         snapToGrid: false,
       })
@@ -148,8 +167,29 @@ export function useOverlayInteractions2d(args: {
       const structured = mode === 'radial'
       const frozen = svgEl.getAttribute('data-kg-layout-frozen') === '1'
       const workspaceViewModeAtStart = useGraphStore.getState().workspaceViewMode === 'editor' ? 'editor' : 'canvas'
+      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      const grabOffsetWorld = computeFlowEditorOverlayPointerGrabOffset({
+        transform: t,
+        canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+        pointerClient: { x: clientX, y: clientY },
+        startWorld: { x: x0, y: y0 },
+      })
       lockGlobalUserSelect()
-      headerDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen, lastDx: 0, lastDy: 0, workspaceViewModeAtStart }
+      headerDragRef.current = {
+        id,
+        baseX: x0,
+        baseY: y0,
+        structured,
+        frozen,
+        lastDx: 0,
+        lastDy: 0,
+        startClientX: clientX,
+        startClientY: clientY,
+        lastClientX: clientX,
+        lastClientY: clientY,
+        grabOffsetWorld,
+        workspaceViewModeAtStart,
+      }
       if (sim && !structured && !frozen) {
         const alphaTarget = (() => {
           try {
@@ -167,15 +207,19 @@ export function useOverlayInteractions2d(args: {
       }
       node.fx = x0
       node.fy = y0
-      void clientX
-      void clientY
     },
     [activeRef, readOverlayInteractionNodeById, schemaRef, shouldStartHeaderDrag, simulationRef, svgRef],
   )
 
   const moveHeaderDrag = useCallback(
-    (dx: number, dy: number) => {
-      headerDragMoveSchedulerRef.current.schedule({ dx, dy })
+    (dx: number, dy: number, clientX?: number, clientY?: number) => {
+      const st = headerDragRef.current
+      headerDragMoveSchedulerRef.current.schedule({
+        dx,
+        dy,
+        clientX: typeof clientX === 'number' && Number.isFinite(clientX) ? clientX : (st ? st.startClientX + dx : dx),
+        clientY: typeof clientY === 'number' && Number.isFinite(clientY) ? clientY : (st ? st.startClientY + dy : dy),
+      })
     },
     [],
   )
@@ -216,13 +260,12 @@ export function useOverlayInteractions2d(args: {
       return
     }
     const t = svgEl ? d3.zoomTransform(svgEl as unknown as SVGSVGElement) : null
-    const k = t && typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-    const p = computeOverlayDraggedPoint2d({
-      baseX: st.baseX,
-      baseY: st.baseY,
-      dxClientPx: st.lastDx,
-      dyClientPx: st.lastDy,
-      zoomK: k,
+    const p = computeFlowEditorOverlayDraggedWorldPoint({
+      transform: t,
+      canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+      pointerClient: { x: st.lastClientX, y: st.lastClientY },
+      grabOffsetWorld: st.grabOffsetWorld,
+      baseWorld: { x: st.baseX, y: st.baseY },
       schema: schemaRef.current,
       snapToGrid: true,
     })

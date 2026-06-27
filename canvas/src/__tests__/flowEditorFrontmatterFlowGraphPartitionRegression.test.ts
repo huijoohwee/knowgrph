@@ -8,6 +8,7 @@ import {
 import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 import { KG_SUBGRAPHS_KEY, readSubgraphs } from '@/lib/graph/subgraphs'
 import type { GraphData } from '@/lib/graph/types'
+import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 
 export function testFlowEditorFrontmatterFlowGraphPartitionExcludesAllRenderNodes() {
   const metadataSubgraphs = [
@@ -133,6 +134,7 @@ export function testFlowEditorForeignRendererGraphPartitionExcludesNativeFlowCan
     nodes: [
       { id: 'source', type: 'StrybldrImageSource', label: 'Source', properties: {} },
       { id: 'fork', type: 'StorytreeNode', label: 'Fork', properties: {} },
+      { id: 'panel', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: { mediaUrl: '/api/storage/media/runtime/image.png', mediaKind: 'image' } },
     ],
     edges: [
       { id: 'e1', source: 'source', target: 'fork', label: 'forks', type: 'containsElement', properties: {} },
@@ -151,9 +153,54 @@ export function testFlowEditorForeignRendererGraphPartitionExcludesNativeFlowCan
   const nodeIds = Array.isArray(partitioned?.nodes) ? partitioned.nodes.map(node => String(node?.id || '').trim()).filter(Boolean) : []
   const edgeIds = Array.isArray(partitioned?.edges) ? partitioned.edges.map(edge => String(edge?.id || '').trim()).filter(Boolean) : []
   const subgraphIds = readSubgraphs(partitioned).map(subgraph => subgraph.id)
-  if (nodeIds.length !== 0) throw new Error(`expected Flow Editor to keep Strybldr-owned graph nodes out of FlowCanvas, got ${nodeIds.join(',')}`)
-  if (edgeIds.length !== 0) throw new Error(`expected Flow Editor to keep Strybldr-owned graph edges out of FlowCanvas, got ${edgeIds.join(',')}`)
-  if (subgraphIds.length !== 0) throw new Error(`expected Flow Editor to prune Strybldr-owned graph groups from FlowCanvas, got ${subgraphIds.join(',')}`)
+  if (nodeIds.join('|') !== 'source|fork|panel') {
+    throw new Error(`expected Storyboard shared Flow Editor surface to retain native FlowCanvas backing nodes, got ${nodeIds.join(',')}`)
+  }
+  if (edgeIds.join('|') !== 'e1') {
+    throw new Error(`expected Storyboard shared Flow Editor surface to retain graph edges, got ${edgeIds.join(',')}`)
+  }
+  if (subgraphIds.join('|') !== 'storytree') {
+    throw new Error(`expected Storyboard shared Flow Editor surface to retain metadata groups, got ${subgraphIds.join(',')}`)
+  }
+  const storyboardOverlayNodes = listDisplayRichMediaOverlayNodes({
+    renderMediaAsNodes: false,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: 'storyboard',
+    frontmatterModeEnabled: false,
+    documentSemanticMode: 'document',
+    nodes: Array.isArray(partitioned?.nodes) ? partitioned.nodes : [],
+    poolMax: 24,
+  })
+  const storyboardOverlayNodeIds = storyboardOverlayNodes.map(node => String(node.id || '').trim()).filter(Boolean)
+  if (!storyboardOverlayNodeIds.includes('panel')) {
+    throw new Error(`expected Storyboard shared FlowCanvas render graph to list dropped Rich Media Panel overlays, got ${storyboardOverlayNodeIds.join(',')}`)
+  }
+
+  const mediaGraph: GraphData = {
+    ...graphData,
+    metadata: {
+      ...graphData.metadata,
+      kind: 'media-canvas',
+      kgCanvas2dRenderer: 'media',
+      frontmatterMeta: { kgCanvas2dRenderer: 'media' },
+    },
+  }
+  const foreignPartitioned = buildFlowCanvasGraphDataOverride({
+    renderGraphDataOverride: mediaGraph,
+    frontmatterOverlayVisualIsolation: {
+      kind: 'media-canvas',
+      visibleNodeIds: [],
+      hasFullOverlayCoverageForVisibleNodes: true,
+    },
+    overlayEditorNodeIdsSnapshot: [],
+    overlayOnlyActive: false,
+  })
+  const foreignNodeIds = Array.isArray(foreignPartitioned?.nodes) ? foreignPartitioned.nodes.map(node => String(node?.id || '').trim()).filter(Boolean) : []
+  const foreignEdgeIds = Array.isArray(foreignPartitioned?.edges) ? foreignPartitioned.edges.map(edge => String(edge?.id || '').trim()).filter(Boolean) : []
+  const foreignSubgraphIds = readSubgraphs(foreignPartitioned).map(subgraph => subgraph.id)
+  if (foreignNodeIds.length !== 0) throw new Error(`expected true foreign renderer graph nodes to stay out of FlowCanvas, got ${foreignNodeIds.join(',')}`)
+  if (foreignEdgeIds.length !== 0) throw new Error(`expected true foreign renderer graph edges to stay out of FlowCanvas, got ${foreignEdgeIds.join(',')}`)
+  if (foreignSubgraphIds.length !== 0) throw new Error(`expected true foreign renderer graph groups to stay out of FlowCanvas, got ${foreignSubgraphIds.join(',')}`)
 
   const flowEditorGraph: GraphData = {
     ...graphData,
@@ -175,7 +222,7 @@ export function testFlowEditorForeignRendererGraphPartitionExcludesNativeFlowCan
     overlayOnlyActive: false,
   })
   const retainedNodeIds = Array.isArray(retained?.nodes) ? retained.nodes.map(node => String(node?.id || '').trim()).filter(Boolean) : []
-  if (retainedNodeIds.join('|') !== 'source|fork') {
+  if (retainedNodeIds.join('|') !== 'source|fork|panel') {
     throw new Error(`expected Flow Editor-owned graphs to retain native FlowCanvas backing nodes, got ${retainedNodeIds.join(',')}`)
   }
 }

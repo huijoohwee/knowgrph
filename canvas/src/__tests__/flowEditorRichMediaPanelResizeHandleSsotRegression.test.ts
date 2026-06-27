@@ -80,6 +80,16 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   if (!surfaceStateText.includes('getFlowEditorPanelChromeClassName(mediaState.uiPanelTextFontClass)')) {
     throw new Error('expected shared Rich Media Panel root to reuse Flow Editor panel shell classes for optional chrome')
   }
+  for (const snippet of [
+    "flex: '1 1 0%'",
+    'minHeight: 0',
+    "overflow: 'hidden'",
+    "padding: 'var(--kg-media-panel-padding, 6px)'",
+  ]) {
+    if (!surfaceStateText.includes(snippet)) {
+      throw new Error(`expected shared Rich Media Panel chrome body to stay responsive inside the 16:9 frame: ${snippet}`)
+    }
+  }
 }
 
 export function testRichMediaPanelFlowEditorChromeMaintainsContentAspectAcrossZoom() {

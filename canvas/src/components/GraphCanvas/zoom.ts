@@ -104,7 +104,6 @@ export const createZoom = (
         void 0
       }
     }
-
     const ignoreSelector = [UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore].filter(Boolean).join(', ')
     const shouldIgnorePointerTarget = (target: EventTarget | null): boolean => {
       const el = target instanceof Element ? target : null

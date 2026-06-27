@@ -34,13 +34,30 @@ export function readUploadedMediaFileName(storage: UploadedMediaStorageResult): 
   return storage.objectKey.split('/').filter(Boolean).at(-1) || storage.shotId || 'uploaded-media'
 }
 
+export function readUploadedMediaStorageRuntimeUrl(
+  storage: Pick<UploadedMediaStorageResult, 'accessUrl' | 'publicUrl' | 'runId'> | null | undefined,
+): string {
+  if (!storage) return ''
+  const accessUrl = String(storage.accessUrl || '').trim()
+  const publicUrl = String(storage.publicUrl || '').trim()
+  const runId = String(storage.runId || '').trim()
+  if (!publicUrl || !runId) return accessUrl
+  return buildUploadedMediaAccessUrl({ publicUrl, runId }) || accessUrl
+}
+
+export function readUploadedMediaPanelItemRuntimeUrl(
+  item: Pick<UploadedMediaPanelItem, 'linkUrl' | 'storage'>,
+): string {
+  return readUploadedMediaStorageRuntimeUrl(item.storage) || String(item.linkUrl || '').trim()
+}
+
 export const mergeUploadedMediaPanelItems = (items: UploadedMediaPanelItem[]): UploadedMediaPanelItem[] => {
   const nextByKey = new Map<string, UploadedMediaPanelItem>()
   for (const item of items) {
     const key = readUploadedMediaPanelDedupeKey(item)
     if (!key) continue
     const canonicalItem = item.storage
-      ? { ...item, id: buildUploadedMediaPanelItemId(item.storage), linkUrl: item.storage.accessUrl || item.linkUrl }
+      ? { ...item, id: buildUploadedMediaPanelItemId(item.storage), linkUrl: readUploadedMediaStorageRuntimeUrl(item.storage) || item.linkUrl }
       : item
     const existing = nextByKey.get(key)
     const existingHasLocalName = !!existing?.storage && existing.name !== readUploadedMediaFileName(existing.storage)
@@ -62,7 +79,7 @@ export const readStoredUploadedMediaPanelItems = (): UploadedMediaPanelItem[] =>
       const item = value as Partial<UploadedMediaPanelItem>
       const storage = item.storage as UploadedMediaStorageResult | null
       if (!item.id || !item.name || !isUploadedMediaPanelItemKind(item.kind) || !storage?.publicUrl || !storage.runId) return []
-      const accessUrl = buildUploadedMediaAccessUrl({ publicUrl: storage.publicUrl, runId: storage.runId })
+      const accessUrl = readUploadedMediaStorageRuntimeUrl(storage)
       return [{
         id: buildUploadedMediaPanelItemId(storage),
         name: String(item.name),
@@ -96,16 +113,17 @@ export const buildUploadedMediaPanelItemFromStorage = (storage: UploadedMediaSto
   const kind = storage.stageId === 'image' || storage.stageId === 'audio' || storage.stageId === 'video' ? storage.stageId : null
   if (!kind) return null
   const sizeBytes = typeof storage.provenance?.sizeBytes === 'number' ? storage.provenance.sizeBytes : 0
+  const accessUrl = readUploadedMediaStorageRuntimeUrl(storage)
   return {
     id: buildUploadedMediaPanelItemId(storage),
     name: readUploadedMediaFileName(storage),
     kind,
     localUrl: '',
-    linkUrl: storage.accessUrl,
+    linkUrl: accessUrl,
     contentType: storage.contentType,
     sizeBytes,
     status: 'synced',
-    storage,
+    storage: { ...storage, accessUrl },
     error: null,
   }
 }

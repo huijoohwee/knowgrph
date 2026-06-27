@@ -4,11 +4,14 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { screenToWorld } from '@/lib/zoom/viewport'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { UI_SELECTORS } from '@/lib/config'
+import {
+  computeFlowEditorOverlayDraggedWorldPoint,
+  computeFlowEditorOverlayPointerGrabOffset,
+} from '@/lib/flowEditor/overlayWorldDrag'
 
 export function useNodeOverlayDragHandlers(args: {
   nodeId: string
@@ -117,19 +120,24 @@ export function useNodeOverlayDragHandlers(args: {
 
         const z0 = readZoom()
         const storedWorld = widgetWorldPosRef.current
-        const defaultWorld = screenToWorld({
+        const defaultWorld = computeFlowEditorOverlayDraggedWorldPoint({
           transform: z0,
-          sx: anchoredPosRef.current.left + autoStackOffset.left,
-          sy: anchoredPosRef.current.top + autoStackOffset.top,
+          canvasOffset: { left: 0, top: 0 },
+          pointerClient: {
+            x: anchoredPosRef.current.left + autoStackOffset.left,
+            y: anchoredPosRef.current.top + autoStackOffset.top,
+          },
+          grabOffsetWorld: { x: 0, y: 0 },
+          baseWorld: { x: 0, y: 0 },
+          snapToGrid: false,
         })
         const startWorld = worldDragOverrideRef.current || storedWorld || defaultWorld
-        const startPointerWorld = screenToWorld({
+        const grabOffsetWorld = computeFlowEditorOverlayPointerGrabOffset({
           transform: z0,
-          sx: startClientX - startOffset.left,
-          sy: startClientY - startOffset.top,
+          canvasOffset: startOffset,
+          pointerClient: { x: startClientX, y: startClientY },
+          startWorld,
         })
-        const grabDx = startPointerWorld.x - startWorld.x
-        const grabDy = startPointerWorld.y - startWorld.y
 
         let pending: { x: number; y: number } | null = null
 
@@ -151,12 +159,14 @@ export function useNodeOverlayDragHandlers(args: {
           onMove: mv => {
             const z = readZoom()
             const offset = canvasWindowOffsetRef.current
-            const pointerWorld = screenToWorld({
+            pending = computeFlowEditorOverlayDraggedWorldPoint({
               transform: z,
-              sx: mv.clientX - offset.left,
-              sy: mv.clientY - offset.top,
+              canvasOffset: offset,
+              pointerClient: { x: mv.clientX, y: mv.clientY },
+              grabOffsetWorld,
+              baseWorld: startWorld,
+              snapToGrid: false,
             })
-            pending = { x: pointerWorld.x - grabDx, y: pointerWorld.y - grabDy }
             scheduler.schedule(pending)
           },
           onEnd: () => {

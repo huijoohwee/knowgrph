@@ -14,7 +14,7 @@ import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanel
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 
-export { DEFAULT_NODE_MEDIA_KIND, NODE_MEDIA_KINDS, patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
+export { DEFAULT_NODE_MEDIA_KIND, NODE_MEDIA_KINDS, buildNodeMediaProperties, patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 export type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 
 export type NodeMediaSpec = {

@@ -1,10 +1,13 @@
 import React, { type RefObject, type SyntheticEvent } from 'react'
+import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
+import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
-import type { GraphNode } from '@/lib/graph/types'
+import { createUniqueId } from '@/lib/ids'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 import {
   computePanelFrameResizeFromDrag16x9,
@@ -48,7 +51,7 @@ export function RichMediaOverlayLayer2d(props: {
   onOverlayPan: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
   onOverlayPanEnd: (args: { pointerId: number }) => void
   onHeaderDragStart: (args: { id: string; clientX: number; clientY: number }) => void
-  onHeaderDrag: (args: { dx: number; dy: number }) => void
+  onHeaderDrag: (args: { clientX: number; clientY: number; dx: number; dy: number }) => void
   onHeaderDragEnd: () => void
   requestMediaOverlaySchedule?: () => void
 }) {
@@ -72,8 +75,61 @@ export function RichMediaOverlayLayer2d(props: {
   const overlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLElement | null) => void>>(new Map())
   const resizeRef = React.useRef<RichMediaResizeState | null>(null)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const addNode = useGraphStore(s => s.addNode)
+  const addHistory = useGraphStore(s => s.addHistory)
+  const removeNode = useGraphStore(s => s.removeNode)
+  const selectNode = useGraphStore(s => s.selectNode)
+  const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
+  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateNode = useGraphStore(s => s.updateNode)
+  const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
+  const [activePanelId, setActivePanelId] = React.useState('')
+
+  const selectPanel = React.useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return
+    setActivePanelId(key)
+    setSelectionSource('canvas')
+    selectNode(key)
+  }, [selectNode, setSelectionSource])
+
+  const openPanelInSidepane = React.useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return
+    selectPanel(key)
+    updateOpenWidgetNodeIds(prev => (prev.includes(key) ? prev : [...prev, key]))
+  }, [selectPanel, updateOpenWidgetNodeIds])
+
+  const duplicatePanel = React.useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return
+    const graphData = (useGraphStore.getState() as { graphData?: GraphData | null }).graphData
+    const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []
+    const node = nodes.find(item => String(item?.id || '').trim() === key)
+    if (!node) return
+    const usedIds = new Set(nodes.map(item => String(item?.id || '').trim()).filter(Boolean))
+    const nextId = createUniqueId('n', usedIds)
+    addNode({
+      ...node,
+      id: nextId,
+      label: `${String(node.label || 'Rich Media Panel').trim()} Copy`,
+      x: typeof node.x === 'number' && Number.isFinite(node.x) ? node.x + 32 : 32,
+      y: typeof node.y === 'number' && Number.isFinite(node.y) ? node.y + 32 : 32,
+      fx: undefined,
+      fy: undefined,
+      properties: { ...((node.properties || {}) as Record<string, unknown>) } as never,
+    })
+    addHistory('Rich Media duplicate')
+  }, [addHistory, addNode])
+
+  const removePanel = React.useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return
+    removeNode(key)
+    addHistory('Rich Media remove')
+  }, [addHistory, removeNode])
 
   const getPanelRefForId = React.useCallback((id: string) => {
     const key = String(id || '').trim()
@@ -160,58 +216,100 @@ export function RichMediaOverlayLayer2d(props: {
     >
       {mediaOverlayNodes.map(n => {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
+        const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
         return (
-          <RichMediaPanel
+          <section
             key={n.id}
             ref={getPanelRefForId(n.id)}
-            overlayId={n.id}
-            className="absolute left-0 top-0 pointer-events-auto"
-            title={n.title}
-            url={n.url}
-            srcDoc={n.srcDoc}
-            openUrl={n.openUrl}
-            kind={kind}
-            panelChrome="flowEditor"
-            interactive={resolveRichMediaPanelInteractive({
-              nodeInteractive: n.interactive,
-              renderMediaAsNodes,
-              infiniteCanvasInteractionMode,
-              canvasRenderMode: '2d',
-            })}
-            panel={n.panel}
-            onPanelChange={next => {
-              if (!n.panel) return
-              commitRichMediaPanelChange({
-                nodeId: n.id,
-                next,
-                updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
-              })
-            }}
-            forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
-            forwardWheelBeforeScrollableTarget={!allowEmbeddedMediaInteraction}
-            forwardPointerTo={() => svgRef.current}
-            shouldForwardPointerDown={() => !allowEmbeddedMediaInteraction}
-            shouldStartHeaderDrag={() => {
-              if (isSpacePanHeld()) return false
-              return true
-            }}
-            onOverlayPanStart={({ pointerId, clientX, clientY, buttons }) => {
-              if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
-              onOverlayPanStart({ pointerId, clientX, clientY })
-            }}
-            onOverlayPan={({ pointerId, clientX, clientY, dx, dy }) => onOverlayPan({ pointerId, clientX, clientY, dx, dy })}
-            onOverlayPanEnd={({ pointerId }) => onOverlayPanEnd({ pointerId })}
-            onHeaderDragStart={({ clientX, clientY }) => onHeaderDragStart({ id: n.id, clientX, clientY })}
-            onHeaderDrag={({ dx, dy }) => onHeaderDrag({ dx, dy })}
-            onHeaderDragEnd={() => onHeaderDragEnd()}
-            resizable={true}
-            onResizeStart={({ pointerId }) => beginResize(n.id, pointerId)}
-            onResize={({ pointerId, dx, dy }) => moveResize(n.id, { pointerId, dx, dy })}
-            onResizeEnd={({ pointerId }) => endResize(n.id, pointerId)}
-            onClickCapture={stopEvent}
-            onDoubleClickCapture={stopEvent}
-            onContextMenuCapture={stopEvent}
-          />
+            className="absolute left-0 top-0 pointer-events-none overflow-visible"
+            data-kg-rich-media-overlay-shell="1"
+            data-kg-rich-media-overlay-shell-id={n.id}
+          >
+            <NodeOverlayEditorActionsToolbar
+              visible={selected}
+              ariaLabel="Rich Media panel actions"
+              navClassName="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2"
+              navStyle={{ pointerEvents: 'auto' }}
+              active
+              iconSizeClass="h-3.5 w-3.5"
+              iconStrokeWidth={1.8}
+              enableHandlesDisabled
+              convertToLoopDisabled
+              duplicateDisabled={false}
+              actionVisibility={{
+                run: false,
+                updateKvEntry: false,
+                enableHandles: false,
+                convertToLoop: false,
+                clearOutput: false,
+                help: false,
+              }}
+              onRun={() => void 0}
+              onOpenInSidepane={() => openPanelInSidepane(n.id)}
+              onDuplicate={() => duplicatePanel(n.id)}
+              onClearOutput={() => void 0}
+              onHelp={() => void 0}
+              onRemove={() => removePanel(n.id)}
+              onConvertToLoopNode={() => void 0}
+              maxWidthPx={WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX}
+            />
+            <RichMediaPanel
+              overlayId={n.id}
+              className="relative h-full w-full pointer-events-auto"
+              title={n.title}
+              url={n.url}
+              srcDoc={n.srcDoc}
+              openUrl={n.openUrl}
+              kind={kind}
+              panelChrome="flowEditor"
+              interactive={resolveRichMediaPanelInteractive({
+                nodeInteractive: n.interactive,
+                renderMediaAsNodes,
+                infiniteCanvasInteractionMode,
+                canvasRenderMode: '2d',
+              })}
+              panel={n.panel}
+              onPanelChange={next => {
+                if (!n.panel) return
+                commitRichMediaPanelChange({
+                  nodeId: n.id,
+                  next,
+                  updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
+                })
+              }}
+              forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
+              forwardWheelBeforeScrollableTarget={!allowEmbeddedMediaInteraction}
+              forwardPointerTo={() => svgRef.current}
+              shouldForwardPointerDown={() => !allowEmbeddedMediaInteraction}
+              shouldStartHeaderDrag={() => {
+                if (isSpacePanHeld()) return false
+                return true
+              }}
+              onOverlayPanStart={({ pointerId, clientX, clientY, buttons }) => {
+                if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+                selectPanel(n.id)
+                onOverlayPanStart({ pointerId, clientX, clientY })
+              }}
+              onOverlayPan={({ pointerId, clientX, clientY, dx, dy }) => onOverlayPan({ pointerId, clientX, clientY, dx, dy })}
+              onOverlayPanEnd={({ pointerId }) => onOverlayPanEnd({ pointerId })}
+              onHeaderDragStart={({ clientX, clientY }) => {
+                selectPanel(n.id)
+                onHeaderDragStart({ id: n.id, clientX, clientY })
+              }}
+              onHeaderDrag={({ clientX, clientY, dx, dy }) => onHeaderDrag({ clientX, clientY, dx, dy })}
+              onHeaderDragEnd={() => onHeaderDragEnd()}
+              resizable={true}
+              onResizeStart={({ pointerId }) => beginResize(n.id, pointerId)}
+              onResize={({ pointerId, dx, dy }) => moveResize(n.id, { pointerId, dx, dy })}
+              onResizeEnd={({ pointerId }) => endResize(n.id, pointerId)}
+              onClickCapture={(event) => {
+                selectPanel(n.id)
+                stopEvent(event)
+              }}
+              onDoubleClickCapture={stopEvent}
+              onContextMenuCapture={stopEvent}
+            />
+          </section>
         )
       })}
     </section>

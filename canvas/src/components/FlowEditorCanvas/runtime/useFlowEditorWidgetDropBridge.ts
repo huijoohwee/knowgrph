@@ -9,6 +9,7 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
@@ -42,6 +43,15 @@ import {
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
+import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
+import {
+  MEDIA_POINTER_DRAG_DROP_EVENT,
+  clearMediaPointerDragPayload,
+  hasMediaDragPayload,
+  readMediaDragPayload,
+  type MediaDragPayload,
+  type MediaPointerDragDropDetail,
+} from '@/lib/ui/mediaDragPayload'
 
 export function useFlowEditorWidgetDropBridge(args: {
   active: boolean
@@ -238,6 +248,10 @@ export function useFlowEditorWidgetDropBridge(args: {
       const requestedId = createUniqueId('n', used)
       args.reservedNodeIdsRef.current.add(requestedId)
       const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties })
+      if (!actualId) {
+        args.reservedNodeIdsRef.current.delete(requestedId)
+        return
+      }
       args.reservedNodeIdsRef.current.add(actualId)
       if (args.geospatialWidgetPanelMode) {
         const st = useGraphStore.getState()
@@ -272,18 +286,46 @@ export function useFlowEditorWidgetDropBridge(args: {
           if (dropGeo) void requestGeospatialCurrentLocation(dropGeo).catch(() => void 0)
         }
       }
-      try {
-        setTimeout(() => {
-          if (args.pendingOverlayNodeIdRef.current !== actualId) return
-          args.pendingOverlayNodeIdRef.current = null
-          args.setPendingOverlayNode(null)
-        }, 2000)
-      } catch {
-        void 0
-      }
     },
     [args, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
+
+  const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {
+    const mediaUrl = String(payload.media.url || '').trim()
+    if (!mediaUrl) return ''
+    const x = Number.isFinite(payload.x) ? payload.x : 0
+    const y = Number.isFinite(payload.y) ? payload.y : 0
+    const label = String(payload.media.label || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+    const base: GraphData = args.draftGraphDataRef.current || (args.baseGraphData || { context: '', type: 'Graph', nodes: [], edges: [] })
+    const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+    for (const rid of args.reservedNodeIdsRef.current) used.add(rid)
+    const requestedId = createUniqueId('n', used)
+    args.reservedNodeIdsRef.current.add(requestedId)
+    const actualId = args.appendDraftNode({
+      id: requestedId,
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label,
+      x,
+      y,
+      properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }),
+    })
+    if (!actualId) {
+      args.reservedNodeIdsRef.current.delete(requestedId)
+      return ''
+    }
+    args.reservedNodeIdsRef.current.add(actualId)
+    args.setOverlayNodeIdOverride(actualId)
+    args.pendingOverlayNodeIdRef.current = actualId
+    args.overlayNodeIdOverrideWasSelectedRef.current = false
+    args.overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
+    args.lastDroppedWidgetNodeIdRef.current = actualId
+    args.setLastDroppedWidgetToken(Date.now())
+    useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: actualId, selectedEdgeId: null, selectedGroupId: null, selectedNodeIds: [actualId], selectedEdgeIds: [], selectedGroupIds: [] })
+    args.scheduleForceSelect(actualId, { minHoldMs: 700 })
+    args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
+    args.pendingOpenWidgetNodeIdRef.current = actualId
+    return actualId
+  }, [args])
 
   React.useEffect(() => {
     if (!(args.active || args.widgetDropCaptureEnabled)) return
@@ -315,9 +357,40 @@ export function useFlowEditorWidgetDropBridge(args: {
         sy,
       })
     }
+    const appendMediaPanelAtClientPoint = (mediaPayload: MediaDragPayload | null, clientX: number, clientY: number, rect: DOMRect): boolean => {
+      if (!mediaPayload) return false
+      args.setCanvasWindowOffsetFromRect(rect)
+      const sx = clientX - rect.left
+      const sy = clientY - rect.top
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) return false
+      if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return false
+      const pos = resolveDropPos(sx, sy)
+      const mediaUrl = String(mediaPayload.url || '').trim()
+      if (!mediaUrl) return false
+      const dropKey = `media:${mediaUrl}:${Math.round(pos.x)}:${Math.round(pos.y)}`
+      if (args.shouldDedupeWidgetDrop(dropKey)) return true
+      const actualId = addRichMediaPanelFromMediaAtWorld({ media: { ...mediaPayload, url: mediaUrl }, x: pos.x, y: pos.y })
+      if (!actualId) return false
+      args.upsertUiToast({
+        id: 'flow-editor-drop-media',
+        kind: 'neutral',
+        message: 'Created Rich Media Panel node.',
+        ttlMs: 1500,
+      })
+      clearMediaPointerDragPayload()
+      return true
+    }
+    const isMediaPointerDropDistanceAccepted = (detail: MediaPointerDragDropDetail) => {
+      if (!Number.isFinite(detail.startClientX) || !Number.isFinite(detail.startClientY)) return true
+      const dx = detail.clientX - Number(detail.startClientX)
+      const dy = detail.clientY - Number(detail.startClientY)
+      return Math.hypot(dx, dy) >= 6
+    }
+    const appendMediaPanelFromDrop = (ev: DragEvent, rect: DOMRect): boolean =>
+      appendMediaPanelAtClientPoint(ev.dataTransfer ? readMediaDragPayload(ev.dataTransfer) : null, ev.clientX, ev.clientY, rect)
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
-      if (!dt || !hasFlowWidgetDragType(dt)) return
+      if (!dt || (!hasFlowWidgetDragType(dt) && !hasMediaDragPayload(dt))) return
       const rect = readDropRect()
       if (!rect) return
       const x = ev.clientX
@@ -333,6 +406,19 @@ export function useFlowEditorWidgetDropBridge(args: {
     const onDropCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt) return
+      if (hasMediaDragPayload(dt)) {
+        const rect = readDropRect()
+        if (!rect) return
+        if (!appendMediaPanelFromDrop(ev, rect)) return
+        try {
+          ev.preventDefault()
+          ev.stopPropagation()
+          ;(ev as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+        } catch {
+          void 0
+        }
+        return
+      }
       const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
       if (!payload) return
       const rect = readDropRect()
@@ -371,13 +457,29 @@ export function useFlowEditorWidgetDropBridge(args: {
         void 0
       }
     }
+    const onMediaPointerDragDropCapture = (event: Event) => {
+      const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
+      if (!detail?.payload || !isMediaPointerDropDistanceAccepted(detail)) return
+      const rect = readDropRect()
+      if (!rect) return
+      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY, rect)) return
+      try {
+        event.preventDefault()
+        event.stopPropagation()
+        ;(event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+      } catch {
+        void 0
+      }
+    }
     document.addEventListener('dragover', onDragOverCapture, true)
     document.addEventListener('drop', onDropCapture, true)
+    window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, onMediaPointerDragDropCapture, true)
     return () => {
       document.removeEventListener('dragover', onDragOverCapture, true)
       document.removeEventListener('drop', onDropCapture, true)
+      window.removeEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, onMediaPointerDragDropCapture, true)
     }
-  }, [addNodeFromRegistryAtWorld, args])
+  }, [addNodeFromRegistryAtWorld, addRichMediaPanelFromMediaAtWorld, args])
 
   React.useEffect(() => {
     if (!(args.active || args.widgetDropCaptureEnabled)) return
@@ -433,5 +535,5 @@ export function useFlowEditorWidgetDropBridge(args: {
     }
   }, [addNodeFromRegistryAtWorld, args])
 
-  return { addNodeFromRegistryAtWorld }
+  return { addNodeFromRegistryAtWorld, addRichMediaPanelFromMediaAtWorld }
 }

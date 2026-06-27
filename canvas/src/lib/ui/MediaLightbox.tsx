@@ -1,9 +1,9 @@
 import React from 'react'
 import { FileAudio, Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
-import { LS_KEYS } from '@/lib/config'
+import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
-import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
+import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import { PanelSelect, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -74,7 +74,6 @@ export function MediaLightbox({
   onClose,
 }: MediaLightboxProps) {
   const rootRef = React.useRef<HTMLElement | null>(null)
-  const [imageSize, setImageSize] = React.useState({ w: 1280, h: 720 })
   const [promptDraft, setPromptDraft] = React.useState(() => normalizePromptDraft(String(promptValue ?? description ?? '')))
   const [parameterValues, setParameterValues] = React.useState<MediaLightboxPromptParameters>(() => readPromptParameterValues(promptParameters || []))
   const [promptPending, setPromptPending] = React.useState(false)
@@ -93,11 +92,11 @@ export function MediaLightbox({
   const hasMediaSource = !!String(src || '').trim()
   const isImage = kind === 'image'
   const isVideo = kind === 'video'
-
-  React.useEffect(() => {
-    if (!open || !isImage) return
-    setImageSize({ w: 1280, h: 720 })
-  }, [isImage, open, src])
+  const richMediaRenderKind = isImage ? 'image' : isVideo ? 'video' : 'audio'
+  const lightboxPanelState = React.useMemo(
+    () => hasMediaSource ? buildStaticRichMediaPanelOverlayState({ renderKind: richMediaRenderKind }) : null,
+    [hasMediaSource, richMediaRenderKind],
+  )
 
   React.useEffect(() => {
     if (!open) return
@@ -197,51 +196,55 @@ export function MediaLightbox({
                 <p className={cn('m-0 max-w-sm text-sm', UI_THEME_TOKENS.text.secondary)}>Generated media will appear here.</p>
               </section>
             </section>
-          ) : isImage ? (
-            <ZoomPanViewport
-              open={open}
-              storageKey={LS_KEYS.previewZoomPanMedia}
-              getContentSize={() => imageSize}
-              fitOnOpen
-              fitKey={src}
-              frameAspectRatio={imageSize.w / Math.max(1, imageSize.h)}
-              framePaddingPx={24}
-              wheelZoomBehavior="active"
-              showControls={false}
-              showZoomIndicator
-              frameClassName="bg-transparent"
-            >
-              <img
-                src={src}
-                alt={alt}
-                className="block max-h-none max-w-none select-none"
-                data-kg-media-lightbox-image="1"
-                draggable={false}
-                onLoad={event => {
-                  const image = event.currentTarget
-                  const w = Math.max(1, image.naturalWidth || image.width || 1280)
-                  const h = Math.max(1, image.naturalHeight || image.height || 720)
-                  setImageSize(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
-                }}
-                style={{ width: `${imageSize.w}px`, height: `${imageSize.h}px` }}
-              />
-            </ZoomPanViewport>
           ) : (
             <section className="flex h-full w-full items-center justify-center p-6" data-kg-media-lightbox-player="1">
-              <section className="grid w-full max-w-4xl place-items-center gap-4">
-                {isVideo ? (
-                  <video
-                    src={src}
-                    title={alt}
-                    className="max-h-[70dvh] w-full bg-black"
-                    controls
-                    data-kg-media-lightbox-video="1"
-                  />
+              <section className="grid h-full w-full max-w-5xl place-items-center gap-4">
+                {isImage ? (
+                  <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-image="1">
+                    <RichMediaPanel
+                      title={displayTitle || alt || 'Image'}
+                      url={src}
+                      openUrl={src}
+                      kind="image"
+                      interactive
+                      panelChrome="flowEditor"
+                      scrollOwner="media"
+                      panel={lightboxPanelState || undefined}
+                      style={{ height: '100%' }}
+                    />
+                  </section>
+                ) : isVideo ? (
+                  <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-video="1">
+                    <RichMediaPanel
+                      title={displayTitle || alt || 'Video'}
+                      url={src}
+                      openUrl={src}
+                      kind="video"
+                      interactive
+                      videoControls
+                      panelChrome="flowEditor"
+                      scrollOwner="media"
+                      panel={lightboxPanelState || undefined}
+                      style={{ height: '100%' }}
+                    />
+                  </section>
                 ) : (
-                  <>
+                  <section className="grid h-full w-full max-h-[24rem] place-items-center gap-4" data-kg-media-lightbox-audio="1">
                     <FileAudio className="h-10 w-10 text-white/70" strokeWidth={1.7} aria-hidden />
-                    <audio src={src} controls className="w-full" data-kg-media-lightbox-audio="1" />
-                  </>
+                    <section className="w-full max-w-3xl">
+                      <RichMediaPanel
+                        title={displayTitle || alt || 'Audio'}
+                        url={src}
+                        openUrl={src}
+                        kind="audio"
+                        interactive
+                        panelChrome="flowEditor"
+                        scrollOwner="media"
+                        panel={lightboxPanelState || undefined}
+                        style={{ height: '10rem' }}
+                      />
+                    </section>
+                  </section>
                 )}
                 <span className="sr-only">{alt}</span>
               </section>

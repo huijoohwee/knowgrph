@@ -2,7 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { DEFAULT_NODE_MEDIA_KIND, getNodeMediaSpec, patchNodeMediaProperties, type NodeMediaKind } from '@/lib/canvas/graph-elements/mediaSpec'
+import { DEFAULT_NODE_MEDIA_KIND, buildNodeMediaProperties, getNodeMediaSpec, type NodeMediaKind } from '@/lib/canvas/graph-elements/mediaSpec'
 import { emitChatInputAppend, emitFloatingPanelOpen } from '@/features/canvas/utils'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
@@ -194,8 +194,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const current = graphLookup.nodeById.get(nodeContextId) || null
     if (!current) return
 
-    const nextProps = patchNodeMediaProperties({
-      properties: (current.properties || {}) as Record<string, unknown>,
+    const nextProps = buildNodeMediaProperties({
+      extra: (current.properties || {}) as Record<string, unknown>,
       kind: mediaKind,
       url: mediaUrl,
       interactive: mediaInteractive,
@@ -545,8 +545,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doAddMediaNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
-    const props = patchNodeMediaProperties({
-      properties: (tpl || {}) as Record<string, unknown>,
+    const props = buildNodeMediaProperties({
+      extra: (tpl || {}) as Record<string, unknown>,
       kind: mediaKind,
       url: mediaUrl,
       interactive: mediaInteractive,

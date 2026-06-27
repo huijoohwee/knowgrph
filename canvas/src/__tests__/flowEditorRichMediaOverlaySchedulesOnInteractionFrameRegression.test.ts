@@ -12,8 +12,8 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   if (!flowText.includes('onInteractionFrame={handleInteractionFrame}')) {
     throw new Error('expected FlowCanvas to forward interaction frames to FlowCanvasMediaOverlays')
   }
-  if (!flowText.includes("if (canvas2dRenderer === 'flowEditor') mediaOverlayInteractionFrameSchedulerRef.current?.()")) {
-    throw new Error('expected FlowCanvas to schedule rich-media layout from live Flow Editor interaction frames without affecting Flow Canvas')
+  if (!flowText.includes('if (isFlowEditor) mediaOverlayInteractionFrameSchedulerRef.current?.()')) {
+    throw new Error('expected FlowCanvas to schedule rich-media layout from live Flow Editor shared surface interaction frames without affecting Flow Canvas')
   }
   if (!flowText.includes('registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}')) {
     throw new Error('expected FlowCanvas to register the Flow Editor rich-media interaction-frame layout scheduler')
@@ -21,8 +21,8 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   if (!overlaysText.includes('registerInteractionFrameLayoutScheduler?: (scheduler: null | (() => void)) => void')) {
     throw new Error('expected FlowCanvas media overlays to expose an interaction-frame layout scheduler registration hook')
   }
-  if (!overlaysText.includes("if (canvas2dRenderer !== 'flowEditor')")) {
-    throw new Error('expected rich-media interaction-frame scheduling to stay scoped to Flow Editor')
+  if (!overlaysText.includes('if (!flowEditorSharedSurfaceRendererMode)')) {
+    throw new Error('expected rich-media interaction-frame scheduling to stay scoped to Flow Editor shared surfaces')
   }
   if (!overlaysText.includes('mediaOverlayLayoutScheduleRef.current?.()')) {
     throw new Error('expected FlowCanvas media overlays to schedule layout on interaction frames')

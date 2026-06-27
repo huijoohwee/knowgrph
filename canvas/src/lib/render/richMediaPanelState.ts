@@ -154,6 +154,19 @@ export function buildRichMediaPanelOverlayState(args: {
   const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
   const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
   const audioUrl = typeof props.audioUrl === 'string' ? props.audioUrl : ''
+  const genericMediaUrl = typeof props.mediaUrl === 'string'
+    ? props.mediaUrl
+    : typeof props.media_url === 'string'
+      ? props.media_url
+      : ''
+  const genericMediaKind = typeof props.mediaKind === 'string'
+    ? props.mediaKind.trim().toLowerCase()
+    : typeof props.media_kind === 'string'
+      ? props.media_kind.trim().toLowerCase()
+      : ''
+  const hasGenericImage = Boolean(genericMediaUrl.trim()) && (genericMediaKind === 'image' || genericMediaKind === 'svg')
+  const hasGenericVideo = Boolean(genericMediaUrl.trim()) && genericMediaKind === 'video'
+  const hasGenericAudio = Boolean(genericMediaUrl.trim()) && genericMediaKind === 'audio'
   const poiLabel = typeof props.richMediaPoiLabel === 'string' ? props.richMediaPoiLabel : ''
   const poiAddress = typeof props.richMediaPoiAddress === 'string' ? props.richMediaPoiAddress : ''
   const poiCategory = typeof props.richMediaPoiCategory === 'string' ? props.richMediaPoiCategory : ''
@@ -179,9 +192,9 @@ export function buildRichMediaPanelOverlayState(args: {
     activeTab,
     freezeConnectedOutput,
     hasText: Boolean(text.trim() || outputSrcDoc.trim() || connectedText.trim()),
-    hasImage: Boolean(imageUrl.trim()),
-    hasVideo: Boolean(videoUrl.trim()),
-    hasAudio: Boolean(audioUrl.trim()),
+    hasImage: Boolean(imageUrl.trim()) || hasGenericImage,
+    hasVideo: Boolean(videoUrl.trim()) || hasGenericVideo,
+    hasAudio: Boolean(audioUrl.trim()) || hasGenericAudio,
     hasPoi: Boolean(
       poiLabel.trim()
       || poiAddress.trim()

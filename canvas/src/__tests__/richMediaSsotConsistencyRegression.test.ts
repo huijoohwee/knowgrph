@@ -340,8 +340,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowEditorCanvasText.includes('flowCanvasGraphDataOverride')) {
     throw new Error('expected FlowEditorCanvas runtime to pass an upstream-filtered graph override into FlowCanvas to prevent overlay seepage')
   }
-  if (flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds=')) {
-    throw new Error('expected FlowEditorCanvas surface to forbid downstream Rich Media hide/exclude masking props')
+  if (!flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}')) {
+    throw new Error('expected Storyboard fixed-card mode to suppress duplicate FlowCanvas Rich Media overlay panels via shared exclusion ids')
   }
   if (!flowEditorOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
     throw new Error('expected FlowEditor overlay surface to reuse the upstream Rich Media connected-value target helper')

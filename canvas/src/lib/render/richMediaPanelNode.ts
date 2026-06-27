@@ -1,6 +1,9 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import { FLOW_RICH_MEDIA_PANEL_FORM_ID, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 
 export function isRichMediaPanelNode(node: GraphNode | null | undefined): boolean {
   return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
@@ -26,6 +29,30 @@ export function buildRichMediaPanelNode(args: {
     y: anchorY + yOffset,
     properties: { media_interactive: true },
   }
+}
+
+export function buildRichMediaPanelDroppedMediaProperties(payload: MediaDragPayload): Record<string, unknown> {
+  const mediaUrl = String(payload.url || '').trim()
+  const activeTab = payload.kind === 'audio' ? 'audio' : payload.kind === 'video' ? 'video' : 'image'
+  const properties = buildNodeMediaProperties({
+    kind: payload.kind,
+    url: mediaUrl,
+    interactive: payload.kind !== 'image',
+    includeCamelGeneric: true,
+    extra: {
+      [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+      richMediaActiveTab: activeTab,
+      output: '',
+      outputSrcDoc: '',
+      ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
+      ...(payload.sourceKey ? { mediaSourceKey: payload.sourceKey } : {}),
+    },
+  })
+  if (payload.kind === 'image') properties.imageUrl = mediaUrl
+  if (payload.kind === 'video') properties.videoUrl = mediaUrl
+  if (payload.kind === 'audio') properties.audioUrl = mediaUrl
+  return properties
 }
 
 export function resolvePreferredRichMediaPanelNodeId(args: {

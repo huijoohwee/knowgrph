@@ -892,8 +892,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
     throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
   }
-  if (!text.includes("const mediaOverlayDragInteractionMode = canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'flowCanvas'")) {
-    throw new Error('expected Rich Media overlay drag/pan interactions to use the renderer-level Flow Editor/Flow Canvas gate')
+  if (!text.includes('const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)') || !text.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Rich Media overlay drag/pan interactions to use the shared Flow Editor surface/Flow Canvas gate')
   }
   if (!text.includes('resolveFlowCanvasMediaOverlayInteractionPolicy')) {
     throw new Error('expected Rich Media overlay interactions to reuse the shared FlowCanvas interaction policy')
@@ -910,8 +910,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const overlayPanelPointerEventsClass = mediaOverlayInteractionPolicy.panelPointerEventsClassName')) {
     throw new Error('expected Rich Media overlays to centralize pointer-event policy without workspace-open pointer suppression')
   }
-  if (!text.includes('className={`absolute left-0 top-0 ${overlayPanelPointerEventsClass}`}')) {
-    throw new Error('expected Rich Media overlays to keep the shared pointer policy at the panel root')
+  if (!text.includes('className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`') || !text.includes('data-kg-rich-media-flow-editor-overlay-shell="1"')) {
+    throw new Error('expected Rich Media overlays to keep the shared pointer policy at the flow-editor overlay shell')
   }
   if (!text.includes('onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')) {
     throw new Error('expected Rich Media overlay wheel capture to follow the shared interaction policy')
@@ -999,7 +999,7 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     || flowCanvasPointerMoveText.includes('useGraphStore.getState()')) {
     throw new Error('expected native Flow Editor canvas pan pointermove to apply the captured screen-authority session without rereading store mode')
   }
-  if (!flowCanvasListenersText.includes("String(st.canvas2dRenderer || '') === 'flowEditor' && shouldUseFlowEditorScreenAuthorityCollectivePan(st)")
+  if (!flowCanvasListenersText.includes('isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer) && shouldUseFlowEditorScreenAuthorityCollectivePan(st)')
     || !flowCanvasListenersText.includes('readFlowEditorScreenAuthorityPanSnapshot({')
     || !flowCanvasListenersText.includes('useFlowEditorScreenAuthorityPan: pending.useFlowEditorScreenAuthorityPan')
     || flowCanvasListenersText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
@@ -1031,9 +1031,9 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     throw new Error('expected shared screen-authority pan helper to apply surface-scoped DOM transforms for rich-media roots as well as store persistence')
   }
   if (!screenAuthorityPanText.includes('export function shouldUseFlowEditorScreenAuthorityCollectivePan')
-    || !screenAuthorityPanText.includes("canvas2dRenderer === 'flowEditor'")
+    || !screenAuthorityPanText.includes('isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')
     || !screenAuthorityPanText.includes('isFlowEditorFrontmatterDocumentModeRequested({')) {
-    throw new Error('expected shared screen-authority pan helper to include standalone Flow Editor and frontmatter Flow Editor in one predicate')
+    throw new Error('expected shared screen-authority pan helper to include shared Flow Editor surfaces and frontmatter Flow Editor in one predicate')
   }
 
   const mediaLoopPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
