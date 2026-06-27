@@ -72,6 +72,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   readTransform: () => d3.ZoomTransform | null
   computeSizingZoomK?: (zoomK: number) => number
   scaleLayoutOnZoom?: boolean
+  projectWithWorldTransformScale?: boolean
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
@@ -91,7 +92,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let collectiveCenterWarmupStartedAtMs: number | null = null
   let collectiveCenterWarmupAttempts = 0
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
-  const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number }>()
+  const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale?: number }>()
   const zoomLayoutBaseBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale: number }>()
   let scheduleCollectiveLayoutUpdate: () => void = () => void 0
 
@@ -175,7 +176,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const keepIds = new Set<string>()
     const missingCenterIds: string[] = []
 
-    const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; el: HTMLElement }> = []
+    const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement }> = []
     const manualPlacement = args.manualPlacement === true
     let fallbackPreferredCount = 0
 
@@ -197,7 +198,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       if (!center) {
         missingCenterIds.push(id)
         if (manualPlacement && viewportClampEnabled && args.items.length > 1) {
-          preferred.push({ id, left: layoutViewport.left, top: layoutViewport.top, w, h, el })
+          preferred.push({ id, left: layoutViewport.left, top: layoutViewport.top, w, h, scale: 1, el })
           fallbackPreferredCount += 1
         }
         continue
@@ -228,7 +229,16 @@ export function startMediaOverlayLayoutLoop2d(args: {
             })
           })()
         : null
-      const preferredCenter = projectedZoomBox
+      const projectedWorldBox = args.projectWithWorldTransformScale === true
+        ? {
+            left: t.applyX(center.x - w / 2),
+            top: t.applyY(center.y - h / 2),
+            scale: rawK,
+          }
+        : null
+      const preferredCenter = projectedWorldBox
+        ? { cx: projectedWorldBox.left + w / 2, cy: projectedWorldBox.top + h / 2 }
+        : projectedZoomBox
         ? { cx: projectedZoomBox.left + w / 2, cy: projectedZoomBox.top + h / 2 }
         : scaleChanged && previousBox
           ? {
@@ -237,7 +247,15 @@ export function startMediaOverlayLayoutLoop2d(args: {
             }
           : { cx, cy }
       const rect = computePanelRect({ cx: preferredCenter.cx, cy: preferredCenter.cy, w, h, clamp })
-      preferred.push({ id, left: quantizePanelPos(rect.left), top: quantizePanelPos(rect.top), w, h, el })
+      preferred.push({
+        id,
+        left: projectedWorldBox ? quantizePanelPos(projectedWorldBox.left) : quantizePanelPos(rect.left),
+        top: projectedWorldBox ? quantizePanelPos(projectedWorldBox.top) : quantizePanelPos(rect.top),
+        w,
+        h,
+        scale: projectedWorldBox ? projectedWorldBox.scale : 1,
+        el,
+      })
     }
 
     const canDeferUntilCollectiveCentersStabilize =
@@ -305,7 +323,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
         top: t.applyY(snappedWorldTopLeft.y),
       }
     }
-    const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; el: HTMLElement }>()
+    const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement }>()
     for (let i = 0; i < preferred.length; i += 1) {
       const p = preferred[i]!
       preferredById.set(p.id, p)
@@ -430,15 +448,16 @@ export function startMediaOverlayLayoutLoop2d(args: {
       applyMediaPanelCssVars(p.el, useSizing.vars)
       applyMediaEagerLoadingOnce(p.el)
       const snappedPos = snapPanelTopLeftToGrid(pos)
-      const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h }
+      const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h, scale: Math.max(0.001, Number(p.scale) || 1) }
       const prevBox = lastAppliedBoxById.get(p.id) || null
       const boxChanged = !prevBox
         || Math.abs(prevBox.left - nextBox.left) >= 1
         || Math.abs(prevBox.top - nextBox.top) >= 1
         || Math.abs(prevBox.w - nextBox.w) >= 0.5
         || Math.abs(prevBox.h - nextBox.h) >= 0.5
+        || Math.abs((prevBox.scale || 1) - nextBox.scale) >= 0.001
       if (boxChanged) {
-        applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: 'block' })
+        applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: 'block', scale: nextBox.scale })
         lastAppliedBoxById.set(p.id, nextBox)
       }
       if (args.scaleLayoutOnZoom === true && !scaleChanged) {

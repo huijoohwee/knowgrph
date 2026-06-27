@@ -30,7 +30,7 @@ export function buildStoryboardToolbarProps(args: {
   })
   return {
     ariaLabel: 'Storyboard card actions',
-    navClassName: 'absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2',
+    navClassName: 'absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2',
     navStyle: STORYBOARD_TOOLBAR_NAV_STYLE,
     active: args.active,
     iconSizeClass: 'h-3.5 w-3.5',

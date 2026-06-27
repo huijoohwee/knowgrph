@@ -219,7 +219,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     if (!flowEditorOverlayInteractionMode) return undefined
     const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'
     const candidateRawIds = [
-      ...openWidgetNodeIdsSnapshot,
+      ...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot),
       ...excludeRichMediaOverlayNodeIdsSnapshot,
     ]
     const out = buildRichMediaPanelOverlayExcludeNodeIdSet({

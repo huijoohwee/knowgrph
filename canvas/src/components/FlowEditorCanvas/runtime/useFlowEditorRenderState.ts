@@ -23,6 +23,8 @@ export function useFlowEditorRenderState(args: {
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
   const draftDocumentKeyRef = React.useRef<string | null>(null)
+  const flowEditorBaseGraphDataRef = React.useRef(args.flowEditorBaseGraphData)
+  flowEditorBaseGraphDataRef.current = args.flowEditorBaseGraphData
 
   const draftGraphDataRevision = React.useMemo(() => {
     const draft = draftGraphData
@@ -41,7 +43,7 @@ export function useFlowEditorRenderState(args: {
       if (hadDraft) setDraftGraphData(null)
       return
     }
-    const base = args.flowEditorBaseGraphData as GraphData | null
+    const base = flowEditorBaseGraphDataRef.current
     const nextDraft = resolveFlowEditorDraftGraphDataForBaseReset({
       activeDocumentKey: args.activeDocumentKey,
       previousDocumentKey: draftDocumentKeyRef.current,
@@ -55,7 +57,7 @@ export function useFlowEditorRenderState(args: {
       return
     }
     setDraftGraphData(prev => (prev === nextDraft ? prev : nextDraft))
-  }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
+  }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive])
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
     const baseForRender = args.flowEditorBaseGraphData || args.baseGraphData

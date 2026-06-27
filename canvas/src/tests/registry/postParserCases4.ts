@@ -101,6 +101,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["flowEditor.draftGraph.baseReset.preservesNewerSameDocumentDraft","@/__tests__/flowEditorDraftGraphData.test","testFlowEditorBaseResetPreservesNewerSameDocumentDraft"],
   ["flowEditor.draftGraph.baseReset.replacesOnSwitchOrIncompatible","@/__tests__/flowEditorDraftGraphData.test","testFlowEditorBaseResetReplacesDraftAcrossDocumentSwitchOrIncompatibleGraph"],
   ["flowEditor.draftGraph.revision.bumpNeutral","@/__tests__/flowEditorDraftGraphData.test","testFlowEditorDraftGraphRevisionBumpIsNeutral"],
+  ["flowEditor.draftGraph.baseReset.stableDerivedIdentity","@/__tests__/flowEditorDraftGraphData.test","testFlowEditorBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity"],
   ["flowCanvas.integration.renderDataAndZoomState","@/__tests__/flowCanvasIntegration.test","testFlowCanvasUsesActiveGraphRenderDataAndZoomState"],
   ["flowEditor.integration.wheelPanInfiniteCanvasNoLayoutWrites","@/__tests__/flowCanvasIntegration.test","testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWrites"],
   ["flowEditor.integration.dragZoomWorkspaceToggleCollectiveLayoutStable","@/__tests__/flowCanvasIntegration.test","testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable"],

@@ -932,7 +932,7 @@ export function testStoryboardToolbarPropsBuildSharedToolbarConfig() {
     duplicateDisabled: false,
     primaryReferenceUrl: 'https://example.com/reference',
   })
-  if (props.ariaLabel !== 'Storyboard card actions' || props.navClassName !== 'absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2') {
+  if (props.ariaLabel !== 'Storyboard card actions' || props.navClassName !== 'absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2') {
     throw new Error(`expected storyboard toolbar props to preserve the shared visual contract, got ${JSON.stringify(props)}`)
   }
   if (props.navStyle?.pointerEvents !== 'auto' || props.iconSizeClass !== 'h-3.5 w-3.5' || props.iconStrokeWidth !== 1.8) {

@@ -4,6 +4,7 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { createUniqueId } from '@/lib/ids'
+import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import { dump as stringifyYaml } from 'js-yaml'
 import {
   buildRenderableIframeUrl,
@@ -54,8 +55,6 @@ const cleanMultilineText = (value: unknown): string => String(value ?? '').repla
 const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 const STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS = ['output', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
-const STRYBLDR_D3_STORYBOARD_CARD_WIDTH = 288
-const STRYBLDR_D3_STORYBOARD_CARD_HEIGHT = 162
 
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 const escapeRegExp = (value: string): string => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -1611,10 +1610,10 @@ const withStrybldrD3StoryboardCardSurface = (node: GraphNode): GraphNode => {
     properties['visual:shape'] = asJson('rect')
   }
   if (typeof properties['visual:width'] !== 'number' || !Number.isFinite(properties['visual:width']) || properties['visual:width'] <= 0) {
-    properties['visual:width'] = asJson(STRYBLDR_D3_STORYBOARD_CARD_WIDTH)
+    properties['visual:width'] = asJson(RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX)
   }
   if (typeof properties['visual:height'] !== 'number' || !Number.isFinite(properties['visual:height']) || properties['visual:height'] <= 0) {
-    properties['visual:height'] = asJson(STRYBLDR_D3_STORYBOARD_CARD_HEIGHT)
+    properties['visual:height'] = asJson(RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX)
   }
   if (typeof properties['visual:fill'] !== 'string' || !cleanText(properties['visual:fill'])) {
     properties['visual:fill'] = asJson('var(--kg-panel-bg)')

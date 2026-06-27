@@ -1,6 +1,6 @@
 import React, { type RefObject, type SyntheticEvent } from 'react'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/FlowEditor/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
@@ -217,6 +217,20 @@ export function RichMediaOverlayLayer2d(props: {
       {mediaOverlayNodes.map(n => {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
         const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
+        const baseProperties = readGraphNodePropertiesFromStore(n.id)
+        const patchProperties = (patch: Record<string, unknown>) => updateNode(n.id, { properties: { ...baseProperties, ...patch } } as Partial<GraphNode>)
+        const changePanel = (next: import('@/lib/render/richMediaSsot').RichMediaPanelChange) => commitRichMediaPanelChange({
+          nodeId: n.id,
+          next,
+          updateNode: (id, patch) => updateNode(id, patch as Partial<GraphNode>),
+        })
+        const toolbarControlProps = buildSharedRichMediaOverlayControlProps({
+          properties: baseProperties,
+          panel: n.panel,
+          openUrl: n.openUrl,
+          onPatchProperties: patchProperties,
+          onPanelChange: changePanel,
+        })
         return (
           <section
             key={n.id}
@@ -227,23 +241,8 @@ export function RichMediaOverlayLayer2d(props: {
           >
             <NodeOverlayEditorActionsToolbar
               visible={selected}
-              ariaLabel="Rich Media panel actions"
-              navClassName="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2"
-              navStyle={{ pointerEvents: 'auto' }}
-              active
-              iconSizeClass="h-3.5 w-3.5"
-              iconStrokeWidth={1.8}
-              enableHandlesDisabled
-              convertToLoopDisabled
-              duplicateDisabled={false}
-              actionVisibility={{
-                run: false,
-                updateKvEntry: false,
-                enableHandles: false,
-                convertToLoop: false,
-                clearOutput: false,
-                help: false,
-              }}
+              {...buildSharedRichMediaOverlayToolbarProps()}
+              {...toolbarControlProps}
               onRun={() => void 0}
               onOpenInSidepane={() => openPanelInSidepane(n.id)}
               onDuplicate={() => duplicatePanel(n.id)}
@@ -251,7 +250,6 @@ export function RichMediaOverlayLayer2d(props: {
               onHelp={() => void 0}
               onRemove={() => removePanel(n.id)}
               onConvertToLoopNode={() => void 0}
-              maxWidthPx={WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX}
             />
             <RichMediaPanel
               overlayId={n.id}
@@ -269,14 +267,7 @@ export function RichMediaOverlayLayer2d(props: {
                 canvasRenderMode: '2d',
               })}
               panel={n.panel}
-              onPanelChange={next => {
-                if (!n.panel) return
-                commitRichMediaPanelChange({
-                  nodeId: n.id,
-                  next,
-                  updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
-                })
-              }}
+              onPanelChange={n.panel ? changePanel : undefined}
               forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
               forwardWheelBeforeScrollableTarget={!allowEmbeddedMediaInteraction}
               forwardPointerTo={() => svgRef.current}

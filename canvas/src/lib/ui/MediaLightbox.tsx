@@ -1,9 +1,10 @@
 import React from 'react'
-import { FileAudio, Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
-import RichMediaPanel from '@/components/RichMediaPanel'
+import { Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
+import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { LS_KEYS } from '@/lib/config'
 import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
-import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import { PanelSelect, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -92,11 +93,7 @@ export function MediaLightbox({
   const hasMediaSource = !!String(src || '').trim()
   const isImage = kind === 'image'
   const isVideo = kind === 'video'
-  const richMediaRenderKind = isImage ? 'image' : isVideo ? 'video' : 'audio'
-  const lightboxPanelState = React.useMemo(
-    () => hasMediaSource ? buildStaticRichMediaPanelOverlayState({ renderKind: richMediaRenderKind }) : null,
-    [hasMediaSource, richMediaRenderKind],
-  )
+  const lightboxMediaContentSize = React.useCallback(() => ({ w: 1600, h: isVideo ? 900 : 1000 }), [isVideo])
 
   React.useEffect(() => {
     if (!open) return
@@ -201,47 +198,75 @@ export function MediaLightbox({
               <section className="grid h-full w-full max-w-5xl place-items-center gap-4">
                 {isImage ? (
                   <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-image="1">
-                    <RichMediaPanel
-                      title={displayTitle || alt || 'Image'}
-                      url={src}
-                      openUrl={src}
-                      kind="image"
-                      interactive
-                      panelChrome="flowEditor"
-                      scrollOwner="media"
-                      panel={lightboxPanelState || undefined}
-                      style={{ height: '100%' }}
-                    />
+                    <ZoomPanViewport
+                      open={hasMediaSource}
+                      storageKey={LS_KEYS.previewZoomPanMedia}
+                      getContentSize={lightboxMediaContentSize}
+                      fitOnOpen
+                      fitKey={`${kind}:${src}`}
+                      frameAspectRatio={16 / 10}
+                      framePaddingPx={0}
+                      wheelZoomBehavior="active"
+                      showControls={false}
+                      showZoomIndicator={false}
+                      frameClassName="bg-transparent"
+                      contentFillsFrame
+                      transparentBackground
+                    >
+                      <CardMediaPreview
+                        kind="image"
+                        title={displayTitle || alt || 'Image'}
+                        url={src}
+                        href={src}
+                        interactive={false}
+                        fit="contain"
+                        mediaClassName="h-full w-full"
+                        mediaThumbnailDataAttr
+                      />
+                    </ZoomPanViewport>
                   </section>
                 ) : isVideo ? (
                   <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-video="1">
-                    <RichMediaPanel
-                      title={displayTitle || alt || 'Video'}
-                      url={src}
-                      openUrl={src}
-                      kind="video"
-                      interactive
-                      videoControls
-                      panelChrome="flowEditor"
-                      scrollOwner="media"
-                      panel={lightboxPanelState || undefined}
-                      style={{ height: '100%' }}
-                    />
+                    <ZoomPanViewport
+                      open={hasMediaSource}
+                      storageKey={LS_KEYS.previewZoomPanMedia}
+                      getContentSize={lightboxMediaContentSize}
+                      fitOnOpen
+                      fitKey={`${kind}:${src}`}
+                      frameAspectRatio={16 / 9}
+                      framePaddingPx={0}
+                      wheelZoomBehavior="active"
+                      showControls={false}
+                      showZoomIndicator={false}
+                      frameClassName="bg-transparent"
+                      contentFillsFrame
+                      transparentBackground
+                    >
+                      <CardMediaPreview
+                        kind="video"
+                        title={displayTitle || alt || 'Video'}
+                        url={src}
+                        href={src}
+                        interactive
+                        fit="contain"
+                        videoControls
+                        videoMuted={false}
+                        mediaClassName="h-full w-full"
+                        mediaThumbnailDataAttr
+                      />
+                    </ZoomPanViewport>
                   </section>
                 ) : (
                   <section className="grid h-full w-full max-h-[24rem] place-items-center gap-4" data-kg-media-lightbox-audio="1">
-                    <FileAudio className="h-10 w-10 text-white/70" strokeWidth={1.7} aria-hidden />
                     <section className="w-full max-w-3xl">
-                      <RichMediaPanel
+                      <CardMediaPreview
+                        kind="audio"
                         title={displayTitle || alt || 'Audio'}
                         url={src}
-                        openUrl={src}
-                        kind="audio"
+                        href={src}
                         interactive
-                        panelChrome="flowEditor"
-                        scrollOwner="media"
-                        panel={lightboxPanelState || undefined}
-                        style={{ height: '10rem' }}
+                        fit="contain"
+                        mediaClassName="h-full w-full"
                       />
                     </section>
                   </section>
@@ -254,82 +279,85 @@ export function MediaLightbox({
         {hasDetails ? (
           <section className={cn('mx-auto mb-5 grid w-[min(92vw,38rem)] gap-3 rounded-lg border p-4 text-sm shadow-xl backdrop-blur-md', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.tooltip.bg, UI_THEME_TOKENS.tooltip.text)} aria-label={detailLabel || 'Prompt'} data-kg-media-lightbox-details="1" data-kg-media-lightbox-prompt-panel="1">
             {editablePrompt ? (
-              <form
+              <section
                 className="grid gap-3"
-                aria-label={`${detailLabel || 'Prompt'} generator`}
                 data-kg-media-lightbox-prompt-form="1"
-                onSubmit={event => {
-                  event.preventDefault()
-                  submitPrompt()
-                }}
               >
-                <PanelTextarea
-                  variant="transparent"
-                  rowHeightPreset="compact"
-                  rows={5}
-                  className={cn('text-sm leading-6', UI_THEME_TOKENS.tooltip.text, UI_THEME_TOKENS.input.placeholder, UI_THEME_TOKENS.focus.primaryBorderRing)}
-                  value={promptDraft}
-                  placeholder={promptPlaceholder || detailLabel || 'Prompt'}
-                  aria-label={detailLabel || 'Prompt'}
-                  data-kg-media-lightbox-description="1"
-                  data-kg-media-lightbox-prompt="1"
-                  data-kg-media-lightbox-prompt-input="1"
-                  onChange={event => {
-                    const nextValue = event.currentTarget.value
-                    setPromptDraft(nextValue)
-                    onPromptChange?.(nextValue)
-                  }}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                      event.preventDefault()
-                      submitPrompt()
-                    }
-                  }}
-                />
-                <footer className={cn('flex min-w-0 items-center gap-2 border-t pt-2', UI_THEME_TOKENS.panel.divider)} data-kg-media-lightbox-parameter-row="1">
-                  <section className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="Media generation parameters">
-                    {parameterControls.map(parameter => (
-                      <label
-                        key={parameter.id}
-                        className={cn(
-                          'block shrink-0',
-                          parameter.id === 'model' ? 'w-[13.25rem]' : 'w-[5.25rem]',
-                        )}
-                      >
-                        <span className="sr-only">{parameter.label}</span>
-                        <PanelSelect
-                          variant="transparent"
-                          className={cn('h-8 truncate text-xs', UI_THEME_TOKENS.tooltip.text, UI_THEME_TOKENS.focus.primaryBorderRing)}
-                          value={parameterValues[parameter.id] || parameter.options[0]?.value || ''}
-                          aria-label={parameter.label}
-                          data-kg-media-lightbox-parameter={parameter.id}
-                          onChange={event => {
-                            const nextValue = event.currentTarget.value
-                            setParameterValues(current => ({ ...current, [parameter.id]: nextValue }))
-                          }}
+                <label className="grid gap-1">
+                  <span className={cn('text-xs font-semibold uppercase tracking-normal', UI_THEME_TOKENS.text.secondary)}>
+                    {detailLabel}
+                  </span>
+                  <PanelTextarea
+                    value={promptDraft}
+                    placeholder={promptPlaceholder || 'Describe the media to generate'}
+                    disabled={promptBusy}
+                    onChange={event => {
+                      const nextValue = event.currentTarget.value
+                      setPromptDraft(nextValue)
+                      onPromptChange?.(nextValue)
+                    }}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        submitPrompt()
+                      }
+                    }}
+                    rows={3}
+                    data-kg-media-lightbox-description="1"
+                    data-kg-media-lightbox-prompt="1"
+                    data-kg-media-lightbox-prompt-input="1"
+                  />
+                </label>
+                {parameterControls.length > 0 ? (
+                  <footer className={cn('flex min-w-0 items-center gap-2 border-t pt-2', UI_THEME_TOKENS.panel.divider)} data-kg-media-lightbox-parameter-row="1">
+                    <section className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="Media generation parameters">
+                      {parameterControls.map(parameter => (
+                        <label
+                          key={parameter.id}
+                          className={cn(
+                            'block shrink-0',
+                            parameter.id === 'model' ? 'w-[13.25rem]' : 'w-[5.25rem]',
+                          )}
                         >
-                          {parameter.options.map(option => (
-                            <option key={`${parameter.id}:${option.value}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </PanelSelect>
-                      </label>
-                    ))}
-                  </section>
+                          <span className="sr-only">{parameter.label}</span>
+                          <PanelSelect
+                            value={parameterValues[parameter.id] || parameter.options[0]?.value || ''}
+                            disabled={promptBusy}
+                            onChange={event => {
+                              const nextValue = event.currentTarget.value
+                              setParameterValues(current => ({
+                                ...current,
+                                [parameter.id]: nextValue,
+                              }))
+                            }}
+                            data-kg-media-lightbox-parameter={parameter.id}
+                          >
+                            {parameter.options.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </PanelSelect>
+                        </label>
+                      ))}
+                    </section>
+                  </footer>
+                ) : null}
+                <footer className="flex justify-end">
                   <button
-                    type="submit"
-                    className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-45', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.primaryOutline)}
+                    type="button"
+                    className={cn('inline-flex items-center gap-2 rounded border px-3 py-1.5 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg)}
                     disabled={!canSubmitPrompt}
                     title={promptSubmitLabel || 'Generate media'}
                     aria-label={promptSubmitLabel || 'Generate media'}
                     data-kg-media-lightbox-prompt-submit="1"
+                    onClick={submitPrompt}
                   >
                     <Wand2 className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
                     <span className="sr-only">{promptSubmitLabel || 'Generate media'}</span>
                   </button>
                 </footer>
-              </form>
+              </section>
             ) : detailText ? <p className="m-0 leading-relaxed" data-kg-media-lightbox-description="1" data-kg-media-lightbox-prompt="1">{detailText}</p> : null}
           </section>
         ) : null}

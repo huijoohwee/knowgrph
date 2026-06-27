@@ -47,7 +47,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
-
+import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
@@ -135,8 +135,8 @@ export async function testStrybldrStoryboardMarkdownParsesToStoryboardGraph() {
   assert(storyboardCardNodes.length >= 2, 'expected parsed Strybldr graph to expose storyboard card nodes')
   for (const node of storyboardCardNodes) {
     assert(node.properties?.['visual:shape'] === 'rect', `expected Storyboard card ${String(node.id)} to render as a rect`)
-    assert(node.properties?.['visual:width'] === 288, `expected Storyboard card ${String(node.id)} width to restore card surface`)
-    assert(node.properties?.['visual:height'] === 162, `expected Storyboard card ${String(node.id)} height to restore card surface`)
+    assert(node.properties?.['visual:width'] === RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX, `expected Storyboard card ${String(node.id)} width to reuse Rich Media panel geometry`)
+    assert(node.properties?.['visual:height'] === RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, `expected Storyboard card ${String(node.id)} height to reuse Rich Media panel geometry`)
     assert(node.properties?.['visual:fill'] === 'var(--kg-panel-bg)', `expected Storyboard card ${String(node.id)} to use panel fill`)
     assert(node.properties?.['visual:stroke'] === 'var(--kg-border)', `expected Storyboard card ${String(node.id)} to use panel border`)
     assert(node.properties?.['visual:preserveBody'] === true, `expected Storyboard card ${String(node.id)} to preserve card shell under media overlays`)

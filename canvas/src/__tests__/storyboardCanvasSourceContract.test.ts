@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-
+import { assertStoryboard2dMediaDropContract } from './storyboardCanvasMediaDropContract'
 export function testStoryboardCanvasKeepsNativeRendererContract() {
   const source = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
   const canvasViewportSource = readFileSync(new URL('../components/CanvasViewport.tsx', import.meta.url), 'utf8')
@@ -24,7 +24,6 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const graphOverlayInteractionsSource = readFileSync(new URL('../components/GraphCanvasRoot/hooks/useOverlayInteractions2d.ts', import.meta.url), 'utf8')
   const flowEditorOverlayDragSource = readFileSync(new URL('../lib/flowEditor/overlayWorldDrag.ts', import.meta.url), 'utf8')
   const flowEditorDragHandlersSource = readFileSync(new URL('../components/FlowEditor/useNodeOverlayDragHandlers.ts', import.meta.url), 'utf8')
-  const mediaOverlayLayoutLoopSource = readFileSync(new URL('../lib/render/mediaOverlayLayoutLoop2d.ts', import.meta.url), 'utf8')
   const infiniteZoomSource = readFileSync(new URL('../components/StoryboardCanvas/useStoryboardInfiniteZoom.ts', import.meta.url), 'utf8')
   const infiniteMetricsSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomMetrics.ts', import.meta.url), 'utf8')
   const infiniteRequestSource = readFileSync(new URL('../components/StoryboardCanvas/storyboardInfiniteZoomRequest.ts', import.meta.url), 'utf8')
@@ -32,6 +31,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const mediaLightboxSource = readFileSync(new URL('../lib/ui/MediaLightbox.tsx', import.meta.url), 'utf8')
   const mediaLightboxPromptParametersSource = readFileSync(new URL('../lib/ui/mediaLightboxPromptParameters.ts', import.meta.url), 'utf8')
   const mediaKindOverlaySource = readFileSync(new URL('../lib/ui/MediaKindOverlay.tsx', import.meta.url), 'utf8')
+  assertStoryboard2dMediaDropContract()
   if (
     !canvasViewportSource.includes("const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'")
     || !canvasViewportSource.includes('data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}')
@@ -182,13 +182,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'snapPointToGrid',
     'buildFixedStoryboardCardPlacements2d',
     'applyFixedStoryboardCardPlacementsToGraphData2d',
-    'fx: placement.x',
-    'fy: placement.y',
     'CardInlineTextEditor',
-    'NodeOverlayEditorActionsToolbar',
-    'buildStoryboardToolbarProps',
+    'getFlowEditorPanelChromeClassName',
     'buildStoryboardToolbarActionBindings',
     'data-kg-storyboard-fixed-card-lane',
+    'data-kg-storyboard-fixed-card-rich-media-chrome="1"',
     'onCommitLane',
     'onCommitTitle',
     'onCommitSummary',
@@ -197,11 +195,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'onRemove',
     'const toolbarProps = buildStoryboardToolbarProps({',
     'const toolbarActionBindings = buildStoryboardToolbarActionBindings({',
+    '{...toolbarProps}',
     'buildGraphNodeCanonicalTextPatch',
     'GRAPH_KEYWORD_LANE_PROPERTY_KEYS',
     'const snappedTopLeft = snapPointToGrid({',
     'data-kg-storyboard-fixed-card-layout={fixedLayoutEnabled ? \'fixed\' : \'flex\'}',
-    'data-kg-storyboard-fixed-card-grid={fixedLayoutEnabled ? \'1\' : \'0\'}',
   ]) {
     if (!graphStoryboardOverlaySource.includes(snippet)) {
       throw new Error(`expected shared Canvas surface to restore Storyboard card overlay snippet: ${snippet}`)
@@ -209,10 +207,12 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   }
   for (const snippet of [
     'NodeOverlayEditorActionsToolbar',
-    'WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX',
+    "from '@/components/FlowEditor/richMediaOverlayToolbarProps'",
+    'buildSharedRichMediaOverlayToolbarProps',
     'data-kg-rich-media-overlay-shell="1"',
     'data-kg-rich-media-overlay-shell-id={n.id}',
     'const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some',
+    '{...buildSharedRichMediaOverlayToolbarProps()}',
     'onOpenInSidepane={() => openPanelInSidepane(n.id)}',
     'onDuplicate={() => duplicatePanel(n.id)}',
     'onRemove={() => removePanel(n.id)}',
@@ -221,6 +221,12 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     if (!graphRichMediaOverlaySource.includes(snippet)) {
       throw new Error(`expected Storyboard shared Canvas Rich Media panel overlay to restore shared bubble-toolbar snippet: ${snippet}`)
     }
+  }
+  if (graphStoryboardOverlaySource.includes('clearOutput: false') || graphStoryboardOverlaySource.includes('updateKvEntry: false') || graphStoryboardOverlaySource.includes('run: false')) {
+    throw new Error('expected Storyboard 2D card overlay to reuse the shared widget toolbar action set without a local action visibility mask')
+  }
+  if (graphRichMediaOverlaySource.includes('ariaLabel="Rich Media panel actions"') || graphRichMediaOverlaySource.includes('iconSizeClass="h-3.5 w-3.5"') || graphRichMediaOverlaySource.includes('WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX')) {
+    throw new Error('expected Storyboard shared Canvas Rich Media panel overlay to consume shared Rich Media toolbar props instead of duplicating toolbar literals')
   }
   for (const snippet of [
     "from '@/lib/flowEditor/overlayWorldDrag'",
@@ -260,16 +266,6 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   ]) {
     if (!graphOverlayInteractionsSource.includes(snippet)) {
       throw new Error(`expected Rich Media overlay drag to stay snapped to grid: ${snippet}`)
-    }
-  }
-  for (const snippet of [
-    'readSnapGridConfigFromSchema',
-    'snapPanelTopLeftToGrid',
-    'const snappedWorldTopLeft = snapPointToGrid(worldTopLeft, snapGrid)',
-    'const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h }',
-  ]) {
-    if (!mediaOverlayLayoutLoopSource.includes(snippet)) {
-      throw new Error(`expected Rich Media layout loop to snap rendered panel top-left to grid: ${snippet}`)
     }
   }
   for (const snippet of [
@@ -603,6 +599,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'MediaLightboxPromptParameter',
     'promptParameters?: readonly MediaLightboxPromptParameter[]',
     'onPromptSubmit?: (value: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>',
+    "from '@/lib/cards/CardMediaPreview'",
     "from '@/lib/ui/panelFormControls'",
     'data-kg-media-lightbox-media-panel="1"',
     'data-kg-media-lightbox-empty-output="1"',
@@ -625,6 +622,9 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     if (!mediaLightboxSource.includes(snippet)) {
       throw new Error(`expected shared media lightbox to retain prompt/media panel snippet: ${snippet}`)
     }
+  }
+  if (mediaLightboxSource.includes('RichMediaPanel')) {
+    throw new Error('expected shared media lightbox to render raw CardMediaPreview media, not RichMediaPanel chrome')
   }
   for (const snippet of [
     'buildMediaLightboxPromptParameters',

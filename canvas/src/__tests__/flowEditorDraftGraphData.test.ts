@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { bumpFlowEditorDraftGraphDataRevision, resolveFlowEditorDraftGraphDataForBaseReset } from '@/lib/flowEditor/flowEditorDraftGraphData'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData } from '@/lib/graph/types'
@@ -58,4 +60,14 @@ export function testFlowEditorBaseResetPreservesEqualRevisionSameDocumentDraft()
     nextBaseGraphData: base,
   })
   if (resolved !== draft) throw new Error('expected same-document equal-revision reset to preserve the live draft after store writeback')
+}
+
+export function testFlowEditorBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity() {
+  const source = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRenderState.ts'), 'utf8')
+  if (!source.includes('const flowEditorBaseGraphDataRef = React.useRef(args.flowEditorBaseGraphData)')) {
+    throw new Error('expected the draft reset effect to read the latest derived base graph through a stable ref')
+  }
+  if (source.includes('[args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData]')) {
+    throw new Error('expected derived graph object identity to stay out of the draft reset effect dependencies')
+  }
 }

@@ -1,6 +1,5 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-
 import {
   deriveFlowEditorViewGraph,
   type ToolMode,
@@ -679,6 +678,7 @@ export default function FlowEditorCanvasRuntime(
       noGraphLoaded={surfaceNoGraphLoaded}
       toolMode={toolMode}
       pendingEdgeSourceId={pendingEdgeSourceId}
+      beginAddEdgeFromNode={beginAddEdgeFromNode} finalizePendingEdge={finalizePendingEdge}
       inspectorPortalHost={inspectorPortalHost}
       inspectorElement={inspectorElement}
       widgetRegistry={widgetRegistry}

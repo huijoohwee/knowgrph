@@ -177,6 +177,12 @@ export function testFlowEditorManagerSeedsGenerateVideoRegistryEntry() {
   if (!openAiVideoScriptFound) throw new Error('expected OpenAI Video Script Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
   if (!storyboardElementFound) throw new Error('expected Storyboard Element mapping')
+  const storyboardPortKeys = new Set(storyboardElementFound.ports.map(port => `${port.direction}:${port.portKey}`))
+  for (const portKey of ['mediaUrl', 'imageUrl', 'videoUrl']) {
+    if (!storyboardPortKeys.has(`input:${portKey}`) || !storyboardPortKeys.has(`output:${portKey}`)) {
+      throw new Error(`expected Storyboard Element to expose reusable input/output media port ${portKey}`)
+    }
+  }
   if (!discoveryFound) throw new Error('expected GrabMaps Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
 

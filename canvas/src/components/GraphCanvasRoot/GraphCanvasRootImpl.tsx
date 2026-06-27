@@ -66,9 +66,8 @@ import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/me
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
-
+import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 const EMPTY_STRING_ARRAY: string[] = []
-
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -853,6 +852,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [richMedia])
 
   React.useEffect(() => {
+    if (isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)) return
     const hasHiddenSelected =
       (typeof selectedNodeId === 'string' &&
         selectedNodeId &&
@@ -869,7 +869,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     } catch {
       void 0
     }
-  }, [panelOnlyNodeIdSetForScene, richMedia.mediaOverlayNodeIdSet, selectNode, selectedNodeId, selectedNodeIds])
+  }, [canvas2dRenderer, panelOnlyNodeIdSetForScene, richMedia.mediaOverlayNodeIdSet, selectNode, selectedNodeId, selectedNodeIds])
 
   const overlayInteractions = useOverlayInteractions2d({
     activeRef,

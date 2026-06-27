@@ -48,6 +48,7 @@ import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
   type MediaDragPayload,
   type MediaPointerDragDropDetail,
@@ -359,6 +360,7 @@ export function useFlowEditorWidgetDropBridge(args: {
     }
     const appendMediaPanelAtClientPoint = (mediaPayload: MediaDragPayload | null, clientX: number, clientY: number, rect: DOMRect): boolean => {
       if (!mediaPayload) return false
+      if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false
       args.setCanvasWindowOffsetFromRect(rect)
       const sx = clientX - rect.left
       const sy = clientY - rect.top

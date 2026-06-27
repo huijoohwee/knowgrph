@@ -1,11 +1,15 @@
 import React from 'react'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
+import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
+import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
+import { FlowEditorOverlayPortHandles } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
+import { StoryboardCardMediaDropSlot2d } from '@/components/FlowEditorCanvas/StoryboardCardMediaDropSlot2d'
+import { useStoryboardCardMediaDrop2d } from '@/components/FlowEditorCanvas/useStoryboardCardMediaDrop2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { buildStoryboardBoardModel, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeFlowEditorOverlayScreenBox, type FlowEditorOverlayDragTransform } from '@/lib/flowEditor/overlayWorldDrag'
-import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
@@ -13,11 +17,11 @@ import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS } from '@/lib/graph/keywordTerms'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
+import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS, RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { cn } from '@/lib/utils'
 
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
-const DEFAULT_CARD_WIDTH = 288
-const DEFAULT_CARD_HEIGHT = 162
 const DEFAULT_GRID_GAP = 64
 const STORYBOARD_CARD_FIT_PADDING = 48
 
@@ -34,8 +38,8 @@ const readFiniteNumber = (value: unknown): number | null => {
 const readNodeCardSize = (node: GraphNode): { width: number; height: number } => {
   const props = (node.properties || {}) as Record<string, unknown>
   return {
-    width: readFiniteNumber(props['visual:width']) || DEFAULT_CARD_WIDTH,
-    height: readFiniteNumber(props['visual:height']) || DEFAULT_CARD_HEIGHT,
+    width: readFiniteNumber(props['visual:width']) || RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX,
+    height: readFiniteNumber(props['visual:height']) || RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX,
   }
 }
 
@@ -103,8 +107,8 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
   if (orderedCards.length === 0) return out
 
   const centers: StoryboardCardPlacement[] = []
-  let maxCardWidth = DEFAULT_CARD_WIDTH
-  let maxCardHeight = DEFAULT_CARD_HEIGHT
+  let maxCardWidth: number = RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX
+  let maxCardHeight: number = RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX
   for (let i = 0; i < orderedCards.length; i += 1) {
     const node = nodeById.get(orderedCards[i]!.id)
     if (!node) continue
@@ -139,7 +143,7 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
     for (let rowIndex = 0; rowIndex < lane.cards.length; rowIndex += 1) {
       const card = lane.cards[rowIndex]!
       const node = nodeById.get(card.id)
-      const size = node ? readNodeCardSize(node) : { width: DEFAULT_CARD_WIDTH, height: DEFAULT_CARD_HEIGHT }
+      const size = node ? readNodeCardSize(node) : { width: RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX, height: RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX }
       const rawCenter = {
         x: origin.x + (laneIndex - centerLaneOffset) * cellWidth,
         y: origin.y + (rowIndex - centerRowOffset) * cellHeight,
@@ -207,41 +211,32 @@ const buildCardRows = (card: StoryboardCardModel): string[] => {
   return [primary, secondary].filter(Boolean).slice(0, 2)
 }
 
-const resolveStoryboardCardPrimaryReferenceUrl = (card: Pick<StoryboardCardModel, 'href' | 'references'>): string => {
-  const directHref = String(card.href || '').trim()
-  if (directHref) return directHref
-  for (const reference of card.references) {
-    const url = String(reference?.url || '').trim()
-    if (url) return url
-  }
-  return ''
-}
-
 const ignoreStoryboardCardAction = () => void 0
 
 function StoryboardCardOverlayItem(props: {
   card: StoryboardCardModel
   node: GraphNode
+  pendingMedia: StoryboardCardModel['media']
   register: (id: string, el: HTMLElement | null) => void
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void
   onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void
   onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void
   onCommitType: (card: StoryboardCardModel, nextValue: string) => void
   onDuplicate: (card: StoryboardCardModel) => void
+  onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
   onOpenInSidepane: (card: StoryboardCardModel) => void
   onRemove: (card: StoryboardCardModel) => void
   onSelect: (card: StoryboardCardModel) => void
   selected: boolean
 }) {
-  const { card, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDuplicate, onOpenInSidepane, onRemove, onSelect, register, selected } = props
+  const { card, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected } = props
   const { width, height } = readNodeCardSize(node)
   const rows = buildCardRows(card)
-  const mediaUrl = card.media?.url || card.media?.thumbnailUrl || ''
-  const mediaPoster = card.media?.thumbnailUrl || undefined
+  const displayMedia = pendingMedia || card.media
   const toolbarProps = buildStoryboardToolbarProps({
     active: true,
     duplicateDisabled: false,
-    primaryReferenceUrl: resolveStoryboardCardPrimaryReferenceUrl(card),
+    primaryReferenceUrl: card.href || card.references[0]?.url,
   })
   const toolbarActionBindings = buildStoryboardToolbarActionBindings({
     card,
@@ -258,67 +253,79 @@ function StoryboardCardOverlayItem(props: {
     <article
       ref={el => register(card.id, el)}
       aria-label={`Storyboard card ${card.title}`}
-      className="pointer-events-auto absolute left-0 top-0 overflow-visible rounded-md border bg-[color:var(--kg-panel-bg)] text-[color:var(--kg-text-primary)] shadow-sm"
+      className={cn(
+        getFlowEditorPanelChromeClassName(),
+        'pointer-events-auto absolute left-0 top-0 overflow-visible',
+        selected ? 'ring-2 ring-blue-500/80' : '',
+      )}
       data-kg-storyboard-fixed-card="1"
       data-kg-storyboard-fixed-card-id={card.id}
       data-kg-storyboard-fixed-card-lane={card.lane || 'Storyboard'}
-      onClickCapture={() => onSelect(card)}
-      onPointerDownCapture={() => onSelect(card)}
+      data-kg-storyboard-fixed-card-rich-media-chrome="1"
+      onClickCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
+      onPointerDownCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
       style={{
         width,
         height,
-        borderColor: 'var(--kg-border)',
         transformOrigin: '0 0',
+        ...RICH_MEDIA_PANEL_DEFAULT_CSS_VARS,
       }}
     >
       <NodeOverlayEditorActionsToolbar
         visible={selected}
         {...toolbarProps}
-        navClassName="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2"
-        actionVisibility={{
-          ...toolbarProps.actionVisibility,
-          clearOutput: false,
-          convertToLoop: false,
-          help: false,
-          run: false,
-          updateKvEntry: false,
-        }}
         {...toolbarActionBindings}
       />
-      <section className="h-full overflow-hidden rounded-md">
-        <header className="flex h-7 min-w-0 items-center gap-2 border-b px-2" style={{ borderColor: 'var(--kg-border)' }}>
-          <CardInlineTextEditor
-            value={card.lane || 'Storyboard'}
-            ariaLabel={`Storyboard lane for ${card.id}`}
-            placeholder="Add lane"
-            canEdit
-            editActivation="click"
-            onCommit={nextValue => onCommitLane(card, nextValue)}
-            displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
-            editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
-          />
-          <CardInlineTextEditor
-            value={card.typeLabel}
-            ariaLabel={`Storyboard type for ${card.id}`}
-            placeholder="Add type"
-            canEdit
-            editActivation="click"
-            onCommit={nextValue => onCommitType(card, nextValue)}
-            displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
-            editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
-          />
-          <CardInlineTextEditor
-            value={card.title}
-            ariaLabel={`Storyboard title for ${card.id}`}
-            placeholder="Add title"
-            canEdit
-            editActivation="click"
-            onCommit={nextValue => onCommitTitle(card, nextValue)}
-            displayClassName="min-w-0 truncate text-[11px] font-semibold leading-4"
-            editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--kg-text-primary)]"
-          />
-        </header>
-        <section className="grid h-[calc(100%-1.75rem)] min-h-0 grid-cols-[minmax(0,1fr)_5.25rem] gap-2 p-2" aria-label={`${card.title} storyboard card body`}>
+      <FlowEditorOverlayPortHandles node={node} selected={selected} />
+      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[inherit]">
+        <FlowEditorPanelChromeHeader
+          active
+          title={card.title}
+          titleContent={<section className="flex min-w-0 items-center gap-2">
+            <CardInlineTextEditor
+              value={card.lane || 'Storyboard'}
+              ariaLabel={`Storyboard lane for ${card.id}`}
+              placeholder="Add lane"
+              canEdit
+              editActivation="click"
+              onCommit={nextValue => onCommitLane(card, nextValue)}
+              displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
+              editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
+            />
+            <CardInlineTextEditor
+              value={card.typeLabel}
+              ariaLabel={`Storyboard type for ${card.id}`}
+              placeholder="Add type"
+              canEdit
+              editActivation="click"
+              onCommit={nextValue => onCommitType(card, nextValue)}
+              displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
+              editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
+            />
+            <CardInlineTextEditor
+              value={card.title}
+              ariaLabel={`Storyboard title for ${card.id}`}
+              placeholder="Add title"
+              canEdit
+              editActivation="click"
+              onCommit={nextValue => onCommitTitle(card, nextValue)}
+              displayClassName="min-w-0 truncate text-[11px] font-semibold leading-4"
+              editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--kg-text-primary)]"
+            />
+          </section>}
+          richMediaHeader
+          dragHandle={false}
+          showFieldToggle={false}
+          showPinToggle={false}
+          showValidate={false}
+          showMinimizeToggle={false}
+        />
+        <section
+          className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.25rem] gap-2 p-[var(--kg-media-panel-padding,6px)]"
+          aria-label={`${card.title} storyboard card body`}
+          data-kg-rich-media-flow-editor-body="1"
+          data-kg-widget-body="1"
+        >
           <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-1">
             <CardInlineTextEditor
               value={rows[0] || card.slugline || ''}
@@ -341,25 +348,7 @@ function StoryboardCardOverlayItem(props: {
               {card.typeLabel ? <span className="min-w-0 truncate">{card.typeLabel}</span> : null}
             </footer>
           </section>
-          <figure className={cn('m-0 flex min-h-0 min-w-0 items-center justify-center overflow-hidden rounded border bg-[color:var(--kg-input-bg)]')} style={{ borderColor: 'var(--kg-border)' }}>
-            {mediaUrl ? (
-              <CardMediaPreview
-                kind={card.media?.kind || null}
-                url={mediaUrl}
-                srcDoc={card.media?.srcDoc || undefined}
-                title={card.title}
-                href={card.href || card.media?.sourceUrl || mediaUrl}
-                fit="cover"
-                interactive={false}
-                mediaThumbnailDataAttr
-                mediaSelectableSurfaceDataAttr
-                videoMuted
-                videoPoster={mediaPoster}
-              />
-            ) : (
-              <span className="text-[18px] font-semibold text-[color:var(--kg-text-tertiary)]">+</span>
-            )}
-          </figure>
+          <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} onDropMedia={onDropMedia} />
         </section>
       </section>
     </article>
@@ -376,6 +365,8 @@ export function StoryboardCardOverlayLayer2d(props: {
   const { active, getTransform, graphData, graphRevision, schema } = props
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || null)
   const addNode = useGraphStore(s => s.addNode)
   const addHistory = useGraphStore(s => s.addHistory)
   const removeNode = useGraphStore(s => s.removeNode)
@@ -406,6 +397,13 @@ export function StoryboardCardOverlayLayer2d(props: {
     () => board.lanes.flatMap(lane => lane.cards).filter(card => nodeById.has(card.id)),
     [board.lanes, nodeById],
   )
+  const { dropCardMedia, pendingMediaByCardId } = useStoryboardCardMediaDrop2d({
+    cards,
+    graphData,
+    markdownDocumentName,
+    markdownDocumentText,
+    nodeById,
+  })
   const fixedCardPlacements = React.useMemo(
     () => fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d({ board, nodeById, schema }) : new Map<string, StoryboardCardPlacement>(),
     [board, fixedLayoutEnabled, nodeById, schema],
@@ -576,11 +574,13 @@ export function StoryboardCardOverlayLayer2d(props: {
             key={card.id}
             card={card}
             node={node}
+            pendingMedia={pendingMediaByCardId[card.id] || null}
             onCommitLane={commitLane}
             onCommitSummary={commitSummary}
             onCommitTitle={commitTitle}
             onCommitType={commitType}
             onDuplicate={duplicateCard}
+            onDropMedia={dropCardMedia}
             onOpenInSidepane={openCardInSidepane}
             onRemove={removeCard}
             onSelect={selectCard}

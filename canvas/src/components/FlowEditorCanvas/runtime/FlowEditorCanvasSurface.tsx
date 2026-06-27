@@ -13,6 +13,7 @@ import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
@@ -35,6 +36,7 @@ import {
 } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import type { GraphData } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { FlowEditorOverlayPortHandleProvider } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 
 export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -58,6 +60,8 @@ export default function FlowEditorCanvasSurface(props: {
   noGraphLoaded: boolean
   toolMode: 'select' | 'addEdge'
   pendingEdgeSourceId: string | null
+  beginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
+  finalizePendingEdge: (nodeId: string, portKey?: string | null) => void
   inspectorPortalHost: HTMLElement | null
   inspectorElement: React.ReactNode
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
@@ -123,6 +127,7 @@ export default function FlowEditorCanvasSurface(props: {
 
   const appendMediaPanelAtClientPoint = React.useCallback((payload: import('@/lib/ui/mediaDragPayload').MediaDragPayload, clientX: number, clientY: number) => {
     if (props.geospatialWidgetPanelMode || !props.canEdit) return false
+    if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false
     const mediaUrl = String(payload?.url || '').trim()
     if (!mediaUrl) return false
     const pos = readSurfaceDrop(clientX, clientY)
@@ -366,6 +371,16 @@ export default function FlowEditorCanvasSurface(props: {
         ev.stopPropagation()
       }}
     >
+      <FlowEditorOverlayPortHandleProvider
+        active={props.canEdit}
+        graphData={flowCanvasGraphDataOverride}
+        pendingEdgeSourceId={props.pendingEdgeSourceId}
+        registryEntries={props.widgetRegistry}
+        schema={schema}
+        toolMode={props.toolMode}
+        beginEdge={props.beginAddEdgeFromNode}
+        finalizeEdge={props.finalizePendingEdge}
+      >
       {!props.noGraphLoaded && (
         <FlowCanvas
           active={props.active}
@@ -426,6 +441,7 @@ export default function FlowEditorCanvasSurface(props: {
       )}
 
       {props.inspectorPortalHost ? props.createPortal(props.inspectorElement, props.inspectorPortalHost) : null}
+      </FlowEditorOverlayPortHandleProvider>
     </section>
   )
 }

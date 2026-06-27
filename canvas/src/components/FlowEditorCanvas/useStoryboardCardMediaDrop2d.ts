@@ -1,0 +1,127 @@
+import React from 'react'
+import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybldr/strybldrStoryboard'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
+import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
+import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+
+const STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS = [
+  'renderUrl',
+  'embedUrl',
+  'media_url',
+  'image',
+  'imageUrl',
+  'video',
+  'videoUrl',
+  'audio',
+  'audioUrl',
+  'audio_url',
+  'src',
+  'outputSrcDoc',
+  'thumbnailUrl',
+  'thumbnail_url',
+  'posterUrl',
+] as const
+
+const readStoryboardScalar2d = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim()
+  return ''
+}
+
+export function useStoryboardCardMediaDrop2d(args: {
+  cards: readonly StoryboardCardModel[]
+  graphData: GraphData | null
+  markdownDocumentName: string | null
+  markdownDocumentText: string | null
+  nodeById: ReadonlyMap<string, GraphNode>
+}) {
+  const { cards, graphData, markdownDocumentName, markdownDocumentText, nodeById } = args
+  const addHistory = useGraphStore(s => s.addHistory)
+  const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
+  const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
+  const updateNode = useGraphStore(s => s.updateNode)
+  const [pendingMediaByCardId, setPendingMediaByCardId] = React.useState<Record<string, NonNullable<StoryboardCardModel['media']>>>({})
+
+  React.useEffect(() => {
+    setPendingMediaByCardId(current => {
+      let changed = false
+      const next = { ...current }
+      for (let i = 0; i < cards.length; i += 1) {
+        const card = cards[i]!
+        const pending = next[card.id]
+        if (!pending || card.media?.url !== pending.url) continue
+        delete next[card.id]
+        changed = true
+      }
+      return changed ? next : current
+    })
+  }, [cards])
+
+  const dropCardMedia = React.useCallback((card: StoryboardCardModel, payload: MediaDragPayload) => {
+    const url = readStoryboardScalar2d(payload.url)
+    if (!url) return
+    const node = nodeById.get(card.id)
+    if (!node) return
+    setPendingMediaByCardId(current => ({
+      ...current,
+      [card.id]: {
+        kind: payload.kind,
+        url,
+        sourceUrl: url,
+        thumbnailUrl: payload.thumbnailUrl || null,
+      },
+    }))
+    const currentProperties = { ...((node.properties || {}) as Record<string, unknown>) }
+    STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS.forEach(key => {
+      delete currentProperties[key]
+    })
+    const nextProperties = buildNodeMediaProperties({
+      extra: {
+        ...currentProperties,
+        ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
+      },
+      kind: payload.kind,
+      url,
+      includeCamelGeneric: true,
+    })
+    const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+      text: markdownDocumentText || '',
+      nodeId: card.id,
+      patch: {
+        imageUrl: '',
+        mediaKind: payload.kind,
+        mediaUrl: url,
+        outputSrcDoc: '',
+        renderUrl: '',
+      },
+    })
+    if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText) {
+      setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+      writeActiveMarkdownDocumentTextIfPresent({
+        state: useGraphStore.getState(),
+        sourceFiles: useGraphStore.getState().sourceFiles || [],
+        text: nextMarkdownText,
+        label: 'Storyboard media',
+      })
+    }
+    if (graphData?.nodes?.some(item => readStoryboardScalar2d(item?.id) === card.id)) {
+      setGraphDataPreservingLayout({
+        ...graphData,
+        nodes: graphData.nodes.map(item => (
+          readStoryboardScalar2d(item?.id) === card.id
+            ? { ...item, properties: nextProperties as never }
+            : item
+        )),
+      })
+      addHistory('Storyboard media')
+      return
+    }
+    updateNode(card.id, { properties: nextProperties as never })
+    addHistory('Storyboard media')
+  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, nodeById, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
+
+  return { dropCardMedia, pendingMediaByCardId }
+}

@@ -11,10 +11,13 @@ import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2, Pin, PinOff 
 export function FlowEditorPanelChromeHeader(props: {
   active: boolean
   title: React.ReactNode
+  titleContent?: React.ReactNode
   minimized?: boolean
   hideFields?: boolean
   showFieldToggle?: boolean
   showPinToggle?: boolean
+  showValidate?: boolean
+  showMinimizeToggle?: boolean
   pinned?: boolean
   microLabelClass?: string
   uiIconScale?: 'compact' | 'default'
@@ -31,10 +34,13 @@ export function FlowEditorPanelChromeHeader(props: {
   const {
     active,
     title,
+    titleContent,
     minimized = false,
     hideFields = false,
     showFieldToggle = true,
     showPinToggle = true,
+    showValidate = true,
+    showMinimizeToggle = true,
     pinned = false,
     microLabelClass = '',
     uiIconScale,
@@ -115,21 +121,15 @@ export function FlowEditorPanelChromeHeader(props: {
         style={richMediaHeaderInnerStyle}
         aria-label="Node editor header"
       >
-        <section className="min-w-0" aria-label="Node title">
-          <h3
-            className={cn(
-              'font-semibold truncate',
-              UI_THEME_TOKENS.text.primary,
-              minimized ? microLabelClass : '',
-            )}
-            style={richMediaTitleStyle}
-          >
-            {title}
-          </h3>
+        <section className="min-w-0 flex-1" aria-label="Node title">
+          {titleContent || <h3
+              className={cn('font-semibold truncate', UI_THEME_TOKENS.text.primary, minimized ? microLabelClass : '')}
+              style={richMediaTitleStyle}
+            >{title}</h3>}
         </section>
 
         <nav className="flex items-center gap-1" style={richMediaNavStyle} aria-label={UI_LABELS.flowWidget}>
-          <IconButton
+          {showValidate ? <IconButton
             title={UI_LABELS.flowWidgetValidate}
             tooltipContent={UI_LABELS.flowWidgetValidate}
             showTooltip
@@ -140,7 +140,7 @@ export function FlowEditorPanelChromeHeader(props: {
             style={richMediaActionStyle}
           >
             <CheckCircle className={iconSizeClass} style={richMediaIconStyle} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+          </IconButton> : null}
 
           {showFieldToggle ? (
             <IconButton
@@ -161,7 +161,7 @@ export function FlowEditorPanelChromeHeader(props: {
             </IconButton>
           ) : null}
 
-          <IconButton
+          {showMinimizeToggle ? <IconButton
             title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}
             tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
             showTooltip
@@ -176,7 +176,7 @@ export function FlowEditorPanelChromeHeader(props: {
             ) : (
               <Minimize2 className={iconSizeClass} style={richMediaIconStyle} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
             )}
-          </IconButton>
+          </IconButton> : null}
 
           {showPinToggle ? (
             <IconButton

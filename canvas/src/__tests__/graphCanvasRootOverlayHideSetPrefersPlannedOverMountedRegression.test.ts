@@ -10,5 +10,13 @@ export function testGraphCanvasRootPrefersPlannedOverlayHideSet() {
   if (!text.includes('mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet')) {
     throw new Error('expected GraphCanvasRoot to pass planned overlay node id set to the scene')
   }
+  if (!text.includes("import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'")) {
+    throw new Error('expected GraphCanvasRoot to reuse the shared Flow Editor renderer gate for overlay selection ownership')
+  }
+  if (!text.includes('if (isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)) return')) {
+    throw new Error('expected GraphCanvasRoot to preserve clicked Rich Media Panel selection on shared Storyboard/Flow Editor surfaces')
+  }
+  if (!text.includes('[canvas2dRenderer, panelOnlyNodeIdSetForScene, richMedia.mediaOverlayNodeIdSet, selectNode, selectedNodeId, selectedNodeIds]')) {
+    throw new Error('expected GraphCanvasRoot hidden-selection cleanup to depend on the active renderer gate')
+  }
 }
-

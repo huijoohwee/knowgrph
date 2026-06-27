@@ -263,18 +263,25 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const overlayEditorPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
+  const sharedToolbarPropsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'richMediaOverlayToolbarProps.ts')
   const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
+  const graphCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
   const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
   const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
+  const sharedToolbarPropsText = readFileSync(sharedToolbarPropsPath, 'utf8')
   const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
   const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
+  const graphCanvasToolbarText = readFileSync(graphCanvasToolbarPath, 'utf8')
 
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
+  }
+  if (!sharedToolbarPropsText.includes("navClassName: args?.navClassName || 'absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2'")) {
+    throw new Error('expected shared 2D Rich Media toolbar placement to clear the panel header')
   }
   if (panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
     throw new Error('expected RichMediaPanel to stop deriving floating-toolbar visibility locally after upstream toolbar consolidation')
@@ -331,12 +338,25 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
     }
   }
   for (const snippet of [
+    'buildSharedRichMediaOverlayControlProps',
+    'richMediaMediaSelector',
+    'richMediaAspectToggle',
+    'richMediaTextModeToggle',
+    'openExternalAction',
+  ]) {
+    if (!sharedToolbarPropsText.includes(snippet)) throw new Error(`expected shared Rich Media toolbar controls to retain ${snippet}`)
+  }
+  for (const snippet of ['buildSharedRichMediaOverlayControlProps({', '{...toolbarControlProps}']) {
+    if (!graphCanvasToolbarText.includes(snippet)) throw new Error(`expected Storyboard Rich Media overlay to reuse shared toolbar controls: ${snippet}`)
+  }
+  for (const snippet of [
     "from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'",
+    "from '@/components/FlowEditor/richMediaOverlayToolbarProps'",
     '<NodeOverlayEditorActionsToolbar',
+    '{...buildSharedRichMediaOverlayToolbarProps()}',
     'onOpenInSidepane={openInSidepane}',
     'onDuplicate={duplicate}',
     'onRemove={remove}',
-    'maxWidthPx={WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX}',
   ]) {
     if (!flowCanvasToolbarText.includes(snippet)) {
       throw new Error(`expected Flow Editor Rich Media overlay owner to reuse the shared floating toolbar variant: ${snippet}`)

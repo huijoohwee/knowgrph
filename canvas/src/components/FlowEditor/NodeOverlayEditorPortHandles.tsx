@@ -16,6 +16,7 @@ import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
+import { startFlowPortHandlePointerDrag } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -258,6 +259,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
         data-kg-port-handle="1"
         data-kg-port-handle-kind="rail"
         data-kg-port-dir={p.dir}
+        data-kg-port-node-id={nodeId}
         data-kg-port-key={parseFlowHandleKey(p.handleId as never)}
         data-kg-port-path={handlePath}
         className={cn('absolute pointer-events-auto', cursorClass)}
@@ -274,6 +276,9 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
+          if (p.dir !== 'out' || !clickable) return
+          handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
+          startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId })
         }}
         onClick={e => {
           try {

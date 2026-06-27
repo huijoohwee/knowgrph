@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { FlowCanvasRichMediaOverlayToolbar } from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'
+import { FlowEditorOverlayPortHandles } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
@@ -44,52 +45,14 @@ import {
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
-import { hashSignatureParts } from '@/lib/hash/signature'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutViewport, resolveFlowCanvasMediaLayoutViewport } from '@/components/FlowCanvas/flowCanvasMediaLayoutViewport'
+import { readMediaLayoutNodePropsSignature } from '@/components/FlowCanvas/flowCanvasMediaLayoutPropsSignature'
 
 function escapeSelectorAttrValue(value: string): string {
   const text = String(value || '')
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text)
   return text.replace(/["\\]/g, '\\$&')
-}
-
-function readMediaLayoutMeasureKey(value: unknown): string {
-  const n = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(n) ? String(Math.round(n)) : ''
-}
-
-function readMediaLayoutNodePropsSignature(
-  ids: string[],
-  sceneGraphData: GraphData | null,
-): string {
-  if (ids.length === 0) return ''
-  const wanted = new Set(ids)
-  const nodes = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes : []
-  const parts: string[] = []
-  for (let i = 0; i < nodes.length; i += 1) {
-    const node = nodes[i]
-    const id = String(node?.id || '').trim()
-    if (!id || !wanted.has(id)) continue
-    const props =
-      node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-        ? (node.properties as Record<string, unknown>)
-        : {}
-    parts.push([
-      id,
-      readMediaLayoutMeasureKey(props['visual:width']),
-      readMediaLayoutMeasureKey(props['visual:height']),
-      String(props.outputLoadingKind || '').trim(),
-      typeof props.output === 'string' && props.output.trim() ? 'text' : '',
-      typeof props.imageUrl === 'string' && props.imageUrl.trim() ? 'image' : '',
-      typeof props.videoUrl === 'string' && props.videoUrl.trim() ? 'video' : '',
-      typeof props.audioUrl === 'string' && props.audioUrl.trim() ? 'audio' : '',
-      typeof props.outputPath === 'string' && props.outputPath.trim() ? String(props.outputPath).trim() : '',
-      String(props.richMediaActiveTab || '').trim(),
-    ].join(':'))
-  }
-  parts.sort((a, b) => a.localeCompare(b))
-  return hashSignatureParts(['flow-canvas-media-layout-props', ids.length, ...parts])
 }
 
 export default function FlowCanvasMediaOverlays(args: {
@@ -157,6 +120,7 @@ export default function FlowCanvasMediaOverlays(args: {
     })
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
+  const storyboardSharedSurfaceRendererMode = canvas2dRenderer === 'storyboard'
   const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
   const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
   const graphSchema = schema as GraphSchema
@@ -653,17 +617,24 @@ export default function FlowCanvasMediaOverlays(args: {
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height,
       ),
       scaleLayoutOnZoom: flowEditorSharedSurfaceRendererMode,
+      projectWithWorldTransformScale: storyboardSharedSurfaceRendererMode,
       getPanelSizeForId: id => {
         if (!richMediaInfiniteCanvasMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
         if (override) {
           writeRichMediaResizeTrace(['phase=layout-override', `id=${id}`, `w=${override.w}`, `h=${override.h}`])
+          if (storyboardSharedSurfaceRendererMode) return override
           const coerced = coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport, width: override.w, height: override.h, minWidthPx: 220, minHeightPx: 160 })
           return { w: coerced.width, h: coerced.height }
         }
         const props = sceneNodePropsByIdRef.current.get(id) || null
         const stableSize = readStableRichMediaPanelSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null
-        if (!stableSize) return null
+        if (!stableSize) {
+          return storyboardSharedSurfaceRendererMode
+            ? { w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width, h: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height }
+            : null
+        }
+        if (storyboardSharedSurfaceRendererMode) return stableSize
         const zoomK = typeof runtimeRef.current?.transform?.k === 'number' && runtimeRef.current.transform.k > 0 ? runtimeRef.current.transform.k : 1
         const scale = computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, stableSize.w, stableSize.h)
         const coerced = coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport, width: stableSize.w * scale, height: stableSize.h * scale, minWidthPx: 220, minHeightPx: 160 })
@@ -707,6 +678,7 @@ export default function FlowCanvasMediaOverlays(args: {
     active,
     workspaceOverlayOpenKey,
     flowEditorFrontmatterDocumentModeRequested,
+    flowEditorSharedSurfaceRendererMode,
     richMediaInfiniteCanvasMode,
     mediaViewportMargin,
     mediaLayoutItems.length,
@@ -719,6 +691,7 @@ export default function FlowCanvasMediaOverlays(args: {
     runtimeRef,
     schema,
     overlaySizing,
+    storyboardSharedSurfaceRendererMode,
     viewportH,
     viewportW,
   ])
@@ -774,6 +747,7 @@ export default function FlowCanvasMediaOverlays(args: {
             onPointerDownCapture={() => setActiveRichMediaPanelId(node.id)}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
+            <FlowEditorOverlayPortHandles nodeId={node.id} selected={isSelected} />
             <RichMediaPanel
               overlayId={node.id}
               className="relative h-full w-full pointer-events-auto"

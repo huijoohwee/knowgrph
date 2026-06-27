@@ -3,6 +3,7 @@ import { inferMediaKindFromResourceUrl } from '@/lib/graph/mediaUrlKind'
 export const MEDIA_DRAG_PAYLOAD_MIME = 'application/x-knowgrph-media+json'
 export const MEDIA_POINTER_DRAG_PAYLOAD_CHANGE_EVENT = 'kg:media-pointer-drag-payload-change'
 export const MEDIA_POINTER_DRAG_DROP_EVENT = 'kg:media-pointer-drag-drop'
+export const MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE = 'data-kg-media-drop-consumes-canvas-drop'
 
 export type MediaDragPayload = {
   kind: 'image' | 'audio' | 'video'
@@ -31,6 +32,13 @@ export type MediaPointerDragDropDetail = {
   clientY: number
   startClientX?: number
   startClientY?: number
+}
+
+export function isMediaDropClaimedByNestedTarget(clientX: number, clientY: number): boolean {
+  if (typeof document === 'undefined') return false
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false
+  const target = document.elementFromPoint(clientX, clientY)
+  return target instanceof Element && !!target.closest(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)
 }
 
 const readFirstDraggedUrl = (value: unknown): string => {

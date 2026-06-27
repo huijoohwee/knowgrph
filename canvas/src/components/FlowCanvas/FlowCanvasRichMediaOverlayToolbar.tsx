@@ -1,6 +1,6 @@
 import React from 'react'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { buildSharedRichMediaOverlayToolbarProps } from '@/components/FlowEditor/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -51,16 +51,7 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
   return (
     <NodeOverlayEditorActionsToolbar
       visible={props.visible}
-      ariaLabel="Rich Media panel actions"
-      navClassName="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2"
-      navStyle={{ pointerEvents: 'auto' }}
-      active
-      iconSizeClass="h-3.5 w-3.5"
-      iconStrokeWidth={1.8}
-      enableHandlesDisabled
-      convertToLoopDisabled
-      duplicateDisabled={false}
-      actionVisibility={{ run: false, updateKvEntry: false, enableHandles: false, convertToLoop: false, clearOutput: false, help: false }}
+      {...buildSharedRichMediaOverlayToolbarProps()}
       onRun={() => void 0}
       onOpenInSidepane={openInSidepane}
       onDuplicate={duplicate}
@@ -68,7 +59,6 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
       onHelp={() => void 0}
       onRemove={remove}
       onConvertToLoopNode={() => void 0}
-      maxWidthPx={WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX}
     />
   )
 }
