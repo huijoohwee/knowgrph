@@ -55,6 +55,7 @@ secrets.json
 
 # Local / generated outputs
 .tmp-*.png
+.dbg/
 canvas/.tmp-*
 canvas/.trae/
 canvas/tmp-*
