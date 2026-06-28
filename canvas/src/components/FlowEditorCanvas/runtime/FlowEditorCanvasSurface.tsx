@@ -37,6 +37,8 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FlowEditorOverlayPortHandleProvider } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
+import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/components/FlowEditor/flowPortHandlePointerDrag'
+import { useStoryboardEdgeCreationRequest } from '@/components/FlowEditorCanvas/runtime/useStoryboardEdgeCreationRequest'
 
 export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -61,6 +63,7 @@ export default function FlowEditorCanvasSurface(props: {
   toolMode: 'select' | 'addEdge'
   pendingEdgeSourceId: string | null
   beginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
+  cancelPendingEdge: () => void
   finalizePendingEdge: (nodeId: string, portKey?: string | null) => void
   inspectorPortalHost: HTMLElement | null
   inspectorElement: React.ReactNode
@@ -101,6 +104,11 @@ export default function FlowEditorCanvasSurface(props: {
   }, [graphContentRevision, graphDataRevision, props.widgetRegistry, storyboardCardsActive, storyboardGraphData])
   const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride
   const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined
+  useStoryboardEdgeCreationRequest({
+    active: storyboardCardsActive,
+    beginEdge: props.beginAddEdgeFromNode,
+    graphData: flowCanvasGraphDataOverride,
+  })
   const screenAuthorityPanRef = React.useRef<null | {
     pointerId: number
     startClientX: number
@@ -299,6 +307,35 @@ export default function FlowEditorCanvasSurface(props: {
     return () => window.removeEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop, true)
   }, [appendMediaPanelAtClientPoint, isMediaPointerDropDistanceAccepted, props.active, props.canEdit, props.geospatialWidgetPanelMode])
 
+  React.useEffect(() => {
+    if (!props.active || !props.canEdit || typeof window === 'undefined') return
+    const handlePointerDown = (event: PointerEvent | MouseEvent) => {
+      if (event.button !== 0 || props.toolMode !== 'addEdge') return
+      const target = event.target instanceof Element ? event.target : null
+      if (target?.closest(FLOW_PORT_HANDLE_SELECTOR)) return
+      if (readFlowPortHandleAtClientPoint({ clientX: event.clientX, clientY: event.clientY })) return
+      props.cancelPendingEdge()
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || props.toolMode !== 'addEdge') return
+      props.cancelPendingEdge()
+      try {
+        event.preventDefault()
+        event.stopPropagation()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('pointerdown', handlePointerDown, true)
+    window.addEventListener('mousedown', handlePointerDown, true)
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown, true)
+      window.removeEventListener('mousedown', handlePointerDown, true)
+      window.removeEventListener('keydown', handleKeyDown, true)
+    }
+  }, [props])
+
   return (
     <section
       ref={props.rootRef}
@@ -381,6 +418,7 @@ export default function FlowEditorCanvasSurface(props: {
         schema={schema}
         toolMode={props.toolMode}
         beginEdge={props.beginAddEdgeFromNode}
+        cancelEdge={props.cancelPendingEdge}
         finalizeEdge={props.finalizePendingEdge}
       >
       {!props.noGraphLoaded && (
@@ -400,7 +438,7 @@ export default function FlowEditorCanvasSurface(props: {
         />
       )}
 
-      {(props.overlayOnlyActive || props.hasOverlayEditors) && (
+      {(props.overlayOnlyActive || props.hasOverlayEditors || storyboardCardsActive) && (
         <svg
           ref={props.overlayEdgesSvgRef}
           className={UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME}
@@ -418,6 +456,7 @@ export default function FlowEditorCanvasSurface(props: {
       {props.overlayEditorElements}
       <StoryboardCardOverlayLayer2d
         active={storyboardCardsActive}
+        flowEditorSurfaceId={props.flowEditorSurfaceId}
         getTransform={props.getLiveZoomTransform}
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}

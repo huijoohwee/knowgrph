@@ -75,6 +75,10 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   const renderGraphData = React.useMemo(() => {
     return graphDataOverride !== undefined ? graphDataOverride : storeGraphData
   }, [graphDataOverride, storeGraphData])
+  const authoritativeGraphNodeById = React.useMemo(() => {
+    const nodes = Array.isArray(renderGraphData?.nodes) ? renderGraphData.nodes : []
+    return new Map(nodes.map(node => [String(node?.id || '').trim(), node] as const).filter(([id]) => Boolean(id)))
+  }, [renderGraphData])
   const allowMutations = allowNodeDragOverride !== false
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
@@ -248,7 +252,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
 
   const stickyOverlayNodeByIdRef = React.useRef(new Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>())
   const stickyOverlayOrderRef = React.useRef<string[]>([])
-  const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode
+  const useStickyOverlayPool =
+    canvas2dRenderer === 'storyboard'
+    || (!flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode)
 
   const mediaNodes = React.useMemo(() => {
     const nodes = mediaRenderNodes
@@ -284,7 +290,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       const key = String(id || '').trim()
       if (!key) return false
       if (!needed.has(key)) return false
-      const node = sceneGraphNodeById?.get(key)
+      const node = canvas2dRenderer === 'storyboard'
+        ? authoritativeGraphNodeById.get(key)
+        : sceneGraphNodeById?.get(key)
       return isRichMediaConnectedValueTargetNode({ node, includeMediaSpecNodes: true })
     }
 
@@ -323,6 +331,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     frontmatterModeEnabled,
     threeIframeOverlayPoolMax,
     useStickyOverlayPool,
+    authoritativeGraphNodeById,
     sceneGraphNodeById,
   ])
 

@@ -250,7 +250,7 @@ export default function FlowEditorCanvasRuntime(
     collapsedGroupIdsForView,
     frontmatterOnlyPolicyActive,
     activeDocumentKey,
-    selectedEdgeId,
+    selectedEdgeId, preferDraftGraphData: storyboardCardsMode,
   })
   const overlayTopologyLayoutSignature = React.useMemo(() => {
     return buildOverlayTopologyLayoutSignature(renderGraphDataOverride || flowEditorBaseGraphData || baseGraphData || null)
@@ -354,10 +354,10 @@ export default function FlowEditorCanvasRuntime(
     setOverlayNodeIdOverride,
   })
 
-  const { appendDraftNode, beginAddEdgeFromNode, finalizePendingEdge } = useFlowEditorGraphActions({
+  const { appendDraftNode, beginAddEdgeFromNode, cancelPendingEdge, finalizePendingEdge } = useFlowEditorGraphActions({
     active,
     draftGraphData,
-    draftGraphDataRef,
+    draftGraphDataRef, setDraftGraphData,
     baseGraphData: (baseGraphData || null) as GraphData | null,
     schema,
     selectedNodeId,
@@ -619,7 +619,7 @@ export default function FlowEditorCanvasRuntime(
   React.useEffect(() => {
     overlayEditorNodeIdsRef.current = overlayEditorNodeIds
   }, [overlayEditorNodeIds])
-  const overlayEdgeHostActive = overlayOnlyActive || hasOverlayEditors
+  const overlayEdgeHostActive = overlayOnlyActive || hasOverlayEditors || storyboardCardsMode
   React.useEffect(() => {
     overlayEdgesEnabledRef.current = overlayEdgeHostActive
     if (!overlayEdgeHostActive) return
@@ -678,7 +678,7 @@ export default function FlowEditorCanvasRuntime(
       noGraphLoaded={surfaceNoGraphLoaded}
       toolMode={toolMode}
       pendingEdgeSourceId={pendingEdgeSourceId}
-      beginAddEdgeFromNode={beginAddEdgeFromNode} finalizePendingEdge={finalizePendingEdge}
+      beginAddEdgeFromNode={beginAddEdgeFromNode} cancelPendingEdge={cancelPendingEdge} finalizePendingEdge={finalizePendingEdge}
       inspectorPortalHost={inspectorPortalHost}
       inspectorElement={inspectorElement}
       widgetRegistry={widgetRegistry}

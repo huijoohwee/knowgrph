@@ -29,6 +29,14 @@ export type MediaOverlayLayoutViewport = {
   height: number
 }
 
+export function initializeMediaOverlayShell(element: HTMLElement, left: number, top: number): void {
+  if (element.dataset.kgOverlayHasPos === '1') return
+  element.style.display = 'none'
+  element.style.transform = `translate(${Math.max(-99999, -left)}px, ${Math.max(-99999, -top)}px)`
+  element.style.width = '1px'
+  element.style.height = '1px'
+}
+
 function resolveMediaOverlayLayoutViewport(args: {
   viewportW: number
   viewportH: number
@@ -76,6 +84,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
+  getNodeWorldTopLeftForId?: (id: string) => { x: number; y: number } | null
   getCollisionObstacles?: () => Array<{ id: string; left: number; top: number; width: number; height: number }>
   sizingConfig: MediaOverlaySizingConfig
   clampToViewport?: { margin: number; marginLeft?: number; marginRight?: number; marginTop?: number; marginBottom?: number } | null
@@ -190,7 +199,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
       const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
 
-      const centerNow = args.getNodeWorldCenterForId(id)
+      const topLeftNow = args.getNodeWorldTopLeftForId?.(id) || null
+      const centerNow = topLeftNow
+        ? { x: topLeftNow.x + w / 2, y: topLeftNow.y + h / 2 }
+        : args.getNodeWorldCenterForId(id)
       if (centerNow && Number.isFinite(centerNow.x) && Number.isFinite(centerNow.y)) {
         lastWorldCenterById.set(id, centerNow)
       }

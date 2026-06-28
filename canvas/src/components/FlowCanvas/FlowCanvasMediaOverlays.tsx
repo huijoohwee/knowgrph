@@ -34,7 +34,7 @@ import {
 import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
-import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { initializeMediaOverlayShell, startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import {
   computePanelFrameResizeFromDrag16x9,
   computePanelFrameSizeFromWidth16x9,
@@ -450,8 +450,7 @@ export default function FlowCanvasMediaOverlays(args: {
       schema: graphSchema,
       snapToGrid: false,
     })
-    node.x = next.x
-    node.y = next.y
+    Object.assign(node, { x: next.x, y: next.y, fx: next.x, fy: next.y, vx: 0, vy: 0 })
     runtime.dirty = true
     positionsDirtySinceCommitRef.current = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
@@ -641,6 +640,7 @@ export default function FlowCanvasMediaOverlays(args: {
         return { w: coerced.width, h: coerced.height }
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
+      getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode ? id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' }) : undefined,
       getNodeWorldCenterForId: id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'topLeft' }),
       getCollisionObstacles: () => {
         const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -733,18 +733,16 @@ export default function FlowCanvasMediaOverlays(args: {
           <section
             key={node.id}
             ref={el => {
-              if (!el) {
-                mediaOverlayElsRef.current.delete(node.id)
-                return
-              }
+              if (!el) { mediaOverlayElsRef.current.delete(node.id); return }
               mediaOverlayElsRef.current.set(node.id, el)
+              initializeMediaOverlayShell(el, mediaViewportMargins.left, mediaViewportMargins.top)
             }}
             className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`}
             data-kg-rich-media-flow-editor-overlay-shell="1"
             data-kg-rich-media-flow-editor-chrome="1"
-            data-kg-rich-media-panel="1"
-            style={{ transform: `translate(${Math.max(-99999, -mediaViewportMargins.left)}px, ${Math.max(-99999, -mediaViewportMargins.top)}px)`, width: 1, height: 1, zIndex: overlayZIndex }}
-            onPointerDownCapture={() => setActiveRichMediaPanelId(node.id)}
+            data-kg-rich-media-panel="1" data-node-id={node.id} data-kg-flow-editor-surface={flowEditorOverlaySurfaceId || undefined}
+            style={{ zIndex: overlayZIndex }}
+            onPointerDownCapture={() => { const id = String(node.id || '').trim(); if (!id) return; setActiveRichMediaPanelId(id); useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: id, selectedNodeIds: [id], selectedEdgeId: null, selectedEdgeIds: [], selectedGroupId: null, selectedGroupIds: [] }) }}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
             <FlowEditorOverlayPortHandles nodeId={node.id} selected={isSelected} />

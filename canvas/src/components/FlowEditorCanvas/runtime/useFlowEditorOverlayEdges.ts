@@ -50,6 +50,7 @@ import {
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 import { resolveFlowEditorFocusedEdgeIds } from '@/lib/flowEditor/flowEditorPortRows'
+import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -1313,28 +1314,27 @@ export function useFlowEditorOverlayEdges(args: {
 
   React.useEffect(() => {
     if (!args.active) return
-    if (!args.overlayOnlyModeEnabled) return
-    const onMove = (e: MouseEvent) => {
+    const writeCursor = (clientX: number, clientY: number, source?: { id: string; portKey: string | null; phase: string } | null) => {
       const root = args.rootRef.current
       if (!root) return
       const rect = root.getBoundingClientRect()
-      const baseLeft = Number.isFinite(rect.left) ? rect.left : null
-      const baseTop = Number.isFinite(rect.top) ? rect.top : null
-      if (baseLeft == null || baseTop == null) return
-      const cx = typeof e.clientX === 'number' && Number.isFinite(e.clientX) ? e.clientX : baseLeft
-      const cy = typeof e.clientY === 'number' && Number.isFinite(e.clientY) ? e.clientY : baseTop
-      pendingEdgeCursorRef.current = { x: cx - baseLeft, y: cy - baseTop, ts: Date.now() }
+      if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return
+      if (source) pendingEdgePreviewRef.current = source.phase === 'cancel' ? { toolMode: 'select', sourceId: null, sourcePortKey: null } : { toolMode: 'addEdge', sourceId: source.id, sourcePortKey: source.portKey }
+      const x = (Number.isFinite(clientX) ? clientX : rect.left) - rect.left
+      const y = (Number.isFinite(clientY) ? clientY : rect.top) - rect.top
+      pendingEdgeCursorRef.current = { x, y, ts: Date.now() }
+      overlayEdgeLayoutSigRef.current = ''
       scheduleOverlayEdgeUpdate()
     }
-    window.addEventListener('mousemove', onMove, { passive: true })
-    return () => {
-      try {
-        window.removeEventListener('mousemove', onMove)
-      } catch {
-        void 0
-      }
+    const onMove = (e: MouseEvent | PointerEvent) => writeCursor(e.clientX, e.clientY)
+    const onPreview = (event: Event) => {
+      const detail = (event as CustomEvent<FlowPortHandlePreviewDetail>).detail
+      const id = String(detail?.sourceNodeId || '').trim(); if (id) writeCursor(detail.clientX, detail.clientY, { id, portKey: String(detail.sourcePortKey || '').trim() || null, phase: detail.phase })
     }
-  }, [args.active, args.overlayOnlyModeEnabled, args.rootRef, scheduleOverlayEdgeUpdate])
+    window.addEventListener('mousemove', onMove, { passive: true })
+    document.addEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, onPreview)
+    return () => { try { window.removeEventListener('mousemove', onMove); document.removeEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, onPreview) } catch { void 0 } }
+  }, [args.active, args.rootRef, scheduleOverlayEdgeUpdate])
 
   React.useEffect(() => {
     if (!args.active) return

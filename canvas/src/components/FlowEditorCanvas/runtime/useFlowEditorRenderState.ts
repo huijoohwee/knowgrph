@@ -19,6 +19,7 @@ export function useFlowEditorRenderState(args: {
   frontmatterOnlyPolicyActive: boolean
   activeDocumentKey: string
   selectedEdgeId: string | null
+  preferDraftGraphData?: boolean
 }) {
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
@@ -61,7 +62,9 @@ export function useFlowEditorRenderState(args: {
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
     const baseForRender = args.flowEditorBaseGraphData || args.baseGraphData
-    const graphDataForRender = args.flowEditorViewActive
+    const graphDataForRender = args.preferDraftGraphData
+      ? (draftGraphData || baseForRender)
+      : args.flowEditorViewActive
       ? (
           shouldPreferScopedGraphDataAuthority({
             candidateGraphData: draftGraphData,
@@ -82,6 +85,7 @@ export function useFlowEditorRenderState(args: {
     args.flowEditorViewActive,
     args.flowEditorBaseGraphData,
     args.frontmatterOnlyPolicyActive,
+    args.preferDraftGraphData,
     draftGraphData,
   ])
   const rawRenderGraphTopologyLayoutSignature = React.useMemo(() => {

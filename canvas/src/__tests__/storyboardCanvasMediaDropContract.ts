@@ -26,13 +26,26 @@ export function assertStoryboard2dMediaDropContract() {
   if (!flowCanvasGraphStateSource.includes("...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot)")) {
     throw new Error('expected Storyboard Rich Media Panel overlays to stay visible when click-selection auto-opens the node')
   }
+  for (const snippet of [
+    'const authoritativeGraphNodeById = React.useMemo(() => {',
+    "const node = canvas2dRenderer === 'storyboard'",
+    '? authoritativeGraphNodeById.get(key)',
+  ]) {
+    if (!flowCanvasGraphStateSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Rich Media Panel retention to validate against the authoritative pre-projection graph: ${snippet}`)
+    }
+  }
   if (
     !graphStoryboardOverlaySource.includes("const requestZoom = useGraphStore(s => s.requestZoom)")
     || !graphStoryboardOverlaySource.includes("requestZoom('fit', { intent: 'fitToView' })")
     || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef')
+    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== zoomViewKey')
     || !flowEditorSurfaceSource.includes('zoomViewKeyRef={props.zoomViewKeyRef}')
   ) {
     throw new Error('expected Storyboard 2D fixed-card overlay to seed offscreen startup through the shared FlowCanvas zoom request path')
+  }
+  if (graphStoryboardOverlaySource.includes('`${zoomViewKey}:${graphRevision}')) {
+    throw new Error('expected Storyboard graph mutations not to re-arm initial fit and move media drops away from the release point')
   }
   if (
     graphStoryboardOverlaySource.includes('commitZoomTransformToStore')
@@ -53,6 +66,9 @@ export function assertStoryboard2dMediaDropContract() {
   for (const snippet of [
     'projectWithWorldTransformScale?: boolean',
     'args.projectWithWorldTransformScale === true',
+    'getNodeWorldTopLeftForId?: (id: string)',
+    'topLeftNow.x + w / 2',
+    'topLeftNow.y + h / 2',
     'left: t.applyX(center.x - w / 2)',
     'top: t.applyY(center.y - h / 2)',
     'applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: \'block\', scale: nextBox.scale })',
@@ -68,6 +84,8 @@ export function assertStoryboard2dMediaDropContract() {
   for (const snippet of [
     "const storyboardSharedSurfaceRendererMode = canvas2dRenderer === 'storyboard'",
     'projectWithWorldTransformScale: storyboardSharedSurfaceRendererMode',
+    'getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode',
+    "? id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' })",
     'if (storyboardSharedSurfaceRendererMode) return override',
     'w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width',
     'h: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height',
@@ -76,6 +94,20 @@ export function assertStoryboard2dMediaDropContract() {
     if (!flowCanvasMediaOverlaysSource.includes(snippet)) {
       throw new Error(`expected Storyboard Rich Media Panels to reuse card-sized world geometry during pan/drag/zoom/resize: ${snippet}`)
     }
+  }
+  for (const snippet of [
+    'initializeMediaOverlayShell(el, mediaViewportMargins.left, mediaViewportMargins.top)',
+    'style={{ zIndex: overlayZIndex }}',
+  ]) {
+    if (!flowCanvasMediaOverlaysSource.includes(snippet)) {
+      throw new Error(`expected shared Rich Media Panel shells to preserve imperative projection across interaction rerenders: ${snippet}`)
+    }
+  }
+  for (const snippet of ["if (element.dataset.kgOverlayHasPos === '1') return", "element.style.display = 'none'"]) {
+    if (!mediaOverlayLayoutLoopSource.includes(snippet)) throw new Error(`expected shared media layout owner to initialize newly mounted overlay shells once: ${snippet}`)
+  }
+  if (flowCanvasMediaOverlaysSource.includes('style={{ transform: `translate(')) {
+    throw new Error('expected React not to overwrite the shared Rich Media Panel projection transform during pan/drag/zoom rerenders')
   }
   for (const snippet of [
     'CardMediaPreview',

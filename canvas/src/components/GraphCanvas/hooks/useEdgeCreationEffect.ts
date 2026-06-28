@@ -9,6 +9,7 @@ import {
   PendingLink,
   TempLinkSelection,
 } from '@/features/edge-creation'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 
 interface UseEdgeCreationEffectProps {
   paused?: boolean
@@ -29,6 +30,10 @@ export function useEdgeCreationEffect({
         const state = useGraphStore.getState()
         const graphData = state.graphData as GraphData | null
         if (!edgeCreationRequest || !graphData) return
+        // Storyboard cards and rich-media panels use the shared Flow Editor
+        // overlay authoring state so their semantic port handles remain the
+        // source and target owners for the entire interaction.
+        if (edgeCreationRequest.type === 'create' && isStoryboardCanvas2dRenderer(state.canvas2dRenderer)) return
         const graphSemanticKey = buildScopedGraphSemanticKey('graph-canvas-edge-creation-effect-graph', {
           graphData,
           graphRevision: state.graphDataRevision || 0,

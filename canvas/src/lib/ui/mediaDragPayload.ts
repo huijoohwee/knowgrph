@@ -114,6 +114,20 @@ export function hasMediaDragPayload(dataTransfer: DataTransfer): boolean {
   return types.includes(MEDIA_DRAG_PAYLOAD_MIME) || types.includes('text/uri-list') || types.includes('text/plain')
 }
 
+export function resolveMediaPointerReleaseClientPoint(args: {
+  eventType: string
+  eventClientX: number
+  eventClientY: number
+  lastClientX: number
+  lastClientY: number
+}): { clientX: number; clientY: number } {
+  const useEventPoint = args.eventType !== 'dragend' && Number.isFinite(args.eventClientX) && Number.isFinite(args.eventClientY)
+  return {
+    clientX: useEventPoint || !Number.isFinite(args.lastClientX) ? args.eventClientX : args.lastClientX,
+    clientY: useEventPoint || !Number.isFinite(args.lastClientY) ? args.eventClientY : args.lastClientY,
+  }
+}
+
 export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?: { clientX: number; clientY: number }): void {
   const normalized = normalizeMediaDragPayload(payload)
   if (!normalized || typeof window === 'undefined') return
@@ -166,9 +180,14 @@ export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?:
   }
   const handleRelease = (event: PointerEvent | MouseEvent | DragEvent) => {
     const currentWindow = window as MediaDragWindow
-    const releaseClientX = Number.isFinite(currentWindow.__kgMediaPointerDragLastClientX) ? currentWindow.__kgMediaPointerDragLastClientX! : event.clientX
-    const releaseClientY = Number.isFinite(currentWindow.__kgMediaPointerDragLastClientY) ? currentWindow.__kgMediaPointerDragLastClientY! : event.clientY
-    finishMediaPointerDragPayloadAt(releaseClientX, releaseClientY)
+    const release = resolveMediaPointerReleaseClientPoint({
+      eventType: event.type,
+      eventClientX: event.clientX,
+      eventClientY: event.clientY,
+      lastClientX: currentWindow.__kgMediaPointerDragLastClientX ?? Number.NaN,
+      lastClientY: currentWindow.__kgMediaPointerDragLastClientY ?? Number.NaN,
+    })
+    finishMediaPointerDragPayloadAt(release.clientX, release.clientY)
   }
   mediaWindow.__kgMediaPointerDragPayload = normalized
   mediaWindow.__kgMediaPointerDragClear = clear

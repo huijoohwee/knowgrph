@@ -184,6 +184,7 @@ function StoryboardCardOverlayItem(props: {
   card: StoryboardCardModel
   node: GraphNode
   pendingMedia: StoryboardCardModel['media']
+  flowEditorSurfaceId: string
   register: (id: string, el: HTMLElement | null) => void
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void
   onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void
@@ -196,7 +197,7 @@ function StoryboardCardOverlayItem(props: {
   onSelect: (card: StoryboardCardModel) => void
   selected: boolean
 }) {
-  const { card, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected } = props
+  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected } = props
   const { width, height } = readNodeCardSize(node)
   const rows = buildCardRows(card)
   const displayMedia = pendingMedia || card.media
@@ -229,6 +230,8 @@ function StoryboardCardOverlayItem(props: {
       data-kg-storyboard-fixed-card-id={card.id}
       data-kg-storyboard-fixed-card-lane={card.lane || 'Storyboard'}
       data-kg-storyboard-fixed-card-rich-media-chrome="1"
+      data-node-id={card.id}
+      data-kg-flow-editor-surface={flowEditorSurfaceId}
       onClickCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
       onPointerDownCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
       style={{
@@ -324,6 +327,7 @@ function StoryboardCardOverlayItem(props: {
 
 export function StoryboardCardOverlayLayer2d(props: {
   active: boolean
+  flowEditorSurfaceId: string
   graphData: GraphData | null
   graphRevision: number
   getTransform: () => FlowEditorOverlayDragTransform | null
@@ -331,7 +335,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
   zoomViewKeyRef: React.MutableRefObject<string | null>
 }) {
-  const { active, getTransform, graphData, graphRevision, schema, widgetRegistry, zoomViewKeyRef } = props
+  const { active, flowEditorSurfaceId, getTransform, graphData, graphRevision, schema, widgetRegistry, zoomViewKeyRef } = props
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -505,10 +509,9 @@ export function StoryboardCardOverlayLayer2d(props: {
         pending.push({ card, el, node, x, y, width, height })
       }
       const zoomViewKey = String(zoomViewKeyRef.current || '').trim()
-      const initialFitKey = `${zoomViewKey}:${graphRevision}:${viewport.width}x${viewport.height}:${cards.length}`
-      if (visibleCardCount === 0 && zoomViewKey && initialFitCommitKeyRef.current !== initialFitKey) {
-        initialFitCommitKeyRef.current = initialFitKey
-        requestZoom('fit', { intent: 'fitToView' })
+      if (zoomViewKey && initialFitCommitKeyRef.current !== zoomViewKey) {
+        initialFitCommitKeyRef.current = zoomViewKey
+        if (visibleCardCount === 0) requestZoom('fit', { intent: 'fitToView' })
       }
       for (let i = 0; i < pending.length; i += 1) {
         const { el, x, y, width, height } = pending[i]!
@@ -546,6 +549,7 @@ export function StoryboardCardOverlayLayer2d(props: {
           <StoryboardCardOverlayItem
             key={card.id}
             card={card}
+            flowEditorSurfaceId={flowEditorSurfaceId}
             node={node}
             pendingMedia={pendingMediaByCardId[card.id] || null}
             onCommitLane={commitLane}

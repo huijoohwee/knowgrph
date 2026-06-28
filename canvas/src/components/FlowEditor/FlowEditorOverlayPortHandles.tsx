@@ -4,6 +4,17 @@ import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverla
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import {
+  FLOW_PORT_HANDLE_CANCEL_EVENT,
+  FLOW_PORT_HANDLE_FINALIZE_EVENT,
+  FLOW_PORT_HANDLE_SELECTOR,
+  readFlowPortHandleAtClientPoint,
+  startFlowPortHandleMouseDrag,
+  startFlowPortHandlePointerDrag,
+  type FlowPortHandleCancelDetail,
+  type FlowPortHandleFinalizeDetail,
+} from '@/components/FlowEditor/flowPortHandlePointerDrag'
 
 type PortHandleInteractionContextValue = {
   active: boolean
@@ -13,6 +24,7 @@ type PortHandleInteractionContextValue = {
   schema: GraphSchema | null
   toolMode: 'select' | 'addEdge'
   beginEdge: (nodeId: string, portKey?: string | null) => void
+  cancelEdge: () => void
   finalizeEdge: (nodeId: string, portKey?: string | null) => void
 }
 
@@ -20,6 +32,63 @@ const PortHandleInteractionContext = React.createContext<PortHandleInteractionCo
 
 export function FlowEditorOverlayPortHandleProvider(props: React.PropsWithChildren<PortHandleInteractionContextValue>) {
   const { children, ...value } = props
+  const lastCoveredPointerActivationAtRef = React.useRef(0)
+  React.useEffect(() => {
+    if (!value.active || typeof document === 'undefined') return undefined
+    const consumeCoveredHandleEvent = (event: PointerEvent | MouseEvent) => {
+      if (event.button !== 0) return
+      const target = event.target instanceof Element ? event.target : null
+      if (target?.closest(FLOW_PORT_HANDLE_SELECTOR)) return
+      const sourceHandle = readFlowPortHandleAtClientPoint({
+        clientX: event.clientX,
+        clientY: event.clientY,
+        dir: 'out',
+      })
+      if (!sourceHandle || sourceHandle.disabled) return
+      const sourceNodeId = String(sourceHandle.dataset.kgPortNodeId || '').trim()
+      if (!sourceNodeId) return
+      const sourcePortKey = String(sourceHandle.dataset.kgPortKey || '').trim() || null
+      try {
+        event.preventDefault()
+        event.stopPropagation()
+        event.stopImmediatePropagation()
+      } catch {
+        void 0
+      }
+      if ('pointerId' in event) {
+        lastCoveredPointerActivationAtRef.current = Date.now()
+        startFlowPortHandlePointerDrag({ event, sourceNodeId, sourcePortKey })
+      } else {
+        if (Date.now() - lastCoveredPointerActivationAtRef.current < 120) return
+        lastCoveredPointerActivationAtRef.current = Date.now()
+        startFlowPortHandleMouseDrag({ event, sourceNodeId, sourcePortKey })
+      }
+      value.beginEdge(sourceNodeId, sourcePortKey)
+    }
+    const handleFinalize = (event: Event) => {
+      const detail = (event as CustomEvent<FlowPortHandleFinalizeDetail>).detail
+      const targetNodeId = String(detail?.targetNodeId || '').trim()
+      if (!targetNodeId) return
+      event.preventDefault()
+      value.finalizeEdge(targetNodeId, detail.targetPortKey)
+    }
+    const handleCancel = (event: Event) => {
+      const detail = (event as CustomEvent<FlowPortHandleCancelDetail>).detail
+      if (!String(detail?.sourceNodeId || '').trim()) return
+      event.preventDefault()
+      value.cancelEdge()
+    }
+    window.addEventListener('pointerdown', consumeCoveredHandleEvent, { passive: false, capture: true })
+    window.addEventListener('mousedown', consumeCoveredHandleEvent, { passive: false, capture: true })
+    document.addEventListener(FLOW_PORT_HANDLE_FINALIZE_EVENT, handleFinalize)
+    document.addEventListener(FLOW_PORT_HANDLE_CANCEL_EVENT, handleCancel)
+    return () => {
+      window.removeEventListener('pointerdown', consumeCoveredHandleEvent, true)
+      window.removeEventListener('mousedown', consumeCoveredHandleEvent, true)
+      document.removeEventListener(FLOW_PORT_HANDLE_FINALIZE_EVENT, handleFinalize)
+      document.removeEventListener(FLOW_PORT_HANDLE_CANCEL_EVENT, handleCancel)
+    }
+  }, [value.active, value.beginEdge, value.cancelEdge, value.finalizeEdge])
   return <PortHandleInteractionContext.Provider value={value}>{children}</PortHandleInteractionContext.Provider>
 }
 
@@ -30,7 +99,7 @@ export function FlowEditorOverlayPortHandles(props: {
 }) {
   const interaction = React.useContext(PortHandleInteractionContext)
   const nodeId = String(props.node?.id || props.nodeId || '').trim()
-  const node = props.node || interaction?.graphData?.nodes?.find(candidate => String(candidate?.id || '').trim() === nodeId) || null
+  const node = props.node || resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)
   const visible = props.selected || Boolean(interaction?.pendingEdgeSourceId)
   if (!interaction || !interaction.active || !visible || !node) return null
 

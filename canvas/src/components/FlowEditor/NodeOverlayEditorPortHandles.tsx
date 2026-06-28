@@ -18,6 +18,7 @@ import { formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flo
 import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import { startFlowPortHandleMouseDrag, startFlowPortHandlePointerDrag } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 import { Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -186,6 +187,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     return getNodeRectDimensions2d(n, args.schema || ({ behavior: {} } as GraphSchema))
   }, [args.node?.id, args.node?.properties, args.node?.type, args.schema])
   const lastPointerActivationAtRef = React.useRef(0)
+  const suppressNextPointerClickRef = React.useRef(false)
 
   const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
@@ -195,17 +197,18 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     nodeWidth: nodeDims.width,
     nodeHeight: nodeDims.height,
   })
+  const edgeDotHitOffsetPx = sizePx
   const renderDot = shouldRenderNodePortHandleAsDot(sizePx)
 
   const isAddEdge = args.toolMode === 'addEdge'
-  const isSource = isAddEdge && args.pendingEdgeSourceId === nodeId
+  const isSource = isAddEdge && isCanonicalNodeIdEqual(args.pendingEdgeSourceId, nodeId)
 
   const canClickHandle = (dir: 'in' | 'out'): boolean => {
     if (!args.active) return false
     if (args.toolMode !== 'addEdge') return dir === 'out'
     const pending = String(args.pendingEdgeSourceId || '').trim()
     if (!pending) return dir === 'out'
-    if (pending === nodeId) return dir === 'out'
+    if (isCanonicalNodeIdEqual(pending, nodeId)) return dir === 'out'
     return true
   }
 
@@ -225,7 +228,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
       return
     }
 
-    if (args.pendingEdgeSourceId === nodeId) {
+    if (isCanonicalNodeIdEqual(args.pendingEdgeSourceId, nodeId)) {
       if (dir === 'in') return
       args.onBeginAddEdgeFromNode?.(nodeId, pk)
       return
@@ -267,12 +270,12 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
         className={cn('absolute pointer-events-auto', cursorClass)}
         style={{
           top: `${Math.max(0, Math.min(100, p.topPct))}%`,
-          width: `${railWidthPx}px`,
+          width: `${railWidthPx + edgeDotHitOffsetPx}px`,
           height: `${hitSizePx}px`,
           minWidth: `${PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX}px`,
           minHeight: `${PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX}px`,
           transform: 'translateY(-50%)',
-          ...(isIn ? { left: 0 } : { right: 0 }),
+          ...(isIn ? { left: `-${edgeDotHitOffsetPx}px` } : { right: `-${edgeDotHitOffsetPx}px` }),
         }}
         onPointerDown={e => {
           try {
@@ -281,9 +284,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             void 0
           }
           if (!clickable) return
+          suppressNextPointerClickRef.current = true
           lastPointerActivationAtRef.current = Date.now()
+          if (p.dir === 'out') startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
-          if (p.dir === 'out') startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId })
         }}
         onMouseDown={e => {
           try {
@@ -293,9 +297,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           }
           if (!clickable) return
           if (Date.now() - lastPointerActivationAtRef.current < 120) return
+          suppressNextPointerClickRef.current = true
           lastPointerActivationAtRef.current = Date.now()
+          if (p.dir === 'out') startFlowPortHandleMouseDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
-          if (p.dir === 'out') startFlowPortHandleMouseDrag({ event: e, sourceNodeId: nodeId })
         }}
         onClick={e => {
           try {
@@ -303,7 +308,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           } catch {
             void 0
           }
-          if (e.detail !== 0 && Date.now() - lastPointerActivationAtRef.current < 120) return
+          if (e.detail !== 0 && suppressNextPointerClickRef.current) {
+            suppressNextPointerClickRef.current = false
+            return
+          }
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         disabled={!clickable}
@@ -321,7 +329,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             width: `${sizePx}px`,
             height: `${sizePx}px`,
             transform: isIn ? 'translate(-50%, -50%)' : 'translate(50%, -50%)',
-            ...(isIn ? { left: 0 } : { right: 0 }),
+            ...(isIn ? { left: `${edgeDotHitOffsetPx}px` } : { right: `${edgeDotHitOffsetPx}px` }),
             ...(renderDot ? { borderWidth: '0px', backgroundColor: stroke || undefined } : stroke ? { borderColor: stroke } : {}),
           }}
         />

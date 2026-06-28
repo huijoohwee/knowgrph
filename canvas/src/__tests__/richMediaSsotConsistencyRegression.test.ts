@@ -280,7 +280,9 @@ export function testRichMediaSsotConsistencyRegression() {
   const markdownWorkspaceViewShellText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceViewShell.tsx'), 'utf8')
   const workspaceUrlContentText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'workspaceImport', 'urlContent.ts'), 'utf8')
   const markdownWorkspaceWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'presentation', 'MarkdownWorkspaceWebpageSurface.tsx'), 'utf8')
-  const richMediaPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const richMediaPanelContentStackText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelContentStack.tsx'), 'utf8')
+  const richMediaPanelIframeSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelIframeSurface.tsx'), 'utf8')
+  const richMediaPanelDirectMediaSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelDirectMediaSurface.tsx'), 'utf8')
   const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
@@ -346,8 +348,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowEditorOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
     throw new Error('expected FlowEditor overlay surface to reuse the upstream Rich Media connected-value target helper')
   }
-  if (!flowCanvasGraphStateText.includes('const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode')) {
-    throw new Error('expected FlowCanvas Rich Media overlay pool to disable sticky carryover in Flow Editor/frontmatter collective modes')
+  if (!flowCanvasGraphStateText.includes("canvas2dRenderer === 'storyboard'\n    || (!flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode)")) {
+    throw new Error('expected FlowCanvas Rich Media overlay pool to stay stable in Storyboard and disable sticky carryover in other Flow Editor/frontmatter collective modes')
   }
   if (!flowCanvasGraphStateText.includes('if (!useStickyOverlayPool) {')) {
     throw new Error('expected FlowCanvas Rich Media overlay pool to follow the live suggested overlay set directly in Flow Editor/frontmatter collective modes')
@@ -558,11 +560,20 @@ export function testRichMediaSsotConsistencyRegression() {
   if (markdownWorkspaceWebpageSurfaceText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")) {
     throw new Error('expected markdown workspace webpage surfaces to stop rendering snapshot previews directly after shared-surface extraction')
   }
-  if (!richMediaPanelText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")) {
-    throw new Error('expected RichMediaPanel iframe/webpage branches to reuse the shared webpage surface helper')
+  if (!richMediaPanelContentStackText.includes('RichMediaPanelIframeSurface') || !richMediaPanelContentStackText.includes('RichMediaPanelDirectMediaSurface')) {
+    throw new Error('expected RichMediaPanel content stack to delegate iframe/webpage rendering through dedicated shared-surface seams')
   }
-  if (richMediaPanelText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")) {
-    throw new Error('expected RichMediaPanel to stop importing snapshot preview directly after shared-surface extraction')
+  if (
+    !richMediaPanelIframeSurfaceText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")
+    || !richMediaPanelDirectMediaSurfaceText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")
+  ) {
+    throw new Error('expected RichMediaPanel iframe/webpage seams to reuse the shared webpage surface helper')
+  }
+  if (
+    richMediaPanelIframeSurfaceText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")
+    || richMediaPanelDirectMediaSurfaceText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")
+  ) {
+    throw new Error('expected RichMediaPanel iframe/webpage seams to stop importing snapshot preview directly after shared-surface extraction')
   }
   if (!markdownMediaUiText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")) {
     throw new Error('expected markdown media iframe rendering to reuse the shared webpage surface helper')

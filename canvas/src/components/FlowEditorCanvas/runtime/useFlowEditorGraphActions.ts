@@ -8,11 +8,42 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
+import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
+
+function readDraftRevisionFloor(graphData: GraphData | null | undefined): number {
+  const raw = (graphData?.metadata || {}) as Record<string, unknown>
+  const revision = raw && typeof raw.graphDataRevision === 'number' && Number.isFinite(raw.graphDataRevision)
+    ? raw.graphDataRevision
+    : 0
+  return Math.max(0, Math.floor(revision))
+}
+
+export function resolveFlowEditorEdgeAuthoringNodeId(graphData: GraphData | null, rawNodeId: unknown): string | null {
+  return String(resolveGraphNodeByCanonicalId(graphData, rawNodeId)?.id || '').trim() || null
+}
+
+export function appendFlowEditorDraftNode(graphData: GraphData, node: GraphNode, opts?: { revisionFloor?: number | null }): GraphData {
+  const id = String(node?.id || '').trim()
+  if (!id) return graphData
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  if (nodes.some(candidate => String(candidate.id || '') === id)) return graphData
+  return bumpFlowEditorDraftGraphDataRevision(
+    { ...graphData, nodes: [...nodes, node], edges: Array.isArray(graphData.edges) ? graphData.edges : [] },
+    opts,
+  )
+}
+
+export function appendFlowEditorAuthoredEdge(graphData: GraphData, edge: GraphData['edges'][number], opts?: { revisionFloor?: number | null }): GraphData {
+  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+  if (edges.some(candidate => String(candidate.id || '') === String(edge.id || ''))) return graphData
+  return bumpFlowEditorDraftGraphDataRevision({ ...graphData, edges: [...edges, edge] }, opts)
+}
 
 export function useFlowEditorGraphActions(args: {
   active: boolean
   draftGraphData: GraphData | null
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
+  setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
   baseGraphData: GraphData | null
   schema: GraphSchema
   selectedNodeId: string | null
@@ -96,13 +127,11 @@ export function useFlowEditorGraphActions(args: {
 
   const beginAddEdgeFromNode = React.useCallback(
     (nodeId: string, portKey?: string | null) => {
-      const id = String(nodeId || '').trim()
-      if (!id) return
       if (!args.active) return
       const authoringGraphData = readAuthoringGraphData()
       if (!authoringGraphData) return
-      const nodeIds = new Set((authoringGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
-      if (!nodeIds.has(id)) return
+      const id = resolveFlowEditorEdgeAuthoringNodeId(authoringGraphData, nodeId)
+      if (!id) return
       const nodeById = new Map((authoringGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
       const node = nodeById.get(id) || null
       const explicit = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
@@ -119,15 +148,13 @@ export function useFlowEditorGraphActions(args: {
 
   const finalizePendingEdge = React.useCallback(
     (nodeId: string, portKey?: string | null) => {
-      const id = String(nodeId || '').trim()
-      if (!id) return
       if (!args.active) return
       if (args.toolMode !== 'addEdge') return
       const authoringGraphData = readAuthoringGraphData()
       if (!authoringGraphData) return
+      const id = resolveFlowEditorEdgeAuthoringNodeId(authoringGraphData, nodeId)
+      if (!id) return
       const baseNodeIds = readCommittedNodeIds()
-      const nodeIds = new Set((authoringGraphData.nodes || []).map(node => String(node.id || '')).filter(Boolean))
-      if (!nodeIds.has(id)) return
       if (!args.pendingEdgeSourceId) {
         args.setPendingEdgeSourceId(id)
         args.setPendingEdgeSourcePortKey(null)
@@ -184,8 +211,20 @@ export function useFlowEditorGraphActions(args: {
         const targetNode = nodeById.get(id) || null
         if (sourceNode && !baseNodeIds.has(String(sourceNode.id || ''))) args.addNode(sourceNode)
         if (targetNode && !baseNodeIds.has(String(targetNode.id || ''))) args.addNode(targetNode)
+        const revisionFloor = Math.max(
+          readDraftRevisionFloor(authoringGraphData),
+          readDraftRevisionFloor(args.draftGraphDataRef.current),
+          readDraftRevisionFloor(readLiveGraphData()),
+          readDraftRevisionFloor(args.baseGraphData),
+        )
+        const nextDraftGraphData = appendFlowEditorAuthoredEdge(authoringGraphData, result.edge, { revisionFloor })
+        args.draftGraphDataRef.current = nextDraftGraphData
+        args.setDraftGraphData(nextDraftGraphData)
         args.addEdge(result.edge)
         materializeConnectedMediaValue({ sourceNode, targetNode, sourcePort, targetPort })
+        args.setSelectionSource('canvas')
+        args.selectEdge(String(result.edge.id || ''))
+        args.selectNode(null)
         args.setPendingEdgeSourceId(null)
         args.setPendingEdgeSourcePortKey(null)
         args.setToolMode('select')
@@ -193,6 +232,13 @@ export function useFlowEditorGraphActions(args: {
     },
     [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds],
   )
+
+  const cancelPendingEdge = React.useCallback(() => {
+    if (!args.active) return
+    args.setPendingEdgeSourceId(null)
+    args.setPendingEdgeSourcePortKey(null)
+    args.setToolMode('select')
+  }, [args])
 
   React.useEffect(() => {
     if (!args.active) return
@@ -238,15 +284,32 @@ export function useFlowEditorGraphActions(args: {
       })?.id
       const actualId = String(exactId || composedId || insertedId || '').trim()
       if (!actualId) return ''
+      const liveGraphData = readLiveGraphData()
+      const revisionFloor = Math.max(
+        readDraftRevisionFloor(base),
+        readDraftRevisionFloor(liveGraphData),
+        readDraftRevisionFloor(args.baseGraphData),
+      )
+      const draftNode: GraphNode = { ...nextNode, id: actualId }
+      const nextDraftGraphData = appendFlowEditorDraftNode(
+        (args.draftGraphDataRef.current || liveGraphData || base) as GraphData,
+        draftNode,
+        { revisionFloor },
+      )
+      if (nextDraftGraphData !== args.draftGraphDataRef.current) {
+        args.draftGraphDataRef.current = nextDraftGraphData
+        args.setDraftGraphData(nextDraftGraphData)
+      }
       args.pendingSelectNodeIdRef.current = actualId
       return actualId
     },
-    [args],
+    [args, readLiveGraphData],
   )
 
   return {
     appendDraftNode,
     beginAddEdgeFromNode,
+    cancelPendingEdge,
     finalizePendingEdge,
   }
 }

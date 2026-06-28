@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 export function testFlowEditorFrontmatterRichMediaOverlayPoolDisablesStickyCarryover() {
   const graphStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const text = readFileSync(graphStatePath, 'utf8')
-  if (!text.includes('const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode')) {
-    throw new Error('expected Flow Editor/frontmatter Rich Media overlay pool to disable sticky carryover state')
+  if (!text.includes("canvas2dRenderer === 'storyboard'\n    || (!flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode)")) {
+    throw new Error('expected Storyboard to preserve Rich Media overlays across transient interaction frames while Flow Editor/frontmatter disable sticky carryover')
   }
   if (!text.includes('if (!useStickyOverlayPool) {')) {
     throw new Error('expected Flow Editor/frontmatter Rich Media overlay pool to follow the live suggested overlay set directly')
@@ -54,8 +54,8 @@ export function testFlowEditorOverlayEdgesReuseStableGraphForMetadataLessHandoff
   const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
   const text = readFileSync(edgePath, 'utf8')
   const surfaceText = readFileSync(surfacePath, 'utf8')
-  if (!surfaceText.includes('{(props.overlayOnlyActive || props.hasOverlayEditors) && (')) {
-    throw new Error('expected Flow Editor overlay edge host to stay mounted whenever overlay editors are visible')
+  if (!surfaceText.includes('{(props.overlayOnlyActive || props.hasOverlayEditors || storyboardCardsActive) && (')) {
+    throw new Error('expected Flow Editor overlay edge host to stay mounted whenever overlay editors are visible or storyboard cards are active')
   }
   if (!text.includes('const liveGraphMetaKind = String(((liveGraph?.metadata || {}) as Record<string, unknown>).kind || \'\').trim()')) {
     throw new Error('expected Flow Editor overlay edges to inspect live graph metadata before accepting handoff graphs')

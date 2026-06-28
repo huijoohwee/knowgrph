@@ -44,6 +44,7 @@ import {
 import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
+import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   clearMediaPointerDragPayload,
@@ -294,8 +295,8 @@ export function useFlowEditorWidgetDropBridge(args: {
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {
     const mediaUrl = String(payload.media.url || '').trim()
     if (!mediaUrl) return ''
-    const x = Number.isFinite(payload.x) ? payload.x : 0
-    const y = Number.isFinite(payload.y) ? payload.y : 0
+    const x = (Number.isFinite(payload.x) ? payload.x : 0) - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 2
+    const y = (Number.isFinite(payload.y) ? payload.y : 0) - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2
     const label = String(payload.media.label || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
     const base: GraphData = args.draftGraphDataRef.current || (args.baseGraphData || { context: '', type: 'Graph', nodes: [], edges: [] })
     const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
@@ -308,6 +309,10 @@ export function useFlowEditorWidgetDropBridge(args: {
       label,
       x,
       y,
+      fx: x,
+      fy: y,
+      vx: 0,
+      vy: 0,
       properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }),
     })
     if (!actualId) {
@@ -323,7 +328,7 @@ export function useFlowEditorWidgetDropBridge(args: {
     args.setLastDroppedWidgetToken(Date.now())
     useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: actualId, selectedEdgeId: null, selectedGroupId: null, selectedNodeIds: [actualId], selectedEdgeIds: [], selectedGroupIds: [] })
     args.scheduleForceSelect(actualId, { minHoldMs: 700 })
-    args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
+    args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, fx: x, fy: y, vx: 0, vy: 0, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
     args.pendingOpenWidgetNodeIdRef.current = actualId
     return actualId
   }, [args])
