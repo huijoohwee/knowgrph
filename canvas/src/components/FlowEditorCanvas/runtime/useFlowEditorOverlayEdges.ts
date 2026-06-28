@@ -533,10 +533,31 @@ export function useFlowEditorOverlayEdges(args: {
       const liveGraphNodeCount = Array.isArray(liveGraph?.nodes) ? liveGraph.nodes.length : 0
       const liveGraphEdgeCount = Array.isArray(liveGraph?.edges) ? liveGraph.edges.length : 0
       const liveGraphMetaKind = String(((liveGraph?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+      const liveGraphRevision = readGraphDataRevision(liveGraph)
       const stableGraph = lastStableOverlayEdgeGraphRef.current
       const stableGraphNodeCount = Array.isArray(stableGraph?.nodes) ? stableGraph.nodes.length : 0
       const stableGraphEdgeCount = Array.isArray(stableGraph?.edges) ? stableGraph.edges.length : 0
+      const stableGraphRevision = readGraphDataRevision(stableGraph)
       const withinWorkspaceCloseRecoveryWindow = now <= overlayEdgeWorkspaceCloseRecoveryUntilRef.current
+      const canReuseMetadataLessStableGraph =
+        !!liveGraph
+        && liveGraphNodeCount > 0
+        && liveGraphEdgeCount > 0
+        && !liveGraphMetaKind
+        && lastStableOverlayEdgeNodeIdsRef.current.length > 0
+        && (
+          (
+            liveGraphRevision > 0
+            && stableGraphRevision > 0
+            && liveGraphRevision === stableGraphRevision
+          )
+          || (
+            liveGraphRevision === 0
+            && stableGraphRevision === 0
+            && liveGraphNodeCount === stableGraphNodeCount
+            && liveGraphEdgeCount === stableGraphEdgeCount
+          )
+        )
       const shouldReuseStableGraph =
         !!stableGraph
         && stableGraphNodeCount > 0
@@ -545,11 +566,7 @@ export function useFlowEditorOverlayEdges(args: {
           workspaceOverlayOpen
           || withinWorkspaceCloseRecoveryWindow
           || (
-            !!liveGraph
-            && liveGraphNodeCount > 0
-            && liveGraphEdgeCount > 0
-            && !liveGraphMetaKind
-            && lastStableOverlayEdgeNodeIdsRef.current.length > 0
+            canReuseMetadataLessStableGraph
           )
         )
         && (
@@ -774,7 +791,7 @@ export function useFlowEditorOverlayEdges(args: {
       })
       const overlayNodeById = buildFrontmatterOverlayNodeLookup(nodes)
 
-      if (nodeIds.size === 0 || edges.length === 0) {
+      if (nodeIds.size === 0) {
         pushOverlayEdgeTrace('empty-filtered-edge-set', {
           reusedStableGraph: shouldReuseStableGraph ? 1 : 0,
           withinWorkspaceCloseRecoveryWindow: withinWorkspaceCloseRecoveryWindow ? 1 : 0,
@@ -793,6 +810,22 @@ export function useFlowEditorOverlayEdges(args: {
         overlayEdgeAnchorCacheRef.current.clear()
         return
       }
+      const preserveExistingOverlayPathsForTransientEmptyEdges = (() => {
+        if (edges.length > 0) return false
+        pushOverlayEdgeTrace('empty-filtered-edge-set', {
+          reusedStableGraph: shouldReuseStableGraph ? 1 : 0,
+          withinWorkspaceCloseRecoveryWindow: withinWorkspaceCloseRecoveryWindow ? 1 : 0,
+          overlayIdCount: overlayIdSet.size,
+          filteredNodeCount: nodeIds.size,
+          filteredEdgeCount: edges.length,
+          rawEdgeCount: rawEdges.length,
+          existingPathCount: overlayEdgePathByIdRef.current.size,
+        })
+        return (
+          overlayEdgePathByIdRef.current.size > 0
+          && scheduleTransientOverlayEdgeRetry(['empty-filtered-edge-set', String(nodeIds.size), String(edges.length), String(overlayIdSet.size), String(rawEdges.length)])
+        )
+      })()
       if (rawNodes.length > 0 && rawEdges.length > 0) {
         lastStableOverlayEdgeGraphRef.current = graph
       }
@@ -1089,6 +1122,7 @@ export function useFlowEditorOverlayEdges(args: {
               pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
               pathEl.setAttribute('opacity', '0.75')
               pathEl.setAttribute('pointer-events', 'none')
+              pathEl.setAttribute('data-kg-overlay-pending-edge', 'true')
               svg.appendChild(pathEl)
               overlayPendingEdgePathRef.current = pathEl
             }
@@ -1193,6 +1227,9 @@ export function useFlowEditorOverlayEdges(args: {
         if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
 
+      if (preserveExistingOverlayPathsForTransientEmptyEdges) {
+        for (const id of overlayEdgePathByIdRef.current.keys()) keep.add(id)
+      }
       for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
         if (keep.has(id)) continue
         try {

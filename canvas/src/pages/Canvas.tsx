@@ -51,7 +51,8 @@ const CanvasFrontmatterRuntimeLazy = React.lazy(() =>
   import('@/features/canvas/CanvasFrontmatterRuntime').then(mod => ({ default: mod.CanvasFrontmatterRuntime })),
 )
 
-export default function CanvasPage() {
+export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean } = {}) {
+  const bootstrapRuntimesEnabled = props.bootstrapRuntimesEnabled !== false
   const location = useLocation()
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
@@ -193,8 +194,8 @@ export default function CanvasPage() {
         uiPanelOpacity={uiPanelOpacity}
         uiToolbarOpacity={uiToolbarOpacity}
       />
-      <GraphStoreRuntime />
-      {hasSearchParams ? (
+      {bootstrapRuntimesEnabled ? <GraphStoreRuntime /> : null}
+      {bootstrapRuntimesEnabled && hasSearchParams ? (
         <React.Suspense fallback={null}>
           <CanvasQueryBootstrapRuntimeLazy search={location.search} />
         </React.Suspense>
@@ -213,7 +214,7 @@ export default function CanvasPage() {
         setIsEmbeddedPreview={setIsEmbeddedPreview}
         detectEmbeddedPreviewWriteback={detectEmbeddedPreviewWriteback}
       />
-      {hasDocDeepLinkParams ? (
+      {bootstrapRuntimesEnabled && hasDocDeepLinkParams ? (
         <React.Suspense fallback={null}>
           <CanvasDocDeepLinkRuntimeLazy search={location.search} />
         </React.Suspense>
@@ -223,7 +224,7 @@ export default function CanvasPage() {
           <StripeCheckoutReturnRuntimeLazy search={location.search} />
         </React.Suspense>
       ) : null}
-      <CanvasStartupRuntimes />
+      {bootstrapRuntimesEnabled ? <CanvasStartupRuntimes /> : null}
       <section
         className={`${UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME} bg-[var(--kg-canvas-bg)] transition-colors duration-300`}
         aria-label="Knowgrph Canvas"

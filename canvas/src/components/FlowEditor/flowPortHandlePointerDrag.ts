@@ -63,13 +63,13 @@ export function readFlowPortHandleAtClientPoint(args: {
     if (args.dir && handle.dataset.kgPortDir !== args.dir) return false
     return true
   }
-  const direct = document.elementFromPoint(args.clientX, args.clientY)?.closest<HTMLButtonElement>(FLOW_PORT_HANDLE_SELECTOR) || null
+  const direct = (document.elementFromPoint(args.clientX, args.clientY)?.closest(FLOW_PORT_HANDLE_SELECTOR) || null) as HTMLButtonElement | null
   if (matches(direct)) return direct
   const elementsFromPoint = document.elementsFromPoint
   if (typeof elementsFromPoint !== 'function') return null
   const stack = elementsFromPoint.call(document, args.clientX, args.clientY)
   for (const element of stack) {
-    const handle = element.closest<HTMLButtonElement>(FLOW_PORT_HANDLE_SELECTOR)
+    const handle = element.closest(FLOW_PORT_HANDLE_SELECTOR) as HTMLButtonElement | null
     if (matches(handle)) return handle
   }
   return null

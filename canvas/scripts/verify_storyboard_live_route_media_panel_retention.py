@@ -1,0 +1,443 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from playwright.sync_api import expect, sync_playwright
+
+
+BASE_URL = os.environ.get("KG_STORYBOARD_LIVE_ROUTE_BASE_URL", "http://localhost:4175").rstrip("/")
+TARGET_URL = f"{BASE_URL}/"
+OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
+SCREENSHOT_PATH = OUTPUT_DIR / "storyboard-live-route-media-panel-retention.png"
+RETENTION_OBSERVATION_MS = 3000
+STARTER_DOC_PATH = Path(
+    os.environ.get(
+        "KG_STORYBOARD_LIVE_ROUTE_DOC_PATH",
+        str(Path(__file__).resolve().parents[3] / "huijoohwee" / "docs" / "knowgrph-strybldr-starter-template.md"),
+    )
+)
+MEDIA_CASES = (
+    {
+        "kind": "image",
+        "label": "Live route image",
+        "url": "https://example.com/storyboard-live-route-image.jpg",
+        "sourceKey": "live-route:image:canvas-drop",
+        "targetRatioX": 0.28,
+        "targetRatioY": 0.22,
+        "targetNodeId": "starter-storyboard-beats-card",
+    },
+    {
+        "kind": "video",
+        "label": "Live route video",
+        "url": "https://example.com/storyboard-live-route-video.mp4",
+        "sourceKey": "live-route:video:canvas-drop",
+        "targetRatioX": 0.72,
+        "targetRatioY": 0.22,
+        "targetNodeId": "starter-elements-card",
+    },
+)
+
+
+def css_attr_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def canonical_node_id_suffix(node_id: str) -> str:
+    parts = [part.strip() for part in str(node_id or "").split("::") if part.strip()]
+    return parts[-1] if parts else str(node_id or "").strip()
+
+
+def rich_media_overlay_shell_selector(node_id: str) -> str:
+    safe_id = css_attr_value(node_id)
+    safe_suffix = css_attr_value(canonical_node_id_suffix(node_id))
+    return (
+        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id="{safe_id}"], '
+        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id$="::{safe_suffix}"], '
+        f'aside[data-kg-widget="{safe_id}"][data-kg-flow-editor-mode="1"], '
+        f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-flow-editor-mode="1"]'
+    )
+
+
+def wait_for_workspace_runtime(page) -> None:
+    page.goto(TARGET_URL, wait_until="domcontentloaded")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_function(
+        """
+        () => typeof window.knowgrphWorkspaceCommand?.applyMarkdownDocument === 'function'
+        """,
+        timeout=120000,
+    )
+
+
+def apply_starter_markdown(page, markdown_text: str) -> None:
+    result = page.evaluate(
+        """
+        async ({ text }) => {
+          const command = window.knowgrphWorkspaceCommand
+          if (!command?.applyMarkdownDocument) return { ok: false, reason: 'command-unavailable' }
+          const result = await command.applyMarkdownDocument({
+            name: 'docs/knowgrph-strybldr-starter-template.md',
+            text,
+            applyToGraph: true,
+            forceApplyToGraph: true,
+            applyViewPreset: true,
+            canvasRenderMode: '2d',
+            canvas2dRenderer: 'storyboard',
+            documentSemanticMode: 'document',
+            frontmatterModeEnabled: true,
+            workspaceViewMode: 'canvas',
+            workspaceCanvasPaneOpen: false,
+          })
+          return { ok: true, result }
+        }
+        """,
+        {"text": markdown_text},
+    )
+    if not result.get("ok"):
+        raise AssertionError(f"expected starter markdown apply to succeed, got {result}")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_function(
+        """
+        () => ['starter-storyboard-beats-card', 'starter-elements-card', 'starter-runtime-gate-card'].every((nodeId) => {
+          const el = document.querySelector(`article[data-node-id="${nodeId}"], [data-node-id="${nodeId}"]`)
+          const rect = el?.getBoundingClientRect?.()
+          return !!rect && rect.width > 0 && rect.height > 0
+        })
+        """,
+        timeout=120000,
+    )
+
+
+def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio_y: float):
+    point = page.evaluate(
+        """
+        ({ targetRatioX, targetRatioY }) => {
+          for (const el of document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')) {
+            const rect = el.getBoundingClientRect()
+            if (!(rect.width > 0 && rect.height > 0)) continue
+            return {
+              x: rect.x + rect.width * targetRatioX,
+              y: rect.y + rect.height * targetRatioY,
+            }
+          }
+          return null
+        }
+        """,
+        {"targetRatioX": target_ratio_x, "targetRatioY": target_ratio_y},
+    )
+    if not point:
+        raise AssertionError("expected visible storyboard surface drop point on live route")
+    return point
+
+
+def read_visible_rich_media_shell_ids(page):
+    return page.evaluate(
+        """
+        () => Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+          .filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          .map((el) => String(el.getAttribute('data-node-id') || el.getAttribute('data-kg-widget') || '').trim())
+          .filter(Boolean)
+          .filter((id, index, ids) => ids.indexOf(id) === index)
+        """
+    )
+
+
+def dispatch_media_panel_drop(page, media_case: dict[str, object]) -> str:
+    before_ids = set(read_visible_rich_media_shell_ids(page))
+    target = read_storyboard_surface_drop_point(
+        page,
+        float(media_case["targetRatioX"]),
+        float(media_case["targetRatioY"]),
+    )
+    page.evaluate(
+        """
+        ({ clientX, clientY, payload }) => {
+          window.dispatchEvent(new CustomEvent('kg:media-pointer-drag-drop', {
+            detail: {
+              payload,
+              clientX,
+              clientY,
+              startClientX: clientX - 48,
+              startClientY: clientY - 48,
+            },
+          }))
+        }
+        """,
+        {
+            **target,
+            "payload": {
+                "kind": str(media_case["kind"]),
+                "label": str(media_case["label"]),
+                "url": str(media_case["url"]),
+                "sourceKey": str(media_case["sourceKey"]),
+            },
+        },
+    )
+    page.wait_for_function(
+        """
+        (beforeIds) => Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+          .map((el) => String(el.getAttribute('data-node-id') || el.getAttribute('data-kg-widget') || '').trim())
+          .filter(Boolean)
+          .some((id) => !beforeIds.includes(id))
+        """,
+        arg=list(before_ids),
+        timeout=30000,
+    )
+    after_ids = [node_id for node_id in read_visible_rich_media_shell_ids(page) if node_id not in before_ids]
+    if len(after_ids) != 1:
+        raise AssertionError(
+            f"expected one new live-route {str(media_case['kind'])} panel, got {after_ids}"
+        )
+    return after_ids[0]
+
+
+def click_visible_rich_media_shell(page, node_id: str) -> None:
+    selector = rich_media_overlay_shell_selector(node_id)
+    clicked = page.evaluate(
+        """
+        (selector) => {
+          const shell = Array.from(document.querySelectorAll(selector)).find((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          if (!shell) return false
+          const rect = shell.getBoundingClientRect()
+          shell.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            clientX: rect.x + 12,
+            clientY: rect.y + 12,
+          }))
+          shell.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            clientX: rect.x + 12,
+            clientY: rect.y + 12,
+          }))
+          return true
+        }
+        """,
+        selector,
+    )
+    if not clicked:
+        raise AssertionError(f"expected visible Rich Media panel shell for {node_id}")
+
+
+def expect_visible_rich_media_shell_ports(page, node_id: str) -> None:
+    selector = rich_media_overlay_shell_selector(node_id)
+    page.wait_for_function(
+        """
+        (selector) => Array.from(document.querySelectorAll(selector)).some((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0
+            && rect.height > 0
+            && el.querySelectorAll('[data-kg-port-handle="1"]').length > 0
+        })
+        """,
+        arg=selector,
+        timeout=15000,
+    )
+
+
+def read_visible_rich_media_shell_box(page, node_id: str):
+    selector = rich_media_overlay_shell_selector(node_id)
+    box = page.evaluate(
+        """
+        (selector) => {
+          const shell = Array.from(document.querySelectorAll(selector)).find((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          if (!shell) return null
+          const rect = shell.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        selector,
+    )
+    if not box:
+        raise AssertionError(f"expected visible Rich Media panel shell box for {node_id}")
+    return box
+
+
+def expect_rich_media_shell_box_stable(before, after, label: str) -> None:
+    for key in ("x", "y", "width", "height"):
+        if abs(float(before[key]) - float(after[key])) > 0.75:
+            raise AssertionError(
+                f"expected live-route Rich Media panel {label} {key} to remain stable, before={before} after={after}"
+            )
+
+
+def read_storyboard_edge_ids(page):
+    return page.evaluate(
+        """
+        () => Array.from(document.querySelectorAll('[data-kg-overlay-edge-id], [data-kg-storyboard-canvas-edge-id]'))
+          .map((el) => String(el.getAttribute('data-kg-overlay-edge-id') || el.getAttribute('data-kg-storyboard-canvas-edge-id') || '').trim())
+          .filter(Boolean)
+        """
+    )
+
+
+def read_storyboard_edge_count(page) -> int:
+    return len(read_storyboard_edge_ids(page))
+
+
+def expect_pending_storyboard_edge_visible(page) -> None:
+    page.wait_for_selector('[data-kg-overlay-pending-edge="true"]', state="attached", timeout=5000)
+
+
+def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_node_id: str) -> str:
+    source_suffix = canonical_node_id_suffix(source_node_id)
+    source_selector = (
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-node-id="{css_attr_value(source_node_id)}"], '
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-node-id$="::{css_attr_value(source_suffix)}"]'
+    )
+    source = page.locator(source_selector).first
+    expect(source).to_be_visible(timeout=15000)
+    source_box = source.bounding_box()
+    if not source_box:
+        raise AssertionError(f"expected source port geometry for {source_node_id}")
+    before_edges = set(read_storyboard_edge_ids(page))
+    page.mouse.move(source_box["x"] + source_box["width"] / 2, source_box["y"] + source_box["height"] / 2)
+    page.mouse.down()
+    target_selector = f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id="{css_attr_value(target_node_id)}"]'
+    target = page.locator(target_selector).first
+    expect(target).to_be_visible(timeout=15000)
+    target_box = target.bounding_box()
+    if not target_box:
+        page.mouse.up()
+        raise AssertionError(f"expected target port geometry for {target_node_id}")
+    page.mouse.move(target_box["x"] + target_box["width"] / 2, target_box["y"] + target_box["height"] / 2, steps=4)
+    expect_pending_storyboard_edge_visible(page)
+    page.mouse.up()
+    page.wait_for_function(
+        """
+        (beforeIds) => Array.from(document.querySelectorAll('[data-kg-overlay-edge-id], [data-kg-storyboard-canvas-edge-id]'))
+          .map((el) => String(el.getAttribute('data-kg-overlay-edge-id') || el.getAttribute('data-kg-storyboard-canvas-edge-id') || '').trim())
+          .some((id) => id && !beforeIds.includes(id))
+        """,
+        arg=list(before_edges),
+        timeout=15000,
+    )
+    created_ids = [edge_id for edge_id in read_storyboard_edge_ids(page) if edge_id not in before_edges]
+    if len(created_ids) != 1:
+        raise AssertionError(f"expected one created live-route Storyboard edge, got {created_ids}")
+    page.wait_for_timeout(RETENTION_OBSERVATION_MS)
+    retained_edges = set(read_storyboard_edge_ids(page))
+    if created_ids[0] not in retained_edges:
+        raise AssertionError(f"expected created live-route Storyboard edge to remain visible, got {sorted(retained_edges)}")
+    return created_ids[0]
+
+
+def assert_live_route_media_panel_retention(page, node_id: str, target_node_id: str, media_kind: str) -> str:
+    click_visible_rich_media_shell(page, node_id)
+    expect_visible_rich_media_shell_ports(page, node_id)
+    selected_box = read_visible_rich_media_shell_box(page, node_id)
+    created_edge_id = drag_rich_media_port_to_storyboard_card(page, node_id, target_node_id)
+    box_after_edge_create = read_visible_rich_media_shell_box(page, node_id)
+    expect_rich_media_shell_box_stable(selected_box, box_after_edge_create, f"{media_kind} after edge create")
+    click_visible_rich_media_shell(page, node_id)
+    expect_visible_rich_media_shell_ports(page, node_id)
+    page.wait_for_timeout(RETENTION_OBSERVATION_MS)
+    retained_edges = set(read_storyboard_edge_ids(page))
+    if created_edge_id not in retained_edges:
+        raise AssertionError(f"expected selected/open live-route panel to retain Storyboard edge visibility, got {sorted(retained_edges)}")
+    reopened_box = read_visible_rich_media_shell_box(page, node_id)
+    expect_rich_media_shell_box_stable(selected_box, reopened_box, f"{media_kind} after select/open retention")
+    return created_edge_id
+
+
+def assert_reapply_clears_live_route_residue(
+    page,
+    markdown_text: str,
+    created_node_id: str,
+    created_edge_id: str,
+    baseline_edge_count: int,
+    baseline_shell_ids: set[str],
+) -> None:
+    apply_starter_markdown(page, markdown_text)
+    page.wait_for_function(
+        """
+        ({ createdNodeId, createdEdgeId, baselineShellIds, baselineEdgeCount }) => {
+          const visibleShellIds = Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+            .filter((el) => {
+              const rect = el.getBoundingClientRect()
+              return rect.width > 0 && rect.height > 0
+            })
+            .map((el) => String(el.getAttribute('data-node-id') || el.getAttribute('data-kg-widget') || '').trim())
+            .filter(Boolean)
+            .filter((id, index, ids) => ids.indexOf(id) === index)
+          const visibleEdgeIds = Array.from(document.querySelectorAll('[data-kg-overlay-edge-id], [data-kg-storyboard-canvas-edge-id]'))
+            .map((el) => String(el.getAttribute('data-kg-overlay-edge-id') || el.getAttribute('data-kg-storyboard-canvas-edge-id') || '').trim())
+            .filter(Boolean)
+          const sameShellSet = visibleShellIds.length === baselineShellIds.length
+            && visibleShellIds.every((id) => baselineShellIds.includes(id))
+          return !visibleShellIds.includes(createdNodeId)
+            && !visibleEdgeIds.includes(createdEdgeId)
+            && sameShellSet
+            && visibleEdgeIds.length === baselineEdgeCount
+        }
+        """,
+        arg={
+            "createdNodeId": created_node_id,
+            "createdEdgeId": created_edge_id,
+            "baselineShellIds": sorted(baseline_shell_ids),
+            "baselineEdgeCount": baseline_edge_count,
+        },
+        timeout=30000,
+    )
+    visible_shell_ids = set(read_visible_rich_media_shell_ids(page))
+    if visible_shell_ids != baseline_shell_ids:
+        raise AssertionError(
+            f"expected live-route Rich Media shells to return to baseline after source reapply, baseline={sorted(baseline_shell_ids)} current={sorted(visible_shell_ids)}"
+        )
+    visible_edge_ids = set(read_storyboard_edge_ids(page))
+    if created_edge_id in visible_edge_ids:
+        raise AssertionError(
+            f"expected created live-route Storyboard edge to disappear after source reapply, got {sorted(visible_edge_ids)}"
+        )
+    if len(visible_edge_ids) != baseline_edge_count:
+        raise AssertionError(
+            f"expected live-route Storyboard edge count to return to baseline after source reapply, baseline={baseline_edge_count} current={len(visible_edge_ids)}"
+        )
+
+
+def main() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    markdown_text = STARTER_DOC_PATH.read_text(encoding="utf-8")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page(viewport={"width": 1680, "height": 1200})
+            wait_for_workspace_runtime(page)
+            for media_case in MEDIA_CASES:
+                apply_starter_markdown(page, markdown_text)
+                baseline_shell_ids = set(read_visible_rich_media_shell_ids(page))
+                baseline_edge_count = read_storyboard_edge_count(page)
+                node_id = dispatch_media_panel_drop(page, media_case)
+                created_edge_id = assert_live_route_media_panel_retention(
+                    page,
+                    node_id,
+                    str(media_case["targetNodeId"]),
+                    str(media_case["kind"]),
+                )
+                assert_reapply_clears_live_route_residue(
+                    page,
+                    markdown_text,
+                    node_id,
+                    created_edge_id,
+                    baseline_edge_count,
+                    baseline_shell_ids,
+                )
+            page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
+            print(f"OK storyboard-live-route-media-panel-retention {TARGET_URL}")
+            print(f"Screenshot: {SCREENSHOT_PATH}")
+        finally:
+            browser.close()
+
+
+if __name__ == "__main__":
+    main()

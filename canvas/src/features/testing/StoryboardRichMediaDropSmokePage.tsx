@@ -10,11 +10,19 @@ import CanvasPage from '@/pages/Canvas'
 
 type StoryboardDropSmokeWindow = Window & {
   __kgStoryboardDropSmoke?: {
+    baselineReady: boolean
     dropCount: number
     droppedKinds: string[]
     droppedNodeIds: string[]
+    graphRichMediaNodeIds: string[]
+    lifecycleStage: string
+    markdownDocumentName: string
+    openWidgetNodeIds: string[]
+    selectedNodeId: string
     shiftedNodeIds: string[]
   }
+  __kgStoryboardResetDropSmokeBaseline?: () => void
+  __kgStoryboardDropSmokeSourceKey?: string
 }
 
 type NodePositionSnapshot = {
@@ -39,6 +47,11 @@ const VIDEO_PAYLOAD: MediaDragPayload = {
 }
 
 const EXISTING_NODE_IDS = ['storyboard-card-alpha', 'storyboard-card-beta', 'existing-rich-media'] as const
+
+type SmokeBaselineSnapshot = {
+  positionsByNodeId: Record<string, NodePositionSnapshot>
+  richMediaNodeIds: string[]
+}
 
 function buildSmokeGraph(): GraphData {
   return {
@@ -129,6 +142,13 @@ function isSameNodePosition(a: NodePositionSnapshot | null | undefined, b: NodeP
   return a.x === b.x && a.y === b.y && a.fx === b.fx && a.fy === b.fy
 }
 
+function normalizeSmokeNodeId(nodeId: unknown): string {
+  const text = String(nodeId || '').trim()
+  if (!text) return ''
+  const parts = text.split('::').map(part => part.trim()).filter(Boolean)
+  return parts[parts.length - 1] || text
+}
+
 function readDroppedNodeKind(node: GraphNode): string {
   const properties = node.properties && typeof node.properties === 'object' ? node.properties as Record<string, unknown> : {}
   const explicit = String(properties.mediaKind || properties.media_kind || '').trim()
@@ -137,6 +157,19 @@ function readDroppedNodeKind(node: GraphNode): string {
   if (String(properties.videoUrl || '').trim()) return 'video'
   if (String(properties.audioUrl || '').trim()) return 'audio'
   return ''
+}
+
+function buildSmokeBaselineSnapshot(nodeById: Map<string, GraphNode>): SmokeBaselineSnapshot | null {
+  if (!EXISTING_NODE_IDS.every(id => nodeById.has(id))) return null
+  const positionsByNodeId: Record<string, NodePositionSnapshot> = {}
+  const richMediaNodeIds: string[] = []
+  for (const [id, node] of nodeById) {
+    if (String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) richMediaNodeIds.push(normalizeSmokeNodeId(id))
+    const snapshot = readNodePositionSnapshot(node)
+    if (snapshot) positionsByNodeId[id] = snapshot
+  }
+  if (Object.keys(positionsByNodeId).length < EXISTING_NODE_IDS.length) return null
+  return { positionsByNodeId, richMediaNodeIds }
 }
 
 function StoryboardDropDragButton(props: {
@@ -165,14 +198,23 @@ export function StoryboardRichMediaDropSmokePage() {
     canvasRenderMode,
     graphData,
     graphRevision,
+    lifecycleStage,
+    markdownDocumentName,
+    openWidgetNodeIds,
+    selectedNodeId,
   } = useGraphStore(useShallow(state => ({
     canvas2dRenderer: state.canvas2dRenderer,
     canvasRenderMode: state.canvasRenderMode,
     graphData: state.graphData,
     graphRevision: state.graphDataRevision,
+    lifecycleStage: String(state.lifecycleStage || '').trim(),
+    markdownDocumentName: String(state.markdownDocumentName || '').trim(),
+    openWidgetNodeIds: state.openWidgetNodeIds,
+    selectedNodeId: String(state.selectedNodeId || '').trim(),
   })))
 
-  const baselinePositionsRef = React.useRef<Record<string, NodePositionSnapshot>>({})
+  const baselineSnapshotRef = React.useRef<SmokeBaselineSnapshot | null>(null)
+  const [baselineRevision, setBaselineRevision] = React.useState(0)
   const initializedRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -180,20 +222,16 @@ export function StoryboardRichMediaDropSmokePage() {
     initializedRef.current = true
     const store = useGraphStore.getState()
     const applySmokeBaseline = () => {
+      store.setMarkdownDocument(null, null, { autoEnableFrontmatter: false, applyViewPreset: false })
       store.setCanvasRenderMode('2d')
       store.setCanvas2dRenderer('storyboard')
       store.setDocumentSemanticMode('document')
       store.setFrontmatterModeEnabled(true)
+      store.setZoomToSelectionMode(true)
       store.setOpenWidgetNodeIds([])
       store.setGraphData(buildSmokeGraph())
     }
     applySmokeBaseline()
-    const rafId = window.requestAnimationFrame(applySmokeBaseline)
-    const timeoutId = window.setTimeout(applySmokeBaseline, 120)
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      window.clearTimeout(timeoutId)
-    }
   }, [])
 
   React.useEffect(() => {
@@ -214,56 +252,86 @@ export function StoryboardRichMediaDropSmokePage() {
   }, [graphData])
 
   React.useEffect(() => {
-    if (Object.keys(baselinePositionsRef.current).length > 0) return
-    const next: Record<string, NodePositionSnapshot> = {}
-    for (const id of EXISTING_NODE_IDS) {
-      const snapshot = readNodePositionSnapshot(nodeById.get(id))
-      if (snapshot) next[id] = snapshot
+    if (baselineSnapshotRef.current) return
+    const snapshot = buildSmokeBaselineSnapshot(nodeById)
+    if (snapshot) {
+      baselineSnapshotRef.current = snapshot
+      setBaselineRevision(revision => revision + 1)
     }
-    if (Object.keys(next).length === EXISTING_NODE_IDS.length) baselinePositionsRef.current = next
   }, [nodeById])
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    ;(window as StoryboardDropSmokeWindow).__kgStoryboardResetDropSmokeBaseline = () => {
+      const nodes = Array.isArray(useGraphStore.getState().graphData?.nodes) ? useGraphStore.getState().graphData!.nodes : []
+      const latestNodeById = new Map<string, GraphNode>()
+      for (const node of nodes) {
+        const id = String(node?.id || '').trim()
+        if (id && !latestNodeById.has(id)) latestNodeById.set(id, node)
+      }
+      const snapshot = buildSmokeBaselineSnapshot(latestNodeById)
+      if (snapshot) {
+        baselineSnapshotRef.current = snapshot
+        setBaselineRevision(revision => revision + 1)
+      }
+    }
+    return () => {
+      delete (window as StoryboardDropSmokeWindow).__kgStoryboardResetDropSmokeBaseline
+    }
+  }, [])
+
   const droppedRichMediaNodes = React.useMemo(() => {
+    const baselineSnapshot = baselineSnapshotRef.current
+    if (!baselineSnapshot) return []
+    const baselineRichMediaIds = new Set(baselineSnapshot.richMediaNodeIds.map(normalizeSmokeNodeId))
+    const activeSourceKey = typeof window === 'undefined'
+      ? ''
+      : String((window as StoryboardDropSmokeWindow).__kgStoryboardDropSmokeSourceKey || '').trim()
     const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
-    return nodes.filter(node =>
-      String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-      && !EXISTING_NODE_IDS.includes(String(node?.id || '').trim() as typeof EXISTING_NODE_IDS[number]),
-    )
-  }, [graphData])
+    return nodes.filter(node => {
+      if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return false
+      if (baselineRichMediaIds.has(normalizeSmokeNodeId(node?.id))) return false
+      if (!activeSourceKey) return true
+      const props = node.properties && typeof node.properties === 'object' ? node.properties as Record<string, unknown> : {}
+      return String(props.mediaSourceKey || '').trim() === activeSourceKey
+    })
+  }, [baselineRevision, graphData])
 
   const shiftedExistingNodeIds = React.useMemo(() => {
     const shifted: string[] = []
-    const baseline = baselinePositionsRef.current
-    for (const id of EXISTING_NODE_IDS) {
+    const baseline = baselineSnapshotRef.current?.positionsByNodeId || {}
+    for (const id of Object.keys(baseline)) {
       const before = baseline[id]
       const after = readNodePositionSnapshot(nodeById.get(id))
       if (!before || !after) continue
       if (!isSameNodePosition(before, after)) shifted.push(id)
     }
     return shifted
-  }, [nodeById])
+  }, [baselineRevision, nodeById])
 
   const droppedKinds = React.useMemo(
     () => droppedRichMediaNodes.map(readDroppedNodeKind).filter(Boolean),
     [droppedRichMediaNodes],
   )
+  const droppedNodeIds = React.useMemo(
+    () => Array.from(new Set(droppedRichMediaNodes.map(node => String(node.id || '').trim()).filter(Boolean))),
+    [droppedRichMediaNodes],
+  )
 
   const smokeState = React.useMemo(() => ({
-    dropCount: droppedRichMediaNodes.length,
+    baselineReady: !!baselineSnapshotRef.current,
+    dropCount: droppedNodeIds.length,
     droppedKinds,
-    droppedNodeIds: droppedRichMediaNodes.map(node => String(node.id || '').trim()).filter(Boolean),
+    droppedNodeIds,
+    graphRichMediaNodeIds: Array.from(nodeById.values())
+      .filter(node => String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+      .map(node => String(node.id || '').trim()),
+    lifecycleStage,
+    markdownDocumentName,
+    openWidgetNodeIds: Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds.map(id => String(id || '').trim()).filter(Boolean) : [],
+    selectedNodeId,
     shiftedNodeIds: shiftedExistingNodeIds,
-  }), [droppedKinds, droppedRichMediaNodes, shiftedExistingNodeIds])
-
-  React.useEffect(() => {
-    const droppedIds = smokeState.droppedNodeIds
-    if (droppedIds.length <= 0) return
-    useGraphStore.getState().updateOpenWidgetNodeIds(prev => {
-      const next = new Set(prev)
-      for (const id of droppedIds) next.add(id)
-      return Array.from(next)
-    })
-  }, [smokeState.droppedNodeIds])
+  }), [baselineRevision, droppedKinds, droppedNodeIds, lifecycleStage, markdownDocumentName, nodeById, openWidgetNodeIds, selectedNodeId, shiftedExistingNodeIds])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -327,7 +395,7 @@ export function StoryboardRichMediaDropSmokePage() {
         </section>
       </aside>
 
-      <CanvasPage />
+      <CanvasPage bootstrapRuntimesEnabled={false} />
     </div>
   )
 }

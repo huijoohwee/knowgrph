@@ -100,7 +100,7 @@ export function useFlowEditorRenderState(args: {
 
   React.useLayoutEffect(() => {
     if (!args.active) {
-      if (stableRenderGraphOverride !== null) setStableRenderGraphOverride(null)
+      setStableRenderGraphOverride(prev => (prev === null ? prev : null))
       return
     }
     const nextGraph = rawRenderGraphDataOverride
@@ -122,7 +122,6 @@ export function useFlowEditorRenderState(args: {
         if (preserveStableGraphAcrossFlowViewClose) return prev
         if (
           prev?.documentKey === args.activeDocumentKey
-          && prev.topologyLayoutSignature.length > 0
           && prev.topologyLayoutSignature === nextTopologyLayoutSignature
         ) return prev
         if (prev?.documentKey === args.activeDocumentKey && prev.graphData === nextGraph) return prev
@@ -150,7 +149,6 @@ export function useFlowEditorRenderState(args: {
     args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
     rawRenderGraphTopologyLayoutSignature,
-    stableRenderGraphOverride,
   ])
 
   const renderGraphDataOverride = React.useMemo((): GraphData | null => {

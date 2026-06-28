@@ -9,6 +9,7 @@ import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 
 function readDraftRevisionFloor(graphData: GraphData | null | undefined): number {
   const raw = (graphData?.metadata || {}) as Record<string, unknown>
@@ -16,6 +17,15 @@ function readDraftRevisionFloor(graphData: GraphData | null | undefined): number
     ? raw.graphDataRevision
     : 0
   return Math.max(0, Math.floor(revision))
+}
+
+function addFlowEditorUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
+  const id = String(rawId || '').trim()
+  if (!id) return
+  out.add(id)
+  const parts = id.split('::').map(part => part.trim()).filter(Boolean)
+  const suffix = parts.length > 1 ? parts[parts.length - 1] : ''
+  if (suffix) out.add(suffix)
 }
 
 export function resolveFlowEditorEdgeAuthoringNodeId(graphData: GraphData | null, rawNodeId: unknown): string | null {
@@ -197,6 +207,7 @@ export function useFlowEditorGraphActions(args: {
       }
 
       if (result.kind === 'select-existing') {
+        disableAutoZoomModesForUserGesture(useGraphStore.getState())
         args.setSelectionSource('canvas')
         args.selectEdge(String(result.edgeId || ''))
         args.selectNode(null)
@@ -222,6 +233,7 @@ export function useFlowEditorGraphActions(args: {
         args.setDraftGraphData(nextDraftGraphData)
         args.addEdge(result.edge)
         materializeConnectedMediaValue({ sourceNode, targetNode, sourcePort, targetPort })
+        disableAutoZoomModesForUserGesture(useGraphStore.getState())
         args.setSelectionSource('canvas')
         args.selectEdge(String(result.edge.id || ''))
         args.selectNode(null)
@@ -248,14 +260,26 @@ export function useFlowEditorGraphActions(args: {
   }, [args.active, args.selectedNodeId, args.toolMode, finalizePendingEdge])
 
   const appendDraftNode = React.useCallback(
-    (nodeArgs: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => {
+    (nodeArgs: {
+      id?: string | null
+      type: string
+      label?: string | null
+      x: number
+      y: number
+      fx?: number | null
+      fy?: number | null
+      vx?: number | null
+      vy?: number | null
+      properties?: Record<string, unknown>
+    }) => {
       const base: GraphData = (args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData || {
         context: '',
         type: 'Graph',
         nodes: [],
         edges: [],
       }) as GraphData
-      const used = new Set<string>((base.nodes || []).map(node => String(node.id || '')).filter(Boolean))
+      const used = new Set<string>()
+      for (const node of base.nodes || []) addFlowEditorUsedNodeIdVariants(used, node?.id)
       const requested = typeof nodeArgs.id === 'string' && nodeArgs.id.trim() ? nodeArgs.id.trim() : ''
       const id = requested && !used.has(requested) ? requested : createUniqueId('n', used)
 
@@ -269,6 +293,10 @@ export function useFlowEditorGraphActions(args: {
         type,
         x,
         y,
+        fx: Number.isFinite(nodeArgs.fx) ? Number(nodeArgs.fx) : undefined,
+        fy: Number.isFinite(nodeArgs.fy) ? Number(nodeArgs.fy) : undefined,
+        vx: Number.isFinite(nodeArgs.vx) ? Number(nodeArgs.vx) : undefined,
+        vy: Number.isFinite(nodeArgs.vy) ? Number(nodeArgs.vy) : undefined,
         properties: (nodeArgs.properties || {}) as never,
       }
       const beforeIds = new Set<string>((useGraphStore.getState().graphData?.nodes || []).map(node => String(node.id || '')).filter(Boolean))

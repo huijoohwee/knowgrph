@@ -39,13 +39,13 @@ export function assertStoryboard2dMediaDropContract() {
     !graphStoryboardOverlaySource.includes("const requestZoom = useGraphStore(s => s.requestZoom)")
     || !graphStoryboardOverlaySource.includes("requestZoom('fit', { intent: 'fitToView' })")
     || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef')
-    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== zoomViewKey')
-    || !flowEditorSurfaceSource.includes('zoomViewKeyRef={props.zoomViewKeyRef}')
+    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== initialFitDocumentKey')
+    || !graphStoryboardOverlaySource.includes('`${flowEditorSurfaceId}::${String(markdownDocumentName || \'\').trim()}`')
   ) {
     throw new Error('expected Storyboard 2D fixed-card overlay to seed offscreen startup through the shared FlowCanvas zoom request path')
   }
-  if (graphStoryboardOverlaySource.includes('`${zoomViewKey}:${graphRevision}')) {
-    throw new Error('expected Storyboard graph mutations not to re-arm initial fit and move media drops away from the release point')
+  if (graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== zoomViewKey')) {
+    throw new Error('expected Storyboard graph and selection mutations not to re-arm initial fit')
   }
   if (
     graphStoryboardOverlaySource.includes('commitZoomTransformToStore')

@@ -47,13 +47,36 @@ import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMedi
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
+  claimMediaPointerDragDrop,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaPointerDragDropClaimed,
   isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
   type MediaDragPayload,
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
+
+function addFlowEditorUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
+  const id = String(rawId || '').trim()
+  if (!id) return
+  out.add(id)
+  const parts = id.split('::').map(part => part.trim()).filter(Boolean)
+  const suffix = parts.length > 1 ? parts[parts.length - 1] : ''
+  if (suffix) out.add(suffix)
+}
+
+function findRichMediaPanelNodeIdBySourceKey(graphData: GraphData | null | undefined, sourceKey: unknown): string {
+  const key = String(sourceKey || '').trim()
+  if (!key) return ''
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  for (const node of nodes) {
+    if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
+    const properties = node.properties && typeof node.properties === 'object' ? node.properties as Record<string, unknown> : {}
+    if (String(properties.mediaSourceKey || '').trim() === key) return String(node.id || '').trim()
+  }
+  return ''
+}
 
 export function useFlowEditorWidgetDropBridge(args: {
   active: boolean
@@ -78,6 +101,10 @@ export function useFlowEditorWidgetDropBridge(args: {
     label?: string | null
     x: number
     y: number
+    fx?: number | null
+    fy?: number | null
+    vx?: number | null
+    vy?: number | null
     properties?: Record<string, unknown>
   }) => string
   updateNode: (nodeId: string, patch: Partial<GraphNode>) => void
@@ -245,8 +272,9 @@ export function useFlowEditorWidgetDropBridge(args: {
       const base: GraphData =
         args.draftGraphDataRef.current
         || (args.baseGraphData || { context: '', type: 'Graph', nodes: [], edges: [] })
-      const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
-      for (const rid of args.reservedNodeIdsRef.current) used.add(rid)
+      const used = new Set<string>()
+      for (const node of base.nodes || []) addFlowEditorUsedNodeIdVariants(used, node?.id)
+      for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)
       const requestedId = createUniqueId('n', used)
       args.reservedNodeIdsRef.current.add(requestedId)
       const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties })
@@ -299,8 +327,14 @@ export function useFlowEditorWidgetDropBridge(args: {
     const y = (Number.isFinite(payload.y) ? payload.y : 0) - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2
     const label = String(payload.media.label || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
     const base: GraphData = args.draftGraphDataRef.current || (args.baseGraphData || { context: '', type: 'Graph', nodes: [], edges: [] })
-    const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
-    for (const rid of args.reservedNodeIdsRef.current) used.add(rid)
+    const liveGraphData = useGraphStore.getState().graphData as GraphData | null
+    const existingSourceNodeId =
+      findRichMediaPanelNodeIdBySourceKey(base, payload.media.sourceKey)
+      || findRichMediaPanelNodeIdBySourceKey(liveGraphData, payload.media.sourceKey)
+    if (existingSourceNodeId) return existingSourceNodeId
+    const used = new Set<string>()
+    for (const node of base.nodes || []) addFlowEditorUsedNodeIdVariants(used, node?.id)
+    for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)
     const requestedId = createUniqueId('n', used)
     args.reservedNodeIdsRef.current.add(requestedId)
     const actualId = args.appendDraftNode({
@@ -374,8 +408,6 @@ export function useFlowEditorWidgetDropBridge(args: {
       const pos = resolveDropPos(sx, sy)
       const mediaUrl = String(mediaPayload.url || '').trim()
       if (!mediaUrl) return false
-      const dropKey = `media:${mediaUrl}:${Math.round(pos.x)}:${Math.round(pos.y)}`
-      if (args.shouldDedupeWidgetDrop(dropKey)) return true
       const actualId = addRichMediaPanelFromMediaAtWorld({ media: { ...mediaPayload, url: mediaUrl }, x: pos.x, y: pos.y })
       if (!actualId) return false
       args.upsertUiToast({
@@ -467,15 +499,20 @@ export function useFlowEditorWidgetDropBridge(args: {
     const onMediaPointerDragDropCapture = (event: Event) => {
       const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
       if (!detail?.payload || !isMediaPointerDropDistanceAccepted(detail)) return
+      if (isMediaPointerDragDropClaimed(detail)) return
       const rect = readDropRect()
       if (!rect) return
-      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY, rect)) return
+      claimMediaPointerDragDrop(detail)
       try {
         event.preventDefault()
         event.stopPropagation()
         ;(event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
       } catch {
         void 0
+      }
+      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY, rect)) {
+        detail.__kgMediaPointerDropClaimed = false
+        return
       }
     }
     document.addEventListener('dragover', onDragOverCapture, true)

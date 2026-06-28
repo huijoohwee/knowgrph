@@ -57,12 +57,12 @@ import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/story
 import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
-import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
+import { buildStoryboardGraphBackedNodeLookup, findStoryboardGraphNodeIdByProperty } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
 import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
-import { MEDIA_POINTER_DRAG_DROP_EVENT, clearMediaPointerDragPayload, hasMediaDragPayload, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -131,7 +131,6 @@ import {
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-
 const isStoryboardDisplayReference = (
   reference: StoryboardCardReference,
 ): reference is StoryboardCardReference & { kind: StoryboardDisplayMedia['kind'] } =>
@@ -140,7 +139,6 @@ const isStoryboardDisplayReference = (
   || reference.kind === 'video'
   || reference.kind === 'audio'
   || reference.kind === 'iframe'
-
 const isStoryboardImageReference = (
   reference: StoryboardCardReference,
 ): reference is StoryboardCardReference & { kind: 'image' | 'svg' } =>
@@ -229,11 +227,9 @@ function readStoryboardNodeProperties(node: unknown): Record<string, unknown> {
   if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return {}
   return properties as Record<string, unknown>
 }
-
 function readStoryboardScalar(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
 }
-
 function readStoryboardNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim()) {
@@ -269,6 +265,7 @@ function buildStoryboardCanvasRichMediaPanelProperties(args: {
       outputSrcDoc: '',
       richMediaActiveTab: payload.kind,
       ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
+      ...(payload.sourceKey ? { mediaSourceKey: payload.sourceKey } : {}),
     },
     kind: payload.kind,
     url: cleanUrl,
@@ -929,6 +926,8 @@ export default function StoryboardCanvas({
   const handleDropStoryboardCanvasMediaNode = React.useCallback((payload: MediaDragPayload, clientX: number, clientY: number) => {
     const cleanUrl = readStoryboardScalar(payload.url)
     if (!cleanUrl) return
+    const existingSourceNodeId = findStoryboardGraphNodeIdByProperty([useGraphStore.getState().graphData as GraphData | null, storeGraphData, graphData], FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, 'mediaSourceKey', payload.sourceKey)
+    if (existingSourceNodeId) { setSelectionSource('canvas'); selectNode(existingSourceNodeId); updateOpenWidgetNodeIds(prev => (prev.includes(existingSourceNodeId) ? prev : [...prev, existingSourceNodeId])); return }
     const baseGraphData = storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }
     const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
     const beforeIds = new Set<string>(nodes.map(node => String(node.id || '').trim()).filter(Boolean))
@@ -1664,11 +1663,12 @@ export default function StoryboardCanvas({
     }
     const handleCanvasPointerDragDrop = (event: Event) => {
       const detail = (event as CustomEvent<Partial<MediaPointerDragDropDetail>>).detail || null
-      const payload = detail?.payload
+      if (document.querySelector('[data-kg-flow-editor-surface-root="storyboard"]')) return
+      const payload = isMediaPointerDragDropClaimed(detail as MediaPointerDragDropDetail | null | undefined) ? null : detail?.payload
       const clientX = Number(detail?.clientX)
       const clientY = Number(detail?.clientY)
       if (!payload || !isCanvasMediaRelease(clientX, clientY)) return
-      handleDropStoryboardCanvasMediaNode(payload, clientX, clientY)
+      claimMediaPointerDragDrop(detail as MediaPointerDragDropDetail | null | undefined); handleDropStoryboardCanvasMediaNode(payload, clientX, clientY)
       clearMediaPointerDragPayload()
     }
     const handleWindowPointerMediaRelease = (event: PointerEvent | MouseEvent) => {

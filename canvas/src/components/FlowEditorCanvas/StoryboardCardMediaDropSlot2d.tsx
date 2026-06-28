@@ -3,8 +3,10 @@ import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import {
   MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE,
   MEDIA_POINTER_DRAG_DROP_EVENT,
+  claimMediaPointerDragDrop,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaPointerDragDropClaimed,
   readMediaDragPayload,
   readMediaPointerDragPayload,
   type MediaDragPayload,
@@ -51,6 +53,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
     const handlePointerDragDrop = (event: Event) => {
       if (!(event instanceof CustomEvent)) return
       const detail = event.detail as Partial<MediaPointerDragDropDetail> | null
+      if (isMediaPointerDragDropClaimed(detail as MediaPointerDragDropDetail | null | undefined)) return
       const payload = detail?.payload
       const clientX = Number(detail?.clientX)
       const clientY = Number(detail?.clientY)
@@ -58,6 +61,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
       if (!payload || !Number.isFinite(clientX) || !Number.isFinite(clientY) || !element) return
       const rect = element.getBoundingClientRect()
       if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return
+      claimMediaPointerDragDrop(detail as MediaPointerDragDropDetail | null | undefined)
       onDropMedia(card, payload)
       clearMediaPointerDragPayload()
       try {

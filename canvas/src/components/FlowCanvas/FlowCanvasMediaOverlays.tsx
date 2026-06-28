@@ -221,6 +221,7 @@ export default function FlowCanvasMediaOverlays(args: {
       next.set(id, record)
       const stableSize = readStableRichMediaPanelSize(record)
       if (stableSize) lastKnownSizes.set(id, stableSize)
+      else if (!mediaOverlayPanelSizeTargetWorldRef.current.has(id)) lastKnownSizes.delete(id)
     }
     for (const id of Array.from(lastKnownSizes.keys())) {
       if (!next.has(id)) lastKnownSizes.delete(id)
@@ -627,7 +628,7 @@ export default function FlowCanvasMediaOverlays(args: {
           return { w: coerced.width, h: coerced.height }
         }
         const props = sceneNodePropsByIdRef.current.get(id) || null
-        const stableSize = readStableRichMediaPanelSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null
+        const stableSize = readStableRichMediaPanelSize(props) || (!props ? mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null : null)
         if (!stableSize) {
           return storyboardSharedSurfaceRendererMode
             ? { w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width, h: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height }
@@ -742,7 +743,11 @@ export default function FlowCanvasMediaOverlays(args: {
             data-kg-rich-media-flow-editor-chrome="1"
             data-kg-rich-media-panel="1" data-node-id={node.id} data-kg-flow-editor-surface={flowEditorOverlaySurfaceId || undefined}
             style={{ zIndex: overlayZIndex }}
-            onPointerDownCapture={() => { const id = String(node.id || '').trim(); if (!id) return; setActiveRichMediaPanelId(id); useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: id, selectedNodeIds: [id], selectedEdgeId: null, selectedEdgeIds: [], selectedGroupId: null, selectedGroupIds: [] }) }}
+            onPointerDownCapture={() => { const id = String(node.id || '').trim(); if (!id) return; setActiveRichMediaPanelId(id); useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: id, selectedNodeIds: [id], selectedEdgeId: null, selectedEdgeIds: [], selectedGroupId: null, selectedGroupIds: [] }); requestAnimationFrame(() => { const host = mediaOverlayElsRef.current.get(id); const rect = host?.getBoundingClientRect?.(); const state = useGraphStore.getState() as { selectedNodeId?: string | null; openWidgetNodeIds?: string[]; graphDataRevision?: number }; const panelData = node.panel && typeof node.panel === 'object' ? node.panel as Record<string, unknown> : null
+            // #region debug-point B:panel-select-open
+            ;fetch("http://127.0.0.1:7777/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:"rich-media-edge-regression",runId:"pre-fix",hypothesisId:"B",location:"FlowCanvasMediaOverlays.tsx:745",msg:"[DEBUG] rich media overlay selected/opened on storyboard surface",data:{id,canvas2dRenderer,selectedNodeId:String(state.selectedNodeId||"").trim(),openWidgetNodeIds:Array.isArray(state.openWidgetNodeIds)?state.openWidgetNodeIds.map(value=>String(value||"").trim()).filter(Boolean):[],graphRevision:Number(state.graphDataRevision||0),rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,panelSize:panelData?{width:Number(panelData.width||0),height:Number(panelData.height||0)}:null,storyboardSharedSurfaceRendererMode},ts:Date.now()})}).catch(()=>{});
+            // #endregion
+            }) }}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
             <FlowEditorOverlayPortHandles nodeId={node.id} selected={isSelected} />

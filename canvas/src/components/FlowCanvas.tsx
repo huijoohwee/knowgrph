@@ -392,7 +392,7 @@ export default function FlowCanvas({
     runtimeRef,
     graphDataForZoomRef: collisionGraphDataRef,
     schemaRef: collisionSchemaRef,
-    disableRelaxOnCommit: isFlowEditor,
+    disableRelaxOnCommit: canvas2dRenderer === 'flowEditor',
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -402,7 +402,7 @@ export default function FlowCanvas({
     positionsDirtySinceCommitRef,
     lastCommittedPositionsRef,
     buildDrawArgs,
-    allowLayoutCommitWhenWorkspaceBlocked: isFlowEditor,
+    allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'flowEditor',
   })
 
   useFlowCanvasRuntime({

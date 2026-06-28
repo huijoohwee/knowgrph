@@ -32,6 +32,16 @@ export type MediaPointerDragDropDetail = {
   clientY: number
   startClientX?: number
   startClientY?: number
+  __kgMediaPointerDropClaimed?: boolean
+}
+
+export function isMediaPointerDragDropClaimed(detail: MediaPointerDragDropDetail | null | undefined): boolean {
+  return detail?.__kgMediaPointerDropClaimed === true
+}
+
+export function claimMediaPointerDragDrop(detail: MediaPointerDragDropDetail | null | undefined): void {
+  if (!detail) return
+  detail.__kgMediaPointerDropClaimed = true
 }
 
 export function isMediaDropClaimedByNestedTarget(clientX: number, clientY: number): boolean {

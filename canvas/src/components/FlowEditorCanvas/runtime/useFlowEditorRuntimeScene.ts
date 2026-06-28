@@ -1327,10 +1327,15 @@ export function useFlowEditorRuntimeScene(args: {
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
       && fullFrontmatterCollectiveIds.length > 0
-      && (
-        forceSceneEmptyReseed
-        || (pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length)
-    )
+      && (() => {
+        if (forceSceneEmptyReseed) return true
+        return pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length
+      })()
+    if (shouldReseedWholeFrontmatterCollective) {
+      // #region debug-point D:collective-reseed
+      fetch("http://127.0.0.1:7777/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:"rich-media-edge-regression",runId:"pre-fix",hypothesisId:"D",location:"useFlowEditorRuntimeScene.ts:1327",msg:"[DEBUG] runtime scene escalated to whole frontmatter collective reseed",data:{forceSceneEmptyReseed,pendingCount:pending.length,fullFrontmatterCollectiveCount:fullFrontmatterCollectiveIds.length,pendingIds:pending,fullFrontmatterCollectiveIds,layoutRebalanceRequested,isFrontmatterFlow,frontmatterHasUnplacedScreenAuthorityWidget},ts:Date.now()})}).catch(()=>{});
+      // #endregion
+    }
     if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
     if (pending.length === 0) {
       markLayoutRebalanceHandled()

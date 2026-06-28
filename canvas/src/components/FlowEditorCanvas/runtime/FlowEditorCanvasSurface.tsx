@@ -5,14 +5,17 @@ import {
   StoryboardCardOverlayLayer2d,
   applyFixedStoryboardCardPlacementsToGraphData2d,
 } from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'
+import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
 import { readFlowWidgetDragPayloadFromDataTransfer } from '@/lib/flowEditor/widgetDrag'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
+  claimMediaPointerDragDrop,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaPointerDragDropClaimed,
   isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
   type MediaPointerDragDropDetail,
@@ -39,6 +42,8 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { FlowEditorOverlayPortHandleProvider } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 import { useStoryboardEdgeCreationRequest } from '@/components/FlowEditorCanvas/runtime/useStoryboardEdgeCreationRequest'
+import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -100,9 +105,20 @@ export default function FlowEditorCanvasSurface(props: {
     })
     return board.lanes
       .flatMap(lane => lane.cards.map(card => String(card.id || '').trim()))
-      .filter(Boolean)
+      .filter(id => isStoryboardFixedCardOwnedNode(resolveGraphNodeByCanonicalId(storyboardGraphData, id)))
   }, [graphContentRevision, graphDataRevision, props.widgetRegistry, storyboardCardsActive, storyboardGraphData])
-  const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride
+  const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {
+    const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride
+    return flowCanvasGraphDataOverride
+  }, [props.renderGraphDataOverride, storyboardCardsActive, storyboardGraphData])
+  const flowCanvasGraphDataOverride = React.useMemo(() => {
+    const baseGraphData = readFlowCanvasBaseGraphDataOverride()
+    if (!storyboardCardsActive) return baseGraphData
+    return filterGraphByExcludedNodeIds({
+      graphData: baseGraphData,
+      excludedNodeIds: storyboardHiddenNodeIds,
+    })
+  }, [readFlowCanvasBaseGraphDataOverride, storyboardCardsActive, storyboardHiddenNodeIds])
   const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined
   useStoryboardEdgeCreationRequest({
     active: storyboardCardsActive,
@@ -142,8 +158,6 @@ export default function FlowEditorCanvasSurface(props: {
     if (!mediaUrl) return false
     const pos = readSurfaceDrop(clientX, clientY)
     if (!pos) return false
-    const dropKey = `media:${mediaUrl}:${Math.round(pos.x)}:${Math.round(pos.y)}`
-    if (props.shouldDedupeWidgetDrop(dropKey)) return true
     const actualId = props.addRichMediaPanelFromMediaAtWorld({ media: { ...payload, url: mediaUrl }, x: pos.x, y: pos.y })
     if (!actualId) return false
     props.upsertUiToast({ id: 'flow-editor-drop-media', kind: 'neutral', message: 'Created Rich Media Panel node.', ttlMs: 1500 })
@@ -294,13 +308,19 @@ export default function FlowEditorCanvasSurface(props: {
     const handleCanvasPointerDragDrop = (event: Event) => {
       const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
       if (!detail?.payload) return
+      if (isMediaPointerDragDropClaimed(detail)) return
       if (!isMediaPointerDropDistanceAccepted(detail)) return
-      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY)) return
+      claimMediaPointerDragDrop(detail)
       try {
         event.preventDefault()
         event.stopPropagation()
+        ;(event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
       } catch {
         void 0
+      }
+      if (!appendMediaPanelAtClientPoint(detail.payload, detail.clientX, detail.clientY)) {
+        detail.__kgMediaPointerDropClaimed = false
+        return
       }
     }
     window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop, true)
@@ -428,8 +448,6 @@ export default function FlowEditorCanvasSurface(props: {
           allowNodeDragOverride={props.canInteract}
           graphDataOverride={flowCanvasGraphDataOverride}
           graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
-          hideNodeIds={flowCanvasHiddenNodeIds}
-          hidePortHandleNodeIds={flowCanvasHiddenNodeIds}
           excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}
           exposeRuntimeRef={ref => {
             props.flowRuntimeRefRef.current = ref
@@ -462,7 +480,6 @@ export default function FlowEditorCanvasSurface(props: {
         graphRevision={graphContentRevision || graphDataRevision || 0}
         schema={schema}
         widgetRegistry={props.widgetRegistry}
-        zoomViewKeyRef={props.zoomViewKeyRef}
       />
 
       {props.noGraphLoaded && !props.geospatialWidgetPanelMode && (

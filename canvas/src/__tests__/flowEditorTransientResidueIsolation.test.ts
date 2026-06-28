@@ -60,8 +60,20 @@ export function testFlowEditorOverlayEdgesReuseStableGraphForMetadataLessHandoff
   if (!text.includes('const liveGraphMetaKind = String(((liveGraph?.metadata || {}) as Record<string, unknown>).kind || \'\').trim()')) {
     throw new Error('expected Flow Editor overlay edges to inspect live graph metadata before accepting handoff graphs')
   }
-  if (!text.includes('&& !liveGraphMetaKind\n            && lastStableOverlayEdgeNodeIdsRef.current.length > 0')) {
-    throw new Error('expected metadata-less handoff graphs to reuse the stable overlay edge graph while overlay ids are stable')
+  for (const snippet of [
+    'const liveGraphRevision = readGraphDataRevision(liveGraph)',
+    'const stableGraphRevision = readGraphDataRevision(stableGraph)',
+    'const canReuseMetadataLessStableGraph =',
+    'liveGraphRevision === stableGraphRevision',
+    'liveGraphNodeCount === stableGraphNodeCount',
+    'liveGraphEdgeCount === stableGraphEdgeCount',
+  ]) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected metadata-less handoff reuse to stay scoped to matching live/stable graph revisions or equal zero-revision counts: ${snippet}`)
+    }
+  }
+  if (!text.includes('|| (\n            canReuseMetadataLessStableGraph\n          )')) {
+    throw new Error('expected metadata-less handoff graphs to reuse the stable overlay edge graph only through the explicit handoff guard')
   }
   const stableWriteIndex = text.indexOf('lastStableOverlayEdgeGraphRef.current = graph')
   const emptyFilteredIndex = text.indexOf("pushOverlayEdgeTrace('empty-filtered-edge-set'")
@@ -76,6 +88,9 @@ export function testFlowEditorOverlayEdgesReuseStableGraphForMetadataLessHandoff
   }
   if (!text.includes('const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(node)')) {
     throw new Error('expected Flow Editor overlay edges to restore frozen paths in Editor Workspace handoffs')
+  }
+  if (text.includes('http://127.0.0.1:7777/event')) {
+    throw new Error('forbid hardcoded debug event sinks inside the Flow Editor overlay edge runtime')
   }
 }
 

@@ -22,11 +22,12 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
     'startMediaPointerDrag(event, props.payload)',
     "setCanvas2dRenderer('storyboard')",
     "setFrontmatterModeEnabled(true)",
+    "setZoomToSelectionMode(true)",
     'setGraphData(buildSmokeGraph())',
     "__kgStoryboardDropSmoke = smokeState",
     'data-kg-storyboard-drop-smoke-source={props.surface}',
     'data-kg-storyboard-drop-smoke-shifted="1"',
-    '<CanvasPage />',
+    '<CanvasPage bootstrapRuntimesEnabled={false} />',
   ]) {
     if (!smokePageSource.includes(snippet)) {
       throw new Error(`expected storyboard smoke page to reuse shared drag/runtime contracts: ${snippet}`)
@@ -49,9 +50,18 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
 
   for (const snippet of [
     'TARGET_URL = f"{BASE_URL}/?kgPath=%2F__smoke__%2Fstoryboard-rich-media-drop"',
+    'assert_storyboard_edge_panel_open_retention(',
+    '"storyboard-card-alpha"',
+    '"storyboard-card-beta"',
+    'expect_selected_rich_media_panel(page, node_id)',
+    'expect_pending_storyboard_edge_visible(page)',
+    'data-kg-overlay-pending-edge="true"',
+    'expected created Storyboard edge to remain visible after retention',
+    'expected selected/open dropped panel to retain Storyboard edge visibility',
+    'expect_rich_media_shell_box_stable(selected_box, reopened_box, "after select/open retention")',
     'run_single_drop(browser, "image"',
     'run_single_drop(browser, "video"',
-    'expected one dropped {source_kind} node',
+    'expected at least one dropped {source_kind} node',
     'expected dropped {source_kind} kind only',
     'expected dropped {source_kind} node id to be retained',
     'expected {source_kind} drop to preserve existing authored nodes',

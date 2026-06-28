@@ -56,21 +56,21 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   for (const snippet of [
     'storyboardCardsMode = false',
     'storyboardCardsMode={storyboardCardsMode}',
-    'function appendPendingOverlayNodesToGraphData(graphData: GraphData | null, pendingNodesById: Record<string, GraphNode>): GraphData | null',
+    "from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'",
     'const [pendingOverlayNodesById, setPendingOverlayNodesById] = React.useState<Record<string, GraphNode>>({})',
     'const registerPendingOverlayNode = React.useCallback<React.Dispatch<React.SetStateAction<GraphNode | null>>>((nextPendingNode) => {',
     'const flowCanvasGraphDataWithPendingOverlays = React.useMemo(',
     'appendPendingOverlayNodesToGraphData(flowCanvasGraphDataOverride, pendingOverlayNodesById)',
     'setPendingOverlayNodesById(prev => {',
     'delete next[id]',
-    'resolveGraphNodeByCanonicalId(flowCanvasGraphDataOverride, pendingId)',
+    'resolveGraphNodeByCanonicalId(baseGraphData, pendingId)',
     'pendingOverlayNodeIdRef.current = null',
     'setPendingOverlayNode(null)',
     'const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {',
     "return { context: '', type: 'Graph', nodes: [], edges: [] }",
     'const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded',
     'storyboardSourceGraphData={storyboardCanvasGraphDataOverride}',
-    'renderGraphDataOverride={storyboardCanvasGraphDataOverride}',
+    'renderGraphDataOverride={flowCanvasGraphDataOverride}',
     'noGraphLoaded={surfaceNoGraphLoaded}',
   ]) {
     if (!flowEditorRuntimeSource.includes(snippet)) {
@@ -79,16 +79,20 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   }
   for (const snippet of [
     "from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'",
+    "from '@/components/FlowEditorCanvas/flowEditorCanvasShared'",
     "const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'",
     'applyFixedStoryboardCardPlacementsToGraphData2d({',
     "from '@/components/StoryboardCanvas/storyboardModel'",
     'const board = buildStoryboardBoardModel({',
     'flatMap(lane => lane.cards.map(card => String(card.id || \'\').trim()))',
+    'const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {',
     'const flowCanvasGraphDataOverride = storyboardCardsActive ? storyboardGraphData : props.renderGraphDataOverride',
+    'const flowCanvasGraphDataOverride = React.useMemo(() => {',
+    'filterGraphByExcludedNodeIds({',
+    'excludedNodeIds: storyboardHiddenNodeIds,',
     'const flowCanvasHiddenNodeIds = storyboardCardsActive ? storyboardHiddenNodeIds : undefined',
     'graphDataOverride={flowCanvasGraphDataOverride}',
-    'hideNodeIds={flowCanvasHiddenNodeIds}',
-    'hidePortHandleNodeIds={flowCanvasHiddenNodeIds}',
+    'excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}',
     '<StoryboardCardOverlayLayer2d',
     'active={storyboardCardsActive}',
     'graphData={storyboardGraphData}',
@@ -99,6 +103,9 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   }
   if (flowEditorSurfaceSource.includes('return nodes.map(node => String(node?.id || \'\').trim()).filter(Boolean)')) {
     throw new Error('expected Storyboard fixed-card mode to hide only card-overlay nodes so dropped Rich Media Panels stay visible on FlowCanvas')
+  }
+  if (flowEditorSurfaceSource.includes('hideNodeIds={flowCanvasHiddenNodeIds}') || flowEditorSurfaceSource.includes('hidePortHandleNodeIds={flowCanvasHiddenNodeIds}')) {
+    throw new Error('expected Storyboard fixed-card mode to exclude owned card nodes from the FlowCanvas graph upstream instead of masking them via hide props')
   }
   for (const snippet of [
     "return id === 'flowEditor' || id === 'storyboard'",
@@ -648,7 +655,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     throw new Error('expected Storyboard media slots to avoid starter-style hardcoded missing-media copy')
   }
   for (const snippet of [
-    "MEDIA_POINTER_DRAG_DROP_EVENT, clearMediaPointerDragPayload, hasMediaDragPayload, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail",
+    'MEDIA_POINTER_DRAG_DROP_EVENT', 'claimMediaPointerDragDrop', 'isMediaPointerDragDropClaimed', 'clearMediaPointerDragPayload', 'readMediaPointerDragPayload',
     'STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS',
     'STORYBOARD_DROPPED_REFERENCE_KEY_BY_KIND',
     'buildStoryboardCardPrimaryMediaDropSlot',

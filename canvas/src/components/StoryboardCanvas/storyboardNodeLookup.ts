@@ -16,3 +16,17 @@ export function buildStoryboardGraphBackedNodeLookup(graphs: readonly (GraphData
   }
   return nodeById
 }
+
+export function findStoryboardGraphNodeIdByProperty(graphs: readonly (GraphData | null | undefined)[], nodeType: string, propertyKey: string, propertyValue: unknown): string {
+  const expectedValue = String(propertyValue || '').trim()
+  if (!expectedValue) return ''
+  for (const graph of graphs) {
+    const nodes = Array.isArray(graph?.nodes) ? graph.nodes : []
+    for (const node of nodes) {
+      if (String(node?.type || '').trim() !== nodeType) continue
+      const properties = node.properties && typeof node.properties === 'object' ? node.properties as Record<string, unknown> : {}
+      if (String(properties[propertyKey] || '').trim() === expectedValue) return String(node.id || '').trim()
+    }
+  }
+  return ''
+}

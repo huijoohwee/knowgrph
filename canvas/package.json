@@ -48,6 +48,7 @@
     "test:smoke:rich-media:browser": "node ./scripts/run_rich_media_browser_smoke.mjs",
     "test:smoke:storyboard-rich-media-drop:source": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/subsetStoryboardRichMediaDropSmoke.ts",
     "test:smoke:storyboard-rich-media-drop:browser": "node ./scripts/run_storyboard_rich_media_drop_browser_smoke.mjs",
+    "test:live:storyboard-media-panel-retention:browser": "node ./scripts/run_storyboard_live_route_media_panel_retention.mjs",
     "test:ci:unit": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/ci.ts",
     "test:html-video:browser-native-video": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/tools/smoke-html-video-browser-native-video.ts",
     "test:ci:standalone-export": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs ./src/cli/export-canvas-html.ts --input ./src/__tests__/fixtures/webpage-artifacts/pencil.md --output ../../data/outputs/pencil.ci.canvas-2d.html --mode 2d && node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs ./src/cli/export-canvas-html.ts --input ./src/__tests__/fixtures/webpage-artifacts/pencil.md --output ../../data/outputs/pencil.ci.canvas-3d.html --mode 3d && npm run test:ci:standalone-export:browser",

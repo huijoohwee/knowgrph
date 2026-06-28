@@ -3,7 +3,7 @@ import { Image as ImageIcon, Plus } from 'lucide-react'
 import { CardMediaLoadingSkeleton, CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay, MediaPromptActionOverlay } from '@/lib/ui/MediaKindOverlay'
 import { MediaLightbox, type MediaLightboxPromptParameter, type MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
-import { MEDIA_POINTER_DRAG_DROP_EVENT, clearMediaPointerDragPayload, hasMediaDragPayload, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -297,6 +297,7 @@ function StoryboardMediaSelectionSlotView(props: {
     const handlePointerDragDrop = (event: Event) => {
       if (!(event instanceof CustomEvent)) return
       const detail = event.detail as Partial<MediaPointerDragDropDetail> | null
+      if (isMediaPointerDragDropClaimed(detail as MediaPointerDragDropDetail | null | undefined)) return
       const payload = detail?.payload
       const clientX = Number(detail?.clientX)
       const clientY = Number(detail?.clientY)
@@ -304,6 +305,7 @@ function StoryboardMediaSelectionSlotView(props: {
       if (!payload || !Number.isFinite(clientX) || !Number.isFinite(clientY) || !element) return
       const rect = element.getBoundingClientRect()
       if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return
+      claimMediaPointerDragDrop(detail as MediaPointerDragDropDetail | null | undefined)
       setDropActive(false)
       onDropMedia(slot, payload)
       clearMediaPointerDragPayload()

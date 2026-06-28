@@ -644,6 +644,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["strybldr.markdown.consolidatedDemoRoutesPanelsAndStoryboardRenderers","@/__tests__/strybldr.test","testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRenderers"],
   ["strybldr.markdown.starterTemplateRunnableNeutral","@/__tests__/strybldr.test","testStrybldrStarterTemplateStaysRunnableAndNeutral"],
   ["storyboard.richMediaDrop.browserSmokeContract","@/__tests__/storyboardRichMediaDropBrowserSmokeContract.test","testStoryboardRichMediaDropBrowserSmokeContract"],
+  ["storyboard.liveRoute.mediaPanel.browserContract","@/__tests__/storyboardLiveRouteMediaPanelBrowserContract.test","testStoryboardLiveRouteMediaPanelBrowserContract"],
   ["strybldr.markdown.workspaceStructuredGraphFeedsStoryboardRenderers","@/__tests__/strybldr.test","testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers"],
   ["strybldr.markdown.appendElementPersistsToStructuredPayload","@/__tests__/strybldr.test","testStrybldrStoryboardAppendElementPersistsToStructuredPayload"],
   ["strybldr.markdown.removeElementPersistsToStructuredPayload","@/__tests__/strybldr.test","testStrybldrStoryboardRemoveElementPersistsToStructuredPayload"],

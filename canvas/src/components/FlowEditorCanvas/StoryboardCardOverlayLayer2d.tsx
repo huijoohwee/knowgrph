@@ -4,6 +4,7 @@ import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorP
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import { FlowEditorOverlayPortHandles } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 import { StoryboardCardMediaDropSlot2d } from '@/components/FlowEditorCanvas/StoryboardCardMediaDropSlot2d'
+import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/FlowEditorCanvas/useStoryboardCardMediaDrop2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { buildStoryboardBoardModel, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
@@ -69,7 +70,9 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
 }): Map<string, StoryboardCardPlacement> => {
   const { board, nodeById, schema } = args
   const out = new Map<string, StoryboardCardPlacement>()
-  const orderedCards = board.lanes.flatMap(lane => lane.cards).filter(card => nodeById.has(card.id))
+  const orderedCards = board.lanes
+    .flatMap(lane => lane.cards)
+    .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
   if (orderedCards.length === 0) return out
 
   const centers: StoryboardCardPlacement[] = []
@@ -97,7 +100,7 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
   const cellWidth = grid.enabled ? ceilToStep(maxCardWidth + gapX, grid.x) : maxCardWidth + gapX
   const cellHeight = grid.enabled ? ceilToStep(maxCardHeight + gapY, grid.y) : maxCardHeight + gapY
   const visibleLanes = board.lanes
-    .map(lane => ({ ...lane, cards: lane.cards.filter(card => nodeById.has(card.id)) }))
+    .map(lane => ({ ...lane, cards: lane.cards.filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id))) }))
     .filter(lane => lane.cards.length > 0)
   const columnCount = Math.max(1, visibleLanes.length)
   const rowCount = Math.max(1, visibleLanes.reduce((max, lane) => Math.max(max, lane.cards.length), 0))
@@ -333,9 +336,8 @@ export function StoryboardCardOverlayLayer2d(props: {
   getTransform: () => FlowEditorOverlayDragTransform | null
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
-  zoomViewKeyRef: React.MutableRefObject<string | null>
 }) {
-  const { active, flowEditorSurfaceId, getTransform, graphData, graphRevision, schema, widgetRegistry, zoomViewKeyRef } = props
+  const { active, flowEditorSurfaceId, getTransform, graphData, graphRevision, schema, widgetRegistry } = props
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -369,7 +371,9 @@ export function StoryboardCardOverlayLayer2d(props: {
     return out
   }, [graphData])
   const cards = React.useMemo(
-    () => board.lanes.flatMap(lane => lane.cards).filter(card => nodeById.has(card.id)),
+    () => board.lanes
+      .flatMap(lane => lane.cards)
+      .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id))),
     [board.lanes, nodeById],
   )
   const { dropCardMedia, pendingMediaByCardId } = useStoryboardCardMediaDrop2d({
@@ -508,9 +512,9 @@ export function StoryboardCardOverlayLayer2d(props: {
         if (isScreenBoxVisible(currentBox, { width, height }, viewport)) visibleCardCount += 1
         pending.push({ card, el, node, x, y, width, height })
       }
-      const zoomViewKey = String(zoomViewKeyRef.current || '').trim()
-      if (zoomViewKey && initialFitCommitKeyRef.current !== zoomViewKey) {
-        initialFitCommitKeyRef.current = zoomViewKey
+      const initialFitDocumentKey = `${flowEditorSurfaceId}::${String(markdownDocumentName || '').trim()}`
+      if (initialFitCommitKeyRef.current !== initialFitDocumentKey) {
+        initialFitCommitKeyRef.current = initialFitDocumentKey
         if (visibleCardCount === 0) requestZoom('fit', { intent: 'fitToView' })
       }
       for (let i = 0; i < pending.length; i += 1) {
@@ -528,7 +532,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     }
     frame = window.requestAnimationFrame(update)
     return () => window.cancelAnimationFrame(frame)
-  }, [active, cards, fixedCardPlacements, getTransform, graphRevision, nodeById, requestZoom, zoomViewKeyRef])
+  }, [active, cards, fixedCardPlacements, flowEditorSurfaceId, getTransform, graphRevision, markdownDocumentName, nodeById, requestZoom])
 
   if (!active || cards.length === 0) return null
   return (

@@ -249,6 +249,22 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   const frontmatterPayload = parseYaml(frontmatter.rawBlock.replace(/^---\n?/, '').replace(/\n---\s*$/, '')) as Record<string, unknown>
   const flowRecord = frontmatterPayload.flow as Record<string, unknown> | undefined
   const authoredFlowNodes = Array.isArray(flowRecord?.nodes) ? flowRecord.nodes : []
+  const authoredFlowEdges = Array.isArray(flowRecord?.edges) ? flowRecord.edges : []
+  const authoredEdgeIds = authoredFlowEdges
+    .map(edge => {
+      if (!edge || typeof edge !== 'object') return ''
+      return String((edge as { id?: unknown }).id || '').trim()
+    })
+    .filter(Boolean)
+  assert(new Set(authoredEdgeIds).size === authoredEdgeIds.length, 'expected starter template flow.edges to avoid duplicate authored edge ids')
+  assert(
+    authoredFlowNodes.every(node => (
+      !node
+      || typeof node !== 'object'
+      || String(readTypedValue((node as Record<string, unknown>).type) || '') !== 'RichMediaPanel'
+    )),
+    'expected starter template flow.nodes to avoid authored Rich Media panel runtime residue',
+  )
   const graphNodeById = new Map((graph.nodes || []).map(node => [String(node.id), node]))
   const missingParsedFields: string[] = []
   for (const authoredNode of authoredFlowNodes) {

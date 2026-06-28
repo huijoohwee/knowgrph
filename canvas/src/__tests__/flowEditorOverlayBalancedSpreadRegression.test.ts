@@ -603,8 +603,8 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('for (const id of Array.from(lastKnownSizes.keys())) {')) {
     throw new Error('expected Rich Media overlay size cache to prune removed nodes without dropping active-node stable sizes during workspace churn')
   }
-  if (!overlayText.includes('readStableRichMediaPanelSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
-    throw new Error('expected Rich Media layout sizing to reuse the last stable panel size when visual width/height are transiently missing')
+  if (!overlayText.includes('readStableRichMediaPanelSize(props) || (!props ? mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null : null)')) {
+    throw new Error('expected Rich Media layout sizing to reuse the last stable panel size only across transient missing node-prop gaps, not bare node-id reuse')
   }
   if (!presentationText.includes('const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())')) {
     throw new Error('expected D3 presentation to retain last stable overlay half-extents across transient missing visual size props')
