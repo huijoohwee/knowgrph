@@ -470,7 +470,8 @@ Guardrails:
 - Keep the saved workspace markdown document as the only graph-application payload.
 - Keep frontmatter/canvas preset parsing unchanged and provider-neutral.
 - Keep renderer/view-mode behavior unchanged across D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, and Flow Editor.
-- Run `npm run miromind:readiness:check` for the non-deploy gate covering the rendered MainPanel path, Pages secret listing, and live no-BYOK proxy smoke.
+- Run `npm --prefix canvas run test:smoke:miromind:source` for the focused source-owned gate covering the rendered MainPanel path and server-managed key contract without live Pages dependencies.
+- Run `npm run miromind:readiness:check` for the non-deploy gate covering that source smoke, Pages secret listing, and live no-BYOK proxy smoke.
 - Forbid direct LLM-output -> graph mutation bypasses.
 - Forbid duplicate grouping registries, legacy aliases, and provider-specific schema forks.
 - Forbid browser-persisted secrets and prod-only doc divergence.

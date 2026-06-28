@@ -322,6 +322,7 @@ The Agnes integration must continue to enforce the following constraints:
 
 ### Required tests
 
+- focused source smoke: `npm --prefix canvas run test:smoke:agnes:source`
 - one-command readiness gate: `npm run agnes:readiness:check`
 - provider header and endpoint normalization tests for Agnes
 - shared provider options shaping tests for Agnes chat-completions

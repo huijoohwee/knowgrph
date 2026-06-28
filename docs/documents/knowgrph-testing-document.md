@@ -44,7 +44,10 @@
 **Rich-media targeted smoke**:
 - Run `npm run test:smoke:rich-media` for the repo-native focused bundle that exercises shared `RichMediaPanel` regressions without a browser.
 - Run `npm run test:smoke:rich-media:browser` for the Dev-only live-route smoke that mounts `canvas/src/features/testing/RichMediaBrowserSmokePage.tsx`, drives `canvas/scripts/verify_rich_media_browser_smoke.py`, and writes `data/outputs/rich-media-browser-smoke.png`.
-- Browser smoke scope is deterministic runtime coverage only: markdown preview/edit, inline `srcDoc`, snapshot iframe, click-to-open overlay, image zoom wheel, video HTML fallback, audio, and flow-editor chrome visibility. Flow-editor drag/resize callback counters stay in focused component regressions until a deterministic browser drag harness exists.
+- Browser smoke scope is deterministic runtime coverage only: markdown preview/edit, inline `srcDoc`, snapshot iframe, click-to-open overlay, image zoom wheel, video HTML fallback, audio, and flow-editor chrome visibility.
+- Run `npm run test:smoke:storyboard-rich-media-drop:source` for the repo-native focused storyboard source bundle that guards exact pointer-centering and the browser-smoke route/runner/verifier seam without launching a browser.
+- Run `npm run test:smoke:storyboard-rich-media-drop:browser` for the Dev-only storyboard drag smoke that mounts `canvas/src/features/testing/StoryboardRichMediaDropSmokePage.tsx`, drives `canvas/scripts/verify_storyboard_rich_media_drop_browser_smoke.py`, and writes `data/outputs/storyboard-rich-media-drop-browser-smoke.png`.
+- Storyboard browser smoke scope is the real `2D Renderer: Storyboard` drop bridge only: one image and one video payload must create `Rich Media Panel` nodes on the storyboard surface without shifting existing storyboard cards or rich-media panels. `npm run storyboard:readiness:check` bundles the focused source bundle `npm run test:smoke:storyboard-rich-media-drop:source`, the Dev-only browser smoke, and `pages:check-sync` so authored placement, smoke seam drift, and publish drift stay gated together. Generic flow-editor drag/resize callback counters outside this path stay in focused component regressions.
 
 ---
 

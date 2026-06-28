@@ -32,7 +32,7 @@ import {
 } from '@/lib/ui/overlayBalancedSpread'
 import { centerLayoutRectsByCentroid, measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
@@ -760,13 +760,15 @@ export function useFlowEditorRuntimeScene(args: {
       authorityGraphData: (st.graphData || null) as GraphData | null,
       nodeIds: args.openWidgetNodeIds,
     })
+    const graphNodeById = new Map<string, GraphNode>()
     const nodeTypeById = new Map<string, string>()
     const graphNodes = Array.isArray(graphDataForSeeding?.nodes) ? graphDataForSeeding.nodes : []
     for (let i = 0; i < graphNodes.length; i += 1) {
       const node = graphNodes[i]
       const id = String(node?.id || '').trim()
-      if (!id || nodeTypeById.has(id)) continue
-      nodeTypeById.set(id, String(node?.type || '').trim())
+      if (!id) continue
+      if (!graphNodeById.has(id)) graphNodeById.set(id, node)
+      if (!nodeTypeById.has(id)) nodeTypeById.set(id, String(node?.type || '').trim())
     }
     const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
       graphData: graphDataForSeeding,
@@ -821,6 +823,14 @@ export function useFlowEditorRuntimeScene(args: {
       if (!id) return ''
       if (knownWidgetNodeIds.has(id)) return id
       return resolveGraphNodeIdByCanonicalId(graphDataForSeeding, id) || id
+    }
+    const hasAuthoritativeGraphWorldAnchor = (rawId: string): boolean => {
+      const id = resolveActiveSurfaceOverlayWidgetId(rawId)
+      const node = graphNodeById.get(id) || graphNodeById.get(String(rawId || '').trim())
+      if (!node) return false
+      const hasXY = Number.isFinite(node.x) && Number.isFinite(node.y)
+      const hasFixedXY = Number.isFinite(node.fx) && Number.isFinite(node.fy)
+      return hasXY || hasFixedXY
     }
     const activeSurfaceOverlayPinnedById: FlowWidgetPinnedById = {}
     const activeSurfaceOverlayWidgetIds = (() => {
@@ -884,10 +894,11 @@ export function useFlowEditorRuntimeScene(args: {
       .filter(id => {
         const pinned = resolvePlacementPinnedInCanvas(id)
         if (!pinned) return false
-        if (forceSceneEmptyReseed) return true
+        if (forceSceneEmptyReseed) return !hasAuthoritativeGraphWorldAnchor(id)
         if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: pinned, worldPos: worldById[id] })) return false
         const w = worldById[id]
-        return !(w && Number.isFinite(w.x) && Number.isFinite(w.y))
+        if (w && Number.isFinite(w.x) && Number.isFinite(w.y)) return false
+        return !hasAuthoritativeGraphWorldAnchor(id)
       })
 
     const liveZoom = getLiveZoomTransform()
@@ -1222,6 +1233,7 @@ export function useFlowEditorRuntimeScene(args: {
       for (let i = 0; i < pinnedOpenIds.length; i += 1) {
         const id = pinnedOpenIds[i]!
         const world = worldById[id]
+        const hasAuthoritativeWorldAnchor = hasAuthoritativeGraphWorldAnchor(id)
         const group = useViewportOnlyBucket ? null : getLiveContainmentGroupAabbForNode(id)
         const bucketId = group ? `group:${group.groupId}` : viewportBucketId
         if (world && Number.isFinite(world.x) && Number.isFinite(world.y)) {
@@ -1232,11 +1244,12 @@ export function useFlowEditorRuntimeScene(args: {
         const nodeTypeId = nodeTypeById.get(id) || ''
         const frontmatterPinnedWidget =
           graphMetaKind === 'frontmatter-flow'
+          && !hasAuthoritativeWorldAnchor
           && isCanonicalFrontmatterBuiltInWidgetNode({ id, type: nodeTypeId })
         const autoPlaceCandidate =
           shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world, nodeTypeId })
           || frontmatterPinnedWidget
-          || initialCollectiveCenteringPass
+          || (initialCollectiveCenteringPass && !hasAuthoritativeWorldAnchor)
         if (!autoPlaceCandidate) continue
         if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const list = idsByBucket.get(bucketId) || []
@@ -1295,13 +1308,14 @@ export function useFlowEditorRuntimeScene(args: {
       return Array.from(overlappingIds)
     })()
     const forcedLayoutRebalanceIds = layoutRebalanceRequested ? pinnedOpenIds : []
+    const unanchoredPinnedOpenIds = pinnedOpenIds.filter(id => !hasAuthoritativeGraphWorldAnchor(id))
     const forcedInitialCollectiveIds =
       initialCollectiveCenteringPass
       && (
-        (pendingRaw.length > 0 && pinnedOpenIds.length > 1)
+        (pendingRaw.length > 0 && unanchoredPinnedOpenIds.length > 1)
         || frontmatterHasUnplacedScreenAuthorityWidget
       )
-        ? pinnedOpenIds
+        ? unanchoredPinnedOpenIds
         : []
     let pending = Array.from(new Set([
       ...pendingRaw,

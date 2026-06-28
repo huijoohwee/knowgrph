@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -7,13 +6,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const scriptsDir = path.dirname(__filename);
 const repoRoot = path.resolve(scriptsDir, '..');
-const canvasRoot = path.join(repoRoot, 'canvas');
-const tsxCliCandidates = [
-  path.join(canvasRoot, 'node_modules', 'tsx', 'dist', 'cli.cjs'),
-  path.join(repoRoot, 'node_modules', 'tsx', 'dist', 'cli.cjs'),
-];
-const tsxCliPath = tsxCliCandidates.find((candidate) => fs.existsSync(candidate)) || tsxCliCandidates[0];
-
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const PROJECT_NAME = 'joohwee';
 const SECRET_NAME = 'MIROMIND_API_KEY';
 const DEFAULT_ORIGIN = 'https://joohwee.pages.dev';
@@ -32,35 +25,11 @@ const runStep = ({ name, command, args, cwd, capture = false }) => {
   });
 };
 
-const focusedCanvasTestProgram = `
-import {
-  testMiroMindServerManagedProxyEnvNamesStayAligned,
-  testOfficialEndpointsNormalizeToProxyPaths,
-} from './src/__tests__/chatEndpointProviders.test.ts';
-import { testMiroMindProviderOptionsReuseSharedChatCompletionsShape } from './src/__tests__/floatingPanelChatProviderOptions.test.ts';
-import { testMainPanelMiroMindApiKeyUsesServerManagedPagesSecretContract } from './src/__tests__/mainPanelMiroMindPagesReadiness.test.tsx';
-import {
-  testMainPanelRequestedIntegrationsSearchShowsMiroMindApiConfigurableValues,
-} from './src/__tests__/mainPanelIntegrations.test.tsx';
-
-void (async () => {
-  testOfficialEndpointsNormalizeToProxyPaths();
-  testMiroMindServerManagedProxyEnvNamesStayAligned();
-  testMiroMindProviderOptionsReuseSharedChatCompletionsShape();
-  await testMainPanelRequestedIntegrationsSearchShowsMiroMindApiConfigurableValues();
-  await testMainPanelMiroMindApiKeyUsesServerManagedPagesSecretContract();
-  console.log('miromind-focused-tests: ok');
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-`.trim();
-
 const assertSecretListIncludesMiroMind = () => {
   const output = runStep({
     name: 'Cloudflare Pages production secret list',
     command: 'npx',
-    args: ['--yes', 'wrangler', 'pages', 'secret', 'list', '--project-name', PROJECT_NAME],
+    args: ['--yes', 'wrangler@latest', 'pages', 'secret', 'list', '--project-name', PROJECT_NAME],
     cwd: repoRoot,
     capture: true,
   });
@@ -117,16 +86,12 @@ const runLiveSmoke = async () => {
   }
 };
 
-if (!fs.existsSync(tsxCliPath)) {
-  throw new Error(`Missing tsx CLI. Checked ${tsxCliCandidates.join(', ')}. Run npm install first.`);
-}
-
 if (!LIVE_MODE) {
   runStep({
     name: 'canvas focused MiroMind checks',
-    command: process.execPath,
-    args: ['--preserve-symlinks', '--preserve-symlinks-main', tsxCliPath, '-e', focusedCanvasTestProgram],
-    cwd: canvasRoot,
+    command: npmCommand,
+    args: ['--prefix', 'canvas', 'run', 'test:smoke:miromind:source'],
+    cwd: repoRoot,
   });
 }
 

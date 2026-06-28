@@ -314,6 +314,7 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
 
 export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   const dropBridge = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts'), 'utf8')
+  const runtimeScene = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeScene.ts'), 'utf8')
   const mediaOverlay = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   if (!dropBridge.includes("from '@/lib/render/richMediaPanelDefaults'")) {
     throw new Error('expected Rich Media media-drop bridge to reuse shared panel size defaults')
@@ -323,6 +324,19 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   }
   for (const snippet of ['fx: x', 'fy: y', 'vx: 0', 'vy: 0']) {
     if (!dropBridge.includes(snippet)) throw new Error(`expected dropped Rich Media Panels to remain pinned at the manual release position: ${snippet}`)
+  }
+  for (const snippet of [
+    'const hasAuthoritativeGraphWorldAnchor = (rawId: string): boolean => {',
+    'const hasXY = Number.isFinite(node.x) && Number.isFinite(node.y)',
+    'const hasFixedXY = Number.isFinite(node.fx) && Number.isFinite(node.fy)',
+    'if (forceSceneEmptyReseed) return !hasAuthoritativeGraphWorldAnchor(id)',
+    'return !hasAuthoritativeGraphWorldAnchor(id)',
+    '|| (initialCollectiveCenteringPass && !hasAuthoritativeWorldAnchor)',
+    'const unanchoredPinnedOpenIds = pinnedOpenIds.filter(id => !hasAuthoritativeGraphWorldAnchor(id))',
+  ]) {
+    if (!runtimeScene.includes(snippet)) {
+      throw new Error(`expected dropped Rich Media Panels with authored graph coordinates to stay out of collective reseed authority: ${snippet}`)
+    }
   }
   for (const snippet of ['fx: next.x', 'fy: next.y', 'vx: 0', 'vy: 0']) {
     if (!mediaOverlay.includes(snippet)) throw new Error(`expected Rich Media Panel drag to update the shared pinned world position: ${snippet}`)

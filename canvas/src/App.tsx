@@ -17,6 +17,9 @@ const ToastHostLazy = lazy(() => import('@/components/ui/ToastHost'))
 const RichMediaBrowserSmokePageLazy = lazy(async () => ({
   default: (await import('@/features/testing/RichMediaBrowserSmokePage')).RichMediaBrowserSmokePage,
 }))
+const StoryboardRichMediaDropSmokePageLazy = lazy(async () => ({
+  default: (await import('@/features/testing/StoryboardRichMediaDropSmokePage')).StoryboardRichMediaDropSmokePage,
+}))
 
 function AppThemeRuntime() {
   useLayoutEffect(() => {
@@ -39,6 +42,13 @@ export default function App() {
     const pathname = String(window.location.pathname || '')
     const kgPath = String(params.get('kgPath') || '')
     return pathname === '/__smoke__/rich-media' || kgPath === '/__smoke__/rich-media'
+  }, [])
+  const storyboardRichMediaDropSmokeRequested = useMemo(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    const pathname = String(window.location.pathname || '')
+    const kgPath = String(params.get('kgPath') || '')
+    return pathname === '/__smoke__/storyboard-rich-media-drop' || kgPath === '/__smoke__/storyboard-rich-media-drop'
   }, [])
   useEffect(() => {
     let cancelled = false
@@ -181,6 +191,10 @@ export default function App() {
             element={richMediaBrowserSmokeRequested ? (
               <Suspense fallback={null}>
                 <RichMediaBrowserSmokePageLazy />
+              </Suspense>
+            ) : storyboardRichMediaDropSmokeRequested ? (
+              <Suspense fallback={null}>
+                <StoryboardRichMediaDropSmokePageLazy />
               </Suspense>
             ) : <Canvas />}
           />
