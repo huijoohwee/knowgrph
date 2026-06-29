@@ -122,7 +122,7 @@ export function TimelineFloatingPanelView() {
   const videoSequenceTimelineLaneVisibility = useGraphStore(state => state.videoSequenceTimelineLaneVisibility)
   const setVideoSequenceTimelineLaneVisibility = useGraphStore(state => state.setVideoSequenceTimelineLaneVisibility)
   const { code: timelineCode, graphData, themeMode, timelineModel } = useMermaidTimelineDocument()
-  const { code: ganttCode, ganttModel, themeMode: ganttThemeMode } = useMermaidGanttDocument()
+  const { code: ganttCode, ganttModel, graphData: ganttGraphData, themeMode: ganttThemeMode } = useMermaidGanttDocument()
   const videoSequenceModel = React.useMemo(() => readVideoSequenceTimelineModelFromMarkdown(markdownDocumentText), [markdownDocumentText])
   const [floatingRowsExpanded, setFloatingRowsExpanded] = React.useState(true)
   const laneVisibility = React.useMemo<VideoSequenceFloatingPanelLaneVisibility>(() => {
@@ -186,6 +186,11 @@ export function TimelineFloatingPanelView() {
     diagramModel: timelineModel,
     kind: 'timeline',
   })
+  const { handleDiagramSelectedRowKeyChange: handleGanttDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+    graphData: ganttGraphData,
+    diagramModel: ganttModel,
+    kind: 'gantt',
+  })
   if (!timelineCode && ganttCode) {
     return (
       <section className="h-full min-h-0" data-kg-timeline-floating-panel="1" {...metadataAttrs} {...animationAttributes} style={animationStyle}>
@@ -200,6 +205,7 @@ export function TimelineFloatingPanelView() {
           renderMode="list"
           rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}
           rowTree={videoSequenceFloatingRowTree}
+          onSelectedRowKeyChange={handleGanttDiagramSelectedRowKeyChange}
         />
       </section>
     )

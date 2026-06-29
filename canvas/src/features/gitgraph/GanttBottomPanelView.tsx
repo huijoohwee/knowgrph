@@ -1,5 +1,6 @@
 import React from 'react'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
+import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 
 export function GanttBottomPanelView({
@@ -7,7 +8,12 @@ export function GanttBottomPanelView({
 }: {
   compact?: boolean
 }) {
-  const { code, ganttModel, themeMode } = useMermaidGanttDocument()
+  const { code, ganttModel, graphData, themeMode } = useMermaidGanttDocument()
+  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+    graphData,
+    diagramModel: ganttModel,
+    kind: 'gantt',
+  })
   return (
     <MermaidDiagramPanelView
       code={code}
@@ -19,6 +25,7 @@ export function GanttBottomPanelView({
       compact={compact}
       surface="bottomPanel"
       renderMode="diagram"
+      onSelectedRowKeyChange={handleDiagramSelectedRowKeyChange}
     />
   )
 }

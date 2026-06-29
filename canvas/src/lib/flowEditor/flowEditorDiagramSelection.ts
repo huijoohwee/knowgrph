@@ -75,7 +75,16 @@ const readComparableTokens = (values: ReadonlyArray<unknown>): Set<string> => {
 const countSharedTokens = (left: Set<string>, right: Set<string>): number => {
   let count = 0
   left.forEach(token => {
-    if (right.has(token)) count += 1
+    if (right.has(token)) {
+      count += 1
+      return
+    }
+    const hasRelatedToken = Array.from(right).some(candidate => (
+      token.length >= 5
+      && candidate.length >= 5
+      && (token.startsWith(candidate) || candidate.startsWith(token))
+    ))
+    if (hasRelatedToken) count += 1
   })
   return count
 }

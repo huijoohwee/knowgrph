@@ -122,6 +122,18 @@ export function testFlowEditorDiagramSelectionBridgeMatchesSemanticRows() {
           },
         },
       },
+      {
+        id: 'media_ingestion_source',
+        label: 'Media Ingestion Source',
+        type: 'MediaSource',
+        x: 440,
+        y: 0,
+        properties: {
+          'flow:portTypes': {
+            out: { source_url: 'video_source' },
+          },
+        },
+      },
     ],
     edges: [
       {
@@ -166,6 +178,25 @@ export function testFlowEditorDiagramSelectionBridgeMatchesSemanticRows() {
   const computeTimelineRow = timelineModel.rows.find(row => row.key === computeTimelineRowKey)
   if (computeTimelineRow?.label !== 'Compute summary') {
     throw new Error(`expected compute_summary FlowEditor row to select Compute summary timeline row, got ${computeTimelineRow?.label || computeTimelineRowKey}`)
+  }
+  const ingestTimelineModel = parseMermaidDiagramCodeModel([
+    'gantt',
+    '  title Video agent stages',
+    '  dateFormat HH:mm',
+    '  section Source intake',
+    '  Ingest test URL : ingest, 00:00, 1m',
+  ].join('\n'), 'gantt')
+  const ingestBridge = buildFlowEditorDiagramSelectionBridge({
+    diagramRows: ingestTimelineModel.rows,
+    flowRows: portRows,
+  })
+  const ingestTimelineRow = ingestTimelineModel.rows.find(row => row.label === 'Ingest test URL')
+  if (!ingestTimelineRow) {
+    throw new Error('expected ingestion Gantt row to parse')
+  }
+  const ingestPortRowKey = resolveFlowEditorPortRowKeyForDiagramRow(ingestBridge, ingestTimelineRow.key)
+  if (ingestPortRowKey !== 'media_ingestion_source:output:source_url') {
+    throw new Error(`expected ingestion/source URL Gantt row to select the Media Ingestion Source KV row, got ${ingestPortRowKey}`)
   }
 
   const titleTimelineRow = timelineModel.rows.find(row => row.kind === 'title')
@@ -228,6 +259,8 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
   const diagramSelectionHookText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'useFlowEditorDiagramSelectionBridge.ts'), 'utf8')
   const timelineBottomText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'TimelineBottomPanelView.tsx'), 'utf8')
   const timelineFloatingText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'TimelineFloatingPanelView.tsx'), 'utf8')
+  const ganttBottomText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GanttBottomPanelView.tsx'), 'utf8')
+  const ganttFloatingText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GanttFloatingPanelView.tsx'), 'utf8')
   const gitGraphBottomText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GitGraphBottomPanelView.tsx'), 'utf8')
   const gitGraphFloatingText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GitGraphFloatingPanelView.tsx'), 'utf8')
   const mermaidPanelText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'MermaidDiagramPanelView.tsx'), 'utf8')
@@ -308,6 +341,12 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !diagramSelectionHookText.includes('flowEditorSelectedPortRowKey')
     || !timelineBottomText.includes('useFlowEditorDiagramSelectionBridge')
     || !timelineFloatingText.includes('useFlowEditorDiagramSelectionBridge')
+    || !timelineFloatingText.includes('handleGanttDiagramSelectedRowKeyChange')
+    || !timelineFloatingText.includes('onSelectedRowKeyChange={handleGanttDiagramSelectedRowKeyChange}')
+    || !ganttBottomText.includes('useFlowEditorDiagramSelectionBridge')
+    || !ganttBottomText.includes('onSelectedRowKeyChange={handleDiagramSelectedRowKeyChange}')
+    || !ganttFloatingText.includes('useFlowEditorDiagramSelectionBridge')
+    || !ganttFloatingText.includes('onSelectedRowKeyChange={handleDiagramSelectedRowKeyChange}')
     || !gitGraphBottomText.includes('useFlowEditorDiagramSelectionBridge')
     || !gitGraphBottomText.includes("kind: 'gitgraph'")
     || !gitGraphFloatingText.includes('useFlowEditorDiagramSelectionBridge')
@@ -330,7 +369,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     throw new Error('expected Flow Editor widget KV rows to resolve and reveal the selected diagram port row')
   }
   for (const forbidden of ['knowgrph-missalph-demo', '/Users/']) {
-    if (diagramBridgeText.includes(forbidden) || diagramSelectionHookText.includes(forbidden) || kvTableText.includes(forbidden) || timelineBottomText.includes(forbidden) || timelineFloatingText.includes(forbidden) || gitGraphBottomText.includes(forbidden) || gitGraphFloatingText.includes(forbidden)) {
+    if (diagramBridgeText.includes(forbidden) || diagramSelectionHookText.includes(forbidden) || kvTableText.includes(forbidden) || timelineBottomText.includes(forbidden) || timelineFloatingText.includes(forbidden) || ganttBottomText.includes(forbidden) || ganttFloatingText.includes(forbidden) || gitGraphBottomText.includes(forbidden) || gitGraphFloatingText.includes(forbidden)) {
       throw new Error(`expected Mermaid to FlowEditor selection bridge to avoid hardcoded fixture token ${forbidden}`)
     }
   }
