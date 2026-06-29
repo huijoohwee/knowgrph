@@ -28,7 +28,7 @@ import { resolveFlowEditorWorkflowDownstreamRunTargetIds } from '@/components/Fl
 import { applyFlowEditorWorkflowRichMediaPanelDraftPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRichMediaPanel'
 import { resolveFlowEditorWorkflowNodeByIdAcrossGraphs } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { updateFlowEditorWorkflowOutputForKnownNodeIds } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildAnnotationSpecCandidateFromNode } from '@/features/visual-annotation-engine/annotationFlowNode'
 import { buildHeuristicAnnotationResult } from '@/features/visual-annotation-engine/annotationWorker'
 
@@ -413,9 +413,9 @@ export function testVisualAnnotationRunAllRoutesTypedFrontmatterNodes() {
       },
     ],
     edges: [
-      { id: 'typed-edge', source: 'typed-annotation-engine', target: 'typed-annotation-panel' },
+      { id: 'typed-edge', source: 'typed-annotation-engine', target: 'typed-annotation-panel', properties: {} },
     ],
-  } as never
+  } as unknown as GraphData
   const eligibleNodeIds = buildFlowWidgetEligibleNodeIdSet(graphData.nodes)
   const plan = buildFlowRunAllNodeSequence({
     graphData,
