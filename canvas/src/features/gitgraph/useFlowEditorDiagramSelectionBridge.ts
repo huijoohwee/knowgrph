@@ -24,6 +24,7 @@ export function useFlowEditorDiagramSelectionBridge({
     diagramRows: diagramModel.rows,
     flowRows: portRows,
   }), [diagramModel.rows, portRows])
+  const diagramSelectionWriteRef = React.useRef(false)
   const {
     flowEditorSelectedPortRowKey,
     selectedNodeId,
@@ -45,6 +46,7 @@ export function useFlowEditorDiagramSelectionBridge({
   )
 
   const handleDiagramSelectedRowKeyChange = React.useCallback((rowKey: string | null) => {
+    diagramSelectionWriteRef.current = true
     const nextRowKey = String(rowKey || '').trim()
     if (!nextRowKey) {
       if (!flowEditorSelectedPortRowKey) return
@@ -72,9 +74,14 @@ export function useFlowEditorDiagramSelectionBridge({
 
   React.useEffect(() => {
     if (!flowEditorSelectedPortRowKey) {
+      if (diagramSelectionWriteRef.current) {
+        diagramSelectionWriteRef.current = false
+        return
+      }
       if (selectedDiagramRowKey) setMermaidDiagramSelectedRowKey(kind, null)
       return
     }
+    diagramSelectionWriteRef.current = false
     if (resolveFlowEditorPortRowKeyForDiagramRow(bridge, selectedDiagramRowKey) === flowEditorSelectedPortRowKey) return
     const nextDiagramRowKey = resolveDiagramRowKeyForFlowEditorPortRow(bridge, flowEditorSelectedPortRowKey)
     if (!nextDiagramRowKey || nextDiagramRowKey === selectedDiagramRowKey) return

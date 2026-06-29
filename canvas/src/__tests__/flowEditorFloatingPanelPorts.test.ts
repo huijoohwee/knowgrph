@@ -356,6 +356,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     throw new Error('expected BottomPanel/FloatingPanel Mermaid selection to reuse shared diagram row keys and FlowEditor port rows')
   }
   if (!diagramSelectionHookText.includes('portRows.find(row => row.key === nextPortRowKey)')
+    || !diagramSelectionHookText.includes('diagramSelectionWriteRef')
     || !diagramSelectionHookText.includes("setSelectionSource('editor')")
     || !diagramSelectionHookText.includes('selectNode(nextNodeId)')) {
     throw new Error('expected Mermaid row selection to select the matching Flow Editor node before focusing its KV row')
