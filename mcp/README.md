@@ -129,6 +129,7 @@ Canonical local tool inventory owner:
    - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
    - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local
    - Outputs are LLM-ready annotation JSON with deterministic `annotation_id`; validation/runtime failures return structured `invalid_spec`, `model_not_configured`, `worker_not_supported`, or `inference_failed` errors
+   - Native dataset operators load annotation results or frame-box arrays, split/merge/save deterministic JSON datasets, and build frame-ordered zone-count timelines for live panel projection
    - Dev default adds no external dependency and no paid inference path; the browser worker emits runtime-local heuristic annotations while model adapters remain runtime-owned behind the `Annotation_Worker` boundary
 9. Memory layer tools
    - `knowgrph.memory.add` persists explicitly scoped memory text or messages through the provider-neutral memory harness

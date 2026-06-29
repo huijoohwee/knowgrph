@@ -184,10 +184,37 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     }
   }
   const contractArtifacts = Array.isArray(contract.reasoningArtifacts) ? contract.reasoningArtifacts.map(String) : []
-  for (const required of ['search evidence windows', 'edit decision plan', 'compiled timeline manifest', 'generation placeholder manifest', 'instant stream manifest']) {
+  for (const required of [
+    'search evidence windows',
+    'edit decision plan',
+    'compiled timeline manifest',
+    'visual annotation dataset artifact',
+    'real-time zone counting timeline',
+    'generation placeholder manifest',
+    'instant stream manifest',
+  ]) {
     if (!contractArtifacts.includes(required)) {
       throw new Error(`expected external validation document reasoning artifact ${required}`)
     }
+  }
+  const datasetOperations = Array.isArray(contract.datasetOperations) ? contract.datasetOperations.map(String) : []
+  for (const operation of ['load', 'split', 'merge', 'save', 'count_zones']) {
+    if (!datasetOperations.includes(operation)) {
+      throw new Error(`expected external validation document dataset operation ${operation}`)
+    }
+  }
+  const contractSourceTruth = Array.isArray(contract.sourceTruth) ? contract.sourceTruth.map(String) : []
+  for (const owner of [
+    'canvas/src/features/video-agent/videoAgentDatasetRuntime.ts',
+    'canvas/src/features/visual-annotation-engine/annotationDataset.ts',
+  ]) {
+    if (!contractSourceTruth.includes(owner)) {
+      throw new Error(`expected external validation document sourceTruth owner ${owner}`)
+    }
+  }
+  const outputBoundary = Array.isArray(contract.outputBoundary) ? contract.outputBoundary.map(String).join('\n') : ''
+  if (!outputBoundary.includes('visualDataset') || !outputBoundary.includes('zoneCounting')) {
+    throw new Error('expected external validation document outputBoundary to name visualDataset and zoneCounting')
   }
   const contractFrameBoxes = Array.isArray(contract.frameBoundingBoxes) ? contract.frameBoundingBoxes : []
   if (contractFrameBoxes.length < 5) {

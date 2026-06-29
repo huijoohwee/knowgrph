@@ -70,6 +70,23 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
   if (!Array.isArray(pipeline.frameBoundingBoxes) || pipeline.frameBoundingBoxes.length < 5) {
     throw new Error('expected frame-by-frame bounding boxes for video reasoning')
   }
+  if (
+    pipeline.datasetRuntime.visualDataset.samples.length !== pipeline.frameBoundingBoxes.length
+    || pipeline.datasetRuntime.savedDatasetArtifact.sampleCount !== pipeline.frameBoundingBoxes.length
+    || pipeline.datasetRuntime.savedDatasetArtifact.annotationCount !== pipeline.frameBoundingBoxes.length
+    || pipeline.datasetRuntime.datasetSplitSummary.total !== pipeline.frameBoundingBoxes.length
+    || pipeline.datasetRuntime.zoneCounting.frames.length !== pipeline.frameBoundingBoxes.length
+  ) {
+    throw new Error(`expected video-agent frame boxes to load/split/save/count as one visual dataset, got ${JSON.stringify(pipeline.datasetRuntime)}`)
+  }
+  const savedDataset = JSON.parse(pipeline.datasetRuntime.savedDatasetArtifact.text) as { samples?: unknown }
+  if (!Array.isArray(savedDataset.samples) || savedDataset.samples.length !== pipeline.frameBoundingBoxes.length) {
+    throw new Error('expected saved visual dataset artifact to contain the frame annotation samples')
+  }
+  const zoneHitTotal = Object.values(pipeline.datasetRuntime.zoneCounting.totals).reduce((sum, count) => sum + Number(count), 0)
+  if (zoneHitTotal !== pipeline.frameBoundingBoxes.length) {
+    throw new Error(`expected real-time zone counts to account for every frame detection, got ${zoneHitTotal}`)
+  }
   const pipelineFrameTimelineTracks = pipeline.timelineTracks.filter(track => track.source === 'frameBoundingBox' && track.timelineLane === 'fbf')
   if (pipelineFrameTimelineTracks.length !== pipeline.frameBoundingBoxes.length) {
     throw new Error('expected one BottomPanel FBF timeline track per frame bounding box')
@@ -153,6 +170,10 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
     reasoningArtifacts?: unknown
     frameBoundingBoxes?: unknown
     frameBoundingBoxTimelineTracks?: unknown
+    visualDataset?: { samples?: unknown }
+    datasetSplitSummary?: { total?: unknown }
+    savedDatasetArtifact?: { text?: unknown; sampleCount?: unknown; annotationCount?: unknown }
+    zoneCounting?: { frames?: unknown; totals?: Record<string, unknown> }
     timelineTracks?: unknown
     timelineLanes?: unknown
     bottomPanelTimelineSync?: { lane?: unknown; source?: unknown; surface?: unknown; thumbnailMode?: unknown; trackIds?: unknown }
@@ -195,8 +216,25 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   if (!Array.isArray(data.frameBoundingBoxes) || !data.frameBoundingBoxes.some(entry => Array.isArray((entry as { bbox?: unknown }).bbox))) {
     throw new Error('expected render data to expose frame-by-frame bounding boxes')
   }
+  if (
+    !Array.isArray(data.visualDataset?.samples)
+    || data.visualDataset.samples.length !== data.frameBoundingBoxes.length
+    || data.datasetSplitSummary?.total !== data.frameBoundingBoxes.length
+    || data.savedDatasetArtifact?.sampleCount !== data.frameBoundingBoxes.length
+    || data.savedDatasetArtifact.annotationCount !== data.frameBoundingBoxes.length
+    || typeof data.savedDatasetArtifact.text !== 'string'
+    || !Array.isArray(data.zoneCounting?.frames)
+    || data.zoneCounting.frames.length !== data.frameBoundingBoxes.length
+  ) {
+    throw new Error('expected render data to expose dataset load, split, save, and real-time zone-counting artifacts')
+  }
   if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some(entry => String((entry as { role?: unknown }).role || '') === 'stream-output')) {
     throw new Error('expected render data to expose stream manifest workspace output')
+  }
+  for (const role of ['visual-annotation-dataset', 'real-time-zone-counting']) {
+    if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some(entry => String((entry as { role?: unknown }).role || '') === role)) {
+      throw new Error(`expected render data workspace files to expose ${role}`)
+    }
   }
   if (data.streaming?.fallback !== 'outputSrcDoc' || data.streaming.panel !== 'RichMediaPanel') {
     throw new Error('expected render data to expose streamable RichMediaPanel fallback')

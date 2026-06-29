@@ -29,3 +29,8 @@ export {
   writeVideoAgentValidationConfigToStorage,
   type VideoAgentValidationConfig,
 } from './videoAgentValidationConfig'
+
+export {
+  buildVideoAgentDatasetRuntime,
+  type VideoAgentDatasetRuntime,
+} from './videoAgentDatasetRuntime'

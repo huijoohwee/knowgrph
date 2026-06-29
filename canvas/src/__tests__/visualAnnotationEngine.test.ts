@@ -7,8 +7,14 @@ import {
   ANNOTATION_TASK_IDS,
   buildAnnotationEngineRegistryDraft,
   buildAnnotationId,
+  buildHorizontalVisualZones,
+  countVisualDatasetZones,
+  loadVisualAnnotationDataset,
+  mergeVisualAnnotationDatasets,
   resolveAnnotationModel,
   runAnnotationJob,
+  saveVisualAnnotationDataset,
+  splitVisualAnnotationDataset,
   toAnnotationPreviewSrcDoc,
   toLlmReadyPayload,
   toMarkdownSummary,
@@ -146,6 +152,76 @@ export function testVisualAnnotationSemanticKeyAndSerializers() {
   })
   if (!videoPreview.includes('<video ') || !videoPreview.includes('video frame at 1200ms')) {
     throw new Error('expected video-frame annotation preview to use the shared media projection')
+  }
+}
+
+export function testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts() {
+  const first = {
+    ok: true as const,
+    annotationId: 'annotation-left',
+    assetUrl: 'workspace://media/left-frame.png',
+    assetType: 'image' as const,
+    modelId: ANNOTATION_MODEL_IDS.florence2Base,
+    tasks: {
+      [ANNOTATION_TASK_IDS.objectDetection]: {
+        objects: [{ label: 'person', bbox: [0.05, 0.2, 0.2, 0.3] as [number, number, number, number], confidence: 0.9 }],
+      },
+    },
+    processedAt: '2026-06-29T00:00:00.000Z',
+    durationMs: 10,
+    schemaVersion: ANNOTATION_SCHEMA_VERSION,
+  }
+  const second = {
+    ...first,
+    annotationId: 'annotation-right',
+    assetUrl: 'workspace://media/right-frame.png',
+    assetType: 'video_frame' as const,
+    frameTimestampMs: 1200,
+    tasks: {
+      [ANNOTATION_TASK_IDS.objectDetection]: {
+        objects: [{ label: 'vehicle', bbox: [0.7, 0.25, 0.18, 0.22] as [number, number, number, number], confidence: 0.8 }],
+      },
+    },
+  }
+  const loaded = loadVisualAnnotationDataset([first, second])
+  if (loaded.ok === false) throw new Error(`expected annotation results to load as dataset, got ${loaded.reason}`)
+  if (loaded.dataset.samples.length !== 2 || loaded.dataset.samples.some(sample => sample.annotations.length !== 1)) {
+    throw new Error(`expected loaded dataset samples and annotations, got ${JSON.stringify(loaded.dataset.samples)}`)
+  }
+
+  const split = splitVisualAnnotationDataset(loaded.dataset, {
+    seed: 'dataset-contract',
+    trainRatio: 0.5,
+    validationRatio: 0.25,
+    testRatio: 0.25,
+  })
+  if (split.summary.total !== 2 || split.summary.train + split.summary.validation + split.summary.test !== 2) {
+    throw new Error(`expected deterministic split summary, got ${JSON.stringify(split.summary)}`)
+  }
+
+  const merged = mergeVisualAnnotationDatasets([split.splits.train, split.splits.validation, split.splits.test])
+  if (merged.samples.length !== loaded.dataset.samples.length) {
+    throw new Error(`expected merged dataset to restore samples without duplicates, got ${JSON.stringify(merged.samples)}`)
+  }
+  const saved = saveVisualAnnotationDataset(merged, { filename: 'visual-dataset.json' })
+  if (saved.mimeType !== 'application/json' || saved.sampleCount !== 2 || saved.annotationCount !== 2) {
+    throw new Error(`expected save artifact summary, got ${JSON.stringify(saved)}`)
+  }
+  const reloaded = loadVisualAnnotationDataset(saved.text)
+  if (reloaded.ok === false || reloaded.dataset.samples.length !== 2) {
+    throw new Error('expected saved dataset JSON to reload through the same loader')
+  }
+
+  const zones = buildHorizontalVisualZones(['left', 'middle', 'right'])
+  const zoneTimeline = countVisualDatasetZones(merged, zones)
+  const totalZoneHits = Object.values(zoneTimeline.totals).reduce((sum, count) => sum + count, 0)
+  if (
+    zoneTimeline.frames.length !== 2
+    || totalZoneHits !== 2
+    || zoneTimeline.frames.some(frame => frame.detections.length !== 1)
+    || !zoneTimeline.frames[1]?.cumulativeCounts
+  ) {
+    throw new Error(`expected frame-ordered real-time zone counting, got ${JSON.stringify(zoneTimeline)}`)
   }
 }
 

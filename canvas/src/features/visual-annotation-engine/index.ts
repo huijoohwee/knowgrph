@@ -17,3 +17,24 @@ export { buildAnnotationId, createAnnotationWorkerHandle, runAnnotationJob, type
 export { toAnnotationPreviewSrcDoc, toLlmReadyPayload, toMarkdownSummary } from './annotationSerializers'
 export { buildAnnotationSpecCandidateFromNode, runAnnotationFlowNode } from './annotationFlowNode'
 export { buildAnnotationEngineRegistryDraft, getAnnotationEngineWidgetLabel } from './annotationWidget'
+export {
+  VISUAL_ANNOTATION_DATASET_SCHEMA_VERSION,
+  VISUAL_ZONE_COUNTING_SCHEMA_VERSION,
+  buildHorizontalVisualZones,
+  countVisualDatasetZones,
+  loadVisualAnnotationDataset,
+  mergeVisualAnnotationDatasets,
+  saveVisualAnnotationDataset,
+  splitVisualAnnotationDataset,
+  type VisualAnnotationDataset,
+  type VisualAnnotationDatasetLoadResult,
+  type VisualAnnotationDatasetSaveResult,
+  type VisualAnnotationDatasetSplit,
+  type VisualDatasetAnnotation,
+  type VisualDatasetSample,
+  type VisualDatasetSplitName,
+  type VisualZone,
+  type VisualZoneCountingFrame,
+  type VisualZoneCountingTimeline,
+  type VisualZoneDetection,
+} from './annotationDataset'
