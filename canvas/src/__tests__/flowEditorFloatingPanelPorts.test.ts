@@ -231,6 +231,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
   const gitGraphBottomText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GitGraphBottomPanelView.tsx'), 'utf8')
   const gitGraphFloatingText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'GitGraphFloatingPanelView.tsx'), 'utf8')
   const mermaidPanelText = readFileSync(resolve(root, 'src', 'features', 'gitgraph', 'MermaidDiagramPanelView.tsx'), 'utf8')
+  const kvTableText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorKvTable.tsx'), 'utf8')
   const workspaceResizeRuntimeText = readFileSync(resolve(root, 'src', 'features', 'canvas', 'canvasWorkspacePaneResizeHandleRuntime.ts'), 'utf8')
   const explorerResizeText = readFileSync(resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownExplorerSectionResizeHandle.tsx'), 'utf8')
 
@@ -259,7 +260,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     throw new Error('expected FlowEditor Run All to keep its always-mounted canvas runtime consumer')
   }
   if (!panelText.includes('KeyTypeValueHeader')
-    || !panelText.includes('KeyTypeValueRow')
+    || !panelText.includes('KeyTypeValueStaticRow')
     || !panelText.includes('KeyTypeValueSectionStack')
     || !panelText.includes('buildFlowEditorPortRows')
     || !panelText.includes('flowEditorSelectedPortRowKey')
@@ -267,7 +268,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !panelText.includes('data-kg-flow-editor-port-selected')
     || !panelText.includes('data-kg-flow-editor-port-dimmed')
     || !panelText.includes('selectionActive={!!selectedRowKey}')
-    || !panelText.includes('isActive={selected}')
+    || !panelText.includes('activeClassName={selected ? UI_THEME_TOKENS.table.rowSelected : staticRowProps.activeClassName}')
     || !panelText.includes('HorizontalResizeSeparatorHr')
     || !panelText.includes('bindResizeSeparatorDragRuntime')
     || !panelText.includes('data-kg-flow-editor-port-split-resize')
@@ -315,8 +316,21 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !mermaidPanelText.includes('onSelectedRowKeyChange?.(rowKey)')) {
     throw new Error('expected BottomPanel/FloatingPanel Mermaid selection to reuse shared diagram row keys and FlowEditor port rows')
   }
+  if (!diagramSelectionHookText.includes('portRows.find(row => row.key === nextPortRowKey)')
+    || !diagramSelectionHookText.includes("setSelectionSource('editor')")
+    || !diagramSelectionHookText.includes('selectNode(nextNodeId)')) {
+    throw new Error('expected Mermaid row selection to select the matching Flow Editor node before focusing its KV row')
+  }
+  if (!kvTableText.includes('data-kg-flow-widget-kv-row-selected')
+    || !kvTableText.includes('data-kg-flow-editor-port-row-key')
+    || !kvTableText.includes("root.closest('[data-kg-widget]')")
+    || !kvTableText.includes('[data-kg-port-dir="${cssAttrValue(parsed.direction)}"]')
+    || !kvTableText.includes('[data-kg-port-key="${cssAttrValue(parsed.portKey)}"]')
+    || !kvTableText.includes("nextSelectedRow.scrollIntoView({ block: 'nearest', inline: 'nearest' })")) {
+    throw new Error('expected Flow Editor widget KV rows to resolve and reveal the selected diagram port row')
+  }
   for (const forbidden of ['knowgrph-missalph-demo', '/Users/']) {
-    if (diagramBridgeText.includes(forbidden) || timelineBottomText.includes(forbidden) || timelineFloatingText.includes(forbidden) || gitGraphBottomText.includes(forbidden) || gitGraphFloatingText.includes(forbidden)) {
+    if (diagramBridgeText.includes(forbidden) || diagramSelectionHookText.includes(forbidden) || kvTableText.includes(forbidden) || timelineBottomText.includes(forbidden) || timelineFloatingText.includes(forbidden) || gitGraphBottomText.includes(forbidden) || gitGraphFloatingText.includes(forbidden)) {
       throw new Error(`expected Mermaid to FlowEditor selection bridge to avoid hardcoded fixture token ${forbidden}`)
     }
   }

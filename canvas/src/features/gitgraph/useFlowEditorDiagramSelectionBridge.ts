@@ -26,13 +26,19 @@ export function useFlowEditorDiagramSelectionBridge({
   }), [diagramModel.rows, portRows])
   const {
     flowEditorSelectedPortRowKey,
+    selectedNodeId,
     selectedDiagramRowKey,
+    selectNode,
+    setSelectionSource,
     setFlowEditorSelectedPortRowKey,
     setMermaidDiagramSelectedRowKey,
   } = useGraphStore(
     useShallow(state => ({
       flowEditorSelectedPortRowKey: state.flowEditorSelectedPortRowKey || '',
+      selectedNodeId: state.selectedNodeId || '',
       selectedDiagramRowKey: state.mermaidDiagramSelectedRowKeyByKind[kind] || '',
+      selectNode: state.selectNode,
+      setSelectionSource: state.setSelectionSource,
       setFlowEditorSelectedPortRowKey: state.setFlowEditorSelectedPortRowKey,
       setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey,
     })),
@@ -46,9 +52,23 @@ export function useFlowEditorDiagramSelectionBridge({
       return
     }
     const nextPortRowKey = resolveFlowEditorPortRowKeyForDiagramRow(bridge, nextRowKey)
-    if ((nextPortRowKey || '') === flowEditorSelectedPortRowKey) return
-    setFlowEditorSelectedPortRowKey(nextPortRowKey || null)
-  }, [bridge, flowEditorSelectedPortRowKey, setFlowEditorSelectedPortRowKey])
+    if ((nextPortRowKey || '') !== flowEditorSelectedPortRowKey) {
+      setFlowEditorSelectedPortRowKey(nextPortRowKey || null)
+    }
+    const nextPortRow = nextPortRowKey ? portRows.find(row => row.key === nextPortRowKey) || null : null
+    const nextNodeId = String(nextPortRow?.nodeId || '').trim()
+    if (!nextNodeId || nextNodeId === selectedNodeId) return
+    setSelectionSource('editor')
+    selectNode(nextNodeId)
+  }, [
+    bridge,
+    flowEditorSelectedPortRowKey,
+    portRows,
+    selectNode,
+    selectedNodeId,
+    setFlowEditorSelectedPortRowKey,
+    setSelectionSource,
+  ])
 
   React.useEffect(() => {
     if (!flowEditorSelectedPortRowKey) {
