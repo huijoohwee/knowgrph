@@ -7,6 +7,12 @@ import {
 } from '@/features/markdown-workspace/main/viewer/sourceStructuredDataViewTable'
 import { coerceWorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
+const readQuotedYamlValue = (line: string): string =>
+  String(line || '')
+    .replace(/^[^:]+:\s*/, '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+
 const removedWorkspaceFilename = ['Graph', 'Table', 'Workspace', '.impl.tsx'].join('')
 const forbiddenFallbackTokens = [
   ['graph', 'Data', 'Markdown', 'Table'].join(''),
@@ -276,10 +282,13 @@ export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource
   if (!projection.markdownText.includes('| flow | nodes | id |  |  | id | string | strybldr_flow_source |  |  |  |  | {key: id, type: string, value: "strybldr_flow_source"} | L2 | - id: {key: id, type: string, value: "strybldr_flow_source"} | 186 | 4 |')) {
     throw new Error('expected YAML Frontmatter table to show typed native flow.nodes list-map ids without quoted scalar fallback')
   }
-  if (!projection.markdownText.includes('| flow | nodes | id | properties | kgc:readingSummary | kgc:readingSummary | string | Imported source metadata and policy anchor for the 77FAnT935IE Strybldr recreation workflow. | Imported source metadata and policy anchor for the 77FAnT935IE Strybldr recreation workflow. |  |  |  | {key: "kgc:readingSummary", type: string, value: "Imported source metadata and policy anchor for the 77FAnT935IE Strybldr recreation workflow."} | L4 | "kgc:readingSummary": {key: "kgc:readingSummary", type: string, value: "Imported source metadata and policy anchor for the 77FAnT935IE Strybldr recreation workflow."} | 192 | 8 |')) {
+  if (!projection.markdownText.includes('| flow | nodes | id | properties | kgc:readingSummary | kgc:readingSummary | string |')) {
     throw new Error('expected YAML Frontmatter table to expose Strybldr reading summaries in the Summary column')
   }
-  if (!projection.markdownText.includes('| flow | nodes | id | properties | outputSrcDoc | outputSrcDoc | html_srcdoc | <!doctype html') || !projection.markdownText.includes('| videodb_recreate_77FAnT935IE_contract | source_url |  |  |  | source_url | scalar | https://www.youtube.com/watch?v=77FAnT935IE |  |  |  | https://www.youtube.com/watch?v=77FAnT935IE | https://www.youtube.com/watch?v=77FAnT935IE | L1 | source_url: "https://www.youtube.com/watch?v=77FAnT935IE" | 81 | 2 |')) {
+  const sourceUrlLine = sourceLines.find(line => /^\s*source_url:\s*["']?https:\/\/www\.youtube\.com\/watch\?v=/i.test(line.trim())) || ''
+  const validationSourceUrl = readQuotedYamlValue(sourceUrlLine)
+  if (!validationSourceUrl) throw new Error('expected Strybldr validation source doc to carry a source_url')
+  if (!projection.markdownText.includes('| flow | nodes | id | properties | outputSrcDoc | outputSrcDoc | html_srcdoc | <!doctype html') || !projection.markdownText.includes(`| source_url | scalar | ${validationSourceUrl} |`)) {
     throw new Error('expected YAML Frontmatter table to expose Output and Reference Pack columns from validation source fields')
   }
   const nextTypedListMap = applyStructuredSourceDataViewReplacement({

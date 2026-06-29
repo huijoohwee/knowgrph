@@ -1,18 +1,20 @@
 import type { GraphNode } from '@/lib/graph/types'
+import { projectVideoAgentFrameAnalysisSrcDoc } from '@/features/video-agent/videoAgentFrameAnalysisProjection'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { coerceMediaUrl } from '@/lib/url'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { isSafeIframeUrl, normalizeIframeUrl, resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
-import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
-import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'
+import { extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
+import { extractMarkdownMediaUrl, normalizeExternalUrl } from '@/lib/canvas/graph-elements/mediaSpecMarkdown'
+import { readNodeFieldBoolean, readNodeFieldString, readNodeFieldValue } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
 
 export { DEFAULT_NODE_MEDIA_KIND, NODE_MEDIA_KINDS, buildNodeMediaProperties, patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 export type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
@@ -44,77 +46,6 @@ export type NodeMediaInventory = {
 
 const mediaSpecCache = new WeakMap<GraphNode, { cacheKey: string; spec: NodeMediaSpec | null }>()
 const RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE = 'Rich Media Panel'
-
-function normalizeExternalUrl(u: string): string {
-  const trimmed = String(u || '').trim()
-  if (!trimmed) return ''
-  if (trimmed.startsWith('//')) return `https:${trimmed}`
-  return trimmed
-}
-
-function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: string } | null {
-  const raw = String(text || '')
-  if (!raw.trim()) return null
-  const normalized = fixBrokenMarkdownImageSyntax(raw).text
-  const trimmed = normalized.trim()
-
-  for (const kind of ['iframe', 'video', 'audio'] as const) {
-    const match = trimmed.match(new RegExp(`<${kind}\\b[^>]*\\bsrc\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`, 'i'))
-    if (match) {
-      const resolved = normalizeExternalUrl(String(match[1] || match[2] || match[3] || '').trim())
-      if (resolved) return { kind, url: resolved }
-    }
-  }
-
-  const imgStandalone = trimmed.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/)
-  if (imgStandalone && imgStandalone[1]) {
-    const u = coerceMarkdownParenUrl(imgStandalone[1])
-    const resolved = normalizeExternalUrl(u)
-    if (resolved) return { kind: 'image', url: resolved }
-  }
-
-  const linkStandalone = trimmed.match(/^\[[^\]]+\]\(([^)]+)\)\s*$/)
-  if (linkStandalone && linkStandalone[1]) {
-    const u = coerceMarkdownParenUrl(linkStandalone[1])
-    const resolved = normalizeExternalUrl(u)
-    if (resolved) {
-      const yt = buildYouTubeEmbedUrl(resolved, { noCookie: false, includeOrigin: false })
-      if (yt) return { kind: 'iframe', url: yt }
-      const x = buildTwitterEmbedUrl(resolved)
-      if (x) return { kind: 'iframe', url: x }
-      const vimeo = buildVimeoEmbedUrl(resolved)
-      if (vimeo) return { kind: 'iframe', url: vimeo }
-      const bili = buildBilibiliEmbedUrl(resolved)
-      if (bili) return { kind: 'iframe', url: bili }
-      const inferred = inferMediaKindFromResourceUrl(resolved)
-      if (inferred === 'video') return { kind: 'video', url: resolved }
-      if (inferred === 'audio') return { kind: 'audio', url: resolved }
-      if (inferred === 'svg') return { kind: 'svg', url: resolved }
-      if (inferred === 'image') return { kind: 'image', url: resolved }
-      return { kind: 'iframe', url: resolved }
-    }
-  }
-
-  const refs = extractMarkdownInlineRefs(normalized)
-  const firstImg = refs.images && refs.images.length > 0 ? refs.images[0] : null
-  if (firstImg && firstImg.url) {
-    const resolved = normalizeExternalUrl(firstImg.url)
-    if (resolved) return { kind: 'image', url: resolved }
-  }
-  const firstLink = refs.links && refs.links.length > 0 ? refs.links[0] : null
-  if (firstLink && firstLink.url) {
-    const resolved = normalizeExternalUrl(firstLink.url)
-    if (!resolved) return null
-    const inferred = inferMediaKindFromResourceUrl(resolved)
-    if (inferred === 'video') return { kind: 'video', url: resolved }
-    if (inferred === 'audio') return { kind: 'audio', url: resolved }
-    if (inferred === 'svg') return { kind: 'svg', url: resolved }
-    if (inferred === 'image') return { kind: 'image', url: resolved }
-    return { kind: 'iframe', url: resolved }
-  }
-
-  return null
-}
 
 function isImagePreviewKind(kind: NodeMediaKind | null | undefined): boolean {
   return kind === 'image' || kind === 'svg'
@@ -195,7 +126,16 @@ function appendRecordImagePreviewUrls(
 }
 
 function isRichMediaPanelNode(node: GraphNode): boolean {
-  return String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  return readNodeFieldString(node, node.properties || {}, 'type') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+}
+
+function readNodeTitle(node: GraphNode): string {
+  const props = node.properties || {}
+  return (
+    readNodeFieldString(node, props, 'label')
+    || readNodeFieldString(node, props, 'id')
+    || RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE
+  )
 }
 
 function buildRichMediaPanelTextualIframeSpec(args: {
@@ -209,7 +149,7 @@ function buildRichMediaPanelTextualIframeSpec(args: {
       url: '',
       srcDoc: normalizeRichMediaPanelInlineSrcDoc({
         srcDoc: args.outputSrcDoc,
-        title: String(args.node.label || args.node.id || '').trim() || RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE,
+        title: readNodeTitle(args.node),
       }),
       interactive: false,
     }
@@ -220,7 +160,7 @@ function buildRichMediaPanelTextualIframeSpec(args: {
       kind: 'iframe',
       url: '',
       srcDoc: buildTextWidgetOutputSrcDoc({
-        title: String(args.node.label || args.node.id || '').trim() || RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE,
+        title: readNodeTitle(args.node),
         text: args.outputText,
       }),
       interactive: false,
@@ -253,10 +193,16 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props['dom:tag'],
     props['dom:attrs:src'],
     props['dom:attrs:srcdoc'],
+    props.srcDoc,
+    props.inputSrcDoc,
     props.media_interactive,
     props.outputSrcDoc,
     props.output,
     props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY],
+    readNodeFieldValue(node, props, 'srcDoc'),
+    readNodeFieldValue(node, props, 'inputSrcDoc'),
+    readNodeFieldValue(node, props, 'outputSrcDoc'),
+    readNodeFieldValue(node, props, 'frameBoundingBoxes'),
     props.text,
     props.markdown,
     props.richMediaActiveTab,
@@ -292,7 +238,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const linkLabel = String((props as Record<string, unknown>).label || node.label || '').trim()
 
   const outputText = (() => {
-    const s = (props as Record<string, unknown>).output
+    const s = readNodeFieldValue(node, props, 'output')
     return typeof s === 'string' ? s : ''
   })()
 
@@ -305,7 +251,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     : null
   const richMediaActiveTab = (() => {
     if (!isRichMediaPanel) return ''
-    return String((props as Record<string, unknown>).richMediaActiveTab || '').trim().toLowerCase()
+    return readNodeFieldString(node, props, 'richMediaActiveTab').toLowerCase()
   })()
   let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
   const getMarkdownMediaOnce = () => {
@@ -367,9 +313,27 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     return typeof s === 'string' ? s.trim() : ''
   })()
   const outputSrcDoc = (() => {
-    const s = (props as Record<string, unknown>).outputSrcDoc
+    const s = readNodeFieldValue(node, props, 'outputSrcDoc')
     return typeof s === 'string' ? s.trim() : ''
   })()
+  const sourceSrcDoc = (() => {
+    const s = readNodeFieldValue(node, props, 'srcDoc') || readNodeFieldValue(node, props, 'inputSrcDoc')
+    return typeof s === 'string' ? s.trim() : ''
+  })()
+  const frameBoundingBoxes = readNodeFieldValue(node, props, 'frameBoundingBoxes')
+  const richMediaKind = isRichMediaPanel ? readNodeFieldString(node, props, 'kind').toLowerCase() : ''
+  const preserveSourceSrcDoc =
+    Boolean(sourceSrcDoc)
+    && (
+      !outputSrcDoc
+      || readNodeFieldBoolean(node, props, 'freezeConnectedOutput')
+      || richMediaKind === 'annotation'
+      || richMediaKind === 'video-agent-frame-analysis'
+    )
+  const richMediaSrcDoc = projectVideoAgentFrameAnalysisSrcDoc({
+    frameBoundingBoxes,
+    srcDoc: preserveSourceSrcDoc ? sourceSrcDoc : (outputSrcDoc || sourceSrcDoc),
+  })
 
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
@@ -403,21 +367,21 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'text' || selected === 'poi') {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
     }
     if (
       !selected
       && connectedRenderPathSet?.has('properties.output')
       && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.audioUrl') || connectedRenderPathSet.has('properties.imageUrl'))
     ) {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
     }
     if (
       !selected
-      && (outputSrcDoc || outputText.trim())
+      && (richMediaSrcDoc || outputText.trim())
       && !(videoUrl || videoUrlCamel || audioUrl || audioUrlCamel || audioUrlSnake || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)
     ) {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'audio') return { kind: 'audio', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
@@ -444,7 +408,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
-    if (isRichMediaPanel) return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+    if (isRichMediaPanel) return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
     if (domTag === 'IFRAME' && domSrcDoc) {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
       if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null

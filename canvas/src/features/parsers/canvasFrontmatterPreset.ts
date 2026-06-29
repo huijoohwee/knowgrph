@@ -185,9 +185,10 @@ export function applyCanvasFrontmatterPreset(args: {
   const documentStructureBaselineLock =
     preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
   const videoSequenceTimelineEnabled = preset?.videoSequenceTimelineEnabled === true
-  const canvas2dRenderer = videoSequenceTimelineEnabled
+  const requestedCanvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
+  const canvas2dRenderer = videoSequenceTimelineEnabled && (!requestedCanvas2dRenderer || requestedCanvas2dRenderer === 'gantt')
     ? 'media'
-    : (preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer)
+    : requestedCanvas2dRenderer
   const flowEditorLandingRequested =
     isFlowEditorCanvas2dRenderer(canvas2dRenderer) &&
     (surfacePreset.canvasRenderMode ?? store.canvasRenderMode) === '2d'

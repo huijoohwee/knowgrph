@@ -9,6 +9,8 @@ import {
   splitMermaidDiagrams,
   type MermaidDiagramKind,
 } from 'grph-shared/markdown/mermaidInput'
+import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId } from 'grph-shared/rich-media/providers'
+import { formatMermaidGanttFrameThumbnailToken } from './mermaidGanttFrameThumbnailToken'
 
 export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'flowchart' | 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'>
 
@@ -34,6 +36,7 @@ type NeutralTimelineTrack = {
   id: string
   label: string
   startMs: number
+  thumbnailUrl: string
 }
 
 type NeutralTimelineLane = {
@@ -95,6 +98,16 @@ const readNeutralTimelineRecordValue = (value: unknown): unknown => {
   return Object.prototype.hasOwnProperty.call(record, 'value') ? record.value : value
 }
 
+const readNeutralTimelinePayloadSourceUrl = (payload: Record<string, unknown>): string => {
+  const sourceVideo = parseNeutralTimelinePayload(payload.sourceVideo)
+  const sourceVideoUrl = isPlainObject(sourceVideo)
+    ? readNeutralTimelineString((sourceVideo as Record<string, unknown>).url)
+    : ''
+  return sourceVideoUrl
+    || readNeutralTimelineString(payload.sourceUrl)
+    || readNeutralTimelineString(payload.url)
+}
+
 const parseNeutralTimelinePayload = (value: unknown): unknown => {
   const unwrapped = readNeutralTimelineRecordValue(value)
   if (typeof unwrapped !== 'string') return unwrapped
@@ -107,7 +120,27 @@ const parseNeutralTimelinePayload = (value: unknown): unknown => {
   }
 }
 
-const normalizeNeutralTimelineTrack = (value: unknown, index: number): NeutralTimelineTrack | null => {
+const buildNeutralTimelineSourceFrameThumbnailUrl = (args: {
+  record: Record<string, unknown>
+  sourceUrl: string
+  startMs: number
+}): string => {
+  const explicit = readNeutralTimelineString(args.record.thumbnailUrl)
+    || readNeutralTimelineString(args.record.frameImageUrl)
+    || readNeutralTimelineString(args.record.imageUrl)
+  if (explicit) return explicit
+  const source = readNeutralTimelineString(args.record.source)
+  if (source !== 'frameBoundingBox') return ''
+  const sourceUrl = readNeutralTimelineString(args.sourceUrl)
+  if (!sourceUrl || (!getYouTubeId(sourceUrl) && !getBilibiliVideoId(sourceUrl))) return ''
+  return buildRemoteVideoFrameRequestUrl({
+    sourceUrl,
+    timeSeconds: Math.max(0, args.startMs / 1000),
+    format: 'png',
+  })
+}
+
+const normalizeNeutralTimelineTrack = (value: unknown, index: number, sourceUrl = ''): NeutralTimelineTrack | null => {
   const parsed = parseNeutralTimelinePayload(value)
   if (!isPlainObject(parsed)) return null
   const record = parsed as Record<string, unknown>
@@ -116,7 +149,8 @@ const normalizeNeutralTimelineTrack = (value: unknown, index: number): NeutralTi
   const startMs = Math.max(0, readNeutralTimelineNumber(record.startMs ?? record.start ?? record.offsetMs))
   const durationMs = Math.max(0, readNeutralTimelineNumber(record.durationMs ?? record.duration))
   if (durationMs <= 0) return null
-  return { durationMs, id, label, startMs }
+  const thumbnailUrl = buildNeutralTimelineSourceFrameThumbnailUrl({ record, sourceUrl, startMs })
+  return { durationMs, id, label, startMs, thumbnailUrl }
 }
 
 const normalizeNeutralTimelineLane = (value: unknown, index: number): NeutralTimelineLane | null => {
@@ -155,8 +189,9 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
   const payload = parseNeutralTimelinePayload(value)
   if (!isPlainObject(payload)) return ''
   const record = payload as Record<string, unknown>
+  const sourceUrl = readNeutralTimelinePayloadSourceUrl(record)
   const tracks = Array.isArray(record.timelineTracks)
-    ? record.timelineTracks.map(normalizeNeutralTimelineTrack).filter((item): item is NeutralTimelineTrack => !!item)
+    ? record.timelineTracks.map((track, index) => normalizeNeutralTimelineTrack(track, index, sourceUrl)).filter((item): item is NeutralTimelineTrack => !!item)
     : []
   if (!tracks.length) return ''
   const unitMs = resolveNeutralTimelineUnitMs(tracks)
@@ -177,7 +212,8 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
     lines.push(`  section ${sanitizeNeutralTimelineLabel(lane.label, lane.id)}`)
     for (const track of laneTracks) {
       assignedTrackIds.add(track.id)
-      lines.push(`  ${track.label} : ${track.id}, ${formatNeutralTimelineClock(track.startMs, unitMs)}, ${formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)}`)
+      const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
+      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   for (const lane of lanes) pushLane(lane)
@@ -185,7 +221,8 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
   if (unassigned.length) {
     lines.push('  section Timeline')
     for (const track of unassigned) {
-      lines.push(`  ${track.label} : ${track.id}, ${formatNeutralTimelineClock(track.startMs, unitMs)}, ${formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)}`)
+      const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
+      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   return lines.join('\n')

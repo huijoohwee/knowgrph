@@ -39,8 +39,12 @@ export const DEFAULT_REMOTE_VIDEO_FRAME_FORMAT = 'png'
 export function normalizeRemoteVideoFrameSeconds(value: unknown): number | null {
   const raw = typeof value === 'number' ? value : Number(String(value ?? '').trim())
   if (!Number.isFinite(raw)) return null
-  const seconds = Math.max(0, Math.floor(raw))
+  const seconds = Math.max(0, Number(raw.toFixed(3)))
   return Number.isFinite(seconds) ? seconds : null
+}
+
+function formatRemoteVideoFrameSecondsForFileName(value: number): string {
+  return String(normalizeRemoteVideoFrameSeconds(value) ?? 0).replace(/\./g, '_')
 }
 
 export function normalizeRemoteVideoFrameFormat(value: unknown): 'png' | 'jpg' {
@@ -68,7 +72,7 @@ export function buildRemoteVideoFrameFileName(args: {
   const format = normalizeRemoteVideoFrameFormat(args.format || DEFAULT_REMOTE_VIDEO_FRAME_FORMAT)
   const semanticKey = buildRemoteVideoFrameSemanticKey({ ...args, timeSeconds, format })
   const hash = semanticKey.split(':').pop() || hashStringToHex(semanticKey)
-  return `frame-${hash}-t${timeSeconds}.${format}`
+  return `frame-${hash}-t${formatRemoteVideoFrameSecondsForFileName(timeSeconds)}.${format}`
 }
 
 export function buildRemoteVideoFrameRequestUrl(args: {

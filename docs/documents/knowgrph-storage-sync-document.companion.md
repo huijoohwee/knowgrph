@@ -41,7 +41,7 @@ traceability:
 
 # Knowgrph Storage & Sync — Companion
 
-Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
+Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, ADR index, deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
 **Version**: 3.1.0
 **Date**: 2026-06-14
@@ -318,280 +318,23 @@ flowchart TB
 
 ## Architectural Decisions
 
-### ADR-001: Keep A Minimal Persisted Client Working Store
+Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion remains a maintainable runtime index. Current accepted decisions:
 
-**Status**: Accepted
-**Date**: 2026-05-01
-
-**Context**: The workspace FS needs a bounded local working set for continuity and sync recovery. Canonical persistence lives in D1; the browser cache must not become an authoring SSOT.
-
-**Decision**: Current runtime stays local-first with a minimal persisted client cache.
-
-**FOSS Alternative**: IndexedDB directly (no wrapper) — viable but requires custom schema management; `knowgrphStorageDb.ts` is already a thin typed wrapper with zero egress cost.
-
-**TCO Impact**
-
-| Dimension | Chosen | FOSS Alt | Delta / 12mo |
-|---|---|---|---|
-| Infra cost | $0 (browser) | $0 (browser) | $0 |
-| Egress | $0 | $0 | $0 |
-| Vendor risk | None | None | — |
-
-**Consequences**: Strong local continuity; bounded cache prevents storage drift; canonical persistence unambiguously in D1.
-
----
-
-### ADR-002: Choose SQLite / D1 As The First Shared Cloud Store
-
-**Status**: Accepted
-**Date**: 2026-05-01
-
-**Context**: A first shared cloud store is needed. D1 fits the Pages + Worker deployment shape; SQLite keeps TCO below PostgreSQL-first design; current shared requirements do not justify a heavier stack.
-
-**Decision**: D1 (Cloudflare SQLite) as the first shared store.
-
-**FOSS Alternatives considered**:
-- Supabase (PostgreSQL) — requires rewriting D1-oriented schema; adds egress cost
-- Turso (libSQL) — separate provider when D1 is already in account; ~$29/mo for Team tier
-- Firebase — proprietary NoSQL; schema is relational; vendor lock-in is high
-- Self-hosted SQLite + Fly.io — higher ops burden; no edge co-location; ~$5–15/mo
-
-**TCO Impact**
-
-| Dimension | D1 (Cloudflare) | Supabase | Turso | Delta / 12mo |
-|---|---|---|---|---|
-| Infra cost | $0 free tier | $25/mo | $29/mo | -$300 to -$348/yr vs paid alts |
-| Egress | $0 (same zone) | Metered | Metered | Savings |
-| Vendor risk | Medium (CF) | Medium | Low-Med | — |
-
-**Consequences**: D1 free tier fits projected scale; SQLite schema stays portable; Worker co-location eliminates cross-zone egress.
-
----
-
-### ADR-003: Defer PostgreSQL Until Collaboration Or Retrieval Scale Requires It
-
-**Status**: Accepted
-**Date**: 2026-05-01
-
-**Context**: Concurrent same-file editing is handled by PocketBase + Yjs. D1 serves the runtime read/export cache. PostgreSQL would only be warranted when server-side retrieval outgrows D1 or vector search becomes a runtime requirement.
-
-**Decision**: Keep PostgreSQL deferred; scale path is documented.
-
-**FOSS Alternative**: PostgreSQL + Supabase, Neon, or self-hosted — all viable at scale; all have higher TCO at current usage.
-
-**TCO Impact**: PostgreSQL at current scale would add $25–$50/mo with no user-facing benefit. Deferred indefinitely while D1 free tier is sufficient.
-
-**Adoption gates**: server-side retrieval outgrows D1; vector search becomes a runtime requirement; tenancy/analytics/audit justify managed DB overhead.
-
----
-
-### ADR-004: Deploy Storage API As A Standalone Cloudflare Worker On The Same Zone
-
-**Status**: Accepted
-**Date**: 2026-05-04
-
-**Context**: The storage API needs a dedicated Worker to own D1 binding, route pattern, and secret management. The static SPA serves from Cloudflare Pages at `airvio.co/knowgrph`.
-
-**Decision**: `cloudflare/workers/knowgrph-storage/wrangler.toml` deploys the `knowgrph-storage` Worker to `airvio.co/api/storage/*` with D1 binding `knowgrph-storage` (`633355bf-…152`). `cloudflare/workers/knowgrph-payment/wrangler.toml` deploys the separate `knowgrph-payment` Worker to `airvio.co/api/payments/*` with the same D1 binding for checkout-session state. `pages:build-sync-cloudflare` builds and syncs the static app, then runs `workers:deploy` so storage and payment Workers deploy together.
-
-**FOSS Alternative**: Hono.js on Bun/Node with Fly.io — viable; adds $5–10/mo ops cost and cross-origin latency vs same-zone Worker.
-
-**TCO Impact**
-
-| Dimension | CF Worker | Fly.io | Delta / 12mo |
-|---|---|---|---|
-| Infra cost | $0 free tier | ~$5–10/mo | -$60–120/yr |
-| Egress | $0 (same zone) | Metered | Savings |
-| Vendor risk | Medium (CF) | Low | — |
-
-**Trade-offs**: Standalone Workers require a separate `workers:deploy` step from the Pages Git push, but keep D1 route ownership explicit, avoid Pages Function coupling, and isolate payment secrets from storage sync routes.
-
----
-
-### ADR-005: Retain Polling-Based Sync (120s) For Phase 1
-
-**Status**: Accepted
-**Date**: 2026-05-04
-
-**Context**: Client-side polling infrastructure already exists. Latency is acceptable for single-user / small-team use. Durable Objects add operational complexity.
-
-**Decision**: 120s poll interval; Durable Objects deferred.
-
-**FOSS Alternative**: Server-Sent Events with a Hono/Bun streaming server — feasible; adds persistent connection management complexity.
-
-**TCO Impact**: Both options are zero-cost at current scale. Durable Objects would add ~$0.15/million requests; SSE adds server complexity. Polling wins on simplicity.
-
----
-
-### ADR-006: Seed Write-Back Via Node.js fs Only
-
-**Status**: Accepted
-**Date**: 2026-05-04
-
-**Context**: `upsertWorkspaceInitializationSeedText` must write back to the local docs mirror in Dev but must never run in a browser context.
-
-**Decision**: `typeof window !== 'undefined'` guard prevents browser-side filesystem access. Dev-only concern.
-
-**TCO Impact**: Zero. Node.js `fs` is FOSS/built-in.
-
----
-
-### ADR-007: Auto-Clear Stale Outbox Conflicts After Pull
-
-**Status**: Accepted
-**Date**: 2026-05-10
-
-**Context**: After a D1 re-seed, 48+ conflict rows accumulated in the local outbox. Manual resolution UX did not scale.
-
-**Decision**: After every pull, `autoClearStaleOutboxConflicts()` compares pulled server revisions against conflicted outbox entries. When `serverRevision >= localRevision`, the conflict is stale and the outbox row is auto-removed.
-
-**Alternatives considered**:
-1. Require user to manually resolve each conflict — poor UX at scale.
-2. Clear all conflicts unconditionally — risks losing legitimate local edits ahead of the server.
-3. Reset outbox attempt count only — conflicts re-accumulate on next push.
-
-**TCO Impact**: Zero additional cost. Eliminates UX burden.
-
-**VCC**: `Verify: re-seed D1 → browser pull → conflicts auto-clear → toast dismisses without user action; knowgrphStorageClientSync.test.ts auto-clear assertions pass`
-
----
-
-### ADR-008: Default Workspace Initialization Source URL
-
-**Status**: Accepted
-**Date**: 2026-05-15
-
-**Context**: Workspace cold-start required a configured local docs mirror. Users without a local checkout had no seed path.
-
-**Decision**: `workspace.import.defaultSourceUrl` setting added to workspace settings registry (localStorage-backed, string, default empty). When set and workspace is empty, `readWorkspaceInitializationDocsMirrorEntries()` fetches content from the URL using the Source Files mirror path. GitHub repo/folder URLs are expanded through the GitHub tree reader and win over local docs projections because GitHub `docs/**` remains SSOT. Priority chain for explicit GitHub docs URLs: GitHub tree → sourceFiles/storage/local projections. Priority chain for generic URLs: sourceFiles → folderHandle → folderCache → defaultSourceUrl → Vite proxy → Node fs.
-
-**FOSS Alternative**: Hardcode a public URL — not configurable; breaks for users without D1. Chosen approach is fully configurable and zero-cost.
-
-**TCO Impact**: Zero. LocalStorage + existing `importUrlFallback()` pipeline; no new infra.
-
-### ADR-009: Public Single-Document View Endpoint
-
-**Status**: Accepted
-**Date**: 2026-05-20
-
-**Context**: No way to share a readable link to a specific D1 document outside the full workspace.
-
-**Decision**: `GET /api/storage/doc/:workspaceId/:canonicalPath*` Worker route returns a single document's `content_md` as `text/markdown` with `deleted = 0` filter, CORS headers, and 60s cache. Deep link canvas rendering: `https://airvio.co/knowgrph/doc/{workspaceId}/{canonicalPath}` renders the document in the knowledge graph canvas.
-
-**URL structure**
-
-| Segment | Source |
+| ADR | Decision |
 |---|---|
-| `workspaceId` | D1 `documents.workspace_id` |
-| `canonicalPath` | D1 `documents.canonical_path` |
-
-**Worker logic**:
-1. Decode `workspaceId` and `canonicalPath` from URL path
-2. Query D1: `SELECT content_md FROM documents WHERE workspace_id = ? AND canonical_path = ? AND deleted = 0`
-3. Return `content_md` as plain text or 404
-
-**Use cases**: share readable link; deep-link canvas rendering; use as `workspace.import.defaultSourceUrl`; programmatic `curl` access.
-
-**Alternatives considered**: (1) `/knowgrph/docs/{path}` — rejected because SPA catch-all intercepts all paths under `/knowgrph/`. (2) Extend `/export/` with query params — rejected because export returns full JSON workspace snapshot. (3) Separate Pages function — rejected because existing Worker already has the D1 binding.
-
-**TCO Impact**: Zero additional infra cost. Adds one D1 read per share-link request; well within free tier.
-
-**VCC**: `Verify: knowgrphStorageWorker.test.ts doc-view route returns 200 text/markdown for existing doc and 404 for deleted doc`
-
----
-
-### ADR-010: Use PocketBase + Yjs For Same-File Collaboration, Not Git Merge
-
-**Status**: Accepted
-**Date**: 2026-06-01
-
-**Context**: Two users editing the same `*.md` or `*.json` file simultaneously; Git merge is insufficient for minified JSON and high-frequency same-file edits.
-
-**Decision**: Yjs owns concurrent edits; PocketBase relays authenticated room updates; the save bridge commits CRDT snapshots to GitHub on save.
-
-**FOSS Alternative**: ShareDB (JSON Operational Transforms) — FOSS; requires a persistent WebSocket server; no native Markdown CRDT. Yjs is FOSS and provides both `Y.Text` (Markdown) and `Y.Map` (JSON) CRDTs. PocketBase is FOSS (MIT). Both are zero-egress within the zone.
-
-**TCO Impact**
-
-| Dimension | PocketBase + Yjs | ShareDB + WebSocket server | Delta / 12mo |
-|---|---|---|---|
-| Infra cost | $0 (FOSS, self-hosted) | ~$5–10/mo (WebSocket server) | -$60–120/yr |
-| Vendor risk | None (FOSS) | None (FOSS) | — |
-
-**Rules**: `*.md` → `Y.Text`; `*.json` → `Y.Map`; Git merge never reconciles simultaneous minified JSON; collaborators never receive GitHub credentials; D1 remains a runtime read/export cache and must not be promoted to collaboration SSOT.
-
-**VCC**: `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts CRDT merge, JSON guardrail, and bridge save assertions all pass`
-
----
-
-### ADR-011: Promote Generated Chat Markdown Through GitHub First, Storage Second
-
-**Status**: Accepted
-**Date**: 2026-06-06
-
-**Context**: FloatingPanel Chat generates KGC session files under `/chat-log/{session}/`. These are workspace-backed (`workspace:/chat-log/...`) and must not be silently skipped by background sync.
-
-**Decision**: Generated chat artifacts opt into a server-side GitHub write via `publishGeneratedWorkspacePathsToGitHub()` before any Cloudflare storage mirror. Pages route `/knowgrph/api/workspace/github/write` (alias: `/api/workspace/github/write`) accepts only text files under `chat-log/`, uses Cloudflare env bindings (`KNOWGRPH_GITHUB_WRITE_REPOSITORY`, `KNOWGRPH_GITHUB_WRITE_BRANCH`, `KNOWGRPH_GITHUB_WRITE_TOKEN`), sends a stable `User-Agent`, and never exposes GitHub credentials to the browser. If GitHub promotion fails, downstream D1/R2 mirror is skipped so Cloudflare does not become canonical write owner.
-
-**FOSS Alternative**: Direct GitHub API call from browser — rejected because it would expose GitHub credentials to the browser.
-
-**TCO Impact**
-
-| Dimension | Pages Function | Direct browser GitHub API | Delta |
-|---|---|---|---|
-| Infra cost | $0 (Pages) | $0 | $0 |
-| Security | Credentials stay server-side | Credentials exposed to browser | High-risk avoided |
-| Vendor risk | CF Pages | GitHub API | Low |
-
-**Operator setup**: `npm run pages:github-write:configure -- --json` for dry-run; `--apply --yes --confirm=configure-pages-github-write` to apply. Rejects broad `gho_` OAuth tokens by default. Production smoke: `chat-log/codex-prod-write-smoke-20260606T004928Z/kgc_codex-prod-write-smoke-20260606T004928Z.md`; commit `e750ca7e1afa8bddc6b64fb28ed5d16060f8d99a`.
-
-**Storage mirror**: When GitHub promotion applies or is disabled, generated Markdown/text artifacts may continue through `publishGeneratedWorkspacePathsToKnowgrphStorage()`. When `VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED` is off, the helper stores a local D1/outbox row only.
-
-**VCC**: `Verify: e2e:github-canonical-storage:dev passes; e2e:github-canonical-storage:prod creates GitHub commit before D1 mutation and D1 document read returns the same content`
-
----
-
-### ADR-012: Store Generated Binary Artifacts In R2 With Markdown Manifests
-
-**Status**: Accepted
-**Date**: 2026-06-06
-
-**Context**: D1 is a Markdown/text document store. Binary chat outputs (images, video) cannot be stored in `content_md` without inflating sync payloads.
-
-**Decision**: Storage Worker binds `KNOWGRPH_STORAGE_BLOB_BUCKET` to the `knowgrph-storage-blobs` R2 bucket and owns `/api/storage/blob/:workspaceId/:canonicalPath*`. Browser-generated binary outputs upload to R2, then promote a Markdown manifest to D1. R2 owns binary bytes; D1 owns searchable/editable manifests. Public reads go through the storage Worker so metadata, CORS, and cache policy stay centralized. Generated image/video artifacts are considered persisted across Dev, Prod, and Cloudflare only when the Worker blob route returns the bytes or metadata and the sibling D1 manifest route returns the Markdown manifest.
-
-**FOSS Alternative**: Self-hosted MinIO — viable; adds ~$5/mo ops cost. R2 is zero-egress within the CF zone and zero-cost at current scale.
-
-**TCO Impact**
-
-| Dimension | R2 | MinIO (self-hosted) | Delta / 12mo |
-|---|---|---|---|
-| Infra cost | $0 (free tier: 10 GB) | ~$5/mo | -$60/yr |
-| Egress | $0 (same zone) | Metered | Savings |
-| Vendor risk | Medium (CF) | None | — |
-
-**Deployment gate**: Cloudflare account-level R2 must be enabled before `wrangler r2 bucket create knowgrph-storage-blobs` can succeed. `wrangler deploy --dry-run` validates the binding locally. A live generated-media claim still requires route-level proof for the specific artifact: `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*` and `GET /api/storage/doc/:workspaceId/:manifestPath*`.
-
-**Alternatives considered**: (1) Put base64 in D1 `content_md` — rejected; inflates sync payloads. (2) Keep only browser-local files — rejected; production Source Files cannot dereference them. (3) Chat-only uploader — rejected; generated widget/video/image outputs should reuse the same storage route.
-
-**VCC**: `Verify: sourceFiles.storageSync.r2BlobRoute.storesBinaryObject returns uploaded bytes from the Worker blob route, chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest writes the KGC sibling Markdown manifest, and chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest writes the rich-media sibling Markdown manifest`
-
----
-
-### ADR-013: Persist Collaborative AI Media Through R2, D1, KV, And Durable Objects
-
-**Status**: Accepted
-**Date**: 2026-06-17
-
-**Context**: FloatingPanel Media is the scoped rich-media browser. AI/LLM-generated image, audio, and video assets need durable bytes, searchable provenance, short-lived access reuse, and multi-user canvas-room notification without making D1 the collaboration SSOT.
-
-**Decision**: MainPanel Help projects the shared Cloudflare media topology; FloatingPanel Media remains the scoped rich-media browser. Storage Worker route `/api/storage/media/assets` confirms the existing R2 object under `KNOWGRPH_STORAGE_BLOB_BUCKET` in the `knowgrph-storage-blobs/airvio/` object prefix, writes `media_artifacts` D1 metadata/provenance, writes a KV access-cache entry only when a real `KNOWGRPH_MEDIA_ACCESS_KV` namespace is bound, and notifies the `KNOWGRPH_CANVAS_ROOM` Durable Object when a collaboration room id is present. KV namespace ids are operator-owned and must not be faked in repo config.
-
-**TCO Impact**: R2/D1/KV/DO stay inside Cloudflare free-tier targets at MVP scale. The route deduplicates by content hash, caches access URLs with bounded TTL, and avoids re-running providers for collaborative replay.
-
-**Deployment gate**: No Prod/Cloudflare claim exists until the operator binds a real KV namespace, runs Worker deploy validation, and proves the specific artifact through R2 read, D1 row, KV status, and room notification status.
-
-**VCC**: `Verify: policy.storage.mainPanel.cloudflareMediaAssetSyncContract passes and Worker asset-sync route returns r2=confirmed, d1=persisted|reused, kv=cached|binding_missing, durableObject=broadcasted|binding_missing|skipped`
+| ADR-001 | Keep a minimal persisted client working store. |
+| ADR-002 | Use SQLite / D1 as the first shared cloud store. |
+| ADR-003 | Defer PostgreSQL until collaboration or retrieval scale requires it. |
+| ADR-004 | Deploy storage API as a standalone Cloudflare Worker on the same zone. |
+| ADR-005 | Retain polling-based sync at 120 seconds for phase 1. |
+| ADR-006 | Restrict seed write-back to Node.js filesystem contexts. |
+| ADR-007 | Auto-clear stale outbox conflicts after pull. |
+| ADR-008 | Support default workspace initialization source URL. |
+| ADR-009 | Expose a public single-document view endpoint. |
+| ADR-010 | Use PocketBase + Yjs for same-file collaboration, not Git merge. |
+| ADR-011 | Promote generated chat Markdown through GitHub first, storage second. |
+| ADR-012 | Store generated binary artifacts in R2 with Markdown manifests. |
+| ADR-013 | Persist collaborative AI media through R2, D1, KV, and Durable Objects. |
 
 ---
 
@@ -723,7 +466,9 @@ These cross-repo docs must stay aligned:
 - `knowgrph/todo-log.md`
 - `knowgrph/docs/documents/knowgrph-storage-sync-document.md` (canonical)
 - `knowgrph/docs/documents/knowgrph-storage-sync-document.companion.md` (this file)
+- `knowgrph/docs/documents/knowgrph-storage-sync-adrs-document.md`
 - `knowgrph/docs/documents/knowgrph-storage-schemas-document.md`
+- `knowgrph/docs/documents/knowgrph-storage-schemas-extensions-document.md`
 - `huijoohwee.github.io/docs/documents/hjh-workspace-todo-log.md`
 - `huijoohwee.github.io/schema/AgenticRAG/README.md`
 - `huijoohwee.github.io/schema/AgenticRAG/documentation.jsonld`

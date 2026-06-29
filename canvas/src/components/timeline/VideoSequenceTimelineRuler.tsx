@@ -2,7 +2,8 @@ import React from 'react'
 import { Blend, Film, Filter, Gauge, GitCompareArrows, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, Type, type LucideIcon } from 'lucide-react'
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
 import { buildTimelineAnimationState } from './timelineAnimationEngine'
-import { MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR, MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR } from '@/lib/media/mediaFormatPreference'
+import { VideoSequenceClipThumbnailStrip } from './VideoSequenceClipThumbnailStrip'
+import { buildVideoSequenceGeneratedFrameThumbnails } from './videoSequenceGeneratedFrameThumbnails'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   VIDEO_SEQUENCE_TIMELINE_LANES,
@@ -46,6 +47,7 @@ const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode,
 const VIDEO_SEQUENCE_THUMBNAIL_WINDOW_EPSILON = 0.001
 const VIDEO_SEQUENCE_SOURCE_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['video', 'image', 'scene'])
 const VIDEO_SEQUENCE_OPERATION_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['mask', 'grade', 'audio'])
+const VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['fbf'])
 const VIDEO_SEQUENCE_BOTTOM_PANEL_PROJECTION_OPTIONS = {
   disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
 } as const
@@ -106,19 +108,6 @@ function resolveVideoSequenceClipThumbnails(args: {
   )
   if (withinWindow.length) return withinWindow
   return []
-}
-
-function resolveVideoSequenceThumbnailTimelinePosition(args: {
-  span: MermaidGanttTimelineTaskSpan
-  thumbnail: TimelineMediaReaderThumbnail
-  window: VideoSequenceTimelineThumbnailWindow | null
-}): number {
-  if (!args.window) return args.span.startMinutes
-  const sourceStart = Math.min(args.window.sourceStartSeconds, args.window.sourceEndSeconds)
-  const sourceEnd = Math.max(args.window.sourceStartSeconds, args.window.sourceEndSeconds)
-  const sourceSpan = Math.max(0.0001, sourceEnd - sourceStart)
-  const sourceRatio = Math.min(1, Math.max(0, (args.thumbnail.timestampSeconds - sourceStart) / sourceSpan))
-  return args.span.startMinutes + Math.max(0, args.span.durationMinutes) * sourceRatio
 }
 
 function resolveActiveVideoSequenceResizeMode(args: {
@@ -375,15 +364,17 @@ export function VideoSequenceTimelineRuler({
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
+          const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
           const showsMediaContent = !verticalMarker && (
             VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
-            VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane)
+            VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
+            showsGeneratedFrameContent
           )
           const showMediaCues = showsMediaContent && lane !== 'audio'
           const allowTimelineFallbackThumbnails = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane)
           const thumbnailWindow = showsMediaContent
             ? resolveVideoSequenceSpanThumbnailWindow({
-                allowTimelineFallback: allowTimelineFallbackThumbnails,
+                allowTimelineFallback: allowTimelineFallbackThumbnails || showsGeneratedFrameContent,
                 span,
                 windows: sourceThumbnailWindows,
               })
@@ -391,13 +382,17 @@ export function VideoSequenceTimelineRuler({
           const nativeFrameSamples = showsMediaContent
             ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
             : []
+          const generatedFrameSamples = showsGeneratedFrameContent && !nativeFrameSamples.length
+            ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span })
+            : []
+          const thumbnailSamples = nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
                 seedText: `${span.label} ${span.raw}`,
               })
             : []
-          const frameSamples = showMediaCues && !nativeFrameSamples.length
+          const frameSamples = showMediaCues && !thumbnailSamples.length
             ? buildVideoSequenceTimelineFrameSamples({
                 sampleCount: Math.max(4, Math.round(durationMinutes * 1.6)),
                 seedText: `${span.label} ${span.raw}`,
@@ -423,6 +418,7 @@ export function VideoSequenceTimelineRuler({
               })
             : []
           const nestedSamples = (lane === 'nested' || lane === 'fbf' || lane === 'keyframe') && !verticalMarker
+            && !thumbnailSamples.length
             ? buildVideoSequenceTimelineFrameSamples({ sampleCount: Math.max(4, Math.round(durationMinutes * 1.1)), seedText: `${span.label} ${span.raw} nested` })
             : []
           const clipStartLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes)
@@ -459,77 +455,7 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-motion-work-area={`${animationState.workArea.start}-${animationState.workArea.end}`}
               title={span.label}
             >
-              {nativeFrameSamples.length ? (
-                <section
-                  className="timeline-video-sequence-clip-thumbnail-strip"
-                  aria-label={`${span.label} generated thumbnails`}
-                  data-kg-video-sequence-clip-thumbnail-strip="1"
-                  data-kg-video-sequence-clip-thumbnail-count={nativeFrameSamples.length}
-                  data-kg-video-sequence-clip-thumbnail-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
-                  data-kg-video-sequence-clip-thumbnail-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
-                  data-kg-video-sequence-clip-thumbnail-source-start={nativeFrameSamples.length ? nativeFrameSamples[0]?.timestampSeconds : undefined}
-                  data-kg-video-sequence-clip-thumbnail-source-end={nativeFrameSamples.length ? nativeFrameSamples[nativeFrameSamples.length - 1]?.timestampSeconds : undefined}
-                >
-                  {nativeFrameSamples.map(thumbnail => (
-                    <button
-                      type="button"
-                      key={`thumbnail:${span.rowKey}:${thumbnail.timestampSeconds}:${thumbnail.width}x${thumbnail.height}`}
-                      className="timeline-video-sequence-clip-thumbnail"
-                      aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}
-                      data-kg-video-sequence-clip-thumbnail="1"
-                      data-kg-video-sequence-clip-thumbnail-format={thumbnail.format}
-                      data-kg-video-sequence-clip-thumbnail-microsecond-time={Math.max(0, Math.round(thumbnail.timestampSeconds * 1_000_000))}
-                      data-kg-video-sequence-clip-thumbnail-raster-format={thumbnail.rasterFormat}
-                      data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
-                      onClick={event => {
-                        event.stopPropagation()
-                        onSelectRowPosition(span.rowKey, resolveVideoSequenceThumbnailTimelinePosition({
-                          span,
-                          thumbnail,
-                          window: thumbnailWindow,
-                        }))
-                      }}
-                      onPointerDown={event => {
-                        event.stopPropagation()
-                      }}
-                    >
-                      <img
-                        alt=""
-                        decoding="async"
-                        draggable={false}
-                        height={thumbnail.height}
-                        loading="lazy"
-                        src={thumbnail.dataUrl}
-                        width={thumbnail.width}
-                      />
-                      <span className="timeline-video-sequence-clip-thumbnail-caption">
-                        <time dateTime={`PT${thumbnail.timestampSeconds.toFixed(3)}S`}>
-                          {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)}
-                        </time>
-                        <span>{thumbnail.format}/{thumbnail.rasterFormat}</span>
-                      </span>
-                      <span
-                        className="timeline-video-sequence-clip-thumbnail-preview"
-                        aria-hidden="true"
-                        data-kg-video-sequence-clip-thumbnail-preview="1"
-                      >
-                        <img
-                          alt=""
-                          decoding="async"
-                          draggable={false}
-                          height={thumbnail.height}
-                          loading="lazy"
-                          src={thumbnail.dataUrl}
-                          width={thumbnail.width}
-                        />
-                        <span className="timeline-video-sequence-clip-thumbnail-preview-caption">
-                          {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </section>
-              ) : null}
+              <VideoSequenceClipThumbnailStrip generated={generatedFrameSamples.length > 0} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
               {frameSamples.length ? (
                 <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">
                   {frameSamples.map((sample, frameIndex) => (

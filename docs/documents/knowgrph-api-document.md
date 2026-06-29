@@ -59,6 +59,7 @@ Responsive output contract:
 - Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
 - Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for JSON-backed markdown workspace and UI Editor flows.
 - Implementation: [vite.config.ts](../../canvas/vite.config.ts)
+- Validation: video-agent external test URLs are supplied through `KNOWGRPH_VIDEO_AGENT_TEST_URLS` for focused tests, and through the user-configurable `VIDEO_AGENT_VALIDATION_CONFIG_STORAGE_KEY` / `VITE_KNOWGRPH_VIDEO_AGENT_VALIDATION_URLS` runtime config for the app. Both paths are exercised by the same Toolbar Launch Import URL flow, which calls this endpoint and then materializes source-owned video markdown with video corpus metadata without committing URL fixtures in repo source. Director-style orchestration is represented only through the native `VIDEO_AGENT_REFERENCE_BOUNDARY` contract: inspiration-only, native Knowgrph implementation, no external code copy, and no external video-agent runtime dependency.
 
 ### Import URL local video download
 
@@ -73,10 +74,10 @@ Responsive output contract:
 
 - Client owner: `canvas/src/features/html-video-renderer/*`.
 - Design bridge owner: `canvas/src/features/design/designAgentVideoSpec.ts` and `canvas/src/features/design/DesignEditorOverviewPanel.tsx`.
-- Purpose: turn source-owned HTML, CSS, seekable timing data, and structured render data into MP4 artifacts for coding-agent workflows and Design renderer previews.
+- Purpose: turn source-owned HTML, CSS, seekable timing data, and structured render data into video artifacts for coding-agent workflows and Design renderer previews.
 - Runtime contract: engine adapters are registered through `globalThis.knowgrphHtmlVideoEngines` and resolved by `createHtmlVideoEngineRegistryFromRuntimeConfig()`. Missing engines fail closed with structured `engine_not_configured` errors; there is no endpoint-level or client-level fallback engine.
 - Browser-native video smoke: the shipped Dev runtime can register the FOSS `canvas-2d` adapter, which uses in-browser canvas capture plus `MediaRecorder` and records the browser-supported video container without installing a system `ffmpeg` binary or an imported muxer. The headless adapter remains operator-configured for environments that explicitly provide an FFmpeg runtime.
-- Artifact contract: `runHtmlVideoFlowNode` writes generated MP4 output through the shared rich-media artifact writer when workspace FS is available and can publish a `video/mp4` blob preview to the calling surface. Design-authored artifacts include composition metadata, virtual workspace files, composition rows, source-derived assets, timeline lanes, and per-layer `data-start`, `data-duration`, and `data-track-index` markers so runtime adapters can seek deterministic frames without a proprietary timeline file.
+- Artifact contract: `runHtmlVideoFlowNode` writes generated video output through the shared rich-media artifact writer when workspace FS is available and can publish a `video/*` blob preview to the calling surface. Design-authored artifacts include composition metadata, virtual workspace files, composition rows, source-derived assets, timeline lanes, and per-layer `data-start`, `data-duration`, and `data-track-index` markers so runtime adapters can seek deterministic frames without a proprietary timeline file.
 
 ## Production note
 
@@ -384,7 +385,7 @@ Use the narrowest canonical owner:
 - Chat endpoint and provider normalization: `canvas/src/lib/chatEndpoint.ts`
 - MainPanel settings docs rows: `canvas/src/features/integrations/*Ssot.ts` or `canvas/src/features/panels/views/*ApiDocs.ts`
 - Local MCP tools: `mcp/local-tool-contract.js` plus the shared agent-ready contract imported by it
-- HTML video rendering: `canvas/src/features/html-video-renderer/*` validates Render_Spec input, resolves engines from runtime config, and delegates MP4 persistence to `canvas/src/features/chat/richMediaRun.ts`; the native `headless-browser` adapter captures seeked Playwright frames and invokes an operator-provided FFmpeg binary, with no hardcoded fallback engine
+- HTML video rendering: `canvas/src/features/html-video-renderer/*` validates Render_Spec input, resolves engines from runtime config, and delegates video persistence to `canvas/src/features/chat/richMediaRun.ts`; the native `headless-browser` adapter captures seeked Playwright frames and invokes an operator-provided FFmpeg binary, with no hardcoded fallback engine
 - Production storage/payment routes: `cloudflare/workers/*`
 
 #### 2. Canonical credential names only

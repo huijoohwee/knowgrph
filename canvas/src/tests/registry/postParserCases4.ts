@@ -72,6 +72,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["flow.widget.richMediaPanel.outputMarkdownLinkReusesSharedRendering","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelReusesMarkdownLinkIframeRenderingFromOutputText"],
   ["flow.widget.richMediaPanel.chartOutputSrcDocReusesSharedPreview","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelChartOutputSrcDocReusesSharedPreviewSpec"],
   ["flow.widget.richMediaPanel.inlineSrcDocUsesUnframedSharedSurface","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface"],
+  ["flow.widget.richMediaPanel.inlineSrcDocIframeEagerLoading","@/__tests__/richMediaPanelIframeSurface.test","testRichMediaPanelInlineSrcDocIframeLoadsEagerly"],
   ["flow.widget.richMediaPanel.inlineSrcDocRefreshesSharedResetStyle","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle"],
   ["flow.widget.richMediaPanel.runtimeInputOutputSrcDocReusesSharedPreview","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelRuntimeInputOutputSrcDocReusesSharedPreviewSpec"],
   ["flow.widget.richMediaPanel.openAiTextPipelineRenders","@/__tests__/richMediaPanelWidget.test","testOpenAiTextWidgetPipelineRendersInRichMediaPanel"],

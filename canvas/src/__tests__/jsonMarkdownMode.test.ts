@@ -105,7 +105,7 @@ export async function testJsonMarkdownSourceFidelityRoundTripsYamlFrontmatter() 
     'title: Knowgrph Strybldr Demo',
     'strybldr_storyboard:',
     '  version: 1',
-    '  runId: strybldr-videodb-recreate-77FAnT935IE',
+    '  runId: strybldr-validation-recreate-runtime',
     '  workflow:',
     '    stages:',
     '      - Source',

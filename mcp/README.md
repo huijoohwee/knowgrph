@@ -119,12 +119,12 @@ Canonical local tool inventory owner:
    - Default runtime URL: `http://localhost:6969` or `KNOWGRPH_BROWSER_API_RUNTIME_URL`; non-loopback hosts are rejected unless `KNOWGRPH_BROWSER_API_ALLOW_REMOTE_RUNTIME=1` is set on the MCP server
    - Browser target URLs are normalized before runtime calls; only `http` and `https` targets without embedded credentials are forwarded
 7. `knowgrph.html_video.render`
-   - Accepts HTML, CSS, JSON data, duration, fps, width, height, and optional `engine_hint` for a local HTML-to-MP4 render request
+   - Accepts HTML, CSS, JSON data, duration, fps, width, height, and optional `engine_hint` for a local HTML-to-video render request
    - Resolves the active engine from `engine_hint` or `KNOWGRPH_HTML_VIDEO_ENGINE`; missing or unregistered engines return `engine_not_configured` without falling back to a hardcoded renderer
-   - Recommended no-install Dev/Prod smoke path: register/select `canvas-2d`; it uses browser WebCodecs plus Mediabunny to mux a real MP4 without a system FFmpeg binary
+   - Recommended no-install Dev smoke path: register/select `canvas-2d`; it uses browser canvas capture plus native `MediaRecorder` to produce the browser-supported video container without a system FFmpeg binary or imported muxer
    - The native `headless-browser` adapter is inspired by Hyperframes without copying it: Playwright captures seeked HTML frames and an operator-provided FFmpeg binary encodes MP4
    - Runtime knobs: `KNOWGRPH_HTML_VIDEO_FFMPEG_BIN` (default `ffmpeg`), `KNOWGRPH_HTML_VIDEO_FFMPEG_VIDEO_CODEC` (default `mpeg4` to avoid forcing GPL codecs), and `KNOWGRPH_HTML_VIDEO_MAX_FRAMES` (safety bound)
-   - The browser Flow Editor path writes successful MP4 results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
+   - The browser Flow Editor path writes successful video results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
 8. Visual annotation tools
    - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
    - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local

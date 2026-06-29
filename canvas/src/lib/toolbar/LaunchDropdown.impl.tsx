@@ -1,52 +1,26 @@
 import React from 'react'
-import { BarChart3, ChevronDown, CloudDownload, Download, FolderOpen, FolderPlus, Globe, Image as ImageIcon, Link, Palette, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Image as ImageIcon, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
-import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import { readEnvString } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import {
   UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME,
-  UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
   UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
-import { VideoDownloadOptionsPanel } from '@/features/toolbar/VideoDownloadOptionsPanel'
-import {
-  type WorkspaceUrlImportCanvasRendererId,
-  type WorkspaceUrlImportDocumentModeId,
-} from '@/features/markdown-workspace/workspaceImport/canvasPresets'
-import type { VideoDownloadOptions } from '@/lib/video-download/types'
-import { isVideoDownloadEligible } from '@/lib/video-download/isVideoDownloadEligible'
-import { resolveVideoDownloadEndpoint } from '@/lib/video-download/videoDownloadResolver'
 import {
   LaunchDropdownExportMenu,
   hasLaunchDropdownExportActions,
   type LaunchDropdownExportActions,
 } from './LaunchDropdownExportMenu'
-import {
-  DESIGN_IMPORT_URL_RENDERER_SELECTION,
-  ImportUrlRendererSelect,
-  parseImportUrlRendererSelection,
-  type ImportUrlRendererSelection,
-} from './ImportUrlRendererSelect'
-import { buildAutoWebsiteImportOptions } from './importUrlWebsiteMode'
-import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
 import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBridge'
+import { LaunchDropdownImportUrlItem } from './LaunchDropdownImportUrlItem'
+import { loadLaunchDropdownFallbackModule } from './launchDropdownFallbackModule'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
-const DEFAULT_VIDEO_DOWNLOAD_OPTIONS: VideoDownloadOptions = {
-  format: 'best',
-  mediaKind: 'video-audio',
-  quality: 'best',
-  subtitleLang: '',
-}
-
 type LaunchDropdownProps = {
   anchorRef: React.RefObject<HTMLElement>
   open: boolean
@@ -55,22 +29,6 @@ type LaunchDropdownProps = {
   onLaunchSpotlight?: () => void
   onLaunchStatus?: () => void
   onCloseMainPanel?: () => void
-}
-
-type LaunchDropdownFallbackModule = typeof import('@/features/toolbar/launchDropdownFallbacks')
-
-let launchDropdownFallbackModulePromise: Promise<LaunchDropdownFallbackModule> | null = null
-
-const loadLaunchDropdownFallbackModule = (): Promise<LaunchDropdownFallbackModule> => {
-  if (!launchDropdownFallbackModulePromise) {
-    launchDropdownFallbackModulePromise = import('@/features/toolbar/launchDropdownFallbacks')
-      .then(mod => mod)
-      .catch(err => {
-        launchDropdownFallbackModulePromise = null
-        throw err
-      })
-  }
-  return launchDropdownFallbackModulePromise
 }
 
 export function LaunchDropdown({
@@ -85,16 +43,8 @@ export function LaunchDropdown({
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const imageInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
-  const [urlDraft, setUrlDraft] = React.useState('')
-  const [urlInputOpen, setUrlInputOpen] = React.useState(false)
-  const [importUrlRenderer, setImportUrlRenderer] = React.useState<ImportUrlRendererSelection>('default')
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = React.useState(false)
-  const [downloadOptionsOpen, setDownloadOptionsOpen] = React.useState(false)
-  const [downloadOptions, setDownloadOptions] = React.useState<VideoDownloadOptions>(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-  const [isDownloading, setIsDownloading] = React.useState(false)
-  const importUrlControlsId = React.useId()
-  const endpointWarningShownRef = React.useRef(false)
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -103,51 +53,16 @@ export function LaunchDropdown({
   const setFlowchartDataSource = useGraphStore(s => s.setFlowchartDataSource)
 
   const bridge = getMarkdownWorkspaceActionBridge()
-  const hasBridgeVideoDownload = typeof bridge.downloadVideo === 'function'
-  const endpointConfigured = React.useMemo(() => {
-    const value = resolveVideoDownloadEndpoint(readEnvString('VITE_VIDEO_DOWNLOAD_ENDPOINT', '').trim() || null)
-    if (!value) return false
-    try {
-      const url = new URL(value)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch {
-      return false
-    }
-  }, [])
-  const isVideoEligible = isVideoDownloadEligible(urlDraft)
 
   React.useEffect(() => {
     if (!open) {
-      setDownloadOptionsOpen(false)
-      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-      setIsDownloading(false)
-      endpointWarningShownRef.current = false
       return
     }
-    setUrlInputOpen(false)
-    setImportUrlRenderer(canvas2dRenderer === 'design' ? DESIGN_IMPORT_URL_RENDERER_SELECTION : 'default')
     setExportMenuOpen(false)
     setPdfMenuOpen(false)
-    setDownloadOptionsOpen(false)
-    setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-    setIsDownloading(false)
-    endpointWarningShownRef.current = false
   }, [canvas2dRenderer, open])
 
-  React.useEffect(() => {
-    if (!downloadOptionsOpen || endpointConfigured || hasBridgeVideoDownload || endpointWarningShownRef.current) return
-    endpointWarningShownRef.current = true
-    pushUiToast({
-      id: 'launch:video-download:not-configured',
-      kind: 'warning',
-      message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading',
-      ttlMs: UI_TOAST_TTL_MS.warningExtended,
-      dismissible: true,
-    })
-  }, [downloadOptionsOpen, endpointConfigured, hasBridgeVideoDownload, pushUiToast])
-
   const openExportMenu = React.useCallback(() => {
-    setUrlInputOpen(false)
     setExportMenuOpen(true)
   }, [])
 
@@ -197,84 +112,6 @@ export function LaunchDropdown({
     },
     [pushUiToast],
   )
-
-  const importUrlFallback = React.useCallback(
-    async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
-      const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
-    },
-    [pushUiToast],
-  )
-
-  const importUrlDeerFlowFallback = React.useCallback(
-    async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
-      const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
-    },
-    [pushUiToast],
-  )
-
-  const runImportUrl = React.useCallback(
-    (nextUrlRaw: string) => {
-      const nextUrl = String(nextUrlRaw || '').trim()
-      if (!nextUrl) return
-      onClose()
-      const launchBridge = getMarkdownWorkspaceActionBridge()
-      const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
-      if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
-      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
-      else void importUrlFallback(nextUrl, opts)
-      setUrlInputOpen(false)
-    },
-    [importUrlFallback, importUrlRenderer, onClose],
-  )
-
-  const runImportUrlDeerFlow = React.useCallback(
-    (nextUrlRaw: string) => {
-      const nextUrl = String(nextUrlRaw || '').trim()
-      if (!nextUrl) return
-      onClose()
-      const opts = parseImportUrlRendererSelection(importUrlRenderer) || undefined
-      if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
-      void importUrlDeerFlowFallback(nextUrl, opts)
-      setUrlInputOpen(false)
-    },
-    [importUrlDeerFlowFallback, importUrlRenderer, onClose],
-  )
-
-  const runVideoDownload = React.useCallback(async () => {
-    const next = String(urlDraft || '').trim()
-    if (!next || isDownloading) return
-    if (!isVideoDownloadEligible(next)) {
-      pushUiToast({
-        id: 'launch:video-download:ineligible',
-        kind: 'warning',
-        message: 'URL is not eligible for local video download',
-        ttlMs: UI_TOAST_TTL_MS.warningExtended,
-        dismissible: true,
-      })
-      return
-    }
-    if (!endpointConfigured && typeof getMarkdownWorkspaceActionBridge().downloadVideo !== 'function') {
-      pushUiToast({
-        id: 'launch:video-download:not-configured',
-        kind: 'warning',
-        message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading',
-        ttlMs: UI_TOAST_TTL_MS.warningExtended,
-        dismissible: true,
-      })
-      return
-    }
-    setIsDownloading(true)
-    try {
-      const mod = await loadLaunchDropdownFallbackModule()
-      await mod.videoDownloadFallback({ url: next, options: downloadOptions, pushUiToast })
-      setDownloadOptionsOpen(false)
-      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-    } finally {
-      setIsDownloading(false)
-    }
-  }, [downloadOptions, endpointConfigured, isDownloading, pushUiToast, urlDraft])
 
   const createNewFolderFallback = React.useCallback(async () => {
     const mod = await loadLaunchDropdownFallbackModule()
@@ -461,7 +298,6 @@ export function LaunchDropdown({
               className={menuItemClass}
               onClick={() => {
                 onClose()
-                setUrlInputOpen(false)
                 setCanvasRenderMode('2d')
                 setCanvas2dRenderer('flowchart')
                 setFlowchartDataSource('api')
@@ -491,154 +327,14 @@ export function LaunchDropdown({
             </button>
           </li>
 
-          <li className="list-none">
-            <button
-              type="button"
-              className={menuItemClass}
-              onClick={() => {
-                const draft = String(urlDraft || '').trim()
-                if (urlInputOpen) {
-                  setUrlInputOpen(false)
-                  setDownloadOptionsOpen(false)
-                  setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-                  setIsDownloading(false)
-                  return
-                }
-                if (!draft) {
-                  if (WORKSPACE_IMPORT_URL_TEST) {
-                    setUrlDraft(WORKSPACE_IMPORT_URL_TEST)
-                  } else if (WORKSPACE_IMPORT_IMAGE_URL_TEST) {
-                    setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
-                  }
-                }
-                setExportMenuOpen(false)
-                setPdfMenuOpen(false)
-                setUrlInputOpen(true)
-              }}
-              aria-expanded={urlInputOpen}
-              aria-controls={importUrlControlsId}
-            >
-              <Link className={menuIconClass} strokeWidth={1.6} />
-              <span className="truncate">Import URL</span>
-              <ChevronDown className={`ml-auto ${menuIconClass} transition-transform ${urlInputOpen ? 'rotate-180' : ''}`} strokeWidth={1.6} aria-hidden="true" />
-            </button>
-            {urlInputOpen ? (
-              <section id={importUrlControlsId} className="kg-launch-menu-children kg-click-expand-menu-children mt-1">
-                <ImportUrlPrompt
-                  urlDraft={urlDraft}
-                  onChange={setUrlDraft}
-                  onCancel={() => setUrlInputOpen(false)}
-                  autoFocus
-                  confirmLabel="Import"
-                  onConfirm={(next) => {
-                    runImportUrl(next)
-                  }}
-                  rightAddon={
-                    <section className="flex min-w-0 flex-1 items-stretch gap-1">
-                      <button
-                        type="button"
-                        className={cn(
-                          UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
-                          'rounded border',
-                          importUrlRenderer === DESIGN_IMPORT_URL_RENDERER_SELECTION ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText) : UI_THEME_TOKENS.button.text,
-                          UI_THEME_TOKENS.input.border,
-                          UI_THEME_TOKENS.button.hoverBg,
-                        )}
-                        title="Design renderer"
-                        aria-label="Design renderer"
-                        aria-pressed={importUrlRenderer === DESIGN_IMPORT_URL_RENDERER_SELECTION}
-                        onClick={() => setImportUrlRenderer(prev => (prev === DESIGN_IMPORT_URL_RENDERER_SELECTION ? 'default' : DESIGN_IMPORT_URL_RENDERER_SELECTION))}
-                      >
-                        <Palette className={menuIconClass} strokeWidth={1.6} aria-hidden={true} />
-                      </button>
-                      <ImportUrlRendererSelect
-                        value={importUrlRenderer}
-                        onChange={setImportUrlRenderer}
-                      />
-                      {isVideoEligible ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
-                            'rounded border',
-                            downloadOptionsOpen ? cn(UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText) : UI_THEME_TOKENS.button.text,
-                            UI_THEME_TOKENS.input.border,
-                            UI_THEME_TOKENS.button.hoverBg,
-                          )}
-                          title="Download local video"
-                          aria-label="Download local video"
-                          aria-pressed={downloadOptionsOpen}
-                          onClick={() => {
-                            setDownloadOptionsOpen(prev => !prev)
-                          }}
-                        >
-                          <Download className={menuIconClass} strokeWidth={1.6} aria-hidden="true" />
-                        </button>
-                      ) : null}
-                      {typeof bridge.importWebsite === 'function' ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
-                            'rounded border',
-                            UI_THEME_TOKENS.input.border,
-                            UI_THEME_TOKENS.button.text,
-                            UI_THEME_TOKENS.button.hoverBg,
-                          )}
-                          title="Import website (sitemap)"
-                          aria-label="Import website"
-                          onClick={() => {
-                            const next = String(urlDraft || '').trim()
-                            if (!next) return
-                            onClose()
-                            const launchBridge = getMarkdownWorkspaceActionBridge()
-                            launchBridge.importWebsite?.(next, buildAutoWebsiteImportOptions())
-                            setUrlInputOpen(false)
-                          }}
-                        >
-                          <Globe className={menuIconClass} strokeWidth={1.6} />
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className={cn(
-                          UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME,
-                          'rounded border',
-                          UI_THEME_TOKENS.input.border,
-                          UI_THEME_TOKENS.button.text,
-                          UI_THEME_TOKENS.button.hoverBg,
-                        )}
-                        title="Import URL (DeerFlow)"
-                        aria-label="Import URL (DeerFlow)"
-                        onClick={() => {
-                          const next = String(urlDraft || '').trim()
-                          if (!next) return
-                          runImportUrlDeerFlow(next)
-                        }}
-                      >
-                        <Sparkles className={menuIconClass} strokeWidth={1.6} />
-                      </button>
-                    </section>
-                  }
-                />
-                {downloadOptionsOpen ? (
-                  <VideoDownloadOptionsPanel
-                    options={downloadOptions}
-                    onOptionsChange={setDownloadOptions}
-                    onConfirm={() => {
-                      void runVideoDownload()
-                    }}
-                    onCancel={() => {
-                      setDownloadOptionsOpen(false)
-                      setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
-                    }}
-                    isDownloading={isDownloading}
-                    endpointConfigured={endpointConfigured || hasBridgeVideoDownload}
-                  />
-                ) : null}
-              </section>
-            ) : null}
-          </li>
+          <LaunchDropdownImportUrlItem
+            canvas2dRenderer={canvas2dRenderer}
+            menuIconClass={menuIconClass}
+            menuItemClass={menuItemClass}
+            onClose={onClose}
+            open={open}
+            pushUiToast={pushUiToast}
+          />
 
           <li className="list-none">
             <button

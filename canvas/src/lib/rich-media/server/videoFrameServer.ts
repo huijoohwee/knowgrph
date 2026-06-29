@@ -41,7 +41,7 @@ export const REMOTE_VIDEO_FRAME_PUBLIC_PREFIX = '/image/knowgrph/video-frame'
 
 const MAX_VIDEO_FRAME_URL_LENGTH = 4096
 const MAX_VIDEO_FRAME_TIME_SECONDS = 12 * 60 * 60
-const VIDEO_FRAME_FILE_RE = /^frame-[a-f0-9]+-t\d+\.(?:png|jpg)$/i
+const VIDEO_FRAME_FILE_RE = /^frame-[a-f0-9]+-t\d+(?:_\d+)?\.(?:png|jpg)$/i
 const inflightVideoFrameByOutputPath = new Map<string, Promise<VideoFrameResult>>()
 
 const normalizePublicPrefix = (value: unknown): string => {

@@ -77,7 +77,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const previewVideoBindingText = readSource('components', 'timeline', 'useTimelinePreviewVideoBinding.ts')
   const mediaReaderText = [readSource('components', 'timeline', 'timelineMediaReader.ts'), readSource('components', 'timeline', 'timelineMediaMetadata.ts')].join('\n')
   const mediaFormatPreferenceText = readSource('lib', 'media', 'mediaFormatPreference.ts')
-  const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
+  const richMediaPanelText = [readSource('components', 'RichMediaPanel.tsx'), readSource('components', 'RichMediaPanelDirectMediaSurface.tsx'), readSource('components', 'useRichMediaPanelSurfaceState.ts')].join('\n')
   const commandMenuCatalogText = [
     readSource('features', 'command-menu', 'MediaCatalogPanel.tsx'),
     readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx'),
@@ -88,7 +88,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     readSource('features', 'command-menu', 'mediaCatalogUploadedItems.tsx'),
   ].join('\n')
   const forbiddenExternalMediaToolkit = ['media', 'bunny'].join('')
-  const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const rulerText = [readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx'), readSource('components', 'timeline', 'VideoSequenceClipThumbnailStrip.tsx')].join('\n')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
   const transportPanelText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const transportRouteModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportRouteModel.ts')

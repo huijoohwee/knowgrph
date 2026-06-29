@@ -4,7 +4,7 @@ doc_type: "PRD+TAD"
 doc_id: "KG-CF-001"
 version: "1.0.0"
 status: "Accepted implemented baseline"
-date: "2026-05-29"
+date: "2026-06-29"
 authors:
   - "airvio"
 schema: "kgc-computing-flow/v1"
@@ -47,12 +47,14 @@ records under `airvio.co`.
 harness-first. This document has no AI harness in its own runtime path; token cost is therefore
 `$0` for the Cloudflare surfaces described here.
 
-**Current live status, 2026-05-29**:
+**Current live status, 2026-06-29**:
 
 - Cloudflare Pages serves Knowgrph at `https://airvio.co/knowgrph`.
 - Cloudflare Pages project name is `joohwee`.
 - Storage Worker route family is `https://airvio.co/api/storage/*`.
 - Payment Worker route family is `https://airvio.co/api/payments/*`.
+- Latest verified release shipped Dev `530462d6`, publish `ec4dfa47`, preview `https://0d3c18ba.joohwee.pages.dev`, and live route proofs `https://airvio.co/` -> `200`, `https://airvio.co/knowgrph/` -> `200`.
+- The latest `pages:deploy-cloudflare` run completed `storage:d1:seed:docs` with `applied=41`, `conflict=0`, and `rejected=0`.
 - DNSSEC is active for `airvio.co`.
 - DNS-AID SVCB records are published and verified for `_index._agents.airvio.co`,
   `_mcp._agents.airvio.co`, and `_a2a._agents.airvio.co`.
@@ -536,15 +538,17 @@ testable.
 
 ### Current Evidence
 
-The following evidence was produced on 2026-05-29:
+The following evidence was produced on 2026-06-29:
 
-- `cloudflare-store-dns-token-from-clipboard` validated a scoped DNS token and stored it in
-  Keychain/`launchctl` without printing the value.
-- `npm run dns-aid:publish` created the three live SVCB records and reported DNSSEC active.
-- `npm run dns-aid:check` passed `3/3` after the checker decoded DoH RFC3597 SVCB answers.
+- `npm run storyboard:readiness:check` passed before release.
+- `npm run pages:deploy-cloudflare` completed with preview `https://0d3c18ba.joohwee.pages.dev`.
+- Route probes returned `200` for `https://airvio.co/`, `https://airvio.co/knowgrph/`, and `https://0d3c18ba.joohwee.pages.dev/knowgrph/`.
+- `storage:d1:seed:docs` completed with `applied=41`, `conflict=0`, and `rejected=0`.
+- DNS-AID remains verified by `npm run dns-aid:check` with `3/3` passing.
 
 ### Change Log
 
 | Version | Date | Change |
 |---|---|---|
+| 1.0.1 | 2026-06-29 | Refreshed the live Cloudflare release evidence with the shipped storyboard-runtime release, preview/live route proof, and latest D1 docs seed result. |
 | 1.0.0 | 2026-05-29 | Created implementation-accurate Cloudflare PRD/TAD baseline with live DNS-AID publish evidence. |

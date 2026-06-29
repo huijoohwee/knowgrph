@@ -26,6 +26,7 @@ export function RichMediaPanelIframeSurface(args: {
           iframeSrc="about:blank"
           iframeSrcDoc={model.normalizedInlineSrcDoc}
           iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          iframeLoading="eager"
           iframeRef={model.inlineSrcDocFrameRef}
           iframeScrolling={model.panelOwnsInlineSrcDocScroll ? 'no' : undefined}
           iframeReferrerPolicy="no-referrer"

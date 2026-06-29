@@ -9,7 +9,7 @@
 **Version**: 2.1.0
 **Date**: 2026-05-13
 **Canonical index**: `knowgrph-storage-sync-document.md`
-**See also**: `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
+**See also**: `knowgrph-storage-schemas-extensions-document.md` (deferred auth relay and PostgreSQL extensions), `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
 
 ## Schema Principles
 
@@ -307,129 +307,7 @@ CREATE TABLE IF NOT EXISTS sync_events (
 
 ### Planned Authenticated Collaboration And Chat Relay Extension
 
-The tables below are the concrete D1 extension required before multi-user collaboration can claim authenticated membership, workspace authorization, or server-managed provider relay isolation. They are not part of the shipped anonymous storage baseline until their Worker owners and focused tests exist.
-
-```sql
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS auth_sessions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  session_hash TEXT NOT NULL UNIQUE,
-  expires_at TEXT NOT NULL,
-  revoked_at TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS workspace_memberships (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  role TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active',
-  invited_by_user_id TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (invited_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-  UNIQUE (workspace_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS workspace_provider_policies (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL,
-  provider_id TEXT NOT NULL,
-  allow_server_managed INTEGER NOT NULL DEFAULT 0,
-  allow_byok INTEGER NOT NULL DEFAULT 1,
-  monthly_request_limit INTEGER,
-  monthly_token_limit INTEGER,
-  monthly_spend_limit_cents INTEGER,
-  default_model TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-  UNIQUE (workspace_id, provider_id)
-);
-
-CREATE TABLE IF NOT EXISTS chat_proxy_audit (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  membership_id TEXT NOT NULL,
-  provider_id TEXT NOT NULL,
-  auth_mode TEXT NOT NULL,
-  request_id TEXT,
-  upstream_status INTEGER,
-  relay_status TEXT NOT NULL,
-  model_id TEXT,
-  request_bytes INTEGER,
-  response_bytes INTEGER,
-  latency_ms INTEGER,
-  error_code TEXT,
-  error_message TEXT,
-  created_at TEXT NOT NULL,
-  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (membership_id) REFERENCES workspace_memberships(id) ON DELETE CASCADE
-);
-```
-
-#### Authenticated Relay Index Guidance
-
-| Table | Index fields |
-|---|---|
-| `users` | `email`, `status` |
-| `auth_sessions` | `user_id`, `session_hash`, `expires_at` |
-| `workspace_memberships` | `workspace_id`, `user_id`, `[workspace_id, role]`, `status` |
-| `workspace_provider_policies` | `workspace_id`, `[workspace_id, provider_id]` |
-| `chat_proxy_audit` | `workspace_id`, `user_id`, `provider_id`, `created_at`, `[workspace_id, created_at]` |
-
-#### Authenticated Relay Route Inputs
-
-```ts
-type ChatRelayRequest = {
-  workspaceId: string
-  providerId: 'openai' | 'miromind' | 'agnes-ai' | 'byteplus-modelark' | 'qwen' | 'google-cloud'
-  authMode: 'serverManaged' | 'byok'
-  endpointUrl?: string | null
-  model: string
-  messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }>
-  stream?: boolean
-}
-
-type ChatRelayResolvedContext = {
-  userId: string
-  membershipId: string
-  workspaceId: string
-  role: 'viewer' | 'editor' | 'owner' | 'provider-admin'
-  providerPolicy: {
-    allowServerManaged: boolean
-    allowByok: boolean
-    monthlyRequestLimit: number | null
-    monthlyTokenLimit: number | null
-    monthlySpendLimitCents: number | null
-  }
-}
-```
-
-#### Authorization Rules
-
-- `viewer` can read policy metadata but cannot invoke server-managed provider relay by default.
-- `editor` can invoke chat relay for workspace-authorized providers when policy permits.
-- `owner` can manage memberships and provider policies for the workspace.
-- `provider-admin` can rotate provider policy defaults without changing workspace ownership.
-- `serverManaged` relay mode must fail closed unless `workspace_provider_policies.allow_server_managed = 1`.
-- BYOK mode remains a per-request browser input and must never be written to D1.
+Deferred authenticated relay tables, route inputs, index guidance, and authorization rules live in `knowgrph-storage-schemas-extensions-document.md`. The shipped anonymous storage baseline remains `workspaces`, `documents`, `document_chunks`, `graph_snapshots`, `sync_devices`, and `sync_events`.
 
 ### Indexes
 
@@ -625,24 +503,7 @@ Error handling: 404 on unknown workspace; 500 on D1 failure.
 
 ## PostgreSQL Appendix (Deferred)
 
-PostgreSQL remains deferred. Documented to preserve the future migration path.
-
-### Adoption Gates
-
-Adopt PostgreSQL only when one or more become materially true:
-
-- Multiple users edit the same workspace concurrently
-- Server-side retrieval queries outgrow D1 ergonomics or performance
-- Vector search becomes a runtime requirement rather than an experiment
-- Tenancy, analytics, or audit requirements justify managed DB overhead
-
-### Deferred Shape Highlights
-
-- UUID primary keys (vs TEXT in D1)
-- `TIMESTAMPTZ` timestamps (vs TEXT in D1)
-- `JSONB` for `graph_json` and `layout_json` (vs TEXT in D1)
-- `VECTOR(1536)` embedding column on `document_chunks` (not in D1)
-- `metadata_json JSONB` column on `documents` and `document_chunks` (not in D1)
+Deferred PostgreSQL adoption gates and shape deltas live in `knowgrph-storage-schemas-extensions-document.md`. PostgreSQL remains a future migration path, not a current runtime owner.
 
 ---
 

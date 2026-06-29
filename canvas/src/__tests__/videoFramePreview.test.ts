@@ -44,4 +44,12 @@ export async function testRemoteVideoFrameFileNameIsStableAndNeutral() {
   if (!/^frame-[a-f0-9]+-t421\.png$/.test(first)) {
     throw new Error(`expected neutral generated frame filename, got ${first}`)
   }
+  const fractional = buildRemoteVideoFrameFileName({
+    sourceUrl: 'https://www.youtube.com/watch?v=aBcD123xYz9&t=421',
+    timeSeconds: 2.8,
+    format: 'png',
+  })
+  if (!/^frame-[a-f0-9]+-t2_8\.png$/.test(fractional)) {
+    throw new Error(`expected fractional frame filename to stay filesystem-safe, got ${fractional}`)
+  }
 }

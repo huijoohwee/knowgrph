@@ -4,6 +4,7 @@ const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
+const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
@@ -70,6 +71,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.renderSettings.xrModeSelect', async () => {
     const mod = await modCanvas3dMode()
     await mod.testRenderSettings3dModeSelectPreservesXrMode()
+  })
+  await execTest(results, 'canvas.frontmatter.videoSequenceTimelineFlowEditorPreset', async () => {
+    const mod = await modVideoSequenceTimelinePreset()
+    await mod.testVideoSequenceTimelinePresetRespectsExplicitFlowEditorRenderer()
   })
   await execTest(results, 'canvas.xrMode.glbAssetRenderGate', async () => {
     const mod = await modCanvas3dMode()
