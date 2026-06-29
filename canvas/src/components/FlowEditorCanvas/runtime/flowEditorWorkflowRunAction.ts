@@ -6,7 +6,7 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
+import { UI_COPY, FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -22,6 +22,7 @@ import {
 } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-video-renderer/htmlVideoEngineRegistry'
 import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
+import { runAnnotationFlowNode, toMarkdownSummary, type AnnotationRunResult } from '@/features/visual-annotation-engine'
 import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
   resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
@@ -84,6 +85,18 @@ const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
   'renderErrorReason',
   'richMediaActiveTab',
 ] as const
+
+const readWorkflowScalar = (value: unknown): unknown => {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
+    return (value as { value?: unknown }).value
+  }
+  return value
+}
+
+const readWorkflowString = (value: unknown): string => {
+  const scalar = readWorkflowScalar(value)
+  return typeof scalar === 'string' ? scalar.trim() : ''
+}
 
 function stabilizeHtmlVideoPreviewPatchForExistingProps(
   currentProps: Record<string, unknown>,
@@ -387,6 +400,76 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
         })
       }
 
+      const publishAnnotationRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; result: AnnotationRunResult }) => {
+        const result = panelArgs.result
+        const jsonText = JSON.stringify(result, null, 2)
+        const summaryText = result.ok === true ? toMarkdownSummary(result) : [
+          '## Annotation Error',
+          '',
+          `- code: ${result.errorCode}`,
+          ...(result.modelId ? [`- modelId: ${result.modelId}`] : []),
+          ...(result.field ? [`- field: ${result.field}`] : []),
+          ...(result.reason ? [`- reason: ${result.reason}`] : []),
+          '',
+          '```json',
+          jsonText,
+          '```',
+        ].join('\n')
+        const outputText = result.ok === true ? `${summaryText}\n\n## Annotation JSON\n\n\`\`\`json\n${jsonText}\n\`\`\`` : summaryText
+        withRunLayoutMutationGuard(() => {
+          const downstreamPanelTargetIds = resolveFlowEditorWorkflowDownstreamRunTargetIds({
+            node: panelArgs.anchorNode,
+            graphData: graphForRun,
+          }).filter(targetId => {
+            const candidate = resolveNodeByIdAcrossGraphs(targetId)
+            return readWorkflowString(candidate?.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+          })
+          const panelNodeIds = downstreamPanelTargetIds.length > 0
+            ? downstreamPanelTargetIds
+            : [ensureFlowEditorWorkflowRichMediaPanelNodeId({
+              context: workflowNodeResolutionContext,
+              graphForRun,
+              allowCreateRichMediaPanel,
+              anchorNode: panelArgs.anchorNode,
+              readLiveDraftGraphData: args.readDraftGraphData,
+              appendDraftNode: args.appendDraftNode,
+            })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+          for (const panelNodeId of panelNodeIds) {
+            const patch: Record<string, unknown> = {
+              ...clearRichMediaOutputProperties({}),
+              ...buildTextWidgetOutputPatch({
+                output: outputText,
+                title: panelArgs.anchorNode.label || 'Annotation Engine',
+                model: result.modelId || 'annotation',
+                outputPath: result.ok === true ? result.outputPath : null,
+              }),
+              annotationId: result.ok === true ? result.annotationId : undefined,
+              annotationSchemaVersion: result.ok === true ? result.schemaVersion : undefined,
+              renderErrorCode: result.ok === false ? result.errorCode : undefined,
+              renderErrorReason: result.ok === false ? result.reason : undefined,
+              richMediaActiveTab: 'text',
+              lastRunAt: new Date().toISOString(),
+            }
+            const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
+              panelNodeId,
+              patch,
+              readLiveDraftGraphData: args.readDraftGraphData,
+              commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+              scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
+            })
+            const liveDraft = args.readDraftGraphData()
+            const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
+              ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
+              : resolveNodeByIdAcrossGraphs(panelNodeId))
+            const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
+            const nextPanelProps = { ...existingPanelProps, ...patch }
+            if (!suppressLayoutMutation && !areFlowEditorWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)) {
+              args.updateNode(panelNodeId, { properties: nextPanelProps as never })
+            }
+          }
+        })
+      }
+
       if (String(node.type || '').trim() === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
         const sourceUrlRaw = typeof rawNodeProperties.sourceUrl === 'string' ? rawNodeProperties.sourceUrl.trim() : ''
         const langRaw = typeof rawNodeProperties.languageHint === 'string' ? rawNodeProperties.languageHint.trim() : ''
@@ -602,8 +685,44 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
         return
       }
 
+      if (readWorkflowString(node.type) === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID) {
+        setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
+        try {
+          const result = await runAnnotationFlowNode({
+            node,
+            workspacePath: activeWorkspacePath || null,
+            fs: await getWorkspaceFs(),
+          })
+          publishAnnotationRunOutputToRichMediaPanel({ anchorNode: node, result })
+          if (result.ok === true) {
+            updateRunOutputForKnownNodeIds(nodeProps => ({
+              ...nodeProps,
+              annotationId: result.annotationId,
+              annotationSchemaVersion: result.schemaVersion,
+              outputPath: result.outputPath || undefined,
+              outputManifestPath: result.outputManifestPath || undefined,
+              output: JSON.stringify(result, null, 2),
+              lastRunAt: new Date().toISOString(),
+            }))
+            args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Generated annotation JSON.', ttlMs: 2400 })
+          } else {
+            updateRunOutputForKnownNodeIds(nodeProps => ({
+              ...nodeProps,
+              renderErrorCode: result.errorCode,
+              renderErrorReason: result.reason,
+              output: JSON.stringify(result, null, 2),
+              lastRunAt: new Date().toISOString(),
+            }))
+            args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'warning', message: result.reason || result.errorCode, ttlMs: 3200 })
+          }
+        } finally {
+          setRunLoadingStateForKnownNodeIds({ loading: false })
+        }
+        return
+      }
+
       const richMediaKind = resolveRichMediaWidgetKind(node)
-      if (richMediaKind) {
+      if (richMediaKind && richMediaKind !== 'annotation') {
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })
         try {
           const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({

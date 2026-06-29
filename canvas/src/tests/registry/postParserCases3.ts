@@ -649,6 +649,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["strybldr.markdown.workspaceStructuredGraphFeedsStoryboardRenderers","@/__tests__/strybldr.test","testStrybldrWorkspaceStructuredGraphFeedsStoryboardRenderers"],
   ["strybldr.markdown.appendElementPersistsToStructuredPayload","@/__tests__/strybldr.test","testStrybldrStoryboardAppendElementPersistsToStructuredPayload"],
   ["strybldr.markdown.removeElementPersistsToStructuredPayload","@/__tests__/strybldr.test","testStrybldrStoryboardRemoveElementPersistsToStructuredPayload"],
+  ["strybldr.markdown.workflowEdgeSyncPersistsStructuredPayload","@/__tests__/strybldr.test","testStrybldrWorkflowEdgeSyncPersistsAuthoredStoryboardConnections"],
   ["strybldr.markdown.parseStrytreeStorytreeSnapshot","@/__tests__/strybldr.test","testStrybldrStoryboardParsesStrytreeStorytreeSnapshot"],
   ["strybldr.storytree.workflowActions","@/__tests__/strybldr.test","testStrybldrStorytreeWorkflowActionsMutateGraphState"],
   ["strybldr.storytree.forkCompareWorkflowActions","@/__tests__/strybldr.test","testStrybldrForkCompareCandidateWorkflowActions"],

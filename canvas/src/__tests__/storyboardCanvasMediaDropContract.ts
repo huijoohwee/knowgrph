@@ -83,9 +83,12 @@ export function assertStoryboard2dMediaDropContract() {
   }
   for (const snippet of [
     "const storyboardSharedSurfaceRendererMode = canvas2dRenderer === 'storyboard'",
+    'function readNodeWorldTopLeft2d(',
+    'function readNodeWorldCenterFromTopLeft2d(',
     'projectWithWorldTransformScale: storyboardSharedSurfaceRendererMode',
     'getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode',
-    "? id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' })",
+    '? id => readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))',
+    "getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))",
     'if (storyboardSharedSurfaceRendererMode) return override',
     'w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width',
     'h: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height',
@@ -94,6 +97,12 @@ export function assertStoryboard2dMediaDropContract() {
     if (!flowCanvasMediaOverlaysSource.includes(snippet)) {
       throw new Error(`expected Storyboard Rich Media Panels to reuse card-sized world geometry during pan/drag/zoom/resize: ${snippet}`)
     }
+  }
+  if (flowEditorSurfaceSource.includes('http://127.0.0.1:7777') || flowEditorSurfaceSource.includes('storyboard-media-panel-loop') || flowEditorSurfaceSource.includes('[DEBUG]')) {
+    throw new Error('forbid hardcoded Storyboard surface debug endpoints and debug traces in the shared media drop owner')
+  }
+  if (flowCanvasMediaOverlaysSource.includes('http://127.0.0.1:7777') || flowCanvasMediaOverlaysSource.includes('[DEBUG] rich media overlay selected/opened on storyboard surface')) {
+    throw new Error('forbid hardcoded Rich Media overlay debug endpoints in the shared Storyboard media surface')
   }
   for (const snippet of [
     'initializeMediaOverlayShell(el, mediaViewportMargins.left, mediaViewportMargins.top)',

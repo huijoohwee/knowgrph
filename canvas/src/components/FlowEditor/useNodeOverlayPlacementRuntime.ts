@@ -37,6 +37,7 @@ import {
   resolveRichMediaAspectRatioValue,
   resolveRichMediaAspectSelection,
 } from '@/lib/render/richMediaSsot'
+import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 type AppliedOverlayPlacement = {
@@ -56,14 +57,8 @@ function readRichMediaOverlayFrameSize(node: { type?: unknown; properties?: unkn
   if (!props) return null
   const width = Number(props['visual:width'])
   const height = Number(props['visual:height'])
-  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return null
-  return coerceRichMediaPanelSizePx({
-    width,
-    height,
-    minWidthPx: 1,
-    minHeightPx: 1,
-    targetAspect: resolveRichMediaAspectRatioValue(resolveRichMediaAspectSelection({ width, height })),
-  })
+  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE
+  return coerceRichMediaPanelSizePx({ width, height, minWidthPx: 1, minHeightPx: 1, targetAspect: resolveRichMediaAspectRatioValue(resolveRichMediaAspectSelection({ width, height })) })
 }
 
 function shouldUseFrontmatterBalancedFallbackForScreenAuthority(args: {
@@ -562,6 +557,7 @@ export function useNodeOverlayPlacementRuntime(args: {
     const live = getLiveNodeWorldPos ? getLiveNodeWorldPos(nodeId) : null
     const liveX = live && Number.isFinite(live.x) ? (live.x as number) : null; const liveY = live && Number.isFinite(live.y) ? (live.y as number) : null
     const nx = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null; const ny = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+    const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)
     if (liveX != null && liveY != null) lastGoodWorldPosRef.current = { x: liveX, y: liveY }
     else if (nx != null && ny != null) lastGoodWorldPosRef.current = { x: nx, y: ny }
     const world = lastGoodWorldPosRef.current || { x: 0, y: 0 }
@@ -610,9 +606,8 @@ export function useNodeOverlayPlacementRuntime(args: {
     const worldPinnedScreen = worldToScreen({ transform: placementTransform, x: worldPinned.x, y: worldPinned.y })
     const floatingWorld = worldDragOverride || effectiveStoredWorld
     const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: placementTransform, x: floatingWorld.x, y: floatingWorld.y }) : null
-    const useFrontmatterInitialBalancedBase = frontmatterManagedNode
-      && floatingUsesScreenAuthority
-      && !lastAppliedRef.current
+    const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos ? { top: screenY + frameHeight * (1 - panelScale) / 2, left: screenX + frameWidth * (1 - panelScale) / 2 } : { top: screenY, left: screenX }
+    const useFrontmatterInitialBalancedBase = frontmatterManagedNode && floatingUsesScreenAuthority && !hasAuthoritativeNodeWorldPos && !lastAppliedRef.current
     const frontmatterScreenAuthorityBase = (() => {
       const layoutBase = screenAuthorityLayoutZoomBaseRef.current
       if (floatingUsesScreenAuthority && layoutBase) return { top: layoutBase.top, left: layoutBase.left }
@@ -634,7 +629,9 @@ export function useNodeOverlayPlacementRuntime(args: {
         ? (floatingWorldScreen
             ? { top: floatingWorldScreen.sy, left: floatingWorldScreen.sx }
             : floatingUsesScreenAuthority
-              ? (useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos
+              ? (hasAuthoritativeNodeWorldPos
+                  ? richMediaAuthoritativeScreenBase
+                  : useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos
                   ? frontmatterBalancedFallbackPos
                   : frontmatterScreenAuthorityBase)
               : usableFloatingScreenPos

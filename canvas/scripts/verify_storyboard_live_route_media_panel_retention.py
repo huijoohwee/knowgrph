@@ -59,6 +59,43 @@ def rich_media_overlay_shell_selector(node_id: str) -> str:
     )
 
 
+def _read_visible_rich_media_shell_match(page, node_id: str):
+    selector = rich_media_overlay_shell_selector(node_id)
+    return page.evaluate(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          if (!candidates.length) return null
+          const exact = candidates.find((el) => {
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            const widgetId = String(el.getAttribute('data-kg-widget') || '').trim()
+            return dataNodeId == nodeId || widgetId == nodeId
+          })
+          const fallback = candidates.find((el) => {
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            const widgetId = String(el.getAttribute('data-kg-widget') || '').trim()
+            return dataNodeId.endsWith(`::${suffix}`) || widgetId.endsWith(`::${suffix}`)
+          })
+          const shell = exact || fallback || null
+          if (!shell) return null
+          const rect = shell.getBoundingClientRect()
+          return {
+            nodeId: String(shell.getAttribute('data-node-id') || shell.getAttribute('data-kg-widget') || '').trim(),
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            portCount: shell.querySelectorAll('[data-kg-port-handle="1"]').length,
+          }
+        }
+        """,
+        {"selector": selector, "nodeId": node_id, "suffix": canonical_node_id_suffix(node_id)},
+    )
+
+
 def wait_for_workspace_runtime(page) -> None:
     page.goto(TARGET_URL, wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
@@ -110,6 +147,15 @@ def apply_starter_markdown(page, markdown_text: str) -> None:
 
 
 def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio_y: float):
+    page.wait_for_function(
+        """
+        () => Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')).some((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0
+        })
+        """,
+        timeout=30000,
+    )
     point = page.evaluate(
         """
         ({ targetRatioX, targetRatioY }) => {
@@ -195,21 +241,39 @@ def dispatch_media_panel_drop(page, media_case: dict[str, object]) -> str:
         raise AssertionError(
             f"expected one new live-route {str(media_case['kind'])} panel, got {after_ids}"
         )
+    box = read_visible_rich_media_shell_box(page, after_ids[0])
+    expect_rich_media_shell_center_near_target(
+        box,
+        client_x,
+        client_y,
+        f"{str(media_case['kind'])} initial drop",
+    )
     return after_ids[0]
 
 
 def click_visible_rich_media_shell(page, node_id: str) -> None:
-    selector = rich_media_overlay_shell_selector(node_id)
     page.wait_for_function(
         """
-        (selector) => {
-          return Array.from(document.querySelectorAll(selector)).some((el) => {
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
           })
+          return candidates.some((el) => {
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            const widgetId = String(el.getAttribute('data-kg-widget') || '').trim()
+            return dataNodeId === nodeId
+              || widgetId === nodeId
+              || dataNodeId.endsWith(`::${suffix}`)
+              || widgetId.endsWith(`::${suffix}`)
+          })
         }
         """,
-        arg=selector,
+        arg={
+            "selector": rich_media_overlay_shell_selector(node_id),
+            "nodeId": node_id,
+            "suffix": canonical_node_id_suffix(node_id),
+        },
         timeout=15000,
     )
     box = read_visible_rich_media_shell_box(page, node_id)
@@ -219,40 +283,49 @@ def click_visible_rich_media_shell(page, node_id: str) -> None:
 
 
 def expect_visible_rich_media_shell_ports(page, node_id: str) -> None:
-    selector = rich_media_overlay_shell_selector(node_id)
     page.wait_for_function(
         """
-        (selector) => Array.from(document.querySelectorAll(selector)).some((el) => {
-          const rect = el.getBoundingClientRect()
-          return rect.width > 0
-            && rect.height > 0
-            && el.querySelectorAll('[data-kg-port-handle="1"]').length > 0
-        })
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          return candidates.some((el) => {
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            const widgetId = String(el.getAttribute('data-kg-widget') || '').trim()
+            const isMatch = dataNodeId === nodeId
+              || widgetId === nodeId
+              || dataNodeId.endsWith(`::${suffix}`)
+              || widgetId.endsWith(`::${suffix}`)
+            return isMatch && el.querySelectorAll('[data-kg-port-handle="1"]').length > 0
+          })
+        }
         """,
-        arg=selector,
+        arg={
+            "selector": rich_media_overlay_shell_selector(node_id),
+            "nodeId": node_id,
+            "suffix": canonical_node_id_suffix(node_id),
+        },
         timeout=15000,
     )
 
 
 def read_visible_rich_media_shell_box(page, node_id: str):
-    selector = rich_media_overlay_shell_selector(node_id)
-    box = page.evaluate(
-        """
-        (selector) => {
-          const shell = Array.from(document.querySelectorAll(selector)).find((el) => {
-            const rect = el.getBoundingClientRect()
-            return rect.width > 0 && rect.height > 0
-          })
-          if (!shell) return null
-          const rect = shell.getBoundingClientRect()
-          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-        }
-        """,
-        selector,
-    )
+    box = _read_visible_rich_media_shell_match(page, node_id)
     if not box:
         raise AssertionError(f"expected visible Rich Media panel shell box for {node_id}")
     return box
+
+
+def expect_rich_media_shell_center_near_target(box, target_x: float, target_y: float, label: str) -> None:
+    center_x = float(box["x"]) + float(box["width"]) / 2
+    center_y = float(box["y"]) + float(box["height"]) / 2
+    distance = ((center_x - target_x) ** 2 + (center_y - target_y) ** 2) ** 0.5
+    if distance > 20:
+        raise AssertionError(
+            f"expected live-route Rich Media panel {label} center near drop target, "
+            f"target=({target_x:.1f}, {target_y:.1f}) center=({center_x:.1f}, {center_y:.1f}) distance={distance:.1f}"
+        )
 
 
 def click_visible_storyboard_card(page, node_id: str) -> None:
@@ -310,9 +383,39 @@ def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_no
         f'button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-node-id="{css_attr_value(source_node_id)}"], '
         f'button[data-kg-port-handle="1"][data-kg-port-dir="out"][data-kg-port-node-id$="::{css_attr_value(source_suffix)}"]'
     )
-    source = page.locator(source_selector).first
-    expect(source).to_be_visible(timeout=15000)
-    source_box = source.bounding_box()
+    page.wait_for_function(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          return candidates.some((el) => {
+            const portNodeId = String(el.getAttribute('data-kg-port-node-id') || '').trim()
+            return portNodeId === nodeId || portNodeId.endsWith(`::${suffix}`)
+          })
+        }
+        """,
+        arg={"selector": source_selector, "nodeId": source_node_id, "suffix": source_suffix},
+        timeout=15000,
+    )
+    source_box = page.evaluate(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          const exact = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim() === nodeId)
+          const fallback = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim().endsWith(`::${suffix}`))
+          const port = exact || fallback || null
+          if (!port) return null
+          const rect = port.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        {"selector": source_selector, "nodeId": source_node_id, "suffix": source_suffix},
+    )
     if not source_box:
         raise AssertionError(f"expected source port geometry for {source_node_id}")
     before_edges = set(read_storyboard_edge_ids(page))

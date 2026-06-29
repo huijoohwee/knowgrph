@@ -1,6 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
 import {
+  FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
@@ -15,6 +16,7 @@ import { isPlainObject } from '@/lib/graph/value'
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
 const FLOW_WIDGET_NODE_TYPE_IDS = new Set<string>([
+  FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,

@@ -131,11 +131,26 @@ export function resolveMediaPointerReleaseClientPoint(args: {
   lastClientX: number
   lastClientY: number
 }): { clientX: number; clientY: number } {
-  const useEventPoint = args.eventType !== 'dragend' && Number.isFinite(args.eventClientX) && Number.isFinite(args.eventClientY)
+  const hasEventPoint = Number.isFinite(args.eventClientX) && Number.isFinite(args.eventClientY)
+  const hasLastPoint = Number.isFinite(args.lastClientX) && Number.isFinite(args.lastClientY)
+  const releaseUsesTrackedDragPoint = args.eventType === 'mouseup' || args.eventType === 'dragend' || args.eventType === 'drop'
+  const eventPointIsZeroPlaceholder = releaseUsesTrackedDragPoint && args.eventClientX === 0 && args.eventClientY === 0 && hasLastPoint
+  const useEventPoint = !releaseUsesTrackedDragPoint && hasEventPoint && !eventPointIsZeroPlaceholder
   return {
-    clientX: useEventPoint || !Number.isFinite(args.lastClientX) ? args.eventClientX : args.lastClientX,
-    clientY: useEventPoint || !Number.isFinite(args.lastClientY) ? args.eventClientY : args.lastClientY,
+    clientX: useEventPoint || !hasLastPoint ? args.eventClientX : args.lastClientX,
+    clientY: useEventPoint || !hasLastPoint ? args.eventClientY : args.lastClientY,
   }
+}
+
+export function resolveMediaDragEventReleaseClientPoint(event: Pick<DragEvent, 'type' | 'clientX' | 'clientY'>): { clientX: number; clientY: number } {
+  const mediaWindow = typeof window !== 'undefined' ? window as MediaDragWindow : null
+  return resolveMediaPointerReleaseClientPoint({
+    eventType: event.type,
+    eventClientX: event.clientX,
+    eventClientY: event.clientY,
+    lastClientX: mediaWindow?.__kgMediaPointerDragLastClientX ?? Number.NaN,
+    lastClientY: mediaWindow?.__kgMediaPointerDragLastClientY ?? Number.NaN,
+  })
 }
 
 export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?: { clientX: number; clientY: number }): void {
@@ -189,14 +204,7 @@ export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?:
     window.dispatchEvent(new CustomEvent(MEDIA_POINTER_DRAG_PAYLOAD_CHANGE_EVENT))
   }
   const handleRelease = (event: PointerEvent | MouseEvent | DragEvent) => {
-    const currentWindow = window as MediaDragWindow
-    const release = resolveMediaPointerReleaseClientPoint({
-      eventType: event.type,
-      eventClientX: event.clientX,
-      eventClientY: event.clientY,
-      lastClientX: currentWindow.__kgMediaPointerDragLastClientX ?? Number.NaN,
-      lastClientY: currentWindow.__kgMediaPointerDragLastClientY ?? Number.NaN,
-    })
+    const release = resolveMediaDragEventReleaseClientPoint(event)
     finishMediaPointerDragPayloadAt(release.clientX, release.clientY)
   }
   mediaWindow.__kgMediaPointerDragPayload = normalized

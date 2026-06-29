@@ -465,6 +465,7 @@ export function useStoryboardInfiniteZoom(args: {
     contentRef,
     contentStyle,
     setViewportElement,
+    transform,
     transformKey,
     zoomScale: transform.k,
   }

@@ -31,7 +31,7 @@ export function testFlowEditorFrontmatterWorkspaceBlockedRichMediaLayoutStaysLiv
     throw new Error('expected shared Rich Media Panel merged body surface styles to preserve absolute positioning in Flow Editor interaction mode')
   }
   if (!text.includes('const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')
-    || !text.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    || !text.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Rich Media overlay pan/drag interactions to be enabled from the shared Flow Editor surface/Flow Canvas gate')
   }
   if (!text.includes('resolveFlowCanvasMediaOverlayInteractionPolicy')) {
@@ -52,7 +52,7 @@ export function testFlowEditorFrontmatterWorkspaceBlockedRichMediaLayoutStaysLiv
   if (!text.includes('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return')) {
     throw new Error('expected Rich Media resize writes to stay blocked while workspace mutation blocking is active')
   }
-  if (!text.includes("const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+  if (!text.includes("const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Flow Editor shared surfaces and Flow Canvas Rich Media panel layout to use the shared renderer-level infinite-canvas gate')
   }
   if (!text.includes("collision: richMediaInfiniteCanvasMode\n        ? { enabled: false }") || !text.includes("clampToViewport: richMediaInfiniteCanvasMode\n        ? null")) {

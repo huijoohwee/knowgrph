@@ -75,9 +75,9 @@ function resolveMotionKeyframes(preset: KnowgrphMotionPresetId): Keyframe[] {
   const distance = readCssVar('--kg-motion-distance-sm', '8px')
   if (preset === 'flow-widget-emphasis') {
     return [
-      { transform: 'scale(1)', opacity: 1 },
-      { transform: 'scale(1.012)', opacity: 1, offset: 0.58 },
-      { transform: 'scale(1)', opacity: 1 },
+      { opacity: 1 },
+      { opacity: 0.96, offset: 0.58 },
+      { opacity: 1 },
     ]
   }
   if (preset === 'overlay-toolbar-enter') {
@@ -87,8 +87,8 @@ function resolveMotionKeyframes(preset: KnowgrphMotionPresetId): Keyframe[] {
     ]
   }
   return [
-    { transform: `translateY(${distance}) scale(0.985)`, opacity: 0 },
-    { transform: 'translateY(0) scale(1)', opacity: 1 },
+    { opacity: 0 },
+    { opacity: 1 },
   ]
 }
 

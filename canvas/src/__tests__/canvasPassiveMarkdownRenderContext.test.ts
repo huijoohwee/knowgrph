@@ -45,10 +45,16 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   if (!flowStoreText.includes('markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset')) {
     throw new Error('expected Flow Editor render state to receive the active document apply flag')
   }
+  if (!flowStoreText.includes('markdownDocumentText: s.markdownDocumentText')) {
+    throw new Error('expected Flow Editor runtime store state to expose the active applied markdown text for same-path source reapply resets')
+  }
+  if (!flowStoreText.includes('markdownDocumentApplyRevision: s.markdownDocumentApplyRevision || 0')) {
+    throw new Error('expected Flow Editor runtime store state to expose the explicit markdown apply revision for same-text source replays')
+  }
   if (!flowStoreText.includes('Array.isArray(s.openWidgetNodeIdsByRenderer?.[s.canvas2dRenderer])')) {
     throw new Error('expected Flow Editor runtime store state to read active-renderer-scoped open-widget ids before any global fallback')
   }
-  if (!flowStoreText.includes('flowWidgetPinnedByNodeId: resolveScopedFlowWidgetNodeMap({')) {
+  if (!flowStoreText.includes('const flowWidgetPinnedByNodeId = React.useMemo(') || !flowStoreText.includes('resolveScopedFlowWidgetNodeMap({')) {
     throw new Error('expected Flow Editor runtime store state to read pinned widget state through the shared graph-scoped helper')
   }
   if (!widgetScopeText.includes('const EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP')) {
@@ -59,5 +65,11 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   }
   if (!flowEditorText.includes('applyViewPreset: markdownDocumentApplyViewPreset !== false')) {
     throw new Error('expected Flow Editor stable render keys to ignore passive Source Files switches')
+  }
+  if (!flowEditorText.includes('text: markdownDocumentText')) {
+    throw new Error('expected Flow Editor applied markdown context to include the active source text for same-document reapply resets')
+  }
+  if (!flowEditorText.includes("return [String(canvasMarkdownDocument.semanticKey || '').trim(), String(markdownDocumentApplyRevision || 0)].join('::')")) {
+    throw new Error('expected Flow Editor draft lifetime to key off the shared applied-document semantic key plus explicit apply revision instead of only the document path')
   }
 }

@@ -256,6 +256,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["importRenderPipeline.markdownGraphApply.usesSharedSemanticKey","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyDedupeUsesSharedSemanticKey"],
   ["importRenderPipeline.markdownGraphApply.rejectsStaleStrybldrSourceGraph","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRejectsStaleStrybldrSourceGraph"],
   ["importRenderPipeline.markdownGraphApply.rejectsEmptyCachedStrybldrSourceGraph","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRejectsEmptyCachedStrybldrSourceGraph"],
+  ["importRenderPipeline.markdownGraphApply.requestsFitAfterViewPresetGraphApply","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRequestsFitAfterViewPresetGraphApply"],
   ["importRenderPipeline.frontmatterMermaid.groups","@/__tests__/mermaidFrontmatterRender.test","testMermaidFrontmatterModeKeepsMermaidNodesAndGroups"],
   ["importRenderPipeline.frontmatterMermaid.gitGraph.diagramOnly","@/__tests__/mermaidFrontmatterRender.test","testMermaidFrontmatterGitGraphPreservesDiagramWithoutFlowchartTopology"],
   ["importRenderPipeline.frontmatterFlow.gitGraph.metadataCode","@/__tests__/mermaidFrontmatterRender.test","testFrontmatterFlowGitGraphRendererCanReadMermaidMetadata"],

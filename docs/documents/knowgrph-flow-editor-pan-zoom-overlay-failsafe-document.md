@@ -42,6 +42,8 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Frontmatter flow import mode clearing: an explicit frontmatter-flow graph import clears the global and per-graph-key pinned, screen-position, and world-position widget placement caches even during transient workspace mutation gates, so stale Flow Canvas/previous-document placement cannot seed Flow Editor. Passive Source Files switches opt out via `resetWidgetLayout: false`.
 - Workspace-blocked seed zoom: frontmatter-flow auto-seeding must ignore persisted viewport-offset zoom while workspace graph mutation is blocked; live interaction transforms remain authoritative, and persisted offsets may seed only after the mutation gate is open.
 - Rich Media infinite-canvas layout: Flow Editor and Flow Canvas Rich Media overlays opt out of viewport collision/clamp relayout so pan/zoom preserves world placement. Bounded callers still use the shared media overlay layout loop with explicit caller clamp margins and obstacle collision.
+- Explicit source-authority reapply is also a draft-reset event: when `applyMarkdownDocument(...)` reapplies the active markdown SSOT, Flow Editor must invalidate transient draft overlays, drafted edges, and camera/init gates from an incremented markdown apply revision even if the document path and text are identical.
+- Live-route browser verification depends on that reset boundary: same-path same-text starter-template reapply must restore the clean baseline and remove transient Storyboard Rich Media residue instead of preserving draft state until some unrelated document identity change occurs.
 
 ## References
 

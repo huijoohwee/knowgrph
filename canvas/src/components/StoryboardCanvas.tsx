@@ -57,12 +57,13 @@ import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/story
 import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
-import { buildStoryboardGraphBackedNodeLookup, findStoryboardGraphNodeIdByProperty } from '@/components/StoryboardCanvas/storyboardNodeLookup'
+import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
 import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
-import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, resolveMediaDragEventReleaseClientPoint, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
@@ -1010,20 +1011,16 @@ export default function StoryboardCanvas({
   const handleDropStoryboardCanvasMediaNode = React.useCallback((payload: MediaDragPayload, clientX: number, clientY: number) => {
     const cleanUrl = readStoryboardScalar(payload.url)
     if (!cleanUrl) return
-    const existingSourceNodeId = findStoryboardGraphNodeIdByProperty([useGraphStore.getState().graphData as GraphData | null, storeGraphData, graphData], FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, 'mediaSourceKey', payload.sourceKey)
-    if (existingSourceNodeId) { setSelectionSource('canvas'); selectNode(existingSourceNodeId); updateOpenWidgetNodeIds(prev => (prev.includes(existingSourceNodeId) ? prev : [...prev, existingSourceNodeId])); return }
+    const rect = boardScrollRef.current?.getBoundingClientRect()
+    const transform = storyboardZoom.transform
+    const zoomScale = Number.isFinite(transform.k) && transform.k > 0 ? transform.k : 1
+    const x = rect ? Math.round((clientX - rect.left - transform.x) / zoomScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 2) : 0
+    const y = rect ? Math.round((clientY - rect.top - transform.y) / zoomScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2) : 0
     const baseGraphData = storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }
     const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
     const beforeIds = new Set<string>(nodes.map(node => String(node.id || '').trim()).filter(Boolean))
     const nextId = createUniqueId('n', beforeIds)
-    const maxOrder = board.lanes.reduce((max, lane) => {
-      return lane.cards.reduce((laneMax, card) => Math.max(laneMax, Number.isFinite(card.order) ? card.order : 0), max)
-    }, 0)
-    const viewport = boardScrollRef.current
-    const rect = viewport?.getBoundingClientRect()
-    const zoomScale = Number.isFinite(storyboardZoom.zoomScale) && storyboardZoom.zoomScale > 0 ? storyboardZoom.zoomScale : 1
-    const x = rect ? Math.round((clientX - rect.left) / zoomScale) : 0
-    const y = rect ? Math.round((clientY - rect.top) / zoomScale) : 0
+    const maxOrder = board.lanes.reduce((max, lane) => lane.cards.reduce((laneMax, card) => Math.max(laneMax, Number.isFinite(card.order) ? card.order : 0), max), 0)
     const label = readStoryboardScalar(payload.label) || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
     const nextNode: GraphNode = {
       id: nextId,
@@ -1055,7 +1052,7 @@ export default function StoryboardCanvas({
     selectNode(selectedId)
     updateOpenWidgetNodeIds(prev => (prev.includes(selectedId) ? prev : [...prev, selectedId]))
     addHistory('Storyboard canvas media')
-  }, [addHistory, addNode, board.lanes, graphData, selectNode, setSelectionSource, storeGraphData, storyboardZoom.zoomScale, updateOpenWidgetNodeIds])
+  }, [addHistory, addNode, board.lanes, graphData, storeGraphData, storyboardZoom.transform])
   const sharedCardApiKeyPrompt = React.useMemo(() => {
     if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
     return {
@@ -1712,20 +1709,20 @@ export default function StoryboardCanvas({
   }, [readStoryboardCardIdFromDropTarget])
   const handleStoryboardCanvasMediaNativeDrop = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (readStoryboardCardIdFromDropTarget(event.target)) return
-    const payload = readMediaDragPayload(event.dataTransfer) || readMediaPointerDragPayload()
-    if (!payload) return
+    const payload = readMediaDragPayload(event.dataTransfer) || readMediaPointerDragPayload(); if (!payload) return
+    const release = resolveMediaDragEventReleaseClientPoint(event.nativeEvent)
     event.preventDefault()
     event.stopPropagation()
-    handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)
+    handleDropStoryboardCanvasMediaNode(payload, release.clientX, release.clientY)
     clearMediaPointerDragPayload()
   }, [handleDropStoryboardCanvasMediaNode, readStoryboardCardIdFromDropTarget])
   const handleStoryboardCanvasPointerMediaDrop = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
     if (readStoryboardCardIdFromDropTarget(event.target)) return
-    const payload = readMediaPointerDragPayload()
-    if (!payload) return
+    const payload = readMediaPointerDragPayload(); if (!payload) return
+    const release = resolveMediaDragEventReleaseClientPoint(event.nativeEvent)
     event.preventDefault()
     event.stopPropagation()
-    handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)
+    handleDropStoryboardCanvasMediaNode(payload, release.clientX, release.clientY)
     clearMediaPointerDragPayload()
   }, [handleDropStoryboardCanvasMediaNode, readStoryboardCardIdFromDropTarget])
   React.useEffect(() => {
@@ -1757,10 +1754,11 @@ export default function StoryboardCanvas({
     }
     const handleWindowPointerMediaRelease = (event: PointerEvent | MouseEvent) => {
       const payload = readMediaPointerDragPayload()
-      if (!payload || !isCanvasMediaRelease(event.clientX, event.clientY)) return
+      const release = resolveMediaDragEventReleaseClientPoint(event)
+      if (!payload || !isCanvasMediaRelease(release.clientX, release.clientY)) return
       event.preventDefault()
       event.stopPropagation()
-      handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)
+      handleDropStoryboardCanvasMediaNode(payload, release.clientX, release.clientY)
       clearMediaPointerDragPayload()
     }
     const handleWindowNativeMediaDragOver = (event: DragEvent) => {
@@ -1773,10 +1771,11 @@ export default function StoryboardCanvas({
     }
     const handleWindowNativeMediaDrop = (event: DragEvent) => {
       const payload = (event.dataTransfer ? readMediaDragPayload(event.dataTransfer) : null) || readMediaPointerDragPayload()
-      if (!payload || !isCanvasMediaRelease(event.clientX, event.clientY)) return
+      const release = resolveMediaDragEventReleaseClientPoint(event)
+      if (!payload || !isCanvasMediaRelease(release.clientX, release.clientY)) return
       event.preventDefault()
       event.stopPropagation()
-      handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)
+      handleDropStoryboardCanvasMediaNode(payload, release.clientX, release.clientY)
       clearMediaPointerDragPayload()
     }
     window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop)

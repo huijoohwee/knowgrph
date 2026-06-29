@@ -172,6 +172,9 @@ export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
   if (!runtime.includes('overlayOnlyActive || hasOverlayEditors || storyboardCardsMode')) {
     throw new Error('expected Storyboard to activate the shared overlay-edge renderer')
   }
+  if (!runtime.includes('hasOverlayEditors={overlayEdgeHostActive}')) {
+    throw new Error('expected Storyboard drag/pan/zoom frames to invalidate shared overlay-edge geometry')
+  }
   if (!surface.includes('props.overlayOnlyActive || props.hasOverlayEditors || storyboardCardsActive')) {
     throw new Error('expected Storyboard to mount the shared overlay-edge SVG surface')
   }
@@ -386,6 +389,7 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   const cardOverlay = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
   const cardOwnership = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/storyboardCardOwnership2d.ts'), 'utf8')
   const mediaOverlay = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
+  const mediaOverlayPool = readFileSync(resolve(process.cwd(), 'src/lib/render/mediaOverlayPool.ts'), 'utf8')
   if (!dropBridge.includes("from '@/lib/render/richMediaPanelDefaults'")) {
     throw new Error('expected Rich Media media-drop bridge to reuse shared panel size defaults')
   }
@@ -423,6 +427,13 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!runtime.includes("from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'")) {
     throw new Error('expected FlowEditorCanvas runtime to delegate pending overlay graph merging to the focused helper')
   }
+  if (!runtime.includes('resolvePendingOverlayGraphDataBase({')
+    || !pendingOverlayGraph.includes('export function resolvePendingOverlayGraphDataBase(args:')
+    || !pendingOverlayGraph.includes('if (!args.storyboardCardsMode) return args.flowCanvasGraphDataOverride')
+    || !pendingOverlayGraph.includes('|| args.renderGraphDataOverride')
+    || !runtime.includes('resolvePendingOverlayGraphDataBase({ baseGraphData, draftGraphData, flowCanvasGraphDataOverride, renderGraphDataOverride, storyboardCardsMode })')) {
+    throw new Error('expected Storyboard pending Rich Media overlays to merge into the parsed Storyboard source graph, not only the FlowCanvas override')
+  }
   if (!runtime.includes('resolveGraphNodeByCanonicalId(baseGraphData, id)') || !runtime.includes('}, [baseGraphData])')) {
     throw new Error('expected pending Rich Media overlays to retire only after the authoritative base graph contains the committed node')
   }
@@ -432,9 +443,18 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!runtime.includes('const pendingOverlayStillSelectedOrOpen = (id: string): boolean => {')
     || !runtime.includes('const pendingSelectedId = String(pendingSelectNodeIdRef.current || \'\').trim()')
     || !runtime.includes('const pendingOpenId = String(pendingOpenWidgetNodeIdRef.current || \'\').trim()')
-    || !runtime.includes('if (!resolveGraphNodeByCanonicalId(baseGraphData, id) && pendingOverlayStillSelectedOrOpen(id)) continue')
-    || !runtime.includes('if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId) && pendingOverlayStillSelectedOrOpen(pendingId)) return')) {
+    || !runtime.includes('!resolveGraphNodeByCanonicalId(baseGraphData, id) && pendingOverlayStillSelectedOrOpen(id)')
+    || !runtime.includes('pendingOverlayNode || pendingOverlayStillSelectedOrOpen(pendingId)')) {
     throw new Error('expected pending Rich Media overlays to clear stranded residue only after the panel is no longer selected or open in shared widget state')
+  }
+  const overlaySurface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlaySurface.tsx'), 'utf8')
+  if (!overlaySurface.includes('selectedNodeId: overlayDraftNode?.id || pendingOverlayNode?.id || pendingOverlayNodeIdRef.current || null')) {
+    throw new Error('expected pending Storyboard Rich Media panels to keep shared port handles after pan or zoom clears selection state')
+  }
+  const overlayElements = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements.tsx'), 'utf8')
+  const pendingResolveIndex = overlayElements.indexOf('if (pending && pending === id) return args.pendingOverlayNode')
+  if (pendingResolveIndex < 0 || pendingResolveIndex > overlayElements.indexOf('const found = args.renderGraphNodeById.get(id) || null')) {
+    throw new Error('expected pending Rich Media overlay nodes to render before stable frontmatter graph fallbacks can drop authored coordinates')
   }
   const renderState = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRenderState.ts'), 'utf8')
   const stableRenderEffectStart = renderState.indexOf('React.useLayoutEffect(() => {', renderState.indexOf('const [stableRenderGraphOverride'))
@@ -449,6 +469,38 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!cardOwnership.includes("String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
     throw new Error('expected Rich Media Panels to remain FlowCanvas-owned beside fixed Storyboard cards')
   }
+  if (!mediaOverlay.includes('const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')
+    || !mediaOverlay.includes('const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')) {
+    throw new Error('expected Storyboard Rich Media Panels to use manual canvas placement and drag authority, not balanced viewport layout')
+  }
+  if (!mediaOverlayPool.includes('x?: number')
+    || !mediaOverlayPool.includes("...(typeof n0.x === 'number' && Number.isFinite(n0.x) ? { x: n0.x } : {})")
+    || !mediaOverlay.includes('function readNodeWorldTopLeft2d(')
+    || !mediaOverlay.includes('function readNodeWorldCenterFromTopLeft2d(')
+    || !mediaOverlay.includes('readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))')
+    || !mediaOverlay.includes("readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))")) {
+    throw new Error('expected Rich Media overlay nodes to preserve dropped graph coordinates for immediate Storyboard placement')
+  }
+  if (mediaOverlay.includes('http://127.0.0.1:7777') || mediaOverlay.includes('[DEBUG] rich media overlay selected/opened on storyboard surface')) {
+    throw new Error('forbid hardcoded Storyboard Rich Media overlay debug endpoints in the shared media surface')
+  }
+  if (surface.includes('http://127.0.0.1:7777') || surface.includes('storyboard-media-panel-loop') || surface.includes('[DEBUG]')) {
+    throw new Error('forbid hardcoded Storyboard surface debug endpoints and debug traces in the shared media drop owner')
+  }
+  const overlayPlacementRuntime = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/useNodeOverlayPlacementRuntime.ts'), 'utf8')
+  if (!overlayPlacementRuntime.includes('const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)')
+    || !overlayPlacementRuntime.includes('&& !hasAuthoritativeNodeWorldPos')
+    || !overlayPlacementRuntime.includes('hasAuthoritativeNodeWorldPos')
+    || !overlayPlacementRuntime.includes('return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE')
+    || !overlayPlacementRuntime.includes('const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos')
+    || !overlayPlacementRuntime.includes('screenY + frameHeight * (1 - panelScale) / 2')) {
+    throw new Error('expected dropped Rich Media frontmatter panels to honor graph coordinates instead of balanced viewport fallback')
+  }
+  const motion = readFileSync(resolve(process.cwd(), 'src/lib/motion/knowgrphMotion.ts'), 'utf8')
+  const rootMotion = motion.slice(motion.indexOf("preset === 'flow-widget-emphasis'"), motion.indexOf("preset === 'overlay-toolbar-enter'"))
+  if (rootMotion.includes('transform:')) {
+    throw new Error('forbid root widget motion from overriding overlay placement transforms during Rich Media drops')
+  }
   for (const [label, text] of [['Storyboard surface', surface], ['Storyboard card overlay', cardOverlay]] as const) {
     if (!text.includes('isStoryboardFixedCardOwnedNode')) {
       throw new Error(`expected ${label} to reuse shared fixed-card ownership before hiding or rendering nodes`)
@@ -459,6 +511,11 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   }
   if (!dropBridge.includes('for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)')) {
     throw new Error('expected dropped Rich Media Panel id reservation to include reserved canonical suffixes')
+  }
+  if (dropBridge.includes('findRichMediaPanelNodeIdBySourceKey')
+    || dropBridge.includes('existingSourceNodeId')
+    || dropBridge.includes('args.updateNode(existingSourceNodeId')) {
+    throw new Error('forbid subsequent FloatingPanel Media drops from moving a previous Rich Media Panel by source key')
   }
   if (!dropBridge.includes('const openPendingOverlayNode = React.useCallback((rawId: unknown) => {')) {
     throw new Error('expected Storyboard Rich Media drop bridge to centralize immediate open-widget restoration for pending overlay nodes')
@@ -479,9 +536,21 @@ export function testMediaPointerReleaseUsesActualCursorPoint() {
   if (pointerRelease.clientX !== 720 || pointerRelease.clientY !== 640) {
     throw new Error('expected pointer release to use the actual cursor point instead of a stale FloatingPanel move point')
   }
+  const nativeDropRelease = resolveMediaPointerReleaseClientPoint({ eventType: 'drop', eventClientX: 0, eventClientY: 0, lastClientX: 720, lastClientY: 640 })
+  if (nativeDropRelease.clientX !== 720 || nativeDropRelease.clientY !== 640) {
+    throw new Error(`expected native drop zero coordinates to use the last real cursor point, got ${JSON.stringify(nativeDropRelease)}`)
+  }
   const nativeDragRelease = resolveMediaPointerReleaseClientPoint({ eventType: 'dragend', eventClientX: 0, eventClientY: 0, lastClientX: 720, lastClientY: 640 })
   if (nativeDragRelease.clientX !== 720 || nativeDragRelease.clientY !== 640) {
     throw new Error('expected native dragend to retain the last valid dragover point')
+  }
+  const bridge = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
+  if (!bridge.includes('const release = resolveMediaDragEventReleaseClientPoint(ev)') || !bridge.includes('release.clientX, release.clientY, rect')) {
+    throw new Error('expected shared widget drop bridge to convert native media drops from the resolved cursor release point')
+  }
+  if (!surface.includes('const release = resolveMediaDragEventReleaseClientPoint(ev.nativeEvent)') || !surface.includes('release.clientX, release.clientY')) {
+    throw new Error('expected Flow Editor surface media drops to convert native drops from the resolved cursor release point')
   }
 }
 

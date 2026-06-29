@@ -31,6 +31,7 @@ import {
   resolveEffectiveTextGenerationWidgetProperties,
   resolveTextGenerationGlobalDefaultsForProviderFamily,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { requestGeospatialCurrentLocation, setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
@@ -53,37 +54,10 @@ import {
   isMediaPointerDragDropClaimed,
   isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
+  resolveMediaDragEventReleaseClientPoint,
   type MediaDragPayload,
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
-
-// #region debug-point A:widget-drop-bridge-media-panel
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
-const reportStoryboardMediaPanelLoopWidgetDropDebug = (args: {
-  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
-  location: string
-  msg: string
-  data?: Record<string, unknown>
-}) => {
-  if (typeof fetch !== 'function') return
-  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
-      runId: 'pre-fix',
-      hypothesisId: args.hypothesisId,
-      location: args.location,
-      msg: `[DEBUG] ${args.msg}`,
-      data: args.data || {},
-      ts: Date.now(),
-    }),
-  }).catch(() => {
-    void 0
-  })
-}
-// #endregion
 
 function addFlowEditorUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
   const id = String(rawId || '').trim()
@@ -92,18 +66,6 @@ function addFlowEditorUsedNodeIdVariants(out: Set<string>, rawId: unknown): void
   const parts = id.split('::').map(part => part.trim()).filter(Boolean)
   const suffix = parts.length > 1 ? parts[parts.length - 1] : ''
   if (suffix) out.add(suffix)
-}
-
-function findRichMediaPanelNodeIdBySourceKey(graphData: GraphData | null | undefined, sourceKey: unknown): string {
-  const key = String(sourceKey || '').trim()
-  if (!key) return ''
-  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
-  for (const node of nodes) {
-    if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
-    const properties = node.properties && typeof node.properties === 'object' ? node.properties as Record<string, unknown> : {}
-    if (String(properties.mediaSourceKey || '').trim() === key) return String(node.id || '').trim()
-  }
-  return ''
 }
 
 export function useFlowEditorWidgetDropBridge(args: {
@@ -362,11 +324,6 @@ export function useFlowEditorWidgetDropBridge(args: {
     const y = (Number.isFinite(payload.y) ? payload.y : 0) - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2
     const label = String(payload.media.label || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
     const base: GraphData = args.draftGraphDataRef.current || (args.baseGraphData || { context: '', type: 'Graph', nodes: [], edges: [] })
-    const liveGraphData = useGraphStore.getState().graphData as GraphData | null
-    const existingSourceNodeId =
-      findRichMediaPanelNodeIdBySourceKey(base, payload.media.sourceKey)
-      || findRichMediaPanelNodeIdBySourceKey(liveGraphData, payload.media.sourceKey)
-    if (existingSourceNodeId) return existingSourceNodeId
     const used = new Set<string>()
     for (const node of base.nodes || []) addFlowEditorUsedNodeIdVariants(used, node?.id)
     for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)
@@ -401,20 +358,6 @@ export function useFlowEditorWidgetDropBridge(args: {
     args.scheduleForceSelect(actualId, { minHoldMs: 700 })
     args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, fx: x, fy: y, vx: 0, vy: 0, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
     args.pendingOpenWidgetNodeIdRef.current = actualId
-    // #region debug-point B:widget-drop-bridge-media-panel
-    reportStoryboardMediaPanelLoopWidgetDropDebug({
-      hypothesisId: 'D',
-      location: 'useFlowEditorWidgetDropBridge.ts:add-rich-media-panel',
-      msg: 'widget drop bridge created pending rich media panel node',
-      data: {
-        actualId,
-        baseGraphNodeCount: Array.isArray(base?.nodes) ? base.nodes.length : 0,
-        liveGraphNodeCount: Array.isArray(liveGraphData?.nodes) ? liveGraphData.nodes.length : 0,
-        mediaKind: String(payload.media.kind || '').trim(),
-        mediaSourceKey: String(payload.media.sourceKey || '').trim(),
-      },
-    })
-    // #endregion
     return actualId
   }, [args, openPendingOverlayNode])
 
@@ -431,7 +374,7 @@ export function useFlowEditorWidgetDropBridge(args: {
           toJSON: () => ({}),
         } as DOMRect
       }
-      const el = args.rootRef.current
+      const el = resolveCanvasViewportMeasureElement(args.rootRef.current)
       return el ? el.getBoundingClientRect() : null
     }
     const resolveDropPos = (sx: number, sy: number) => {
@@ -476,8 +419,7 @@ export function useFlowEditorWidgetDropBridge(args: {
       const dy = detail.clientY - Number(detail.startClientY)
       return Math.hypot(dx, dy) >= 6
     }
-    const appendMediaPanelFromDrop = (ev: DragEvent, rect: DOMRect): boolean =>
-      appendMediaPanelAtClientPoint(ev.dataTransfer ? readMediaDragPayload(ev.dataTransfer) : null, ev.clientX, ev.clientY, rect)
+    const appendMediaPanelFromDrop = (ev: DragEvent, rect: DOMRect): boolean => { const release = resolveMediaDragEventReleaseClientPoint(ev); return appendMediaPanelAtClientPoint(ev.dataTransfer ? readMediaDragPayload(ev.dataTransfer) : null, release.clientX, release.clientY, rect) }
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt || (!hasFlowWidgetDragType(dt) && !hasMediaDragPayload(dt))) return
@@ -592,7 +534,7 @@ export function useFlowEditorWidgetDropBridge(args: {
       const dx = ev.clientX - session.startClientX
       const dy = ev.clientY - session.startClientY
       if (Math.hypot(dx, dy) < minPointerDragDistancePx) return
-      const el = args.rootRef.current
+        const el = resolveCanvasViewportMeasureElement(args.rootRef.current)
       const rect = el ? el.getBoundingClientRect() : null
       if (!rect) return
       const sx = ev.clientX - rect.left

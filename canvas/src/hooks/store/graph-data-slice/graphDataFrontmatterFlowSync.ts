@@ -11,6 +11,10 @@ import {
   readComposedSourceFilePath,
   resolvePreferredComposedSourceFileFromState,
 } from '@/features/source-files/composedSourceSelection'
+import {
+  isStrybldrStoryboardMarkdown,
+  syncStrybldrStoryboardMarkdownWorkflowEdges,
+} from '@/features/strybldr/strybldrStoryboard'
 
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
@@ -455,6 +459,32 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   const activeText = String(args.state.markdownDocumentText || '')
   if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
   if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
+  if (isStrybldrStoryboardMarkdown(activeText)) {
+    const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
+      text: activeText,
+      graphData: args.parsedGraphData,
+    })
+    if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles }
+    const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
+    if (!activeFileMatch) {
+      return {
+        sourceFiles: args.sourceFiles,
+        markdownDocumentText: nextText,
+        markdownDocumentName: activeName,
+      }
+    }
+    const nextSourceFiles = args.sourceFiles.slice()
+    nextSourceFiles[activeFileMatch.index] = {
+      ...activeFileMatch.file,
+      text: nextText,
+      parsedTextHash: '',
+    }
+    return {
+      sourceFiles: nextSourceFiles,
+      markdownDocumentText: nextText,
+      markdownDocumentName: activeName,
+    }
+  }
   if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles }
   const nextText = upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData)
   if (nextText === activeText) return { sourceFiles: args.sourceFiles }
@@ -513,8 +543,26 @@ export function syncSourceFileTextFromParsedGraph(args: {
 }): { sourceFiles: GraphState['sourceFiles']; markdownDocumentText?: string | null } {
   const file = args.sourceFiles[args.fileIndex]
   if (!file || !sourceFileShouldWriteFrontmatterFlow(file)) return { sourceFiles: args.sourceFiles }
-  const nextText = upsertFrontmatterFlowMarkdownText(String(file.text || ''), args.parsedGraphData)
-  if (nextText === String(file.text || '')) return { sourceFiles: args.sourceFiles }
+  const currentText = String(file.text || '')
+  if (isStrybldrStoryboardMarkdown(currentText)) {
+    const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
+      text: currentText,
+      graphData: args.parsedGraphData,
+    })
+    if (!nextText || nextText === currentText) return { sourceFiles: args.sourceFiles }
+    const nextSourceFiles = args.sourceFiles.slice()
+    nextSourceFiles[args.fileIndex] = {
+      ...file,
+      text: nextText,
+      parsedTextHash: '',
+    }
+    return {
+      sourceFiles: nextSourceFiles,
+      ...(isActiveMarkdownSourceFile(args.state, file) ? { markdownDocumentText: nextText } : {}),
+    }
+  }
+  const nextText = upsertFrontmatterFlowMarkdownText(currentText, args.parsedGraphData)
+  if (nextText === currentText) return { sourceFiles: args.sourceFiles }
   const nextSourceFiles = args.sourceFiles.slice()
   nextSourceFiles[args.fileIndex] = {
     ...file,

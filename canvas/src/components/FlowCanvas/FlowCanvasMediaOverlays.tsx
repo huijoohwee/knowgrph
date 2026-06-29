@@ -55,6 +55,33 @@ function escapeSelectorAttrValue(value: string): string {
   return text.replace(/["\\]/g, '\\$&')
 }
 
+function readNodeWorldTopLeft2d(
+  node: { x?: unknown; y?: unknown; fx?: unknown; fy?: unknown } | null | undefined,
+): { x: number; y: number } | null {
+  if (!node) return null
+  const xRaw = node.x
+  const yRaw = node.y
+  const fxRaw = node.fx
+  const fyRaw = node.fy
+  const x = typeof xRaw === 'number' && Number.isFinite(xRaw)
+    ? xRaw
+    : typeof fxRaw === 'number' && Number.isFinite(fxRaw)
+      ? fxRaw
+      : null
+  const y = typeof yRaw === 'number' && Number.isFinite(yRaw)
+    ? yRaw
+    : typeof fyRaw === 'number' && Number.isFinite(fyRaw)
+      ? fyRaw
+      : null
+  return x == null || y == null ? null : { x, y }
+}
+
+function readNodeWorldCenterFromTopLeft2d(
+  node: { x?: unknown; y?: unknown; fx?: unknown; fy?: unknown; width?: unknown; height?: unknown } | null | undefined,
+): { x: number; y: number } | null {
+  return readNodeCenterWorld2d(node, { coords: 'topLeft' })
+}
+
 export default function FlowCanvasMediaOverlays(args: {
   active: boolean
   mediaNodes: MediaOverlayNode[]
@@ -121,8 +148,8 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
   const storyboardSharedSurfaceRendererMode = canvas2dRenderer === 'storyboard'
-  const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
-  const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
+  const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
+  const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'
   const graphSchema = schema as GraphSchema
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
@@ -641,8 +668,8 @@ export default function FlowCanvasMediaOverlays(args: {
         return { w: coerced.width, h: coerced.height }
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
-      getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode ? id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' }) : undefined,
-      getNodeWorldCenterForId: id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'topLeft' }),
+      getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode ? id => readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d(runtimeRef.current?.scene?.nodeById.get(id)) : undefined,
+      getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldCenterFromTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' }),
       getCollisionObstacles: () => {
         const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
         const canonicalOverlayRects = collectCanonicalFlowEditorOverlayRectEntries(queryActiveFlowEditorOverlays())
@@ -743,11 +770,22 @@ export default function FlowCanvasMediaOverlays(args: {
             data-kg-rich-media-flow-editor-chrome="1"
             data-kg-rich-media-panel="1" data-node-id={node.id} data-kg-flow-editor-surface={flowEditorOverlaySurfaceId || undefined}
             style={{ zIndex: overlayZIndex }}
-            onPointerDownCapture={() => { const id = String(node.id || '').trim(); if (!id) return; setActiveRichMediaPanelId(id); const st = useGraphStore.getState() as typeof useGraphStore extends { getState: () => infer T } ? T : never; st.updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id])); useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: id, selectedNodeIds: [id], selectedEdgeId: null, selectedEdgeIds: [], selectedGroupId: null, selectedGroupIds: [] }); requestAnimationFrame(() => { const host = mediaOverlayElsRef.current.get(id); const rect = host?.getBoundingClientRect?.(); const state = useGraphStore.getState() as { selectedNodeId?: string | null; openWidgetNodeIds?: string[]; graphDataRevision?: number }; const panelData = node.panel && typeof node.panel === 'object' ? node.panel as Record<string, unknown> : null
-            // #region debug-point B:panel-select-open
-            ;fetch("http://127.0.0.1:7777/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:"rich-media-edge-regression",runId:"pre-fix",hypothesisId:"B",location:"FlowCanvasMediaOverlays.tsx:745",msg:"[DEBUG] rich media overlay selected/opened on storyboard surface",data:{id,canvas2dRenderer,selectedNodeId:String(state.selectedNodeId||"").trim(),openWidgetNodeIds:Array.isArray(state.openWidgetNodeIds)?state.openWidgetNodeIds.map(value=>String(value||"").trim()).filter(Boolean):[],graphRevision:Number(state.graphDataRevision||0),rect:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,panelSize:panelData?{width:Number(panelData.width||0),height:Number(panelData.height||0)}:null,storyboardSharedSurfaceRendererMode},ts:Date.now()})}).catch(()=>{});
-            // #endregion
-            }) }}
+            onPointerDownCapture={() => {
+              const id = String(node.id || '').trim()
+              if (!id) return
+              setActiveRichMediaPanelId(id)
+              const st = useGraphStore.getState() as typeof useGraphStore extends { getState: () => infer T } ? T : never
+              st.updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+              useGraphStore.setState({
+                selectionSource: 'canvas',
+                selectedNodeId: id,
+                selectedNodeIds: [id],
+                selectedEdgeId: null,
+                selectedEdgeIds: [],
+                selectedGroupId: null,
+                selectedGroupIds: [],
+              })
+            }}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
             <FlowEditorOverlayPortHandles nodeId={node.id} selected={isSelected} />

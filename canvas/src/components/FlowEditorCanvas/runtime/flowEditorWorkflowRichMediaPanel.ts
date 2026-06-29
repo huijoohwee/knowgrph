@@ -10,6 +10,13 @@ import {
   areFlowEditorWorkflowRecordValuesEqual,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
 
+function cleanString(value: unknown): string {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
+    return cleanString((value as { value?: unknown }).value)
+  }
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function listFlowEditorWorkflowRichMediaPanelSearchNodes(args: {
   context: FlowEditorWorkflowNodeResolutionContext
   graphForRun: GraphData | null
@@ -33,7 +40,7 @@ export function resolveFlowEditorWorkflowRichMediaPanelTargetNodeId(args: {
   readLiveDraftGraphData: () => GraphData | null
 }): string | null {
   const allNodes = listFlowEditorWorkflowRichMediaPanelSearchNodes(args)
-  const panels = allNodes.filter(n => String(n.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const panels = allNodes.filter(n => cleanString(n.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
   if (panels.length === 0) return null
   const activePanel = panels.find(n => {
     const p = (n.properties || {}) as Record<string, unknown>

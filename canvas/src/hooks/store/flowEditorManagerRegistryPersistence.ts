@@ -1,6 +1,4 @@
-import { LS_KEYS } from '@/lib/config.ls.keys'
-import { getLocalStorage } from '@/lib/persistence'
-import { createUniqueId } from '@/lib/ids'
+import { LS_KEYS } from '@/lib/config.ls.keys'; import { getLocalStorage } from '@/lib/persistence'; import { createUniqueId } from '@/lib/ids'
 import {
   buildStoryboardElementRegistryDraft,
   buildGenerateImageRegistryDraft,
@@ -11,7 +9,7 @@ import {
   buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
-import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'
+import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'; import { buildAnnotationEngineRegistryDraft } from '@/features/visual-annotation-engine/annotationWidget'
 import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
 import {
   buildGrabMapsDiscoveryRegistryDraft,
@@ -20,7 +18,7 @@ import {
   FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
-  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_ANNOTATION_ENGINE_FORM_ID,
   FLOW_HTML_VIDEO_RENDERER_FORM_ID,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
@@ -391,6 +389,7 @@ export function normalizeWidgetRegistryEntries(entries: WidgetRegistryEntry[]): 
     formId: FLOW_STORYBOARD_ELEMENT_FORM_ID,
     draft: buildStoryboardElementRegistryDraft(),
   })
+  canonicalizeBuiltInForm({ formId: FLOW_ANNOTATION_ENGINE_FORM_ID, draft: buildAnnotationEngineRegistryDraft() })
 
   out.sort((a, b) => {
     const nodeTypeComparison = a.nodeTypeId.localeCompare(b.nodeTypeId)

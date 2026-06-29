@@ -116,7 +116,11 @@ const HTML_VIDEO_RENDER_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
-const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+const ANNOTATION_TASK_IDS = Object.freeze(["caption", "detailed_caption", "more_detailed_caption", "object_detection", "dense_region_caption", "ocr"]);
+const ANNOTATION_TASKS_SCHEMA = Object.freeze({ type: "array", items: { type: "string", enum: ANNOTATION_TASK_IDS }, minItems: 1, maxItems: 6 });
+const ANNOTATE_IMAGE_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["asset_url", "tasks"], properties: { asset_url: { type: "string", minLength: 1, maxLength: 2048 }, tasks: ANNOTATION_TASKS_SCHEMA, model_hint: { type: "string", maxLength: 255 } } });
+const ANNOTATE_VIDEO_FRAME_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["asset_url", "tasks", "frame_timestamp_ms"], properties: { asset_url: { type: "string", minLength: 1, maxLength: 2048 }, tasks: ANNOTATION_TASKS_SCHEMA, frame_timestamp_ms: { type: "integer", minimum: 0 }, model_hint: { type: "string", maxLength: 255 } } });
+const ANNOTATE_OUTPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["ok", "annotation_id", "asset_url", "model_id", "schema_version", "tasks"], properties: { ok: { type: "boolean" }, annotation_id: { type: "string" }, asset_url: { type: "string" }, model_id: { type: "string" }, schema_version: { type: "string" }, tasks: { type: "object", additionalProperties: true }, error: { type: "object", required: ["code", "message"], properties: { code: { type: "string" }, message: { type: "string" } } } } }); const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
   [
@@ -407,6 +411,20 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       outputSchema: HTML_VIDEO_RENDER_OUTPUT_SCHEMA,
       inputSchema: HTML_VIDEO_RENDER_INPUT_SCHEMA,
     }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateImage,
+      description:
+        "Use this when a local MCP host needs to run browser-local image annotation into LLM-ready structured JSON without paid inference.",
+      outputSchema: ANNOTATE_OUTPUT_SCHEMA,
+      inputSchema: ANNOTATE_IMAGE_INPUT_SCHEMA,
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateVideoFrame,
+      description:
+        "Use this when a local MCP host needs to annotate one browser-extracted video frame into LLM-ready structured JSON without server-side frame extraction.",
+      outputSchema: ANNOTATE_OUTPUT_SCHEMA,
+      inputSchema: ANNOTATE_VIDEO_FRAME_INPUT_SCHEMA,
+    }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add,
       description:

@@ -402,7 +402,7 @@ export function useFlowEditorOverlaySurface(args: {
       openWidgetNodeIds: openWidgetNodeIdsSnapshot,
       eligibleNodeIds: renderGraphEligibleNodeIds,
       nodeById,
-      selectedNodeId: overlayDraftNode?.id || null,
+      selectedNodeId: overlayDraftNode?.id || pendingOverlayNode?.id || pendingOverlayNodeIdRef.current || null,
     })
     if (next.length > 0) rememberStableOverlayIds(next)
     return next

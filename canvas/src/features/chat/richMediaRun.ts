@@ -2,6 +2,7 @@ import { getObjectPath } from '@/lib/data/objectPath'
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
+  FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
@@ -21,7 +22,7 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspaceFs } from '@/features/workspace-fs/types'
 import type { UploadGeneratedWorkspaceBlobToKnowgrphStorageResult } from '@/features/source-files/sourceFilesBinaryStorage'
 
-export type RichMediaWidgetKind = 'image' | 'video'
+export type RichMediaWidgetKind = 'image' | 'video' | 'annotation'
 
 export type RichMediaWidgetRunRequest = {
   kind: RichMediaWidgetKind
@@ -131,6 +132,7 @@ export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): 
   if (typeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
   if (typeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
   if (typeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return 'video'
+  if (typeId === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID) return 'annotation'
   const formId = cleanString((node.properties || {})[FLOW_WIDGET_FORM_ID_KEY])
   if (formId === 'imageGeneration') return 'image'
   if (formId === 'videoGeneration') return 'video'
@@ -350,14 +352,10 @@ const persistGeneratedAsset = async (args: {
   }
   const assetMimeType = cleanString(args.asset.blob.type)
   const videoExtension = cleanString(args.extension).replace(/^\./, '') || 'mp4'
-  const acceptMimeType = args.kind === 'video'
-    ? (assetMimeType.startsWith('video/') ? assetMimeType : 'video/mp4')
-    : 'image/png'
+  const acceptMimeType = args.kind === 'video' ? (assetMimeType.startsWith('video/') ? assetMimeType : 'video/mp4') : args.kind === 'annotation' ? (assetMimeType || 'application/json') : 'image/png'
   const saved = await saveBlobWithPicker(args.asset.blob, suggestedName, {
-    description: args.kind === 'video' ? 'Video Files' : 'Image Files',
-    accept: args.kind === 'video'
-      ? { [acceptMimeType]: [`.${videoExtension}`] }
-      : { 'image/png': ['.png'] },
+    description: args.kind === 'video' ? 'Video Files' : args.kind === 'annotation' ? 'JSON Files' : 'Image Files',
+    accept: args.kind === 'video' ? { [acceptMimeType]: [`.${videoExtension}`] } : args.kind === 'annotation' ? { [acceptMimeType]: ['.json'] } : { 'image/png': ['.png'] },
   })
   if (!saved) downloadBlob(args.asset.blob, suggestedName)
   return null
@@ -437,7 +435,7 @@ const buildGeneratedMediaManifestMarkdown = (args: {
   const title = cleanString(args.node.label) || cleanString(args.node.id) || `${args.kind} output`
   const savedName = args.outputPath.split('/').filter(Boolean).pop() || args.outputPath
   const relativeAssetPath = savedName ? `./${savedName}` : args.outputPath
-  const mimeType = cleanString(args.asset.blob.type) || (args.kind === 'video' ? 'video/mp4' : 'image/png')
+  const mimeType = cleanString(args.asset.blob.type) || (args.kind === 'video' ? 'video/mp4' : args.kind === 'annotation' ? 'application/json' : 'image/png')
   const rawRows: Array<[string, unknown]> = [
     ['kind', args.kind],
     ['artifactPath', relativeAssetPath],
@@ -460,11 +458,9 @@ const buildGeneratedMediaManifestMarkdown = (args: {
         ...rows.map(([key, value]) => `| ${escapeMarkdownTableCell(key)} | ${escapeMarkdownTableCell(value)} |`),
       ].join('\n')
     : ''
-  const mediaBlock = args.kind === 'video'
-    ? `<video controls src="${relativeAssetPath}"></video>`
-    : `![${escapeMarkdownAltText(title)}](${relativeAssetPath})`
+  const mediaBlock = args.kind === 'video' ? `<video controls src="${relativeAssetPath}"></video>` : args.kind === 'annotation' ? `[${escapeMarkdownAltText(title)} annotation JSON](${relativeAssetPath})` : `![${escapeMarkdownAltText(title)}](${relativeAssetPath})`
   return [
-    `# ${title} ${args.kind === 'video' ? 'Video' : 'Image'} Output`,
+    `# ${title} ${args.kind === 'video' ? 'Video' : args.kind === 'annotation' ? 'Annotation' : 'Image'} Output`,
     dataTable,
     mediaBlock,
   ].filter(section => String(section || '').trim()).join('\n\n')

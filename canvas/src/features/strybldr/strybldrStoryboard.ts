@@ -767,6 +767,64 @@ const readStrybldrWorkflowEdges = (value: unknown, elementIds: ReadonlySet<strin
   return out
 }
 
+function readStrybldrWorkflowEdgesFromGraphData(args: {
+  graphData: GraphData | null | undefined
+  elementIds: ReadonlySet<string>
+}): StrybldrWorkflowEdge[] {
+  if (args.elementIds.size === 0) return []
+  const edges = Array.isArray(args.graphData?.edges) ? args.graphData.edges : []
+  const out: StrybldrWorkflowEdge[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < edges.length; i += 1) {
+    const edge = edges[i]
+    const source = cleanText(edge?.source)
+    const target = cleanText(edge?.target)
+    const label = cleanText(edge?.label)
+    if (!source || !target || !label) continue
+    if (!args.elementIds.has(source) || !args.elementIds.has(target)) continue
+    const key = `${source}\u0000${label}\u0000${target}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({
+      id: cleanText(edge?.id) || `strybldr:workflow-edge:${shortHash(`${source}:${label}:${target}`)}`,
+      source,
+      target,
+      label,
+    })
+  }
+  return out
+}
+
+export const syncStrybldrStoryboardMarkdownWorkflowEdges = (args: {
+  text: string
+  graphData: GraphData | null | undefined
+}): string | null => {
+  const rawPayload = readStrybldrStoryboardRawPayload(args.text)
+  const doc = rawPayload ? readParsedObject(rawPayload) : null
+  if (!doc) return null
+  const elementIds = new Set(doc.elements.map(element => cleanText(element.id)).filter(Boolean))
+  const currentEdges = readStrybldrWorkflowEdges(rawPayload?.edges, elementIds)
+  const discoveredEdges = readStrybldrWorkflowEdgesFromGraphData({ graphData: args.graphData, elementIds })
+  const nextEdges = currentEdges.slice()
+  const seenEdgeKeys = new Set(currentEdges.map(edge => `${edge.source}\u0000${edge.label}\u0000${edge.target}`))
+  for (let i = 0; i < discoveredEdges.length; i += 1) {
+    const edge = discoveredEdges[i]
+    const key = `${edge.source}\u0000${edge.label}\u0000${edge.target}`
+    if (seenEdgeKeys.has(key)) continue
+    seenEdgeKeys.add(key)
+    nextEdges.push(edge)
+  }
+  const toComparableKey = (edge: StrybldrWorkflowEdge): string => [edge.id, edge.source, edge.label, edge.target].join('\u0000')
+  const currentKeys = currentEdges.map(toComparableKey)
+  const nextKeys = nextEdges.map(toComparableKey)
+  if (currentKeys.length === nextKeys.length && currentKeys.every((key, index) => key === nextKeys[index])) {
+    return args.text
+  }
+  const nextPayload = { ...rawPayload }
+  if (nextEdges.length > 0) nextPayload.edges = nextEdges
+  return replaceStrybldrStoryboardMarkdownRawPayload(args.text, nextPayload)
+}
+
 const readStrybldrWorkflow = (value: unknown): StrybldrWorkflow | null => {
   if (!value || typeof value !== 'object') return null
   const rec = value as Record<string, unknown>

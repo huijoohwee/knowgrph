@@ -20,6 +20,7 @@ import {
   removeStrybldrStoryboardMarkdownElement,
   resolveStrybldrVideoArtifactTargetNodeId,
   serializeStrybldrStoryboardMarkdown,
+  syncStrybldrStoryboardMarkdownWorkflowEdges,
   updateStrybldrStoryboardMarkdownCardOverride,
 } from '@/features/strybldr/strybldrStoryboard'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
@@ -1432,6 +1433,42 @@ export function testStrybldrVideoArtifactCleanupKeepsOnlyTargetOverride() {
   const targetCard = (parsed?.cards || []).find(card => card.nodeId === 'strybldr:frame:3595615238') || null
   assert(!sourceCard, 'expected stale source artifact override to be removed entirely')
   assert(targetCard?.prompt === 'keep me', `expected target card non-artifact overrides to remain, got ${JSON.stringify(targetCard)}`)
+}
+
+export function testStrybldrWorkflowEdgeSyncPersistsAuthoredStoryboardConnections() {
+  const baseText = readStrybldrStarterTemplateText()
+  const parsed = parseStrybldrStoryboardMarkdown(baseText)
+  assert(parsed, 'expected starter template to parse before workflow-edge sync')
+  const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
+    text: baseText,
+    graphData: {
+      context: 'strybldr-storyboard',
+      type: 'Graph',
+      nodes: [],
+      edges: [
+        {
+          id: 'starter-edge-1',
+          source: 'starter-source-brief-card',
+          target: 'starter-storyboard-beats-card',
+          label: 'linksTo',
+        },
+        {
+          id: 'ignore-structural-edge',
+          source: 'strybldr:frame:3595615238',
+          target: 'starter-source-brief-card',
+          label: 'containsElement',
+        },
+      ],
+    },
+  })
+  assert(nextText && nextText !== baseText, 'expected storyboard workflow-edge sync to persist authored edges into the structured payload')
+  const reparsed = parseStrybldrStoryboardMarkdown(String(nextText || ''))
+  assert(reparsed, 'expected synced storyboard markdown to remain parseable')
+  assert((reparsed?.edges || []).length === 1, `expected only authored element-to-element edges to persist, got ${JSON.stringify(reparsed?.edges || [])}`)
+  const authoredEdge = reparsed?.edges?.[0] || null
+  assert(authoredEdge?.id === 'starter-edge-1', `expected authored edge id to persist, got ${JSON.stringify(authoredEdge)}`)
+  assert(authoredEdge?.source === 'starter-source-brief-card' && authoredEdge?.target === 'starter-storyboard-beats-card', `expected authored storyboard edge endpoints to persist, got ${JSON.stringify(authoredEdge)}`)
+  assert(authoredEdge?.label === 'linksTo', `expected authored storyboard edge label to persist, got ${JSON.stringify(authoredEdge)}`)
 }
 
 export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic() {

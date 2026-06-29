@@ -125,12 +125,17 @@ Canonical local tool inventory owner:
    - The native `headless-browser` adapter is inspired by Hyperframes without copying it: Playwright captures seeked HTML frames and an operator-provided FFmpeg binary encodes MP4
    - Runtime knobs: `KNOWGRPH_HTML_VIDEO_FFMPEG_BIN` (default `ffmpeg`), `KNOWGRPH_HTML_VIDEO_FFMPEG_VIDEO_CODEC` (default `mpeg4` to avoid forcing GPL codecs), and `KNOWGRPH_HTML_VIDEO_MAX_FRAMES` (safety bound)
    - The browser Flow Editor path writes successful MP4 results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
-8. Memory layer tools
+8. Visual annotation tools
+   - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
+   - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local
+   - Outputs are LLM-ready annotation JSON with deterministic `annotation_id`; validation/runtime failures return structured `invalid_spec`, `model_not_configured`, `worker_not_supported`, or `inference_failed` errors
+   - Dev default adds no external dependency and no paid inference path; the browser worker emits runtime-local heuristic annotations while model adapters remain runtime-owned behind the `Annotation_Worker` boundary
+9. Memory layer tools
    - `knowgrph.memory.add` persists explicitly scoped memory text or messages through the provider-neutral memory harness
    - `knowgrph.memory.search` returns top-K scoped memory results for prompt augmentation
    - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
    - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
-9. `knowgrph.vdeoxpln.list`
+10. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.

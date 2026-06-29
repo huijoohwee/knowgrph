@@ -17,11 +17,12 @@ import {
   hasMediaDragPayload,
   isMediaPointerDragDropClaimed,
   isMediaDropClaimedByNestedTarget,
-  readMediaDragPayload,
+  readMediaDragPayload, resolveMediaDragEventReleaseClientPoint,
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
+import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR,
@@ -44,34 +45,6 @@ import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/co
 import { useStoryboardEdgeCreationRequest } from '@/components/FlowEditorCanvas/runtime/useStoryboardEdgeCreationRequest'
 import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-
-// #region debug-point A:storyboard-surface-graph-filter
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
-const reportStoryboardMediaPanelLoopSurfaceDebug = (args: {
-  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
-  location: string
-  msg: string
-  data?: Record<string, unknown>
-}) => {
-  if (typeof fetch !== 'function') return
-  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
-      runId: 'pre-fix',
-      hypothesisId: args.hypothesisId,
-      location: args.location,
-      msg: `[DEBUG] ${args.msg}`,
-      data: args.data || {},
-      ts: Date.now(),
-    }),
-  }).catch(() => {
-    void 0
-  })
-}
-// #endregion
 
 export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -168,19 +141,6 @@ export default function FlowEditorCanvasSurface(props: {
     if (!storyboardCardsActive) return
     if (!storyboardSurfaceGraphSignature || reportedStoryboardSurfaceGraphSignatureRef.current === storyboardSurfaceGraphSignature) return
     reportedStoryboardSurfaceGraphSignatureRef.current = storyboardSurfaceGraphSignature
-    // #region debug-point B:storyboard-surface-graph-filter
-    reportStoryboardMediaPanelLoopSurfaceDebug({
-      hypothesisId: 'D',
-      location: 'FlowEditorCanvasSurface.tsx:storyboard-flow-canvas-graph',
-      msg: 'storyboard surface filtered graph before handing it to flow-canvas',
-      data: {
-        storyboardSourceGraphNodeCount: Array.isArray(props.storyboardSourceGraphData?.nodes) ? props.storyboardSourceGraphData.nodes.length : 0,
-        storyboardGraphNodeCount: Array.isArray(storyboardGraphData?.nodes) ? storyboardGraphData.nodes.length : 0,
-        storyboardHiddenNodeIds,
-        flowCanvasGraphNodeCount: Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0,
-      },
-    })
-    // #endregion
   }, [
     flowCanvasGraphDataOverride,
     props.storyboardSourceGraphData,
@@ -189,11 +149,7 @@ export default function FlowEditorCanvasSurface(props: {
     storyboardHiddenNodeIds,
     storyboardSurfaceGraphSignature,
   ])
-  useStoryboardEdgeCreationRequest({
-    active: storyboardCardsActive,
-    beginEdge: props.beginAddEdgeFromNode,
-    graphData: flowCanvasGraphDataOverride,
-  })
+  useStoryboardEdgeCreationRequest({ active: storyboardCardsActive, beginEdge: props.beginAddEdgeFromNode, graphData: flowCanvasGraphDataOverride })
   const screenAuthorityPanRef = React.useRef<null | {
     pointerId: number
     startClientX: number
@@ -203,7 +159,7 @@ export default function FlowEditorCanvasSurface(props: {
     started: boolean
   }>(null)
   const readSurfaceDrop = React.useCallback((clientX: number, clientY: number) => {
-    const rect = props.rootRef.current?.getBoundingClientRect()
+    const rect = resolveCanvasViewportMeasureElement(props.rootRef.current)?.getBoundingClientRect() || null
     if (!rect) return null
     props.setCanvasWindowOffsetFromRect(rect)
     const sx = clientX - rect.left
@@ -221,98 +177,14 @@ export default function FlowEditorCanvasSurface(props: {
   }, [props])
 
   const appendMediaPanelAtClientPoint = React.useCallback((payload: import('@/lib/ui/mediaDragPayload').MediaDragPayload, clientX: number, clientY: number) => {
-    if (props.geospatialWidgetPanelMode || !props.canEdit) {
-      // #region debug-point C:storyboard-surface-media-drop
-      reportStoryboardMediaPanelLoopSurfaceDebug({
-        hypothesisId: 'D',
-        location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-        msg: 'storyboard surface rejected media drop before panel creation',
-        data: { reason: 'surface-not-editable', geospatialWidgetPanelMode: props.geospatialWidgetPanelMode, canEdit: props.canEdit },
-      })
-      // #endregion
-      return false
-    }
-    if (isMediaDropClaimedByNestedTarget(clientX, clientY)) {
-      // #region debug-point C:storyboard-surface-media-drop
-      reportStoryboardMediaPanelLoopSurfaceDebug({
-        hypothesisId: 'D',
-        location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-        msg: 'storyboard surface rejected media drop before panel creation',
-        data: { reason: 'claimed-by-nested-target', clientX, clientY },
-      })
-      // #endregion
-      return false
-    }
+    if (props.geospatialWidgetPanelMode || !props.canEdit) return false
+    if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false
     const mediaUrl = String(payload?.url || '').trim()
-    if (!mediaUrl) {
-      // #region debug-point C:storyboard-surface-media-drop
-      reportStoryboardMediaPanelLoopSurfaceDebug({
-        hypothesisId: 'D',
-        location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-        msg: 'storyboard surface rejected media drop before panel creation',
-        data: { reason: 'missing-media-url' },
-      })
-      // #endregion
-      return false
-    }
+    if (!mediaUrl) return false
     const pos = readSurfaceDrop(clientX, clientY)
-    if (!pos) {
-      const rect = props.rootRef.current?.getBoundingClientRect() || null
-      const sx = rect ? clientX - rect.left : null
-      const sy = rect ? clientY - rect.top : null
-      // #region debug-point C:storyboard-surface-media-drop
-      reportStoryboardMediaPanelLoopSurfaceDebug({
-        hypothesisId: 'D',
-        location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-        msg: 'storyboard surface rejected media drop before panel creation',
-        data: {
-          reason: 'drop-outside-surface',
-          clientX,
-          clientY,
-          surfaceLeft: rect?.left ?? null,
-          surfaceTop: rect?.top ?? null,
-          surfaceWidth: rect?.width ?? null,
-          surfaceHeight: rect?.height ?? null,
-          surfaceRight: rect?.right ?? null,
-          surfaceBottom: rect?.bottom ?? null,
-          surfaceId: props.flowEditorSurfaceId,
-          localX: sx,
-          localY: sy,
-        },
-      })
-      // #endregion
-      return false
-    }
+    if (!pos) return false
     const actualId = props.addRichMediaPanelFromMediaAtWorld({ media: { ...payload, url: mediaUrl }, x: pos.x, y: pos.y })
-    if (!actualId) {
-      // #region debug-point C:storyboard-surface-media-drop
-      reportStoryboardMediaPanelLoopSurfaceDebug({
-        hypothesisId: 'D',
-        location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-        msg: 'storyboard surface rejected media drop before panel creation',
-        data: {
-          reason: 'add-rich-media-returned-empty-id',
-          mediaKind: String(payload?.kind || '').trim(),
-          mediaSourceKey: String(payload?.sourceKey || '').trim(),
-        },
-      })
-      // #endregion
-      return false
-    }
-    // #region debug-point C:storyboard-surface-media-drop
-    reportStoryboardMediaPanelLoopSurfaceDebug({
-      hypothesisId: 'D',
-      location: 'FlowEditorCanvasSurface.tsx:append-media-panel-at-client-point',
-      msg: 'storyboard surface accepted media drop and created panel node id',
-      data: {
-        actualId,
-        mediaKind: String(payload?.kind || '').trim(),
-        mediaSourceKey: String(payload?.sourceKey || '').trim(),
-        worldX: pos.x,
-        worldY: pos.y,
-      },
-    })
-    // #endregion
+    if (!actualId) return false
     props.upsertUiToast({ id: 'flow-editor-drop-media', kind: 'neutral', message: 'Created Rich Media Panel node.', ttlMs: 1500 })
     clearMediaPointerDragPayload()
     return true
@@ -537,7 +409,8 @@ export default function FlowEditorCanvasSurface(props: {
         if (props.geospatialWidgetPanelMode || !props.canEdit) return
         if (ev.dataTransfer && hasMediaDragPayload(ev.dataTransfer)) {
           const mediaPayload = readMediaDragPayload(ev.dataTransfer)
-          if (mediaPayload && appendMediaPanelAtClientPoint(mediaPayload, ev.clientX, ev.clientY)) {
+          const release = resolveMediaDragEventReleaseClientPoint(ev.nativeEvent)
+          if (mediaPayload && appendMediaPanelAtClientPoint(mediaPayload, release.clientX, release.clientY)) {
             ev.preventDefault()
             ev.stopPropagation()
           }
@@ -547,7 +420,7 @@ export default function FlowEditorCanvasSurface(props: {
         if (!payload) return
         const entry = (props.widgetRegistry || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
         if (!entry) return
-        const el = props.rootRef.current
+        const el = resolveCanvasViewportMeasureElement(props.rootRef.current)
         const rect = el ? el.getBoundingClientRect() : null
         if (!rect) return
         props.setCanvasWindowOffsetFromRect(rect)

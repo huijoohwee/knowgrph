@@ -33,7 +33,7 @@ import { hashSignatureParts } from '@/lib/hash/signature'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import { appendPendingOverlayNodesToGraphData } from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'
+import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBase } from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'
 
 // #region debug-point A:runtime-storyboard-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
@@ -100,7 +100,7 @@ export default function FlowEditorCanvasRuntime(
     baseWidgetRegistry, canvasRenderMode, canvas2dRenderer, canvasRunMode, collapsedGroupIds, createUserSubgraph,
     documentSemanticMode, documentStructureBaselineLock, documentWidgetRegistry, effectiveWidgetRegistry,
     flowEditorLayoutRebalanceRequest, flowWidgetPinnedByNodeId, frontmatterModeEnabled, graphContentRevision, markdownDocumentName,
-    markdownDocumentApplyViewPreset, markdownDocumentSourceUrl, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
+    markdownDocumentApplyRevision, markdownDocumentApplyViewPreset, markdownDocumentSourceUrl, markdownDocumentText, mediaPanelDensity, openWidgetNodeIds, removeNodesFromUserSubgraph,
     removeUserSubgraph, renderMediaAsNodes, resolvedThemeMode, schema, selectEdge, selectGroup,
     selectNode, selectedEdgeId, selectedNodeId, selectedNodeIds, setGraphDataPreservingLayout,
     setOpenWidgetNodeIds, setSchema, setSelectionSource, toggleGroupCollapsed, updateEdge, updateNode,
@@ -132,13 +132,12 @@ export default function FlowEditorCanvasRuntime(
   const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
     name: markdownDocumentName,
     sourceUrl: markdownDocumentSourceUrl,
+    text: markdownDocumentText,
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
   const activeDocumentKey = React.useMemo(() => {
-    const name = typeof canvasMarkdownDocument.name === 'string' ? canvasMarkdownDocument.name.trim() : ''
-    const sourceUrl = typeof canvasMarkdownDocument.sourceUrl === 'string' ? canvasMarkdownDocument.sourceUrl.trim() : ''
-    return `${name}::${sourceUrl}`
-  }, [canvasMarkdownDocument.name, canvasMarkdownDocument.sourceUrl])
+    return [String(canvasMarkdownDocument.semanticKey || '').trim(), String(markdownDocumentApplyRevision || 0)].join('::')
+  }, [canvasMarkdownDocument.semanticKey, markdownDocumentApplyRevision])
   const flowEditorViewActive = editorRuntimeActive
   const canInteract = editorRuntimeActive
   const canEdit = editorRuntimeActive && !documentStructureBaselineLock
@@ -634,8 +633,8 @@ export default function FlowEditorCanvasRuntime(
     scheduleOverlayEdgeUpdate()
   }, [overlayEdgeHostActive, overlayEditorNodeIdsKey, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
   const flowCanvasGraphDataWithPendingOverlays = React.useMemo(
-    () => appendPendingOverlayNodesToGraphData(flowCanvasGraphDataOverride, pendingOverlayNodesById),
-    [flowCanvasGraphDataOverride, pendingOverlayNodesById],
+    () => appendPendingOverlayNodesToGraphData(resolvePendingOverlayGraphDataBase({ baseGraphData, draftGraphData, flowCanvasGraphDataOverride, renderGraphDataOverride, storyboardCardsMode }), pendingOverlayNodesById),
+    [baseGraphData, draftGraphData, flowCanvasGraphDataOverride, pendingOverlayNodesById, renderGraphDataOverride, storyboardCardsMode],
   )
   React.useEffect(() => {
     const pendingOverlayStillSelectedOrOpen = (id: string): boolean => {
@@ -661,10 +660,10 @@ export default function FlowEditorCanvasRuntime(
     })
     const pendingId = String(pendingOverlayNodeIdRef.current || '').trim()
     if (!pendingId) return
-    if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId) && pendingOverlayStillSelectedOrOpen(pendingId)) return
+    if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId) && (pendingOverlayNode || pendingOverlayStillSelectedOrOpen(pendingId))) return
     pendingOverlayNodeIdRef.current = null
     setPendingOverlayNode(null)
-  }, [baseGraphData, openWidgetNodeIds, selectedNodeId])
+  }, [baseGraphData, openWidgetNodeIds, pendingOverlayNode, selectedNodeId, storyboardCardsMode])
   const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return flowCanvasGraphDataWithPendingOverlays
     return flowCanvasGraphDataWithPendingOverlays
@@ -759,7 +758,7 @@ export default function FlowEditorCanvasRuntime(
       draftGraphDataRevision={draftGraphDataRevision}
       baseGraphDataRevision={baseGraphDataRevision}
       flowRuntimeRefRef={flowRuntimeRefRef}
-      hasOverlayEditors={hasOverlayEditors}
+      hasOverlayEditors={overlayEdgeHostActive}
       emitFlowEditorInteractionFrame={emitFlowEditorInteractionFrame}
       overlayOnlyActive={overlayOnlyActive}
       overlayEdgesSvgRef={overlayEdgesSvgRef}

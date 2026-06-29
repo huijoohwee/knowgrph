@@ -92,6 +92,14 @@ const waitForRuntimeCommandStateSettle = async (workspacePath: string): Promise<
   }
 }
 
+const waitForRuntimeCommandZoomSettle = async (): Promise<void> => {
+  for (let i = 0; i < 40; i += 1) {
+    const state = useGraphStore.getState()
+    if (!state.zoomRequest) return
+    await new Promise<void>(resolve => setTimeout(resolve, 50))
+  }
+}
+
 const applyRuntimeViewOptions = (
   state: ReturnType<typeof useGraphStore.getState>,
   args: {
@@ -214,6 +222,9 @@ export const createWorkspaceRuntimeCommand = (): WorkspaceRuntimeCommand => ({
       forceApplyToGraph: args?.forceApplyToGraph !== false,
       applyViewPreset: args?.applyViewPreset !== false,
     })
+    if (applied && args?.applyToGraph === true && args?.applyViewPreset !== false) {
+      await waitForRuntimeCommandZoomSettle()
+    }
     return {
       ...readWorkspaceRuntimeCommandState(),
       applied,

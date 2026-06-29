@@ -122,14 +122,14 @@ export function buildOverlayEditorElements(args: {
     graphMetaKind: overlayGraphMetaKind,
   })
   const resolveNode = (id: string) => {
+    const pending = args.pendingOverlayNodeIdRef.current
+    if (pending && pending === id) return args.pendingOverlayNode
     const found = args.renderGraphNodeById.get(id) || null
     if (found) return found
     const canonicalMatch = resolveGraphNodeByCanonicalId(args.renderGraphDataOverride, id)
     if (canonicalMatch) return canonicalMatch
     const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)
     if (stableCanonicalMatch) return stableCanonicalMatch
-    const pending = args.pendingOverlayNodeIdRef.current
-    if (pending && pending === id) return args.pendingOverlayNode
     return null
   }
   const elements: React.ReactElement[] = []

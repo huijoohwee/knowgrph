@@ -4,6 +4,9 @@ import { FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, 
 import { readFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 function cleanString(value: unknown): string {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
+    return cleanString((value as { value?: unknown }).value)
+  }
   return typeof value === 'string' ? value.trim() : ''
 }
 

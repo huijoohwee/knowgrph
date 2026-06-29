@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import json
-import urllib.request
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
@@ -14,39 +12,6 @@ TARGET_URL = f"{BASE_URL}/?kgPath=%2F__smoke__%2Fstoryboard-rich-media-drop"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "storyboard-rich-media-drop-browser-smoke.png"
 RETENTION_OBSERVATION_MS = 3000
-DEBUG_ENV_PATH = Path(__file__).resolve().parents[2] / ".dbg" / "rich-media-edge-regression.env"
-
-
-def emit_debug_event(hypothesis_id: str, location: str, msg: str, data: dict) -> None:
-    server_url = "http://127.0.0.1:7777/event"
-    session_id = "rich-media-edge-regression"
-    try:
-        env_text = DEBUG_ENV_PATH.read_text(encoding="utf-8")
-        for line in env_text.splitlines():
-            if line.startswith("DEBUG_SERVER_URL="):
-                server_url = line.split("=", 1)[1].strip() or server_url
-            elif line.startswith("DEBUG_SESSION_ID="):
-                session_id = line.split("=", 1)[1].strip() or session_id
-    except Exception:
-        pass
-    try:
-        payload = {
-            "sessionId": session_id,
-            "runId": "pre-fix",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "msg": msg,
-            "data": data,
-        }
-        urllib.request.urlopen(
-            urllib.request.Request(
-                server_url,
-                data=json.dumps(payload).encode(),
-                headers={"Content-Type": "application/json"},
-            )
-        ).read()
-    except Exception:
-        pass
 
 
 def read_smoke_state(page):
@@ -66,8 +31,8 @@ def rich_media_overlay_shell_selector(node_id: str) -> str:
     safe_id = css_attr_value(node_id)
     safe_suffix = css_attr_value(canonical_node_id_suffix(node_id))
     return (
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id="{safe_id}"], '
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id$="::{safe_suffix}"], '
+        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-kg-flow-editor-surface="storyboard"][data-node-id="{safe_id}"], '
+        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-kg-flow-editor-surface="storyboard"][data-node-id$="::{safe_suffix}"], '
         f'aside[data-kg-widget="{safe_id}"][data-kg-flow-editor-mode="1"], '
         f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-flow-editor-mode="1"]'
     )
@@ -139,10 +104,11 @@ def read_visible_rich_media_shell_box(page, node_id: str):
     box = page.evaluate(
         """
         (selector) => {
-          const shell = Array.from(document.querySelectorAll(selector)).find((el) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
           })
+          const shell = candidates.find((el) => el.matches('aside[data-kg-widget][data-kg-flow-editor-mode="1"]')) || candidates[0]
           if (!shell) return null
           const rect = shell.getBoundingClientRect()
           return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
@@ -161,6 +127,14 @@ def expect_rich_media_shell_box_stable(before, after, label: str) -> None:
             raise AssertionError(
                 f"expected dropped Rich Media panel {label} {key} to remain stable, before={before} after={after}"
             )
+
+
+def expect_rich_media_shell_center_near_target(box, target_x: float, target_y: float, label: str) -> None:
+    center_x = float(box["x"]) + float(box["width"]) / 2
+    center_y = float(box["y"]) + float(box["height"]) / 2
+    distance = ((center_x - target_x) ** 2 + (center_y - target_y) ** 2) ** 0.5
+    if distance > 20:
+        raise AssertionError(f"expected dropped Rich Media panel {label} center near release point, distance={distance:.2f}, box={box}, target=({target_x:.2f}, {target_y:.2f})")
 
 
 def expect_selected_rich_media_panel(page, node_id: str) -> None:
@@ -210,6 +184,16 @@ def read_storyboard_edge_ids(page):
     )
 
 
+def read_storyboard_edge_box(page, edge_id: str):
+    box = page.evaluate(
+        """(edgeId) => { const selector = `[data-kg-overlay-edge-id="${CSS.escape(edgeId)}"], [data-kg-storyboard-canvas-edge-id="${CSS.escape(edgeId)}"]`; const el = document.querySelector(selector); if (!el) return null; const rect = el.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }""",
+        arg=edge_id,
+    )
+    if not box:
+        raise AssertionError(f"expected Storyboard edge geometry for {edge_id}")
+    return box
+
+
 def expect_pending_storyboard_edge_visible(page) -> None:
     page.wait_for_selector('[data-kg-overlay-pending-edge="true"]', state="attached", timeout=5000)
 
@@ -222,6 +206,14 @@ def expect_storyboard_card_boxes_unchanged(before, after) -> None:
         for key in ("x", "y", "width", "height"):
             if abs(float(before_box[key]) - float(after_box[key])) > 0.75:
                 raise AssertionError(f"expected Storyboard card {node_id} {key} to remain stable, before={before_box} after={after_box}")
+
+
+def apply_storyboard_pan_zoom(page) -> None:
+    box = read_storyboard_surface_box(page)
+    start_x, start_y = box["x"] + box["width"] * 0.24, box["y"] + box["height"] * 0.18
+    page.mouse.move(start_x, start_y)
+    page.mouse.down(); page.mouse.move(start_x + 32, start_y + 18, steps=3); page.mouse.move(start_x + 76, start_y + 42, steps=3); page.mouse.up()
+    page.mouse.wheel(0, -420); page.wait_for_timeout(RETENTION_OBSERVATION_MS)
 
 
 def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_node_id: str) -> str:
@@ -275,17 +267,11 @@ def assert_storyboard_edge_panel_open_retention(page, node_id: str, target_node_
     expect_selected_rich_media_panel(page, node_id)
     expect_visible_rich_media_shell_ports(page, node_id)
     selected_box = read_visible_rich_media_shell_box(page, node_id)
-    # #region debug-point B:pre-edge-selected-box
-    emit_debug_event("B", "verify_storyboard_rich_media_drop_browser_smoke.py:267", "[DEBUG] dropped rich media panel selected before edge create", {"nodeId": node_id, "targetNodeId": target_node_id, "selectedBox": selected_box, "smokeState": read_smoke_state(page) or {}, "edgeIds": read_storyboard_edge_ids(page)})
-    # #endregion
     created_edge_id = drag_rich_media_port_to_storyboard_card(page, node_id, target_node_id)
     box_after_edge_create = read_visible_rich_media_shell_box(page, node_id)
     expect_rich_media_shell_box_stable(selected_box, box_after_edge_create, "after edge create")
     page.wait_for_timeout(RETENTION_OBSERVATION_MS)
     retained_edges = set(read_storyboard_edge_ids(page))
-    # #region debug-point A:post-edge-retention
-    emit_debug_event("A", "verify_storyboard_rich_media_drop_browser_smoke.py:273", "[DEBUG] checked created storyboard edge after retention", {"nodeId": node_id, "targetNodeId": target_node_id, "createdEdgeId": created_edge_id, "retainedEdgeIds": sorted(retained_edges), "boxAfterEdgeCreate": box_after_edge_create, "smokeState": read_smoke_state(page) or {}})
-    # #endregion
     if created_edge_id not in retained_edges:
         raise AssertionError(f"expected created Storyboard edge to remain visible after retention, got {sorted(retained_edges)}")
     click_visible_rich_media_shell(page, node_id)
@@ -296,10 +282,19 @@ def assert_storyboard_edge_panel_open_retention(page, node_id: str, target_node_
     if created_edge_id not in retained_edges:
         raise AssertionError(f"expected selected/open dropped panel to retain Storyboard edge visibility, got {sorted(retained_edges)}")
     reopened_box = read_visible_rich_media_shell_box(page, node_id)
-    # #region debug-point B:post-reopen-retention
-    emit_debug_event("B", "verify_storyboard_rich_media_drop_browser_smoke.py:283", "[DEBUG] checked dropped panel box after select/open retention", {"nodeId": node_id, "targetNodeId": target_node_id, "createdEdgeId": created_edge_id, "selectedBox": selected_box, "reopenedBox": reopened_box, "retainedEdgeIds": sorted(retained_edges), "smokeState": read_smoke_state(page) or {}})
-    # #endregion
     expect_rich_media_shell_box_stable(selected_box, reopened_box, "after select/open retention")
+    edge_box_before_pan_zoom = read_storyboard_edge_box(page, created_edge_id)
+    apply_storyboard_pan_zoom(page)
+    retained_edges = set(read_storyboard_edge_ids(page))
+    if created_edge_id not in retained_edges:
+        raise AssertionError(f"expected selected/open dropped panel to retain Storyboard edge visibility after pan/zoom, got {sorted(retained_edges)}")
+    panel_box_after_pan_zoom = read_visible_rich_media_shell_box(page, node_id)
+    edge_box_after_pan_zoom = read_storyboard_edge_box(page, created_edge_id)
+    panel_delta = ((panel_box_after_pan_zoom["x"] - reopened_box["x"]) ** 2 + (panel_box_after_pan_zoom["y"] - reopened_box["y"]) ** 2) ** 0.5
+    edge_delta = ((edge_box_after_pan_zoom["x"] - edge_box_before_pan_zoom["x"]) ** 2 + (edge_box_after_pan_zoom["y"] - edge_box_before_pan_zoom["y"]) ** 2) ** 0.5
+    if panel_delta > 4 and edge_delta < max(2, panel_delta * 0.15):
+        raise AssertionError(f"expected Storyboard edge geometry to follow Rich Media panel after pan/zoom, panel_delta={panel_delta:.2f} edge_delta={edge_delta:.2f}")
+    expect_visible_rich_media_shell_ports(page, node_id)
     return created_edge_id
 
 
@@ -538,6 +533,13 @@ def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_rat
         panel_selector = rich_media_overlay_shell_selector(node_id)
         panel_shell = page.locator(panel_selector).first
         expect(panel_shell).to_be_visible(timeout=15000)
+        target_box = read_storyboard_surface_box(page)
+        dropped_box = read_visible_rich_media_shell_box(page, node_id)
+        try:
+            expect_rich_media_shell_center_near_target(dropped_box, target_box["x"] + target_box["width"] * target_ratio_x, target_box["y"] + target_box["height"] * target_ratio_y, f"after {source_kind} drop")
+        except AssertionError as exc:
+            debug_state = page.evaluate("""(nodeId) => { const shell = document.querySelector(`[data-node-id="${CSS.escape(nodeId)}"]`); return { flowCanvasDebug: window.__flowCanvasDebug || null, shellHtml: shell?.outerHTML?.slice(0, 1000) || '', shellStyle: shell?.getAttribute('style') || '', candidates: Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]')).map((el) => { const r = el.getBoundingClientRect(); return { tag: el.tagName, nodeId: el.getAttribute('data-node-id') || '', widget: el.getAttribute('data-kg-widget') || '', x: r.x, y: r.y, width: r.width, height: r.height, style: el.getAttribute('style') || '' }; }), graphNode: (window.__KG_STORE__?.getState?.().graphData?.nodes || []).find((node) => String(node?.id || '') === nodeId || String(node?.id || '').endsWith(`::${nodeId.split('::').pop()}`)) || null }; }""", node_id)
+            raise AssertionError(f"{exc}; debug={debug_state}") from None
         click_visible_rich_media_shell(page, node_id)
         expect_visible_rich_media_shell_ports(page, node_id)
         page.wait_for_timeout(RETENTION_OBSERVATION_MS)

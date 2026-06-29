@@ -139,6 +139,7 @@ export interface GraphStatePanelsMarkdown {
   markdownDocumentName: string | null;
   markdownDocumentText: string | null;
   markdownDocumentApplyViewPreset: boolean;
+  markdownDocumentApplyRevision: number;
   markdownTokens: TokenWithLines[] | null;
   markdownTokensPath: string | null;
   markdownTokensKey: string | null;
@@ -253,7 +254,7 @@ export interface GraphStatePanelsMarkdown {
   setMarkdownDocument: (
     name: string | null,
     text: string | null,
-    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
+    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean; forceRevision?: boolean },
   ) => void;
   setActiveMarkdownDocument: (args: {
     name: string

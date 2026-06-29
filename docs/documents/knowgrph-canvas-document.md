@@ -199,6 +199,8 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Graph data commits preserve overlay-carryover state: when a commit modifies graph data, overlay-managed node positions and connected edges are carried over to the new revision so pinned overlays do not drift.
 - Widget world positions are stored per graph meta key (`flowWidgetWorldPosByNodeIdByGraphMetaKey`) so positions persist correctly when switching between frontmatter-flow graphs; transient placement authorities are reset on workspace reopen.
 - Frontmatter-flow auto-managed widgets (text/image/video generation, rich media panel, video transcriber) use a centralized placement authority (`widgetPlacementAuthority.ts`) that decides auto-placement, pinned-in-canvas defaults, screen-space authority for floating widgets, and balanced collective layout preservation.
+- Applied markdown document authority must include explicit reapply epochs, not only document path identity: when `applyMarkdownDocument(...)` replays the active source authority, Flow Editor draft lifetime must invalidate on the shared applied-document semantic key plus an incremented apply revision even if the path and markdown text are unchanged.
+- Same-path same-text source reapply is a real reset boundary: transient Flow Editor draft panels, Storyboard Rich Media panels, and authored draft-only edges must clear back to source-owned baseline state before the next render or drop cycle rather than persisting until a path/text change happens.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 

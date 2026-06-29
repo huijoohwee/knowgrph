@@ -32,6 +32,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const mediaLightboxPromptParametersSource = readFileSync(new URL('../lib/ui/mediaLightboxPromptParameters.ts', import.meta.url), 'utf8')
   const mediaKindOverlaySource = readFileSync(new URL('../lib/ui/MediaKindOverlay.tsx', import.meta.url), 'utf8')
   assertStoryboard2dMediaDropContract()
+  if (!source.includes("from '@/lib/render/richMediaPanelDefaults'") || !source.includes('resolveMediaDragEventReleaseClientPoint') || !source.includes('clientX - rect.left - transform.x') || !source.includes('clientY - rect.top - transform.y') || !source.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 2') || !source.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2')) throw new Error('expected native Storyboard canvas FloatingPanel Media drops to center new Rich Media panels on the pan/zoom-correct release point')
+  if (source.includes('existingSourceNodeId') || source.includes("findStoryboardGraphNodeIdByProperty([useGraphStore.getState().graphData as GraphData | null, storeGraphData, graphData], FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, 'mediaSourceKey'")) throw new Error('forbid source-key duplicate drops from moving a previous Storyboard Rich Media Panel')
   if (
     !canvasViewportSource.includes("const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'")
     || !canvasViewportSource.includes('data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}')
@@ -60,7 +62,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'const [pendingOverlayNodesById, setPendingOverlayNodesById] = React.useState<Record<string, GraphNode>>({})',
     'const registerPendingOverlayNode = React.useCallback<React.Dispatch<React.SetStateAction<GraphNode | null>>>((nextPendingNode) => {',
     'const flowCanvasGraphDataWithPendingOverlays = React.useMemo(',
-    'appendPendingOverlayNodesToGraphData(flowCanvasGraphDataOverride, pendingOverlayNodesById)',
+    'appendPendingOverlayNodesToGraphData(resolvePendingOverlayGraphDataBase({',
     'setPendingOverlayNodesById(prev => {',
     'delete next[id]',
     'resolveGraphNodeByCanonicalId(baseGraphData, pendingId)',
@@ -701,10 +703,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'data-kg-storyboard-card-media-drop="1"',
     'const handleDropStoryboardCanvasMediaNode = React.useCallback',
     "addHistory('Storyboard canvas media')",
-    'const handleStoryboardCanvasMediaNativeDrop = React.useCallback',
-    'handleDropStoryboardCanvasMediaNode(payload, event.clientX, event.clientY)',
-    'window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop)',
-    "window.addEventListener('pointerup', handleWindowPointerMediaRelease, true)",
+    'const handleStoryboardCanvasMediaNativeDrop = React.useCallback', 'const release = resolveMediaDragEventReleaseClientPoint(event.nativeEvent)', 'handleDropStoryboardCanvasMediaNode(payload, release.clientX, release.clientY)',
+    'window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, handleCanvasPointerDragDrop)', "window.addEventListener('pointerup', handleWindowPointerMediaRelease, true)",
     'onDropCapture={handleStoryboardCanvasMediaNativeDrop}',
     'onPointerUpCapture={handleStoryboardCanvasPointerMediaDrop}',
     'onDragOver={handleStoryboardCardMediaNativeDragOver}',

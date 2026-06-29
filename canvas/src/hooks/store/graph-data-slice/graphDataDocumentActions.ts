@@ -257,7 +257,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   setMarkdownDocument: (
     name: string | null,
     text: string | null,
-    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
+    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean; forceRevision?: boolean },
   ) => {
     const state = get()
     const nextText = state.markdownDocumentName === name
@@ -284,9 +284,11 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       state.markdownDocumentName !== name ||
       state.markdownDocumentText !== nextText ||
       state.markdownDocumentApplyViewPreset !== applyViewPreset
+    const shouldBumpApplyRevision = documentSwitches || opts?.forceRevision === true
     if (
       !needsAutoEnable &&
-      !documentSwitches
+      !documentSwitches &&
+      !shouldBumpApplyRevision
     ) return
     const transitionState = documentSwitches
       ? buildWorkspaceGraphMutationTransitionState({
@@ -300,10 +302,11 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           }),
         })
       : {}
-    set({
+    set(prev => ({
       markdownDocumentName: name,
       markdownDocumentText: nextText,
       markdownDocumentApplyViewPreset: applyViewPreset,
+      ...(shouldBumpApplyRevision ? { markdownDocumentApplyRevision: (prev.markdownDocumentApplyRevision || 0) + 1 } : {}),
       markdownTokens: null, // Invalidate tokens
       markdownTokensPath: null,
       markdownTokensKey: null,
@@ -311,7 +314,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       markdownTokensStartLineOffset: null,
       ...(needsAutoEnable ? { frontmatterModeEnabled: true } : {}),
       ...transitionState,
-    })
+    }))
   },
 
   setActiveMarkdownDocument: async (args: {
@@ -367,6 +370,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     get().setMarkdownDocument(name, text, {
       autoEnableFrontmatter: args?.autoEnableFrontmatter,
       applyViewPreset: args?.applyViewPreset,
+      forceRevision: args?.applyToGraph === true && args?.forceApplyToGraph !== false,
     })
 
     if ((args?.applyViewPreset !== false || shouldApplyExplicitCanvasPreset) && text.trim()) {
@@ -431,6 +435,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           void 0
         }
       }
+      const requestActiveDocumentFit = (): void => {
+        if (!applyViewPresetForSwitch) return
+        const active = get()
+        if (active.markdownDocumentName !== name || active.markdownDocumentText !== text) return
+        active.requestZoom('fit', { intent: 'fitToView' })
+      }
       try {
         const graphApplied = await get().applyMarkdownDocumentToGraph(name, text, {
           force: args?.forceApplyToGraph !== false,
@@ -439,7 +449,10 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           requireActiveMarkdownDocument: true,
         })
         await replayActiveDocumentCanvasPreset()
-        if (graphApplied) return true
+        if (graphApplied) {
+          requestActiveDocumentFit()
+          return true
+        }
         const active = get()
         return !!(
           applyViewPresetForSwitch &&

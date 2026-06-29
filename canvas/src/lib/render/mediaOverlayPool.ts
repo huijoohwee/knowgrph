@@ -33,6 +33,12 @@ export type MediaOverlayNode = {
   interactive: boolean
   kind: MediaOverlayKind
   panel?: RichMediaPanelOverlayState
+  x?: number
+  y?: number
+  fx?: number
+  fy?: number
+  width?: number
+  height?: number
 }
 
 const EMPTY_NODE_BY_ID = new Map<string, GraphNode>()
@@ -46,6 +52,12 @@ type Candidate = {
   interactive: boolean
   kind: MediaOverlayKind
   panel?: RichMediaPanelOverlayState
+  x?: number
+  y?: number
+  fx?: number
+  fy?: number
+  width?: number
+  height?: number
   rank: number
   idx: number
   preferred: boolean
@@ -367,6 +379,12 @@ export function listMediaOverlayNodes(args: {
       interactive: spec.interactive,
       kind,
       ...(resolvedPanel ? { panel: resolvedPanel } : {}),
+      ...(typeof n0.x === 'number' && Number.isFinite(n0.x) ? { x: n0.x } : {}),
+      ...(typeof n0.y === 'number' && Number.isFinite(n0.y) ? { y: n0.y } : {}),
+      ...(typeof n0.fx === 'number' && Number.isFinite(n0.fx) ? { fx: n0.fx } : {}),
+      ...(typeof n0.fy === 'number' && Number.isFinite(n0.fy) ? { fy: n0.fy } : {}),
+      ...(typeof n0.width === 'number' && Number.isFinite(n0.width) ? { width: n0.width } : {}),
+      ...(typeof n0.height === 'number' && Number.isFinite(n0.height) ? { height: n0.height } : {}),
       rank,
       idx: i,
       preferred: preferredHit,
@@ -419,5 +437,11 @@ export function listMediaOverlayNodes(args: {
     interactive: n.interactive,
     kind: n.kind,
     ...(n.panel ? { panel: n.panel } : {}),
+    ...(typeof n.x === 'number' && Number.isFinite(n.x) ? { x: n.x } : {}),
+    ...(typeof n.y === 'number' && Number.isFinite(n.y) ? { y: n.y } : {}),
+    ...(typeof n.fx === 'number' && Number.isFinite(n.fx) ? { fx: n.fx } : {}),
+    ...(typeof n.fy === 'number' && Number.isFinite(n.fy) ? { fy: n.fy } : {}),
+    ...(typeof n.width === 'number' && Number.isFinite(n.width) ? { width: n.width } : {}),
+    ...(typeof n.height === 'number' && Number.isFinite(n.height) ? { height: n.height } : {}),
   }))
 }

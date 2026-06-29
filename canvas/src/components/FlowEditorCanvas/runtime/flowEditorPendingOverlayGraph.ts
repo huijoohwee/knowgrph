@@ -32,3 +32,18 @@ export function appendPendingOverlayNodesToGraphData(
     edges: Array.isArray(base.edges) ? base.edges : [],
   }
 }
+
+export function resolvePendingOverlayGraphDataBase(args: {
+  storyboardCardsMode: boolean
+  flowCanvasGraphDataOverride: GraphData | null
+  renderGraphDataOverride: GraphData | null
+  draftGraphData: GraphData | null
+  baseGraphData: GraphData | null
+}): GraphData | null {
+  if (!args.storyboardCardsMode) return args.flowCanvasGraphDataOverride
+  return args.flowCanvasGraphDataOverride
+    || args.renderGraphDataOverride
+    || args.draftGraphData
+    || args.baseGraphData
+    || { context: '', type: 'Graph', nodes: [], edges: [] }
+}

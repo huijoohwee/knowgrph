@@ -171,3 +171,21 @@ export const testMarkdownDocumentGraphApplyRejectsEmptyCachedStrybldrSourceGraph
     throw new Error('expected active Strybldr graph to contain renderer nodes after rejecting empty cached graph')
   }
 }
+
+export const testMarkdownDocumentGraphApplyRequestsFitAfterViewPresetGraphApply = async () => {
+  useGraphStore.getState().resetAll()
+  const text = buildFrontmatterFlowMarkdown()
+  const ok = await useGraphStore.getState().setActiveMarkdownDocument({
+    name: 'source-switch.md',
+    text,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeMermaidMmd: false,
+  })
+  if (!ok) throw new Error('expected markdown graph apply to succeed before asserting fit request')
+  const zoomRequest = useGraphStore.getState().zoomRequest
+  if (!zoomRequest || zoomRequest.type !== 'fit' || zoomRequest.intent !== 'fitToView') {
+    throw new Error(`expected view-preset markdown graph apply to request a fit-to-view refresh, got ${JSON.stringify(zoomRequest)}`)
+  }
+}
