@@ -5,14 +5,43 @@ import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { FORCE_SELECT_MAX_TICKS, FORCE_SELECT_TICK_MS, OVERLAY_NODE_OVERRIDE_LOCK_MS, WIDGET_DROP_DEDUPE_WINDOW_MS, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
+
+// #region debug-point A:selection-bookkeeping
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopSelectionDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
 
 export function useFlowEditorSelectionBookkeeping(args: {
   active: boolean
   editorRuntimeActive: boolean
   flowEditorViewActive: boolean
+  canvas2dRenderer: string
   overlayOnlyModeEnabled: boolean
   flowEditorFrontmatterGraphAvailable: boolean
   widgetRegistry: unknown
@@ -41,6 +70,7 @@ export function useFlowEditorSelectionBookkeeping(args: {
     active,
     editorRuntimeActive,
     flowEditorViewActive,
+    canvas2dRenderer,
     overlayOnlyModeEnabled,
     flowEditorFrontmatterGraphAvailable,
     widgetRegistry,
@@ -73,6 +103,18 @@ export function useFlowEditorSelectionBookkeeping(args: {
       preferCurrentGraphDataRefs: true,
     })
   }, [draftGraphData, draftGraphDataRevision])
+  const renderGraphDataOverrideRevision = React.useMemo(
+    () => readGraphDataRevision(renderGraphDataOverride),
+    [renderGraphDataOverride],
+  )
+  const renderGraphLookup = React.useMemo(() => {
+    return getCachedFlowEditorRenderGraph({
+      scope: 'flow-editor-selection-bookkeeping-render-graph',
+      graphData: renderGraphDataOverride,
+      graphRevision: renderGraphDataOverrideRevision,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [renderGraphDataOverride, renderGraphDataOverrideRevision])
 
   const resolveDraftGraphNode = React.useCallback((rawId: unknown): GraphNode | null => {
     if (!draftGraphLookup) return null
@@ -98,6 +140,14 @@ export function useFlowEditorSelectionBookkeeping(args: {
   React.useEffect(() => {
     if (!editorRuntimeActive || !overlayOnlyModeEnabled || !draftGraphData || flowEditorFrontmatterGraphAvailable) return
     if (isFrontmatterFlowGraph(draftGraphData as GraphData)) return
+    const focusedOverlayNodeId = String(
+      overlayNodeIdOverride
+      || pendingOverlayNode?.id
+      || pendingOverlayNodeIdRef.current
+      || pendingOpenWidgetNodeIdRef.current
+      || '',
+    ).trim()
+    if (focusedOverlayNodeId) return
     const ids = Array.from(draftGraphLookup?.nodeById.entries() || [])
       .filter(([, node]) => isFlowWidgetOverlayEligibleNode(node))
       .map(([id]) => String(id || '').trim())
@@ -109,27 +159,57 @@ export function useFlowEditorSelectionBookkeeping(args: {
     editorRuntimeActive,
     flowEditorFrontmatterGraphAvailable,
     overlayOnlyModeEnabled,
+    overlayNodeIdOverride,
+    pendingOpenWidgetNodeIdRef,
+    pendingOverlayNode,
+    pendingOverlayNodeIdRef,
     setOpenWidgetNodeIds,
     draftGraphLookup,
   ])
 
   React.useEffect(() => {
     if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return
-    const idSet = new Set<string>(draftGraphLookup?.nodeById.keys() || [])
+    const graphLookupForOpenWidgetCleanup =
+      (draftGraphLookup?.nodeById.size || 0) > 0
+        ? draftGraphLookup
+        : (renderGraphLookup?.nodeById.size || 0) > 0
+          ? renderGraphLookup
+          : null
+    if (!graphLookupForOpenWidgetCleanup) return
+    const protectedPendingOpenWidgetIds = [
+      String(pendingOverlayNode?.id || '').trim(),
+      String(pendingOverlayNodeIdRef.current || '').trim(),
+      String(pendingOpenWidgetNodeIdRef.current || '').trim(),
+      String(pendingSelectNodeIdRef.current || '').trim(),
+    ].filter(Boolean)
+    const idSet = new Set<string>(graphLookupForOpenWidgetCleanup.nodeById.keys() || [])
     const overlayEligible = new Set<string>(
-      Array.from(draftGraphLookup?.nodeById.entries() || [])
+      Array.from(graphLookupForOpenWidgetCleanup.nodeById.entries() || [])
         .filter(([, node]) => isFlowWidgetOverlayEligibleNode(node))
         .map(([id]) => String(id || '').trim())
         .filter(Boolean),
     )
+    const preserveStoryboardGraphNodeIds = canvas2dRenderer === 'storyboard'
     updateOpenWidgetNodeIds(prev => prev.filter(id => {
       const s = String(id || '')
-      return idSet.has(s) && (overlayEligible.size === 0 || overlayEligible.has(s))
+      const protectedPendingOpenWidgetId = protectedPendingOpenWidgetIds.some(protectedId => isCanonicalNodeIdEqual(protectedId, s))
+      if (protectedPendingOpenWidgetId) return true
+      return idSet.has(s) && (
+        preserveStoryboardGraphNodeIds
+        || overlayEligible.size === 0
+        || overlayEligible.has(s)
+      )
     }))
   }, [
+    canvas2dRenderer,
     draftGraphData,
     editorRuntimeActive,
     flowEditorViewActive,
+    pendingOpenWidgetNodeIdRef,
+    pendingOverlayNode,
+    pendingOverlayNodeIdRef,
+    pendingSelectNodeIdRef,
+    renderGraphLookup,
     updateOpenWidgetNodeIds,
     draftGraphLookup,
   ])
@@ -176,6 +256,28 @@ export function useFlowEditorSelectionBookkeeping(args: {
       const st = useGraphStore.getState()
       const selected = String(st.selectedNodeId || '')
       const matches = selected === cur.id
+      // #region debug-point B:force-select-tick
+      reportStoryboardMediaPanelLoopSelectionDebug({
+        hypothesisId: 'A',
+        location: 'useFlowEditorSelectionBookkeeping.ts:force-select-tick',
+        msg: 'force-select tick observed selection state',
+        data: {
+          active,
+          curId: cur.id,
+          selectedNodeId: selected,
+          matches,
+          remaining: cur.remaining,
+          untilMs: cur.untilMs,
+          canvas2dRenderer: String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || ''),
+          openWidgetNodeIds: Array.isArray((st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds)
+            ? (st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds!.map(id => String(id || '').trim()).filter(Boolean)
+            : [],
+          rendererScopedOpenWidgetNodeIds: Array.isArray((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')])
+            ? ((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')] || []).map(id => String(id || '').trim()).filter(Boolean)
+            : [],
+        },
+      })
+      // #endregion
       if (!matches) {
         useGraphStore.setState({
           selectionSource: 'canvas',
@@ -214,30 +316,59 @@ export function useFlowEditorSelectionBookkeeping(args: {
   React.useEffect(() => {
     const pending = pendingSelectNodeIdRef.current
     if (!pending) return
-    const found = draftGraphLookup?.nodeById.get(pending) || null
+    const found = resolveDraftGraphNode(pending) || resolveGraphNodeByCanonicalId(draftGraphData, pending)
     if (!found) return
+    const resolvedPendingId = String(found.id || pending).trim()
+    if (!resolvedPendingId) {
+      pendingSelectNodeIdRef.current = null
+      reservedNodeIdsRef.current.delete(pending)
+      return
+    }
+    const currentSelectedNodeId = String(useGraphStore.getState().selectedNodeId || '').trim()
+    const alreadySelectedPending = isCanonicalNodeIdEqual(currentSelectedNodeId, resolvedPendingId)
+    const alreadyUsingPendingOverride = isCanonicalNodeIdEqual(overlayNodeIdOverride, resolvedPendingId)
+    // #region debug-point C:pending-select-resolve
+    reportStoryboardMediaPanelLoopSelectionDebug({
+      hypothesisId: 'A',
+      location: 'useFlowEditorSelectionBookkeeping.ts:pending-select-resolve',
+      msg: 'pending selection resolved against draft graph',
+      data: {
+        pending,
+        resolvedPendingId,
+        currentSelectedNodeId,
+        overlayNodeIdOverride: String(overlayNodeIdOverride || '').trim(),
+        alreadySelectedPending,
+        alreadyUsingPendingOverride,
+      },
+    })
+    // #endregion
     pendingSelectNodeIdRef.current = null
     reservedNodeIdsRef.current.delete(pending)
-    setOverlayNodeIdOverride(pending)
+    reservedNodeIdsRef.current.delete(resolvedPendingId)
+    if (!alreadyUsingPendingOverride) setOverlayNodeIdOverride(resolvedPendingId)
     overlayNodeIdOverrideWasSelectedRef.current = false
     overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
-    useGraphStore.setState({
-      selectionSource: 'canvas',
-      selectedNodeId: pending,
-      selectedEdgeId: null,
-      selectedGroupId: null,
-      selectedNodeIds: [pending],
-      selectedEdgeIds: [],
-      selectedGroupIds: [],
-    })
-    scheduleForceSelect(pending, { minHoldMs: 250 })
+    if (!alreadySelectedPending) {
+      useGraphStore.setState({
+        selectionSource: 'canvas',
+        selectedNodeId: resolvedPendingId,
+        selectedEdgeId: null,
+        selectedGroupId: null,
+        selectedNodeIds: [resolvedPendingId],
+        selectedEdgeIds: [],
+        selectedGroupIds: [],
+      })
+    }
+    scheduleForceSelect(resolvedPendingId, { minHoldMs: 250 })
   }, [
     draftGraphData,
     draftGraphLookup,
+    overlayNodeIdOverride,
     overlayNodeIdOverrideUntilMsRef,
     overlayNodeIdOverrideWasSelectedRef,
     pendingSelectNodeIdRef,
     reservedNodeIdsRef,
+    resolveDraftGraphNode,
     scheduleForceSelect,
     setOverlayNodeIdOverride,
   ])
@@ -246,20 +377,55 @@ export function useFlowEditorSelectionBookkeeping(args: {
     const pending = String(pendingOpenWidgetNodeIdRef.current || '').trim()
     if (!pending) return
     const resolvedPending = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending
+    const pendingOverlayNodeMatch =
+      pendingOverlayNode && isCanonicalNodeIdEqual(String(pendingOverlayNode.id || '').trim(), resolvedPending || pending)
+        ? pendingOverlayNode
+        : null
     const found = resolveGraphNodeByCanonicalId(renderGraphDataOverride as GraphData | null, resolvedPending || pending)
-    if (!found) return
+      || pendingOverlayNodeMatch
+    if (!found) {
+      // #region debug-point E:pending-open-miss
+      reportStoryboardMediaPanelLoopSelectionDebug({
+        hypothesisId: 'C',
+        location: 'useFlowEditorSelectionBookkeeping.ts:pending-open-miss',
+        msg: 'pending open widget id is not yet present in renderGraphDataOverride',
+        data: {
+          pending,
+          resolvedPending,
+          renderGraphNodeCount: Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0,
+          pendingOverlayNodeId: String(pendingOverlayNode?.id || '').trim(),
+        },
+      })
+      // #endregion
+      return
+    }
     pendingOpenWidgetNodeIdRef.current = null
     const openId = String(found.id || resolvedPending || pending).trim()
     if (!openId) return
     if (!isFlowWidgetOverlayEligibleNode(found)) return
+    // #region debug-point F:pending-open-resolve
+    reportStoryboardMediaPanelLoopSelectionDebug({
+      hypothesisId: 'C',
+      location: 'useFlowEditorSelectionBookkeeping.ts:pending-open-resolve',
+      msg: 'pending open widget id resolved in renderGraphDataOverride',
+      data: {
+        pending,
+        resolvedPending,
+        openId,
+        nodeType: String(found.type || '').trim(),
+      },
+    })
+    // #endregion
     updateOpenWidgetNodeIds(prev => (prev.includes(openId) ? prev : [...prev, openId]))
-  }, [pendingOpenWidgetNodeIdRef, renderGraphDataOverride, updateOpenWidgetNodeIds])
+  }, [pendingOpenWidgetNodeIdRef, pendingOverlayNode, renderGraphDataOverride, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
     const override = String(overlayNodeIdOverride || '').trim()
     if (!override) return
     const selected = String(selectedNodeId || '').trim()
-    if (selected && selected === override) overlayNodeIdOverrideWasSelectedRef.current = true
+    if (selected && isCanonicalNodeIdEqual(selected, override)) {
+      overlayNodeIdOverrideWasSelectedRef.current = true
+    }
   }, [overlayNodeIdOverride, overlayNodeIdOverrideWasSelectedRef, selectedNodeId])
 
   React.useEffect(() => {
@@ -267,7 +433,20 @@ export function useFlowEditorSelectionBookkeeping(args: {
     const override = String(overlayNodeIdOverride || '').trim()
     if (!override || Date.now() > overlayNodeIdOverrideUntilMsRef.current) return
     const selected = String(selectedNodeId || '').trim()
-    if (selected === override) return
+    if (selected && isCanonicalNodeIdEqual(selected, override)) return
+    // #region debug-point D:override-force-select
+    reportStoryboardMediaPanelLoopSelectionDebug({
+      hypothesisId: 'A',
+      location: 'useFlowEditorSelectionBookkeeping.ts:override-force-select',
+      msg: 'overlay override is forcing selected node id',
+      data: {
+        override,
+        selected,
+        active,
+        overrideUntilMs: overlayNodeIdOverrideUntilMsRef.current,
+      },
+    })
+    // #endregion
     useGraphStore.setState({
       selectionSource: 'canvas',
       selectedNodeId: override,
@@ -284,12 +463,13 @@ export function useFlowEditorSelectionBookkeeping(args: {
     if (!override) return
     const now = Date.now()
     const selected = String(selectedNodeId || '').trim()
-    if (overlayNodeIdOverrideWasSelectedRef.current && selected && selected !== override && now > overlayNodeIdOverrideUntilMsRef.current) {
+    const selectedMatchesOverride = selected ? isCanonicalNodeIdEqual(selected, override) : false
+    if (overlayNodeIdOverrideWasSelectedRef.current && selected && !selectedMatchesOverride && now > overlayNodeIdOverrideUntilMsRef.current) {
       setOverlayNodeIdOverride(null)
       return
     }
     if (now <= overlayNodeIdOverrideUntilMsRef.current) return
-    const found = draftGraphLookup?.nodeById.get(override) || null
+    const found = resolveDraftGraphNode(override) || resolveGraphNodeByCanonicalId(draftGraphData, override)
     if (!found) setOverlayNodeIdOverride(null)
   }, [
     draftGraphData,

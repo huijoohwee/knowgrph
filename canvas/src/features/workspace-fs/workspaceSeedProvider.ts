@@ -12,6 +12,77 @@ import { isWorkspaceDocsMirrorGitHubSourceUrl, readWorkspaceDocsMirrorEntriesFro
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
+const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000
+// #region debug-point A:workspace-mirror-bootstrap
+const WORKSPACE_MIRROR_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const WORKSPACE_MIRROR_DEBUG_SESSION_ID = 'storyboard-aborted-loads'
+let workspaceMirrorDebugSequence = 0
+const configuredDocsMirrorDatasetCache = new Map<string, {
+  entries: WorkspaceDocsMirrorEntry[]
+  expiresAtMs: number
+}>()
+const configuredDocsMirrorDatasetInFlight = new Map<string, Promise<WorkspaceDocsMirrorEntry[]>>()
+const nextWorkspaceMirrorDebugTraceId = (label: string): string => `${label}:${Date.now()}:${workspaceMirrorDebugSequence += 1}`
+const reportWorkspaceMirrorDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  traceId: string
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}): void => {
+  if (typeof fetch !== 'function') return
+  void fetch(WORKSPACE_MIRROR_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: WORKSPACE_MIRROR_DEBUG_SESSION_ID,
+      runId: 'post-fix',
+      hypothesisId: args.hypothesisId,
+      traceId: args.traceId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
+const cloneWorkspaceDocsMirrorEntries = (
+  entries: ReadonlyArray<WorkspaceDocsMirrorEntry>,
+): WorkspaceDocsMirrorEntry[] => {
+  return (Array.isArray(entries) ? entries : []).map(entry => ({ ...entry }))
+}
+const readCachedConfiguredDocsMirrorEntries = async (args: {
+  cacheKey: string
+  load: () => Promise<WorkspaceDocsMirrorEntry[]>
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  const cacheKey = normalizeAbsRoot(args.cacheKey)
+  if (!cacheKey) return []
+  const now = Date.now()
+  const cached = configuredDocsMirrorDatasetCache.get(cacheKey)
+  if (cached && cached.expiresAtMs > now) {
+    configuredDocsMirrorDatasetCache.delete(cacheKey)
+    configuredDocsMirrorDatasetCache.set(cacheKey, cached)
+    return cloneWorkspaceDocsMirrorEntries(cached.entries)
+  }
+  if (cached) configuredDocsMirrorDatasetCache.delete(cacheKey)
+  const inFlight = configuredDocsMirrorDatasetInFlight.get(cacheKey)
+  if (inFlight) return cloneWorkspaceDocsMirrorEntries(await inFlight)
+  const promise = args.load()
+  configuredDocsMirrorDatasetInFlight.set(cacheKey, promise)
+  try {
+    const entries = await promise
+    configuredDocsMirrorDatasetCache.set(cacheKey, {
+      entries: cloneWorkspaceDocsMirrorEntries(entries),
+      expiresAtMs: Date.now() + LOCAL_DOCS_MIRROR_CACHE_TTL_MS,
+    })
+    return cloneWorkspaceDocsMirrorEntries(entries)
+  } finally {
+    configuredDocsMirrorDatasetInFlight.delete(cacheKey)
+  }
+}
 const normalizeRelPath = (value: string): string => {
   return String(value || '')
     .trim()
@@ -1065,37 +1136,114 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
   docsAbsRoot: string,
 ): Promise<WorkspaceDocsMirrorEntry[]> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return []
-  try {
-    const response = await fetch(KG_FS_LIST_PATH, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        path: docsAbsRoot,
-        maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
-      }),
-    })
-    if (!response.ok) return []
-    const json = (await response.json()) as {
-      ok?: boolean
-      files?: Array<{ relPath?: unknown; text?: unknown; updatedAtMs?: unknown }>
-    }
-    if (json.ok !== true || !Array.isArray(json.files)) return []
-    const out: WorkspaceDocsMirrorEntry[] = []
-    for (let i = 0; i < json.files.length; i += 1) {
-      const item = json.files[i]
-      const relPath = normalizeMirrorRelPath(String(item?.relPath || ''))
-      if (!relPath) continue
-      const text = typeof item?.text === 'string' ? item.text : ''
-      out.push({
-        relPath,
-        text,
-        updatedAtMs: Number.isFinite(Number(item?.updatedAtMs)) ? Math.floor(Number(item?.updatedAtMs)) : Date.now(),
+  return readCachedConfiguredDocsMirrorEntries({
+    cacheKey: docsAbsRoot,
+    load: async () => {
+      const traceId = nextWorkspaceMirrorDebugTraceId('proxy')
+      const startedAtMs = Date.now()
+      // #region debug-point B:workspace-mirror-proxy-start
+      reportWorkspaceMirrorDebug({
+        hypothesisId: 'B',
+        traceId,
+        location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:start',
+        msg: 'workspace docs mirror proxy request started',
+        data: {
+          docsAbsRoot,
+          maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
+        },
       })
-    }
-    return out
-  } catch {
-    return []
-  }
+      // #endregion
+      try {
+        const response = await fetch(KG_FS_LIST_PATH, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            path: docsAbsRoot,
+            maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
+          }),
+        })
+        if (!response.ok) {
+          // #region debug-point C:workspace-mirror-proxy-non-ok
+          reportWorkspaceMirrorDebug({
+            hypothesisId: 'C',
+            traceId,
+            location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:non-ok',
+            msg: 'workspace docs mirror proxy request returned non-ok status',
+            data: {
+              docsAbsRoot,
+              status: response.status,
+              durationMs: Date.now() - startedAtMs,
+            },
+          })
+          // #endregion
+          return []
+        }
+        const json = (await response.json()) as {
+          ok?: boolean
+          files?: Array<{ relPath?: unknown; text?: unknown; updatedAtMs?: unknown }>
+        }
+        if (json.ok !== true || !Array.isArray(json.files)) {
+          // #region debug-point C:workspace-mirror-proxy-invalid-json
+          reportWorkspaceMirrorDebug({
+            hypothesisId: 'C',
+            traceId,
+            location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:invalid-json',
+            msg: 'workspace docs mirror proxy request returned an invalid payload',
+            data: {
+              docsAbsRoot,
+              ok: json.ok === true,
+              hasFilesArray: Array.isArray(json.files),
+              durationMs: Date.now() - startedAtMs,
+            },
+          })
+          // #endregion
+          return []
+        }
+        const out: WorkspaceDocsMirrorEntry[] = []
+        for (let i = 0; i < json.files.length; i += 1) {
+          const item = json.files[i]
+          const relPath = normalizeMirrorRelPath(String(item?.relPath || ''))
+          if (!relPath) continue
+          const text = typeof item?.text === 'string' ? item.text : ''
+          out.push({
+            relPath,
+            text,
+            updatedAtMs: Number.isFinite(Number(item?.updatedAtMs)) ? Math.floor(Number(item?.updatedAtMs)) : Date.now(),
+          })
+        }
+        // #region debug-point D:workspace-mirror-proxy-success
+        reportWorkspaceMirrorDebug({
+          hypothesisId: 'D',
+          traceId,
+          location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:success',
+          msg: 'workspace docs mirror proxy request completed',
+          data: {
+            docsAbsRoot,
+            fileCount: out.length,
+            durationMs: Date.now() - startedAtMs,
+          },
+        })
+        // #endregion
+        return out
+      } catch (error: unknown) {
+        // #region debug-point E:workspace-mirror-proxy-error
+        reportWorkspaceMirrorDebug({
+          hypothesisId: 'E',
+          traceId,
+          location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:error',
+          msg: 'workspace docs mirror proxy request threw',
+          data: {
+            docsAbsRoot,
+            durationMs: Date.now() - startedAtMs,
+            errorName: error instanceof Error ? error.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error || ''),
+          },
+        })
+        // #endregion
+        return []
+      }
+    },
+  })
 }
 
 const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
@@ -1175,9 +1323,24 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   preferCompleteDataset?: boolean
 }): Promise<WorkspaceDocsMirrorEntry[]> {
   const preferCompleteDataset = args?.preferCompleteDataset === true
+  const traceId = nextWorkspaceMirrorDebugTraceId('bootstrap')
   const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = []
   const defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
   const defaultSourceUrlIsGitHub = isWorkspaceDocsMirrorGitHubSourceUrl(defaultSourceUrl)
+  // #region debug-point A:workspace-mirror-bootstrap-entry
+  reportWorkspaceMirrorDebug({
+    hypothesisId: 'A',
+    traceId,
+    location: 'workspaceSeedProvider.ts:readWorkspaceInitializationDocsMirrorEntries:entry',
+    msg: 'workspace docs mirror bootstrap entered',
+    data: {
+      preferCompleteDataset,
+      defaultSourceUrlIsGitHub,
+      hasDefaultSourceUrl: !!defaultSourceUrl,
+      docsAbsRoot: readWorkspaceInitializationDocsAbsRoot(),
+    },
+  })
+  // #endregion
   if (defaultSourceUrlIsGitHub) {
     const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
       url: defaultSourceUrl,

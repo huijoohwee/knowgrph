@@ -10,6 +10,7 @@ import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 
 function readDraftRevisionFloor(graphData: GraphData | null | undefined): number {
   const raw = (graphData?.metadata || {}) as Record<string, unknown>
@@ -72,6 +73,7 @@ export function useFlowEditorGraphActions(args: {
   setPendingEdgeSourcePortKey: React.Dispatch<React.SetStateAction<string | null>>
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
 }) {
+  const portHandleDragPreviewActiveRef = React.useRef(false)
   const materializeConnectedMediaValue = React.useCallback((materializeArgs: {
     sourceNode: GraphNode | null
     targetNode: GraphNode | null
@@ -253,9 +255,29 @@ export function useFlowEditorGraphActions(args: {
   }, [args])
 
   React.useEffect(() => {
+    if (args.toolMode !== 'addEdge') {
+      portHandleDragPreviewActiveRef.current = false
+      return
+    }
+    if (typeof document === 'undefined') return
+    const handlePreview = (event: Event) => {
+      const detail = (event as CustomEvent<FlowPortHandlePreviewDetail>).detail
+      const previewSourceId = String(detail?.sourceNodeId || '').trim()
+      if (!previewSourceId || previewSourceId !== String(args.pendingEdgeSourceId || '').trim()) return
+      portHandleDragPreviewActiveRef.current = detail?.phase !== 'cancel'
+    }
+    document.addEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, handlePreview)
+    return () => {
+      document.removeEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, handlePreview)
+      portHandleDragPreviewActiveRef.current = false
+    }
+  }, [args.pendingEdgeSourceId, args.toolMode])
+
+  React.useEffect(() => {
     if (!args.active) return
     if (args.toolMode !== 'addEdge') return
     if (!args.selectedNodeId) return
+    if (portHandleDragPreviewActiveRef.current) return
     finalizePendingEdge(args.selectedNodeId)
   }, [args.active, args.selectedNodeId, args.toolMode, finalizePendingEdge])
 
@@ -271,6 +293,7 @@ export function useFlowEditorGraphActions(args: {
       vx?: number | null
       vy?: number | null
       properties?: Record<string, unknown>
+      skipPendingSelect?: boolean
     }) => {
       const base: GraphData = (args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData || {
         context: '',
@@ -328,7 +351,7 @@ export function useFlowEditorGraphActions(args: {
         args.draftGraphDataRef.current = nextDraftGraphData
         args.setDraftGraphData(nextDraftGraphData)
       }
-      args.pendingSelectNodeIdRef.current = actualId
+      if (nodeArgs.skipPendingSelect !== true) args.pendingSelectNodeIdRef.current = actualId
       return actualId
     },
     [args, readLiveGraphData],

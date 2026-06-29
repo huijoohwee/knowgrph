@@ -781,6 +781,8 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(timelinePanelText.includes('useTimelineTransportPlayback'), 'expected Strybldr timeline panel to reuse the shared playback loop')
   assert(timelinePanelText.includes('buildStoryboardBoardModel'), 'expected Strybldr timeline panel to reuse the Storyboard board model')
   assert(timelinePanelText.includes('board.semanticKey'), 'expected Strybldr timeline state to reset from the shared Storyboard semantic key')
+  assert(timelinePanelText.includes('const hasSelectedTimelineItem = React.useMemo(() => {'), 'expected Strybldr timeline selection sync to detect when the active selection is not part of the timeline')
+  assert(timelinePanelText.includes('if (selectedNodeId && !hasSelectedTimelineItem) return'), 'expected Strybldr timeline not to overwrite non-timeline selections such as Rich Media panels')
   assert(!timelinePanelText.includes('type="range"'), 'expected Strybldr timeline panel to avoid a local range input duplicate')
   assert(storyboardTimelineText.includes('buildStoryboardTimelineItems'), 'expected Storyboard timeline projection to live in a shared helper')
   assert(storyboardTimelineText.includes('resolveStoryboardTimelineIndex'), 'expected Strybldr selection to use shared timeline index semantics')

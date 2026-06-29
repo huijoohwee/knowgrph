@@ -604,11 +604,95 @@ export default function StoryboardCanvas({
       properties: (appendArgs.properties || {}) as never,
     }
     const nextGraph = normalizeGraphData({ ...currentGraph, nodes: [...currentNodes, nextNode] })
+    if (
+      appendArgs.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      && markdownDocumentName
+      && markdownDocumentText
+    ) {
+      const nextProperties = (appendArgs.properties || {}) as Record<string, unknown>
+      const mediaKind =
+        readStoryboardScalar(nextProperties.mediaKind)
+        || readStoryboardScalar(nextProperties.richMediaActiveTab)
+        || (readStoryboardScalar(nextProperties.videoUrl) ? 'video' : '')
+        || (readStoryboardScalar(nextProperties.audioUrl) ? 'audio' : '')
+        || (readStoryboardScalar(nextProperties.imageUrl) ? 'image' : '')
+      const mediaUrl =
+        readStoryboardScalar(nextProperties.mediaUrl)
+        || readStoryboardScalar(nextProperties.sourceUrl)
+        || readStoryboardScalar(nextProperties.renderUrl)
+        || readStoryboardScalar(nextProperties.videoUrl)
+        || readStoryboardScalar(nextProperties.audioUrl)
+        || readStoryboardScalar(nextProperties.imageUrl)
+      const maxOrder = board.lanes.reduce((max, lane) => {
+        return lane.cards.reduce((laneMax, card) => Math.max(laneMax, Number.isFinite(card.order) ? card.order : 0), max)
+      }, 0)
+      let nextMarkdownText = appendStrybldrStoryboardMarkdownElement({
+        text: markdownDocumentText,
+        nodeId: nextId,
+        title: nextNode.label,
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        lane: STORYBOARD_EMPTY_LANE,
+        order: maxOrder + 1,
+      })
+      if (nextMarkdownText) {
+        const nextMarkdownPatch: {
+          title?: string
+          type?: string
+          lane?: string
+          order?: number
+          outputSrcDoc?: string
+          imageUrl?: string
+          mediaKind?: string
+          mediaUrl?: string
+          renderUrl?: string
+          sourceUrl?: string
+        } = {
+          title: nextNode.label,
+          type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+          lane: STORYBOARD_EMPTY_LANE,
+          order: maxOrder + 1,
+        }
+        const outputSrcDoc = readStoryboardScalar(nextProperties.outputSrcDoc)
+        const imageUrl = readStoryboardScalar(nextProperties.imageUrl)
+        const renderUrl = readStoryboardScalar(nextProperties.renderUrl)
+        const sourceUrl = readStoryboardScalar(nextProperties.sourceUrl) || mediaUrl
+        if (outputSrcDoc) nextMarkdownPatch.outputSrcDoc = outputSrcDoc
+        if (imageUrl) nextMarkdownPatch.imageUrl = imageUrl
+        if (mediaKind) nextMarkdownPatch.mediaKind = mediaKind
+        if (mediaUrl) nextMarkdownPatch.mediaUrl = mediaUrl
+        if (renderUrl) nextMarkdownPatch.renderUrl = renderUrl
+        if (sourceUrl) nextMarkdownPatch.sourceUrl = sourceUrl
+        nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({
+          text: nextMarkdownText,
+          nodeId: nextId,
+          patch: nextMarkdownPatch,
+        }) || nextMarkdownText
+        if (commitStoryboardMarkdownMutation({
+          nextMarkdownText,
+          historyLabel: 'Storyboard media panel',
+          nextSelectedNodeId: nextId,
+        })) {
+          storyboardRunGraphRef.current = nextGraph
+          setGraphDataPreservingLayout(nextGraph)
+          updateOpenWidgetNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
+          return nextId
+        }
+      }
+    }
     storyboardRunGraphRef.current = nextGraph
     setGraphDataPreservingLayout(nextGraph)
     updateOpenWidgetNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
     return nextId
-  }, [graphData, setGraphDataPreservingLayout, storeGraphData, updateOpenWidgetNodeIds])
+  }, [
+    board.lanes,
+    commitStoryboardMarkdownMutation,
+    graphData,
+    markdownDocumentName,
+    markdownDocumentText,
+    setGraphDataPreservingLayout,
+    storeGraphData,
+    updateOpenWidgetNodeIds,
+  ])
   const runStoryboardWorkflowNode = React.useMemo(() => createFlowEditorWorkflowNodeRunner({
     baseGraphKind: storyboardRunBaseGraphKind,
     baseGraphData: storeGraphData || graphData || null,

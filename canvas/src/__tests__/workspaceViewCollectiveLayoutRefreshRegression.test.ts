@@ -1330,6 +1330,9 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
   if (!text.includes('top: entry.rect.top - surfaceOffsetTop')) {
     throw new Error('expected Flow Editor overlay fit bounds to store top edge in active surface-local coordinates')
   }
+  if (!text.includes('pushEntries(SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR)')) {
+    throw new Error('expected Flow Editor overlay fit bounds to include semantic Storyboard fixed-card overlay roots')
+  }
   if (!text.includes('const fitW = Math.max(1, visibleViewport.width - pad * 2)')) {
     throw new Error('expected Flow Editor zoom fit to clamp collective bounds to the shared visible viewport width')
   }
@@ -1358,6 +1361,7 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
     throw new Error('expected Flow Editor zoom fit/reset to keep post-fit collective recentering active for workspace-open frontmatter collective fits')
   }
   if (!text.includes('const fitHasCollectiveOverlayFit =')
+    || !text.includes("resolveCanvas2dRendererId(state.canvas2dRenderer) === 'storyboard'")
     || !text.includes("String(fitGraphMeta.kind || '').trim() === 'frontmatter-flow'")
     || !text.includes("fitGraphContext === 'frontmatter-flow'")
     || !text.includes('const useWorkspaceOverlayGraphFallbackFit =')

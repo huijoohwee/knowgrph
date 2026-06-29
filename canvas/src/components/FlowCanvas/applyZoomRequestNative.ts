@@ -13,6 +13,7 @@ import {
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
@@ -77,6 +78,7 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   }
   pushEntries(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
   pushEntries(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+  pushEntries(SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR)
   const entries = Array.from(merged.values()).filter(entry =>
     Number.isFinite(entry.left)
     && Number.isFinite(entry.right)
@@ -309,6 +311,7 @@ export const applyZoomRequestNative = (args: {
   const fitGraphContext = String(args.graphData?.context || '').trim()
   const fitHasCollectiveOverlayFit =
     (Array.isArray(state.openWidgetNodeIds) && state.openWidgetNodeIds.length > 0)
+    || resolveCanvas2dRendererId(state.canvas2dRenderer) === 'storyboard'
     || String(fitGraphMeta.kind || '').trim() === 'frontmatter-flow'
     || fitGraphContext === 'frontmatter-flow'
   const shouldRecenterFlowEditorCollectiveAfterFit =

@@ -228,3 +228,63 @@ export async function testFlowPortHandlePointerDragCancelsWhenReleasedWithoutTar
     else delete (globalThis as { document?: Document }).document
   }
 }
+
+export async function testFlowPortHandleMouseFallbackDoesNotStartDuringActivePointerDrag() {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>')
+  const previousDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: dom.window.document })
+  const target = document.createElement('button')
+  target.dataset.kgPortHandle = '1'
+  target.dataset.kgPortDir = 'in'
+  target.dataset.kgPortNodeId = 'target-node'
+  target.dataset.kgPortKey = 'imageUrl'
+  document.body.appendChild(target)
+
+  const originalElementFromPoint = document.elementFromPoint
+  Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => target })
+  const previewDetails: FlowPortHandlePreviewDetail[] = []
+  let finalizeCount = 0
+  document.addEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, event => {
+    previewDetails.push((event as CustomEvent<FlowPortHandlePreviewDetail>).detail)
+  })
+  document.addEventListener(FLOW_PORT_HANDLE_FINALIZE_EVENT, event => {
+    finalizeCount += 1
+    event.preventDefault()
+  })
+
+  try {
+    const pointerStarted = startFlowPortHandlePointerDrag({
+      event: { button: 0, pointerId: 11, preventDefault: () => undefined } as React.PointerEvent<HTMLButtonElement>,
+      sourceNodeId: 'source-node',
+      sourcePortKey: 'imageUrl',
+    })
+    const mouseStarted = startFlowPortHandleMouseDrag({
+      event: { button: 0, preventDefault: () => undefined } as React.MouseEvent<HTMLButtonElement>,
+      sourceNodeId: 'source-node',
+      sourcePortKey: 'imageUrl',
+    })
+    const mouseMove = new dom.window.MouseEvent('mousemove', { clientX: 8, clientY: 16 })
+    document.dispatchEvent(mouseMove)
+    const mouseUp = new dom.window.MouseEvent('mouseup', { clientX: 10, clientY: 20 })
+    document.dispatchEvent(mouseUp)
+    await new Promise(resolve => setTimeout(resolve, 5))
+    if (!pointerStarted) throw new Error('expected primary pointer drag session to start')
+    if (mouseStarted) throw new Error('expected mouse fallback drag session to be ignored while pointer drag is active')
+    const previewStartCount = previewDetails.filter(detail => detail.phase === 'start').length
+    if (previewStartCount !== 1) {
+      throw new Error(`expected one preview start for the owning pointer drag session, got ${previewStartCount}`)
+    }
+    if (!previewDetails.some(detail => detail.phase === 'move' && detail.clientX === 8 && detail.clientY === 16)) {
+      throw new Error(`expected pointer-owned drag session to continue consuming mouse move events, got ${JSON.stringify(previewDetails)}`)
+    }
+    if (finalizeCount !== 1) {
+      throw new Error(`expected one finalize event after suppressing duplicate mouse fallback, got ${finalizeCount}`)
+    }
+  } finally {
+    target.remove()
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: originalElementFromPoint })
+    dom.window.close()
+    if (previousDocumentDescriptor) Object.defineProperty(globalThis, 'document', previousDocumentDescriptor)
+    else delete (globalThis as { document?: Document }).document
+  }
+}

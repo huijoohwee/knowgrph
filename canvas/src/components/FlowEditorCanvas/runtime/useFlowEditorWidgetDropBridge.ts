@@ -57,6 +57,34 @@ import {
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 
+// #region debug-point A:widget-drop-bridge-media-panel
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopWidgetDropDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
+
 function addFlowEditorUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
   const id = String(rawId || '').trim()
   if (!id) return
@@ -116,6 +144,12 @@ export function useFlowEditorWidgetDropBridge(args: {
   setLastDroppedWidgetToken: React.Dispatch<React.SetStateAction<number>>
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
 }) {
+  const openPendingOverlayNode = React.useCallback((rawId: unknown) => {
+    const id = String(rawId || '').trim()
+    if (!id) return
+    useGraphStore.getState().updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+  }, [])
+
   const syncGrabMapsDiscoveryGeoFromDropCursor = React.useCallback(
     (payload: { id: string; properties: Record<string, unknown> }) => {
       if (!args.widgetDropBridgeOnly) return
@@ -277,7 +311,7 @@ export function useFlowEditorWidgetDropBridge(args: {
       for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)
       const requestedId = createUniqueId('n', used)
       args.reservedNodeIdsRef.current.add(requestedId)
-      const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties })
+      const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties, skipPendingSelect: true })
       if (!actualId) {
         args.reservedNodeIdsRef.current.delete(requestedId)
         return
@@ -294,6 +328,7 @@ export function useFlowEditorWidgetDropBridge(args: {
       args.overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
       args.lastDroppedWidgetNodeIdRef.current = actualId
       args.setLastDroppedWidgetToken(Date.now())
+      openPendingOverlayNode(actualId)
       useGraphStore.setState({
         selectionSource: 'canvas',
         selectedNodeId: actualId,
@@ -317,7 +352,7 @@ export function useFlowEditorWidgetDropBridge(args: {
         }
       }
     },
-    [args, syncGrabMapsDiscoveryGeoFromDropCursor],
+    [args, openPendingOverlayNode, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
 
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {
@@ -348,6 +383,7 @@ export function useFlowEditorWidgetDropBridge(args: {
       vx: 0,
       vy: 0,
       properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }),
+      skipPendingSelect: true,
     })
     if (!actualId) {
       args.reservedNodeIdsRef.current.delete(requestedId)
@@ -360,12 +396,27 @@ export function useFlowEditorWidgetDropBridge(args: {
     args.overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
     args.lastDroppedWidgetNodeIdRef.current = actualId
     args.setLastDroppedWidgetToken(Date.now())
+    openPendingOverlayNode(actualId)
     useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: actualId, selectedEdgeId: null, selectedGroupId: null, selectedNodeIds: [actualId], selectedEdgeIds: [], selectedGroupIds: [] })
     args.scheduleForceSelect(actualId, { minHoldMs: 700 })
     args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, fx: x, fy: y, vx: 0, vy: 0, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
     args.pendingOpenWidgetNodeIdRef.current = actualId
+    // #region debug-point B:widget-drop-bridge-media-panel
+    reportStoryboardMediaPanelLoopWidgetDropDebug({
+      hypothesisId: 'D',
+      location: 'useFlowEditorWidgetDropBridge.ts:add-rich-media-panel',
+      msg: 'widget drop bridge created pending rich media panel node',
+      data: {
+        actualId,
+        baseGraphNodeCount: Array.isArray(base?.nodes) ? base.nodes.length : 0,
+        liveGraphNodeCount: Array.isArray(liveGraphData?.nodes) ? liveGraphData.nodes.length : 0,
+        mediaKind: String(payload.media.kind || '').trim(),
+        mediaSourceKey: String(payload.media.sourceKey || '').trim(),
+      },
+    })
+    // #endregion
     return actualId
-  }, [args])
+  }, [args, openPendingOverlayNode])
 
   React.useEffect(() => {
     if (!(args.active || args.widgetDropCaptureEnabled)) return

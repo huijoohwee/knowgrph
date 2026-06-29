@@ -37,6 +37,10 @@ export function StrybldrTimelinePanel({ active = true }: { active?: boolean }) {
   const maxPosition = Math.max(0, timelineItems.length - 1)
   const activeIndex = resolveStoryboardTimelineIndex(position, timelineItems.length)
   const activeItem = activeIndex >= 0 ? timelineItems[activeIndex] || null : null
+  const hasSelectedTimelineItem = React.useMemo(() => {
+    if (!selectedNodeId) return false
+    return timelineItems.some(item => item.id === selectedNodeId)
+  }, [selectedNodeId, timelineItems])
   const positionLabel = formatStoryboardTimelinePositionLabel(activeIndex, timelineItems.length)
   const { currentLabel, totalLabel } = React.useMemo(
     () => splitTimelineTransportCurrentTotalLabel(positionLabel),
@@ -57,9 +61,10 @@ export function StrybldrTimelinePanel({ active = true }: { active?: boolean }) {
   }, [selectedNodeId, timelineItems])
 
   React.useEffect(() => {
+    if (selectedNodeId && !hasSelectedTimelineItem) return
     if (!activeItem || selectedNodeId === activeItem.id) return
     selectNode(activeItem.id)
-  }, [activeItem, selectNode, selectedNodeId])
+  }, [activeItem, hasSelectedTimelineItem, selectNode, selectedNodeId])
 
   useTimelineTransportPlayback({
     active,

@@ -45,8 +45,8 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   if (!flowStoreText.includes('markdownDocumentApplyViewPreset: s.markdownDocumentApplyViewPreset')) {
     throw new Error('expected Flow Editor render state to receive the active document apply flag')
   }
-  if (!flowStoreText.includes("s.openWidgetNodeIdsByRenderer?.flowEditor")) {
-    throw new Error('expected Flow Editor runtime store state to read renderer-scoped open-widget ids before any global fallback')
+  if (!flowStoreText.includes('Array.isArray(s.openWidgetNodeIdsByRenderer?.[s.canvas2dRenderer])')) {
+    throw new Error('expected Flow Editor runtime store state to read active-renderer-scoped open-widget ids before any global fallback')
   }
   if (!flowStoreText.includes('flowWidgetPinnedByNodeId: resolveScopedFlowWidgetNodeMap({')) {
     throw new Error('expected Flow Editor runtime store state to read pinned widget state through the shared graph-scoped helper')

@@ -60,8 +60,8 @@ export function useFlowEditorRuntimeStoreState() {
       effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_WIDGET_REGISTRY,
       baseWidgetRegistry: Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_WIDGET_REGISTRY,
       openWidgetNodeIds:
-        (s.openWidgetNodeIdsByRenderer?.flowEditor && Array.isArray(s.openWidgetNodeIdsByRenderer.flowEditor)
-          ? s.openWidgetNodeIdsByRenderer.flowEditor
+        (Array.isArray(s.openWidgetNodeIdsByRenderer?.[s.canvas2dRenderer])
+          ? s.openWidgetNodeIdsByRenderer[s.canvas2dRenderer]
           : s.openWidgetNodeIds) ?? EMPTY_STRING_ARRAY,
       updateOpenWidgetNodeIds: s.updateOpenWidgetNodeIds,
       setOpenWidgetNodeIds: s.setOpenWidgetNodeIds,

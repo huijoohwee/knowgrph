@@ -13,6 +13,18 @@ export function testFlowEditorFrontmatterRichMediaOverlayPoolDisablesStickyCarry
   if (!text.includes('stickyMap.clear()')) {
     throw new Error('expected Flow Editor/frontmatter Rich Media overlay pool to clear stale sticky overlay entries before following the live set')
   }
+  if (!text.includes('const retainedStickyIds = new Set<string>(')) {
+    throw new Error('expected sticky Storyboard Rich Media overlays to retain only explicitly selected/open panels across transient churn')
+  }
+  if (!text.includes('const pushResolvedStickyId = (rawId: unknown) => {') || !text.includes("const id = String(resolved?.id || '').trim()")) {
+    throw new Error('expected sticky Storyboard Rich Media overlays to keep carryover scoped to ids that still resolve in the current scene graph')
+  }
+  if (!text.includes('for (let i = 0; i < selectedNodeIdsSnapshot.length; i += 1) pushResolvedStickyId(selectedNodeIdsSnapshot[i])') || !text.includes('pushResolvedStickyId(selectedNodeId)') || !text.includes('for (let i = 0; i < openWidgetNodeIdsSnapshot.length; i += 1) pushResolvedStickyId(openWidgetNodeIdsSnapshot[i])')) {
+    throw new Error('expected sticky Storyboard Rich Media overlays to scope carryover to resolved selected/open widget ids instead of all previous overlay ids')
+  }
+  if (text.includes('const needed = new Set<string>(prevOrder)')) {
+    throw new Error('expected sticky Storyboard Rich Media overlays to stop treating every previous overlay id as indefinitely needed')
+  }
 }
 
 export function testFlowEditorFrontmatterWidgetFallbackIsScopedToActiveSource() {
@@ -32,6 +44,38 @@ export function testFlowEditorFrontmatterWidgetFallbackIsScopedToActiveSource() 
   }
   if (!text.includes('const preserveStableFrontmatterGraph =')) {
     throw new Error('expected same-source frontmatter handoff graphs not to replace the stable widget node resolver graph')
+  }
+}
+
+export function testFlowEditorSelectionBookkeepingDefersOpenWidgetCleanupUntilGraphHandoffResolves() {
+  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
+  const text = readFileSync(selectionBookkeepingPath, 'utf8')
+  if (!text.includes("scope: 'flow-editor-selection-bookkeeping-render-graph'")) {
+    throw new Error('expected Flow Editor selection bookkeeping to build a render-graph lookup for open-widget cleanup during draft handoff frames')
+  }
+  if (!text.includes('const graphLookupForOpenWidgetCleanup =')) {
+    throw new Error('expected Flow Editor selection bookkeeping to resolve a dedicated graph lookup before sanitizing open widget ids')
+  }
+  if (!text.includes("(draftGraphLookup?.nodeById.size || 0) > 0\n        ? draftGraphLookup\n        : (renderGraphLookup?.nodeById.size || 0) > 0\n          ? renderGraphLookup\n          : null")) {
+    throw new Error('expected Flow Editor selection bookkeeping to defer open-widget cleanup while the draft graph is empty but the render graph still resolves the active nodes')
+  }
+  if (!text.includes('if (!graphLookupForOpenWidgetCleanup) return')) {
+    throw new Error('expected Flow Editor selection bookkeeping to skip destructive open-widget cleanup when neither graph lookup has settled yet')
+  }
+  if (!text.includes("const preserveStoryboardGraphNodeIds = canvas2dRenderer === 'storyboard'")) {
+    throw new Error('expected Flow Editor selection bookkeeping to preserve Storyboard fixed-card open-widget ids during overlay cleanup')
+  }
+  if (!text.includes('const protectedPendingOpenWidgetIds = [')) {
+    throw new Error('expected Flow Editor selection bookkeeping to preserve pending overlay widget ids while graph handoff is still settling')
+  }
+  if (!text.includes('const protectedPendingOpenWidgetId = protectedPendingOpenWidgetIds.some(protectedId => isCanonicalNodeIdEqual(protectedId, s))')) {
+    throw new Error('expected Flow Editor selection bookkeeping to compare pending overlay widget ids canonically during open-widget cleanup')
+  }
+  if (!text.includes('if (protectedPendingOpenWidgetId) return true')) {
+    throw new Error('expected Flow Editor selection bookkeeping to skip destructive cleanup for pending overlay widget ids during the handoff window')
+  }
+  if (!text.includes('preserveStoryboardGraphNodeIds\n        || overlayEligible.size === 0\n        || overlayEligible.has(s)')) {
+    throw new Error('expected Flow Editor selection bookkeeping to keep Storyboard graph-owned widget ids even when they are not overlay-eligible Flow widgets')
   }
 }
 

@@ -204,6 +204,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         documentStructureBaselineLock: s.documentStructureBaselineLock === true,
         graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
         clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
+        openWidgetNodeIds:
+          (Array.isArray(s.openWidgetNodeIdsByRenderer?.[s.canvas2dRenderer])
+            ? s.openWidgetNodeIdsByRenderer[s.canvas2dRenderer]
+            : s.openWidgetNodeIds) ?? EMPTY_STRING_ARRAY,
         selectedNodeId: s.selectedNodeId,
         selectedNodeIds: s.selectedNodeIds,
         selectNode: s.selectNode,
@@ -853,6 +857,17 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   React.useEffect(() => {
     if (isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)) return
+    const preserveStoryboardOverlaySelection =
+      canvas2dRenderer === 'storyboard'
+      && Array.isArray(openWidgetNodeIds)
+      && openWidgetNodeIds.length > 0
+      && ((typeof selectedNodeId === 'string'
+        && selectedNodeId
+        && richMedia.mediaOverlayNodeIdSet?.has(selectedNodeId)
+        && openWidgetNodeIds.includes(selectedNodeId))
+        || (Array.isArray(selectedNodeIds)
+          && selectedNodeIds.some(id => richMedia.mediaOverlayNodeIdSet?.has(id) && openWidgetNodeIds.includes(id))))
+    if (preserveStoryboardOverlaySelection) return
     const hasHiddenSelected =
       (typeof selectedNodeId === 'string' &&
         selectedNodeId &&
@@ -869,7 +884,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     } catch {
       void 0
     }
-  }, [canvas2dRenderer, panelOnlyNodeIdSetForScene, richMedia.mediaOverlayNodeIdSet, selectNode, selectedNodeId, selectedNodeIds])
+  }, [canvas2dRenderer, openWidgetNodeIds, panelOnlyNodeIdSetForScene, richMedia.mediaOverlayNodeIdSet, selectNode, selectedNodeId, selectedNodeIds])
 
   const overlayInteractions = useOverlayInteractions2d({
     activeRef,

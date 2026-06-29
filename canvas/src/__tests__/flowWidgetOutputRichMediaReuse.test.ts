@@ -185,8 +185,14 @@ export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndO
   const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
   const text = `${readFileSync(selectionBookkeepingPath, 'utf8')}\n${readFileSync(overlaySurfacePath, 'utf8')}\n${readFileSync(sharedPath, 'utf8')}`
 
-  if (!text.includes("import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
+  if (!text.includes("import { isCanonicalNodeIdEqual, parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
     throw new Error('expected FlowEditorCanvas to reuse the shared canonical node-id resolver SSOT for selection and overlay paths')
+  }
+  if (!text.includes('if (selected && isCanonicalNodeIdEqual(selected, override))')) {
+    throw new Error('expected FlowEditorCanvas overlay selection bookkeeping to compare selected and override ids canonically')
+  }
+  if (!text.includes('const selectedMatchesOverride = selected ? isCanonicalNodeIdEqual(selected, override) : false')) {
+    throw new Error('expected FlowEditorCanvas overlay override cleanup to resolve composed and canonical node ids through shared canonical equality')
   }
   if (!text.includes('return resolveDraftGraphNode(selectedNodeId) || resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)')) {
     throw new Error('expected FlowEditorCanvas selected draft node lookup to resolve composed ids against the draft graph')
@@ -196,6 +202,12 @@ export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndO
   }
   if (!text.includes('const resolvedId = resolveGraphNodeIdByCanonicalId(args.graphData, rawId)')) {
     throw new Error('expected shared FlowEditor overlay node-id helper to normalize composed ids against the active render graph')
+  }
+  if (!text.includes('const pendingOverlayNodeMatch =')) {
+    throw new Error('expected FlowEditorCanvas pending-open bookkeeping to derive a pending-overlay fallback before giving up on rich-media widget opens')
+  }
+  if (!text.includes("pendingOverlayNode && isCanonicalNodeIdEqual(String(pendingOverlayNode.id || '').trim(), resolvedPending || pending)")) {
+    throw new Error('expected FlowEditorCanvas pending-open bookkeeping to compare pending overlay ids canonically against the unresolved widget-open target')
   }
 }
 

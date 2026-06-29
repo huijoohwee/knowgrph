@@ -49,6 +49,34 @@ import {
   resolveEffectiveFlowWidgetPinnedInCanvas,
 } from '@/lib/flowEditor/widgetPlacementAuthority'
 
+// #region debug-point A:overlay-collision
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopOverlayCollisionDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
+
 function hasOverlap(
   a: { left: number; top: number; width?: number; height?: number },
   b: { left: number; top: number; width?: number; height?: number },
@@ -209,7 +237,12 @@ export function useFlowEditorOverlayCollision(args: {
       if (!runtimeActive || workspaceOverlayOpenRef.current) return
       if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
 
-      const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
+      const widgetOverlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
+      const richMediaOverlayEls = queryActiveSurfaceOverlays(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+      const overlayEls = Array.from(new Set<HTMLElement>([
+        ...widgetOverlayEls,
+        ...richMediaOverlayEls,
+      ]))
       if (overlayEls.length < 2) {
         const st = useGraphStore.getState()
         const flowEditorOpenWidgetIds =
@@ -217,6 +250,30 @@ export function useFlowEditorOverlayCollision(args: {
             ? st.openWidgetNodeIdsByRenderer.flowEditor
             : st.openWidgetNodeIds) || []
         const wantsResolve = flowEditorOpenWidgetIds.length >= 2 || overlayOnlyModeEnabled
+        // #region debug-point B:collision-warmup
+        reportStoryboardMediaPanelLoopOverlayCollisionDebug({
+          hypothesisId: 'B',
+          location: 'useFlowEditorOverlayCollision.ts:collision-warmup',
+          msg: 'overlay collision warmup is waiting for overlay roots',
+          data: {
+            overlayElementCount: overlayEls.length,
+            widgetOverlayElementCount: widgetOverlayEls.length,
+            richMediaOverlayElementCount: richMediaOverlayEls.length,
+            wantsResolve,
+            overlayOnlyModeEnabled,
+            canvas2dRenderer: String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || ''),
+            openWidgetNodeIds: Array.isArray((st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds)
+              ? (st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds!.map(id => String(id || '').trim()).filter(Boolean)
+              : [],
+            flowEditorScopedOpenWidgetNodeIds: Array.isArray((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.flowEditor)
+              ? ((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.flowEditor || []).map(id => String(id || '').trim()).filter(Boolean)
+              : [],
+            activeRendererScopedOpenWidgetNodeIds: Array.isArray((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')])
+              ? ((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')] || []).map(id => String(id || '').trim()).filter(Boolean)
+              : [],
+          },
+        })
+        // #endregion
         overlayCollisionWarmupAttemptsRef.current += 1
         const startedAt = overlayCollisionWarmupStartedAtMsRef.current || Date.now()
         const elapsed = Date.now() - startedAt
@@ -1109,6 +1166,28 @@ export function useFlowEditorOverlayCollision(args: {
       () => {
         if (workspaceOverlayOpenRef.current) return
         if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
+        // #region debug-point C:open-widget-subscription
+        {
+          const st = useGraphStore.getState()
+          reportStoryboardMediaPanelLoopOverlayCollisionDebug({
+            hypothesisId: 'B',
+            location: 'useFlowEditorOverlayCollision.ts:open-widget-subscription',
+            msg: 'overlay collision open-widget subscription fired',
+            data: {
+              canvas2dRenderer: String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || ''),
+              openWidgetNodeIds: Array.isArray((st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds)
+                ? (st as { openWidgetNodeIds?: unknown[] }).openWidgetNodeIds!.map(id => String(id || '').trim()).filter(Boolean)
+                : [],
+              flowEditorScopedOpenWidgetNodeIds: Array.isArray((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.flowEditor)
+                ? ((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.flowEditor || []).map(id => String(id || '').trim()).filter(Boolean)
+                : [],
+              activeRendererScopedOpenWidgetNodeIds: Array.isArray((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')])
+                ? ((st as { openWidgetNodeIdsByRenderer?: Record<string, unknown[]> }).openWidgetNodeIdsByRenderer?.[String((st as { canvas2dRenderer?: unknown }).canvas2dRenderer || '')] || []).map(id => String(id || '').trim()).filter(Boolean)
+                : [],
+            },
+          })
+        }
+        // #endregion
         scheduleOverlayCollisionResolveRef.current()
       },
     )

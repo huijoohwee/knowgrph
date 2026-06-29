@@ -25,6 +25,34 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashScopedStringArraySignature, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 
+// #region debug-point A:flow-canvas-media-nodes
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopFlowCanvasDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
+
 const EMPTY_STRING_ARRAY: string[] = []
 
 type UseFlowCanvasGraphStateArgs = {
@@ -284,7 +312,16 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     const stickyMap = stickyOverlayNodeByIdRef.current
     for (let i = 0; i < suggested.length; i += 1) stickyMap.set(suggested[i]!.id, suggested[i]!)
 
-    const needed = new Set<string>(prevOrder)
+    const retainedStickyIds = new Set<string>()
+    const pushResolvedStickyId = (rawId: unknown) => {
+      const resolved = getCanonicalNodeLookupValue(sceneGraphCanonicalNodeById, rawId)
+      const id = String(resolved?.id || '').trim()
+      if (id) retainedStickyIds.add(id)
+    }
+    for (let i = 0; i < selectedNodeIdsSnapshot.length; i += 1) pushResolvedStickyId(selectedNodeIdsSnapshot[i])
+    pushResolvedStickyId(selectedNodeId)
+    for (let i = 0; i < openWidgetNodeIdsSnapshot.length; i += 1) pushResolvedStickyId(openWidgetNodeIdsSnapshot[i])
+    const needed = new Set<string>(retainedStickyIds)
     for (let i = 0; i < suggested.length; i += 1) needed.add(String(suggested[i]!.id || '').trim())
     const isValid = (id: string) => {
       const key = String(id || '').trim()
@@ -332,8 +369,41 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     threeIframeOverlayPoolMax,
     useStickyOverlayPool,
     authoritativeGraphNodeById,
+    openWidgetNodeIdsSnapshot,
+    sceneGraphCanonicalNodeById,
     sceneGraphNodeById,
+    selectedNodeId,
+    selectedNodeIdsSnapshot,
   ])
+  const mediaNodeIdsSignature = React.useMemo(
+    () => mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean).join('|'),
+    [mediaNodes],
+  )
+  const reportedMediaNodeSignatureRef = React.useRef('')
+  React.useEffect(() => {
+    if (canvas2dRenderer !== 'storyboard') return
+    const signature = [
+      String(canvas2dRenderer || ''),
+      String(selectedNodeId || ''),
+      openWidgetNodeIdsSnapshot.join('|'),
+      mediaNodeIdsSignature,
+    ].join('::')
+    if (!signature || reportedMediaNodeSignatureRef.current === signature) return
+    reportedMediaNodeSignatureRef.current = signature
+    // #region debug-point B:flow-canvas-media-nodes
+    reportStoryboardMediaPanelLoopFlowCanvasDebug({
+      hypothesisId: 'D',
+      location: 'useFlowCanvasGraphState.ts:media-nodes',
+      msg: 'storyboard flow-canvas recomputed media overlay node ids',
+      data: {
+        selectedNodeId: String(selectedNodeId || '').trim(),
+        openWidgetNodeIds: openWidgetNodeIdsSnapshot,
+        sceneGraphNodeCount: Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0,
+        mediaNodeIds: mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean),
+      },
+    })
+    // #endregion
+  }, [canvas2dRenderer, mediaNodeIdsSignature, mediaNodes, openWidgetNodeIdsSnapshot, sceneGraphData, selectedNodeId])
 
   const selectedOverlayNodeIdSet = React.useMemo(() => {
     return buildCanonicalNodeIdSet(selectedOverlayNodeIds)

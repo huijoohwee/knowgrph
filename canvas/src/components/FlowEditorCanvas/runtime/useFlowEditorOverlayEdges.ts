@@ -38,6 +38,34 @@ import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+
+// #region debug-point B:overlay-edges
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopOverlayEdgesDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
 import {
   type FlowEditorQeTraceWindow,
   isFlowEditorQeTraceEnabled,
@@ -63,10 +91,62 @@ function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>
   ref.current.clear()
 }
 
+function collectRequestedOverlayIdentityIds(args: {
+  overlayEditorNodeIds: ReadonlyArray<string> | null | undefined
+  openWidgetNodeIds: ReadonlyArray<string> | null | undefined
+  pendingOverlayNodeId: string | null | undefined
+  pendingEdgeSourceId: string | null | undefined
+  pendingPreviewSourceId: string | null | undefined
+  domOverlayRootEntries: ReadonlyArray<{ id: string }> | null | undefined
+}): string[] {
+  const ids = new Set<string>()
+  const pushId = (rawId: unknown) => {
+    const id = readCanonicalFlowEditorOverlayIdentity(rawId)
+    if (id) ids.add(id)
+  }
+  for (let i = 0; i < (args.overlayEditorNodeIds || []).length; i += 1) pushId(args.overlayEditorNodeIds?.[i])
+  for (let i = 0; i < (args.openWidgetNodeIds || []).length; i += 1) pushId(args.openWidgetNodeIds?.[i])
+  for (let i = 0; i < (args.domOverlayRootEntries || []).length; i += 1) pushId(args.domOverlayRootEntries?.[i]?.id)
+  pushId(args.pendingOverlayNodeId)
+  pushId(args.pendingEdgeSourceId)
+  pushId(args.pendingPreviewSourceId)
+  return Array.from(ids).sort((a, b) => a.localeCompare(b))
+}
+
+function graphContainsRequestedOverlayIdentities(
+  graph: GraphData | null | undefined,
+  requestedIds: ReadonlyArray<string>,
+): boolean {
+  if (!graph || requestedIds.length === 0) return true
+  const graphNodeIds = new Set<string>()
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const id = readCanonicalFlowEditorOverlayIdentity(nodes[i]?.id)
+    if (id) graphNodeIds.add(id)
+  }
+  for (let i = 0; i < requestedIds.length; i += 1) {
+    const id = readCanonicalFlowEditorOverlayIdentity(requestedIds[i])
+    if (id && !graphNodeIds.has(id)) return false
+  }
+  return true
+}
+
 type FrozenOverlayEdgePathSnapshot = {
   id: string
   attrs: Record<string, string>
   animation: string
+}
+
+type StableOverlayRectSnapshot = {
+  rect: DOMRect
+  ts: number
+}
+
+type PendingEdgeStartPointSnapshot = {
+  sourceId: string
+  x: number
+  y: number
+  ts: number
 }
 
 const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()
@@ -88,6 +168,30 @@ function isFiniteRect(rect: DOMRect | null | undefined): rect is DOMRect {
     && Number.isFinite(rect.bottom)
     && Number.isFinite(rect.width)
     && Number.isFinite(rect.height)
+}
+
+function cloneDomRect(rect: DOMRect): DOMRect {
+  if (typeof DOMRect === 'function') return new DOMRect(rect.x, rect.y, rect.width, rect.height)
+  return {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+    toJSON: () => ({
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left,
+    }),
+  } as DOMRect
 }
 
 function readOverlayScrollSurfaceSignature(overlayEl: HTMLElement | null): string {
@@ -207,6 +311,7 @@ export function useFlowEditorOverlayEdges(args: {
   const overlayPendingEdgePathRef = React.useRef<SVGPathElement | null>(null)
   const overlayEdgeRafRef = React.useRef<number | null>(null)
   const overlayElByNodeIdRef = React.useRef<Map<string, HTMLElement>>(new Map())
+  const lastStableOverlayRectByNodeIdRef = React.useRef<Map<string, StableOverlayRectSnapshot>>(new Map())
   const overlayEdgeSocketTypesRef = React.useRef<unknown>(null)
   const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
   const overlayEdgeLayoutSigRef = React.useRef<string>('')
@@ -230,6 +335,7 @@ export function useFlowEditorOverlayEdges(args: {
     sourcePortKey: null,
   })
   const pendingEdgeCursorRef = React.useRef<null | { x: number; y: number; ts: number }>(null)
+  const pendingEdgeStartPointRef = React.useRef<PendingEdgeStartPointSnapshot | null>(null)
 
   const cancelOverlayEdgeUpdate = React.useCallback(() => {
     if (overlayEdgeRafRef.current != null) {
@@ -245,6 +351,8 @@ export function useFlowEditorOverlayEdges(args: {
     overlayEdgeTransientRetryRef.current = null
     overlayEdgePartialNodeSetRetryRef.current = null
     overlayEdgeReadinessRetryRef.current = null
+    lastStableOverlayRectByNodeIdRef.current.clear()
+    pendingEdgeStartPointRef.current = null
   }, [])
 
   const cacheFrozenOverlayEdgePaths = React.useCallback(() => {
@@ -418,12 +526,27 @@ export function useFlowEditorOverlayEdges(args: {
   }, [args.active, args.flowEditorSurfaceId, args.overlayEdgesEnabledRef, args.overlayOnlyModeEnabled, args.rootRef, pushOverlayEdgeTrace])
 
   React.useEffect(() => {
-    pendingEdgePreviewRef.current = {
+    const nextPendingEdgePreview = {
       toolMode: args.toolMode,
       sourceId: args.pendingEdgeSourceId ? String(args.pendingEdgeSourceId || '').trim() : null,
       sourcePortKey: args.pendingEdgeSourcePortKey ? String(args.pendingEdgeSourcePortKey || '').trim() : null,
     }
-  }, [args.pendingEdgeSourceId, args.pendingEdgeSourcePortKey, args.toolMode])
+    pendingEdgePreviewRef.current = nextPendingEdgePreview
+    overlayEdgeLayoutSigRef.current = ''
+    if (!args.active) return
+    if (nextPendingEdgePreview.toolMode !== 'addEdge' || !nextPendingEdgePreview.sourceId) {
+      pendingEdgeStartPointRef.current = null
+      if (overlayPendingEdgePathRef.current) {
+        try {
+          overlayPendingEdgePathRef.current.remove()
+        } catch {
+          void 0
+        }
+        overlayPendingEdgePathRef.current = null
+      }
+    }
+    scheduleOverlayEdgeUpdateRef.current()
+  }, [args.active, args.pendingEdgeSourceId, args.pendingEdgeSourcePortKey, args.toolMode])
 
   const scheduleTransientOverlayEdgeRetry = React.useCallback((parts: string[]): boolean => {
     const retryKey = hashSignatureParts(['transient-overlay-edges', ...parts.map(part => String(part || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))])
@@ -528,6 +651,39 @@ export function useFlowEditorOverlayEdges(args: {
         return
       }
       overlayEdgeReadinessRetryRef.current = null
+      const domOverlayRootEntries = (() => {
+        if (typeof document === 'undefined') return [] as Array<{ id: string; el: HTMLElement }>
+        const entries: Array<{ id: string; el: HTMLElement }> = []
+        const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+        if (!surfaceId) return entries
+        const root = args.rootRef.current
+        if (typeof document === 'undefined' && !root) return entries
+        const queryRoot: ParentNode = typeof document !== 'undefined' ? document : root
+        // Overlay widgets are portal-mounted, so scope by surface id instead of DOM ancestry.
+        const els = Array.from(queryRoot.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          if (readFlowEditorOverlaySurfaceId(el) !== surfaceId) continue
+          const id = readCanonicalFlowEditorOverlayIdentity(readCanvasOverlayNodeId(el))
+          if (!id) continue
+          entries.push({ id, el })
+        }
+        return entries
+      })()
+      const domStoryboardFixedCardEntries = (() => {
+        const entries: Array<{ id: string; el: HTMLElement }> = []
+        const root = args.rootRef.current
+        const queryRoot: ParentNode | null = root || (typeof document !== 'undefined' ? document : null)
+        if (!queryRoot) return entries
+        const els = Array.from(queryRoot.querySelectorAll<HTMLElement>('[data-kg-storyboard-fixed-card-id]'))
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          const id = readCanonicalFlowEditorOverlayIdentity(el.dataset.kgStoryboardFixedCardId)
+          if (!id) continue
+          entries.push({ id, el })
+        }
+        return entries
+      })()
       const liveGraph = args.draftGraphDataRef.current || args.renderGraphDataOverride || null
       const now = Date.now()
       const liveGraphNodeCount = Array.isArray(liveGraph?.nodes) ? liveGraph.nodes.length : 0
@@ -538,6 +694,21 @@ export function useFlowEditorOverlayEdges(args: {
       const stableGraphNodeCount = Array.isArray(stableGraph?.nodes) ? stableGraph.nodes.length : 0
       const stableGraphEdgeCount = Array.isArray(stableGraph?.edges) ? stableGraph.edges.length : 0
       const stableGraphRevision = readGraphDataRevision(stableGraph)
+      const requestedOverlayIdentityIdsBase = collectRequestedOverlayIdentityIds({
+        overlayEditorNodeIds: args.overlayEditorNodeIdsRef.current,
+        openWidgetNodeIds: args.openWidgetNodeIdsRef.current,
+        pendingOverlayNodeId: args.pendingOverlayNodeIdRef.current,
+        pendingEdgeSourceId: args.pendingEdgeSourceId,
+        pendingPreviewSourceId: pendingEdgePreviewRef.current.sourceId,
+        domOverlayRootEntries,
+      })
+      const requestedOverlayIdentityIds = requestedOverlayIdentityIdsBase.length > 0
+        ? Array.from(new Set([
+            ...requestedOverlayIdentityIdsBase,
+            ...domStoryboardFixedCardEntries.map(entry => entry.id),
+          ])).sort((a, b) => a.localeCompare(b))
+        : requestedOverlayIdentityIdsBase
+      const stableGraphContainsRequestedOverlayIdentities = graphContainsRequestedOverlayIdentities(stableGraph, requestedOverlayIdentityIds)
       const withinWorkspaceCloseRecoveryWindow = now <= overlayEdgeWorkspaceCloseRecoveryUntilRef.current
       const canReuseMetadataLessStableGraph =
         !!liveGraph
@@ -562,6 +733,7 @@ export function useFlowEditorOverlayEdges(args: {
         !!stableGraph
         && stableGraphNodeCount > 0
         && stableGraphEdgeCount > 0
+        && stableGraphContainsRequestedOverlayIdentities
         && (
           workspaceOverlayOpen
           || withinWorkspaceCloseRecoveryWindow
@@ -658,29 +830,6 @@ export function useFlowEditorOverlayEdges(args: {
         return next
       })()
 
-      const domOverlayRootEntries = (() => {
-        if (typeof document === 'undefined') return [] as Array<{ id: string; el: HTMLElement }>
-        const entries: Array<{ id: string; el: HTMLElement }> = []
-        const surfaceId = String(args.flowEditorSurfaceId || '').trim()
-        if (!surfaceId) return entries
-        const escapeForAttr = (value: string): string => {
-          return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-        }
-        const root = args.rootRef.current
-        if (typeof document === 'undefined' && !root) return entries
-        const queryRoot: ParentNode = typeof document !== 'undefined' ? document : root
-        // Overlay widgets are portal-mounted, so scope by surface id instead of DOM ancestry.
-        const els = Array.from(queryRoot.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
-        for (let i = 0; i < els.length; i += 1) {
-          const el = els[i]
-          if (readFlowEditorOverlaySurfaceId(el) !== surfaceId) continue
-          const id = readCanonicalFlowEditorOverlayIdentity(readCanvasOverlayNodeId(el))
-          if (!id) continue
-          entries.push({ id, el })
-        }
-        return entries
-      })()
-
       const overlayIdSet = (() => {
         const liveIds = Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0
           ? args.overlayEditorNodeIdsRef.current
@@ -694,6 +843,12 @@ export function useFlowEditorOverlayEdges(args: {
         for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
           const id = readCanonicalFlowEditorOverlayIdentity(domOverlayRootEntries[i]?.id)
           if (id) set.add(id)
+        }
+        if (set.size > 0) {
+          for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {
+            const id = readCanonicalFlowEditorOverlayIdentity(domStoryboardFixedCardEntries[i]?.id)
+            if (id) set.add(id)
+          }
         }
         if (sel) set.add(readCanonicalFlowEditorOverlayIdentity(sel))
         const liveSetSize = set.size
@@ -853,6 +1008,15 @@ export function useFlowEditorOverlayEdges(args: {
           elById.set(id, entry.el)
         }
         overlayElByNodeIdRef.current = elById
+        const stableRects = lastStableOverlayRectByNodeIdRef.current
+        const nextTs = Date.now()
+        for (const [id, rect] of map.entries()) {
+          stableRects.set(id, { rect: cloneDomRect(rect), ts: nextTs })
+        }
+        for (const [id, snapshot] of Array.from(stableRects.entries())) {
+          if (map.has(id)) continue
+          if (nextTs - snapshot.ts > 1500) stableRects.delete(id)
+        }
         return map
       })()
       if (transientOffscreenOverlayIds.length > 0) {
@@ -1094,18 +1258,58 @@ export function useFlowEditorOverlayEdges(args: {
         }
       } else {
         const sourceId = readCanonicalFlowEditorOverlayIdentity(pending.sourceId)
-        const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) : null
-        if (sRect && cursor) {
+        const cachedSourceRect = sourceId
+          ? (() => {
+              const snapshot = lastStableOverlayRectByNodeIdRef.current.get(sourceId) || null
+              if (!snapshot) return null
+              return Date.now() - snapshot.ts <= 1500 ? snapshot.rect : null
+            })()
+          : null
+        const cachedStartPoint = sourceId
+          ? (() => {
+              const snapshot = pendingEdgeStartPointRef.current
+              if (!snapshot) return null
+              if (readCanonicalFlowEditorOverlayIdentity(snapshot.sourceId) !== sourceId) return null
+              return Date.now() - snapshot.ts <= 4000 ? snapshot : null
+            })()
+          : null
+        const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) || cachedSourceRect : null
+        if (!sRect) {
+          // #region debug-point C:pending-edge-missing-source-rect
+          reportStoryboardMediaPanelLoopOverlayEdgesDebug({
+            hypothesisId: 'B',
+            location: 'useFlowEditorOverlayEdges.ts:pending-edge-missing-source-rect',
+            msg: 'pending overlay edge preview could not resolve source overlay rect',
+            data: {
+              pendingSourceId: String(pending.sourceId || '').trim(),
+              canonicalSourceId: sourceId,
+              overlayRectCount: overlayRectsByNodeId.size,
+              overlayRectNodeIds: Array.from(overlayRectsByNodeId.keys()).slice(0, 12),
+              cachedSourceRectAvailable: !!cachedSourceRect,
+              cachedStartPointAvailable: !!cachedStartPoint,
+            },
+          })
+          // #endregion
+        }
+        if ((sRect || cachedStartPoint) && cursor) {
           const handleKey = String(
             pending.sourcePortKey
             || defaultPortKeyByNodeId.get(sourceId)?.out
             || FLOW_HANDLE_DEFAULT_EDGE_ID,
           ).trim()
           const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: handleKey })
-          const sPct = topPctByNodeAndHandle.get(sourceId)?.get(outHandleId) ?? 50
-          const a = readAnchor({ nodeId: sourceId, dir: 'out', portKey: handleKey, fallbackRect: sRect, fallbackPct: sPct })
-          const sx = a ? a.x - baseLeft : sRect.right - baseLeft
-          const sy = a ? a.y - baseTop : sRect.top - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sRect.height
+          const sPct = sourceId ? topPctByNodeAndHandle.get(sourceId)?.get(outHandleId) ?? 50 : 50
+          const a = sourceId && sRect ? readAnchor({ nodeId: sourceId, dir: 'out', portKey: handleKey, fallbackRect: sRect, fallbackPct: sPct }) : null
+          const sx = a
+            ? a.x - baseLeft
+            : sRect
+              ? sRect.right - baseLeft
+              : cachedStartPoint!.x
+          const sy = a
+            ? a.y - baseTop
+            : sRect
+              ? sRect.top - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sRect.height
+              : cachedStartPoint!.y
           const tx = cursor.x
           const ty = cursor.y
           if (Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(tx) && Number.isFinite(ty)) {
@@ -1359,6 +1563,11 @@ export function useFlowEditorOverlayEdges(args: {
       if (source) pendingEdgePreviewRef.current = source.phase === 'cancel' ? { toolMode: 'select', sourceId: null, sourcePortKey: null } : { toolMode: 'addEdge', sourceId: source.id, sourcePortKey: source.portKey }
       const x = (Number.isFinite(clientX) ? clientX : rect.left) - rect.left
       const y = (Number.isFinite(clientY) ? clientY : rect.top) - rect.top
+      if (source?.phase === 'start' && source.id && Number.isFinite(x) && Number.isFinite(y)) {
+        pendingEdgeStartPointRef.current = { sourceId: source.id, x, y, ts: Date.now() }
+      } else if (source?.phase === 'cancel') {
+        pendingEdgeStartPointRef.current = null
+      }
       pendingEdgeCursorRef.current = { x, y, ts: Date.now() }
       overlayEdgeLayoutSigRef.current = ''
       scheduleOverlayEdgeUpdate()
@@ -1411,6 +1620,7 @@ export function useFlowEditorOverlayEdges(args: {
       removeAllPaths(overlayEdgePathByIdRef)
       overlayEdgeLayoutSigRef.current = ''
       overlayEdgeAnchorCache.clear()
+      lastStableOverlayRectByNodeIdRef.current.clear()
       lastStableOverlayEdgeNodeIdsRef.current = []
       if (overlayPendingEdgePathRef.current) {
         try {

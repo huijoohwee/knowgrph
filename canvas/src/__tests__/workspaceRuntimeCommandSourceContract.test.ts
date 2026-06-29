@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createWorkspaceRuntimeCommand } from '@/features/agent-ready/workspaceRuntimeCommand'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -33,7 +34,9 @@ export function testWorkspaceRuntimeCommandInstallsStableWindowCommand() {
     'state.setCanvas2dRenderer(nextCanvas2dRenderer)',
     'state.setDocumentSemanticMode(nextDocumentSemanticMode)',
     'state.setFrontmatterModeEnabled(args.frontmatterModeEnabled)',
+    'const workspacePath = normalizeWorkspacePath(name)',
     'await state.setActiveMarkdownDocument({',
+    'useMarkdownExplorerStore.getState().setActivePath(workspacePath)',
     'appendChatHistoryWorkspaceFile({',
     'applyChatKgcWorkspaceDocumentToCanvas(workspacePath)',
     'useMarkdownExplorerStore.getState().setActivePath(workspacePath)',
@@ -47,6 +50,52 @@ export function testWorkspaceRuntimeCommandInstallsStableWindowCommand() {
     if (!text.includes(snippet)) {
       throw new Error(`expected workspace runtime command contract snippet: ${snippet}`)
     }
+  }
+}
+
+export async function testWorkspaceRuntimeCommandApplyMarkdownDocumentPromotesExplorerActivePath() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const graph = useGraphStore.getState()
+    graph.resetAll()
+    useMarkdownExplorerStore.getState().setActivePath('/docs/workspace-readme.md')
+
+    const result = await createWorkspaceRuntimeCommand().applyMarkdownDocument({
+      name: 'docs/knowgrph-strybldr-starter-template.md',
+      text: [
+        '---',
+        'kgCanvasSurfaceMode: "2d"',
+        'kgCanvasRenderMode: "2d"',
+        'kgCanvas2dRenderer: "storyboard"',
+        'kgDocumentSemanticMode: "document"',
+        'kgFrontmatterModeEnabled: "true"',
+        'kgStrybldrStoryboard: "true"',
+        '---',
+        '',
+        '# Starter',
+      ].join('\n'),
+      applyToGraph: false,
+      applyViewPreset: true,
+      workspaceViewMode: 'canvas',
+      workspaceCanvasPaneOpen: false,
+    })
+
+    const activePath = useMarkdownExplorerStore.getState().activePath
+    if (activePath !== '/docs/knowgrph-strybldr-starter-template.md') {
+      throw new Error(`expected runtime markdown apply to promote explorer activePath to the applied document, got ${String(activePath || '')}`)
+    }
+    if (result.markdownDocumentName !== 'docs/knowgrph-strybldr-starter-template.md' || result.applied !== true) {
+      throw new Error(`expected runtime markdown apply to succeed for the promoted explorer document, got ${JSON.stringify(result)}`)
+    }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(null)
+    useGraphStore.getState().resetAll()
+    resetWorkspaceFsForTests()
+    restoreDom()
+    restoreWindow()
   }
 }
 

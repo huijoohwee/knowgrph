@@ -611,6 +611,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspaceFs.activeDocument.blankPersistedTextFallsBackToDocsMirror","@/__tests__/workspaceGithubDocsMirrorSync.test","testWorkspaceActiveDocumentFallsBackToDocsMirrorWhenPersistedTextIsBlank"],
   ["workspaceFs.seedProvider.incompleteSourceFilesStorageFallbackNoCrash","@/__tests__/workspaceSeedActiveHydration.test","testWorkspaceSeedProviderIncompleteSourceFilesStorageFallbackDoesNotCrashWhenStorageExportMisses"],
   ["workspaceFs.seedProvider.configuredDocsRootPrecedesStorageFallback","@/__tests__/workspaceSeedActiveHydration.test","testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorageFallback"],
+  ["workspaceFs.seedProvider.configuredDocsRootDedupesBurstReads","@/__tests__/workspaceSeedActiveHydration.test","testWorkspaceSeedProviderConfiguredDocsRootDedupesBurstReads"],
   ["workspaceFs.seedProvider.storageExportDoesNotReuseStaleMirror","@/__tests__/workspaceSeedActiveHydration.test","testWorkspaceSeedProviderStorageExportDoesNotReuseStaleMirror"],
   ["workspaceFs.merge.forceIncludeOnlySkipsInactiveWorkspaceRecords","@/__tests__/workspaceSeedActiveHydration.test","testMergeWorkspaceEntriesForceIncludeOnlySkipsInactiveWorkspaceRecords"],
   ["workspaceFs.semanticKey.forceIncludeOnlyIgnoresInactiveTextChanges","@/__tests__/workspaceSeedActiveHydration.test","testWorkspaceEntriesSemanticKeyForceIncludeOnlyIgnoresInactiveTextChanges"],

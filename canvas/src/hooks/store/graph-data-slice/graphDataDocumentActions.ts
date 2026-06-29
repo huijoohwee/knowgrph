@@ -344,6 +344,16 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
           canonicalText,
         })
       : normalizedText
+    const shouldResetTransientCanvasState = args?.applyToGraph === true && (
+      previousState.markdownDocumentName !== name
+      || previousState.markdownDocumentText !== text
+      || args?.forceApplyToGraph === true
+    )
+    if (shouldResetTransientCanvasState) {
+      previousState.selectNode(null)
+      previousState.setOpenWidgetNodeIds([])
+      previousState.setSelectionSource(null)
+    }
     const hasProvidedCanvasPreset = Object.prototype.hasOwnProperty.call(args || {}, 'canvasWorkspacePreset')
     const shouldApplyExplicitCanvasPreset = hasProvidedCanvasPreset && !!args.canvasWorkspacePreset
     const shouldResolveCanvasPreset =

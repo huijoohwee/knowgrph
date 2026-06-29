@@ -189,6 +189,7 @@ function StoryboardCardOverlayItem(props: {
   pendingMedia: StoryboardCardModel['media']
   flowEditorSurfaceId: string
   register: (id: string, el: HTMLElement | null) => void
+  selectionDisabled?: boolean
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void
   onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void
   onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void
@@ -200,7 +201,7 @@ function StoryboardCardOverlayItem(props: {
   onSelect: (card: StoryboardCardModel) => void
   selected: boolean
 }) {
-  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected } = props
+  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected, selectionDisabled = false } = props
   const { width, height } = readNodeCardSize(node)
   const rows = buildCardRows(card)
   const displayMedia = pendingMedia || card.media
@@ -235,8 +236,16 @@ function StoryboardCardOverlayItem(props: {
       data-kg-storyboard-fixed-card-rich-media-chrome="1"
       data-node-id={card.id}
       data-kg-flow-editor-surface={flowEditorSurfaceId}
-      onClickCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
-      onPointerDownCapture={event => event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]') ? undefined : onSelect(card)}
+      onClickCapture={event => {
+        if (selectionDisabled) return
+        if (event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]')) return
+        onSelect(card)
+      }}
+      onPointerDownCapture={event => {
+        if (selectionDisabled) return
+        if (event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]')) return
+        onSelect(card)
+      }}
       style={{
         width,
         height,
@@ -351,6 +360,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const requestZoom = useGraphStore(s => s.requestZoom)
+  const toolMode = useGraphStore(s => s.toolMode)
   const fixedLayoutEnabled = strybldrStoryboardBoardLayoutMode === 'fixed'
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -566,6 +576,7 @@ export function StoryboardCardOverlayLayer2d(props: {
             onRemove={removeCard}
             onSelect={selectCard}
             register={register}
+            selectionDisabled={toolMode === 'addEdge'}
             selected={selected}
           />
         )

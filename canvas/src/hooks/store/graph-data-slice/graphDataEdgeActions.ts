@@ -89,10 +89,6 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
       const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
       set(s => ({
         sourceFiles: nextSourceFiles,
-        graphData: nextGraphData,
-        graphDataRevision: nextRevision,
-        graphContentRevision: (s.graphContentRevision || 0) + 1,
-        docLocationRevision: (s.docLocationRevision || 0) + 1,
         ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
         ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
           ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
@@ -100,6 +96,7 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
         graphValidationStatus: null,
         graphValidationTimestamp: null,
       }))
+      get().setGraphDataPreservingLayout(nextGraphData)
       if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
         writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
       }

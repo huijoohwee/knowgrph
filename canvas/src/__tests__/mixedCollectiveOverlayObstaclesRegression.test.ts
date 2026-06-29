@@ -10,6 +10,12 @@ export function testFlowEditorWidgetCollisionTreatsRichMediaOverlaysAsCurrentSur
   if (!text.includes('queryActiveSurfaceOverlays(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)')) {
     throw new Error('expected Flow Editor widget collective collision to query Rich Media overlay roots through the active-surface selector')
   }
+  if (!text.includes('const widgetOverlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
+    throw new Error('expected Flow Editor widget collective collision warmup to keep counting widget overlay roots through the shared selector')
+  }
+  if (!text.includes('const overlayEls = Array.from(new Set<HTMLElement>([')) {
+    throw new Error('expected Flow Editor widget collective collision warmup to merge widget and Rich Media overlay roots before waiting on collective geometry')
+  }
   if (!text.includes("id: `rich-media:${id}`")) {
     throw new Error('expected Flow Editor widget collective collision to add current-surface Rich Media overlays into pinned obstacle resolution')
   }

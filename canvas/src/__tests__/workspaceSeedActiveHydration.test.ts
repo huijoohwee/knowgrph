@@ -417,3 +417,43 @@ export async function testWorkspaceSeedProviderStorageExportDoesNotReuseStaleMir
     })
   })
 }
+
+export async function testWorkspaceSeedProviderConfiguredDocsRootDedupesBurstReads() {
+  let docsRootFetches = 0
+  await withFetchAndEnv({
+    VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: '/virtual/workspace/docs-burst-dedupe',
+    VITE_KNOWGRPH_STORAGE_BASE_URL: undefined,
+  }, (async input => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    if (url !== '/__kg_fs_list') return new Response('', { status: 404 })
+    docsRootFetches += 1
+    return new Response(JSON.stringify({
+      ok: true,
+      files: [{
+        relPath: 'burst-dedupe.md',
+        text: '# deduped docs mirror',
+        updatedAtMs: 1710000010000,
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch, async () => {
+    await withStoreMirrorState(async () => {
+      const store = useGraphStore.getState()
+      store.setLocalMarkdownFolderHandle(null)
+      store.setLocalMarkdownFolderCacheId(null, null)
+      store.setLocalMarkdownSelectedFolderPath('/virtual/workspace/docs-burst-dedupe')
+      store.setSourceFiles([])
+      const [first, second, third] = await Promise.all([
+        readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true }),
+        readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true }),
+        readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true }),
+      ])
+      if (docsRootFetches !== 1) {
+        throw new Error(`expected configured docs root burst reads to share one proxy request, got ${docsRootFetches}`)
+      }
+      const texts = [first, second, third].map(entries => String(entries[0]?.text || '').trim())
+      if (texts.some(text => text !== '# deduped docs mirror')) {
+        throw new Error(`expected burst reads to resolve the same docs mirror payload, got ${JSON.stringify(texts)}`)
+      }
+    })
+  })
+}

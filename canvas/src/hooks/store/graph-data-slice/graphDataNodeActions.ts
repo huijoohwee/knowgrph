@@ -22,6 +22,46 @@ import {
   writeWorkspaceSourceTextIfPresent,
 } from './graphDataFrontmatterFlowSync'
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+
+function reportStoryboardMediaPanelLoopNodeActionDebug(args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}): void {
+  try {
+    void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+        hypothesisId: args.hypothesisId,
+        location: args.location,
+        msg: `[DEBUG] ${args.msg}`,
+        data: args.data || {},
+        ts: new Date().toISOString(),
+      }),
+    })
+  } catch {
+    void 0
+  }
+}
+
+function readGraphDataDebugKind(graphData: GraphData | null | undefined): string {
+  const metadata = graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, unknown>)
+    : null
+  return String(metadata?.parserId || metadata?.kind || graphData?.context || '').trim()
+}
+
+function isStoryboardMarkdownText(text: unknown): boolean {
+  const raw = String(text || '')
+  return /kgStrybldrStoryboard:\s*(?:"true"|'true'|true|1)/.test(raw) || /```(?:json\s+)?strybldr-storyboard\b/i.test(raw)
+}
 
 export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
   return ({
@@ -258,11 +298,35 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+    const currentState = get()
+    const sourceFiles = currentState.sourceFiles || []
     const activeTextSync = syncActiveMarkdownDocumentTextFromParsedGraph({
-      state: get(),
-      sourceFiles: get().sourceFiles || [],
+      state: currentState,
+      sourceFiles,
       parsedGraphData: nextGraphData,
     })
+    // #region debug-point D:graph-data-node-add-sync
+    if (
+      String(withTpl.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      || isStoryboardMarkdownText(currentState.markdownDocumentText)
+    ) {
+      reportStoryboardMediaPanelLoopNodeActionDebug({
+        hypothesisId: 'D',
+        location: 'graphDataNodeActions.ts:add-node-sync',
+        msg: 'shared addNode evaluated active markdown sync after rich media panel insertion',
+        data: {
+          nodeId: String(withTpl.id || '').trim(),
+          nodeType: String(withTpl.type || '').trim(),
+          activeMarkdownDocumentName: String(currentState.markdownDocumentName || '').trim(),
+          activeMarkdownIsStoryboard: isStoryboardMarkdownText(currentState.markdownDocumentText),
+          parsedGraphKind: readGraphDataDebugKind(nextGraphData),
+          parsedGraphNodeCount: Array.isArray(nextGraphData.nodes) ? nextGraphData.nodes.length : 0,
+          wroteMarkdownDocumentText: Object.prototype.hasOwnProperty.call(activeTextSync, 'markdownDocumentText'),
+          sourceFilesChanged: activeTextSync.sourceFiles !== sourceFiles,
+        },
+      })
+    }
+    // #endregion
     set(s => ({
       ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),
       graphData: nextGraphData,

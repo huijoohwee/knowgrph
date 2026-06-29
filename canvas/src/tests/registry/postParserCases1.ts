@@ -119,6 +119,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["baseline.flowEditor.widget.scroll.wheelCaptureNoStopPropagation","@/__tests__/flowEditorFrontmatterFlowWidgetAndTypedHandlesRegression.test","testWidgetWheelCaptureDoesNotBlockInternalScroll"],
   ["baseline.flowEditor.widget.portHandles.tooltip.directionalPath","@/__tests__/flowEditorFrontmatterFlowWidgetAndTypedHandlesRegression.test","testWidgetPortHandleTooltipUsesDirectionalHandlePath"],
   ["workspace.runtime.graphWriteback.refreshesActiveEditorTextSafely","@/__tests__/workspaceSwitchStaleGuard.test","testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorTextSafely"],
+  ["workspace.runtime.command.promotesExplorerActivePath","@/__tests__/workspaceRuntimeCommandSourceContract.test","testWorkspaceRuntimeCommandApplyMarkdownDocumentPromotesExplorerActivePath"],
   ["workspace.runtime.command.appliesMcpAssistantResponse","@/__tests__/workspaceRuntimeCommandSourceContract.test","testWorkspaceRuntimeCommandAppliesMcpAssistantResponseThroughChatKgcPipeline"],
   ["workspace.runtime.editorSsot.skipsPendingDocumentSwitch","@/__tests__/markdownEditorSsotSync.test","testMarkdownEditorSsotSyncSkipsPendingWorkspaceDocumentSwitch"],
   ["workspace.runtime.editorSsot.allowsOwnedActiveWorkspaceText","@/__tests__/markdownEditorSsotSync.test","testMarkdownEditorSsotSyncAllowsOwnedActiveWorkspaceText"],

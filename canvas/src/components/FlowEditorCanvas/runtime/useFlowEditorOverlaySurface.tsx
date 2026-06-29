@@ -41,6 +41,34 @@ import {
   buildFlowCanvasGraphDataOverride,
   resolveOverlayOnlyActive,
 } from '@/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceVisibility'
+
+// #region debug-point A:overlay-surface-graph-handoff
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopOverlaySurfaceDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 const EMPTY_GRAPH_NODE_BY_ID = new Map<string, GraphNode>()
@@ -788,6 +816,55 @@ export function useFlowEditorOverlaySurface(args: {
     overlayEditorNodeIdsSnapshot,
     overlayOnlyActive,
     frontmatterOverlayAuthorityGraphData,
+  ])
+  const overlaySurfaceGraphSignature = React.useMemo(() => {
+    return [
+      String(overlayOnlyActive),
+      String(frontmatterOverlayVisualIsolation.kind || ''),
+      String(Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0),
+      String(Array.isArray(frontmatterOverlayAuthorityGraphData?.nodes) ? frontmatterOverlayAuthorityGraphData.nodes.length : 0),
+      String(overlayEditorNodeIdsSnapshot.length),
+      String(Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0),
+    ].join('::')
+  }, [
+    flowCanvasGraphDataOverride,
+    frontmatterOverlayAuthorityGraphData,
+    frontmatterOverlayVisualIsolation.kind,
+    overlayEditorNodeIdsSnapshot.length,
+    overlayOnlyActive,
+    renderGraphDataOverride,
+  ])
+  const reportedOverlaySurfaceGraphSignatureRef = React.useRef('')
+  React.useEffect(() => {
+    if (renderGraphPlacementContext?.canvas2dRenderer !== 'storyboard') return
+    if (!overlaySurfaceGraphSignature || reportedOverlaySurfaceGraphSignatureRef.current === overlaySurfaceGraphSignature) return
+    reportedOverlaySurfaceGraphSignatureRef.current = overlaySurfaceGraphSignature
+    // #region debug-point B:overlay-surface-graph-handoff
+    reportStoryboardMediaPanelLoopOverlaySurfaceDebug({
+      hypothesisId: 'D',
+      location: 'useFlowEditorOverlaySurface.tsx:flow-canvas-graph-override',
+      msg: 'overlay surface computed flow-canvas graph override for storyboard',
+      data: {
+        overlayOnlyActive,
+        frontmatterOverlayVisualIsolationKind: frontmatterOverlayVisualIsolation.kind,
+        renderGraphNodeCount: Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0,
+        authorityGraphNodeCount: Array.isArray(frontmatterOverlayAuthorityGraphData?.nodes)
+          ? frontmatterOverlayAuthorityGraphData.nodes.length
+          : 0,
+        overlayEditorNodeIds: overlayEditorNodeIdsSnapshot,
+        flowCanvasGraphNodeCount: Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0,
+      },
+    })
+    // #endregion
+  }, [
+    flowCanvasGraphDataOverride,
+    frontmatterOverlayAuthorityGraphData,
+    frontmatterOverlayVisualIsolation.kind,
+    overlayEditorNodeIdsSnapshot,
+    overlayOnlyActive,
+    overlaySurfaceGraphSignature,
+    renderGraphDataOverride,
+    renderGraphPlacementContext?.canvas2dRenderer,
   ])
 
   return {

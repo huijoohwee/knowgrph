@@ -32,8 +32,36 @@ import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTop
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { appendPendingOverlayNodesToGraphData } from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'
+
+// #region debug-point A:runtime-storyboard-graph-handoff
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const reportStoryboardMediaPanelLoopRuntimeDebug = (args: {
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}) => {
+  if (typeof fetch !== 'function') return
+  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
+      runId: 'pre-fix',
+      hypothesisId: args.hypothesisId,
+      location: args.location,
+      msg: `[DEBUG] ${args.msg}`,
+      data: args.data || {},
+      ts: Date.now(),
+    }),
+  }).catch(() => {
+    void 0
+  })
+}
+// #endregion
 
 export default function FlowEditorCanvasRuntime(
   {
@@ -308,6 +336,7 @@ export default function FlowEditorCanvasRuntime(
     active,
     editorRuntimeActive,
     flowEditorViewActive,
+    canvas2dRenderer,
     overlayOnlyModeEnabled,
     flowEditorFrontmatterGraphAvailable,
     widgetRegistry,
@@ -609,10 +638,22 @@ export default function FlowEditorCanvasRuntime(
     [flowCanvasGraphDataOverride, pendingOverlayNodesById],
   )
   React.useEffect(() => {
+    const pendingOverlayStillSelectedOrOpen = (id: string): boolean => {
+      const selected = String(selectedNodeId || '').trim()
+      if (selected && isCanonicalNodeIdEqual(selected, id)) return true
+      const pendingSelectedId = String(pendingSelectNodeIdRef.current || '').trim()
+      if (pendingSelectedId && isCanonicalNodeIdEqual(pendingSelectedId, id)) return true
+      const pendingOpenId = String(pendingOpenWidgetNodeIdRef.current || '').trim()
+      if (pendingOpenId && isCanonicalNodeIdEqual(pendingOpenId, id)) return true
+      for (let i = 0; i < openWidgetNodeIds.length; i += 1) {
+        if (isCanonicalNodeIdEqual(openWidgetNodeIds[i], id)) return true
+      }
+      return false
+    }
     setPendingOverlayNodesById(prev => {
       let next: Record<string, GraphNode> | null = null
       for (const id of Object.keys(prev)) {
-        if (!resolveGraphNodeByCanonicalId(baseGraphData, id)) continue
+        if (!resolveGraphNodeByCanonicalId(baseGraphData, id) && pendingOverlayStillSelectedOrOpen(id)) continue
         if (!next) next = { ...prev }
         delete next[id]
       }
@@ -620,14 +661,83 @@ export default function FlowEditorCanvasRuntime(
     })
     const pendingId = String(pendingOverlayNodeIdRef.current || '').trim()
     if (!pendingId) return
-    if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId)) return
+    if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId) && pendingOverlayStillSelectedOrOpen(pendingId)) return
     pendingOverlayNodeIdRef.current = null
     setPendingOverlayNode(null)
-  }, [baseGraphData])
+  }, [baseGraphData, openWidgetNodeIds, selectedNodeId])
   const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {
-    if (!storyboardCardsMode || flowCanvasGraphDataWithPendingOverlays) return flowCanvasGraphDataWithPendingOverlays
-    return { context: '', type: 'Graph', nodes: [], edges: [] }
-  }, [flowCanvasGraphDataWithPendingOverlays, storyboardCardsMode])
+    if (!storyboardCardsMode) return flowCanvasGraphDataWithPendingOverlays
+    return flowCanvasGraphDataWithPendingOverlays
+      || flowCanvasGraphDataOverride
+      || renderGraphDataOverride
+      || draftGraphData
+      || baseGraphData
+      || { context: '', type: 'Graph', nodes: [], edges: [] }
+  }, [
+    baseGraphData,
+    draftGraphData,
+    flowCanvasGraphDataOverride,
+    flowCanvasGraphDataWithPendingOverlays,
+    renderGraphDataOverride,
+    storyboardCardsMode,
+  ])
+  const storyboardRuntimeGraphSignature = React.useMemo(() => {
+    return [
+      String(storyboardCardsMode),
+      String(Array.isArray(baseGraphData?.nodes) ? baseGraphData.nodes.length : 0),
+      String(Array.isArray(draftGraphData?.nodes) ? draftGraphData.nodes.length : 0),
+      String(Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0),
+      String(Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0),
+      String(Object.keys(pendingOverlayNodesById).length),
+      String(Array.isArray(flowCanvasGraphDataWithPendingOverlays?.nodes) ? flowCanvasGraphDataWithPendingOverlays.nodes.length : 0),
+      String(Array.isArray(storyboardCanvasGraphDataOverride?.nodes) ? storyboardCanvasGraphDataOverride.nodes.length : 0),
+    ].join('::')
+  }, [
+    baseGraphData,
+    draftGraphData,
+    flowCanvasGraphDataOverride,
+    flowCanvasGraphDataWithPendingOverlays,
+    pendingOverlayNodesById,
+    renderGraphDataOverride,
+    storyboardCanvasGraphDataOverride,
+    storyboardCardsMode,
+  ])
+  const reportedStoryboardRuntimeGraphSignatureRef = React.useRef('')
+  React.useEffect(() => {
+    if (!storyboardCardsMode) return
+    if (!storyboardRuntimeGraphSignature || reportedStoryboardRuntimeGraphSignatureRef.current === storyboardRuntimeGraphSignature) return
+    reportedStoryboardRuntimeGraphSignatureRef.current = storyboardRuntimeGraphSignature
+    // #region debug-point B:runtime-storyboard-graph-handoff
+    reportStoryboardMediaPanelLoopRuntimeDebug({
+      hypothesisId: 'D',
+      location: 'FlowEditorCanvas.runtime.tsx:storyboard-source-graph',
+      msg: 'runtime prepared storyboard source graph override',
+      data: {
+        baseGraphNodeCount: Array.isArray(baseGraphData?.nodes) ? baseGraphData.nodes.length : 0,
+        draftGraphNodeCount: Array.isArray(draftGraphData?.nodes) ? draftGraphData.nodes.length : 0,
+        renderGraphNodeCount: Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0,
+        flowCanvasGraphNodeCount: Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0,
+        pendingOverlayNodeIds: Object.keys(pendingOverlayNodesById),
+        flowCanvasGraphWithPendingNodeCount: Array.isArray(flowCanvasGraphDataWithPendingOverlays?.nodes)
+          ? flowCanvasGraphDataWithPendingOverlays.nodes.length
+          : 0,
+        storyboardSourceGraphNodeCount: Array.isArray(storyboardCanvasGraphDataOverride?.nodes)
+          ? storyboardCanvasGraphDataOverride.nodes.length
+          : 0,
+      },
+    })
+    // #endregion
+  }, [
+    baseGraphData,
+    draftGraphData,
+    flowCanvasGraphDataOverride,
+    flowCanvasGraphDataWithPendingOverlays,
+    pendingOverlayNodesById,
+    renderGraphDataOverride,
+    storyboardCanvasGraphDataOverride,
+    storyboardCardsMode,
+    storyboardRuntimeGraphSignature,
+  ])
   const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded
 
   if (widgetDropBridgeOnly) {

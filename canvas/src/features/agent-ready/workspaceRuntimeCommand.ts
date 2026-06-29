@@ -201,6 +201,10 @@ export const createWorkspaceRuntimeCommand = (): WorkspaceRuntimeCommand => ({
       return { ...readWorkspaceRuntimeCommandState(), applied: false }
     }
     const state = useGraphStore.getState()
+    const workspacePath = normalizeWorkspacePath(name)
+    if (workspacePath) {
+      useMarkdownExplorerStore.getState().setActivePath(workspacePath)
+    }
     applyRuntimeViewOptions(state, args)
     const applied = await state.setActiveMarkdownDocument({
       name,

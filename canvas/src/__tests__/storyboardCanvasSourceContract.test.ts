@@ -67,7 +67,12 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'pendingOverlayNodeIdRef.current = null',
     'setPendingOverlayNode(null)',
     'const storyboardCanvasGraphDataOverride = React.useMemo((): GraphData | null => {',
-    "return { context: '', type: 'Graph', nodes: [], edges: [] }",
+    'return flowCanvasGraphDataWithPendingOverlays',
+    '|| flowCanvasGraphDataOverride',
+    '|| renderGraphDataOverride',
+    '|| draftGraphData',
+    '|| baseGraphData',
+    "|| { context: '', type: 'Graph', nodes: [], edges: [] }",
     'const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded',
     'storyboardSourceGraphData={storyboardCanvasGraphDataOverride}',
     'renderGraphDataOverride={flowCanvasGraphDataOverride}',
@@ -125,6 +130,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   for (const snippet of [
     'draftGraphDataRef: React.MutableRefObject<GraphData | null>',
     'args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData',
+    "from '@/components/FlowEditor/flowPortHandlePointerDrag'",
+    'const portHandleDragPreviewActiveRef = React.useRef(false)',
+    'document.addEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, handlePreview)',
+    "portHandleDragPreviewActiveRef.current = detail?.phase !== 'cancel'",
+    'if (portHandleDragPreviewActiveRef.current) return',
   ]) {
     if (!flowEditorGraphActionsSource.includes(snippet)) {
       throw new Error(`expected FlowEditor graph actions to append dropped Rich Media Panels against the live draft graph: ${snippet}`)
@@ -174,6 +184,19 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     throw new Error('expected GraphCanvasRoot to avoid shared media-to-Rich-Media-Panel mutation ownership')
   }
   for (const snippet of [
+    'openWidgetNodeIds:',
+    'Array.isArray(s.openWidgetNodeIdsByRenderer?.[s.canvas2dRenderer])',
+    'const preserveStoryboardOverlaySelection =',
+    "canvas2dRenderer === 'storyboard'",
+    'richMedia.mediaOverlayNodeIdSet?.has(selectedNodeId)',
+    'openWidgetNodeIds.includes(selectedNodeId)',
+    'if (preserveStoryboardOverlaySelection) return',
+  ]) {
+    if (!graphCanvasRootSource.includes(snippet)) {
+      throw new Error(`expected GraphCanvasRoot to preserve storyboard media-panel selection while the node is rendered through the shared overlay pool: ${snippet}`)
+    }
+  }
+  for (const snippet of [
     'buildStoryboardBoardModel',
     'data-kg-storyboard-fixed-card-overlay="1"',
     'data-kg-storyboard-fixed-card="1"',
@@ -207,6 +230,10 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'GRAPH_KEYWORD_LANE_PROPERTY_KEYS',
     'const snappedTopLeft = snapPointToGrid({',
     'data-kg-storyboard-fixed-card-layout={fixedLayoutEnabled ? \'fixed\' : \'flex\'}',
+    'selectionDisabled?: boolean',
+    'const toolMode = useGraphStore(s => s.toolMode)',
+    "selectionDisabled={toolMode === 'addEdge'}",
+    'if (selectionDisabled) return',
   ]) {
     if (!graphStoryboardOverlaySource.includes(snippet)) {
       throw new Error(`expected shared Canvas surface to restore Storyboard card overlay snippet: ${snippet}`)
@@ -378,6 +405,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     "if (payload.kind === 'video') next.videoUrl = cleanUrl",
     "if (payload.kind === 'audio') next.audioUrl = cleanUrl",
     'type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
+    'appendArgs.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
+    'appendStrybldrStoryboardMarkdownElement({',
+    "historyLabel: 'Storyboard media panel'",
+    'updateStrybldrStoryboardMarkdownCardOverride({',
+    'setGraphDataPreservingLayout(nextGraph)',
     'updateOpenWidgetNodeIds(prev => (prev.includes(selectedId) ? prev : [...prev, selectedId]))',
     'const handleWindowNativeMediaDragOver = (event: DragEvent) => {',
     'const handleWindowNativeMediaDrop = (event: DragEvent) => {',

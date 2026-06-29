@@ -244,6 +244,7 @@ export function testStoryboardPortEdgeKeepsPendingRichMediaPanelInDraft() {
 
 export function testStoryboardPortEdgeSelectsAuthoredEdgeAfterCreate() {
   const actions = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions.ts'), 'utf8')
+  const edgeActions = readFileSync(resolve(process.cwd(), 'src/hooks/store/graph-data-slice/graphDataEdgeActions.ts'), 'utf8')
   if (!actions.includes("import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'")) {
     throw new Error('expected Storyboard/Flow Editor port edge authoring to reuse the shared auto-zoom disable helper')
   }
@@ -260,6 +261,9 @@ export function testStoryboardPortEdgeSelectsAuthoredEdgeAfterCreate() {
   if (createBranch.indexOf("args.selectEdge(String(result.edge.id || ''))") > createBranch.indexOf("args.setToolMode('select')")) {
     throw new Error('expected authored edge selection before leaving addEdge mode')
   }
+  if (!edgeActions.includes('get().setGraphDataPreservingLayout(nextGraphData)')) {
+    throw new Error('expected composed Storyboard edge commits to preserve widget layout when source-layer recomposition rewrites the graph after edge creation')
+  }
 }
 
 export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles() {
@@ -274,6 +278,9 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   }
   if (!mediaOverlays.includes('onPointerDownCapture={() => { const id = String(node.id ||')) {
     throw new Error('expected Rich Media overlay pointer selection to feed the shared port-handle owner')
+  }
+  if (!mediaOverlays.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))')) {
+    throw new Error('expected Rich Media overlay reselection on Storyboard to reopen the panel in shared open-widget state')
   }
   if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)')) {
     throw new Error('expected shared overlay port handles to resolve workspace-qualified Rich Media node ids canonically')
@@ -303,6 +310,54 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   }
   if (!overlayEdges.includes('document.addEventListener(FLOW_PORT_HANDLE_PREVIEW_EVENT, onPreview)') || !overlayEdges.includes('pendingEdgeCursorRef.current')) {
     throw new Error('expected shared overlay edge preview to track cursor movement through port-handle preview events')
+  }
+  if (!overlayEdges.includes('function collectRequestedOverlayIdentityIds(args: {')) {
+    throw new Error('expected shared overlay edge preview to compute the current requested overlay identities before choosing a stable graph')
+  }
+  if (!overlayEdges.includes('pendingEdgeSourceId: args.pendingEdgeSourceId') || !overlayEdges.includes('pendingPreviewSourceId: pendingEdgePreviewRef.current.sourceId')) {
+    throw new Error('expected shared overlay edge preview to keep pending source identities in the requested overlay identity set')
+  }
+  if (!overlayEdges.includes('const stableGraphContainsRequestedOverlayIdentities = graphContainsRequestedOverlayIdentities(stableGraph, requestedOverlayIdentityIds)')) {
+    throw new Error('expected shared overlay edge preview to verify stable graph reuse against current requested overlay identities')
+  }
+  if (!overlayEdges.includes('&& stableGraphContainsRequestedOverlayIdentities')) {
+    throw new Error('expected shared overlay edge preview to refuse stable graph reuse when it would drop the active Storyboard source overlay')
+  }
+  if (!overlayEdges.includes('const lastStableOverlayRectByNodeIdRef = React.useRef<Map<string, StableOverlayRectSnapshot>>(new Map())')) {
+    throw new Error('expected shared overlay edge preview to retain the last stable source rect across transient Storyboard overlay churn')
+  }
+  if (!overlayEdges.includes('const pendingEdgeStartPointRef = React.useRef<PendingEdgeStartPointSnapshot | null>(null)')) {
+    throw new Error('expected shared overlay edge preview to retain the drag-start anchor as a final fallback for live-route pending previews')
+  }
+  if (!overlayEdges.includes('stableRects.set(id, { rect: cloneDomRect(rect), ts: nextTs })')) {
+    throw new Error('expected shared overlay edge preview to snapshot stable overlay rect geometry for active nodes')
+  }
+  if (!overlayEdges.includes('const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) || cachedSourceRect : null')) {
+    throw new Error('expected shared overlay edge preview to fall back to a recent stable source rect when the live overlay root briefly disappears')
+  }
+  if (!overlayEdges.includes("if (source?.phase === 'start' && source.id && Number.isFinite(x) && Number.isFinite(y))")) {
+    throw new Error('expected shared overlay edge preview to snapshot the source handle drag-start point')
+  }
+  if (!overlayEdges.includes('cachedStartPointAvailable: !!cachedStartPoint')) {
+    throw new Error('expected pending-edge debug state to expose drag-start fallback availability')
+  }
+  if (!overlayEdges.includes('if ((sRect || cachedStartPoint) && cursor) {')) {
+    throw new Error('expected pending-edge preview to render from either the overlay rect or the cached drag-start anchor')
+  }
+  if (!overlayEdges.includes('const nextPendingEdgePreview = {') || !overlayEdges.includes('if (nextPendingEdgePreview.toolMode !== \'addEdge\' || !nextPendingEdgePreview.sourceId) {') || !overlayEdges.includes('scheduleOverlayEdgeUpdate()')) {
+    throw new Error('expected shared overlay edge preview state transitions to force a redraw and retire lingering pending-edge residue after finalize/cancel')
+  }
+  if (!overlayEdges.includes("'[data-kg-storyboard-fixed-card-id]'")) {
+    throw new Error('expected Storyboard overlay edge runtime to discover visible fixed-card ids from the shared surface DOM')
+  }
+  if (!overlayEdges.includes('const requestedOverlayIdentityIdsBase = collectRequestedOverlayIdentityIds({')) {
+    throw new Error('expected Storyboard overlay edge runtime to build a base requested-id set before widening hybrid media-to-card routing context')
+  }
+  if (!overlayEdges.includes('requestedOverlayIdentityIdsBase.length > 0')) {
+    throw new Error('expected Storyboard overlay edge runtime to widen requested ids with fixed cards only when an overlay edge context is already active')
+  }
+  if (!overlayEdges.includes('if (set.size > 0) {\n          for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {')) {
+    throw new Error('expected Storyboard overlay edge runtime to add fixed-card ids only after an overlay node activates hybrid edge rendering')
   }
   if (cursorEffect.includes('if (!args.overlayOnlyModeEnabled) return')) {
     throw new Error('expected Storyboard port drag preview to avoid overlay-only gating')
@@ -374,6 +429,13 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (runtime.includes('resolveGraphNodeByCanonicalId(flowCanvasGraphDataOverride, id)')) {
     throw new Error('forbid draft-derived Storyboard render projection from retiring pending Rich Media overlays')
   }
+  if (!runtime.includes('const pendingOverlayStillSelectedOrOpen = (id: string): boolean => {')
+    || !runtime.includes('const pendingSelectedId = String(pendingSelectNodeIdRef.current || \'\').trim()')
+    || !runtime.includes('const pendingOpenId = String(pendingOpenWidgetNodeIdRef.current || \'\').trim()')
+    || !runtime.includes('if (!resolveGraphNodeByCanonicalId(baseGraphData, id) && pendingOverlayStillSelectedOrOpen(id)) continue')
+    || !runtime.includes('if (!resolveGraphNodeByCanonicalId(baseGraphData, pendingId) && pendingOverlayStillSelectedOrOpen(pendingId)) return')) {
+    throw new Error('expected pending Rich Media overlays to clear stranded residue only after the panel is no longer selected or open in shared widget state')
+  }
   const renderState = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRenderState.ts'), 'utf8')
   const stableRenderEffectStart = renderState.indexOf('React.useLayoutEffect(() => {', renderState.indexOf('const [stableRenderGraphOverride'))
   const stableRenderEffectEnd = renderState.indexOf('const renderGraphDataOverride', stableRenderEffectStart)
@@ -398,6 +460,18 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!dropBridge.includes('for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)')) {
     throw new Error('expected dropped Rich Media Panel id reservation to include reserved canonical suffixes')
   }
+  if (!dropBridge.includes('const openPendingOverlayNode = React.useCallback((rawId: unknown) => {')) {
+    throw new Error('expected Storyboard Rich Media drop bridge to centralize immediate open-widget restoration for pending overlay nodes')
+  }
+  if (!dropBridge.includes('useGraphStore.getState().updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))')) {
+    throw new Error('expected Storyboard Rich Media drop bridge to mark pending overlay nodes open in shared widget state immediately')
+  }
+  const richMediaDropStart = dropBridge.indexOf('const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {')
+  const richMediaImmediateOpenIndex = dropBridge.indexOf('openPendingOverlayNode(actualId)', richMediaDropStart)
+  const richMediaPendingRefIndex = dropBridge.indexOf('args.pendingOpenWidgetNodeIdRef.current = actualId', richMediaDropStart)
+  if (richMediaImmediateOpenIndex < 0 || richMediaPendingRefIndex < 0 || richMediaImmediateOpenIndex > richMediaPendingRefIndex) {
+    throw new Error('expected Storyboard Rich Media drop bridge to open pending overlay widgets before deferring to the later pending-open resolver')
+  }
 }
 
 export function testMediaPointerReleaseUsesActualCursorPoint() {
@@ -413,6 +487,8 @@ export function testMediaPointerReleaseUsesActualCursorPoint() {
 
 export function testStoryboardPortHandleActivationForbidsTimingBasedDuplicateEdges() {
   const handles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorPortHandles.tsx'), 'utf8')
+  const dragSource = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/flowPortHandlePointerDrag.ts'), 'utf8')
+  const overlayHandles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/FlowEditorOverlayPortHandles.tsx'), 'utf8')
   if (!handles.includes('const suppressNextPointerClickRef = React.useRef(false)')) {
     throw new Error('expected port handles to track pointer activation explicitly')
   }
@@ -421,5 +497,26 @@ export function testStoryboardPortHandleActivationForbidsTimingBasedDuplicateEdg
   }
   if (handles.includes('e.detail !== 0 && Date.now() - lastPointerActivationAtRef.current < 120')) {
     throw new Error('forbid timing-based duplicate-edge suppression')
+  }
+  if (handles.includes('Date.now() - lastPointerActivationAtRef.current < 120')) {
+    throw new Error('expected direct port handles to stop relying on pointer-vs-mouse timing windows')
+  }
+  if (!handles.includes("if (p.dir === 'out' && !startedDrag) return")) {
+    throw new Error('expected direct source-handle mouse fallback to yield when a shared drag session already owns the gesture')
+  }
+  if (!overlayHandles.includes('const startedDrag = \'pointerId\' in event')) {
+    throw new Error('expected covered source-handle capture to respect the shared drag-session ownership result')
+  }
+  if (!overlayHandles.includes('if (!startedDrag) return')) {
+    throw new Error('expected covered source-handle capture to skip duplicate beginEdge state changes when drag start is rejected')
+  }
+  if (!dragSource.includes('let activeFlowPortHandleDragSession: FlowPortHandleDragSession | null = null')) {
+    throw new Error('expected shared port-handle drag runtime to track a single active drag session')
+  }
+  if (!dragSource.includes("const session = beginFlowPortHandleDragSession('pointer')") || !dragSource.includes("const session = beginFlowPortHandleDragSession('mouse')")) {
+    throw new Error('expected both pointer and mouse port-handle drags to claim the shared drag session before dispatching preview state')
+  }
+  if (!dragSource.includes("document.addEventListener('mousemove', moveMouse, true)") || !dragSource.includes("document.addEventListener('mouseup', finishMouse, true)")) {
+    throw new Error('expected pointer-owned source drag sessions to continue consuming mouse move/up events without re-opening a duplicate mouse drag')
   }
 }

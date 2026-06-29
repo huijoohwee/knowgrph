@@ -186,7 +186,6 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     } as unknown as GraphNode
     return getNodeRectDimensions2d(n, args.schema || ({ behavior: {} } as GraphSchema))
   }, [args.node?.id, args.node?.properties, args.node?.type, args.schema])
-  const lastPointerActivationAtRef = React.useRef(0)
   const suppressNextPointerClickRef = React.useRef(false)
 
   const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
@@ -284,9 +283,12 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             void 0
           }
           if (!clickable) return
+          const startedDrag =
+            p.dir === 'out'
+              ? startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
+              : false
+          if (p.dir === 'out' && !startedDrag) return
           suppressNextPointerClickRef.current = true
-          lastPointerActivationAtRef.current = Date.now()
-          if (p.dir === 'out') startFlowPortHandlePointerDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         onMouseDown={e => {
@@ -296,10 +298,12 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             void 0
           }
           if (!clickable) return
-          if (Date.now() - lastPointerActivationAtRef.current < 120) return
+          const startedDrag =
+            p.dir === 'out'
+              ? startFlowPortHandleMouseDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
+              : false
+          if (p.dir === 'out' && !startedDrag) return
           suppressNextPointerClickRef.current = true
-          lastPointerActivationAtRef.current = Date.now()
-          if (p.dir === 'out') startFlowPortHandleMouseDrag({ event: e, sourceNodeId: nodeId, sourcePortKey: parseFlowHandleKey(p.handleId as never) })
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
         onClick={e => {

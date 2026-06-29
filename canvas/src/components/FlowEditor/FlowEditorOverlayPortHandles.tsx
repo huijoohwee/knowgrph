@@ -32,7 +32,6 @@ const PortHandleInteractionContext = React.createContext<PortHandleInteractionCo
 
 export function FlowEditorOverlayPortHandleProvider(props: React.PropsWithChildren<PortHandleInteractionContextValue>) {
   const { children, ...value } = props
-  const lastCoveredPointerActivationAtRef = React.useRef(0)
   React.useEffect(() => {
     if (!value.active || typeof document === 'undefined') return undefined
     const consumeCoveredHandleEvent = (event: PointerEvent | MouseEvent) => {
@@ -55,14 +54,10 @@ export function FlowEditorOverlayPortHandleProvider(props: React.PropsWithChildr
       } catch {
         void 0
       }
-      if ('pointerId' in event) {
-        lastCoveredPointerActivationAtRef.current = Date.now()
-        startFlowPortHandlePointerDrag({ event, sourceNodeId, sourcePortKey })
-      } else {
-        if (Date.now() - lastCoveredPointerActivationAtRef.current < 120) return
-        lastCoveredPointerActivationAtRef.current = Date.now()
-        startFlowPortHandleMouseDrag({ event, sourceNodeId, sourcePortKey })
-      }
+      const startedDrag = 'pointerId' in event
+        ? startFlowPortHandlePointerDrag({ event, sourceNodeId, sourcePortKey })
+        : startFlowPortHandleMouseDrag({ event, sourceNodeId, sourcePortKey })
+      if (!startedDrag) return
       value.beginEdge(sourceNodeId, sourcePortKey)
     }
     const handleFinalize = (event: Event) => {

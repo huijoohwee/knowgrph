@@ -30,6 +30,9 @@ export function testStoryboardLiveRouteMediaPanelBrowserContract() {
     "window.knowgrphWorkspaceCommand",
     "applyMarkdownDocument",
     "kg:media-pointer-drag-drop",
+    '({ clientX, clientY, payload }) => {',
+    '"clientX": client_x',
+    '"clientY": client_y',
     "\"kind\": \"image\"",
     "\"kind\": \"video\"",
     "\"targetNodeId\": \"starter-storyboard-beats-card\"",
@@ -48,9 +51,19 @@ export function testStoryboardLiveRouteMediaPanelBrowserContract() {
     'expect_rich_media_shell_box_stable(selected_box, reopened_box, f"{media_kind} after select/open retention")',
     'expected one new live-route {str(media_case[\'kind\'])} panel',
     'expected created live-route Storyboard edge to remain visible',
+    'box = read_visible_rich_media_shell_box(page, node_id)',
+    'page.mouse.click(click_x, click_y, delay=50)',
+    'def click_visible_storyboard_card(page, node_id: str) -> None:',
+    'click_visible_storyboard_card(page, target_node_id)',
+    'page.mouse.move(preview_probe_x, preview_probe_y, steps=6)',
+    'page.mouse.move(target_x, target_y, steps=8)',
   ]) {
     if (!verifierSource.includes(snippet)) {
       throw new Error(`expected live-route verifier to cover real-route image and video panel retention, size stability, and source reapply cleanup: ${snippet}`)
     }
+  }
+
+  if (verifierSource.includes("dispatchEvent(new PointerEvent('pointerdown'") || verifierSource.includes("dispatchEvent(new MouseEvent('click'")) {
+    throw new Error('expected live-route verifier shell reselection to use real Playwright mouse input instead of synthetic DOM click dispatch')
   }
 }
