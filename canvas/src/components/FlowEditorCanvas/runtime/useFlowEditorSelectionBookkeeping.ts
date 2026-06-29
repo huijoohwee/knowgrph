@@ -8,31 +8,23 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { isCanonicalNodeIdEqual, parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
+import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 
 // #region debug-point A:selection-bookkeeping
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopSelectionDebug = (args: {
   hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
   location: string
   msg: string
   data?: Record<string, unknown>
 }) => {
-  if (typeof fetch !== 'function') return
-  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
-      runId: 'pre-fix',
-      hypothesisId: args.hypothesisId,
-      location: args.location,
-      msg: `[DEBUG] ${args.msg}`,
-      data: args.data || {},
-      ts: Date.now(),
-    }),
-  }).catch(() => {
-    void 0
+  reportRuntimeTrace({
+    scope: STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE,
+    runId: 'runtime',
+    hypothesisId: args.hypothesisId,
+    location: args.location,
+    msg: args.msg,
+    data: args.data || {},
   })
 }
 // #endregion

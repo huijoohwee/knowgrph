@@ -174,6 +174,33 @@ def read_storyboard_card_boxes(page):
     )
 
 
+def read_visible_storyboard_card_box(page, node_id: str):
+    node_suffix = canonical_node_id_suffix(node_id)
+    selector = (
+        f'article[data-node-id="{css_attr_value(node_id)}"], '
+        f'article[data-node-id$="::{css_attr_value(node_suffix)}"], '
+        f'[data-node-id="{css_attr_value(node_id)}"], '
+        f'[data-node-id$="::{css_attr_value(node_suffix)}"]'
+    )
+    box = page.evaluate(
+        """
+        ({ selector, nodeId, nodeSuffix }) => {
+          const card = Array.from(document.querySelectorAll(selector)).find((el) => {
+            const rect = el.getBoundingClientRect()
+            if (!(rect.width > 0 && rect.height > 0)) return false
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            return dataNodeId === nodeId || dataNodeId.endsWith(`::${nodeSuffix}`)
+          })
+          if (!card) return null
+          const rect = card.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        {"selector": selector, "nodeId": node_id, "nodeSuffix": node_suffix},
+    )
+    return box
+
+
 def read_storyboard_edge_ids(page):
     return page.evaluate(
         """
@@ -231,15 +258,55 @@ def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_no
     before_cards = read_storyboard_card_boxes(page)
     page.mouse.move(source_box["x"] + source_box["width"] / 2, source_box["y"] + source_box["height"] / 2)
     page.mouse.down()
-    target_selector = f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id="{css_attr_value(target_node_id)}"]'
-    target = page.locator(target_selector).first
-    expect(target).to_be_visible(timeout=15000)
-    target_box = target.bounding_box()
+    target_card_box = read_visible_storyboard_card_box(page, target_node_id)
+    if target_card_box:
+        target_card_x = target_card_box["x"] + target_card_box["width"] / 2
+        target_card_y = target_card_box["y"] + target_card_box["height"] / 2
+        preview_probe_x = source_box["x"] + source_box["width"] / 2 + (target_card_x - (source_box["x"] + source_box["width"] / 2)) * 0.35
+        preview_probe_y = source_box["y"] + source_box["height"] / 2 + (target_card_y - (source_box["y"] + source_box["height"] / 2)) * 0.35
+        page.mouse.move(preview_probe_x, preview_probe_y, steps=4)
+        expect_pending_storyboard_edge_visible(page)
+    target_suffix = canonical_node_id_suffix(target_node_id)
+    target_selector = (
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id="{css_attr_value(target_node_id)}"], '
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id$="::{css_attr_value(target_suffix)}"]'
+    )
+    page.wait_for_function(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          return candidates.some((el) => {
+            const portNodeId = String(el.getAttribute('data-kg-port-node-id') || '').trim()
+            return portNodeId === nodeId || portNodeId.endsWith(`::${suffix}`)
+          })
+        }
+        """,
+        arg={"selector": target_selector, "nodeId": target_node_id, "suffix": target_suffix},
+        timeout=15000,
+    )
+    target_box = page.evaluate(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          const exact = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim() === nodeId)
+          const fallback = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim().endsWith(`::${suffix}`))
+          const port = exact || fallback || null
+          if (!port) return null
+          const rect = port.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        {"selector": target_selector, "nodeId": target_node_id, "suffix": target_suffix},
+    )
     if not target_box:
         page.mouse.up()
         raise AssertionError(f"expected target port geometry for {target_node_id}")
-    page.mouse.move(target_box["x"] + target_box["width"] / 2, target_box["y"] + target_box["height"] / 2, steps=4)
-    expect_pending_storyboard_edge_visible(page)
     page.mouse.move(target_box["x"] + target_box["width"] / 2, target_box["y"] + target_box["height"] / 2, steps=4)
     page.mouse.up()
     page.wait_for_function(

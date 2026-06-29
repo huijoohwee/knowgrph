@@ -14,6 +14,6 @@ export {
 export { resolveAnnotationModel } from './annotationModelRegistry'
 export { validateAnnotationSpec } from './annotationSpec'
 export { buildAnnotationId, createAnnotationWorkerHandle, runAnnotationJob, type AnnotationWorkerHandle } from './annotationOrchestrator'
-export { toLlmReadyPayload, toMarkdownSummary } from './annotationSerializers'
+export { toAnnotationPreviewSrcDoc, toLlmReadyPayload, toMarkdownSummary } from './annotationSerializers'
 export { buildAnnotationSpecCandidateFromNode, runAnnotationFlowNode } from './annotationFlowNode'
 export { buildAnnotationEngineRegistryDraft, getAnnotationEngineWidgetLabel } from './annotationWidget'

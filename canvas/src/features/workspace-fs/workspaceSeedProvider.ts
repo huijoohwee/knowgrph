@@ -6,6 +6,7 @@ import {
   buildKnowgrphStorageExportPath,
   type KnowgrphStorageExportResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
 import { isWorkspaceDocsMirrorGitHubSourceUrl, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
@@ -14,15 +15,16 @@ const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000
 // #region debug-point A:workspace-mirror-bootstrap
-const WORKSPACE_MIRROR_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const WORKSPACE_MIRROR_DEBUG_SESSION_ID = 'storyboard-aborted-loads'
+const WORKSPACE_MIRROR_TRACE_SCOPE = 'workspace-mirror'
 let workspaceMirrorDebugSequence = 0
+let fsWriteAbortDebugSequence = 0
 const configuredDocsMirrorDatasetCache = new Map<string, {
   entries: WorkspaceDocsMirrorEntry[]
   expiresAtMs: number
 }>()
 const configuredDocsMirrorDatasetInFlight = new Map<string, Promise<WorkspaceDocsMirrorEntry[]>>()
 const nextWorkspaceMirrorDebugTraceId = (label: string): string => `${label}:${Date.now()}:${workspaceMirrorDebugSequence += 1}`
+const nextFsWriteAbortDebugTraceId = (label: string): string => `${label}:${Date.now()}:${fsWriteAbortDebugSequence += 1}`
 const reportWorkspaceMirrorDebug = (args: {
   hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
   traceId: string
@@ -30,13 +32,40 @@ const reportWorkspaceMirrorDebug = (args: {
   msg: string
   data?: Record<string, unknown>
 }): void => {
+  reportRuntimeTrace({
+    scope: WORKSPACE_MIRROR_TRACE_SCOPE,
+    runId: 'runtime',
+    hypothesisId: args.hypothesisId,
+    traceId: args.traceId,
+    location: args.location,
+    msg: args.msg,
+    data: args.data || {},
+  })
+}
+// #endregion
+// #region debug-point A:fs-write-abort
+const FS_WRITE_ABORT_DEBUG_SERVER_URL = 'http://127.0.0.1:7778/event'
+const FS_WRITE_ABORT_DEBUG_SESSION_ID = 'fs-write-abort'
+const FS_WRITE_ABORT_DEBUG_RUN_ID: 'pre-fix' | 'post-fix' = 'post-fix'
+const isHiddenDocumentWriteSkipActive = (): boolean => {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden'
+}
+const reportFsWriteAbortDebug = (args: {
+  runId: 'pre-fix' | 'post-fix'
+  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
+  traceId: string
+  location: string
+  msg: string
+  data?: Record<string, unknown>
+}): void => {
   if (typeof fetch !== 'function') return
-  void fetch(WORKSPACE_MIRROR_DEBUG_SERVER_URL, {
+  if (isHiddenDocumentWriteSkipActive()) return
+  void fetch(FS_WRITE_ABORT_DEBUG_SERVER_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      sessionId: WORKSPACE_MIRROR_DEBUG_SESSION_ID,
-      runId: 'post-fix',
+      sessionId: FS_WRITE_ABORT_DEBUG_SESSION_ID,
+      runId: FS_WRITE_ABORT_DEBUG_RUN_ID,
       hypothesisId: args.hypothesisId,
       traceId: args.traceId,
       location: args.location,
@@ -861,9 +890,21 @@ const readTextViaNodeFs = async (absolutePath: string): Promise<string | null> =
 
 const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  if (isHiddenDocumentWriteSkipActive()) return false
+  const traceId = nextFsWriteAbortDebugTraceId('write-text')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
+      // #region debug-point D:fs-write-timeout
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.timeout',
+        msg: '__kg_fs_write text request timeout fired abort controller',
+        data: { absolutePath, textLength: String(text ?? '').length },
+      })
+      // #endregion
       try {
         controller.abort()
       } catch {
@@ -871,6 +912,16 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
       }
     }, 5000)
     try {
+      // #region debug-point A:fs-write-start
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'A',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.fetch',
+        msg: '__kg_fs_write text request started',
+        data: { absolutePath, textLength: String(text ?? '').length },
+      })
+      // #endregion
       const response = await fetch(KG_FS_WRITE_PATH, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -880,20 +931,57 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
         }),
         signal: controller.signal,
       })
+      // #region debug-point B:fs-write-response
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.response',
+        msg: '__kg_fs_write text request settled',
+        data: { absolutePath, ok: response.ok, status: response.status },
+      })
+      // #endregion
       return response.ok
     } finally {
       window.clearTimeout(timeoutId)
     }
-  } catch {
+  } catch (error) {
+    // #region debug-point C:fs-write-catch
+    reportFsWriteAbortDebug({
+      runId: 'pre-fix',
+      hypothesisId: 'C',
+      traceId,
+      location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.catch',
+      msg: '__kg_fs_write text request threw',
+      data: {
+        absolutePath,
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error ?? ''),
+        aborted: error instanceof DOMException ? error.name === 'AbortError' : false,
+      },
+    })
+    // #endregion
     return false
   }
 }
 
 const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffer | Uint8Array): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  if (isHiddenDocumentWriteSkipActive()) return false
+  const traceId = nextFsWriteAbortDebugTraceId('write-bytes')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
+      // #region debug-point D:fs-bytes-timeout
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.timeout',
+        msg: '__kg_fs_write bytes request timeout fired abort controller',
+        data: { absolutePath, byteLength: bytes instanceof Uint8Array ? bytes.byteLength : bytes.byteLength || 0 },
+      })
+      // #endregion
       try {
         controller.abort()
       } catch {
@@ -901,6 +989,16 @@ const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffe
       }
     }, 5000)
     try {
+      // #region debug-point A:fs-bytes-start
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'A',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.fetch',
+        msg: '__kg_fs_write bytes request started',
+        data: { absolutePath, byteLength: bytes instanceof Uint8Array ? bytes.byteLength : bytes.byteLength || 0 },
+      })
+      // #endregion
       const response = await fetch(KG_FS_WRITE_PATH, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -911,11 +1009,36 @@ const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffe
         }),
         signal: controller.signal,
       })
+      // #region debug-point B:fs-bytes-response
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        traceId,
+        location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.response',
+        msg: '__kg_fs_write bytes request settled',
+        data: { absolutePath, ok: response.ok, status: response.status },
+      })
+      // #endregion
       return response.ok
     } finally {
       window.clearTimeout(timeoutId)
     }
-  } catch {
+  } catch (error) {
+    // #region debug-point C:fs-bytes-catch
+    reportFsWriteAbortDebug({
+      runId: 'pre-fix',
+      hypothesisId: 'C',
+      traceId,
+      location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.catch',
+      msg: '__kg_fs_write bytes request threw',
+      data: {
+        absolutePath,
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error ?? ''),
+        aborted: error instanceof DOMException ? error.name === 'AbortError' : false,
+      },
+    })
+    // #endregion
     return false
   }
 }
@@ -981,9 +1104,21 @@ const shouldBlockDuplicateMirrorDocumentOverwrite = async (args: {
 
 const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  if (isHiddenDocumentWriteSkipActive()) return false
+  const traceId = nextFsWriteAbortDebugTraceId('mkdir')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
+      // #region debug-point D:fs-mkdir-timeout
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        traceId,
+        location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.timeout',
+        msg: '__kg_fs_write mkdir request timeout fired abort controller',
+        data: { absolutePath },
+      })
+      // #endregion
       try {
         controller.abort()
       } catch {
@@ -991,6 +1126,16 @@ const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolea
       }
     }, 5000)
     try {
+      // #region debug-point A:fs-mkdir-start
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'A',
+        traceId,
+        location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.fetch',
+        msg: '__kg_fs_write mkdir request started',
+        data: { absolutePath },
+      })
+      // #endregion
       const response = await fetch(KG_FS_WRITE_PATH, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -1000,11 +1145,36 @@ const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolea
         }),
         signal: controller.signal,
       })
+      // #region debug-point B:fs-mkdir-response
+      reportFsWriteAbortDebug({
+        runId: 'pre-fix',
+        hypothesisId: 'B',
+        traceId,
+        location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.response',
+        msg: '__kg_fs_write mkdir request settled',
+        data: { absolutePath, ok: response.ok, status: response.status },
+      })
+      // #endregion
       return response.ok
     } finally {
       window.clearTimeout(timeoutId)
     }
-  } catch {
+  } catch (error) {
+    // #region debug-point C:fs-mkdir-catch
+    reportFsWriteAbortDebug({
+      runId: 'pre-fix',
+      hypothesisId: 'C',
+      traceId,
+      location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.catch',
+      msg: '__kg_fs_write mkdir request threw',
+      data: {
+        absolutePath,
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error ?? ''),
+        aborted: error instanceof DOMException ? error.name === 'AbortError' : false,
+      },
+    })
+    // #endregion
     return false
   }
 }

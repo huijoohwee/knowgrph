@@ -596,8 +596,4 @@ ZOOM_MAX: number
 | Media URL Resolution | Handle cross-origin             | - [ ] Normalize via getNodeMediaSpec; apply proxy; forbid direct cross-origin loads       | MediaNode        | resolveMediaUrl | node media URL       | proxied URL         | Protocol check + proxy routing   |
 | Zoom Scaling         | Maintain visibility             | - [ ] Scale panel with zoom; cap at density target; forbid clipping at max zoom           | GraphCanvas      | renderMediaPanel| zoom level + geometry| scaled panel        | Zoom transform × panel dimensions|
 
----
-
-
-## Continued In Companion Documents
-- knowgrph-frontend-document-interactions-and-operations.md
+## Continuation: See `knowgrph-frontend-document-interactions-and-operations.md`.

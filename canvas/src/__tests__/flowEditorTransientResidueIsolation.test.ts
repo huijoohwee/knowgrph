@@ -161,3 +161,33 @@ export function testFlowEditorOverlayCollisionRebalancesOnGraphContentRevision()
     throw new Error('expected Flow Editor runtime to pass graphContentRevision into overlay collision hook')
   }
 }
+
+export function testRuntimeTraceResidueUsesSharedInMemoryTrace() {
+  const traceHelperPath = resolve(process.cwd(), 'src', 'lib', 'debug', 'runtimeTrace.ts')
+  const traceHelperText = readFileSync(traceHelperPath, 'utf8')
+  if (!traceHelperText.includes('export function reportRuntimeTrace(entry: RuntimeTraceEntry): void {')) {
+    throw new Error('expected runtime debug residue to centralize through the shared in-memory trace helper')
+  }
+  for (const relativePath of [
+    ['features', 'workspace-fs', 'workspaceSeedProvider.ts'],
+    ['components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'],
+    ['components', 'FlowEditorCanvas.runtime.tsx'],
+    ['components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts'],
+    ['components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'],
+    ['components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts'],
+    ['components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts'],
+    ['components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts'],
+    ['hooks', 'store', 'graph-data-slice', 'graphDataNodeActions.ts'],
+  ] as const) {
+    const text = readFileSync(resolve(process.cwd(), 'src', ...relativePath), 'utf8')
+    if (text.includes('http://127.0.0.1:7777/event')) {
+      throw new Error(`forbid dead local debug collectors in runtime sources: ${relativePath.join('/')}`)
+    }
+    if (text.includes('[DEBUG]')) {
+      throw new Error(`forbid inline debug log payload prefixes in runtime sources: ${relativePath.join('/')}`)
+    }
+    if (!text.includes('reportRuntimeTrace({')) {
+      throw new Error(`expected runtime sources to reuse the shared in-memory trace helper: ${relativePath.join('/')}`)
+    }
+  }
+}

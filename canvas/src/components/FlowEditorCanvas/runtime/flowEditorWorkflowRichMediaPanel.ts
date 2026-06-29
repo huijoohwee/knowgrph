@@ -1,5 +1,6 @@
 import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
 import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 import {
@@ -11,10 +12,8 @@ import {
 } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
 
 function cleanString(value: unknown): string {
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
-    return cleanString((value as { value?: unknown }).value)
-  }
-  return typeof value === 'string' ? value.trim() : ''
+  const unwrapped = unwrapGraphCellValue(value)
+  return typeof unwrapped === 'string' ? unwrapped.trim() : ''
 }
 
 function listFlowEditorWorkflowRichMediaPanelSearchNodes(args: {
@@ -46,7 +45,7 @@ export function resolveFlowEditorWorkflowRichMediaPanelTargetNodeId(args: {
     const p = (n.properties || {}) as Record<string, unknown>
     return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
   })
-  return String((activePanel || panels[0])?.id || '').trim() || null
+  return cleanString((activePanel || panels[0])?.id) || null
 }
 
 export function ensureFlowEditorWorkflowRichMediaPanelNodeId(args: {
@@ -93,7 +92,7 @@ export function applyFlowEditorWorkflowRichMediaPanelDraftPatch(args: {
   if (!panelNodeId) return null
   const currentDraft = args.readLiveDraftGraphData()
   const currentPanel = Array.isArray(currentDraft?.nodes)
-    ? currentDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
+    ? currentDraft!.nodes.find(existing => cleanString(existing?.id) === panelNodeId) || null
     : null
   const currentProps = (currentPanel?.properties || {}) as Record<string, unknown>
   if (currentPanel && areFlowEditorWorkflowRecordValuesEqual(currentProps, { ...currentProps, ...args.patch })) return currentPanel
@@ -102,7 +101,7 @@ export function applyFlowEditorWorkflowRichMediaPanelDraftPatch(args: {
   let changed = false
   let updatedPanel: GraphNode | null = null
   const nextNodes = currentDraft.nodes.map(existing => {
-    const existingId = String(existing?.id || '').trim()
+    const existingId = cleanString(existing?.id)
     if (existingId !== panelNodeId) return existing
     const existingProps = (existing.properties || {}) as Record<string, unknown>
     const nextProps = { ...existingProps, ...args.patch }

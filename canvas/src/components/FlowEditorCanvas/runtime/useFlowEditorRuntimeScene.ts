@@ -51,7 +51,9 @@ import { collectActiveRichMediaWorldObstacles } from '@/components/FlowEditorCan
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
+import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import {
   type FlowWidgetPinnedById,
   type FlowWidgetScreenPosById,
@@ -134,6 +136,7 @@ export function useFlowEditorRuntimeScene(args: {
   active: boolean
   flowEditorSurfaceId?: string
   openWidgetNodeIds: string[]
+  draftGraphDataRef?: React.MutableRefObject<GraphData | null>
   renderGraphDataOverride: GraphData | null
   viewportW: number
   viewportH: number
@@ -434,6 +437,9 @@ export function useFlowEditorRuntimeScene(args: {
   React.useEffect(() => {
     renderGraphDataOverrideRef.current = args.renderGraphDataOverride
   }, [args.renderGraphDataOverride])
+  const readPreferredGraphDataForSeeding = React.useCallback(() => {
+    return args.draftGraphDataRef?.current || renderGraphDataOverrideRef.current || null
+  }, [args.draftGraphDataRef])
 
   const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
   const lastAutoSeedLayoutSignatureRef = React.useRef<string>('')
@@ -499,7 +505,7 @@ export function useFlowEditorRuntimeScene(args: {
       if (!bounds || boundsIds.length <= 1) return true
       const st = useGraphStore.getState()
       const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({
-        preferredGraphData: renderGraphDataOverrideRef.current,
+        preferredGraphData: readPreferredGraphDataForSeeding(),
         authorityGraphData: (st.graphData || null) as GraphData | null,
         nodeIds: args.openWidgetNodeIds,
       })
@@ -756,7 +762,7 @@ export function useFlowEditorRuntimeScene(args: {
     if (!args.active) return
     const st = useGraphStore.getState()
     const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({
-      preferredGraphData: renderGraphDataOverrideRef.current,
+      preferredGraphData: readPreferredGraphDataForSeeding(),
       authorityGraphData: (st.graphData || null) as GraphData | null,
       nodeIds: args.openWidgetNodeIds,
     })
@@ -765,10 +771,10 @@ export function useFlowEditorRuntimeScene(args: {
     const graphNodes = Array.isArray(graphDataForSeeding?.nodes) ? graphDataForSeeding.nodes : []
     for (let i = 0; i < graphNodes.length; i += 1) {
       const node = graphNodes[i]
-      const id = String(node?.id || '').trim()
+      const id = String(unwrapGraphCellValue(node?.id) || '').trim()
       if (!id) continue
       if (!graphNodeById.has(id)) graphNodeById.set(id, node)
-      if (!nodeTypeById.has(id)) nodeTypeById.set(id, String(node?.type || '').trim())
+      if (!nodeTypeById.has(id)) nodeTypeById.set(id, String(unwrapGraphCellValue(node?.type) || '').trim())
     }
     const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
       graphData: graphDataForSeeding,
@@ -1333,7 +1339,23 @@ export function useFlowEditorRuntimeScene(args: {
       })()
     if (shouldReseedWholeFrontmatterCollective) {
       // #region debug-point D:collective-reseed
-      fetch("http://127.0.0.1:7777/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:"rich-media-edge-regression",runId:"pre-fix",hypothesisId:"D",location:"useFlowEditorRuntimeScene.ts:1327",msg:"[DEBUG] runtime scene escalated to whole frontmatter collective reseed",data:{forceSceneEmptyReseed,pendingCount:pending.length,fullFrontmatterCollectiveCount:fullFrontmatterCollectiveIds.length,pendingIds:pending,fullFrontmatterCollectiveIds,layoutRebalanceRequested,isFrontmatterFlow,frontmatterHasUnplacedScreenAuthorityWidget},ts:Date.now()})}).catch(()=>{});
+      reportRuntimeTrace({
+        scope: 'storyboard-media-panel-loop',
+        runId: 'runtime',
+        hypothesisId: 'D',
+        location: 'useFlowEditorRuntimeScene.ts:1327',
+        msg: 'runtime scene escalated to whole frontmatter collective reseed',
+        data: {
+          forceSceneEmptyReseed,
+          pendingCount: pending.length,
+          fullFrontmatterCollectiveCount: fullFrontmatterCollectiveIds.length,
+          pendingIds: pending,
+          fullFrontmatterCollectiveIds,
+          layoutRebalanceRequested,
+          isFrontmatterFlow,
+          frontmatterHasUnplacedScreenAuthorityWidget,
+        },
+      })
       // #endregion
     }
     if (shouldReseedWholeFrontmatterCollective) pending = fullFrontmatterCollectiveIds
@@ -1464,6 +1486,7 @@ export function useFlowEditorRuntimeScene(args: {
     getLiveContainmentGroupAabbForNode,
     getVisibleViewport,
     getLiveZoomTransform,
+    readPreferredGraphDataForSeeding,
   ])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {

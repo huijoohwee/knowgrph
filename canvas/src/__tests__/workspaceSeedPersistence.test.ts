@@ -76,6 +76,8 @@ const KG_HUIJOOHWEE_DOCS_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/docs`
 const KG_HUIJOOHWEE_CHAT_LOG_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/chat-log`
 const KG_KNOWGRPH_DOCS_ROOT = `${KG_GITHUB_ROOT}/knowgrph/docs`
 const KG_HUIJOOHWEE_DOCS_FS_PREFIX = `/@fs${KG_HUIJOOHWEE_DOCS_ROOT}`
+const MIRROR_REPAIR_FIXTURE_BASENAME = 'mirror-active-validation.md'
+const MIRROR_REPAIR_FIXTURE_PATH = `/docs/${MIRROR_REPAIR_FIXTURE_BASENAME}`
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -1054,6 +1056,65 @@ export async function testWorkspaceSeedProviderBrowserUpsertDocsMirrorWritesViaK
       ;(globalThis as unknown as { window: Window }).window = previousWindow
     } else {
       delete (globalThis as unknown as { window?: Window }).window
+    }
+  }
+}
+
+export async function testWorkspaceSeedProviderBrowserUpsertDocsMirrorSkipsHiddenDocumentWrites() {
+  const previousAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
+  const calls: Array<{ url: string; body: string }> = []
+  const previousFetch = globalThis.fetch
+  const previousWindow = globalThis.window
+  const previousDocument = globalThis.document
+  ;(globalThis as unknown as { window: Window }).window = {
+    setTimeout: ((handler: TimerHandler) => {
+      if (typeof handler === 'function') handler()
+      return 0 as unknown as number
+    }) as Window['setTimeout'],
+    clearTimeout: (() => void 0) as Window['clearTimeout'],
+  } as unknown as Window
+  ;(globalThis as unknown as { document: Document }).document = {
+    visibilityState: 'hidden',
+  } as Document
+  ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({
+      url: String(typeof input === 'string' ? input : (input as URL).toString()),
+      body: String(init?.body || ''),
+    })
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+  try {
+    const fileOk = await upsertWorkspaceDocsMirrorText({
+      workspacePath: '/docs/20260527T123654Z/kgc-trace_20260527T123654Z.md',
+      text: '# streamed while hidden',
+    })
+    if (fileOk) {
+      throw new Error('expected hidden-document docs mirror writes to be skipped during browser teardown')
+    }
+    if (calls.some(call => call.url === '/__kg_fs_write')) {
+      throw new Error('expected hidden-document docs mirror writes not to call /__kg_fs_write while the page is hidden')
+    }
+  } finally {
+    if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    if (previousWindow) {
+      ;(globalThis as unknown as { window: Window }).window = previousWindow
+    } else {
+      delete (globalThis as unknown as { window?: Window }).window
+    }
+    if (previousDocument) {
+      ;(globalThis as unknown as { document: Document }).document = previousDocument
+    } else {
+      delete (globalThis as unknown as { document?: Document }).document
     }
   }
 }
@@ -2104,6 +2165,460 @@ export async function testHydrateWorkspaceEntriesInlineTextHydratesEmptyInlineFi
   if (hydrated === entries) throw new Error('expected empty inline file text to trigger hydration from workspace fs')
   if (String(hydrated[0]?.text || '').trim() !== '# hydrated from fs') {
     throw new Error(`expected hydrated workspace entry text from fs, got ${String(hydrated[0]?.text || '')}`)
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterLabelResidue() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-label-sanitize-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: floating_media_ingestion_source',
+    '      type: FloatingPanelMediaSourceWidget',
+    '      label: {key: label, type: string, value: "FloatingPanel Media Source"}',
+    '---',
+    '',
+  ].join('\n')
+  const staleText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: floating_media_ingestion_source',
+    '      type: FloatingPanelMediaSourceWidget',
+    '      label: {key: label, type: string, value: "FloatingPanel Media SourceFloatingPanel Media Source XFloatingPanel Media Source TEST-629B"}',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: staleText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror text to replace corrupted local label residue, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 1 || writes[0]?.path !== MIRROR_REPAIR_FIXTURE_PATH || String(writes[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror reconciliation to repair persisted workspace text once, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterNodeTypeResidue() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-node-type-sanitize-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '---',
+    '',
+  ].join('\n')
+  const staleText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidgetComputeWidget stale ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: staleText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror text to replace corrupted local node type residue, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 1 || writes[0]?.path !== MIRROR_REPAIR_FIXTURE_PATH || String(writes[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror reconciliation to repair persisted workspace node type text once, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterNodeStringPropertyResidue() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-property-sanitize-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '      compute:',
+    '        key: compute',
+    '        type: string',
+    '        value: |',
+    '          inputs => ({ outputSrcDoc: "frame summary" })',
+    '---',
+    '',
+  ].join('\n')
+  const staleText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '      compute:',
+    '        key: compute',
+    '        type: string',
+    '        value: |',
+    '          inputs => ({ outputSrcDoc: "frame summary" })inputs => ({ outputSrcDoc: "frame summary" }) // stale append',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: staleText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror text to replace corrupted local property residue, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 1 || writes[0]?.path !== MIRROR_REPAIR_FIXTURE_PATH || String(writes[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror reconciliation to repair persisted workspace property text once, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterEdgeStringResidue() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-edge-sanitize-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: source_input',
+    '      type: InputWidget',
+    '      label: {key: label, type: string, value: "Source Input"}',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '  edges:',
+    '    - id: edge_metric',
+    '      source: {key: source, type: string, value: "source_input"}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: "input_metric_target"}',
+    '      target: {key: target, type: string, value: "compute_summary"}',
+    '      targetHandle: {key: targetHandle, type: string, value: "input_metric_target"}',
+    '      label: {key: label, type: string, value: "input_metric_target"}',
+    '      type: {key: type, type: string, value: "template_number_signal"}',
+    '---',
+    '',
+  ].join('\n')
+  const staleText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: source_input',
+    '      type: InputWidget',
+    '      label: {key: label, type: string, value: "Source Input"}',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '  edges:',
+    '    - id: edge_metric',
+    '      source: {key: source, type: string, value: "source_input"}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: "input_metric_targetinput_metric_targetinput_metric_target // stale append"}',
+    '      target: {key: target, type: string, value: "compute_summary"}',
+    '      targetHandle: {key: targetHandle, type: string, value: "input_metric_target"}',
+    '      label: {key: label, type: string, value: "input_metric_target"}',
+    '      type: {key: type, type: string, value: "template_number_signal"}',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: staleText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror text to replace corrupted local edge residue, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 1 || writes[0]?.path !== MIRROR_REPAIR_FIXTURE_PATH || String(writes[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror reconciliation to repair persisted workspace edge text once, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterEdgeEndpointResidue() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-edge-endpoint-sanitize-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: source_input',
+    '      type: InputWidget',
+    '      label: {key: label, type: string, value: "Source Input"}',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '  edges:',
+    '    - id: edge_metric',
+    '      source: {key: source, type: string, value: "source_input"}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: "input_metric_target"}',
+    '      target: {key: target, type: string, value: "compute_summary"}',
+    '      targetHandle: {key: targetHandle, type: string, value: "input_metric_target"}',
+    '      label: {key: label, type: string, value: "input_metric_target"}',
+    '      type: {key: type, type: string, value: "template_number_signal"}',
+    '---',
+    '',
+  ].join('\n')
+  const staleText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: source_input',
+    '      type: InputWidget',
+    '      label: {key: label, type: string, value: "Source Input"}',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '  edges:',
+    '    - id: edge_metric',
+    '      source: {key: source, type: string, value: "source_inputsource_input stale source_input"}',
+    '      sourceHandle: {key: sourceHandle, type: string, value: "input_metric_target"}',
+    '      target: {key: target, type: string, value: "compute_summarycompute_summary stale compute_summary"}',
+    '      targetHandle: {key: targetHandle, type: string, value: "input_metric_target"}',
+    '      label: {key: label, type: string, value: "input_metric_target"}',
+    '      type: {key: type, type: string, value: "template_number_signal"}',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: staleText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror text to replace corrupted local edge endpoint residue, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 1 || writes[0]?.path !== MIRROR_REPAIR_FIXTURE_PATH || String(writes[0]?.text || '').trim() !== canonicalText.trim()) {
+      throw new Error(`expected canonical docs mirror reconciliation to repair persisted workspace edge endpoint text once, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
+  }
+}
+
+export async function testReadWorkspaceActiveEntrySnapshotKeepsOrdinaryFrontmatterStringEdits() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const tempDocsRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-runtime-no-clobber-'))
+  const writes: Array<{ path: string; text: string }> = []
+  const canonicalText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary"}',
+    '      compute:',
+    '        key: compute',
+    '        type: string',
+    '        value: |',
+    '          inputs => ({ outputSrcDoc: "frame summary" })',
+    '---',
+    '',
+  ].join('\n')
+  const userEditedText = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id: compute_summary',
+    '      type: ComputeWidget',
+    '      label: {key: label, type: string, value: "Compute Summary V2"}',
+    '      compute:',
+    '        key: compute',
+    '        type: string',
+    '        value: |',
+    '          inputs => ({ outputSrcDoc: "frame summary v2" })',
+    '---',
+    '',
+  ].join('\n')
+  await fsPromises.writeFile(path.join(tempDocsRoot, MIRROR_REPAIR_FIXTURE_BASENAME), canonicalText, 'utf8')
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = tempDocsRoot
+  try {
+    const fs: WorkspaceFs = {
+      ensureSeed: async () => false,
+      listEntries: async () => [],
+      readFileText: async () => '',
+      writeFileText: async (path: string, text: string) => {
+        writes.push({ path: String(path || ''), text: String(text || '') })
+      },
+      createFile: async () => '/docs/tmp.md',
+      createFolder: async () => '/docs',
+      deleteEntry: async () => void 0,
+    }
+    const snapshot = await readWorkspaceActiveEntrySnapshot({
+      fs,
+      activePath: MIRROR_REPAIR_FIXTURE_PATH,
+      workspaceEntries: [
+        {
+          path: MIRROR_REPAIR_FIXTURE_PATH,
+          parentPath: '/docs',
+          kind: 'file',
+          name: MIRROR_REPAIR_FIXTURE_BASENAME,
+          text: userEditedText,
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    if (String(snapshot[0]?.text || '').trim() !== userEditedText.trim()) {
+      throw new Error(`expected ordinary frontmatter edits to survive startup without canonical override, got ${String(snapshot[0]?.text || '')}`)
+    }
+    if (writes.length !== 0) {
+      throw new Error(`expected ordinary frontmatter edits to avoid repair writeback, got ${JSON.stringify(writes)}`)
+    }
+  } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    await fsPromises.rm(tempDocsRoot, { recursive: true, force: true })
   }
 }
 

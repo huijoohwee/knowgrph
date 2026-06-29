@@ -406,6 +406,18 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       portHandle: (portKey: string, dir: 'in' | 'out') => `${idBase}-port-${dir}-${cleanDomIdPart(portKey) || 'port'}`,
     }
   }, [idBase])
+  const liveNodeLabel = String(nodeHelperSnapshot.label || '')
+  const labelEditInProgressRef = React.useRef(false)
+  const [labelDraft, setLabelDraft] = React.useState(liveNodeLabel)
+  React.useEffect(() => {
+    if (labelEditInProgressRef.current) return
+    setLabelDraft(liveNodeLabel)
+  }, [liveNodeLabel])
+  const commitLabelDraft = React.useCallback((nextDraft?: string) => {
+    const nextLabel = typeof nextDraft === 'string' ? nextDraft : labelDraft
+    if (nextLabel === liveNodeLabel) return
+    onSetLabel(nextLabel)
+  }, [labelDraft, liveNodeLabel, onSetLabel])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(nodeHelperSnapshot), [nodeHelperSnapshot])
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
@@ -1013,8 +1025,37 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     UI_THEME_TOKENS.input.border,
                     UI_THEME_TOKENS.input.text,
                   )}
-                  value={String(nodeHelperSnapshot.label || '')}
-                  onChange={e => onSetLabel(e.target.value)}
+                  value={labelDraft}
+                  onFocus={() => {
+                    labelEditInProgressRef.current = true
+                  }}
+                  onChange={e => {
+                    const nextLabel = String(e.target.value || '')
+                    setLabelDraft(nextLabel)
+                  }}
+                  onBlur={e => {
+                    labelEditInProgressRef.current = false
+                    const nextLabel = String(e.currentTarget.value || '')
+                    setLabelDraft(nextLabel)
+                    commitLabelDraft(nextLabel)
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const nextLabel = String(e.currentTarget.value || '')
+                      labelEditInProgressRef.current = false
+                      setLabelDraft(nextLabel)
+                      commitLabelDraft(nextLabel)
+                      e.currentTarget.blur()
+                      return
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      labelEditInProgressRef.current = false
+                      setLabelDraft(liveNodeLabel)
+                      e.currentTarget.blur()
+                    }
+                  }}
                   disabled={!active}
                 />
               ),

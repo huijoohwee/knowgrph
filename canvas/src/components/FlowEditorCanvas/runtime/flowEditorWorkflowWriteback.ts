@@ -1,5 +1,6 @@
 import { parseCanonicalNodeIds } from '@/lib/graph/canonicalNodeIds'
 import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 export type FlowEditorWorkflowOutputLoadingKind = 'text' | 'image' | 'video' | 'audio'
@@ -38,7 +39,7 @@ export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {
   if (currentDraft && Array.isArray(currentDraft.nodes) && currentDraft.nodes.length > 0) {
     let changed = false
     const nextNodes = currentDraft.nodes.map(existing => {
-      const existingId = String(existing?.id || '').trim()
+      const existingId = String(unwrapGraphCellValue(existing?.id) || '').trim()
       if (!existingId || !candidateIds.has(existingId)) return existing
       const currentProps = (existing.properties || {}) as Record<string, unknown>
       const nextProps = args.buildPatch(currentProps)

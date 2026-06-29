@@ -12,6 +12,7 @@ import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspa
 import { isWorkspaceSourceMirrorFileName } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceDocsMirrorRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
+import { frontmatterFlowTextHasRepeatedCanonicalStringResidue } from '@/features/parsers/markdownFrontmatterFlowRepair'
 import { readStorageCanonicalPathCandidatesForWorkspacePath } from '@/features/source-files/sourceFilesStoragePaths'
 import { buildModelAssetWorkspaceFallbackMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
 import {
@@ -20,6 +21,32 @@ import {
 } from '@/features/source-files/workspaceActiveEntryCache'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+
+const resolveCanonicalDocsMirrorRepairText = async (args: {
+  activePath: WorkspacePath
+  currentText: string
+  storageFallbackByPath?: Map<string, string>
+  modelAssetFormat: 'glb' | 'gltf' | null
+}): Promise<string | null> => {
+  const canonicalDocsMirrorText = resolveWorkspaceActiveDocumentText(
+    args.activePath,
+    args.modelAssetFormat,
+    await readWorkspaceDocsMirrorFallbackText(args.activePath, args.storageFallbackByPath),
+  )
+  if (
+    canonicalDocsMirrorText.trim()
+    // Startup repair only yields to canonical docs mirror for parser-backed
+    // repeated-residue corruption, not for ordinary user edits.
+    && frontmatterFlowTextHasRepeatedCanonicalStringResidue({
+      documentName: workspaceBasename(args.activePath) || 'workspace-flow.md',
+      currentText: args.currentText,
+      canonicalText: canonicalDocsMirrorText,
+    })
+  ) {
+    return canonicalDocsMirrorText
+  }
+  return null
+}
 
 const isWorkspaceModelAssetPath = (path: WorkspacePath): 'glb' | 'gltf' | null => {
   const ext = workspaceExtLower(path)
@@ -244,7 +271,16 @@ export async function readWorkspaceActiveDocumentResolvedText(args: {
   }
   const currentText = String(args.currentText || '')
   const resolvedCurrentText = resolveWorkspaceActiveDocumentText(activePath, modelAssetFormat, currentText)
-  if (resolvedCurrentText.trim()) return resolvedCurrentText
+  if (resolvedCurrentText.trim()) {
+    const canonicalDocsMirrorRepairText = await resolveCanonicalDocsMirrorRepairText({
+      activePath,
+      currentText: resolvedCurrentText,
+      storageFallbackByPath: args.storageFallbackByPath,
+      modelAssetFormat,
+    })
+    if (canonicalDocsMirrorRepairText) return canonicalDocsMirrorRepairText
+    return resolvedCurrentText
+  }
   let fsText = ''
   try {
     const fs = args.fs || (await getWorkspaceFs())
@@ -283,7 +319,28 @@ export const readWorkspaceActiveEntrySnapshot = async (args: {
   const provided = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const existingEntry = provided.find(entry => entry?.kind === 'file' && normalizeWorkspacePath(entry.path) === activePath) || null
   if (existingEntry && typeof existingEntry.text === 'string' && existingEntry.text.trim()) {
-    const snapshot = [existingEntry]
+    const modelAssetFormat = isWorkspaceModelAssetPath(activePath)
+    const canonicalDocsMirrorRepairText = await resolveCanonicalDocsMirrorRepairText({
+      activePath,
+      currentText: existingEntry.text,
+      modelAssetFormat,
+    })
+    if (canonicalDocsMirrorRepairText && canonicalDocsMirrorRepairText !== String(existingEntry.text || '')) {
+      try {
+        await args.fs.writeFileText(activePath, canonicalDocsMirrorRepairText)
+      } catch {
+        void 0
+      }
+    }
+    const resolvedText = await readWorkspaceActiveDocumentResolvedText({
+      activePath,
+      currentText: existingEntry.text,
+      fs: args.fs,
+    })
+    const snapshot = [{
+      ...existingEntry,
+      text: resolvedText,
+    }]
     return rememberWorkspaceActiveEntrySnapshot({ activePath, entries: snapshot }) || snapshot
   }
   const cached = readCachedWorkspaceActiveEntrySnapshot({

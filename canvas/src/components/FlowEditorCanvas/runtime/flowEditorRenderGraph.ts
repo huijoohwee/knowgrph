@@ -12,6 +12,7 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
 import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/flowEditor/runAllSequenceSsot'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCurveOptions } from '@/lib/flowEditor/frontmatterCollectiveLayout'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import {
@@ -542,7 +543,21 @@ export function resolveFlowEditorWorkflowNodeByIdAcrossGraphs(args: {
   const storeHit = args.context.storeNodeById.get(candidateNodeId) || null
   if (storeHit) return storeHit
   if (args.graphForRun && args.graphForRun === args.context.baseGraph) {
-    return args.context.baseNodeById.get(candidateNodeId) || null
+    const baseHit = args.context.baseNodeById.get(candidateNodeId) || null
+    if (baseHit) return baseHit
+  }
+  const nodeLists = [
+    args.context.draftNodes,
+    args.context.renderNodes,
+    ...(args.graphForRun && args.graphForRun === args.context.baseGraph ? [args.context.baseNodes] : []),
+    args.context.storeNodes,
+  ]
+  for (let listIndex = 0; listIndex < nodeLists.length; listIndex += 1) {
+    const nodes = nodeLists[listIndex]!
+    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+      const id = String(unwrapGraphCellValue(nodes[nodeIndex]?.id) || '').trim()
+      if (id === candidateNodeId) return nodes[nodeIndex]!
+    }
   }
   return null
 }

@@ -9,6 +9,7 @@ import {
   buildAnnotationId,
   resolveAnnotationModel,
   runAnnotationJob,
+  toAnnotationPreviewSrcDoc,
   toLlmReadyPayload,
   toMarkdownSummary,
   validateAnnotationSpec,
@@ -16,7 +17,11 @@ import {
 } from '@/features/visual-annotation-engine'
 import { FLOW_ANNOTATION_ENGINE_FORM_ID, FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
+import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { resolveFlowEditorWorkflowDownstreamRunTargetIds } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowDownstreamRunTargets'
+import { applyFlowEditorWorkflowRichMediaPanelDraftPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRichMediaPanel'
+import { resolveFlowEditorWorkflowNodeByIdAcrossGraphs } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import { updateFlowEditorWorkflowOutputForKnownNodeIds } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
 import type { GraphNode } from '@/lib/graph/types'
 import { buildAnnotationSpecCandidateFromNode } from '@/features/visual-annotation-engine/annotationFlowNode'
 import { buildHeuristicAnnotationResult } from '@/features/visual-annotation-engine/annotationWorker'
@@ -119,6 +124,28 @@ export function testVisualAnnotationSemanticKeyAndSerializers() {
   const markdown = toMarkdownSummary(result)
   if (!markdown.startsWith('## Caption') || !markdown.includes('## Detected Objects')) {
     throw new Error('expected markdown summary to expose caption and detected object sections')
+  }
+  const preview = toAnnotationPreviewSrcDoc({
+    ...result,
+    tasks: {
+      ...result.tasks,
+      [ANNOTATION_TASK_IDS.objectDetection]: { objects: [{ label: '<object>', bbox: [0.1, 0.2, 0.3, 0.4], confidence: 0.8 }] },
+    },
+  })
+  if (!preview.includes('<figure>') || !preview.includes('<img src="https://example.test/a.png"') || !preview.includes('--kg-x:10%')) {
+    throw new Error('expected annotation preview to project normalized detections over source media')
+  }
+  if (preview.includes('<object>') || !preview.includes('&lt;object&gt;')) {
+    throw new Error('expected annotation preview labels to be HTML escaped')
+  }
+  const videoPreview = toAnnotationPreviewSrcDoc({
+    ...result,
+    assetUrl: 'https://example.test/a.mp4',
+    assetType: 'video_frame',
+    frameTimestampMs: 1200,
+  })
+  if (!videoPreview.includes('<video ') || !videoPreview.includes('video frame at 1200ms')) {
+    throw new Error('expected video-frame annotation preview to use the shared media projection')
   }
 }
 
@@ -313,15 +340,69 @@ export function testVisualAnnotationRunAllRoutesTypedFrontmatterNodes() {
       { id: 'typed-edge', source: 'typed-annotation-engine', target: 'typed-annotation-panel' },
     ],
   } as never
+  const eligibleNodeIds = buildFlowWidgetEligibleNodeIdSet(graphData.nodes)
   const plan = buildFlowRunAllNodeSequence({
     graphData,
-    eligibleNodeIds: new Set(['typed-annotation-engine', 'typed-annotation-panel']),
+    eligibleNodeIds,
   })
+  if (!eligibleNodeIds.has('typed-annotation-engine') || !eligibleNodeIds.has('typed-annotation-panel')) {
+    throw new Error(`expected typed frontmatter widget ids to remain eligible, got ${Array.from(eligibleNodeIds).join(',')}`)
+  }
   if (!plan.orderedNodeIds.includes('typed-annotation-engine') || plan.phaseCounts.annotation !== 1) {
     throw new Error(`expected typed frontmatter annotation node in Run All plan, got ${JSON.stringify(plan)}`)
   }
   const downstream = resolveFlowEditorWorkflowDownstreamRunTargetIds({ node: annotationNode, graphData })
   if (downstream.join(',') !== 'typed-annotation-panel') {
     throw new Error(`expected typed frontmatter downstream panel routing, got ${downstream.join(',')}`)
+  }
+  const resolvedPanel = resolveFlowEditorWorkflowNodeByIdAcrossGraphs({
+    context: {
+      graphSemanticKey: 'typed-annotation-test',
+      draftGraph: graphData,
+      renderGraph: null,
+      baseGraph: null,
+      storeGraph: null,
+      draftNodes: graphData.nodes,
+      renderNodes: [],
+      baseNodes: [],
+      storeNodes: [],
+      draftNodeById: new Map(),
+      renderNodeById: new Map(),
+      baseNodeById: new Map(),
+      storeNodeById: new Map(),
+    },
+    candidateNodeId: 'typed-annotation-panel',
+    graphForRun: graphData,
+  })
+  if (!resolvedPanel) throw new Error('expected typed frontmatter panel lookup across workflow graphs')
+  let committedGraph = graphData as never as { nodes: GraphNode[] }
+  const updatedPanel = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
+    panelNodeId: 'typed-annotation-panel',
+    patch: { outputSrcDoc: '<figure>annotation</figure>' },
+    readLiveDraftGraphData: () => committedGraph as never,
+    commitDraftGraphDataUpdate: (_current, next) => { committedGraph = next as never },
+    scheduleWorkflowOutputEdgeRefresh: () => undefined,
+  })
+  if (updatedPanel?.properties?.outputSrcDoc !== '<figure>annotation</figure>') {
+    throw new Error('expected typed frontmatter RichMediaPanel id to accept runtime annotation output')
+  }
+  updateFlowEditorWorkflowOutputForKnownNodeIds({
+    nodeIds: ['typed-annotation-engine'],
+    fallbackNode: annotationNode,
+    fallbackWritableNodeId: 'typed-annotation-engine',
+    readLiveDraftGraphData: () => committedGraph as never,
+    resolveNodeByIdAcrossGraphs: () => null,
+    commitDraftGraphDataUpdate: (_current, next) => { committedGraph = next as never },
+    updateNode: () => { throw new Error('typed draft output must not fall through to store writeback') },
+    scheduleWorkflowOutputEdgeRefresh: () => undefined,
+    suppressStoreGraphWriteback: true,
+    buildPatch: properties => ({ ...properties, outputSrcDoc: '<figure>engine</figure>' }),
+  })
+  const committedEngine = committedGraph.nodes.find(node => {
+    const id = node.id as unknown as { value?: unknown }
+    return id?.value === 'typed-annotation-engine'
+  })
+  if (committedEngine?.properties?.outputSrcDoc !== '<figure>engine</figure>') {
+    throw new Error('expected typed frontmatter engine output to update the Run All draft')
   }
 }

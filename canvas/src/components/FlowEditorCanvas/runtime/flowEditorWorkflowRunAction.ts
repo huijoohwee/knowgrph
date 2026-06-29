@@ -22,7 +22,7 @@ import {
 } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-video-renderer/htmlVideoEngineRegistry'
 import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
-import { runAnnotationFlowNode, toMarkdownSummary, type AnnotationRunResult } from '@/features/visual-annotation-engine'
+import { runAnnotationFlowNode, toAnnotationPreviewSrcDoc, toMarkdownSummary, type AnnotationRunResult } from '@/features/visual-annotation-engine'
 import {
   getCachedFlowEditorWorkflowNodeResolutionContext,
   resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
@@ -443,11 +443,14 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
                 model: result.modelId || 'annotation',
                 outputPath: result.ok === true ? result.outputPath : null,
               }),
+              ...(result.ok === true ? {
+                outputSrcDoc: toAnnotationPreviewSrcDoc(result),
+              } : {}),
               annotationId: result.ok === true ? result.annotationId : undefined,
               annotationSchemaVersion: result.ok === true ? result.schemaVersion : undefined,
               renderErrorCode: result.ok === false ? result.errorCode : undefined,
               renderErrorReason: result.ok === false ? result.reason : undefined,
-              richMediaActiveTab: 'text',
+              richMediaActiveTab: result.ok === true ? 'auto' : 'text',
               lastRunAt: new Date().toISOString(),
             }
             const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
@@ -695,13 +698,16 @@ export function createFlowEditorWorkflowNodeRunner(args: FlowEditorWorkflowNodeR
           })
           publishAnnotationRunOutputToRichMediaPanel({ anchorNode: node, result })
           if (result.ok === true) {
+            const annotationJson = JSON.stringify(result, null, 2)
             updateRunOutputForKnownNodeIds(nodeProps => ({
               ...nodeProps,
               annotationId: result.annotationId,
               annotationSchemaVersion: result.schemaVersion,
+              annotation_json: annotationJson,
               outputPath: result.outputPath || undefined,
               outputManifestPath: result.outputManifestPath || undefined,
-              output: JSON.stringify(result, null, 2),
+              output: annotationJson,
+              outputSrcDoc: toAnnotationPreviewSrcDoc(result),
               lastRunAt: new Date().toISOString(),
             }))
             args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: 'Generated annotation JSON.', ttlMs: 2400 })

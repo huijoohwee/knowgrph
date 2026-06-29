@@ -9,7 +9,7 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
-import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { readNodeProperties, unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'
 import { isPlainObject } from '@/lib/graph/value'
 
@@ -25,13 +25,15 @@ const FLOW_WIDGET_NODE_TYPE_IDS = new Set<string>([
 ])
 
 export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties' | 'type'> | null | undefined): boolean {
-  const nodeTypeId = typeof node?.type === 'string' ? node.type.trim() : ''
+  const typeValue = unwrapGraphCellValue(node?.type)
+  const nodeTypeId = typeof typeValue === 'string' ? typeValue.trim() : ''
   if (nodeTypeId && FLOW_WIDGET_NODE_TYPE_IDS.has(nodeTypeId)) return true
   const props = readNodeProperties(node)
   const raw = props[FLOW_WIDGET_FORM_ID_KEY]
-  const formId = typeof raw === 'string' ? raw.trim() : ''
+  const formIdValue = unwrapGraphCellValue(raw)
+  const formId = typeof formIdValue === 'string' ? formIdValue.trim() : ''
   if (formId) return true
-  const portTypes = props[FLOW_PORT_TYPES_KEY]
+  const portTypes = unwrapGraphCellValue(props[FLOW_PORT_TYPES_KEY])
   if (isPlainObject(portTypes)) return true
   return false
 }
@@ -46,7 +48,7 @@ export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'i
   const out = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
-    const id = String(node?.id || '').trim()
+    const id = String(unwrapGraphCellValue(node?.id) || '').trim()
     if (!id) continue
     if (!isFlowWidgetEligibleNode(node)) continue
     out.add(id)
@@ -60,7 +62,7 @@ export function buildFlowWidgetOverlayEligibleNodeIdSet(
   const out = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
-    const id = String(node?.id || '').trim()
+    const id = String(unwrapGraphCellValue(node?.id) || '').trim()
     if (!id) continue
     if (!isFlowWidgetOverlayEligibleNode(node)) continue
     out.add(id)

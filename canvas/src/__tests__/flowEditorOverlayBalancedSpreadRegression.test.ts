@@ -282,9 +282,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!runtimeText.includes('const overlayTopologyLayoutSignature = React.useMemo(() => {')) {
     throw new Error('expected Flow Editor runtime to derive one shared semantic topology/layout signature')
   }
+  if (!runtimeText.includes('const graphDataForOverlayRuntime =')
+    || !runtimeText.includes('draftGraphData')
+    || !runtimeText.includes('return buildOverlayTopologyLayoutSignature(graphDataForOverlayRuntime)')) {
+    throw new Error('expected Flow Editor runtime topology/layout signature to prefer fresh draft graph state before stale render-graph snapshots')
+  }
   const runtimeSceneCallIndex = runtimeText.indexOf('useFlowEditorRuntimeScene({')
   const runtimeSceneCall = runtimeSceneCallIndex >= 0 ? runtimeText.slice(runtimeSceneCallIndex, runtimeSceneCallIndex + 420) : ''
-  if (!runtimeSceneCall.includes('overlayTopologyLayoutSignature,') || runtimeSceneCall.includes('graphContentRevision,')) {
+  if (!runtimeSceneCall.includes('overlayTopologyLayoutSignature,') || !runtimeSceneCall.includes('draftGraphDataRef,') || runtimeSceneCall.includes('graphContentRevision,')) {
     throw new Error('expected Flow Editor runtime scene seeding to receive semantic topology/layout signature instead of raw graph revision')
   }
   if (!surfaceText.includes("'frontmatter-overlay-auto-pins'") || !surfaceText.includes('overlayEditorNodeIdsKey') || !surfaceText.includes("hashScopedStringArraySignature('missing-frontmatter-pins', missingIds)")) {
@@ -293,8 +298,19 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!sceneText.includes('args.overlayTopologyLayoutSignature') || sceneText.includes('args.baseGraphDataRevision')) {
     throw new Error('expected Flow Editor world-position seeding to ignore output-only graph revisions')
   }
-  if (!sceneText.includes('const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({') || !sceneText.includes('preferredGraphData: renderGraphDataOverrideRef.current') || !sceneText.includes('authorityGraphData: (st.graphData || null) as GraphData | null')) {
+  if (!sceneText.includes('const readPreferredGraphDataForSeeding = React.useCallback(() => {')
+    || !sceneText.includes('return args.draftGraphDataRef?.current || renderGraphDataOverrideRef.current || null')
+    || !sceneText.includes('const graphDataForSeeding = resolveFlowEditorGraphDataForNodeAuthority({')
+    || !sceneText.includes('preferredGraphData: readPreferredGraphDataForSeeding()')
+    || !sceneText.includes('authorityGraphData: (st.graphData || null) as GraphData | null')) {
     throw new Error('expected Flow Editor world-position seeding to resolve latest graph authority from refs without raw graph-object dependency churn')
+  }
+  if (!sceneText.includes("import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected Flow Editor runtime scene to reuse shared graph-cell unwrapping for seeded node identity lookups')
+  }
+  if (!sceneText.includes("const id = String(unwrapGraphCellValue(node?.id) || '').trim()")
+    || !sceneText.includes("nodeTypeById.set(id, String(unwrapGraphCellValue(node?.type) || '').trim())")) {
+    throw new Error('expected Flow Editor runtime scene to unwrap seeded node ids and types before authoritative-anchor checks')
   }
   if (sceneText.includes('args.overlayTopologyLayoutSignature, args.renderGraphDataOverride')) {
     throw new Error('expected Flow Editor world-position seeding deps to avoid raw graph-object identity churn')
@@ -487,6 +503,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (workflowRunAllText.includes("await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })\n        scheduleWorkflowOutputEdgeRefresh()")) {
     throw new Error('expected Run all to avoid unconditional overlay edge refresh churn between nodes')
+  }
+  if (!workflowRunAllText.includes('args.scheduleOutputEdgeRefresh()')) {
+    throw new Error('expected Run all to refresh connected outputs once after the locked batch')
   }
   if (!workflowText.includes('const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>')) {
     throw new Error('expected Rich Media Panel output writes to preserve existing layout and sizing properties')

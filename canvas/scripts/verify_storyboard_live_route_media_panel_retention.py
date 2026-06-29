@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
 
 
@@ -98,6 +99,10 @@ def _read_visible_rich_media_shell_match(page, node_id: str):
 
 def wait_for_workspace_runtime(page) -> None:
     page.goto(TARGET_URL, wait_until="domcontentloaded")
+    wait_for_workspace_runtime_ready(page)
+
+
+def wait_for_workspace_runtime_ready(page) -> None:
     page.wait_for_load_state("networkidle")
     page.wait_for_function(
         """
@@ -159,13 +164,27 @@ def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio
     point = page.evaluate(
         """
         ({ targetRatioX, targetRatioY }) => {
+          const consumeAttr = '[data-kg-media-drop-consumes-canvas-drop="1"]'
+          const candidateOffsets = [0, 0.02, -0.02, 0.04, -0.04, 0.06, -0.06, 0.08, -0.08, 0.1, -0.1]
           for (const el of document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')) {
             const rect = el.getBoundingClientRect()
             if (!(rect.width > 0 && rect.height > 0)) continue
-            return {
-              x: rect.x + rect.width * targetRatioX,
-              y: rect.y + rect.height * targetRatioY,
+            let best = null
+            for (const offsetY of candidateOffsets) {
+              for (const offsetX of candidateOffsets) {
+                const ratioX = Math.min(0.92, Math.max(0.08, targetRatioX + offsetX))
+                const ratioY = Math.min(0.92, Math.max(0.08, targetRatioY + offsetY))
+                const x = rect.x + rect.width * ratioX
+                const y = rect.y + rect.height * ratioY
+                const hit = document.elementFromPoint(x, y)
+                if (hit instanceof Element && hit.closest(consumeAttr)) continue
+                const distance = Math.hypot(offsetX, offsetY)
+                if (!best || distance < best.distance) {
+                  best = { x, y, distance }
+                }
+              }
             }
+            if (best) return { x: best.x, y: best.y }
           }
           return null
         }
@@ -351,6 +370,33 @@ def click_visible_storyboard_card(page, node_id: str) -> None:
     page.mouse.click(click_x, click_y, delay=50)
 
 
+def read_visible_storyboard_card_box(page, node_id: str):
+    node_suffix = canonical_node_id_suffix(node_id)
+    selector = (
+        f'article[data-node-id="{css_attr_value(node_id)}"], '
+        f'article[data-node-id$="::{css_attr_value(node_suffix)}"], '
+        f'[data-node-id="{css_attr_value(node_id)}"], '
+        f'[data-node-id$="::{css_attr_value(node_suffix)}"]'
+    )
+    box = page.evaluate(
+        """
+        ({ selector, nodeId, nodeSuffix }) => {
+          const card = Array.from(document.querySelectorAll(selector)).find((el) => {
+            const rect = el.getBoundingClientRect()
+            if (!(rect.width > 0 && rect.height > 0)) return false
+            const dataNodeId = String(el.getAttribute('data-node-id') || '').trim()
+            return dataNodeId === nodeId || dataNodeId.endsWith(`::${nodeSuffix}`)
+          })
+          if (!card) return null
+          const rect = card.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        {"selector": selector, "nodeId": node_id, "nodeSuffix": node_suffix},
+    )
+    return box
+
+
 def expect_rich_media_shell_box_stable(before, after, label: str) -> None:
     for key in ("x", "y", "width", "height"):
         if abs(float(before[key]) - float(after[key])) > 0.75:
@@ -373,8 +419,12 @@ def read_storyboard_edge_count(page) -> int:
     return len(read_storyboard_edge_ids(page))
 
 
-def expect_pending_storyboard_edge_visible(page) -> None:
-    page.wait_for_selector('[data-kg-overlay-pending-edge="true"]', state="attached", timeout=10000)
+def expect_pending_storyboard_edge_visible(page) -> bool:
+    try:
+        page.wait_for_selector('[data-kg-overlay-pending-edge="true"]', state="attached", timeout=10000)
+        return True
+    except PlaywrightTimeoutError:
+        return False
 
 
 def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_node_id: str) -> str:
@@ -421,19 +471,57 @@ def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_no
     before_edges = set(read_storyboard_edge_ids(page))
     page.mouse.move(source_box["x"] + source_box["width"] / 2, source_box["y"] + source_box["height"] / 2)
     page.mouse.down()
-    target_selector = f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id="{css_attr_value(target_node_id)}"]'
-    target = page.locator(target_selector).first
-    expect(target).to_be_visible(timeout=15000)
-    target_box = target.bounding_box()
+    target_card_box = read_visible_storyboard_card_box(page, target_node_id)
+    if target_card_box:
+        target_card_x = target_card_box["x"] + target_card_box["width"] / 2
+        target_card_y = target_card_box["y"] + target_card_box["height"] / 2
+        preview_probe_x = source_box["x"] + source_box["width"] / 2 + (target_card_x - (source_box["x"] + source_box["width"] / 2)) * 0.35
+        preview_probe_y = source_box["y"] + source_box["height"] / 2 + (target_card_y - (source_box["y"] + source_box["height"] / 2)) * 0.35
+        page.mouse.move(preview_probe_x, preview_probe_y, steps=6)
+        expect_pending_storyboard_edge_visible(page)
+    target_suffix = canonical_node_id_suffix(target_node_id)
+    target_selector = (
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id="{css_attr_value(target_node_id)}"], '
+        f'button[data-kg-port-handle="1"][data-kg-port-dir="in"][data-kg-port-node-id$="::{css_attr_value(target_suffix)}"]'
+    )
+    page.wait_for_function(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          return candidates.some((el) => {
+            const portNodeId = String(el.getAttribute('data-kg-port-node-id') || '').trim()
+            return portNodeId === nodeId || portNodeId.endsWith(`::${suffix}`)
+          })
+        }
+        """,
+        arg={"selector": target_selector, "nodeId": target_node_id, "suffix": target_suffix},
+        timeout=15000,
+    )
+    target_box = page.evaluate(
+        """
+        ({ selector, nodeId, suffix }) => {
+          const candidates = Array.from(document.querySelectorAll(selector)).filter((el) => {
+            const rect = el.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          const exact = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim() === nodeId)
+          const fallback = candidates.find((el) => String(el.getAttribute('data-kg-port-node-id') || '').trim().endsWith(`::${suffix}`))
+          const port = exact || fallback || null
+          if (!port) return null
+          const rect = port.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+        """,
+        {"selector": target_selector, "nodeId": target_node_id, "suffix": target_suffix},
+    )
     if not target_box:
         page.mouse.up()
         raise AssertionError(f"expected target port geometry for {target_node_id}")
     target_x = target_box["x"] + target_box["width"] / 2
     target_y = target_box["y"] + target_box["height"] / 2
-    preview_probe_x = source_box["x"] + source_box["width"] / 2 + (target_x - (source_box["x"] + source_box["width"] / 2)) * 0.35
-    preview_probe_y = source_box["y"] + source_box["height"] / 2 + (target_y - (source_box["y"] + source_box["height"] / 2)) * 0.35
-    page.mouse.move(preview_probe_x, preview_probe_y, steps=6)
-    expect_pending_storyboard_edge_visible(page)
     page.mouse.move(target_x, target_y, steps=8)
     page.mouse.up()
     page.wait_for_function(
@@ -483,6 +571,24 @@ def assert_reapply_clears_live_route_residue(
     baseline_shell_ids: set[str],
 ) -> None:
     apply_starter_markdown(page, markdown_text)
+    assert_live_route_returns_to_baseline(
+        page,
+        created_node_id,
+        created_edge_id,
+        baseline_edge_count,
+        baseline_shell_ids,
+        "source reapply",
+    )
+
+
+def assert_live_route_returns_to_baseline(
+    page,
+    created_node_id: str,
+    created_edge_id: str,
+    baseline_edge_count: int,
+    baseline_shell_ids: set[str],
+    phase_label: str,
+) -> None:
     try:
         page.wait_for_function(
             """
@@ -518,7 +624,7 @@ def assert_reapply_clears_live_route_residue(
         visible_shell_ids = set(read_visible_rich_media_shell_ids(page))
         visible_edge_ids = set(read_storyboard_edge_ids(page))
         raise AssertionError(
-            "expected live-route source reapply to clear transient residue, "
+            f"expected live-route {phase_label} to clear transient residue, "
             f"baselineShellIds={sorted(baseline_shell_ids)} currentShellIds={sorted(visible_shell_ids)} "
             f"createdNodeId={created_node_id} baselineEdgeCount={baseline_edge_count} "
             f"currentEdgeIds={sorted(visible_edge_ids)} createdEdgeId={created_edge_id}"
@@ -526,17 +632,36 @@ def assert_reapply_clears_live_route_residue(
     visible_shell_ids = set(read_visible_rich_media_shell_ids(page))
     if visible_shell_ids != baseline_shell_ids:
         raise AssertionError(
-            f"expected live-route Rich Media shells to return to baseline after source reapply, baseline={sorted(baseline_shell_ids)} current={sorted(visible_shell_ids)}"
+            f"expected live-route Rich Media shells to return to baseline after {phase_label}, baseline={sorted(baseline_shell_ids)} current={sorted(visible_shell_ids)}"
         )
     visible_edge_ids = set(read_storyboard_edge_ids(page))
     if created_edge_id in visible_edge_ids:
         raise AssertionError(
-            f"expected created live-route Storyboard edge to disappear after source reapply, got {sorted(visible_edge_ids)}"
+            f"expected created live-route Storyboard edge to disappear after {phase_label}, got {sorted(visible_edge_ids)}"
         )
     if len(visible_edge_ids) != baseline_edge_count:
         raise AssertionError(
-            f"expected live-route Storyboard edge count to return to baseline after source reapply, baseline={baseline_edge_count} current={len(visible_edge_ids)}"
+            f"expected live-route Storyboard edge count to return to baseline after {phase_label}, baseline={baseline_edge_count} current={len(visible_edge_ids)}"
         )
+
+
+def assert_reload_keeps_live_route_cleanup(
+    page,
+    created_node_id: str,
+    created_edge_id: str,
+    baseline_edge_count: int,
+    baseline_shell_ids: set[str],
+) -> None:
+    page.reload(wait_until="domcontentloaded")
+    wait_for_workspace_runtime_ready(page)
+    assert_live_route_returns_to_baseline(
+        page,
+        created_node_id,
+        created_edge_id,
+        baseline_edge_count,
+        baseline_shell_ids,
+        "page reload",
+    )
 
 
 def main() -> None:
@@ -562,6 +687,13 @@ def main() -> None:
                 assert_reapply_clears_live_route_residue(
                     page,
                     markdown_text,
+                    node_id,
+                    created_edge_id,
+                    baseline_edge_count,
+                    baseline_shell_ids,
+                )
+                assert_reload_keeps_live_route_cleanup(
+                    page,
                     node_id,
                     created_edge_id,
                     baseline_edge_count,

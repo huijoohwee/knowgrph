@@ -34,31 +34,23 @@ import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasApp
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBase } from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'
+import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 
 // #region debug-point A:runtime-storyboard-graph-handoff
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopRuntimeDebug = (args: {
   hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
   location: string
   msg: string
   data?: Record<string, unknown>
 }) => {
-  if (typeof fetch !== 'function') return
-  void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
-      runId: 'pre-fix',
-      hypothesisId: args.hypothesisId,
-      location: args.location,
-      msg: `[DEBUG] ${args.msg}`,
-      data: args.data || {},
-      ts: Date.now(),
-    }),
-  }).catch(() => {
-    void 0
+  reportRuntimeTrace({
+    scope: STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE,
+    runId: 'runtime',
+    hypothesisId: args.hypothesisId,
+    location: args.location,
+    msg: args.msg,
+    data: args.data || {},
   })
 }
 // #endregion
@@ -259,8 +251,14 @@ export default function FlowEditorCanvasRuntime(
     selectedEdgeId, preferDraftGraphData: storyboardCardsMode,
   })
   const overlayTopologyLayoutSignature = React.useMemo(() => {
-    return buildOverlayTopologyLayoutSignature(renderGraphDataOverride || flowEditorBaseGraphData || baseGraphData || null)
-  }, [baseGraphData, flowEditorBaseGraphData, renderGraphDataOverride])
+    const graphDataForOverlayRuntime =
+      draftGraphData
+      || renderGraphDataOverride
+      || flowEditorBaseGraphData
+      || baseGraphData
+      || null
+    return buildOverlayTopologyLayoutSignature(graphDataForOverlayRuntime)
+  }, [baseGraphData, draftGraphData, flowEditorBaseGraphData, renderGraphDataOverride])
 
   const {
     emitFlowEditorInteractionFrame,
@@ -272,6 +270,7 @@ export default function FlowEditorCanvasRuntime(
     active,
     flowEditorSurfaceId,
     openWidgetNodeIds,
+    draftGraphDataRef,
     renderGraphDataOverride,
     viewportW,
     viewportH,

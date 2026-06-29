@@ -53,6 +53,7 @@ export function useFlowEditorWorkflowActions(args: {
     draftGraphDataRef: args.draftGraphDataRef,
     upsertUiToast: args.upsertUiToast,
     runWorkflowNode,
+    scheduleOutputEdgeRefresh: args.scheduleOverlayEdgeUpdate,
   })
 
   const resetWorkflowOutputs = React.useCallback(() => {

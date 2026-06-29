@@ -40,6 +40,7 @@ export function useFlowEditorWorkflowRunAll(args: {
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
   upsertUiToast: (args: UiToastInput) => void
   runWorkflowNode: (nodeId: string, runOptions?: { allowCreateRichMediaPanel?: boolean; suppressLayoutMutation?: boolean; visitedNodeIds?: Set<string> }) => Promise<void>
+  scheduleOutputEdgeRefresh: () => void
 }) {
   const runWorkflowAllInFlightRef = React.useRef(false)
   const runWorkflowAllNodes = React.useCallback(async () => {
@@ -113,6 +114,7 @@ export function useFlowEditorWorkflowRunAll(args: {
         })
         if (typeof requestAnimationFrame === 'function') await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
       }
+      args.scheduleOutputEdgeRefresh()
       upsertRunAllToast({
         kind: 'success',
         message: `Run All complete: ran ${ids.length} node${ids.length === 1 ? '' : 's'}.`,

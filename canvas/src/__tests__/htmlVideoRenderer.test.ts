@@ -364,7 +364,7 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
   }
   const htmlVideoRunBranch = workflowText.slice(
     workflowText.indexOf("String(node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID"),
-    workflowText.indexOf("const richMediaKind = resolveRichMediaWidgetKind(node)"),
+    workflowText.indexOf('if (readWorkflowString(node.type) === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID)'),
   )
   if (htmlVideoRunBranch.includes('setRunLoadingStateForKnownNodeIds({ loading: true')) {
     throw new Error('expected HTML video preview-capable runs to avoid blanking Rich Media Panel with a loading skeleton')
@@ -381,7 +381,8 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
 const readVdeoxplnDemoDocumentPath = (): string => {
   const fromEnv = String(process.env.KNOWGRPH_VDEOXPLN_DEMO_DOC_PATH || '').trim()
   if (fromEnv) return resolve(fromEnv)
-  return resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-vdeoxpln-demo.md')
+  const hardcodeGuardInput = String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  return hardcodeGuardInput ? resolve(hardcodeGuardInput) : ''
 }
 
 const unwrapKtvValue = (value: unknown): unknown => {
@@ -403,11 +404,15 @@ const readKtvNumber = (record: Record<string, unknown>, key: string): number => 
 
 export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWithoutHardcodedRuntimeArtifacts() {
   const demoPath = readVdeoxplnDemoDocumentPath()
+  if (!demoPath) return
   if (!existsSync(demoPath)) throw new Error(`expected vdeoxpln validation doc at ${demoPath}`)
+  const expectedVideoAgentTestUrl = String(process.env.KNOWGRPH_VIDEO_AGENT_TEST_URL || '').trim()
+  if (!expectedVideoAgentTestUrl) {
+    throw new Error('expected KNOWGRPH_VIDEO_AGENT_TEST_URL to be provided for external video-agent validation')
+  }
   const markdown = readFileSync(demoPath, 'utf8')
   const staleRuntimeLiterals = [
     ['blob', 'http://'].join(':'),
-    ['localhost', '5173'].join(':'),
     ['outputManifestPath', ''].join(':'),
     ['outputSavedName', ''].join(':'),
     ['lastRunAt', ''].join(':'),
@@ -426,6 +431,28 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
   if (parsed.warnings.length > 0) throw new Error(`expected clean frontmatter parse, got ${parsed.warnings.join('; ')}`)
   if (parsed.meta.validation_input_forbid_hardcode_in_repo !== true || parsed.meta.copyhardcode_forbid !== true) {
     throw new Error('expected validation input to declare hardcode-forbid flags')
+  }
+  const videoAgentContract = parsed.meta.videoAgentRuntimeContract as Record<string, unknown> | undefined
+  if (!videoAgentContract || typeof videoAgentContract !== 'object' || Array.isArray(videoAgentContract)) {
+    throw new Error('expected validation input to declare a video-agent runtime contract')
+  }
+  if (videoAgentContract.schema !== 'knowgrph-video-agent/v1') {
+    throw new Error('expected validation input to declare knowgrph-video-agent/v1')
+  }
+  if (videoAgentContract.testUrl !== expectedVideoAgentTestUrl) {
+    throw new Error('expected validation input video-agent contract to use the supplied test URL')
+  }
+  const dependencyPolicy = Array.isArray(videoAgentContract.dependencyPolicy) ? videoAgentContract.dependencyPolicy.map(String) : []
+  for (const requiredPolicy of ['no copied Director code', 'no VideoDB runtime dependency', 'no external API key requirement']) {
+    if (!dependencyPolicy.includes(requiredPolicy)) {
+      throw new Error(`expected video-agent dependency policy ${requiredPolicy}`)
+    }
+  }
+  const contractCapabilities = Array.isArray(videoAgentContract.capabilities) ? videoAgentContract.capabilities.map(String) : []
+  for (const requiredCapability of ['ingest', 'parse', 'search', 'edit', 'compile', 'generate', 'stream']) {
+    if (!contractCapabilities.includes(requiredCapability)) {
+      throw new Error(`expected video-agent contract capability ${requiredCapability}`)
+    }
   }
 
   const flow = parsed.meta.flow
@@ -459,11 +486,21 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
   const validated = validateRenderSpec(specCandidate)
   if (validated.ok === false) throw new Error(`expected validation doc Render_Spec to validate: ${validated.reason}`)
   if (validated.spec.engineHint !== HTML_VIDEO_ENGINE_IDS.canvas2d) throw new Error('expected validation doc to select canvas-2d')
-  if (validated.spec.durationMs !== 6000 || validated.spec.fps !== 24) {
-    throw new Error('expected validation doc to expose the URL-to-video 6s/24fps composition')
+  if (validated.spec.durationMs <= 0 || validated.spec.fps !== 24) {
+    throw new Error('expected validation doc to expose a runnable 24fps composition')
   }
-  if (!String(validated.spec.css || '').includes('@keyframes') || !validated.spec.html.includes('data-duration=')) {
-    throw new Error('expected validation doc Render_Spec to carry runnable animation timing')
+  if (
+    !String(validated.spec.css || '').includes('@keyframes')
+    || !validated.spec.html.includes('data-duration=')
+    || !validated.spec.html.includes('<main')
+    || !validated.spec.html.includes('<section')
+    || !validated.spec.html.includes('<article')
+    || !validated.spec.html.includes('<figure')
+  ) {
+    throw new Error('expected validation doc Render_Spec to carry semantic runnable animation timing')
+  }
+  if (!validated.spec.html.includes(expectedVideoAgentTestUrl)) {
+    throw new Error('expected validation doc Render_Spec HTML to display the supplied test URL')
   }
   const responsivePreviewSrcDoc = buildHtmlVideoPreviewSrcDocFromNode({
     id: 'html-video-preview-validation',
@@ -500,28 +537,41 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
     }
   }
   const data = validated.spec.data as {
-    animation?: { driver?: unknown; targets?: unknown; keyframes?: unknown }
+    agentIntent?: unknown
+    agents?: unknown
+    capabilities?: unknown
     composition?: { id?: unknown }
-    sourceCapture?: { url?: unknown; viewports?: unknown; extract?: unknown }
+    sourceVideo?: { url?: unknown; externalDependency?: unknown }
+    streaming?: { fallback?: unknown; panel?: unknown; primary?: unknown }
     timelineTracks?: unknown
     workspaceFiles?: unknown
   }
-  if (data.composition?.id !== 'knowgrph-vdeoxpln-url-to-video-demo') {
-    throw new Error('expected validation doc data_json to identify the URL-to-video composition')
+  if (typeof data.composition?.id !== 'string' || !data.composition.id.includes('video-agent')) {
+    throw new Error('expected validation doc data_json to identify a video-agent composition')
   }
-  if (data.sourceCapture?.url !== 'https://airvio.co/knowgrph' || !Array.isArray(data.sourceCapture.viewports) || data.sourceCapture.viewports.length !== 3) {
-    throw new Error('expected validation doc data_json to expose URL capture viewports')
+  if (data.sourceVideo?.url !== expectedVideoAgentTestUrl || data.sourceVideo.externalDependency !== false) {
+    throw new Error('expected validation doc data_json to expose the supplied test URL as source-owned input')
   }
-  if (data.animation?.driver !== 'css-keyframes' || !Array.isArray(data.animation.targets)) {
-    throw new Error('expected validation doc data_json to expose animation metadata')
+  const capabilities = Array.isArray(data.capabilities) ? data.capabilities.map(String) : []
+  for (const requiredCapability of ['ingest', 'parse', 'search', 'edit', 'compile', 'generate', 'stream']) {
+    if (!capabilities.includes(requiredCapability)) {
+      throw new Error(`expected validation doc data_json capability ${requiredCapability}`)
+    }
   }
-  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length < 5) {
-    throw new Error('expected validation doc data_json to expose render timeline tracks')
+  if (!Array.isArray(data.agents) || data.agents.length < capabilities.length) {
+    throw new Error('expected validation doc data_json to expose one or more agent stages per video-agent capability')
+  }
+  if (data.streaming?.primary !== 'video/mp4' || data.streaming.fallback !== 'outputSrcDoc' || data.streaming.panel !== 'RichMediaPanel') {
+    throw new Error('expected validation doc data_json to expose streamable Rich Media output boundaries')
+  }
+  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length < capabilities.length) {
+    throw new Error('expected validation doc data_json to expose video-agent timeline tracks')
   }
   if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some((entry) => {
-    return !!entry && typeof entry === 'object' && String((entry as { path?: unknown }).path || '') === 'url-to-video/storyboard.md'
+    const path = String((entry as { path?: unknown } | null)?.path || '')
+    return path.startsWith('video-agent/') && path.endsWith('.json')
   })) {
-    throw new Error('expected validation doc data_json to expose storyboard workspace output')
+    throw new Error('expected validation doc data_json to expose video-agent workspace outputs')
   }
 
   const renderResult = await runHtmlVideoRenderJob({
@@ -553,7 +603,12 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
       engine_hint: validated.spec.engineHint,
     },
   })
-  if (!previewSrcDoc.includes('knowgrph-html-video-data') || !previewSrcDoc.includes('@keyframes') || !previewSrcDoc.includes('Source page to MP4 composition')) {
+  if (
+    !previewSrcDoc.includes('knowgrph-html-video-data')
+    || !previewSrcDoc.includes('@keyframes')
+    || !previewSrcDoc.includes(expectedVideoAgentTestUrl)
+    || !previewSrcDoc.includes('Knowgrph video agent')
+  ) {
     throw new Error('expected validation doc to produce a runnable inline HTML preview fallback')
   }
 

@@ -55,6 +55,8 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
     '"storyboard-card-beta"',
     'expect_selected_rich_media_panel(page, node_id)',
     'expect_pending_storyboard_edge_visible(page)',
+    'def read_visible_storyboard_card_box(page, node_id: str):',
+    'target_card_box = read_visible_storyboard_card_box(page, target_node_id)',
     'data-kg-overlay-pending-edge="true"',
     'expected created Storyboard edge to remain visible after retention',
     'expected selected/open dropped panel to retain Storyboard edge visibility',

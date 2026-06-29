@@ -30,6 +30,10 @@ import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath
 
 const DB_NAME = 'kg:workspace-fs'
 let lastDocsMirrorSyncSignature = ''
+const WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS = 150
+const docsMirrorFolderFlushTimers = new Map<WorkspacePath, ReturnType<typeof setTimeout>>()
+const docsMirrorTextFlushTimers = new Map<WorkspacePath, ReturnType<typeof setTimeout>>()
+const docsMirrorPendingTextByPath = new Map<WorkspacePath, string>()
 
 type WorkspaceEntryRow = WorkspaceEntry
 type WorkspaceRecordMap = {
@@ -108,6 +112,41 @@ const isWorkspaceChatMirrorPath = (path: WorkspacePath): boolean => {
 
 const isWorkspacePersistedMirrorPath = (path: WorkspacePath): boolean => {
   return isWorkspaceDocsMirrorPath(path) || isWorkspaceChatMirrorPath(path)
+}
+
+const scheduleWorkspaceDocsMirrorFolderEnsure = (workspacePath: WorkspacePath): void => {
+  if (typeof window === 'undefined') {
+    void ensureWorkspaceDocsMirrorFolder({ workspacePath })
+    return
+  }
+  const existingTimer = docsMirrorFolderFlushTimers.get(workspacePath)
+  if (existingTimer) window.clearTimeout(existingTimer)
+  const timer = window.setTimeout(() => {
+    docsMirrorFolderFlushTimers.delete(workspacePath)
+    void ensureWorkspaceDocsMirrorFolder({ workspacePath })
+  }, WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS)
+  docsMirrorFolderFlushTimers.set(workspacePath, timer)
+}
+
+const scheduleWorkspaceDocsMirrorTextUpsert = (workspacePath: WorkspacePath, text: string): void => {
+  if (typeof window === 'undefined') {
+    void upsertWorkspaceDocsMirrorText({ workspacePath, text })
+    return
+  }
+  docsMirrorPendingTextByPath.set(workspacePath, String(text ?? ''))
+  const existingTimer = docsMirrorTextFlushTimers.get(workspacePath)
+  if (existingTimer) window.clearTimeout(existingTimer)
+  const timer = window.setTimeout(() => {
+    docsMirrorTextFlushTimers.delete(workspacePath)
+    const nextText = docsMirrorPendingTextByPath.get(workspacePath)
+    docsMirrorPendingTextByPath.delete(workspacePath)
+    if (typeof nextText !== 'string') return
+    void upsertWorkspaceDocsMirrorText({
+      workspacePath,
+      text: nextText,
+    })
+  }, WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS)
+  docsMirrorTextFlushTimers.set(workspacePath, timer)
 }
 
 const buildDocsMirrorBasenameSet = (
@@ -446,7 +485,9 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
         basename: seedBasename,
         text: nextText,
       })
-    } else if (isWorkspacePersistedMirrorPath(p)) {
+    } else if (isWorkspaceDocsMirrorPath(p)) {
+      scheduleWorkspaceDocsMirrorTextUpsert(p, nextText)
+    } else if (isWorkspaceChatMirrorPath(p)) {
       void upsertWorkspaceDocsMirrorText({
         workspacePath: p,
         text: nextText,
@@ -475,7 +516,9 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
-    if (isWorkspacePersistedMirrorPath(path)) {
+    if (isWorkspaceDocsMirrorPath(path)) {
+      scheduleWorkspaceDocsMirrorFolderEnsure(path)
+    } else if (isWorkspaceChatMirrorPath(path)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: path })
     }
     notifyWorkspaceFsChanged({ op: 'createFolder', path })
@@ -506,10 +549,14 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
-    if (isWorkspacePersistedMirrorPath(parent)) {
+    if (isWorkspaceDocsMirrorPath(parent)) {
+      scheduleWorkspaceDocsMirrorFolderEnsure(parent)
+    } else if (isWorkspaceChatMirrorPath(parent)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: parent })
     }
-    if (isWorkspacePersistedMirrorPath(path)) {
+    if (isWorkspaceDocsMirrorPath(path)) {
+      scheduleWorkspaceDocsMirrorTextUpsert(path, String(args.text ?? ''))
+    } else if (isWorkspaceChatMirrorPath(path)) {
       void upsertWorkspaceDocsMirrorText({
         workspacePath: path,
         text: String(args.text ?? ''),

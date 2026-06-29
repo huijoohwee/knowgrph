@@ -23,9 +23,9 @@ import {
 } from './graphDataFrontmatterFlowSync'
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
-const STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID = 'storyboard-media-panel-loop'
+const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 
 function reportStoryboardMediaPanelLoopNodeActionDebug(args: {
   hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
@@ -33,22 +33,14 @@ function reportStoryboardMediaPanelLoopNodeActionDebug(args: {
   msg: string
   data?: Record<string, unknown>
 }): void {
-  try {
-    void fetch(STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SERVER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: STORYBOARD_MEDIA_PANEL_LOOP_DEBUG_SESSION_ID,
-        hypothesisId: args.hypothesisId,
-        location: args.location,
-        msg: `[DEBUG] ${args.msg}`,
-        data: args.data || {},
-        ts: new Date().toISOString(),
-      }),
-    })
-  } catch {
-    void 0
-  }
+  reportRuntimeTrace({
+    scope: STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE,
+    runId: 'runtime',
+    hypothesisId: args.hypothesisId,
+    location: args.location,
+    msg: args.msg,
+    data: args.data || {},
+  })
 }
 
 function readGraphDataDebugKind(graphData: GraphData | null | undefined): string {

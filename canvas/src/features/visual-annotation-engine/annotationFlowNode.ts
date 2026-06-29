@@ -1,4 +1,5 @@
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphNode } from '@/lib/graph/types'
 import type { AnnotationRunResult } from './annotationEngineSsot'
 import { createAnnotationWorkerHandle, runAnnotationJob, type AnnotationWorkerHandle } from './annotationOrchestrator'
@@ -9,16 +10,9 @@ const readNodeProperties = (node: GraphNode): Record<string, unknown> => {
     : {}
 }
 
-const readCellValue = (value: unknown): unknown => {
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
-    return (value as { value?: unknown }).value
-  }
-  return value
-}
-
 const readTasks = (value: unknown): string[] => {
-  const scalar = readCellValue(value)
-  if (Array.isArray(scalar)) return scalar.map(item => String(readCellValue(item) || '').trim()).filter(Boolean)
+  const scalar = unwrapGraphCellValue(value)
+  if (Array.isArray(scalar)) return scalar.map(item => String(unwrapGraphCellValue(item) || '').trim()).filter(Boolean)
   if (typeof scalar !== 'string') return []
   const raw = scalar.trim()
   if (!raw) return []
@@ -34,7 +28,7 @@ const readTasks = (value: unknown): string[] => {
 }
 
 const readInteger = (value: unknown): number | undefined => {
-  const scalar = readCellValue(value)
+  const scalar = unwrapGraphCellValue(value)
   if (typeof scalar === 'number' && Number.isInteger(scalar)) return scalar
   if (typeof scalar === 'string' && scalar.trim()) {
     const parsed = Number(scalar)
@@ -44,7 +38,7 @@ const readInteger = (value: unknown): number | undefined => {
 }
 
 const readString = (value: unknown): string => {
-  const scalar = readCellValue(value)
+  const scalar = unwrapGraphCellValue(value)
   return typeof scalar === 'string' ? scalar.trim() : ''
 }
 
