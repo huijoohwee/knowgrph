@@ -309,6 +309,22 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !panelText.includes('data-kg-flow-editor-floating-panel="1"')) {
     throw new Error('expected FlowEditor floating panel to render shared KTV rows with stable test hooks')
   }
+  if (!panelText.includes('FlowEditorVideoAgentValidationImportControls')
+    || !panelText.includes('Flow Editor video-agent validation import controls')
+    || !panelText.includes('Flow Editor video-agent validation document path')
+    || !panelText.includes('Flow Editor video-agent validation import URLs')
+    || !panelText.includes('readVideoAgentValidationConfig')
+    || !panelText.includes('writeVideoAgentValidationConfig')
+    || !panelText.includes('getMarkdownWorkspaceActionBridge')
+    || !panelText.includes("canvas2dRenderer: FLOW_EDITOR_VIDEO_AGENT_VALIDATION_RENDERER")
+    || !panelText.includes('data-kg-flow-editor-video-agent-validation-controls="1"')) {
+    throw new Error('expected FlowEditor floating panel to own user-configurable video-agent validation imports through shared config and import bridge')
+  }
+  for (const forbidden of ['video-db', 'VideoDB', '@video-db', 'Director(', 'VIDEODB_API_KEY', 'youtu.be/']) {
+    if (panelText.includes(forbidden)) {
+      throw new Error(`expected FlowEditor video-agent validation controls to avoid hardcoded external dependency or URL token ${forbidden}`)
+    }
+  }
   if (!sharedResizeText.includes('bindResizeSeparatorDragRuntime')
     || !sharedResizeText.includes("cursor: ResizeSeparatorDragCursor")
     || !sharedResizeText.includes('startPointerDrag')

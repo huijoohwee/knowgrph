@@ -14,6 +14,13 @@ import {
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import {
+  readVideoAgentValidationConfig,
+  serializeVideoAgentValidationUrls,
+  splitVideoAgentValidationUrls,
+  writeVideoAgentValidationConfig,
+} from '@/features/video-agent'
 import {
   readFlowEditorFloatingPanelSplitHeightsPx,
   resolveFlowEditorFloatingPanelSplitResize,
@@ -40,6 +47,8 @@ const FLOW_EDITOR_ROW_DIRECTION_CLASS: Record<FlowEditorPortRow['direction'], st
   output: 'border-emerald-300/70 bg-emerald-50 text-emerald-700 dark:border-emerald-700/70 dark:bg-emerald-950/30 dark:text-emerald-300',
 }
 
+const FLOW_EDITOR_VIDEO_AGENT_VALIDATION_RENDERER = 'flow'
+
 function DirectionChip({ direction }: { direction: FlowEditorPortRow['direction'] }) {
   const Icon = FLOW_EDITOR_ROW_DIRECTION_ICON[direction]
   return (
@@ -52,6 +61,86 @@ function DirectionChip({ direction }: { direction: FlowEditorPortRow['direction'
       <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       <span className="truncate">{FLOW_EDITOR_ROW_DIRECTION_LABEL[direction]}</span>
     </span>
+  )
+}
+
+function FlowEditorVideoAgentValidationImportControls() {
+  const initialConfig = React.useMemo(() => readVideoAgentValidationConfig(), [])
+  const [validationDocPathDraft, setValidationDocPathDraft] = React.useState(initialConfig.validationDocPath)
+  const [validationUrlsDraft, setValidationUrlsDraft] = React.useState(serializeVideoAgentValidationUrls(initialConfig.importUrls))
+  const validationImportUrls = React.useMemo(() => splitVideoAgentValidationUrls(validationUrlsDraft), [validationUrlsDraft])
+
+  const updateValidationDocPath = React.useCallback((next: string) => {
+    setValidationDocPathDraft(next)
+    writeVideoAgentValidationConfig({ validationDocPath: next, importUrls: splitVideoAgentValidationUrls(validationUrlsDraft) })
+  }, [validationUrlsDraft])
+
+  const updateValidationUrls = React.useCallback((next: string) => {
+    setValidationUrlsDraft(next)
+    writeVideoAgentValidationConfig({ validationDocPath: validationDocPathDraft, importUrls: splitVideoAgentValidationUrls(next) })
+  }, [validationDocPathDraft])
+
+  const useFirstValidationUrl = React.useCallback(() => {
+    const firstUrl = validationImportUrls[0] || ''
+    if (!firstUrl) return
+    setValidationUrlsDraft(firstUrl)
+    writeVideoAgentValidationConfig({ validationDocPath: validationDocPathDraft, importUrls: [firstUrl] })
+  }, [validationDocPathDraft, validationImportUrls])
+
+  const importValidationUrls = React.useCallback(() => {
+    if (validationImportUrls.length === 0) return
+    const bridge = getMarkdownWorkspaceActionBridge()
+    if (typeof bridge.importUrl !== 'function') return
+    for (const url of validationImportUrls) {
+      bridge.importUrl(url, { canvas2dRenderer: FLOW_EDITOR_VIDEO_AGENT_VALIDATION_RENDERER })
+    }
+  }, [validationImportUrls])
+
+  return (
+    <section
+      className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
+      aria-label="Flow Editor video-agent validation import controls"
+      data-kg-flow-editor-video-agent-validation-controls="1"
+    >
+      <label className={cn('grid min-w-0 gap-1 text-[11px]', UI_THEME_TOKENS.text.secondary)}>
+        <span className="truncate">Validation document path</span>
+        <input
+          className={cn('min-h-8 min-w-0 rounded border px-2 py-1 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}
+          aria-label="Flow Editor video-agent validation document path"
+          placeholder="Validation document path"
+          value={validationDocPathDraft}
+          onChange={event => updateValidationDocPath(event.target.value)}
+        />
+      </label>
+      <label className={cn('grid min-w-0 gap-1 text-[11px]', UI_THEME_TOKENS.text.secondary)}>
+        <span className="truncate">Validation import URLs</span>
+        <textarea
+          className={cn('min-h-16 min-w-0 rounded border px-2 py-1 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}
+          aria-label="Flow Editor video-agent validation import URLs"
+          placeholder="Validation import URLs"
+          value={validationUrlsDraft}
+          onChange={event => updateValidationUrls(event.target.value)}
+        />
+      </label>
+      <section className="flex min-w-0 items-stretch gap-1">
+        <button
+          type="button"
+          className={cn('min-h-8 rounded border px-2 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+          disabled={validationImportUrls.length === 0}
+          onClick={useFirstValidationUrl}
+        >
+          Use first
+        </button>
+        <button
+          type="button"
+          className={cn('min-h-8 rounded border px-2 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+          disabled={validationImportUrls.length === 0}
+          onClick={importValidationUrls}
+        >
+          Import set
+        </button>
+      </section>
+    </section>
   )
 }
 
@@ -311,6 +400,7 @@ export function FlowEditorFloatingPanelView() {
               </section>
             ) : null}
           </header>
+          <FlowEditorVideoAgentValidationImportControls />
           <FlowEditorPortDetailRows row={selectedRow} />
         </section>
       </section>
