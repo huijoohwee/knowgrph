@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-06-29
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Storyboard live-route retention release | Record the production release that fixed live-route media-panel retention and completed the Dev -> Prod -> Cloudflare path | Keep Storyboard retention fixes source-owned, publish only through `pages:build-sync` and `pages:deploy-cloudflare`, and anchor release proof by paired repo commits, live route checks, and D1 docs seed evidence. | `knowgrph/{canvas/src/components/FlowEditorCanvas/runtime,canvas/scripts/verify_storyboard_live_route_media_panel_retention.py,docs/documents/{knowgrph-cross-repo-publish-topology.md,knowgrph-testing-document.md},todo-log.md},huijoohwee/{content/knowgrph,_worker.js}` | Storyboard live-route retention + Pages release topology | `test:live:storyboard-media-panel-retention:browser`, `storyboard:readiness:check`, `pages:build-sync`, `pages:deploy-cloudflare` | Source commit `623dfffd`, publish commit `27b4c85d`, preview `https://d2067cbd.joohwee.pages.dev`, live routes `https://airvio.co/` and `https://airvio.co/knowgrph/` | Released Storyboard retention fix, synced publish mirror, successful Pages deploy, live route proof, and D1 docs seed `applied=39 conflict=0 rejected=0` | Release evidence belongs in canonical source docs and generated mirror artifacts only; fix hygiene blockers at the source repo, never by patching downstream publish output or bypassing pre-push gates. | Re-run `npm run storyboard:readiness:check` and `npm run test:live:storyboard-media-panel-retention:browser` before the next Storyboard Rich Media release and mirror any further release-note changes into AgenticRAG only after the next approved docs sync. | 2026-06-29 |
+
 ## 2026-06-25
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

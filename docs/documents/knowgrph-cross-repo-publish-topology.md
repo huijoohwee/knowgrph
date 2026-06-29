@@ -36,6 +36,14 @@ Public route ownership remains `airvio.co/api/storage/*`, but server-side reads 
 
 `huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner. Cloudflare Pages control files remain authoritative only at the publish repo root: `huijoohwee/_headers` and `huijoohwee/_redirects`. Mirrored nested `_headers` or `_redirects` under `content/knowgrph` are not deploy authority and should not be synced.
 
+### 2026-06-29 Release Record
+
+- Source repo `knowgrph` shipped commit `623dfffd` (`Fix storyboard live-route media panel retention`).
+- Publish repo `huijoohwee` shipped commit `27b4c85d` (`Sync knowgrph publish artifacts`).
+- Cloudflare Pages deploy ran through `npm run pages:deploy-cloudflare` from `knowgrph` and completed with preview URL `https://d2067cbd.joohwee.pages.dev`.
+- Post-deploy route proof passed with `https://airvio.co/` -> loaded `knowgrph` and `https://airvio.co/knowgrph/` -> loaded `knowgrph`.
+- The deploy also completed `storage:d1:seed:docs` with `applied=39`, `conflict=0`, and `rejected=0`.
+
 ### 2026-06-26 Release Record
 
 - Source repo `knowgrph` shipped commits `66926a74` (`feat: improve timeline preview animation runtime`) and `e97df37c` (`chore: refresh settings flow metadata`).
