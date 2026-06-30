@@ -9,7 +9,10 @@ import {
   splitMermaidDiagrams,
   type MermaidDiagramKind,
 } from 'grph-shared/markdown/mermaidInput'
-import { formatMermaidGanttFrameThumbnailToken } from './mermaidGanttFrameThumbnailToken'
+import {
+  formatMermaidGanttFrameSamplesToken,
+  formatMermaidGanttFrameThumbnailToken,
+} from './mermaidGanttFrameThumbnailToken'
 
 export type MermaidStructuredDiagramKind = Extract<MermaidDiagramKind, 'flowchart' | 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'>
 
@@ -32,6 +35,7 @@ export type MermaidDiagramCodeModel = {
 
 type NeutralTimelineTrack = {
   durationMs: number
+  frameSamples: unknown
   id: string
   label: string
   startMs: number
@@ -139,7 +143,8 @@ const normalizeNeutralTimelineTrack = (value: unknown, index: number): NeutralTi
   const durationMs = Math.max(0, readNeutralTimelineNumber(record.durationMs ?? record.duration))
   if (durationMs <= 0) return null
   const thumbnailUrl = buildNeutralTimelineSourceFrameThumbnailUrl({ record })
-  return { durationMs, id, label, startMs, thumbnailUrl }
+  const frameSamples = record.frameSamples ?? record.frameByFrameSamples ?? []
+  return { durationMs, frameSamples, id, label, startMs, thumbnailUrl }
 }
 
 const normalizeNeutralTimelineLane = (value: unknown, index: number): NeutralTimelineLane | null => {
@@ -206,9 +211,10 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
     lines.push(`  section ${sanitizeNeutralTimelineLabel(lane.label, lane.id)}`)
     for (const track of laneTracks) {
       assignedTrackIds.add(track.id)
+      const frameSamplesToken = formatMermaidGanttFrameSamplesToken(track.frameSamples)
       const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
       const positionToken = unitMs === 1000 ? formatNeutralTimelinePositionToken(track.startMs) : ''
-      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
+      lines.push(`  ${track.label} : ${[track.id, frameSamplesToken, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   for (const lane of lanes) pushLane(lane)
@@ -216,9 +222,10 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
   if (unassigned.length) {
     lines.push('  section Timeline')
     for (const track of unassigned) {
+      const frameSamplesToken = formatMermaidGanttFrameSamplesToken(track.frameSamples)
       const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
       const positionToken = unitMs === 1000 ? formatNeutralTimelinePositionToken(track.startMs) : ''
-      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
+      lines.push(`  ${track.label} : ${[track.id, frameSamplesToken, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   return lines.join('\n')

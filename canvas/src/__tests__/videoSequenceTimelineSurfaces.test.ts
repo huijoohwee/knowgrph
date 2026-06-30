@@ -140,7 +140,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     controlsText.includes('timeline-transport-chrome-header--tools-only') ||
     !controlsText.includes('showInlineProgress?: boolean') ||
     !controlsText.includes('!showRange && showInlineProgress') ||
-    !controlsText.includes('onPlaybackPointerDown') ||
+    !controlsText.includes('onClick={onTogglePlayback}') ||
+    controlsText.includes('onPointerDown={onPlaybackPointerDown}') ||
     !controlsCssText.includes('.timeline-player-progress::-webkit-progress-value') ||
     !controlsCssText.includes('.timeline-transport-chrome--mermaid-gantt .timeline-player-progress') ||
     !controlsCssText.includes('min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 42px))') ||
@@ -507,9 +508,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportPlaybackModelText.includes('useGanttTimelinePlaybackControls') ||
     !transportPlaybackModelText.includes('useTimelineTransportPlayback') ||
     !transportPlaybackModelText.includes('onPlaybackEnd: playbackControls.handlePlaybackEnd') ||
-    !transportPlaybackModelText.includes('handlePlaybackPointerDown: playbackControls.handlePlaybackPointerDown') ||
     !transportPlaybackModelText.includes('handleTogglePlayback: playbackControls.handleTogglePlayback') ||
-    !transportPlaybackModelText.includes('active: !args.disabled') ||
+    !transportPlaybackModelText.includes('active: args.clockActive !== false && !args.disabled') ||
     !transportPlaybackModelText.includes('unitsPerMs: args.playbackUnitsPerMs') ||
     !transportPreviewSessionText.includes('useGanttTimelineTransportPreviewSession') ||
     !transportPreviewSessionText.includes('readVideoSequenceTimelineModelFromMarkdown') ||
@@ -788,9 +788,9 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     ['data-kg-command-menu-media-metadata-video-codec', 'data-kg-command-menu-media-metadata-audio-codec', 'data-kg-command-menu-media-metadata-frame-rate', 'data-kg-command-menu-media-metadata-bitrate', 'data-kg-command-menu-media-metadata-audio-sample-rate'].some(attr => !commandMenuCatalogText.includes(attr)) ||
     commandMenuCatalogText.indexOf('{mediaActions.map(action => (') < commandMenuCatalogText.indexOf('{uploadedMediaItems.map(item => (') ||
     !playbackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
-    !playbackControlsText.includes('handlePlaybackPointerDown') ||
     !playbackControlsText.includes('handleTogglePlayback') ||
     !playbackControlsText.includes('handlePlaybackEnd') ||
+    playbackControlsText.includes('handlePlaybackPointerDown') ||
     !selectionSyncText.includes('previousSelectedRowKeyRef') ||
     !selectionSyncText.includes('if (previousSelectedRowKey === args.selectedRowKey) return') ||
     !selectionSyncText.includes('args.taskSpans.find(span => span.rowKey === args.selectedRowKey)') ||

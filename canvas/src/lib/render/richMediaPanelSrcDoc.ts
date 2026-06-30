@@ -2,7 +2,13 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { normalizeSemanticHtmlContainers } from '@/lib/html/semanticHtml'
-import { RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE } from '@/lib/render/richMediaTimelineSync'
+import {
+  RICH_MEDIA_TIMELINE_TRANSPORT_BROADCAST_CHANNEL,
+  RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_ATTR,
+  RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE,
+  RICH_MEDIA_TIMELINE_TRANSPORT_PARENT_FRAME_KEY,
+  RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE,
+} from '@/lib/render/richMediaTimelineSync'
 import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export const RICH_MEDIA_PANEL_SRCDOC_ATTR = 'data-kg-rich-media-panel-srcdoc'
@@ -14,6 +20,14 @@ export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR = 'data-kg-rich-media-panel-
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT = 'viewport'
 
 const richMediaPanelSrcDocCache = new LRUCache<string, string>(64, 2 * 60_000)
+const TIMELINE_AWARE_VIDEO_AGENT_SRCDOC_MARKERS = [
+  'data-composition-id="knowgrph-video-agent-runtime"',
+  "data-composition-id='knowgrph-video-agent-runtime'",
+  'data-kg-video-agent-dataset-panel',
+  'data-kg-video-agent-frame-analysis',
+  'data-kg-video-agent-source-playback',
+  'data-kg-video-agent-stream-panel',
+] as const
 
 function escapeHtmlText(raw: unknown): string {
   return String(raw || '')
@@ -84,11 +98,17 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'if(window.__KNOWGRPH_RICH_MEDIA_TIMELINE_BRIDGE__)return;',
     'window.__KNOWGRPH_RICH_MEDIA_TIMELINE_BRIDGE__=true;',
     `var messageType=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE)};`,
-    'var raf=0,pending=null,retry=0;',
+    `var readyType=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE)};`,
+    `var channelName=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_BROADCAST_CHANNEL)};`,
+    `var frameAttr=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_ATTR)};`,
+    `var parentFrameKey=${JSON.stringify(RICH_MEDIA_TIMELINE_TRANSPORT_PARENT_FRAME_KEY)};`,
+    'var raf=0,pending=null,retry=0,nativeLoopActive=false,nativeLoopBaseTimeMs=0,nativeLoopBaseNowMs=0,nativeLoopRate=1;',
+    'var lastParentFrameSignature="";',
     'var sourcePlaybackState=typeof WeakMap==="function"?new WeakMap():null;',
-    'function cancel(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
+    'function cancel(){if(raf){cancelAnimationFrame(raf);raf=0;}nativeLoopActive=false;}',
     'function nowMs(){return performance&&typeof performance.now==="function"?performance.now():Date.now();}',
     'function dispatchFrame(timeMs){',
+    'try{window.__KNOWGRPH_RENDER_TIME_MS__=timeMs;}catch(e){}',
     'try{window.dispatchEvent(new CustomEvent("knowgrph:render-frame",{detail:{timeMs:timeMs,seconds:timeMs/1000}}));}catch(e){}',
     '}',
     'function sourcePlaybackFrames(){return Array.prototype.slice.call(document.querySelectorAll("[data-kg-video-agent-source-playback] iframe"));}',
@@ -97,8 +117,9 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'function readSourcePlaybackState(frame){return sourcePlaybackState?sourcePlaybackState.get(frame)||{}:frame.__kgSourcePlaybackState||{};}',
     'function writeSourcePlaybackState(frame,state){if(sourcePlaybackState)sourcePlaybackState.set(frame,state);else frame.__kgSourcePlaybackState=state;}',
     'function shouldSeekSourcePlayback(state,timeMs,playing,rate){',
-    'if(!state||state.playing!==playing||state.rate!==rate)return true;',
+    'if(!state||!Number.isFinite(Number(state.timeMs)))return true;',
     'if(!playing)return Math.abs((Number(state.timeMs)||0)-timeMs)>120;',
+    'if(state.playing!==playing)return Math.abs((Number(state.timeMs)||0)-timeMs)>250;',
     'var projected=(Number(state.timeMs)||0)+Math.max(0,nowMs()-(Number(state.nowMs)||0))*(Number(state.rate)||1);',
     'return Math.abs(projected-timeMs)>750;',
     '}',
@@ -113,11 +134,12 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'if(!isYouTubeFrame(frame))continue;',
     'var state=readSourcePlaybackState(frame);',
     'var needsSeek=shouldSeekSourcePlayback(state,timeMs,playing,rate);',
+    'var commandNow=nowMs();',
     'if(needsSeek)postYouTubeCommand(frame,"seekTo",[seconds,true]);',
     'if(state.rate!==rate)postYouTubeCommand(frame,"setPlaybackRate",[rate]);',
-    'if(playing&&state.commandPlaying!==true)postYouTubeCommand(frame,"playVideo",[]);',
+    'if(playing&&(state.commandPlaying!==true||commandNow-(Number(state.lastPlayCommandNowMs)||0)>1000))postYouTubeCommand(frame,"playVideo",[]);',
     'if(!playing&&state.commandPlaying!==false)postYouTubeCommand(frame,"pauseVideo",[]);',
-    'writeSourcePlaybackState(frame,{timeMs:needsSeek?timeMs:Number(state.timeMs)||timeMs,nowMs:needsSeek?nowMs():Number(state.nowMs)||nowMs(),playing:playing,rate:rate,commandPlaying:playing});',
+    'writeSourcePlaybackState(frame,{timeMs:needsSeek?timeMs:Number(state.timeMs)||timeMs,nowMs:needsSeek?commandNow:Number(state.nowMs)||commandNow,lastSeekNowMs:needsSeek?commandNow:Number(state.lastSeekNowMs)||0,lastPlayCommandNowMs:playing?commandNow:Number(state.lastPlayCommandNowMs)||0,playing:playing,rate:rate,commandPlaying:playing});',
     '}',
     '}',
     'function render(timeMs){',
@@ -126,6 +148,13 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'if(typeof fn==="function"){try{fn(timeMs);}catch(e){};return true;}',
     'dispatchFrame(timeMs);',
     'return true;',
+    '}',
+    'function shouldRestartNativeLoop(timeMs,playbackRate){',
+    'var rate=Number.isFinite(Number(playbackRate))&&Number(playbackRate)>0?Number(playbackRate):1;',
+    'if(!nativeLoopActive||!raf)return true;',
+    'if(rate!==nativeLoopRate)return true;',
+    'var projected=nativeLoopBaseTimeMs+Math.max(0,nowMs()-nativeLoopBaseNowMs)*nativeLoopRate;',
+    'return Math.abs(projected-timeMs)>250;',
     '}',
     'function applyPending(){',
     'if(window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__)return;',
@@ -138,8 +167,8 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'return;',
     '}',
     'retry=0;',
-    'syncSourcePlayback(payload,timeMs);',
-    'if(payload.playing){start(timeMs,payload.playbackRate);}else{cancel();}',
+    'if(payload.sourcePlayback!==false)syncSourcePlayback(payload,timeMs);',
+    'if(payload.playing){if(shouldRestartNativeLoop(timeMs,payload.playbackRate))start(timeMs,payload.playbackRate);}else{cancel();}',
     '}',
     'function start(startTimeMs,playbackRate){',
     'cancel();',
@@ -147,6 +176,7 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     'var rate=Number.isFinite(Number(playbackRate))&&Number(playbackRate)>0?Number(playbackRate):1;',
     'var nowFn=performance&&typeof performance.now==="function"?function(){return performance.now();}:function(){return Date.now();};',
     'var baseNow=nowFn();',
+    'nativeLoopActive=true;nativeLoopBaseTimeMs=baseTimeMs;nativeLoopBaseNowMs=baseNow;nativeLoopRate=rate;',
     'function tick(){',
     'var nextTimeMs=baseTimeMs+Math.max(0,nowFn()-baseNow)*rate;',
     'if(!render(nextTimeMs)){cancel();return;}',
@@ -154,13 +184,33 @@ function buildRichMediaPanelSrcDocTimelineTransportScript(): string {
     '}',
     'raf=requestAnimationFrame(tick);',
     '}',
-    'window.addEventListener("message",function(event){',
-    'var payload=event&&event.data;',
+    'function receivePayload(payload){',
     'if(!payload||typeof payload!=="object"||payload.type!==messageType)return;',
     'if(window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__)return;',
     'pending=payload;',
     'applyPending();',
+    '}',
+    'window.addEventListener("message",function(event){',
+    'receivePayload(event&&event.data);',
     '});',
+    'try{if(typeof BroadcastChannel==="function"){var channel=new BroadcastChannel(channelName);channel.onmessage=function(event){receivePayload(event&&event.data);};}}catch(e){}',
+    'function readParentFrame(){',
+    'try{var parentWindow=window.parent;if(!parentWindow||parentWindow===window)return;var payload=parentWindow[parentFrameKey];',
+    'if(!payload||typeof payload!=="object"||payload.type!==messageType)return;',
+    'var signature=[payload.documentKey,payload.timeMs,payload.playing,payload.playbackRate,payload.sourcePlayback].join("|");',
+    'if(signature===lastParentFrameSignature)return;lastParentFrameSignature=signature;receivePayload(payload);}catch(e){}',
+    '}',
+    'try{setInterval(readParentFrame,80);readParentFrame();}catch(e){}',
+    'var lastFrameElementSignature="";',
+    'function receiveSerializedFrame(raw){',
+    'if(!raw)return;try{var payload=JSON.parse(String(raw));if(!payload||typeof payload!=="object"||payload.type!==messageType)return;',
+    'var signature=[payload.documentKey,payload.timeMs,payload.playing,payload.playbackRate,payload.sourcePlayback].join("|");',
+    'if(signature===lastFrameElementSignature)return;lastFrameElementSignature=signature;receivePayload(payload);}catch(e){}',
+    '}',
+    'function readFrameElement(){try{var element=window.frameElement;if(element&&element.getAttribute)receiveSerializedFrame(element.getAttribute(frameAttr));}catch(e){}}',
+    'try{setInterval(readFrameElement,80);readFrameElement();}catch(e){}',
+    'function announceReady(){try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:readyType,title:document.title||""},"*");}catch(e){}}',
+    'try{announceReady();setInterval(announceReady,1000);}catch(e){}',
     'window.addEventListener("load",function(){applyPending();},{passive:true});',
     'requestAnimationFrame(applyPending);',
     '})();',
@@ -236,4 +286,9 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
 export function shouldUseViewportRichMediaPanelSrcDocSize(srcDoc: string): boolean {
   return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT}["']`, 'i').test(srcDoc)
     || /data-composition-id=["']knowgrph-video-agent-runtime["']|data-kg-video-agent-(?:dataset-panel|frame-analysis|source-playback|stream-panel)\b/i.test(srcDoc)
+}
+
+export function shouldUseDirectRichMediaPanelSrcDocSandbox(srcDoc: unknown): boolean {
+  const text = String(srcDoc || '')
+  return TIMELINE_AWARE_VIDEO_AGENT_SRCDOC_MARKERS.some(marker => text.includes(marker))
 }

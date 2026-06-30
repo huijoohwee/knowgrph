@@ -29,7 +29,6 @@ export type TimelineTransportControlsProps = {
   toolbarControls?: React.ReactNode
   value: number
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
-  onPlaybackPointerDown?: () => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
 }
@@ -67,7 +66,6 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
     toolbarControls,
     value,
     onPlaybackRateChange,
-    onPlaybackPointerDown,
     onTogglePlayback,
     onValueChange,
   } = props
@@ -95,7 +93,6 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
           aria-label={playing ? 'Pause playback' : 'Start playback'}
           title={playing ? 'Pause (Space)' : 'Play (Space)'}
           disabled={disabled}
-          onPointerDown={onPlaybackPointerDown}
           onClick={onTogglePlayback}
         >
           {playing ? <Pause className="h-4 w-4" strokeWidth={2} aria-hidden={true} /> : <Play className="h-4 w-4" strokeWidth={2} aria-hidden={true} />}

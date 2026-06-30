@@ -18,7 +18,6 @@ import {
 import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
 import {
-  VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS,
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   isVideoAgentCompactMediaSpan,
   resolveVideoSequenceTimelineLane,
@@ -49,14 +48,9 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     transportSession.timelineModel.taskSpans.length > 0
     && transportSession.timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))
   ), [transportSession.timelineModel.taskSpans])
-  const rulerDisabledLaneIds = React.useMemo(() => (
-    compactVideoAgentTimeline
-      ? Array.from(new Set([...disabledLaneIds, ...VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS]))
-      : disabledLaneIds
-  ), [compactVideoAgentTimeline, disabledLaneIds])
   const rulerVisibleLaneCount = React.useMemo(() => (
-    resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds: rulerDisabledLaneIds })
-  ), [rulerDisabledLaneIds, transportSession.timelineModel.taskSpans])
+    resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })
+  ), [disabledLaneIds, transportSession.timelineModel.taskSpans])
   const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan
   const mediaPreviewSourceUrl = React.useMemo(() => {
     if (selectedPreviewEmpty) return ''
@@ -158,7 +152,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     compact: args.compact,
     contentRef: rulerContentRef,
     displayTicks: transportClockDisplayModel.displayTicks,
-    disabledLaneIds: rulerDisabledLaneIds,
+    disabledLaneIds,
     dragPreview: transportInteractionModel.dragPreview,
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
@@ -182,6 +176,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     visibleLaneCount: rulerVisibleLaneCount,
   })
   const transportPlaybackModel = useGanttTimelineTransportPlaybackModel({
+    clockActive: false,
     disabled: transportSession.disabled,
     documentKey: transportSession.documentKey,
     maxMinutes: transportSession.maxMinutes,
@@ -199,7 +194,6 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
     mediaReaderSummary: mediaPreviewSummary,
-    onPlaybackPointerDown: transportPlaybackModel.handlePlaybackPointerDown,
     onPlaybackRateChange: transportSession.setTransportPlaybackRate,
     onTogglePlayback: transportPlaybackModel.handleTogglePlayback,
     onValueChange: transportInteractionModel.handlePositionChange,

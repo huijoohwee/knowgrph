@@ -18,7 +18,6 @@ export type GanttTimelineTransportShellModel = {
   showInlineProgress: boolean
   showRange: boolean
   step: number
-  onPlaybackPointerDown?: () => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
@@ -34,7 +33,6 @@ export function useGanttTimelineTransportShellModel(args: {
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
   timelineMode: 'empty' | 'source-backed'
-  onPlaybackPointerDown?: () => void
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void
@@ -48,7 +46,6 @@ export function useGanttTimelineTransportShellModel(args: {
     max: Math.max(1, args.maxMinutes),
     mediaDurationSeconds: args.mediaDurationSeconds,
     min: 0,
-    onPlaybackPointerDown: args.onPlaybackPointerDown,
     onPlaybackRateChange: args.onPlaybackRateChange,
     onTogglePlayback: args.onTogglePlayback,
     onValueChange: args.onValueChange,
@@ -80,7 +77,6 @@ export function useGanttTimelineTransportShellModel(args: {
     args.maxMinutes,
     args.mediaDurationSeconds,
     args.mediaReaderSummary,
-    args.onPlaybackPointerDown,
     args.onPlaybackRateChange,
     args.onTogglePlayback,
     args.onValueChange,

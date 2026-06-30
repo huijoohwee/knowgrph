@@ -15,7 +15,10 @@ import {
 import { resolveTimelineVideoPreviewTargetSeconds } from '@/components/timeline/timelinePreviewSync'
 import { resolveGanttTimelineDisplaySourceTime } from '@/features/gitgraph/useGanttTimelineDisplayModel'
 import { resolveGanttTimelinePlaybackStartPosition } from '@/features/gitgraph/useGanttTimelinePlaybackControls'
-import { resolveRichMediaTimelineMediaTargetSeconds } from '@/lib/render/richMediaTimelineSync'
+import {
+  buildRichMediaTimelineTransportFrame,
+  resolveRichMediaTimelineMediaTargetSeconds,
+} from '@/lib/render/richMediaTimelineSync'
 
 const root = process.cwd()
 
@@ -325,6 +328,41 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
   if (restartPosition !== 0) {
     throw new Error(`expected terminal Gantt transport play action to restart from the source timeline start, got ${restartPosition}`)
   }
+  const srcDocFrameFromTransportKey = buildRichMediaTimelineTransportFrame({
+    localDocumentKey: '',
+    transportDocumentKey: 'workspace/imported-video-agent.md',
+    transportPlaybackRate: 1.25,
+    transportPlaying: true,
+    transportPosition: 20,
+    override: { sourcePlayback: false },
+  })
+  const srcDocFrameWithExplicitTime = buildRichMediaTimelineTransportFrame({
+    localDocumentKey: '',
+    transportDocumentKey: 'workspace/imported-video-agent.md',
+    transportPlaybackRate: 1,
+    transportPlaying: true,
+    transportPosition: 0.25,
+    override: { sourcePlayback: false, timeMs: 13000 },
+  })
+  const rejectedForeignDocumentFrame = buildRichMediaTimelineTransportFrame({
+    localDocumentKey: 'workspace/other.md',
+    transportDocumentKey: 'workspace/imported-video-agent.md',
+    transportPlaybackRate: 1,
+    transportPlaying: true,
+    transportPosition: 20,
+  })
+  if (
+    !srcDocFrameFromTransportKey ||
+    srcDocFrameFromTransportKey.documentKey !== 'workspace/imported-video-agent.md' ||
+    srcDocFrameFromTransportKey.timeMs !== 20000 ||
+    srcDocFrameWithExplicitTime?.timeMs !== 13000 ||
+    srcDocFrameFromTransportKey.playing !== true ||
+    srcDocFrameFromTransportKey.playbackRate !== 1.25 ||
+    srcDocFrameFromTransportKey.sourcePlayback !== false ||
+    rejectedForeignDocumentFrame !== null
+  ) {
+    throw new Error(`expected Rich Media srcdoc frame payloads to follow the active BottomPanel transport key and explicit render time without syncing unrelated documents, got ${JSON.stringify({ rejectedForeignDocumentFrame, srcDocFrameFromTransportKey, srcDocFrameWithExplicitTime })}`)
+  }
   const bindingText = readSource('components', 'timeline', 'useTimelinePreviewMediaCanvasBinding.ts')
   const routeEntryText = readSource('components', 'timeline', 'useTimelinePreviewRouteEntry.ts')
   const mediaSessionText = readSource('components', 'timeline', 'useTimelinePreviewMediaSession.ts')
@@ -368,9 +406,23 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !previewSyncText.includes("video.setAttribute('data-kg-video-sequence-audio-playback', 'audible')") ||
     !previewSyncText.includes('enableVideoSequenceAudioPlayback(video)') ||
     !richMediaPanelText.includes('onMediaElement?: (element: HTMLMediaElement | null) => void') ||
-    !richMediaPanelText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE') ||
+    !richMediaTimelineSyncText.includes('buildRichMediaTimelineTransportFrame') ||
+    !richMediaTimelineSyncText.includes('publishRichMediaTimelineTransportFrame') ||
+    !richMediaTimelineSyncText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE') ||
+    !richMediaTimelineSyncText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_BROADCAST_CHANNEL') ||
+    !richMediaTimelineSyncText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_EVENT') ||
+    !richMediaTimelineSyncText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_ATTR') ||
+    !richMediaTimelineSyncText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_PARENT_FRAME_KEY') ||
+    !richMediaTimelineSyncText.includes('localDocumentKey || transportDocumentKey') ||
+    !richMediaTimelineSyncText.includes('localDocumentKey && transportDocumentKey && localDocumentKey !== transportDocumentKey') ||
+    !richMediaTimelineSyncText.includes('sourcePlayback: args.override?.sourcePlayback !== false') ||
+    !richMediaPanelText.includes('buildRichMediaTimelineTransportFrame') ||
+    !richMediaPanelText.includes('publishRichMediaTimelineTransportFrame(payload)') ||
+    !richMediaPanelText.includes('inlineSrcDocMessageTargetRef.current?.postMessage') ||
+    !richMediaPanelText.includes('deliverTimelineFrameToSrcDocPreview') ||
+    !richMediaPanelText.includes('frame.setAttribute(RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_ATTR, serialized)') ||
+    !richMediaPanelText.includes('RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE') ||
     !richMediaPanelText.includes('resolveTimelineTransportFrame') ||
-    !richMediaPanelText.includes('documentKey !== timelineDocumentKey') ||
     !richMediaPanelText.includes('postInlineSrcDocTimelineFrame') ||
     !richMediaPanelText.includes('scheduleInlineSrcDocTimelineFrameBurst') ||
     !richMediaPanelText.includes('[50, 150, 350, 750, 1200]') ||
@@ -401,10 +453,20 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !richMediaTimelineSyncText.includes('resolveRichMediaTimelineDurationUnits') ||
     !richMediaTimelineSyncText.includes('buildMermaidGanttTimelineModel(ganttCode).durationMinutes') ||
     !ganttPlaybackControlsText.includes('resolveGanttTimelinePlaybackStartPosition') ||
+    !ganttPlaybackControlsText.includes('useGraphStore.getState()') ||
+    !ganttPlaybackControlsText.includes('readCurrentTransportPlaybackState') ||
+    !ganttPlaybackControlsText.includes('positionMinutes: current.positionMinutes') ||
     !ganttPlaybackControlsText.includes('args.setTransportPlaybackPosition(nextPosition)') ||
     !ganttPlaybackControlsText.includes('requestTimelineTransportPlayback(nextPlaying, nextPosition)') ||
     !ganttTransportPlaybackModelText.includes('maxMinutes: args.maxMinutes') ||
     !ganttTransportPlaybackModelText.includes('setTransportPlaybackPosition: args.onPositionChange') ||
+    !ganttTransportPlaybackModelText.includes('publishRichMediaTimelineTransportFrame(payload)') ||
+    !ganttTransportPlaybackModelText.includes('onPlaybackFrame: position => publishTimelineTransportFrame(position, true)') ||
+    !ganttPlaybackControlsText.includes('resolveGanttTimelineTransportRenderTimeMs') ||
+    !ganttPlaybackControlsText.includes('timeMs: resolveGanttTimelineTransportRenderTimeMs') ||
+    !ganttTransportPlaybackModelText.includes('timeMs: resolveGanttTimelineTransportRenderTimeMs') ||
+    !richMediaTimelineSyncText.includes('typeof args.override?.timeMs === \'number\'') ||
+    !richMediaTimelineSyncText.includes(': position * RICH_MEDIA_TIMELINE_TRANSPORT_MS_PER_UNIT') ||
     !htmlVideoFlowNodeText.includes('window.__knowgrphRenderFrame=async function(timeMs)') ||
     !htmlVideoFlowNodeText.includes('window.__knowgrphRenderFrame(0)') ||
     !htmlVideoFlowNodeText.includes('window.__KNOWGRPH_TIMELINE_TRANSPORT_NATIVE_LOOP__=true') ||
@@ -416,6 +478,11 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !cardMediaPreviewText.includes('ref={onMediaElement}')
   ) {
     throw new Error('expected Media canvas and Rich Media iframe previews to use shared transport position and native image/audio/video source kinds so timeline preview bars stay in sync with Rich Media preview')
+  }
+  if (richMediaPanelText.includes('postInlineSrcDocTimelineFrame(timelineTransportPlaying')
+    || richMediaPanelText.includes('if (!timelineTransportPlaying) postInlineSrcDocTimelineFrame()')
+    || richMediaPanelText.includes('if (!timelineTransportPlaying) scheduleInlineSrcDocTimelineFrameBurst()')) {
+    throw new Error('expected Rich Media srcdoc sync to avoid store-unit fallback emissions during BottomPanel playback/pause')
   }
 }
 

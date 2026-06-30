@@ -54,6 +54,8 @@ export type TimelineTransportPlaybackRequestDetail = {
   playbackRate: number
   playing: boolean
   position: number
+  sourcePlayback?: boolean
+  timeMs?: number
 }
 
 export type VideoSequenceTimelineSource = {
@@ -120,7 +122,6 @@ export const VIDEO_SEQUENCE_TIMELINE_LANES: readonly VideoSequenceTimelineLane[]
 ] as const
 
 export const VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['mask', 'grade'] as const
-export const VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['video', 'audio'] as const
 
 const VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS: readonly Pick<VideoSequenceTimelineScope, 'id' | 'label'>[] = [
   { id: 'live-preview', label: 'Live preview' },

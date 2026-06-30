@@ -26,6 +26,10 @@ import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS, isVisualAnnotationE2eCanvas2dRenderer } from '@/lib/config.render'
 import {
+  assertProviderFrameSampleToken,
+  assertProviderFrameThumbnails,
+} from './helpers/videoAgentTimelineFrameSamples'
+import {
   assertVideoAgentContractCoversValidationUrls,
   installVideoAgentValidationYouTubeTranscriptFetch,
   readVideoAgentValidationUrlsFromEnv,
@@ -361,19 +365,15 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     throw new Error('expected external validation document to expose frame-by-frame and audio BottomPanel Timeline lanes')
   }
   const externalFbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(sourceSpecData)
-  if (externalFbfTimelineCode.includes('kgthumb_')) throw new Error('expected external validation BottomPanel FBF timeline to avoid source-frame thumbnail metadata')
+  if (!externalFbfTimelineCode.includes('kgframes_') || externalFbfTimelineCode.includes('kgthumb_')) {
+    throw new Error('expected external validation BottomPanel FBF timeline to carry compact source-frame sample metadata')
+  }
   const externalFbfTimelineModel = buildMermaidGanttTimelineModel(externalFbfTimelineCode)
   const externalFbfSpan = externalFbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
   if (!externalFbfSpan) throw new Error('expected external validation BottomPanel FBF span')
+  assertProviderFrameSampleToken(externalFbfSpan.raw)
   const externalFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: externalFbfSpan })
-  const externalFrameSvg = decodeURIComponent(String(externalFrameThumbnails[0]?.dataUrl || '').split(',').slice(1).join(','))
-  if (
-    !String(externalFrameThumbnails[0]?.dataUrl || '').startsWith('data:image/svg+xml')
-    || externalFrameThumbnails[0]?.format !== 'svg'
-    || !externalFrameSvg.includes('generated-frame-thumbnail')
-  ) {
-    throw new Error(`expected external validation BottomPanel FBF transport to use native semantic samples, got ${JSON.stringify(externalFrameThumbnails)}`)
-  }
+  assertProviderFrameThumbnails(externalFrameThumbnails)
   const richMediaPanels = nodes.filter(node => readKtvString(node.type) === 'RichMediaPanel')
   const frameAnalysisPanels = richMediaPanels.filter(node => {
     const panelText = [

@@ -5,6 +5,11 @@ import {
   buildMermaidGanttCodeFromNeutralTimelinePayload,
   readYamlFrontmatterMermaidDiagramCodes,
 } from '@/lib/mermaid/mermaidDiagramCode'
+import {
+  VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  resolveVisibleVideoSequenceTimelineLanes,
+} from '@/components/timeline/videoSequenceTimeline'
+import { readMermaidGanttFrameSamples } from '@/lib/mermaid/mermaidGanttFrameThumbnailToken'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -72,15 +77,25 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
     throw new Error(`expected media Timeline panels to exclude video-agent workflow stages: ${mediaGantt}`)
   }
   const mediaTimelineModel = buildMermaidGanttTimelineModel(mediaGantt)
+  const mediaFbfSpan = mediaTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
+  const mediaFrameSamples = readMermaidGanttFrameSamples(mediaFbfSpan?.raw || '')
+  const mediaLaneIds = resolveVisibleVideoSequenceTimelineLanes(mediaTimelineModel.taskSpans, {
+    disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  }).map(lane => lane.id).join(',')
   if (
     mediaTimelineModel.taskSpans.length !== 3
     || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_video/.test(span.raw))
     || !mediaTimelineModel.taskSpans.some(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
     || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_audio/.test(span.raw))
+    || mediaLaneIds !== 'video,fbf,audio'
     || mediaTimelineModel.taskSpans.some(span => /frame_box_\d+_fbf/.test(span.raw))
+    || !mediaFbfSpan
+    || mediaFrameSamples.length < 3
+    || new Set(mediaFrameSamples.map(sample => sample.timestampSeconds)).size < 3
+    || mediaFrameSamples.some(sample => !sample.url.startsWith('/__video_frame?'))
     || mediaGantt.includes('kgthumb_')
   ) {
-    throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks without per-frame overlap rows: ${mediaGantt}`)
+    throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks without per-frame overlap rows: ${JSON.stringify({ mediaGantt, mediaLaneIds })}`)
   }
 }
 
@@ -88,6 +103,10 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
   const utilsText = readSource('features/canvas/utils.ts')
   const launcherText = readSource('features/toolbar/ToolbarMenuLauncher.tsx')
   const presetText = readSource('features', 'parsers', 'canvasFrontmatterPreset.ts')
+  const bottomPanelShellText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
+  const transportPlaybackRuntimeText = readSource('features', 'gitgraph', 'GanttTimelineTransportPlaybackRuntime.tsx')
+  const transportPlaybackModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPlaybackModel.ts')
+  const transportSurfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
   const uiSliceText = readSource('hooks', 'store', 'uiSliceInitialState.ts')
   const timelineBottomText = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const timelineFloatingText = readSource('features', 'gitgraph', 'TimelineFloatingPanelView.tsx')
@@ -105,13 +124,15 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     "new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])",
     '!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)',
     'videoSequenceModel?.enabled',
-    '(videoSequenceModel?.enabled || !timelineCode) && ganttCode',
-    '<GanttTimelineTransportPanel code={ganttCode} compact={false} />',
-    '<TimelineVideoSequenceEmptyState compact={false} />',
+    '!timelineCode && ganttCode',
+    'kind="gantt"',
+    'renderMode="list"',
+    'rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}',
+    'rowTree={videoSequenceFloatingRowTree}',
   ]) {
     if (!`${presetText}\n${timelineFloatingText}`.includes(token)) throw new Error(`expected video-agent floating panel routing to preserve explicit ${token}`)
   }
-  for (const staleToken of ['TimelineTransportControls', 'data-kg-gantt-timeline-transport']) {
+  for (const staleToken of ['GanttTimelineTransportPanel', 'TimelineTransportControls', 'data-kg-gantt-timeline-transport']) {
     if (timelineFloatingText.includes(staleToken)) throw new Error(`expected video-agent FloatingPanel Timeline to avoid BottomPanel transport owner token: ${staleToken}`)
   }
   for (const token of [
@@ -119,8 +140,17 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     'const videoSequenceModel = React.useMemo',
     '(videoSequenceModel?.enabled || !timelineCode) && ganttCode',
     '<GanttTimelineTransportPanel code={ganttCode} compact={compact} />',
+    'GanttTimelineTransportPlaybackRuntime',
+    '<GanttTimelineTransportPlaybackRuntime />',
+    'useGanttTimelineTransportSession({ code })',
+    'useGanttTimelineTransportPlaybackModel',
+    'clockActive: true',
+    'clockActive: false',
+    'active: args.clockActive !== false && !args.disabled',
   ]) {
-    if (!timelineBottomText.includes(token)) throw new Error(`expected video-agent BottomPanel Timeline to keep transport owner token: ${token}`)
+    if (!`${timelineBottomText}\n${bottomPanelShellText}\n${transportPlaybackRuntimeText}\n${transportPlaybackModelText}\n${transportSurfaceModelText}`.includes(token)) {
+      throw new Error(`expected video-agent BottomPanel Timeline to keep transport owner token: ${token}`)
+    }
   }
 }
 
@@ -140,11 +170,8 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
     'data-kg-video-agent-compact-fbf={compactVideoAgentFbf ?',
     'data-kg-video-agent-compact-media={compactVideoAgentMedia ?',
-    'VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS',
-    "VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['video', 'audio']",
-    'const rulerDisabledLaneIds = React.useMemo',
     'compactVideoAgentTimeline',
-    'resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds: rulerDisabledLaneIds })',
+    'resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })',
     'const compactVideoAgentTimeline = React.useMemo',
     'timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
     'scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes',

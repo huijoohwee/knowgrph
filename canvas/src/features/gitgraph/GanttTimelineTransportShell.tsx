@@ -42,7 +42,6 @@ export function GanttTimelineTransportShell(args: GanttTimelineTransportShellPro
       showRange={args.shellModel.showRange}
       totalLabel={args.rulerModel.chrome.totalLabel}
       value={args.rulerModel.chrome.value}
-      onPlaybackPointerDown={args.shellModel.onPlaybackPointerDown}
       onPlaybackRateChange={args.shellModel.onPlaybackRateChange}
       onTogglePlayback={args.shellModel.onTogglePlayback}
       onValueChange={args.shellModel.onValueChange}

@@ -275,7 +275,6 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !ganttTransportPlaybackModelText.includes('useGanttTimelinePlaybackControls') ||
     !ganttTransportPlaybackModelText.includes('useTimelineTransportPlayback') ||
     !ganttTransportPlaybackModelText.includes('onPlaybackEnd: playbackControls.handlePlaybackEnd') ||
-    !ganttTransportPlaybackModelText.includes('handlePlaybackPointerDown: playbackControls.handlePlaybackPointerDown') ||
     !ganttTransportPlaybackModelText.includes('handleTogglePlayback: playbackControls.handleTogglePlayback') ||
     !timelinePreviewActivitySurfaceModelText.includes('useTimelinePreviewActivitySurfaceModel') ||
     !timelinePreviewActivitySurfaceModelText.includes("args.activityMode === 'selection' || args.activityMode === 'playhead'") ||

@@ -2,6 +2,7 @@ import RichMediaIframe from '@/components/RichMediaIframe'
 import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { shouldUseDirectRichMediaPanelSrcDocSandbox } from '@/lib/render/richMediaPanelSrcDoc'
 import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
@@ -27,7 +28,7 @@ export function RichMediaPanelIframeSurface(args: {
           iframeSrc="about:blank"
           iframeSrcDoc={model.normalizedInlineSrcDoc}
           iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          iframeSandbox={model.normalizedInlineSrcDoc.includes('data-kg-video-agent-source-playback') ? resolveIframeSandbox('direct') : undefined}
+          iframeSandbox={shouldUseDirectRichMediaPanelSrcDocSandbox(model.normalizedInlineSrcDoc) ? resolveIframeSandbox('direct') : undefined}
           iframeLoading="eager"
           iframeRef={model.inlineSrcDocFrameRef}
           iframeScrolling={model.panelOwnsInlineSrcDocScroll ? 'no' : undefined}

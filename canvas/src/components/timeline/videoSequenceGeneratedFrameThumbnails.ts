@@ -1,6 +1,9 @@
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
 import type { MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
-import { readMermaidGanttFrameThumbnailUrl } from '@/lib/mermaid/mermaidGanttFrameThumbnailToken'
+import {
+  readMermaidGanttFrameSamples,
+  readMermaidGanttFrameThumbnailUrl,
+} from '@/lib/mermaid/mermaidGanttFrameThumbnailToken'
 
 type VideoSequenceGeneratedFrameWindow = {
   sourceEndSeconds: number
@@ -95,6 +98,13 @@ export const buildVideoSequenceGeneratedFrameThumbnails = (args: {
     sourceStartSeconds: args.span.startMinutes,
   }
   if (args.span.durationMinutes <= 0) return []
+  const sourceFrameSamples = readMermaidGanttFrameSamples(args.span.raw)
+  if (sourceFrameSamples.length) {
+    return sourceFrameSamples.map(sample => buildSourceFrameThumbnail({
+      timestampSeconds: sample.timestampSeconds,
+      url: sample.url,
+    }))
+  }
   const frameThumbnailUrl = readMermaidGanttFrameThumbnailUrl(args.span.raw)
   if (frameThumbnailUrl) {
     return [buildSourceFrameThumbnail({

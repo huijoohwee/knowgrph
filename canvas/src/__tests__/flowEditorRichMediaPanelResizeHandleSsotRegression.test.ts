@@ -327,8 +327,8 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     "videoAutoPlay={model.kind === 'video' ? props.videoControls !== true : undefined}",
     "videoLoop={model.kind === 'video' ? props.videoControls !== true : undefined}",
     "pointerEvents: props.videoControls === true ? 'auto' : 'none'",
-    "model.directVideoFallbackSrcDoc.includes('data-kg-video-agent-source-playback') ? resolveIframeSandbox('direct') : undefined",
-    "model.normalizedInlineSrcDoc.includes('data-kg-video-agent-source-playback') ? resolveIframeSandbox('direct') : undefined",
+    'shouldUseDirectRichMediaPanelSrcDocSandbox(model.directVideoFallbackSrcDoc) ? resolveIframeSandbox(\'direct\') : undefined',
+    'shouldUseDirectRichMediaPanelSrcDocSandbox(model.normalizedInlineSrcDoc) ? resolveIframeSandbox(\'direct\') : undefined',
   ]) {
     if (!richMediaPanelText.includes(snippet)) {
       throw new Error(`expected embedded Rich Media Panel surface to remain inside Flow Editor panel stacking: ${snippet}`)

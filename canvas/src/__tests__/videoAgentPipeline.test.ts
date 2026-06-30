@@ -16,6 +16,11 @@ import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInt
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { RICH_MEDIA_TIMELINE_TRANSPORT_FRAME_MESSAGE } from '@/lib/render/richMediaTimelineSync'
+import {
+  assertProviderBackedTimelineFrameSamples,
+  assertProviderFrameSampleToken,
+  assertProviderFrameThumbnails,
+} from './helpers/videoAgentTimelineFrameSamples'
 
 const neutralSourceUrl = 'https://media.example.test/source-video'
 const providerBackedSourceUrl = 'https://youtu.be/aBcD123xYz9'
@@ -381,9 +386,7 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalys
   if (result.ok === false) throw new Error(`expected provider-backed video-agent pipeline, got ${result.reason}`)
   const frameTimelineTracks = result.pipeline.timelineTracks.filter(track => track.source === 'frameBoundingBox' && track.timelineLane === 'fbf')
   if (frameTimelineTracks.length !== 1) throw new Error('expected provider-backed compact FBF timeline track')
-  if (frameTimelineTracks.some(track => String(track.thumbnailUrl || ''))) {
-    throw new Error(`expected provider-backed compact FBF transport to avoid source-frame thumbnail endpoints, got ${JSON.stringify(frameTimelineTracks)}`)
-  }
+  assertProviderBackedTimelineFrameSamples(frameTimelineTracks)
   const renderHtml = result.pipeline.renderSpec.html
   const renderCss = String(result.pipeline.renderSpec.css || '')
   const renderedFrameImages = renderHtml.match(/class="thumbnail-source"/g) || []
@@ -561,23 +564,15 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalys
 
   const renderData = result.pipeline.renderSpec.data as { sourceVideo?: unknown; timelineTracks?: unknown; timelineLanes?: unknown }
   const fbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(renderData)
-  if (fbfTimelineCode.includes('kgthumb_')) {
-    throw new Error(`expected provider-backed compact FBF transport to avoid source-frame thumbnail metadata, got ${fbfTimelineCode}`)
+  if (!fbfTimelineCode.includes('kgframes_') || fbfTimelineCode.includes('kgthumb_')) {
+    throw new Error(`expected provider-backed compact FBF transport to carry bounded frame samples without single-thumbnail metadata, got ${fbfTimelineCode}`)
   }
   const fbfTimelineModel = buildMermaidGanttTimelineModel(fbfTimelineCode)
   const firstFbfSpan = fbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
   if (!firstFbfSpan) throw new Error('expected provider-backed neutral timeline to materialize an FBF span')
+  assertProviderFrameSampleToken(firstFbfSpan.raw)
   const generatedFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: firstFbfSpan })
-  const generatedFrameSvg = decodeURIComponent(String(generatedFrameThumbnails[0]?.dataUrl || '').split(',').slice(1).join(','))
-  if (
-    generatedFrameThumbnails.length < 1
-    || !String(generatedFrameThumbnails[0]?.dataUrl || '').startsWith('data:image/svg+xml')
-    || generatedFrameThumbnails[0]?.format !== 'svg'
-    || !generatedFrameSvg.includes('generated-frame-thumbnail')
-    || !generatedFrameSvg.includes('Frame-by-frame annotation samples')
-  ) {
-    throw new Error(`expected compact FBF transport fallback thumbnails to stay native and semantic, got ${JSON.stringify(generatedFrameThumbnails)}`)
-  }
+  assertProviderFrameThumbnails(generatedFrameThumbnails)
 }
 
 export function testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDependencyImports() {

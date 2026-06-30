@@ -1,12 +1,20 @@
+import React from 'react'
 import { useTimelineTransportPlayback } from '@/components/timeline/timelineTransport'
-import { useGanttTimelinePlaybackControls } from './useGanttTimelinePlaybackControls'
+import {
+  buildRichMediaTimelineTransportFrame,
+  publishRichMediaTimelineTransportFrame,
+} from '@/lib/render/richMediaTimelineSync'
+import {
+  resolveGanttTimelineTransportRenderTimeMs,
+  useGanttTimelinePlaybackControls,
+} from './useGanttTimelinePlaybackControls'
 
 export type GanttTimelineTransportPlaybackModel = {
-  handlePlaybackPointerDown: () => void
   handleTogglePlayback: () => void
 }
 
 export function useGanttTimelineTransportPlaybackModel(args: {
+  clockActive?: boolean
   disabled: boolean
   documentKey: string
   maxMinutes: number
@@ -21,15 +29,35 @@ export function useGanttTimelineTransportPlaybackModel(args: {
     documentKey: args.documentKey,
     maxMinutes: args.maxMinutes,
     playbackRate: args.playbackRate,
+    playbackUnitsPerMs: args.playbackUnitsPerMs,
     playing: args.playing,
     positionMinutes: args.positionMinutes,
     setTransportPlaybackPosition: args.onPositionChange,
     setTransportPlaying: args.setTransportPlaying,
   })
+  const publishTimelineTransportFrame = React.useCallback((positionMinutes: number, playing: boolean) => {
+    if (args.disabled) return
+    const payload = buildRichMediaTimelineTransportFrame({
+      localDocumentKey: args.documentKey,
+      transportDocumentKey: args.documentKey,
+      transportPlaybackRate: args.playbackRate,
+      transportPlaying: playing,
+      transportPosition: positionMinutes,
+      override: {
+        sourcePlayback: false,
+        timeMs: resolveGanttTimelineTransportRenderTimeMs({
+          playbackUnitsPerMs: args.playbackUnitsPerMs,
+          positionMinutes,
+        }),
+      },
+    })
+    if (payload) publishRichMediaTimelineTransportFrame(payload)
+  }, [args.disabled, args.documentKey, args.playbackRate, args.playbackUnitsPerMs])
 
   useTimelineTransportPlayback({
-    active: !args.disabled,
+    active: args.clockActive !== false && !args.disabled,
     max: args.maxMinutes,
+    onPlaybackFrame: position => publishTimelineTransportFrame(position, true),
     onPlaybackEnd: playbackControls.handlePlaybackEnd,
     onPositionChange: args.onPositionChange,
     playbackRate: args.playbackRate,
@@ -38,8 +66,11 @@ export function useGanttTimelineTransportPlaybackModel(args: {
     unitsPerMs: args.playbackUnitsPerMs,
   })
 
+  React.useEffect(() => {
+    publishTimelineTransportFrame(args.positionMinutes, args.playing)
+  }, [args.playing, args.positionMinutes, publishTimelineTransportFrame])
+
   return {
-    handlePlaybackPointerDown: playbackControls.handlePlaybackPointerDown,
     handleTogglePlayback: playbackControls.handleTogglePlayback,
   }
 }

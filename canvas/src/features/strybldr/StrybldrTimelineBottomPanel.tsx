@@ -13,18 +13,12 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { GanttTimelineTransportPlaybackRuntime } from '@/features/gitgraph/GanttTimelineTransportPlaybackRuntime'
 import { ChartGantt, Columns2, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
-type TimelineBottomPanelPosition = {
-  top: number
-  left: number
-}
-
-type TimelineBottomPanelSize = {
-  width: number
-  height: number
-}
+type TimelineBottomPanelPosition = { top: number; left: number }
+type TimelineBottomPanelSize = { width: number; height: number }
 
 type TimelineBottomPanelView =
   | 'timeline'
@@ -596,6 +590,7 @@ export function StrybldrTimelineBottomPanel({
               aria-label="Timeline bottom panel body"
               data-kg-strybldr-bottom-timeline-scroll="body"
             >
+              <GanttTimelineTransportPlaybackRuntime />
               {view === 'documentVersionGraph' ? (
                 <React.Suspense fallback={null}>
                   <DocumentVersionGitGraphPanelLazy

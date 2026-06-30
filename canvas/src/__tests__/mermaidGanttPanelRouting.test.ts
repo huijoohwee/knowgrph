@@ -1053,9 +1053,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportPlaybackModelText.includes('useGanttTimelinePlaybackControls') ||
     !ganttTransportPlaybackModelText.includes('useTimelineTransportPlayback') ||
     !ganttTransportPlaybackModelText.includes('onPlaybackEnd: playbackControls.handlePlaybackEnd') ||
-    !ganttTransportPlaybackModelText.includes('handlePlaybackPointerDown: playbackControls.handlePlaybackPointerDown') ||
     !ganttTransportPlaybackModelText.includes('handleTogglePlayback: playbackControls.handleTogglePlayback') ||
-    !ganttTransportPlaybackModelText.includes('active: !args.disabled') ||
+    !ganttTransportPlaybackModelText.includes('active: args.clockActive !== false && !args.disabled') ||
     !ganttTransportPlaybackModelText.includes('unitsPerMs: args.playbackUnitsPerMs') ||
     !ganttDocumentActionsText.includes('upsertVideoSequenceExportSessionHistory') ||
     !ganttDocumentActionsText.includes('recentExportSessions') ||
@@ -1090,9 +1089,9 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttPlaybackControlsText.includes('useGanttTimelinePlaybackControls') ||
     !ganttPlaybackControlsText.includes('dispatchTimelineTransportPlaybackRequest') ||
     !ganttPlaybackControlsText.includes('requestTimelineTransportPlayback') ||
-    !ganttPlaybackControlsText.includes('handlePlaybackPointerDown') ||
     !ganttPlaybackControlsText.includes('handleTogglePlayback') ||
     !ganttPlaybackControlsText.includes('handlePlaybackEnd') ||
+    ganttPlaybackControlsText.includes('handlePlaybackPointerDown') ||
     !ganttSelectionSyncText.includes('useGanttTimelineSelectionSync') ||
     !ganttSelectionSyncText.includes('previousSelectedRowKeyRef') ||
     !ganttSelectionSyncText.includes('if (previousSelectedRowKey === args.selectedRowKey) return') ||

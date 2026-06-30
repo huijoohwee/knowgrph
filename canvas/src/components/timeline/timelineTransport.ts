@@ -261,6 +261,7 @@ export function useTimelineTransportPlayback(args: {
   unitsPerMs: number
   onPositionChange: (position: number) => void
   onPlaybackEnd: () => void
+  onPlaybackFrame?: (position: number) => void
 }) {
   const stateRef = React.useRef({
     position: args.position,
@@ -269,6 +270,7 @@ export function useTimelineTransportPlayback(args: {
     unitsPerMs: args.unitsPerMs,
     onPositionChange: args.onPositionChange,
     onPlaybackEnd: args.onPlaybackEnd,
+    onPlaybackFrame: args.onPlaybackFrame,
   })
 
   React.useEffect(() => {
@@ -279,8 +281,9 @@ export function useTimelineTransportPlayback(args: {
       unitsPerMs: args.unitsPerMs,
       onPositionChange: args.onPositionChange,
       onPlaybackEnd: args.onPlaybackEnd,
+      onPlaybackFrame: args.onPlaybackFrame,
     }
-  }, [args.max, args.onPlaybackEnd, args.onPositionChange, args.playbackRate, args.position, args.unitsPerMs])
+  }, [args.max, args.onPlaybackEnd, args.onPlaybackFrame, args.onPositionChange, args.playbackRate, args.position, args.unitsPerMs])
 
   React.useEffect(() => {
     if (!args.active || !args.playing || args.max <= 0 || args.unitsPerMs <= 0) return
@@ -299,6 +302,7 @@ export function useTimelineTransportPlayback(args: {
       )
       stateRef.current.position = nextPosition
       current.onPositionChange(nextPosition)
+      current.onPlaybackFrame?.(nextPosition)
       if (nextPosition >= current.max) {
         current.onPlaybackEnd()
         return

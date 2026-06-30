@@ -1,6 +1,6 @@
 import { HTML_VIDEO_ENGINE_IDS, type RenderSpec } from '@/features/html-video-renderer'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { buildRemoteVideoFrameRequestUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
+import { buildRemoteVideoFrameRequestUrl } from 'grph-shared/rich-media/providers'
 import {
   buildVideoAgentDatasetRuntime,
   type VideoAgentDatasetRuntime,
@@ -15,6 +15,11 @@ import {
   buildVideoAgentWorkspaceOutputPath,
   normalizeVideoAgentWorkspaceOutputRootPath,
 } from './videoAgentWorkspaceOutput'
+import {
+  buildVideoAgentTimelineFrameSamples,
+  type VideoAgentTimelineFrameSample,
+} from './videoAgentTimelineFrameSamples'
+import { buildVideoAgentSourcePlaybackUrl } from './videoAgentSourcePlayback'
 
 export type { VideoAgentFrameBoundingBox, VideoAgentFrameDetection } from './videoAgentFrameBoxes'
 
@@ -93,6 +98,7 @@ export type VideoAgentTimelineTrack = {
   bbox?: VideoAgentFrameBoundingBox['bbox']
   confidence?: number
   frameIndex?: number
+  frameSamples?: readonly VideoAgentTimelineFrameSample[]
   frameSampleCount?: number
   thumbnailUrl?: string
 }
@@ -243,6 +249,7 @@ const buildFrameBoundingBoxTimelineTracks = (
     bbox: firstBox?.bbox,
     confidence: firstBox?.confidence,
     frameIndex: firstBox?.frameIndex,
+    frameSamples: buildVideoAgentTimelineFrameSamples(frameBoundingBoxes),
     frameSampleCount: frameBoundingBoxes.length,
   }]
 }
@@ -381,7 +388,8 @@ const buildVideoAgentHtml = (args: {
       return `<article><h3>${escapeHtml(role)}</h3><p>${escapeHtml(route)}</p><output>${escapeHtml(output)}</output></article>`
     })
     .join('')
-  const sourcePlayback = args.sourceUrl ? `<figure class="source-playback" data-kg-video-agent-source-playback="1"><iframe title="Audio-capable source video playback" src="${escapeHtml(buildYouTubeEmbedUrl(args.sourceUrl, { includeOrigin: false }) || args.sourceUrl)}" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe><figcaption>Source playback is embedded with controls so operator-initiated audio remains available while frame analysis stays native.</figcaption></figure>` : ''
+  const sourcePlaybackUrl = buildVideoAgentSourcePlaybackUrl(args.sourceUrl)
+  const sourcePlayback = args.sourceUrl ? `<figure class="source-playback" data-kg-video-agent-source-playback="1"><iframe title="Audio-capable source video playback" src="${escapeHtml(sourcePlaybackUrl)}" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe><figcaption>Source playback is embedded with controls so operator-initiated audio remains available while frame analysis stays native.</figcaption></figure>` : ''
   const frameBoxItems = args.frameBoundingBoxes
     .flatMap(box => {
       const detections = box.detections.length ? box.detections : [box]
@@ -495,7 +503,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
       url: sourceUrl,
       sourceKey: buildSourceKey(sourceUrl),
       externalDependency: false,
-      playbackEmbedUrl: buildYouTubeEmbedUrl(sourceUrl, { includeOrigin: false }) || sourceUrl,
+      playbackEmbedUrl: buildVideoAgentSourcePlaybackUrl(sourceUrl),
     },
     referenceBoundary: VIDEO_AGENT_REFERENCE_BOUNDARY,
     intent,
