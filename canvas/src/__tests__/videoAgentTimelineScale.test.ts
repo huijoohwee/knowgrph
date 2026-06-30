@@ -105,13 +105,13 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     "new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])",
     '!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)',
     'videoSequenceModel?.enabled',
-    'rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}',
-    'rowTree={videoSequenceFloatingRowTree}',
-    'renderMode="list"',
+    '(videoSequenceModel?.enabled || !timelineCode) && ganttCode',
+    '<GanttTimelineTransportPanel code={ganttCode} compact={false} />',
+    '<TimelineVideoSequenceEmptyState compact={false} />',
   ]) {
     if (!`${presetText}\n${timelineFloatingText}`.includes(token)) throw new Error(`expected video-agent floating panel routing to preserve explicit ${token}`)
   }
-  for (const staleToken of ['GanttTimelineTransportPanel', 'TimelineTransportControls', 'data-kg-gantt-timeline-transport']) {
+  for (const staleToken of ['TimelineTransportControls', 'data-kg-gantt-timeline-transport']) {
     if (timelineFloatingText.includes(staleToken)) throw new Error(`expected video-agent FloatingPanel Timeline to avoid BottomPanel transport owner token: ${staleToken}`)
   }
   for (const token of [
@@ -140,6 +140,11 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
     'data-kg-video-agent-compact-fbf={compactVideoAgentFbf ?',
     'data-kg-video-agent-compact-media={compactVideoAgentMedia ?',
+    'VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS',
+    "VIDEO_AGENT_COMPACT_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['video', 'audio']",
+    'const rulerDisabledLaneIds = React.useMemo',
+    'compactVideoAgentTimeline',
+    'resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds: rulerDisabledLaneIds })',
     'const compactVideoAgentTimeline = React.useMemo',
     'timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
     'scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes',
