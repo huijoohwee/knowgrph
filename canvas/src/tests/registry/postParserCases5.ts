@@ -147,6 +147,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["videoAgent.pipeline.invalidInputAndDependencyGuard","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDependencyImports"],
   ["videoAgent.frameAnalysis.componentRefinedBoxes","@/__tests__/videoAgentFrameAnalysisProjection.test","testVideoAgentFrameAnalysisProjectionUsesComponentRefinedBoxes"],
   ["videoAgent.timeline.bottomPanelSecondsScale","@/__tests__/videoAgentTimelineScale.test","testVideoAgentTimelineKeepsSecondsScaleForBottomPanel"],
+  ["videoAgent.timeline.bottomPanelDenseFbfNoOverlap","@/__tests__/videoAgentTimelineScale.test","testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap"],
   ["videoAgent.timeline.processFlowchartMediaTimelineSplit","@/__tests__/videoAgentTimelineScale.test","testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline"],
   ["videoAgent.timeline.structuredDiagramFloatingPanelOpenEvent","@/__tests__/videoAgentTimelineScale.test","testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMediaAndProcessPanels"],
   ["videoAgent.richMedia.srcDocAudioBridge","@/__tests__/richMediaPanelSrcDocAudioBridge.test","testRichMediaPanelSrcDocBridgeControlsVideoAgentSourcePlaybackAudio"],

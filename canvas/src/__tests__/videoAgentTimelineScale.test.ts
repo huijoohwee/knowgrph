@@ -83,3 +83,25 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     }
   }
 }
+
+export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
+  const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const cssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
+  if (!rulerText.includes("lane === 'fbf' && !verticalMarker && widthPercent < 3.5")) {
+    throw new Error('expected BottomPanel Timeline to mark only temporally dense FBF clips')
+  }
+  for (const token of [
+    'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
+    '[data-kg-video-sequence-dense-fbf="1"]',
+    'min-width: 8px',
+    'overflow: hidden',
+    '.timeline-video-sequence-clip-thumbnail',
+    'min-width: 0',
+    '.timeline-transport-track-clip-label',
+    '.timeline-video-sequence-clip-timecode',
+  ]) {
+    if (!`${rulerText}\n${cssText}`.includes(token)) {
+      throw new Error(`expected dense FBF no-overlap guard token: ${token}`)
+    }
+  }
+}

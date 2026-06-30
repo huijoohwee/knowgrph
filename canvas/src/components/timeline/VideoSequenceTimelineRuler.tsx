@@ -429,6 +429,7 @@ export function VideoSequenceTimelineRuler({
             : []
           const clipStartLabel = formatClipTime(startMinutes)
           const clipEndLabel = formatClipTime(startMinutes + durationMinutes)
+          const denseFbfClip = lane === 'fbf' && !verticalMarker && widthPercent < 3.5
           return (
             <article
               key={`span:${span.rowKey}`}
@@ -443,6 +444,7 @@ export function VideoSequenceTimelineRuler({
               data-kg-gantt-timeline-track-dragging={dragging ? '1' : undefined}
               data-kg-gantt-timeline-track-row-key={span.rowKey}
               data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
+              data-kg-video-sequence-dense-fbf={denseFbfClip ? '1' : undefined}
               data-kg-video-sequence-lane={lane}
               data-kg-video-sequence-trim-start={clipStartLabel}
               data-kg-video-sequence-trim-end={clipEndLabel}
