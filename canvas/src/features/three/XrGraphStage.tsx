@@ -4,6 +4,16 @@ import * as THREE from 'three'
 import type { GraphData } from '@/lib/graph/types'
 import type { Vec3 } from '@/features/three/layout'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
+import {
+  installXrPhysicsKeyboardControls,
+  readXrPhysicsPlaygroundControls,
+  subscribeXrPhysicsPlaygroundControls,
+} from '@/features/three/xrPhysicsPlaygroundControls'
+import {
+  projectXrPhysicsWorldToCanvasStage,
+  resolveXrPhysicsPlaygroundState,
+  type XrPhysicsPlaygroundControls,
+} from '@/features/three/xrPhysicsPlaygroundModel'
 
 type XrGraphStageMetrics = {
   cx: number
@@ -68,6 +78,11 @@ export function XrGraphStage({
   const ringRef = React.useRef<THREE.Mesh | null>(null)
   const reticleRef = React.useRef<THREE.Mesh | null>(null)
   const beamRef = React.useRef<THREE.Group | null>(null)
+  const physicsRollRef = React.useRef<THREE.Mesh | null>(null)
+  const physicsThrustRef = React.useRef<THREE.Group | null>(null)
+  const physicsVelocityRef = React.useRef<THREE.Mesh | null>(null)
+  const physicsCameraAnchorRef = React.useRef<THREE.Mesh | null>(null)
+  const physicsControlsRef = React.useRef<XrPhysicsPlaygroundControls>(readXrPhysicsPlaygroundControls())
   const metrics = React.useMemo(() => resolveXrGraphStageMetrics(data, positions), [data, positions])
   const gridOffsets = React.useMemo(() => {
     const out: number[] = []
@@ -75,6 +90,19 @@ export function XrGraphStage({
     for (let i = -steps; i <= steps; i += 1) out.push((i / steps) * metrics.span * 0.5)
     return out
   }, [metrics.span])
+
+  React.useEffect(() => {
+    if (paused) return undefined
+    const unsubscribe = subscribeXrPhysicsPlaygroundControls(controls => {
+      physicsControlsRef.current = controls
+    })
+    const uninstallKeyboard = installXrPhysicsKeyboardControls()
+    return () => {
+      uninstallKeyboard()
+      unsubscribe()
+    }
+  }, [paused])
+
   useFrame(({ clock }) => {
     if (paused) return
     const t = clock.getElapsedTime()
@@ -89,9 +117,36 @@ export function XrGraphStage({
     if (beamRef.current) {
       beamRef.current.rotation.z = Math.sin(t * 0.8) * 0.035
     }
+    const physics = resolveXrPhysicsPlaygroundState(metrics, t, physicsControlsRef.current)
+    if (physicsRollRef.current) {
+      physicsRollRef.current.position.set(...physics.rollPosition)
+      physicsRollRef.current.rotation.z = -t * 1.4
+      physicsRollRef.current.scale.setScalar(physics.activeMode === 'roll' ? 1.12 + physics.inputIntensity * 0.1 : 0.92)
+    }
+    if (physicsThrustRef.current) {
+      physicsThrustRef.current.position.set(...physics.thrustPosition)
+      physicsThrustRef.current.rotation.z = Math.sin(t * 1.1) * 0.16
+      physicsThrustRef.current.scale.setScalar(physics.activeMode === 'thrust' ? 1.16 + physics.inputIntensity * 0.14 : 0.9)
+    }
+    if (physicsVelocityRef.current) {
+      physicsVelocityRef.current.position.set(
+        physics.activeMode === 'roll' ? physics.rollPosition[0] : physics.thrustPosition[0],
+        physics.activeMode === 'roll' ? physics.rollPosition[1] : physics.thrustPosition[1],
+        physics.activeMode === 'roll' ? physics.rollPosition[2] : physics.thrustPosition[2],
+      )
+      physicsVelocityRef.current.scale.set(1, Math.max(line * 12, Math.hypot(...physics.velocityVector) * 0.65), 1)
+      physicsVelocityRef.current.rotation.z = Math.atan2(physics.velocityVector[1], physics.velocityVector[0]) - Math.PI / 2
+    }
+    if (physicsCameraAnchorRef.current) {
+      physicsCameraAnchorRef.current.position.set(...physics.cameraAnchor)
+      physicsCameraAnchorRef.current.scale.setScalar(0.85 + physics.stabilization * 0.2)
+    }
   })
   const frame = metrics.span * 0.5
   const line = clamp(metrics.span * 0.0035, 0.9, 2.4)
+  const projectPhysicsWorldPosition = (x: number, zForward: number, yUp: number): [number, number, number] => [
+    ...projectXrPhysicsWorldToCanvasStage(metrics, [x, yUp, zForward]),
+  ]
   return (
     <group name="kg_graph_xr_stage" position={[metrics.cx, metrics.cy, 0]} renderOrder={THREE_RENDER_ORDER.groups - 20}>
       <mesh name="kg_graph_xr_depth_plane" position={[0, 0, metrics.z]}>
@@ -156,6 +211,77 @@ export function XrGraphStage({
             <meshBasicMaterial color={String(color)} transparent opacity={0.86} depthWrite={false} />
           </mesh>
         ))}
+      </group>
+      <group name="kg_graph_xr_physics_playground_terrain">
+        {[
+          ['kg_graph_xr_physics_ball_spawn_platform', -metrics.span * 0.28, -metrics.span * 0.2, metrics.span * 0.2, metrics.span * 0.1, '#334155'],
+          ['kg_graph_xr_physics_rocket_spawn_platform', metrics.span * 0.28, metrics.span * 0.2, metrics.span * 0.2, metrics.span * 0.1, '#334155'],
+          ['kg_graph_xr_physics_jump_ramp', -metrics.span * 0.1, metrics.span * 0.08, metrics.span * 0.24, metrics.span * 0.06, '#0e7490'],
+          ['kg_graph_xr_physics_thrust_ramp', metrics.span * 0.1, -metrics.span * 0.08, metrics.span * 0.24, metrics.span * 0.06, '#b45309'],
+        ].map(([name, x, y, w, h, color], index) => (
+          <mesh
+            key={String(name)}
+            name={String(name)}
+            position={projectPhysicsWorldPosition(Number(x), Number(y), 26 + index * 0.2)}
+            rotation={[0, 0, index > 1 ? (index === 2 ? -0.18 : 0.18) : 0]}
+          >
+            <boxGeometry args={[Number(w), Number(h), line * 3]} />
+            <meshBasicMaterial color={String(color)} transparent opacity={0.74} depthWrite={false} />
+          </mesh>
+        ))}
+        {[
+          [-metrics.span * 0.34, metrics.span * 0.14, '#ef4444'],
+          [-metrics.span * 0.06, -metrics.span * 0.3, '#f97316'],
+          [metrics.span * 0.34, -metrics.span * 0.08, '#ef4444'],
+          [metrics.span * 0.08, metrics.span * 0.31, '#f97316'],
+        ].map(([x, y, color], index) => (
+          <mesh
+            key={index}
+            name={`kg_graph_xr_physics_collision_obstacle_${index}`}
+            position={projectPhysicsWorldPosition(Number(x), Number(y), 36)}
+          >
+            <boxGeometry args={[metrics.span * 0.045, metrics.span * 0.045, line * 8]} />
+            <meshBasicMaterial color={String(color)} transparent opacity={0.82} depthWrite={false} />
+          </mesh>
+        ))}
+        {[
+          ['kg_graph_xr_physics_roll_swap_pad', -metrics.span * 0.08, -metrics.span * 0.44, '#38bdf8'],
+          ['kg_graph_xr_physics_thrust_swap_pad', metrics.span * 0.08, -metrics.span * 0.44, '#f59e0b'],
+          ['kg_graph_xr_physics_input_map_panel', 0, -metrics.span * 0.5, '#64748b'],
+        ].map(([name, x, y, color], index) => (
+          <mesh key={String(name)} name={String(name)} position={projectPhysicsWorldPosition(Number(x), Number(y), 44 + index * 0.2)}>
+            <boxGeometry args={[index === 2 ? metrics.span * 0.28 : metrics.span * 0.1, metrics.span * 0.035, line * 2.4]} />
+            <meshBasicMaterial color={String(color)} transparent opacity={0.7} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+      <group name="kg_graph_xr_physics_playground">
+        <mesh name="kg_graph_xr_physics_collision_boundaries" position={[0, 0, metrics.z + 24]}>
+          <ringGeometry args={[metrics.span * 0.305, metrics.span * 0.315, 96]} />
+          <meshBasicMaterial color="#22c55e" transparent opacity={0.32} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh ref={physicsRollRef} name="kg_graph_xr_physics_roll_controller" position={[0, -metrics.span * 0.18, metrics.z + 34]}>
+          <sphereGeometry args={[metrics.span * 0.026, 24, 16]} />
+          <meshBasicMaterial color="#38bdf8" transparent opacity={0.9} depthWrite={false} />
+        </mesh>
+        <group ref={physicsThrustRef} name="kg_graph_xr_physics_thrust_controller" position={[0, metrics.span * 0.18, metrics.z + 62]}>
+          <mesh name="kg_graph_xr_physics_thrust_body">
+            <coneGeometry args={[metrics.span * 0.032, metrics.span * 0.1, 24]} />
+            <meshBasicMaterial color="#f59e0b" transparent opacity={0.88} depthWrite={false} />
+          </mesh>
+          <mesh name="kg_graph_xr_physics_thrust_plume" position={[0, -metrics.span * 0.07, 0]} rotation={[0, 0, Math.PI]}>
+            <coneGeometry args={[metrics.span * 0.024, metrics.span * 0.07, 18]} />
+            <meshBasicMaterial color="#f97316" transparent opacity={0.42} depthWrite={false} />
+          </mesh>
+        </group>
+        <mesh ref={physicsVelocityRef} name="kg_graph_xr_physics_velocity_vector" position={[0, 0, metrics.z + 42]}>
+          <planeGeometry args={[line * 1.4, metrics.span * 0.12]} />
+          <meshBasicMaterial color="#f8fafc" transparent opacity={0.46} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh ref={physicsCameraAnchorRef} name="kg_graph_xr_physics_camera_anchor" position={[0, 0, metrics.z + metrics.span * 0.16]}>
+          <ringGeometry args={[metrics.span * 0.018, metrics.span * 0.026, 32]} />
+          <meshBasicMaterial color="#a78bfa" transparent opacity={0.78} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
       </group>
     </group>
   )

@@ -30,7 +30,7 @@ export const WORKSPACE_SOURCE_MIRROR_TEXT_EXTENSIONS = dedupeMirrorExtensions([
   '.gltf',
 ])
 
-export const WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb'] as const
+export const WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb', '.ply', '.spz'] as const
 
 export const WORKSPACE_SOURCE_MIRROR_EXTENSIONS = dedupeMirrorExtensions([
   ...WORKSPACE_SOURCE_MIRROR_TEXT_EXTENSIONS,
@@ -45,4 +45,4 @@ export const isWorkspaceSourceMirrorFileName = (name: string): boolean => {
 }
 
 export const shouldEncodeWorkspaceSourceMirrorAsBase64 = (name: string): boolean =>
-  readMirrorFileExtension(name) === '.glb'
+  WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS.includes(readMirrorFileExtension(name) as typeof WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS[number])

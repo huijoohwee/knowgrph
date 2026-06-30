@@ -202,7 +202,13 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
     throw new Error('expected validation doc data_json to expose stream-ready reasoning artifacts')
   }
   if (data.streaming?.primary !== 'video/mp4' || data.streaming.fallback !== 'outputSrcDoc' || data.streaming.panel !== 'RichMediaPanel') throw new Error('expected validation doc data_json to expose streamable Rich Media output boundaries')
-  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length < capabilities.length) throw new Error('expected validation doc data_json to expose video-agent timeline tracks')
+  if (
+    !Array.isArray(data.timelineTracks)
+    || data.timelineTracks.length !== 3
+    || !data.timelineTracks.some(entry => String((entry as { source?: unknown }).source || '') === 'source-video')
+    || !data.timelineTracks.some(entry => String((entry as { source?: unknown; timelineLane?: unknown }).source || '') === 'frameBoundingBox' && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf')
+    || !data.timelineTracks.some(entry => String((entry as { source?: unknown }).source || '') === 'source-audio')
+  ) throw new Error('expected validation doc data_json to expose compact source video, FBF, and source audio timeline tracks')
   if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some((entry) => {
     const path = String((entry as { path?: unknown } | null)?.path || '')
     const role = String((entry as { role?: unknown } | null)?.role || '')

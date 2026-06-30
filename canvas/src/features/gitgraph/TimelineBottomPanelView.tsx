@@ -1,5 +1,7 @@
 import React from 'react'
 import { TimelineVideoSequenceEmptyState } from '@/components/timeline/VideoSequenceTimelineRuler'
+import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
 import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
@@ -11,14 +13,16 @@ export function TimelineBottomPanelView({
 }: {
   compact?: boolean
 }) {
+  const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
   const { code: timelineCode, graphData, themeMode, timelineModel } = useMermaidTimelineDocument()
   const { code: ganttCode } = useMermaidGanttDocument()
+  const videoSequenceModel = React.useMemo(() => readVideoSequenceTimelineModelFromMarkdown(markdownDocumentText), [markdownDocumentText])
   const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
     graphData,
     diagramModel: timelineModel,
     kind: 'timeline',
   })
-  if (!timelineCode && ganttCode) {
+  if ((videoSequenceModel?.enabled || !timelineCode) && ganttCode) {
     return <GanttTimelineTransportPanel code={ganttCode} compact={compact} />
   }
   if (!timelineCode) {

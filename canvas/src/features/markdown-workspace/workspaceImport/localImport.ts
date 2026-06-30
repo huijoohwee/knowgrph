@@ -13,10 +13,7 @@ import {
   setPendingLocalImport,
 } from './pendingLocalImport'
 import { isCsvJsonConvertibleImportName, materializeCsvJsonImportArtifacts } from './csvJsonConversion'
-import {
-  buildModelAssetMarkdownFromFile,
-  deriveModelWorkspaceDocumentName,
-} from './glbAsset'
+import { buildModelAssetMarkdownFromFile, deriveModelWorkspaceDocumentName } from './glbAsset'
 import { importTextFileOrWorkspaceJsonLd, isWorkspaceJsonLdName } from './workspaceFileJsonLd'
 import type { WorkspaceImportResult } from './types'
 import {
@@ -25,24 +22,16 @@ import {
   inferCorpusMediaKind,
   type CorpusSourceUnit,
 } from '@/features/queryable-corpus/corpusGraph'
-import {
-  buildCorpusWorkspaceImportResult,
-  createCorpusSourceUnitRecorder,
-} from '@/features/queryable-corpus/sourceFilesCorpusManifest'
+import { buildCorpusWorkspaceImportResult, createCorpusSourceUnitRecorder } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import { importXrImageWorkspaceAssetsFromFile, isXrImageAssetFile } from './xrImageAssets'
 import {
   buildVideoSequenceWorkspaceDocumentName,
   materializeVideoSequenceTimelineImportDocument,
   type VideoSequenceImportAsset,
 } from './videoSequenceTimelineImport'
-import {
-  getModelAssetFormat,
-  isCorpusMediaImportFile,
-  isLocalTextWorkspaceImportName,
-  isPdfFile,
-  isSupportedWorkspaceImportFile,
-  toFileArray,
-} from './localImportFormats'
+import { ensureFolderRel } from './localImportFolderPaths'
+import { materializeSpatialCaptureFilesetImports } from './spatialCaptureFilesetImport'
+import { getModelAssetFormat, isCorpusMediaImportFile, isLocalTextWorkspaceImportName, isPdfFile, isSupportedWorkspaceImportFile, toFileArray } from './localImportFormats'
 
 function recordCorpusSourceUnit(
   recordSourceUnit: ReturnType<typeof createCorpusSourceUnitRecorder>,
@@ -170,24 +159,6 @@ function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
   const size = Math.max(0, Number(file?.size || 0))
   if (getModelAssetFormat(file)) return size >= WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES
   return size >= WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES
-}
-
-async function ensureFolderRel(fs: WorkspaceFs, parentPath: WorkspacePath, relDir: string): Promise<WorkspacePath> {
-  const raw = String(relDir || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
-  if (!raw) return parentPath
-  const segments = raw.split('/').filter(Boolean)
-  let parent = parentPath
-  for (const seg of segments) {
-    const name = String(seg || '').trim()
-    if (!name) continue
-    try {
-      await fs.createFolder({ parentPath: parent, name })
-    } catch {
-      void 0
-    }
-    parent = normalizeWorkspacePath(`${parent}/${name}`)
-  }
-  return parent
 }
 
 function shouldMaterializeFolderTextForCorpus(nameRaw: string, mimeHint?: string | null): boolean {
@@ -336,6 +307,14 @@ export async function importWorkspaceLocalFiles(args: {
             })
             continue
           }
+          await args.fs.writeFileText(desiredPath, nextText)
+          if (shouldDeferLargeLocalFileImport(file, nameRaw)) setPendingLocalImport(desiredPath, { kind: modelFormat || 'text', file, originalName: nameRaw })
+          else clearPendingLocalImport(desiredPath)
+          createdPaths.push(desiredPath)
+          sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+          recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: nextText, file, status: shouldDeferLargeLocalFileImport(file, nameRaw) ? 'pending' : mediaMetadata ? 'unsupported' : 'parsed' })
+          pushLocalVideoSequenceImportAsset(videoSequenceAssets, { workspacePath: desiredPath, relativePath: nameRaw, originalName: nameRaw, file, importMode: 'file' })
+          continue
         }
         if (typeof existingText === 'string' && isPendingLocalImportStubText(existingText)) {
           if (shouldDeferLargeLocalFileImport(file, nameRaw)) {
@@ -530,6 +509,14 @@ export async function importWorkspaceLocalFolder(args: {
   const sourceUnits: CorpusSourceUnit[] = []
   const videoSequenceAssets: VideoSequenceImportAsset[] = []
   const recordSourceUnit = createCorpusSourceUnitRecorder({ sourceUnits, importMode: 'folder' })
+  const spatialCaptureHandledFileKeys = await materializeSpatialCaptureFilesetImports({
+    fs: args.fs,
+    files,
+    createdPaths,
+    sources,
+    failed,
+    recordSourceUnit: sourceUnit => recordCorpusSourceUnit(recordSourceUnit, sourceUnit),
+  })
 
   const bytesTotal = files.reduce((sum, f) => sum + Math.max(0, Number(f?.size || 0)), 0)
   let bytesCurrent = 0
@@ -549,11 +536,6 @@ export async function importWorkspaceLocalFolder(args: {
       skipped.push({ name: '', reason: 'missing-name' })
       continue
     }
-    if (!isSupportedWorkspaceImportFile(file)) {
-      skipped.push({ name: nameRaw, reason: 'unsupported' })
-      continue
-    }
-
     const relRaw = (() => {
       const anyFile = file as unknown as { webkitRelativePath?: unknown }
       return typeof anyFile.webkitRelativePath === 'string' ? anyFile.webkitRelativePath : ''
@@ -564,6 +546,12 @@ export async function importWorkspaceLocalFolder(args: {
       .join('/')
       .replace(/\\/g, '/')
       .replace(/^\/+/, '')
+    if (spatialCaptureHandledFileKeys.has(relPath || nameRaw)) continue
+    if (!isSupportedWorkspaceImportFile(file)) {
+      skipped.push({ name: nameRaw, reason: 'unsupported' })
+      continue
+    }
+
     const parts = relPath.split('/').filter(Boolean)
     const isXrImageAsset = isXrImageAssetFile(file)
     const modelFormat = getModelAssetFormat(file)

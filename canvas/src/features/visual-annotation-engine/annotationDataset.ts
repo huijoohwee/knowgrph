@@ -10,7 +10,13 @@ export type VisualDatasetAnnotation = {
   label: string
   bbox: AnnotationBBox
   confidence?: number
+  mask?: VisualDatasetMask
   sourceTask: string
+  trackId?: string
+}
+
+export type VisualDatasetMask = {
+  polygons: ReadonlyArray<ReadonlyArray<readonly [number, number]>>
 }
 
 export type VisualDatasetSample = {
@@ -89,7 +95,9 @@ type FrameBoxInput = {
   frameImageUrl?: unknown
   frameIndex?: unknown
   label?: unknown
+  mask?: unknown
   timestampMs?: unknown
+  trackId?: unknown
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -120,6 +128,31 @@ const normalizeBBox = (value: unknown): AnnotationBBox | null => {
   const clampedHeight = Math.max(0, Math.min(1 - top, Number(height)))
   if (clampedWidth <= 0 || clampedHeight <= 0) return null
   return [left, top, clampedWidth, clampedHeight]
+}
+
+const normalizeMaskPoint = (value: unknown): readonly [number, number] | null => {
+  if (!Array.isArray(value) || value.length !== 2) return null
+  const x = Number(value[0])
+  const y = Number(value[1])
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return [clamp01(x), clamp01(y)]
+}
+
+const isPointArray = (value: unknown): value is unknown[] =>
+  Array.isArray(value) && value.every(entry => Array.isArray(entry) && entry.length === 2)
+
+const normalizeMask = (value: unknown): VisualDatasetMask | undefined => {
+  const candidate = isRecord(value) && Array.isArray(value.polygons) ? value.polygons : value
+  const polygonsInput = isPointArray(candidate) ? [candidate] : Array.isArray(candidate) ? candidate : []
+  const polygons = polygonsInput.flatMap(polygon => {
+    if (!isPointArray(polygon)) return []
+    const points = polygon.flatMap(point => {
+      const normalized = normalizeMaskPoint(point)
+      return normalized ? [normalized] : []
+    })
+    return points.length >= 3 ? [points] : []
+  })
+  return polygons.length ? { polygons } : undefined
 }
 
 const readString = (value: unknown, fallback: string): string => {
@@ -157,7 +190,11 @@ const normalizeAnnotation = (
     bbox,
     sourceTask,
   }
+  const mask = normalizeMask(value.mask)
   if (Number.isFinite(confidence)) out.confidence = Math.max(0, Math.min(1, confidence))
+  if (mask) out.mask = mask
+  const trackId = readString(value.trackId, '')
+  if (trackId) out.trackId = trackId
   return out
 }
 
@@ -230,6 +267,8 @@ const samplesFromFrameBoxes = (
     label: box.label,
     bbox: box.bbox,
     confidence: box.confidence,
+    mask: box.mask,
+    trackId: box.trackId,
   }
   const detectionInputs = Array.isArray(box.detections) && box.detections.length
     ? box.detections
@@ -245,6 +284,8 @@ const samplesFromFrameBoxes = (
       bbox: annotationInput.bbox || box.bbox,
       confidence: annotationInput.confidence ?? box.confidence,
       label: annotationInput.label || box.label,
+      mask: annotationInput.mask ?? box.mask,
+      trackId: annotationInput.trackId ?? box.trackId,
     }, 'frameBoundingBox', { sourceUrl, frameIndex, timestampMs, index: detectionIndex })
     return normalized ? [normalized] : []
   })
@@ -312,6 +353,47 @@ export function saveVisualAnnotationDataset(dataset: VisualAnnotationDataset, op
     text,
     sampleCount: dataset.samples.length,
     annotationCount: dataset.samples.reduce((sum, sample) => sum + sample.annotations.length, 0),
+  }
+}
+
+export function filterVisualAnnotationDatasetByZones(
+  dataset: VisualAnnotationDataset,
+  zones: readonly VisualZone[],
+  opts?: {
+    includeZoneIds?: readonly string[]
+    excludeZoneIds?: readonly string[]
+    labels?: readonly string[]
+  },
+): VisualAnnotationDataset {
+  const includeZoneIds = new Set((opts?.includeZoneIds || []).map(String).filter(Boolean))
+  const excludeZoneIds = new Set((opts?.excludeZoneIds || []).map(String).filter(Boolean))
+  const labels = new Set((opts?.labels || []).map(label => String(label).trim().toLowerCase()).filter(Boolean))
+  const samples = dataset.samples.flatMap(sample => {
+    const annotations = sample.annotations.filter(annotation => {
+      if (labels.size && !labels.has(annotation.label.trim().toLowerCase())) return false
+      const center: [number, number] = [
+        annotation.bbox[0] + annotation.bbox[2] / 2,
+        annotation.bbox[1] + annotation.bbox[3] / 2,
+      ]
+      const zoneIds = zones.filter(zone => pointInPolygon(center, zone.polygon)).map(zone => zone.zoneId)
+      if (includeZoneIds.size && !zoneIds.some(zoneId => includeZoneIds.has(zoneId))) return false
+      if (excludeZoneIds.size && zoneIds.some(zoneId => excludeZoneIds.has(zoneId))) return false
+      return true
+    })
+    return annotations.length ? [{ ...sample, annotations }] : []
+  })
+  return {
+    ...dataset,
+    datasetId: buildDatasetId({
+      parent: dataset.datasetId,
+      filter: {
+        includeZoneIds: [...includeZoneIds],
+        excludeZoneIds: [...excludeZoneIds],
+        labels: [...labels],
+      },
+      samples: samples.map(sample => sample.sampleId),
+    }),
+    samples,
   }
 }
 

@@ -94,7 +94,7 @@ export const createUiInitialState = (
           || view === 'chat'
           || view === 'geo'
           || view === 'renderer'
-          || view === 'flowEditor'
+          || view === 'flowEditor' || view === 'flowchart'
           || view === 'gitGraph'
           || view === 'gantt'
           || view === 'timeline'

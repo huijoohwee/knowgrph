@@ -84,7 +84,7 @@ export async function testYouTubeTranscriptConversionRewritesStandaloneShortUrlT
   const fakeId = 'q1w2e3R4t5Y'
   const watchUrl = `https://www.youtube.com/watch?v=${fakeId}&t=2178`
   const shortUrl = `https://youtu.be/${fakeId}?t=2178`
-  const frameUrl = '/image/knowgrph/video-frame/frame-test-t2178.png'
+  const frameUrl = '/image/video-frame/20260630T000000Z/frame-test-t2178.png'
   let transcriptFetchCount = 0
   let frameFetchCount = 0
   const transcript = {

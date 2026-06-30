@@ -133,8 +133,8 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
   }
   datasetPanelDom.window.close()
   const pipelineFrameTimelineTracks = pipeline.timelineTracks.filter(track => track.source === 'frameBoundingBox' && track.timelineLane === 'fbf')
-  if (pipelineFrameTimelineTracks.length !== pipeline.frameBoundingBoxes.length) {
-    throw new Error('expected one BottomPanel FBF timeline track per frame bounding box')
+  if (pipelineFrameTimelineTracks.length !== 1 || pipelineFrameTimelineTracks[0]?.frameSampleCount !== pipeline.frameBoundingBoxes.length) {
+    throw new Error('expected BottomPanel FBF timeline to keep one compact media track backed by granular frame boxes')
   }
   const fbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload({
     title: 'Video Sequence',
@@ -146,7 +146,7 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
     ],
   })
   const fbfTimelineModel = buildMermaidGanttTimelineModel(fbfTimelineCode)
-  const firstFbfSpan = fbfTimelineModel.taskSpans.find(span => /frame_box_0_fbf/.test(span.raw))
+  const firstFbfSpan = fbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
   if (!firstFbfSpan) throw new Error('expected neutral timeline data to materialize a BottomPanel FBF span')
   const generatedFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: firstFbfSpan })
   const generatedFrameSvg = decodeURIComponent(String(generatedFrameThumbnails[0]?.dataUrl || '').split(',').slice(1).join(','))
@@ -154,13 +154,13 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
     generatedFrameThumbnails.length < 1
     || !String(generatedFrameThumbnails[0]?.dataUrl || '').startsWith('data:image/svg+xml')
     || !generatedFrameSvg.includes('generated-frame-thumbnail')
-    || !generatedFrameSvg.includes('Frame-by-frame bbox')
+    || !generatedFrameSvg.includes('Frame-by-frame annotation samples')
   ) {
-    throw new Error('expected BottomPanel FBF spans to produce image-backed frame thumbnails')
+    throw new Error('expected BottomPanel FBF spans to produce native semantic frame samples')
   }
   for (const track of pipelineFrameTimelineTracks) {
-    if (!track.label.includes('Frame-by-frame bbox') || !Array.isArray(track.bbox) || track.durationMs <= 0) {
-      throw new Error(`expected frame bounding box timeline track to preserve bbox and duration, got ${JSON.stringify(track)}`)
+    if (!track.label.includes('Frame-by-frame annotation samples') || !Array.isArray(track.bbox) || track.durationMs !== pipeline.renderSpec.durationMs) {
+      throw new Error(`expected compact frame bounding box timeline track to preserve bbox and source duration, got ${JSON.stringify(track)}`)
     }
   }
   for (const box of pipeline.frameBoundingBoxes) {
@@ -260,23 +260,23 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   if (data.referenceBoundary !== VIDEO_AGENT_REFERENCE_BOUNDARY) {
     throw new Error('expected render data to preserve the native inspiration boundary')
   }
-  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length < 12) {
-    throw new Error('expected render data to expose all pipeline timeline tracks')
+  if (!Array.isArray(data.timelineTracks) || data.timelineTracks.length !== 3) {
+    throw new Error('expected render data to expose compact media timeline tracks')
   }
   const frameTimelineTracks = data.timelineTracks.filter(entry => (
     String((entry as { source?: unknown }).source || '') === 'frameBoundingBox'
     && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf'
   ))
-  if (frameTimelineTracks.length < 5) {
-    throw new Error('expected render data to expose BottomPanel-synced frame-by-frame timeline tracks')
+  if (frameTimelineTracks.length !== 1) {
+    throw new Error('expected render data to expose one BottomPanel-synced frame-by-frame media track')
   }
   if (
     !Array.isArray(data.frameBoundingBoxTimelineTracks)
-    || data.frameBoundingBoxTimelineTracks.length !== frameTimelineTracks.length
+    || data.frameBoundingBoxTimelineTracks.length !== 1
     || data.bottomPanelTimelineSync?.surface !== 'BottomPanel Timeline'
     || data.bottomPanelTimelineSync?.source !== 'video+frameBoundingBoxes+audio'
     || data.bottomPanelTimelineSync?.lane !== 'video-fbf-audio'
-    || data.bottomPanelTimelineSync?.thumbnailMode !== 'frame-by-frame-image'
+    || data.bottomPanelTimelineSync?.thumbnailMode !== 'semantic-frame-samples'
   ) {
     throw new Error('expected render data to expose BottomPanel Timeline sync for video, FBF, and audio tracks')
   }
@@ -373,27 +373,22 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   }
 }
 
-export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline() {
+export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalysis() {
   const result = buildVideoAgentPipeline({
     sourceUrl: providerBackedSourceUrl,
     requestedCapabilities: ['search', 'edit', 'compile', 'generate'],
   })
   if (result.ok === false) throw new Error(`expected provider-backed video-agent pipeline, got ${result.reason}`)
   const frameTimelineTracks = result.pipeline.timelineTracks.filter(track => track.source === 'frameBoundingBox' && track.timelineLane === 'fbf')
-  if (!frameTimelineTracks.length) throw new Error('expected provider-backed FBF timeline tracks')
-  if (!frameTimelineTracks.every(track => String(track.thumbnailUrl || '').startsWith('/__video_frame?'))) {
-    throw new Error(`expected every provider-backed FBF track to carry a source frame endpoint, got ${JSON.stringify(frameTimelineTracks)}`)
-  }
-  const thirdFrameRequest = new URL(String(frameTimelineTracks[2]?.thumbnailUrl || ''), 'http://localhost')
-  const expectedThirdFrameTime = String((Number(frameTimelineTracks[2]?.startMs || 0) / 1000).toFixed(3)).replace(/0+$/, '').replace(/\.$/, '')
-  if (thirdFrameRequest.searchParams.get('time') !== expectedThirdFrameTime) {
-    throw new Error(`expected FBF source frame endpoint to preserve subsecond timeline position, got ${thirdFrameRequest.searchParams.get('time')}`)
+  if (frameTimelineTracks.length !== 1) throw new Error('expected provider-backed compact FBF timeline track')
+  if (frameTimelineTracks.some(track => String(track.thumbnailUrl || ''))) {
+    throw new Error(`expected provider-backed compact FBF transport to avoid source-frame thumbnail endpoints, got ${JSON.stringify(frameTimelineTracks)}`)
   }
   const renderHtml = result.pipeline.renderSpec.html
   const renderCss = String(result.pipeline.renderSpec.css || '')
   const renderedFrameImages = renderHtml.match(/class="thumbnail-source"/g) || []
   if (
-    renderedFrameImages.length !== frameTimelineTracks.length
+    renderedFrameImages.length !== result.pipeline.frameBoundingBoxes.length
     || !renderHtml.includes('/__video_frame?')
     || !renderHtml.includes("knowgrph:render-frame")
     || !renderHtml.includes('frameState(timeMs)')
@@ -411,6 +406,12 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
   })
   const laterFrame = result.pipeline.frameBoundingBoxes[2]
   if (!laterFrame) throw new Error('expected a later provider frame for timeline sync validation')
+  const firstFrameImageUrl = String(result.pipeline.frameBoundingBoxes[0]?.frameImageUrl || '')
+  if (!firstFrameImageUrl.startsWith('/__video_frame?')) {
+    throw new Error(`expected Rich Media frame analysis data to keep source frame endpoints, got ${firstFrameImageUrl || '<empty>'}`)
+  }
+  const firstFrameRequest = new URL(firstFrameImageUrl, 'http://localhost')
+  const expectedFirstFrameTime = firstFrameRequest.searchParams.get('time') || '0'
   renderDom.window.dispatchEvent(new renderDom.window.CustomEvent('knowgrph:render-frame', {
     detail: { timeMs: laterFrame.timestampMs },
   }))
@@ -448,12 +449,12 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
     throw new Error(`expected video-agent Rich Media bounding box to interpolate inside the active FBF segment, got ${interpolatedRenderedLeft || '<empty>'}`)
   }
   const segmentVisibleImageSrc = String(segmentVisibleFrame?.querySelector('img')?.getAttribute('src') || '')
-  if (!segmentVisibleImageSrc.includes('time=') || segmentVisibleImageSrc.includes(`time=${expectedThirdFrameTime}`)) {
+  if (!segmentVisibleImageSrc.includes('time=') || segmentVisibleImageSrc.includes(`time=${expectedFirstFrameTime}`)) {
     throw new Error(`expected video-agent Rich Media source frame image to track the live timeline bucket, got ${segmentVisibleImageSrc}`)
   }
   renderDom.window.close()
 
-  const externalPanelSrcDoc = `<main><section class="thumbnail"><img class="thumbnail-source" src="${frameTimelineTracks[0]?.thumbnailUrl || ''}" alt=""><section class="frame-boxes"></section></section></main>`
+  const externalPanelSrcDoc = `<main><section class="thumbnail"><img class="thumbnail-source" src="${firstFrameImageUrl}" alt=""><section class="frame-boxes"></section></section></main>`
   const projectedPanelSrcDoc = projectVideoAgentFrameAnalysisSrcDoc({
     frameBoundingBoxes: result.pipeline.frameBoundingBoxes,
     srcDoc: externalPanelSrcDoc,
@@ -486,7 +487,7 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
     throw new Error(`expected projected Rich Media bounding box to interpolate inside the active FBF segment, got ${projectedVisibleBoxLeft || '<empty>'}`)
   }
   const projectedVisibleImageSrc = String(projectedVisibleImage?.querySelector('img')?.getAttribute('src') || '')
-  if (!projectedVisibleImageSrc.includes('time=') || projectedVisibleImageSrc.includes(`time=${expectedThirdFrameTime}`)) {
+  if (!projectedVisibleImageSrc.includes('time=') || projectedVisibleImageSrc.includes(`time=${expectedFirstFrameTime}`)) {
     throw new Error(`expected projected Rich Media source frame image to follow the live timeline bucket, got ${projectedVisibleImageSrc}`)
   }
   projectedDom.window.close()
@@ -560,19 +561,22 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
 
   const renderData = result.pipeline.renderSpec.data as { sourceVideo?: unknown; timelineTracks?: unknown; timelineLanes?: unknown }
   const fbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(renderData)
-  if (!fbfTimelineCode.includes('kgthumb_')) {
-    throw new Error(`expected provider-backed neutral timeline to carry source-frame thumbnail metadata, got ${fbfTimelineCode}`)
+  if (fbfTimelineCode.includes('kgthumb_')) {
+    throw new Error(`expected provider-backed compact FBF transport to avoid source-frame thumbnail metadata, got ${fbfTimelineCode}`)
   }
   const fbfTimelineModel = buildMermaidGanttTimelineModel(fbfTimelineCode)
-  const firstFbfSpan = fbfTimelineModel.taskSpans.find(span => /frame_box_0_fbf/.test(span.raw))
+  const firstFbfSpan = fbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
   if (!firstFbfSpan) throw new Error('expected provider-backed neutral timeline to materialize an FBF span')
-  const sourceFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: firstFbfSpan })
+  const generatedFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: firstFbfSpan })
+  const generatedFrameSvg = decodeURIComponent(String(generatedFrameThumbnails[0]?.dataUrl || '').split(',').slice(1).join(','))
   if (
-    sourceFrameThumbnails.length !== 1
-    || !String(sourceFrameThumbnails[0]?.dataUrl || '').startsWith('/__video_frame?')
-    || sourceFrameThumbnails[0]?.format !== 'png'
+    generatedFrameThumbnails.length < 1
+    || !String(generatedFrameThumbnails[0]?.dataUrl || '').startsWith('data:image/svg+xml')
+    || generatedFrameThumbnails[0]?.format !== 'svg'
+    || !generatedFrameSvg.includes('generated-frame-thumbnail')
+    || !generatedFrameSvg.includes('Frame-by-frame annotation samples')
   ) {
-    throw new Error(`expected FBF thumbnail strip to use the source frame endpoint, got ${JSON.stringify(sourceFrameThumbnails)}`)
+    throw new Error(`expected compact FBF transport fallback thumbnails to stay native and semantic, got ${JSON.stringify(generatedFrameThumbnails)}`)
   }
 }
 
@@ -581,10 +585,7 @@ export function testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDepen
   if (missingSource.ok !== false || missingSource.errorCode !== 'invalid_source') {
     throw new Error('expected missing video-agent source URL to fail before parsing or rendering')
   }
-  const badCapability = buildVideoAgentPipeline({
-    sourceUrl: neutralSourceUrl,
-    requestedCapabilities: ['ingest', 'external_editor'],
-  })
+  const badCapability = buildVideoAgentPipeline({ sourceUrl: neutralSourceUrl, requestedCapabilities: ['ingest', 'external_editor'] })
   if (badCapability.ok !== false || badCapability.errorCode !== 'invalid_capability') {
     throw new Error('expected unsupported video-agent capability to fail with a structured error')
   }
@@ -593,7 +594,5 @@ export function testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDepen
   for (const forbidden of ['video-db', 'VideoDB', '@video-db', 'Director(', 'VIDEODB_API_KEY', 'roboflow', 'supervision']) {
     if (sourceText.includes(forbidden)) throw new Error(`video-agent pipeline must not import or depend on ${forbidden}`)
   }
-  if (!sourceText.includes('VIDEO_AGENT_REFERENCE_BOUNDARY')) {
-    throw new Error('expected video-agent pipeline to expose one native reference boundary owner')
-  }
+  if (!sourceText.includes('VIDEO_AGENT_REFERENCE_BOUNDARY')) throw new Error('expected video-agent pipeline to expose one native reference boundary owner')
 }

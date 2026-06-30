@@ -8,7 +8,9 @@ import {
   buildAnnotationEngineRegistryDraft,
   buildAnnotationId,
   buildHorizontalVisualZones,
+  convertVisualAnnotationDataset,
   countVisualDatasetZones,
+  filterVisualAnnotationDatasetByZones,
   loadVisualAnnotationDataset,
   mergeVisualAnnotationDatasets,
   resolveAnnotationModel,
@@ -164,7 +166,13 @@ export function testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts() {
     modelId: ANNOTATION_MODEL_IDS.florence2Base,
     tasks: {
       [ANNOTATION_TASK_IDS.objectDetection]: {
-        objects: [{ label: 'person', bbox: [0.05, 0.2, 0.2, 0.3] as [number, number, number, number], confidence: 0.9 }],
+        objects: [{
+          label: 'person',
+          bbox: [0.05, 0.2, 0.2, 0.3] as [number, number, number, number],
+          confidence: 0.9,
+          mask: [[0.05, 0.2], [0.25, 0.2], [0.25, 0.5], [0.05, 0.5]],
+          trackId: 'track-person-1',
+        }],
       },
     },
     processedAt: '2026-06-29T00:00:00.000Z',
@@ -179,7 +187,13 @@ export function testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts() {
     frameTimestampMs: 1200,
     tasks: {
       [ANNOTATION_TASK_IDS.objectDetection]: {
-        objects: [{ label: 'vehicle', bbox: [0.7, 0.25, 0.18, 0.22] as [number, number, number, number], confidence: 0.8 }],
+        objects: [{
+          label: 'vehicle',
+          bbox: [0.7, 0.25, 0.18, 0.22] as [number, number, number, number],
+          confidence: 0.8,
+          mask: [[0.7, 0.25], [0.88, 0.25], [0.88, 0.47], [0.7, 0.47]],
+          trackId: 'track-vehicle-1',
+        }],
       },
     },
   }
@@ -187,6 +201,13 @@ export function testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts() {
   if (loaded.ok === false) throw new Error(`expected annotation results to load as dataset, got ${loaded.reason}`)
   if (loaded.dataset.samples.length !== 2 || loaded.dataset.samples.some(sample => sample.annotations.length !== 1)) {
     throw new Error(`expected loaded dataset samples and annotations, got ${JSON.stringify(loaded.dataset.samples)}`)
+  }
+  const loadedAnnotations = loaded.dataset.samples.flatMap(sample => sample.annotations)
+  if (
+    loadedAnnotations.some(annotation => !annotation.trackId)
+    || loadedAnnotations.some(annotation => !annotation.mask?.polygons.length)
+  ) {
+    throw new Error(`expected dataset annotations to preserve persistent track IDs and masks, got ${JSON.stringify(loadedAnnotations)}`)
   }
 
   const split = splitVisualAnnotationDataset(loaded.dataset, {
@@ -222,6 +243,22 @@ export function testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts() {
     || !zoneTimeline.frames[1]?.cumulativeCounts
   ) {
     throw new Error(`expected frame-ordered real-time zone counting, got ${JSON.stringify(zoneTimeline)}`)
+  }
+  const leftZoneId = zones[0]?.zoneId || ''
+  const filtered = filterVisualAnnotationDatasetByZones(merged, zones, { includeZoneIds: [leftZoneId] })
+  if (filtered.samples.length !== 1 || filtered.samples[0]?.annotations[0]?.label !== 'person') {
+    throw new Error(`expected zone filtering to keep only detections inside the selected polygon, got ${JSON.stringify(filtered.samples)}`)
+  }
+  const coco = convertVisualAnnotationDataset(merged, { format: 'coco-json', filename: 'visual-dataset.coco.json' })
+  const cocoJson = JSON.parse(coco.text) as { annotations?: Array<{ track_id?: string; segmentation?: unknown[] }>; categories?: unknown[] }
+  if (
+    coco.format !== 'coco-json'
+    || coco.filename !== 'visual-dataset.coco.json'
+    || !Array.isArray(cocoJson.categories)
+    || cocoJson.categories.length !== 2
+    || !cocoJson.annotations?.every(annotation => annotation.track_id && Array.isArray(annotation.segmentation))
+  ) {
+    throw new Error(`expected COCO conversion to preserve categories, track IDs, and masks, got ${coco.text}`)
   }
 }
 

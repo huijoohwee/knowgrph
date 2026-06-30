@@ -10,6 +10,8 @@ export const RICH_MEDIA_PANEL_SRCDOC_STYLE_ID = 'kg-rich-media-panel-srcdoc-rese
 export const RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-resize'
 export const RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-timeline-transport'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE = 'kg-rich-media-panel-srcdoc-size'
+export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR = 'data-kg-rich-media-panel-size'
+export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT = 'viewport'
 
 const richMediaPanelSrcDocCache = new LRUCache<string, string>(64, 2 * 60_000)
 
@@ -229,4 +231,9 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
   })
   richMediaPanelSrcDocCache.set(cacheKey, normalized)
   return normalized
+}
+
+export function shouldUseViewportRichMediaPanelSrcDocSize(srcDoc: string): boolean {
+  return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT}["']`, 'i').test(srcDoc)
+    || /data-composition-id=["']knowgrph-video-agent-runtime["']|data-kg-video-agent-(?:dataset-panel|frame-analysis|source-playback|stream-panel)\b/i.test(srcDoc)
 }

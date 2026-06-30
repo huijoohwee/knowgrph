@@ -29,6 +29,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       title,
       onClick,
       onPointerDown,
+      onPointerUp,
       onMouseDown,
       disabled,
       className = '',
@@ -49,6 +50,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const uiIconButtonPaddingClass = useGraphStore(state => state.uiIconButtonPaddingClass);
     const uiIconFormat = useGraphStore(state => state.uiIconFormat);
     const isDisabled = !!disabled;
+    const pointerActivationHandledRef = React.useRef(false);
     const isMinimal = uiIconFormat === 'minimal';
     const paddingClass =
       uiIconButtonPaddingClass && uiIconButtonPaddingClass.trim().length > 0
@@ -79,6 +81,7 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         type="button"
         disabled={isDisabled}
         onPointerDown={e => {
+          pointerActivationHandledRef.current = false
           if (e.button === 0) {
             try {
               e.preventDefault()
@@ -88,6 +91,20 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           }
           e.stopPropagation()
           onPointerDown?.(e)
+        }}
+        onPointerUp={e => {
+          e.stopPropagation()
+          onPointerUp?.(e)
+          if (isDisabled || e.button !== 0) return
+          pointerActivationHandledRef.current = true
+          if (e.currentTarget instanceof HTMLElement) {
+            try {
+              e.currentTarget.focus({ preventScroll: true })
+            } catch {
+              e.currentTarget.focus()
+            }
+          }
+          onClick?.(e as unknown as React.MouseEvent<HTMLButtonElement>)
         }}
         onMouseDown={e => {
           if (e.button === 0) {
@@ -107,6 +124,10 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             void 0
           }
           e.stopPropagation()
+          if (pointerActivationHandledRef.current) {
+            pointerActivationHandledRef.current = false
+            return
+          }
           if (e.currentTarget instanceof HTMLElement) {
             try {
               e.currentTarget.focus({ preventScroll: true })

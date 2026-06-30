@@ -71,30 +71,106 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
   if (mediaGantt.includes('Video agent stages') || mediaGantt.includes('Parse multimodal context')) {
     throw new Error(`expected media Timeline panels to exclude video-agent workflow stages: ${mediaGantt}`)
   }
+  const mediaTimelineModel = buildMermaidGanttTimelineModel(mediaGantt)
+  if (
+    mediaTimelineModel.taskSpans.length !== 3
+    || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_video/.test(span.raw))
+    || !mediaTimelineModel.taskSpans.some(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
+    || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_audio/.test(span.raw))
+    || mediaTimelineModel.taskSpans.some(span => /frame_box_\d+_fbf/.test(span.raw))
+    || mediaGantt.includes('kgthumb_')
+  ) {
+    throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks without per-frame overlap rows: ${mediaGantt}`)
+  }
 }
 
 export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMediaAndProcessPanels() {
   const utilsText = readSource('features/canvas/utils.ts')
   const launcherText = readSource('features/toolbar/ToolbarMenuLauncher.tsx')
+  const presetText = readSource('features', 'parsers', 'canvasFrontmatterPreset.ts')
+  const uiSliceText = readSource('hooks', 'store', 'uiSliceInitialState.ts')
+  const timelineBottomText = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
+  const timelineFloatingText = readSource('features', 'gitgraph', 'TimelineFloatingPanelView.tsx')
   for (const tab of ['flowchart', 'gantt', 'timeline']) {
     if (!utilsText.includes(`| '${tab}'`)) throw new Error(`expected floating-panel open event type to include ${tab}`)
     if (!launcherText.includes(`tab === '${tab}'`) || !launcherText.includes(`? '${tab}'`)) {
       throw new Error(`expected ToolbarMenuLauncher to route floating-panel tab ${tab}`)
     }
+    if (!uiSliceText.includes(`|| view === '${tab}'`)) {
+      throw new Error(`expected floating-panel store setter to accept ${tab} without remapping to propsPanel`)
+    }
+  }
+  for (const token of [
+    'shouldRetainVideoSequenceFloatingPanelView',
+    "new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])",
+    '!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)',
+    'videoSequenceModel?.enabled',
+    'rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}',
+    'rowTree={videoSequenceFloatingRowTree}',
+    'renderMode="list"',
+  ]) {
+    if (!`${presetText}\n${timelineFloatingText}`.includes(token)) throw new Error(`expected video-agent floating panel routing to preserve explicit ${token}`)
+  }
+  for (const staleToken of ['GanttTimelineTransportPanel', 'TimelineTransportControls', 'data-kg-gantt-timeline-transport']) {
+    if (timelineFloatingText.includes(staleToken)) throw new Error(`expected video-agent FloatingPanel Timeline to avoid BottomPanel transport owner token: ${staleToken}`)
+  }
+  for (const token of [
+    'readVideoSequenceTimelineModelFromMarkdown',
+    'const videoSequenceModel = React.useMemo',
+    '(videoSequenceModel?.enabled || !timelineCode) && ganttCode',
+    '<GanttTimelineTransportPanel code={ganttCode} compact={compact} />',
+  ]) {
+    if (!timelineBottomText.includes(token)) throw new Error(`expected video-agent BottomPanel Timeline to keep transport owner token: ${token}`)
   }
 }
 
 export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const surfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
+  const sequenceTimelineText = readSource('components', 'timeline', 'videoSequenceTimeline.ts')
   const cssText = [
     readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css'),
     readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css'),
   ].join('\n')
-  if (!rulerText.includes('VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES') || !rulerText.includes("lane === 'fbf' && !verticalMarker && (durationMinutes <=")) {
+  const compactMediaText = readSource('components', 'timeline', 'VideoSequenceCompactMediaLane.tsx')
+  if (!rulerText.includes('VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES') || !rulerText.includes("lane === 'fbf' && !compactVideoAgentFbf && !verticalMarker")) {
     throw new Error('expected BottomPanel Timeline to mark temporally dense FBF clips')
   }
   for (const token of [
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
+    'data-kg-video-agent-compact-fbf={compactVideoAgentFbf ?',
+    'data-kg-video-agent-compact-media={compactVideoAgentMedia ?',
+    'const compactVideoAgentTimeline = React.useMemo',
+    'timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
+    'scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes',
+    "const showMediaCues = showsMediaContent && lane !== 'audio' && !compactVideoAgentMedia",
+    'const showCompactVideoAgentFbfThumbnails = compactVideoAgentFbf && !nativeFrameSamples.length',
+    'const thumbnailSamples = compactVideoAgentMedia && !showCompactVideoAgentFbfThumbnails ? []',
+    "&& !verticalMarker && !compactVideoAgentMedia",
+    "lane === 'fbf' && !compactVideoAgentFbf && !verticalMarker",
+    'compactVideoAgentMedia ? 0 : (index % 2) * 2',
+    '[data-kg-video-agent-compact-fbf="1"]',
+    '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]):not([data-kg-video-agent-compact-fbf="1"])',
+    '.timeline-transport-track-clip[data-kg-video-agent-compact-fbf="1"]',
+    '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]::before',
+    '[data-kg-video-agent-compact-media="1"] .timeline-transport-track-clip-move',
+    '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-timecode',
+    '!verticalMarker && !compactVideoAgentMedia',
+    '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-audio-waveform',
+    'timeline-video-sequence-compact-fbf-rail',
+    'timeline-video-sequence-compact-fbf-preview',
+    'data-kg-video-agent-compact-fbf-preview="1"',
+    'data-kg-video-agent-compact-fbf-thumbnail="1"',
+    'data-kg-video-agent-compact-fbf-samples',
+    'formatVideoSequenceTimelineSecondsOffset',
+    'Math.min(14, sampleCount || 10)',
+    'VIDEO_AGENT_COMPACT_TRACK_PATTERN',
+    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-frame-strip',
+    '[data-kg-video-agent-compact-fbf="1"]:hover .timeline-video-sequence-compact-fbf-preview',
+    '[data-kg-video-agent-compact-fbf="1"]:focus-within .timeline-video-sequence-compact-fbf-preview',
+    'timeline-video-sequence-compact-fbf-thumbnail',
+    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-cues',
+    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-nested-strip',
     '[data-kg-video-sequence-dense-fbf="1"]',
     'min-width: 8px',
     'overflow: hidden',
@@ -103,8 +179,14 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-transport-track-clip-label',
     '.timeline-video-sequence-clip-timecode',
   ]) {
-    if (!`${rulerText}\n${cssText}`.includes(token)) {
+    if (!`${rulerText}\n${surfaceModelText}\n${sequenceTimelineText}\n${cssText}\n${compactMediaText}`.includes(token)) {
       throw new Error(`expected dense FBF no-overlap guard token: ${token}`)
     }
+  }
+  for (const staleToken of [
+    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-thumbnail-strip',
+    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-thumbnail-caption',
+  ]) {
+    if (cssText.includes(staleToken)) throw new Error(`expected compact FBF to avoid stale shared thumbnail strip selector: ${staleToken}`)
   }
 }

@@ -10,6 +10,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
 ["visualAnnotation.spec.model","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationSpecValidationAndModelResolution"],
 ["visualAnnotation.semantic.serializers","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationSemanticKeyAndSerializers"],
 ["visualAnnotation.dataset.e2e","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts"],
+["visualAnnotation.videoAgent.tracksAndMasks","@/__tests__/videoAgentVisualAnnotationDataset.test","testVideoAgentVisualAnnotationDatasetPreservesTracksAndMasks"],
 ["visualAnnotation.run.artifactOnce","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunDelegatesArtifactOnce"],
   ["visualAnnotation.run.inferenceError","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunReturnsStructuredInferenceError"],
   ["visualAnnotation.worker.heuristicOutput","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationWorkerHeuristicProducesRuntimeOutput"],
@@ -18,4 +19,5 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["visualAnnotation.ssot.noMlImports","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationSsotAvoidsMlImports"],
   ["visualAnnotation.runAll.sequence","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunAllSequenceIncludesAnnotationNodes"],
   ["visualAnnotation.runAll.typedFrontmatterRouting","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunAllRoutesTypedFrontmatterNodes"],
+  ["workspace.import.localFolder.spatialCaptureFileset","@/__tests__/workspaceImportSpatialCaptureFileset.test","testWorkspaceImportLocalFolderSpatialCaptureFilesetCreatesRenderableXrManifest"],
 ]

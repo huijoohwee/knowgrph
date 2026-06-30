@@ -32,6 +32,10 @@ const NOOP_BOTTOM_SURFACE_ACTIONS = {
   setBottomSurfaceTab: () => {},
 }
 
+function assertNoStaleModelStageToken(source: string, context: string) {
+  for (const token of ['ModelAssetXrStage', 'kg_model_xr_stage', 'kg_model_xr_city', 'kg_model_xr_traffic', 'kg_model_xr_horizon']) if (source.includes(token)) throw new Error(`${context} must remove stale synthetic XR stage token ${token}`)
+}
+
 export function testVoxelModeRejectsGeospatialMode() {
   const args = {
     canvas2dRenderer: 'flowchart' as const,
@@ -316,9 +320,7 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   if (!payloadHelper.includes('asset.validMagic === false')) {
     throw new Error('Expected GLB rendering to honor ingest-time GLB magic validation through the shared payload helper')
   }
-  if (!glbModel.includes('const showStage = false')) {
-    throw new Error('Expected GLB/GLTF model rendering to avoid synthetic XR stage geometry over the authored model')
-  }
+  assertNoStaleModelStageToken(glbModel, 'Expected GLB/GLTF model rendering')
 }
 
 export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe() {
@@ -363,9 +365,7 @@ export function testXrModeRendersGltfAssetDocumentsWithoutWebxrSessionGate() {
   if (!glbModel.includes('new THREE.AnimationMixer(scene)') || !glbModel.includes('mixerRef.current?.update(delta)')) {
     throw new Error('Expected GLTF rendering to play and advance embedded model animations')
   }
-  if (!glbModel.includes('const showStage = false')) {
-    throw new Error('Expected GLTF rendering to keep the authored GLTF scene as the only visible model element')
-  }
+  assertNoStaleModelStageToken(glbModel, 'Expected GLTF rendering to keep the authored scene free of stale synthetic XR stage')
   if (glbModel.includes('group.rotation.y +=')) {
     throw new Error('Expected GLTF rendering to preserve authored XYZ coordinates instead of mutating model rotation')
   }
@@ -454,9 +454,7 @@ export async function testXrModeModelAssetSwitchUsesDocumentScopedRenderIdentity
   if (!glbModel.includes('loadIdRef') || !glbModel.includes('isStaleLoad()')) {
     throw new Error('Expected GLB/GLTF loader callbacks to reject stale async parse completions')
   }
-  if (!glbModel.includes('const showStage = false')) {
-    throw new Error('Expected GLB/GLTF rendering to avoid showing a synthetic stage as the first visible element')
-  }
+  assertNoStaleModelStageToken(glbModel, 'Expected GLB/GLTF rendering')
   if (glbModel.includes('kg_model_asset_loading')) {
     throw new Error('Expected GLB/GLTF render path to avoid a visible placeholder object before the selected model loads')
   }

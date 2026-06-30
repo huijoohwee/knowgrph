@@ -143,7 +143,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["htmlVideoRenderer.workflow.richMediaPanelPublication","@/__tests__/htmlVideoRenderer.test","testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel"],
   ["videoAgent.pipeline.e2eIngestionParsingRendering","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan"],
   ["videoAgent.pipeline.renderableSemanticHtmlSpec","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec"],
-  ["videoAgent.pipeline.providerFrameImagesIntoFbfTimeline","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline"],
+  ["videoAgent.pipeline.providerFrameImagesIntoFrameAnalysis","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalysis"],
   ["videoAgent.pipeline.invalidInputAndDependencyGuard","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDependencyImports"],
   ["videoAgent.frameAnalysis.componentRefinedBoxes","@/__tests__/videoAgentFrameAnalysisProjection.test","testVideoAgentFrameAnalysisProjectionUsesComponentRefinedBoxes"],
   ["videoAgent.timeline.bottomPanelSecondsScale","@/__tests__/videoAgentTimelineScale.test","testVideoAgentTimelineKeepsSecondsScaleForBottomPanel"],

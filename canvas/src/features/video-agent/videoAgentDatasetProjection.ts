@@ -42,7 +42,7 @@ export function buildVideoAgentDatasetPanelSrcDoc(datasetRuntime: VideoAgentData
   }))).replace(/</g, '\\u003c')
 
   return [
-    '<main data-kg-video-agent-dataset-panel="1">',
+    '<main data-kg-video-agent-dataset-panel="1" data-kg-rich-media-panel-size="viewport">',
     '<header><p>Native visual annotation runtime</p><h1>Dataset and zone counting</h1></header>',
     `<section aria-label="Dataset operations"><h2>Load, split, merge, save</h2><ol>${operationItems}</ol></section>`,
     `<section aria-label="Dataset splits"><h2>Deterministic splits</h2><ol>${splitItems}</ol></section>`,

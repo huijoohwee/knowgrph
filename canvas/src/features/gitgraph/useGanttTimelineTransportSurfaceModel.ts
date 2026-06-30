@@ -17,7 +17,7 @@ import {
 } from './useGanttTimelineTransportShellModel'
 import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
-import { VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS } from '@/components/timeline/videoSequenceTimeline'
+import { VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS, isVideoAgentCompactMediaSpan, resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type GanttTimelineTransportSurfaceModel = {
@@ -39,6 +39,10 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     code: args.code,
     disabledLaneIds,
   })
+  const compactVideoAgentTimeline = React.useMemo(() => (
+    transportSession.timelineModel.taskSpans.length > 0
+    && transportSession.timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))
+  ), [transportSession.timelineModel.taskSpans])
   const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan
   const mediaPreviewSourceUrl = React.useMemo(() => {
     if (selectedPreviewEmpty) return ''
@@ -154,7 +158,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
     playheadPercent: transportInteractionModel.playheadPercent,
     positionMinutes: transportSession.positionMinutes,
-    scopes: transportSession.monitorScopes,
+    scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
     sourceThumbnails: thumbnailSummary.thumbnails,
     sourceThumbnailWindows,

@@ -24,10 +24,7 @@ import { buildMermaidGanttCodeFromNeutralTimelinePayload } from '@/lib/mermaid/m
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
-import {
-  VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS,
-  isVisualAnnotationE2eCanvas2dRenderer,
-} from '@/lib/config.render'
+import { VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS, isVisualAnnotationE2eCanvas2dRenderer } from '@/lib/config.render'
 import {
   assertVideoAgentContractCoversValidationUrls,
   installVideoAgentValidationYouTubeTranscriptFetch,
@@ -346,14 +343,15 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf'
   ))
   if (
-    sourceFrameTimelineTracks.length < contractFrameBoxes.length
+    sourceFrameTimelineTracks.length !== 1
     || !Array.isArray(sourceSpecData.frameBoundingBoxTimelineTracks)
+    || sourceSpecData.frameBoundingBoxTimelineTracks.length !== 1
     || sourceSpecData.bottomPanelTimelineSync?.surface !== 'BottomPanel Timeline'
     || sourceSpecData.bottomPanelTimelineSync?.source !== 'video+frameBoundingBoxes+audio'
     || sourceSpecData.bottomPanelTimelineSync?.lane !== 'video-fbf-audio'
-    || sourceSpecData.bottomPanelTimelineSync?.thumbnailMode !== 'frame-by-frame-image'
+    || sourceSpecData.bottomPanelTimelineSync?.thumbnailMode !== 'semantic-frame-samples'
   ) {
-    throw new Error('expected external validation document to sync video, FBF, and audio tracks into BottomPanel Timeline')
+    throw new Error('expected external validation document to sync compact video, FBF, and audio media tracks into BottomPanel Timeline')
   }
   if (
     !Array.isArray(sourceSpecData.timelineLanes)
@@ -363,15 +361,18 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     throw new Error('expected external validation document to expose frame-by-frame and audio BottomPanel Timeline lanes')
   }
   const externalFbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(sourceSpecData)
-  if (!externalFbfTimelineCode.includes('kgthumb_')) {
-    throw new Error('expected external validation BottomPanel FBF timeline to carry source-frame thumbnail metadata')
-  }
+  if (externalFbfTimelineCode.includes('kgthumb_')) throw new Error('expected external validation BottomPanel FBF timeline to avoid source-frame thumbnail metadata')
   const externalFbfTimelineModel = buildMermaidGanttTimelineModel(externalFbfTimelineCode)
-  const externalFbfSpan = externalFbfTimelineModel.taskSpans.find(span => /frame_box_0_fbf/.test(span.raw))
+  const externalFbfSpan = externalFbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
   if (!externalFbfSpan) throw new Error('expected external validation BottomPanel FBF span')
   const externalFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: externalFbfSpan })
-  if (!String(externalFrameThumbnails[0]?.dataUrl || '').startsWith('/__video_frame?')) {
-    throw new Error(`expected external validation BottomPanel FBF image to use actual source frame endpoint, got ${JSON.stringify(externalFrameThumbnails)}`)
+  const externalFrameSvg = decodeURIComponent(String(externalFrameThumbnails[0]?.dataUrl || '').split(',').slice(1).join(','))
+  if (
+    !String(externalFrameThumbnails[0]?.dataUrl || '').startsWith('data:image/svg+xml')
+    || externalFrameThumbnails[0]?.format !== 'svg'
+    || !externalFrameSvg.includes('generated-frame-thumbnail')
+  ) {
+    throw new Error(`expected external validation BottomPanel FBF transport to use native semantic samples, got ${JSON.stringify(externalFrameThumbnails)}`)
   }
   const richMediaPanels = nodes.filter(node => readKtvString(node.type) === 'RichMediaPanel')
   const frameAnalysisPanels = richMediaPanels.filter(node => {

@@ -13,6 +13,24 @@ import {
   normalizeWorkspaceSourceRootPaths,
 } from '@/features/workspace-fs/workspaceSourceRoots'
 
+function readYamlQuotedString(raw: string, key: string): string {
+  const match = String(raw || '').match(new RegExp(`^${key}:\\s*['"]([^'"]+)['"]\\s*$`, 'm'))
+  return match ? String(match[1] || '').trim() : ''
+}
+
+function resolveInternalSpatialCapturePayloadPaths(entries: WorkspaceEntry[]): Set<string> {
+  const out = new Set<string>()
+  for (const entry of entries) {
+    if (!entry || entry.kind !== 'file') continue
+    if (!String(entry.path || '').toLowerCase().endsWith('.spatial-capture.md')) continue
+    const text = String(entry.text || '')
+    if (!/^kgSpatialCaptureFileset:\s*true\s*$/m.test(text)) continue
+    const pendingPath = readYamlQuotedString(text, 'kgAssetPendingLocalPath')
+    if (pendingPath) out.add(pendingPath)
+  }
+  return out
+}
+
 export function workspaceSourcePathKey(path: string): string {
   const p = String(path || '').trim()
   return p ? `workspace:${p}` : 'workspace:'
@@ -44,6 +62,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   const preserveExistingWorkspaceEntries = args.preserveExistingWorkspaceEntries === true
   const workspaceDocsOnly = args.workspaceDocsOnly === true
   const workspaceSourceRootPaths = normalizeWorkspaceSourceRootPaths(args.workspaceSourceRootPaths)
+  const internalSpatialCapturePayloadPaths = resolveInternalSpatialCapturePayloadPaths(entries)
   const canonicalMirrorBasenameSet = new Set<string>(
     entries
       .filter(entry => entry?.kind === 'file')
@@ -79,6 +98,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   for (const f of existing) {
     const srcPath = String(f?.source?.path || '')
     if (!srcPath.startsWith('workspace:')) continue
+    if (internalSpatialCapturePayloadPaths.has(srcPath.slice('workspace:'.length))) continue
     existingWorkspaceByPath.set(srcPath, f)
   }
 
@@ -89,6 +109,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (!e || e.kind !== 'file') continue
     const path = String(e.path || '').trim()
     if (!path) continue
+    if (internalSpatialCapturePayloadPaths.has(path)) continue
     if (forceIncludeOnly && !forceInclude.has(path)) continue
     const underWorkspaceSourceRoot = isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
     if (workspaceDocsOnly && !underWorkspaceSourceRoot && !forceInclude.has(path)) continue
@@ -170,6 +191,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       if (nextWorkspaceBySourcePath.has(sourcePath)) continue
       const workspacePath = sourcePath.slice('workspace:'.length)
       if (!workspacePath) continue
+      if (internalSpatialCapturePayloadPaths.has(workspacePath)) continue
       if (!String(file.text || '').trim()) continue
       if (
         workspaceDocsOnly

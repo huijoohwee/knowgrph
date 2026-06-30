@@ -11,6 +11,7 @@ import {
   normalizeRemoteVideoFrameSeconds,
   parseYouTubeStartSeconds,
 } from 'grph-shared/rich-media/providers'
+import { buildWorkspaceTimestampedOutputFolderName } from '../../workspace/timestampedOutput'
 
 type NextHandleFunction = (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void
 
@@ -37,22 +38,31 @@ type VideoFrameResult =
   | { ok: true; publicUrl: string; outputPath: string; semanticKey: string; cached: boolean; bytes: number; timeSeconds: number; format: 'png' | 'jpg' }
   | { ok: false; error: string }
 
-export const REMOTE_VIDEO_FRAME_PUBLIC_PREFIX = '/image/knowgrph/video-frame'
+export const REMOTE_VIDEO_FRAME_PUBLIC_PREFIX = '/image/video-frame'
 
 const MAX_VIDEO_FRAME_URL_LENGTH = 4096
 const MAX_VIDEO_FRAME_TIME_SECONDS = 12 * 60 * 60
 const VIDEO_FRAME_FILE_RE = /^frame-[a-f0-9]+-t\d+(?:_\d+)?\.(?:png|jpg)$/i
+const remoteVideoFrameOutputFolderName = buildWorkspaceTimestampedOutputFolderName()
 const inflightVideoFrameByOutputPath = new Map<string, Promise<VideoFrameResult>>()
 
+export const readRemoteVideoFrameOutputFolderName = (): string => remoteVideoFrameOutputFolderName
+
+export const buildRemoteVideoFrameDefaultPublicPrefix = (): string =>
+  `${REMOTE_VIDEO_FRAME_PUBLIC_PREFIX}/${remoteVideoFrameOutputFolderName}`
+
+export const buildRemoteVideoFrameDefaultCacheRoot = (workspaceRoot: string): string =>
+  path.resolve(workspaceRoot, 'huijoohwee', 'image', 'video-frame', remoteVideoFrameOutputFolderName)
+
 const normalizePublicPrefix = (value: unknown): string => {
-  const raw = String(value || '').trim() || REMOTE_VIDEO_FRAME_PUBLIC_PREFIX
+  const raw = String(value || '').trim() || buildRemoteVideoFrameDefaultPublicPrefix()
   const withLead = raw.startsWith('/') ? raw : `/${raw}`
   return withLead.replace(/\/+$/g, '')
 }
 
 const resolveCacheRoot = (opts: VideoFrameServerOptions): string => {
   const fromEnv = String(process.env.KG_VIDEO_FRAME_CACHE_ROOT || '').trim()
-  return path.resolve(opts.cacheRoot || fromEnv || path.resolve(opts.workspaceRoot, 'huijoohwee', 'image', 'knowgrph', 'video-frame'))
+  return path.resolve(opts.cacheRoot || fromEnv || buildRemoteVideoFrameDefaultCacheRoot(opts.workspaceRoot))
 }
 
 const isWithinRoot = (root: string, filePath: string): boolean => {

@@ -18,29 +18,6 @@ export type GlbFit = {
   scaledSize: [number, number, number]
 }
 
-type StageBlock = {
-  key: string
-  position: [number, number, number]
-  size: [number, number, number]
-  color: string
-}
-
-type StageTrafficParticle = {
-  key: string
-  axis: 'x' | 'z'
-  lane: number
-  offset: number
-  color: string
-}
-
-type StageHorizonTile = {
-  key: string
-  angle: number
-  radius: number
-  height: number
-  color: string
-}
-
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
   if (value > max) return max
@@ -141,225 +118,6 @@ export function computeGlbFit(object: THREE.Object3D | null): GlbFit {
   }
 }
 
-function buildStageBlocks(fit: GlbFit): StageBlock[] {
-  const span = fit.stageSpan
-  const cell = span / 10
-  const floorY = fit.floorY
-  const colors = ['#0f766e', '#1d4ed8', '#7e22ce', '#ea580c', '#0891b2', '#6d28d9']
-  const blocks: StageBlock[] = []
-  for (let gx = -5; gx <= 5; gx += 1) {
-    for (let gz = -5; gz <= 5; gz += 1) {
-      if (gx === 0 || gz === 0 || gx % 3 === 0 || gz % 3 === 0) continue
-      const seed = Math.abs(gx * 19 + gz * 37)
-      const width = cell * (0.58 + (seed % 3) * 0.11)
-      const depth = cell * (0.56 + (seed % 4) * 0.08)
-      const height = cell * (0.28 + (seed % 8) * 0.09)
-      blocks.push({
-        key: `${gx}:${gz}`,
-        position: [gx * cell, floorY + height * 0.5, gz * cell],
-        size: [width, height, depth],
-        color: colors[seed % colors.length] || '#2563eb',
-      })
-    }
-  }
-  return blocks
-}
-
-function buildStageHorizonTiles(fit: GlbFit): StageHorizonTile[] {
-  const colors = ['#60a5fa', '#38bdf8', '#a78bfa', '#f59e0b']
-  const tiles: StageHorizonTile[] = []
-  for (let i = 0; i < 24; i += 1) {
-    tiles.push({
-      key: `horizon:${i}`,
-      angle: (i / 24) * Math.PI * 2,
-      radius: fit.stageSpan * (0.55 + (i % 3) * 0.018),
-      height: fit.stageSpan * (0.018 + (i % 5) * 0.004),
-      color: colors[i % colors.length] || '#60a5fa',
-    })
-  }
-  return tiles
-}
-
-function buildStageTrafficParticles(): StageTrafficParticle[] {
-  const colors = ['#22c55e', '#38bdf8', '#f59e0b', '#f472b6']
-  const particles: StageTrafficParticle[] = []
-  for (let i = 0; i < 24; i += 1) {
-    particles.push({
-      key: `traffic:${i}`,
-      axis: i % 2 === 0 ? 'x' : 'z',
-      lane: i % 4 < 2 ? -1 : 1,
-      offset: i / 16,
-      color: colors[i % colors.length] || '#38bdf8',
-    })
-  }
-  return particles
-}
-
-function ModelAssetXrTraffic({ fit, visible }: { fit: GlbFit; visible: boolean }) {
-  const meshRefs = React.useRef<Record<string, THREE.Mesh | null>>({})
-  const particles = React.useMemo(() => buildStageTrafficParticles(), [])
-  useFrame(({ clock }) => {
-    if (!visible) return
-    const span = Math.max(1, fit.stageSpan)
-    const roadHalf = span * 0.5
-    const laneOffset = span * 0.018
-    const t = clock.getElapsedTime() * 0.055
-    for (const particle of particles) {
-      const mesh = meshRefs.current[particle.key]
-      if (!mesh) continue
-      const p = ((t + particle.offset) % 1) * 2 - 1
-      const travel = p * roadHalf
-      const lane = particle.lane * laneOffset
-      if (particle.axis === 'x') {
-        mesh.position.set(travel, fit.floorY + 1.05, lane)
-        mesh.scale.set(span * 0.012, span * 0.004, span * 0.006)
-      } else {
-        mesh.position.set(lane, fit.floorY + 1.05, travel)
-        mesh.scale.set(span * 0.006, span * 0.004, span * 0.012)
-      }
-    }
-  })
-  if (!visible) return null
-  return (
-    <group name="kg_model_xr_traffic_loop">
-      {particles.map(particle => (
-        <mesh
-          key={particle.key}
-          ref={el => {
-            meshRefs.current[particle.key] = el
-          }}
-          name={`kg_model_xr_traffic_${particle.key.replace(':', '_')}`}
-        >
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color={particle.color} emissive={particle.color} emissiveIntensity={0.62} roughness={0.36} metalness={0.12} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function ModelAssetXrStreamingRing({ fit, visible }: { fit: GlbFit; visible: boolean }) {
-  const meshRefs = React.useRef<Record<string, THREE.Mesh | null>>({})
-  const tiles = React.useMemo(() => buildStageHorizonTiles(fit), [fit])
-  useFrame(({ clock }) => {
-    if (!visible) return
-    const t = clock.getElapsedTime()
-    for (const tile of tiles) {
-      const mesh = meshRefs.current[tile.key]
-      if (!mesh) continue
-      const pulse = 1 + Math.sin(t * 0.9 + tile.angle * 3) * 0.18
-      mesh.scale.y = pulse
-      const material = mesh.material as THREE.Material | undefined
-      if (material) material.opacity = 0.18 + (pulse - 0.82) * 0.18
-    }
-  })
-  if (!visible) return null
-  return (
-    <group name="kg_model_xr_streaming_ring">
-      {tiles.map(tile => (
-        <mesh
-          key={tile.key}
-          ref={el => {
-            meshRefs.current[tile.key] = el
-          }}
-          name={`kg_model_xr_horizon_tile_${tile.key.replace(':', '_')}`}
-          position={[Math.cos(tile.angle) * tile.radius, fit.floorY + tile.height * 0.5, Math.sin(tile.angle) * tile.radius]}
-          rotation={[0, -tile.angle, 0]}
-        >
-          <boxGeometry args={[fit.stageSpan * 0.012, tile.height, fit.stageSpan * 0.045]} />
-          <meshStandardMaterial color={tile.color} emissive={tile.color} emissiveIntensity={0.16} transparent opacity={0.2} roughness={0.58} metalness={0.08} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function ModelAssetXrStage({ fit, visible }: { fit: GlbFit; visible: boolean }) {
-  if (!visible) return null
-  const markerOffset = fit.stageSpan * 0.28
-  const roadWidth = fit.stageSpan * 0.045
-  const stageBlocks = buildStageBlocks(fit)
-  const avenueOffsets = [-0.36, -0.18, 0, 0.18, 0.36].map(v => v * fit.stageSpan)
-  const laneOffsets = [-0.018, 0.018].map(v => v * fit.stageSpan)
-  return (
-    <group name="kg_model_xr_stage">
-      <gridHelper
-        args={[fit.stageSpan, 36, '#60a5fa', '#1e293b']}
-        position={[0, fit.floorY - 0.02, 0]}
-        material-transparent={true}
-        material-opacity={0.2}
-      />
-      <group name="kg_model_xr_city_grid">
-        {avenueOffsets.map((offset, index) => (
-          <React.Fragment key={`avenue-${index}`}>
-            <mesh name={`kg_model_xr_avenue_x_${index}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.005, offset]} receiveShadow>
-              <planeGeometry args={[fit.stageSpan, roadWidth]} />
-              <meshStandardMaterial color="#0f172a" transparent opacity={0.48} roughness={0.88} metalness={0.04} />
-            </mesh>
-            <mesh name={`kg_model_xr_avenue_z_${index}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[offset, fit.floorY + 0.006, 0]} receiveShadow>
-              <planeGeometry args={[fit.stageSpan, roadWidth]} />
-              <meshStandardMaterial color="#172554" transparent opacity={0.36} roughness={0.88} metalness={0.04} />
-            </mesh>
-          </React.Fragment>
-        ))}
-        {laneOffsets.map((offset, index) => (
-          <React.Fragment key={`lane-${index}`}>
-            <mesh name={`kg_model_xr_lane_marker_x_${index}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.032, offset]}>
-              <planeGeometry args={[fit.stageSpan * 0.96, fit.stageSpan * 0.0028]} />
-              <meshStandardMaterial color="#f8fafc" emissive="#f59e0b" emissiveIntensity={0.18} transparent opacity={0.36} roughness={0.44} metalness={0.04} />
-            </mesh>
-            <mesh name={`kg_model_xr_lane_marker_z_${index}`} rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[offset, fit.floorY + 0.034, 0]}>
-              <planeGeometry args={[fit.stageSpan * 0.96, fit.stageSpan * 0.0028]} />
-              <meshStandardMaterial color="#f8fafc" emissive="#38bdf8" emissiveIntensity={0.18} transparent opacity={0.32} roughness={0.44} metalness={0.04} />
-            </mesh>
-          </React.Fragment>
-        ))}
-        {stageBlocks.map(block => (
-          <mesh key={block.key} name={`kg_model_xr_city_block_${block.key}`} position={block.position}>
-            <boxGeometry args={block.size} />
-            <meshStandardMaterial
-              color={block.color}
-              emissive={block.color}
-              emissiveIntensity={0.12}
-              transparent
-              opacity={0.28}
-              roughness={0.7}
-              metalness={0.12}
-            />
-          </mesh>
-        ))}
-      </group>
-      <ModelAssetXrTraffic fit={fit} visible={visible} />
-      <ModelAssetXrStreamingRing fit={fit} visible={visible} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY - 0.04, 0]} receiveShadow>
-        <planeGeometry args={[fit.stageSpan, fit.stageSpan]} />
-        <meshStandardMaterial color="#111827" transparent opacity={0.08} roughness={0.95} metalness={0.02} />
-      </mesh>
-      <mesh name="kg_model_xr_focus_target" position={[0, fit.floorY + fit.stageSpan * 0.045, 0]}>
-        <dodecahedronGeometry args={[fit.stageSpan * 0.025, 0]} />
-        <meshStandardMaterial color="#e0f2fe" emissive="#38bdf8" emissiveIntensity={0.34} transparent opacity={0.78} roughness={0.42} metalness={0.08} />
-      </mesh>
-      <mesh name="kg_model_xr_orientation_ring" rotation={[-Math.PI / 2, 0, 0]} position={[0, fit.floorY + 0.02, 0]}>
-        <torusGeometry args={[fit.stageSpan * 0.18, fit.stageSpan * 0.0028, 8, 96]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#0e7490" emissiveIntensity={0.3} roughness={0.48} metalness={0.08} />
-      </mesh>
-      <group name="kg_model_xr_perimeter_markers">
-        {[
-          [0, markerOffset, '#22c55e'],
-          [markerOffset, 0, '#f59e0b'],
-          [0, -markerOffset, '#60a5fa'],
-          [-markerOffset, 0, '#f472b6'],
-        ].map(([x, z, color], index) => (
-          <mesh key={index} name={`kg_model_xr_waypoint_${index}`} position={[Number(x), fit.floorY + 0.62, Number(z)]}>
-            <octahedronGeometry args={[fit.stageSpan * 0.014, 0]} />
-            <meshStandardMaterial color={String(color)} emissive={String(color)} emissiveIntensity={0.42} roughness={0.5} metalness={0.06} />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  )
-}
-
 export function GlbAssetModel({
   asset,
   paused,
@@ -457,7 +215,6 @@ export function GlbAssetModel({
   }, [asset, assetRenderKey])
 
   const fit = React.useMemo(() => computeGlbFit(object), [object])
-  const showStage = false
 
   React.useEffect(() => {
     onFitChange?.(object ? fit : null)
@@ -482,7 +239,6 @@ export function GlbAssetModel({
           <pointLight position={[-120, 80, 120]} intensity={0.35} color="#bfdbfe" />
         </>
       ) : null}
-      <ModelAssetXrStage fit={fit} visible={showStage} />
       {object ? (
         <group
           key={assetRenderKey}

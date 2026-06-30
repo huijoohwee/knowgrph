@@ -15,6 +15,18 @@ export type VideoSequenceTimelineProjectionOptions = {
   sourceCoverageMode?: VideoSequenceTimelineSourceCoverageMode
 }
 
+const VIDEO_AGENT_COMPACT_TRACK_PATTERN = /\bvideo_agent_(?:source_video|frame_by_frame_boxes|source_audio)\b/
+const VIDEO_AGENT_COMPACT_FBF_PATTERN = /\bvideo_agent_frame_by_frame_boxes\b/
+
+export function isVideoAgentCompactFbfSpan(span: MermaidGanttTimelineTaskSpan): boolean {
+  return VIDEO_AGENT_COMPACT_FBF_PATTERN.test(span.raw)
+}
+
+export function isVideoAgentCompactMediaSpan(span: MermaidGanttTimelineTaskSpan, lane: VideoSequenceTimelineLaneId): boolean {
+  if (lane !== 'video' && lane !== 'fbf' && lane !== 'audio') return false
+  return VIDEO_AGENT_COMPACT_TRACK_PATTERN.test(span.raw)
+}
+
 export type VideoSequenceTimelineTool = {
   id: VideoSequenceTimelineToolId
   label: string

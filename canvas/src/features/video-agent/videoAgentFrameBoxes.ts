@@ -4,6 +4,8 @@ export type VideoAgentFrameDetection = {
   label: string
   bbox: readonly [number, number, number, number]
   confidence: number
+  mask: ReadonlyArray<readonly [number, number]>
+  trackId: string
 }
 
 export type VideoAgentFrameBoundingBox = {
@@ -14,6 +16,8 @@ export type VideoAgentFrameBoundingBox = {
   confidence: number
   evidence: string
   frameImageUrl: string
+  mask: ReadonlyArray<readonly [number, number]>
+  trackId: string
   detections: VideoAgentFrameDetection[]
 }
 
@@ -32,6 +36,16 @@ const buildBox = (centerX: number, centerY: number, width: number, height: numbe
   round3(Math.min(width, 1 - clamp01(centerX - width / 2))),
   round3(Math.min(height, 1 - clamp01(centerY - height / 2))),
 ]
+
+const buildBoxMask = (box: readonly [number, number, number, number]): ReadonlyArray<readonly [number, number]> => {
+  const [x, y, width, height] = box
+  return [
+    [x, y],
+    [round3(x + width), y],
+    [round3(x + width), round3(y + height)],
+    [x, round3(y + height)],
+  ]
+}
 
 const buildVideoAgentFrameImageUrl = (sourceUrl: string, timestampMs: number): string => {
   const normalizedSourceUrl = String(sourceUrl || '').trim()
@@ -67,6 +81,10 @@ export const buildVideoAgentFrameBoundingBoxes = (durationMs: number, sourceUrl:
     const secondaryLabel = index % 2 === 0 ? 'context object' : 'tracked subject'
     const primaryConfidence = Number((0.82 + progress * 0.08).toFixed(2))
     const secondaryConfidence = Number((0.74 + progress * 0.07).toFixed(2))
+    const primaryTrackId = 'video-agent-track-primary'
+    const secondaryTrackId = 'video-agent-track-secondary'
+    const primaryMask = buildBoxMask(primaryBox)
+    const secondaryMask = buildBoxMask(secondaryBox)
     return {
       frameIndex: index,
       timestampMs,
@@ -75,9 +93,11 @@ export const buildVideoAgentFrameBoundingBoxes = (durationMs: number, sourceUrl:
       confidence: primaryConfidence,
       evidence: `frame-${index}-visual-detection`,
       frameImageUrl: buildVideoAgentFrameImageUrl(sourceUrl, timestampMs),
+      mask: primaryMask,
+      trackId: primaryTrackId,
       detections: [
-        { label: primaryLabel, bbox: primaryBox, confidence: primaryConfidence },
-        { label: secondaryLabel, bbox: secondaryBox, confidence: secondaryConfidence },
+        { label: primaryLabel, bbox: primaryBox, confidence: primaryConfidence, mask: primaryMask, trackId: primaryTrackId },
+        { label: secondaryLabel, bbox: secondaryBox, confidence: secondaryConfidence, mask: secondaryMask, trackId: secondaryTrackId },
       ],
     }
   })

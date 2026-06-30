@@ -22,6 +22,7 @@ export {
   VISUAL_ZONE_COUNTING_SCHEMA_VERSION,
   buildHorizontalVisualZones,
   countVisualDatasetZones,
+  filterVisualAnnotationDatasetByZones,
   loadVisualAnnotationDataset,
   mergeVisualAnnotationDatasets,
   saveVisualAnnotationDataset,
@@ -31,6 +32,7 @@ export {
   type VisualAnnotationDatasetSaveResult,
   type VisualAnnotationDatasetSplit,
   type VisualDatasetAnnotation,
+  type VisualDatasetMask,
   type VisualDatasetSample,
   type VisualDatasetSplitName,
   type VisualZone,
@@ -38,3 +40,8 @@ export {
   type VisualZoneCountingTimeline,
   type VisualZoneDetection,
 } from './annotationDataset'
+export {
+  convertVisualAnnotationDataset,
+  type VisualAnnotationDatasetConversionFormat,
+  type VisualAnnotationDatasetConversionResult,
+} from './annotationDatasetConversion'

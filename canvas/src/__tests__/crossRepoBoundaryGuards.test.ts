@@ -338,7 +338,7 @@ export function testForbidHardcodedRuntimeValidationInputInRepo() {
     'data',
   ])
   const files = listFilesRecursively(KNOWGRPH_ROOT, { ignoreDirNames })
-    .filter(f => /\.(ts|tsx|js|jsx|json|md|mjs|cjs|py|yml|yaml|toml|gltf)$/.test(f))
+    .filter(f => /\.(ts|tsx|js|jsx|json|md|mjs|cjs|py|yml|yaml|toml|gltf|glb)$/.test(f))
 
   const violations: Array<{ file: string; needle: string }> = []
   for (const file of files) {

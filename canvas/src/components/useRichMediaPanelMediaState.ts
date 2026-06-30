@@ -14,6 +14,7 @@ import {
 import {
   normalizeRichMediaPanelInlineSrcDoc,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
+  shouldUseViewportRichMediaPanelSrcDocSize,
 } from '@/lib/render/richMediaPanelSrcDoc'
 import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
 import {
@@ -170,11 +171,12 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     kind === 'iframe' ? rawUrl : applyImageLikeProxySrc(playableRawUrl)
   ), [kind, playableRawUrl, rawUrl])
   const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
+  const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(normalizedInlineSrcDoc), [normalizedInlineSrcDoc])
   React.useEffect(() => {
     setInlineSrcDocContentSize(null)
   }, [normalizedInlineSrcDoc])
   React.useEffect(() => {
-    if (!normalizedInlineSrcDoc || scrollOwner !== 'panel') return
+    if (!normalizedInlineSrcDoc || scrollOwner !== 'panel' || inlineSrcDocUsesViewportSize) return
     const onMessage = (event: MessageEvent) => {
       const frame = inlineSrcDocFrameRef.current
       if (!frame || event.source !== frame.contentWindow) return
@@ -194,7 +196,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [normalizedInlineSrcDoc, props.onInlineContentSize, scrollOwner])
+  }, [inlineSrcDocUsesViewportSize, normalizedInlineSrcDoc, props.onInlineContentSize, scrollOwner])
 
   const panel = props.panel || null
   const panelSelectedTab = resolveRichMediaPanelSelectedTab({

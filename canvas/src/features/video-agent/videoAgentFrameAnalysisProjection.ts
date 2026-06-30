@@ -126,7 +126,7 @@ const buildFrameAnalysisMarkup = (
     format: 'png',
   })
   return [
-    `<section data-kg-video-agent-frame-analysis="1" data-kg-video-agent-frame-url-template="${escapeHtml(frameUrlTemplate)}" aria-label="Timeline-synchronized frame analysis">`,
+    `<section data-kg-video-agent-frame-analysis="1" data-kg-rich-media-panel-size="viewport" data-kg-video-agent-frame-url-template="${escapeHtml(frameUrlTemplate)}" aria-label="Timeline-synchronized frame analysis">`,
     `<ol aria-label="Source video frame sequence">${images}</ol>`,
     `<section data-kg-video-agent-frame-box-layer="1" aria-label="Active frame bounding boxes">${overlays}</section>`,
     '</section>',

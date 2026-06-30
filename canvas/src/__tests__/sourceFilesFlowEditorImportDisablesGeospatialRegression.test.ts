@@ -100,7 +100,7 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
   if (!workspaceSeedProviderText.includes("from '@/features/workspace-fs/workspaceSourceMirrorFormats'")
     || !workspaceSourceMirrorFormatsText.includes('SOURCE_FILES_FORMATS.importLocalText')
     || !workspaceSourceMirrorFormatsText.includes("'.gltf'")
-    || !workspaceSourceMirrorFormatsText.includes("WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb']")
+    || !workspaceSourceMirrorFormatsText.includes("WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb', '.ply', '.spz']")
     || !workspaceSourceMirrorFormatsText.includes('shouldEncodeWorkspaceSourceMirrorAsBase64')
     || workspaceSeedProviderText.includes('MARKDOWN_MIRROR_EXT_SET')
     || workspaceSeedProviderText.includes('isMarkdownMirrorFileName')) {

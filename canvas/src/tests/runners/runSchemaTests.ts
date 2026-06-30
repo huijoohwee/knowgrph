@@ -4,6 +4,8 @@ const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
+const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
+const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
@@ -63,6 +65,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.viewSelection.xrSurfaceMode', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeNormalizesAndCanvasViewSelectionActivatesSurface()
+  })
+  await execTest(results, 'canvas.xrMode.nativeSessionPolicy', async () => {
+    const mod = await modCanvasXrSessionPolicy()
+    await mod.testXrSessionPolicyPrefersNativeArWithoutProviderDependency()
+  })
+  await execTest(results, 'canvas.xrMode.physicsPlaygroundModel', async () => {
+    const mod = await modCanvasXrPhysicsPlayground()
+    await mod.testXrPhysicsPlaygroundUsesNativeBoundedInteractionModel()
   })
   await execTest(results, 'canvas.viewSelection.shared3dSurfaceModeOwner', async () => {
     const mod = await modCanvas3dMode()

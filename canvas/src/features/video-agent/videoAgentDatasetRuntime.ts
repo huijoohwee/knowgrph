@@ -20,7 +20,9 @@ type VideoAgentDatasetFrameBox = {
   frameImageUrl: string
   frameIndex: number
   label: string
+  mask: ReadonlyArray<readonly [number, number]>
   timestampMs: number
+  trackId: string
 }
 
 export type VideoAgentDatasetRuntime = {

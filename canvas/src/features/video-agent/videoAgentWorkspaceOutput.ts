@@ -1,12 +1,13 @@
 import { joinWorkspacePath, normalizeWorkspacePath, WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { buildWorkspaceTimestampedOutputFolderName } from '@/lib/workspace/timestampedOutput'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export const VIDEO_AGENT_WORKSPACE_OUTPUT_ROOT_PATH = '/docs_' as WorkspacePath
 export const VIDEO_AGENT_WORKSPACE_OUTPUT_DIR_PATH = '/docs_/video-agent' as WorkspacePath
 
 export const buildVideoAgentWorkspaceOutputTimestamp = (date = new Date()): string =>
-  date.toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/[-:]/g, '')
+  buildWorkspaceTimestampedOutputFolderName(date)
 
 export const normalizeVideoAgentWorkspaceOutputRootPath = (path?: WorkspacePath | string | null): WorkspacePath => {
   const normalizedPath = normalizeWorkspacePath(path || '')

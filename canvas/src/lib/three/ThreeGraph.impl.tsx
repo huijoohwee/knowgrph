@@ -17,6 +17,8 @@ import { CanvasXrEntryPanel, OverlayFrameSync } from '@/lib/three/ThreeGraphXr'
 import { registerThreeGraphSnapshotFns } from '@/lib/three/ThreeGraphSnapshots'
 import { useThreeRichMediaOverlayController } from '@/lib/three/useThreeRichMediaOverlayController'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { shouldRenderCanvasAppliedModelAsset } from '@/lib/three/modelAssetActivePathGuard'
 
 const SceneLazy = React.lazy(() =>
   import('@/features/three/Scene').then(mod => ({
@@ -41,6 +43,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const markdownDocumentApplyViewPreset = useGraphStore(s => s.markdownDocumentApplyViewPreset)
+  const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const registerThreeGlbSnapshotFns = useGraphStore(s => s.registerThreeGlbSnapshotFns)
   const registerThreeLayoutSnapshotFns = useGraphStore(s => s.registerThreeLayoutSnapshotFns)
@@ -82,9 +85,17 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
   const glbAsset = useMemo(() => parseGlbAssetDocument(canvasMarkdownDocument.text), [canvasMarkdownDocument.text])
+  const shouldRenderGlbAsset = useMemo(
+    () => shouldRenderCanvasAppliedModelAsset({
+      explorerActivePath,
+      canvasDocumentName: canvasMarkdownDocument.name,
+      hasModelAsset: !!glbAsset,
+    }),
+    [canvasMarkdownDocument.name, explorerActivePath, glbAsset],
+  )
   const glbAssetRenderKey = useMemo(
-    () => (glbAsset ? buildGlbAssetRenderKey(glbAsset, canvasMarkdownDocument.semanticKey) : ''),
-    [canvasMarkdownDocument.semanticKey, glbAsset],
+    () => (glbAsset && shouldRenderGlbAsset ? buildGlbAssetRenderKey(glbAsset, canvasMarkdownDocument.semanticKey) : ''),
+    [canvasMarkdownDocument.semanticKey, glbAsset, shouldRenderGlbAsset],
   )
   const [glbAssetFit, setGlbAssetFit] = useState<GlbFit | null>(null)
   useEffect(() => {
@@ -106,7 +117,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       : { ...sceneGraph, edges: [] }
   }, [sceneGraph])
   const hasGraph = !!sceneGraphForRender
-  const hasGlbAsset = !!glbAsset
+  const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasRenderableScene = hasGraph || hasGlbAsset
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
@@ -327,7 +338,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               mode={mode}
             />
           ) : null}
-          {glbAsset ? (
+          {glbAsset && shouldRenderGlbAsset ? (
             <GlbAssetModel
               key={glbAssetRenderKey}
               asset={glbAsset}

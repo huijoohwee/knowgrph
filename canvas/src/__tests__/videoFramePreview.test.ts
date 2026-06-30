@@ -3,6 +3,7 @@ import {
   buildYouTubeTimestampFramePreviewDescriptor,
 } from 'grph-shared/rich-media/providers'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
+import { buildRemoteVideoFrameDefaultCacheRoot, buildRemoteVideoFrameDefaultPublicPrefix, readRemoteVideoFrameOutputFolderName } from '@/lib/rich-media/server/videoFrameServer'
 
 export async function testYouTubeTimestampFramePreviewUsesSharedVideoFrameEndpoint() {
   const url = 'https://www.youtube.com/watch?v=aBcD123xYz9&t=421'
@@ -52,4 +53,17 @@ export async function testRemoteVideoFrameFileNameIsStableAndNeutral() {
   if (!/^frame-[a-f0-9]+-t2_8\.png$/.test(fractional)) {
     throw new Error(`expected fractional frame filename to stay filesystem-safe, got ${fractional}`)
   }
+}
+
+export function testRemoteVideoFrameCacheRootUsesTimestampedSiblingImageFolder() {
+  const workspaceRoot = '/Users/huijoohwee/Documents/GitHub'
+  const folderName = readRemoteVideoFrameOutputFolderName()
+  const cacheRoot = buildRemoteVideoFrameDefaultCacheRoot(workspaceRoot)
+  const publicPrefix = buildRemoteVideoFrameDefaultPublicPrefix()
+  if (!/^\d{8}T\d{6}Z$/.test(folderName)) throw new Error(`expected docs_-style timestamp folder, got ${folderName}`)
+  if (cacheRoot !== `${workspaceRoot}/huijoohwee/image/video-frame/${folderName}`) {
+    throw new Error(`expected sibling image/video-frame timestamp root, got ${cacheRoot}`)
+  }
+  if (cacheRoot.split('/image/video-frame/').length !== 2) throw new Error(`expected one sibling image/video-frame root segment, got ${cacheRoot}`)
+  if (publicPrefix !== `/image/video-frame/${folderName}`) throw new Error(`expected timestamped public prefix, got ${publicPrefix}`)
 }

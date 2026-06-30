@@ -97,6 +97,12 @@ function enableGeospatialForDocumentPreset(): void {
   }
 }
 
+const VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS = new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])
+
+function shouldRetainVideoSequenceFloatingPanelView(value: unknown): boolean {
+  return VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS.has(String(value || '').trim())
+}
+
 function resolveCanvasSurfacePreset(args: {
   preset: CanvasWorkspaceFrontmatterPreset | null
   defaultCanvasSurfaceMode?: '2d' | '3d' | 'xr' | 'geospatial'
@@ -272,7 +278,7 @@ export function applyCanvasFrontmatterPreset(args: {
       current.setBottomSurfaceCollapsed(false)
       changed = true
     }
-    if (current.floatingPanelView !== 'timeline') {
+    if (!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)) {
       current.setFloatingPanelView('timeline')
       changed = true
     }
