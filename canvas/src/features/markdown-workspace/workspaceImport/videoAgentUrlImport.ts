@@ -353,12 +353,16 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     '    video_agent_process:',
     '      key: "video_agent_process"',
     '      type: "mermaid_flowchart"',
+    '      floatingPanelView: "flowchart"',
+    '      bottomPanelTab: "flowchart"',
   )
   pushBlockScalar(lines, '      ', 'value', flowchartCode)
   lines.push(
     '    video_media_timeline:',
     '      key: "video_media_timeline"',
     '      type: "mermaid_gantt"',
+    '      floatingPanelView: "timeline"',
+    '      bottomPanelTab: "timeline"',
   )
   pushBlockScalar(lines, '      ', 'value', ganttCode)
   lines.push(

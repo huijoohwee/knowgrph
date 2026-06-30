@@ -49,7 +49,17 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
     if (ganttCode.includes(token)) throw new Error(`expected media timeline to exclude agent workflow token ${token}`)
   }
   const markdown = buildVideoAgentUrlImportMarkdown({ sourceUrl })
-  for (const token of ['video_agent_process:', 'type: "mermaid_flowchart"', 'flowchart LR', 'video_media_timeline:', 'type: "mermaid_gantt"']) {
+  for (const token of [
+    'video_agent_process:',
+    'type: "mermaid_flowchart"',
+    'floatingPanelView: "flowchart"',
+    'bottomPanelTab: "flowchart"',
+    'flowchart LR',
+    'video_media_timeline:',
+    'type: "mermaid_gantt"',
+    'floatingPanelView: "timeline"',
+    'bottomPanelTab: "timeline"',
+  ]) {
     if (!markdown.includes(token)) throw new Error(`expected imported document to split process flowchart and media timeline: ${token}`)
   }
   const flowchartCodes = readYamlFrontmatterMermaidDiagramCodes(markdown, 'flowchart')
