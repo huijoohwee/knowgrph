@@ -133,15 +133,21 @@ export function ToolbarMenuLauncher({
             ? 'geo'
             : tab === 'flowEditor'
               ? 'flowEditor'
+              : tab === 'flowchart'
+                ? 'flowchart'
               : tab === 'gitGraph'
                 ? 'gitGraph'
-                : tab === 'architecture'
-                  ? 'architecture'
-                  : tab === 'eventModeling'
-                    ? 'eventModeling'
-                    : tab === 'strybldr'
-                      ? 'strybldr'
-                      : null
+                : tab === 'gantt'
+                  ? 'gantt'
+                  : tab === 'timeline'
+                    ? 'timeline'
+                    : tab === 'architecture'
+                      ? 'architecture'
+                      : tab === 'eventModeling'
+                        ? 'eventModeling'
+                        : tab === 'strybldr'
+                          ? 'strybldr'
+                          : null
       if (!requested) return
       if (detail?.open === false) {
         closeToolMenu()

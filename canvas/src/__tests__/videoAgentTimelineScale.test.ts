@@ -5,6 +5,10 @@ import {
   buildMermaidGanttCodeFromNeutralTimelinePayload,
   readYamlFrontmatterMermaidDiagramCodes,
 } from '@/lib/mermaid/mermaidDiagramCode'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const readSource = (...parts: string[]): string => readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
 
 export function testVideoAgentTimelineKeepsSecondsScaleForBottomPanel() {
   const code = buildMermaidGanttCodeFromNeutralTimelinePayload({
@@ -56,5 +60,16 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
   if (!mediaGantt) throw new Error(`expected Timeline panels to resolve media lanes from frontmatter: ${ganttCodes.join('\n')}`)
   if (mediaGantt.includes('Video agent stages') || mediaGantt.includes('Parse multimodal context')) {
     throw new Error(`expected media Timeline panels to exclude video-agent workflow stages: ${mediaGantt}`)
+  }
+}
+
+export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMediaAndProcessPanels() {
+  const utilsText = readSource('features/canvas/utils.ts')
+  const launcherText = readSource('features/toolbar/ToolbarMenuLauncher.tsx')
+  for (const tab of ['flowchart', 'gantt', 'timeline']) {
+    if (!utilsText.includes(`| '${tab}'`)) throw new Error(`expected floating-panel open event type to include ${tab}`)
+    if (!launcherText.includes(`tab === '${tab}'`) || !launcherText.includes(`? '${tab}'`)) {
+      throw new Error(`expected ToolbarMenuLauncher to route floating-panel tab ${tab}`)
+    }
   }
 }
