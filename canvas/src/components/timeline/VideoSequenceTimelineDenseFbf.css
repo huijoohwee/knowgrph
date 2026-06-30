@@ -1,0 +1,42 @@
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] {
+  min-width: 8px;
+  overflow: hidden;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-clip-move {
+  inset: 0 2px;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-handle {
+  width: 4px;
+  opacity: 0;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"]:hover .timeline-transport-track-handle,
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"]:focus-within .timeline-transport-track-handle,
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"].timeline-transport-track-clip--selected .timeline-transport-track-handle {
+  opacity: 0.78;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-clip-label,
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-timecode {
+  display: none;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-thumbnail-strip {
+  inset: 3px 2px;
+  gap: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-thumbnail {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  cursor: default;
+  pointer-events: none;
+}

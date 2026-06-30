@@ -1,3 +1,5 @@
+@import './VideoSequenceTimelineDenseFbf.css';
+
 .timeline-transport-shell--video-sequence {
   display: grid;
   grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 72px) minmax(0, 1fr);
@@ -37,11 +39,6 @@
   height: 38px;
   overflow: visible;
   border-radius: 6px;
-}
-
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] {
-  min-width: 8px;
-  overflow: hidden;
 }
 
 .timeline-video-sequence-editor[data-kg-animation-engine="native"] {
@@ -145,13 +142,6 @@
   user-select: none;
 }
 
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-clip-move {
-  inset: 0 2px;
-  justify-content: center;
-  overflow: hidden;
-  background: transparent;
-}
-
 .timeline-video-sequence-ruler-content .timeline-transport-track-handle {
   z-index: 5;
   width: 14px;
@@ -161,17 +151,6 @@
   border: 0;
   background: transparent;
   touch-action: none;
-}
-
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-handle {
-  width: 4px;
-  opacity: 0;
-}
-
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"]:hover .timeline-transport-track-handle,
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"]:focus-within .timeline-transport-track-handle,
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"].timeline-transport-track-clip--selected .timeline-transport-track-handle {
-  opacity: 0.78;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-handle--start {
@@ -243,11 +222,6 @@
   padding-inline: 1px 0;
 }
 
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-clip-label,
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-timecode {
-  display: none;
-}
-
 .timeline-video-sequence-clip-timecode {
   flex: 0 0 auto;
   border-radius: 3px;
@@ -287,13 +261,6 @@
   pointer-events: auto;
 }
 
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-thumbnail-strip {
-  inset: 3px 2px;
-  gap: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-mask .timeline-video-sequence-clip-thumbnail-strip,
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-grade .timeline-video-sequence-clip-thumbnail-strip,
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-audio .timeline-video-sequence-clip-thumbnail-strip {
@@ -318,14 +285,6 @@
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
-}
-
-.timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-thumbnail {
-  min-width: 0;
-  overflow: hidden;
-  border-radius: 3px;
-  cursor: default;
-  pointer-events: none;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-mask .timeline-video-sequence-clip-thumbnail,

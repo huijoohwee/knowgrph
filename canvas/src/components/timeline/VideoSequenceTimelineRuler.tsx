@@ -22,13 +22,7 @@ import {
   type VideoSequenceTimelineScope,
   type VideoSequenceTimelineToolId,
 } from './videoSequenceTimeline'
-import type {
-  MermaidGanttBarDragMode,
-  MermaidGanttTimelineDragPreview,
-  MermaidGanttTimelineTaskSpan,
-  MermaidGanttTimelineTick,
-} from '@/lib/mermaid/mermaidGanttBarInteraction'
-import { readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readMermaidGanttTaskSourceRangeMinutes, type MermaidGanttBarDragMode, type MermaidGanttTimelineDragPreview, type MermaidGanttTimelineTaskSpan, type MermaidGanttTimelineTick } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import './VideoSequenceTimelineRuler.css'
 export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24

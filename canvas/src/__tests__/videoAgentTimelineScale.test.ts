@@ -86,7 +86,10 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
 
 export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
-  const cssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
+  const cssText = [
+    readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css'),
+    readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css'),
+  ].join('\n')
   if (!rulerText.includes("lane === 'fbf' && !verticalMarker && widthPercent < 3.5")) {
     throw new Error('expected BottomPanel Timeline to mark only temporally dense FBF clips')
   }
