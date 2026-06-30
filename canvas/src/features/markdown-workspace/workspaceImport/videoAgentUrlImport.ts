@@ -171,6 +171,11 @@ const buildTranscriptImportArtifacts = (args: {
   }
 }
 
+const readTranscriptDurationMs = (args: Pick<VideoAgentUrlImportDocumentArgs, 'sourceTranscriptJsonText'>): number => {
+  const segments = readTranscriptSegmentsFromJson(String(args.sourceTranscriptJsonText || ''))
+  return segments.reduce((durationMs, segment) => Math.max(durationMs, segment.endMs), 0)
+}
+
 const pushBlockScalar = (lines: string[], indent: string, key: string, value: string): void => {
   const text = String(value || '').replace(/\r/g, '').trim()
   if (!text) return
@@ -213,9 +218,11 @@ export function buildVideoAgentUrlImportDocumentName(args: { sourceName?: string
 export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocumentArgs): string {
   const sourceUrl = cleanInline(args.sourceUrl)
   const workspaceOutputRoot = normalizeWorkspacePath(args.workspaceOutputRoot || VIDEO_AGENT_WORKSPACE_OUTPUT_ROOT_PATH)
+  const transcriptDurationMs = readTranscriptDurationMs(args)
   const result = buildVideoAgentPipeline({
     sourceUrl,
     intent: 'Load, parse, annotate, count zones, compile, generate, and stream the imported video.',
+    durationMs: transcriptDurationMs || undefined,
     workspaceOutputRoot,
   })
   if (result.ok === false) throw new Error(result.reason)
