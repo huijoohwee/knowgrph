@@ -39,6 +39,7 @@ function mayContainFlowGraphDeclaration(text: string): boolean {
   if (prefix.includes('← Inputs') && prefix.includes('Outputs →') && prefix.includes('**Edges**')) return true
   if (/```(?:mermaid|flow|graph)\b/i.test(prefix)) return true
   if (/^\s*(?:flowchart|graph)\s+(?:TD|LR|RL|TB|BT)\b/im.test(prefix)) return true
+  if (/^\s*(?:flow|flow_diagrams|kgCanvasRenderMode|kgVideoAgentImport)\s*:/m.test(prefix)) return true
   const frontmatter = readLeadingFrontmatter(prefix)
   if (!frontmatter) return false
   return /\b(?:flow|flow_diagrams|nodes|connections|frontmatterFlowSettings|runtime|pipeline|mermaid|widget_bundle|graph_meta|index)\s*:/m.test(frontmatter)

@@ -147,7 +147,12 @@ const buildTranscriptImportArtifacts = (args: {
     : readTranscriptSegmentsFromMarkdown(args.sourceText, args.durationMs)
   const segmentForTime = (timestampMs: number, fallbackIndex: number): VideoAgentTranscriptSegment | null => {
     const active = segments.find(segment => timestampMs >= segment.startMs && timestampMs < segment.endMs)
-    return active || segments[Math.min(segments.length - 1, fallbackIndex % Math.max(1, segments.length))] || null
+    if (active) return active
+    return segments.reduce<VideoAgentTranscriptSegment | null>((best, segment) => {
+      const bestDistance = best ? Math.min(Math.abs(timestampMs - best.startMs), Math.abs(timestampMs - best.endMs)) : Number.POSITIVE_INFINITY
+      const distance = Math.min(Math.abs(timestampMs - segment.startMs), Math.abs(timestampMs - segment.endMs))
+      return distance < bestDistance ? segment : best
+    }, null) || segments[Math.min(segments.length - 1, fallbackIndex % Math.max(1, segments.length))] || null
   }
   return {
     sourceTranscript: {
