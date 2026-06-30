@@ -139,6 +139,7 @@ function readNodeTitle(node: GraphNode): string {
 }
 
 function buildRichMediaPanelTextualIframeSpec(args: {
+  interactive?: boolean
   node: GraphNode
   outputText: string
   outputSrcDoc: string
@@ -151,7 +152,7 @@ function buildRichMediaPanelTextualIframeSpec(args: {
         srcDoc: args.outputSrcDoc,
         title: readNodeTitle(args.node),
       }),
-      interactive: false,
+      interactive: args.interactive === true,
     }
   }
   const trimmed = args.outputText.trim()
@@ -163,10 +164,10 @@ function buildRichMediaPanelTextualIframeSpec(args: {
         title: readNodeTitle(args.node),
         text: args.outputText,
       }),
-      interactive: false,
+      interactive: args.interactive === true,
     }
   }
-  return { kind: 'iframe', url: '', interactive: false }
+  return { kind: 'iframe', url: '', interactive: args.interactive === true }
 }
 
 function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
@@ -335,7 +336,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     srcDoc: preserveSourceSrcDoc ? sourceSrcDoc : (outputSrcDoc || sourceSrcDoc),
   })
 
-  const rawInteractive = (props as Record<string, unknown>).media_interactive
+  const rawInteractive = readNodeFieldValue(node, props, 'media_interactive')
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
 
   if (isRichMediaPanel) {
@@ -367,21 +368,21 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'text' || selected === 'poi') {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     }
     if (
       !selected
       && connectedRenderPathSet?.has('properties.output')
       && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.audioUrl') || connectedRenderPathSet.has('properties.imageUrl'))
     ) {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     }
     if (
       !selected
       && (richMediaSrcDoc || outputText.trim())
       && !(videoUrl || videoUrlCamel || audioUrl || audioUrlCamel || audioUrlSnake || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)
     ) {
-      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'audio') return { kind: 'audio', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
@@ -408,7 +409,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
-    if (isRichMediaPanel) return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc })
+    if (isRichMediaPanel) return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     if (domTag === 'IFRAME' && domSrcDoc) {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
       if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null

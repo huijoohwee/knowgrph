@@ -333,7 +333,12 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
   const previewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const sourceActivityText = readSource('components', 'timeline', 'useTimelineSourceActivityModel.ts')
   const activitySurfaceText = readSource('components', 'timeline', 'useTimelinePreviewActivitySurfaceModel.ts')
-  const richMediaPanelText = readSource('components', 'RichMediaPanel.tsx')
+  const richMediaPanelText = [
+    readSource('components', 'RichMediaPanel.types.ts'),
+    readSource('components', 'RichMediaPanelDirectMediaSurface.tsx'),
+    readSource('components', 'RichMediaPanelIframeSurface.tsx'),
+    readSource('components', 'useRichMediaPanelMediaState.ts'),
+  ].join('\n')
   const nodeOverlayEditorFormText = readSource('components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const richMediaTimelineSyncText = readSource('lib', 'render', 'richMediaTimelineSync.ts')
   const ganttPlaybackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
@@ -370,11 +375,11 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !richMediaPanelText.includes('scheduleInlineSrcDocTimelineFrameBurst') ||
     !richMediaPanelText.includes('[50, 150, 350, 750, 1200]') ||
     !richMediaPanelText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
-    !richMediaPanelText.includes('syncDirectMediaElementToTimeline(media, detail)') ||
-    !richMediaPanelText.includes('iframeRef={directVideoFallbackFrameRef}') ||
+    !richMediaPanelText.includes('syncDirectMediaElementToTimeline(directMediaElementRef.current, detail)') ||
+    !richMediaPanelText.includes('iframeRef={model.directVideoFallbackFrameRef}') ||
     !richMediaPanelText.includes('const directVideoUsesInlinePreview = kind ===') ||
-    !richMediaPanelText.includes('open={!!mediaSrc || directVideoUsesInlinePreview}') ||
-    !richMediaPanelText.includes('directVideoUsesInlinePreview ? (') ||
+    !richMediaPanelText.includes('open={Boolean(model.mediaSrc) || model.directVideoUsesInlinePreview}') ||
+    !richMediaPanelText.includes('model.directVideoUsesInlinePreview ? (') ||
     !richMediaPanelText.includes('iframeLoading="eager"') ||
     !richMediaPanelText.includes('iframeSelectableSurfaceDataAttr') ||
     !richMediaPanelText.includes('directMediaElementRef') ||
@@ -383,10 +388,10 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !richMediaPanelText.includes('applyImageLikeProxySrc(playableRawUrl)') ||
     !richMediaPanelText.includes('resolveRichMediaTimelineDurationUnits') ||
     !richMediaPanelText.includes('resolveRichMediaTimelineMediaTargetSeconds') ||
-    !richMediaPanelText.includes("media.addEventListener('loadedmetadata', syncDirectMediaElement)") ||
-    !richMediaPanelText.includes("media.removeEventListener('durationchange', syncDirectMediaElement)") ||
+    !richMediaPanelText.includes("media.addEventListener('loadedmetadata', sync)") ||
+    !richMediaPanelText.includes("media.removeEventListener('durationchange', sync)") ||
     !richMediaPanelText.includes('media.currentTime = targetSeconds') ||
-    !richMediaPanelText.includes('media.play()') ||
+    !richMediaPanelText.includes('media.play(') ||
     !nodeOverlayEditorFormText.includes('compactPreviewMediaElementRef') ||
     !nodeOverlayEditorFormText.includes('compactPreviewMediaElementHandler') ||
     !nodeOverlayEditorFormText.includes('syncCompactPreviewMediaToTimeline(media, detail)') ||
@@ -499,7 +504,9 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     !surfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !surfaceModelText.includes('const mediaPreviewSourceUrl = React.useMemo') ||
     !surfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
-    !surfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds') ||
+    !surfaceModelText.includes('const timelinePlanSourceDurationSeconds = React.useMemo') ||
+    !surfaceModelText.includes('const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds') ||
+    !surfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds') ||
     !surfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') ||
     !surfaceModelText.includes('mediaReaderSummary: mediaPreviewSummary') ||
     !surfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||

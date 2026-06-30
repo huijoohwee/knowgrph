@@ -360,6 +360,9 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !panelText.includes('Flow Editor video-agent validation import URLs')
     || !panelText.includes('runtimeInput={graphData}')
     || !panelText.includes('optionMode="import"')
+    || !panelText.includes('importUrlFallback={importUrlFallback}')
+    || !panelText.includes('importUrlOpts={FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS}')
+    || !panelText.includes('loadLaunchDropdownFallbackModule')
     || !panelText.includes('optionButtonLabel={option => `Import ${option.label}`}')
     || !panelText.includes('flowEditorDataHook')) {
     throw new Error('expected FlowEditor floating panel to delegate user-configurable video-agent validation imports to the shared owner')
@@ -367,7 +370,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
   if (panelText.includes('readVideoAgentValidationConfig')
     || panelText.includes('writeVideoAgentValidationConfig')
     || panelText.includes('getMarkdownWorkspaceActionBridge')
-    || panelText.includes('canvas2dRenderer:')) {
+    || panelText.includes("canvas2dRenderer: 'flowEditor'")) {
     throw new Error('expected FlowEditor floating panel to avoid a local video-agent validation config or URL-import alias path')
   }
   if (!videoAgentValidationControlsText.includes('containerAriaLabel')

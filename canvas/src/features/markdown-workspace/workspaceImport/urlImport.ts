@@ -207,6 +207,7 @@ export async function importWorkspaceUrl(args: {
         parentPath,
         sourceName: fetched.name,
         sourceText: fetched.text,
+        sourceTranscriptJsonText: fetched.transcriptJsonText,
         sourceUrl,
       })
       await args.fs.deleteEntry(normalized).catch(() => void 0)

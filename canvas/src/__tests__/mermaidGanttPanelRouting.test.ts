@@ -945,7 +945,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportSurfaceModelText.includes('const mediaPreviewSourceUrl = React.useMemo') ||
     !ganttTransportSurfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
     !ganttTransportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
-    !ganttTransportSurfaceModelText.includes('playbackUnitsPerMs: transportSession.playbackUnitsPerMs') ||
+    !ganttTransportSurfaceModelText.includes('playbackUnitsPerMs: transportClockDisplayModel.playbackUnitsPerMs') ||
     !ganttTransportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
     ganttTransportSurfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||
     ganttTransportSurfaceModelText.includes('transportSession.setTransportPlaying(false)') ||

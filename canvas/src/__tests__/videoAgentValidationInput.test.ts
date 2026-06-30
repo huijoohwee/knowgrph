@@ -1,10 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildVideoSequenceGeneratedFrameThumbnails } from '@/components/timeline/videoSequenceGeneratedFrameThumbnails'
+import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
 import { importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
 import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
 import {
   VIDEO_AGENT_REFERENCE_BOUNDARY,
+  VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES,
   VIDEO_AGENT_SCHEMA_VERSION,
   buildVideoAgentValidationUrlOptions,
   buildVideoAgentPipeline,
@@ -21,6 +23,11 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildMermaidGanttCodeFromNeutralTimelinePayload } from '@/lib/mermaid/mermaidDiagramCode'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+import {
+  VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS,
+  isVisualAnnotationE2eCanvas2dRenderer,
+} from '@/lib/config.render'
 import {
   assertVideoAgentContractCoversValidationUrls,
   installVideoAgentValidationYouTubeTranscriptFetch,
@@ -169,6 +176,16 @@ export function testVideoAgentValidationConfigSupportsUserConfiguredImportUrls()
   if (optionLabels.join('|') !== 'URL 1|URL 2') {
     throw new Error(`expected validation URL options for each configured test URL, got ${JSON.stringify(optionLabels)}`)
   }
+  const visualAnnotationRendererIds = VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS.join('|')
+  if (
+    visualAnnotationRendererIds !== 'flowEditor|media|storyboard'
+    || !isVisualAnnotationE2eCanvas2dRenderer('flowEditor')
+    || !isVisualAnnotationE2eCanvas2dRenderer('media')
+    || !isVisualAnnotationE2eCanvas2dRenderer('storyboard')
+    || isVisualAnnotationE2eCanvas2dRenderer('d3')
+  ) {
+    throw new Error(`expected Flow Editor, Media, and Storyboard to share the visual annotation E2E runtime, got ${visualAnnotationRendererIds}`)
+  }
 
   const configSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'video-agent', 'videoAgentValidationConfig.ts'), 'utf8')
   const validationControlsSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'video-agent', 'VideoAgentValidationImportControls.tsx'), 'utf8')
@@ -201,6 +218,9 @@ export function testVideoAgentValidationConfigSupportsUserConfiguredImportUrls()
     "optionMode === 'select'",
     'data-kg-video-agent-validation-url-option',
     'Import set',
+    'aria-busy={importRunning}',
+    'for (const url of validationImportUrls) await importValidationUrl(url)',
+    'data-kg-video-agent-validation-import-state',
   ]) {
     if (!validationControlsSource.includes(requiredSharedToken)) {
       throw new Error(`expected shared video-agent validation controls to expose ${requiredSharedToken}`)
@@ -277,13 +297,16 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const outputBoundary = Array.isArray(contract.outputBoundary) ? contract.outputBoundary.map(String).join('\n') : ''
   if (
     !outputBoundary.includes('frameByFrameSamples')
+    || !outputBoundary.includes('sourcePlaybackUrl')
+    || !outputBoundary.includes('sourceTranscript')
+    || !outputBoundary.includes('frameByFrameTranscript')
     || !outputBoundary.includes('richMediaPanels')
     || !outputBoundary.includes('visualDataset')
     || !outputBoundary.includes('mergedVisualDataset')
     || !outputBoundary.includes('datasetOperationSummary')
     || !outputBoundary.includes('zoneCounting')
   ) {
-    throw new Error('expected external validation document outputBoundary to name frame samples, Rich Media panels, visual datasets, dataset summaries, and zoneCounting')
+    throw new Error('expected external validation document outputBoundary to name frame samples, transcripts, Rich Media panels, visual datasets, dataset summaries, and zoneCounting')
   }
   const contractFrameBoxes = Array.isArray(contract.frameBoundingBoxes) ? contract.frameBoundingBoxes : []
   if (contractFrameBoxes.length < 5) {
@@ -315,9 +338,7 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     String(sourceSpecData.sourceVideo?.url || ''),
   ].join('\n'))
   for (const suppliedTestUrl of suppliedTestUrls) {
-    if (!sourceSpecValidationUrls.includes(suppliedTestUrl)) {
-      throw new Error(`expected Ingest test URL graph data to expose configurable validation URL ${suppliedTestUrl}`)
-    }
+    if (!sourceSpecValidationUrls.includes(suppliedTestUrl)) throw new Error(`expected Ingest test URL graph data to expose configurable validation URL ${suppliedTestUrl}`)
   }
   const sourceTimelineTracks = Array.isArray(sourceSpecData.timelineTracks) ? sourceSpecData.timelineTracks : []
   const sourceFrameTimelineTracks = sourceTimelineTracks.filter(entry => (
@@ -328,14 +349,18 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     sourceFrameTimelineTracks.length < contractFrameBoxes.length
     || !Array.isArray(sourceSpecData.frameBoundingBoxTimelineTracks)
     || sourceSpecData.bottomPanelTimelineSync?.surface !== 'BottomPanel Timeline'
-    || sourceSpecData.bottomPanelTimelineSync?.source !== 'frameBoundingBoxes'
-    || sourceSpecData.bottomPanelTimelineSync?.lane !== 'fbf'
+    || sourceSpecData.bottomPanelTimelineSync?.source !== 'video+frameBoundingBoxes+audio'
+    || sourceSpecData.bottomPanelTimelineSync?.lane !== 'video-fbf-audio'
     || sourceSpecData.bottomPanelTimelineSync?.thumbnailMode !== 'frame-by-frame-image'
   ) {
-    throw new Error('expected external validation document to sync frame boxes into BottomPanel Timeline FBF tracks')
+    throw new Error('expected external validation document to sync video, FBF, and audio tracks into BottomPanel Timeline')
   }
-  if (!Array.isArray(sourceSpecData.timelineLanes) || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Frame-by-frame boxes')) {
-    throw new Error('expected external validation document to expose a frame-by-frame BottomPanel Timeline lane')
+  if (
+    !Array.isArray(sourceSpecData.timelineLanes)
+    || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Frame-by-frame boxes')
+    || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Source audio')
+  ) {
+    throw new Error('expected external validation document to expose frame-by-frame and audio BottomPanel Timeline lanes')
   }
   const externalFbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(sourceSpecData)
   if (!externalFbfTimelineCode.includes('kgthumb_')) {
@@ -417,6 +442,9 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
         'videoAgentRuntimeContract:',
         'frameBoundingBoxes:',
         'frameByFrameSamples',
+        'sourcePlaybackUrl',
+        'sourceTranscript',
+        'frameByFrameTranscript',
         'richMediaPanels',
         'datasetOperationSummary',
         'visualDataset',
@@ -467,15 +495,11 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
   try {
     resetWorkspaceUrlContentCacheForTests()
     const fs = createMemoryWorkspaceFs()
-    const imported = await importWorkspaceUrl({
-      fs,
-      urlRaw: sourceUrl,
-      documentSemanticMode: 'document',
-    })
+    const imported = await importWorkspaceUrl({ fs, urlRaw: sourceUrl, documentSemanticMode: 'document' })
     if (imported.applyToGraph !== true) {
       throw new Error(`expected imported video-agent document to apply to graph, got ${String(imported.applyToGraph)}`)
     }
-    if (imported.createdPaths.length !== 1 || !String(imported.createdPaths[0] || '').endsWith('.video-agent.md')) {
+    if (imported.createdPaths.length !== 1 || !/^\/docs_\/\d{8}T\d{6}Z\/.+\.video-agent\.md$/.test(String(imported.createdPaths[0] || ''))) {
       throw new Error(`expected Import URL to focus a single video-agent document, got ${imported.createdPaths.join(', ')}`)
     }
     const sourceUnit = imported.corpusManifest?.sourceUnits?.[0] || null
@@ -484,51 +508,91 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
     }
     const importedText = String((await fs.readFileText(imported.createdPaths[0] || '')) || '')
     for (const token of [
-      'kgVideoAgentImport: true',
-      `kgYoutubeVideoId: "${videoId}"`,
-      'videoAgentRuntimeContract:',
-      'frameBoundingBoxes:',
-      'frameByFrameSamples',
-      'richMediaPanels',
-      'visualAnnotationE2E',
-      'datasetOperationSummary',
-      'visualDataset',
-      'mergedVisualDataset',
-      'datasetSplitSummary',
-      'savedDatasetArtifact',
-      'zoneCounting',
-      'html_video_source_spec',
-      'HtmlVideoRenderer',
-      'RichMediaPanel',
-      'type: "mermaid_gantt"',
-      sourceUrl,
+      'kgVideoAgentImport: true', 'kgWorkspaceOutputRoot: "/docs_/', `kgYoutubeVideoId: "${videoId}"`, 'kgVideoSequenceTimeline: true', 'kgVideoSequenceSources:',
+      'videoAgentRuntimeContract:', 'frameBoundingBoxes:', 'frameByFrameSamples', 'sourcePlaybackUrl', 'sourceTranscript', 'frameByFrameTranscript',
+      'richMediaPanels', 'visualAnnotationE2E', 'datasetOperationSummary', 'visualDataset', 'mergedVisualDataset', 'datasetSplitSummary',
+      'savedDatasetArtifact', 'zoneCounting', 'workspace output store /docs_/', 'html_video_source_spec', 'video_agent_dataset_panel', 'data-kg-video-agent-dataset-panel',
+      'HtmlVideoRenderer', 'RichMediaPanel', 'type: "mermaid_gantt"', sourceUrl,
     ]) {
       if (!importedText.includes(token)) {
         throw new Error(`expected complete video-agent import document to include ${token}`)
       }
     }
     const parsed = await loadGraphDataFromTextViaParser('youtube.video-agent.md', importedText, { applyToStore: false })
+    const videoSequenceTimelineModel = readVideoSequenceTimelineModelFromMarkdown(importedText)
+    if (
+      videoSequenceTimelineModel?.enabled !== true
+      || videoSequenceTimelineModel.sources.length !== 1
+      || videoSequenceTimelineModel.sources[0]?.sourceUrl !== sourceUrl
+      || videoSequenceTimelineModel.sources[0]?.importMode !== 'url'
+      || !(Number(videoSequenceTimelineModel.sources[0]?.durationSeconds || 0) > 0)
+    ) {
+      throw new Error(`expected video-agent import to activate shared timeline transport source model, got ${JSON.stringify(videoSequenceTimelineModel)}`)
+    }
     const nodes = Array.isArray(parsed?.graphData?.nodes) ? parsed.graphData.nodes : []
     const sourceSpecNode = nodes.find(node => String(node.id || '') === 'html_video_source_spec')
     const rendererNode = nodes.find(node => String(node.type || '') === 'HtmlVideoRenderer')
-    const richMediaPanel = nodes.find(node => String(node.type || '') === 'RichMediaPanel')
-    if (!sourceSpecNode || !rendererNode || !richMediaPanel) {
+    const videoAgentPanelIds = new Set(['html_video_stream_panel', 'video_agent_frame_analysis_panel', 'video_agent_dataset_panel'])
+    const videoAgentPanels = nodes.filter(node => videoAgentPanelIds.has(String(node.id || '')))
+    const datasetPanel = videoAgentPanels.find(node => String(node.id || '') === 'video_agent_dataset_panel')
+    if (!sourceSpecNode || !rendererNode || videoAgentPanels.length !== VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES.length || !datasetPanel) {
       throw new Error(`expected complete video-agent import to parse Flow Editor graph nodes, got ${JSON.stringify(nodes.map(node => ({ id: node.id, type: node.type })))}`)
     }
     const sourceSpecProperties = (sourceSpecNode.properties || {}) as Record<string, unknown>
     if (
       !String(sourceSpecProperties.data_json || '').includes('datasetOperationSummary')
       || !String(sourceSpecProperties.data_json || '').includes('zoneCounting')
+      || !String(sourceSpecProperties.data_json || '').includes('playbackEmbedUrl')
+      || !String(sourceSpecProperties.data_json || '').includes('sourceTranscript')
+      || !String(sourceSpecProperties.data_json || '').includes('frameByFrameTranscript')
+      || !readKtvString(sourceSpecProperties.sourcePlaybackUrl).includes('youtube-nocookie.com/embed')
       || !String(sourceSpecProperties.frameBoundingBoxes || '').includes('tracked subject')
+      || !String(sourceSpecProperties.sourceTranscript || '').includes('Validation import parse evidence')
+      || !String(sourceSpecProperties.frameByFrameTranscript || '').includes('transcriptSegmentIndex')
     ) {
-      throw new Error('expected source Render_Spec node to carry parsed dataset operation data_json and frameBoundingBoxes')
+      throw new Error('expected source Render_Spec node to carry parsed dataset, frame, and transcript artifacts')
+    }
+    const streamPanel = videoAgentPanels.find(node => String(node.id || '') === 'html_video_stream_panel')
+    const streamPanelProperties = (streamPanel?.properties || {}) as Record<string, unknown>
+    if (
+      !String(streamPanelProperties.outputSrcDoc || '').includes('data-kg-video-agent-source-playback')
+      || !readKtvString(streamPanelProperties.sourcePlaybackUrl).includes('youtube-nocookie.com/embed')
+      || readKtvString(streamPanelProperties.kind) !== 'iframe'
+      || readKtvString(streamPanelProperties.videoAgentKind) !== 'stream'
+      || unwrapKtvValue(streamPanelProperties.media_interactive) !== true
+    ) {
+      throw new Error('expected stream Rich Media panel to demonstrate audio-capable source playback and video-agent output')
+    }
+    const streamPanelMediaSpec = streamPanel ? getNodeMediaSpec(streamPanel) : null
+    if (
+      streamPanelMediaSpec?.kind !== 'iframe'
+      || streamPanelMediaSpec.interactive !== true
+      || !String(streamPanelMediaSpec.srcDoc || '').includes('data-kg-video-agent-source-playback')
+      || !String(streamPanelMediaSpec.srcDoc || '').includes('youtube-nocookie.com/embed')
+      || !String(streamPanelMediaSpec.srcDoc || '').includes('kg-rich-media-panel-srcdoc-timeline-transport')
+      || !String(streamPanelMediaSpec.srcDoc || '').includes('knowgrph:render-frame')
+    ) {
+      throw new Error(`expected stream Rich Media panel to resolve as playable timeline-synced iframe srcdoc, got ${JSON.stringify(streamPanelMediaSpec)}`)
+    }
+    const frameAnalysisMediaSpec = getNodeMediaSpec(videoAgentPanels.find(node => String(node.id || '') === 'video_agent_frame_analysis_panel') || null)
+    const frameAnalysisSrcDoc = String(frameAnalysisMediaSpec && 'srcDoc' in frameAnalysisMediaSpec ? frameAnalysisMediaSpec.srcDoc || '' : '')
+    if (
+      frameAnalysisMediaSpec?.kind !== 'iframe' || !frameAnalysisSrcDoc.includes('data-kg-video-agent-frame-analysis')
+      || !frameAnalysisSrcDoc.includes('kg-rich-media-panel-srcdoc-timeline-transport') || frameAnalysisSrcDoc.includes('data-kg-video-agent-source-playback')
+    ) throw new Error('expected frame-analysis Rich Media panel to stay route-owned and timeline-synced instead of reusing stream playback srcdoc')
+    const datasetPanelProperties = (datasetPanel.properties || {}) as Record<string, unknown>
+    if (
+      !String(datasetPanelProperties.outputSrcDoc || '').includes('data-kg-video-agent-dataset-panel')
+      || !String(datasetPanelProperties.visualDataset || '').includes('knowgrph-visual-annotation-dataset/v1')
+      || !String(datasetPanelProperties.mergedVisualDataset || '').includes('knowgrph-visual-annotation-dataset/v1')
+      || !String(datasetPanelProperties.zoneCounting || '').includes('knowgrph-zone-counting/v1')
+    ) {
+      throw new Error('expected imported dataset Rich Media panel to carry load/split/merge/save and zone-counting artifacts')
     }
   } finally {
     restoreFetch()
     resetWorkspaceUrlContentCacheForTests()
   }
   const transcriptImports = importCalls.filter(call => call.startsWith('/__youtube_transcript?'))
-  if (transcriptImports.length !== 1) {
-    throw new Error(`expected complete video-agent import to use one shared YouTube transcript request, got ${transcriptImports.length}`)
-  }
+  if (transcriptImports.length !== 1) throw new Error(`expected complete video-agent import to use one shared YouTube transcript request, got ${transcriptImports.length}`)
 }

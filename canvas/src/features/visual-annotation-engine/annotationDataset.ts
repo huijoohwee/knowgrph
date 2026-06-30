@@ -84,6 +84,7 @@ export type VisualZoneCountingTimeline = {
 type FrameBoxInput = {
   bbox?: unknown
   confidence?: unknown
+  detections?: unknown
   evidence?: unknown
   frameImageUrl?: unknown
   frameIndex?: unknown
@@ -224,16 +225,33 @@ const samplesFromFrameBoxes = (
   const timestampMs = readOptionalInteger(box.timestampMs) ?? index
   const frameIndex = readOptionalInteger(box.frameIndex) ?? index
   const assetUrl = readString(box.frameImageUrl, sourceUrl)
-  const annotation = normalizeAnnotation({
+  const primaryAnnotationInput = {
     annotationId: buildDetectionId({ sourceUrl, frameIndex, timestampMs, bbox: box.bbox }),
     label: box.label,
     bbox: box.bbox,
     confidence: box.confidence,
-  }, 'frameBoundingBox', { sourceUrl, frameIndex, timestampMs })
-  const sample = annotation ? normalizeSample({
+  }
+  const detectionInputs = Array.isArray(box.detections) && box.detections.length
+    ? box.detections
+    : [primaryAnnotationInput]
+  const annotations = detectionInputs.flatMap((detection, detectionIndex) => {
+    const annotationInput = isRecord(detection) ? detection : primaryAnnotationInput
+    const normalized = normalizeAnnotation({
+      ...annotationInput,
+      annotationId: readString(
+        annotationInput.annotationId,
+        buildDetectionId({ sourceUrl, frameIndex, timestampMs, bbox: annotationInput.bbox || box.bbox }) + `:${detectionIndex}`,
+      ),
+      bbox: annotationInput.bbox || box.bbox,
+      confidence: annotationInput.confidence ?? box.confidence,
+      label: annotationInput.label || box.label,
+    }, 'frameBoundingBox', { sourceUrl, frameIndex, timestampMs, index: detectionIndex })
+    return normalized ? [normalized] : []
+  })
+  const sample = annotations.length ? normalizeSample({
     assetUrl,
     assetType: 'video_frame',
-    annotations: [annotation],
+    annotations,
     frameIndex,
     timestampMs,
   }) : null

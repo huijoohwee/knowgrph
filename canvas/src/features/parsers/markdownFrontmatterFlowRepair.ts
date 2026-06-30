@@ -66,9 +66,9 @@ const readFrontmatterFlowElementStringFieldMap = (documentName: string, textRaw:
     if (label) out.set(buildFrontmatterFlowElementFieldKey('edge', id, 'label'), label)
     const type = normalizeString(edge?.type)
     if (type) out.set(buildFrontmatterFlowElementFieldKey('edge', id, 'type'), type)
-    const sourceHandle = normalizeString(edge?.sourceHandle)
+    const sourceHandle = normalizeString((edge?.properties as { sourceHandle?: unknown } | undefined)?.sourceHandle)
     if (sourceHandle) out.set(buildFrontmatterFlowElementFieldKey('edge', id, 'sourceHandle'), sourceHandle)
-    const targetHandle = normalizeString(edge?.targetHandle)
+    const targetHandle = normalizeString((edge?.properties as { targetHandle?: unknown } | undefined)?.targetHandle)
     if (targetHandle) out.set(buildFrontmatterFlowElementFieldKey('edge', id, 'targetHandle'), targetHandle)
     const properties = edge?.properties
     if (!properties || typeof properties !== 'object' || Array.isArray(properties)) continue

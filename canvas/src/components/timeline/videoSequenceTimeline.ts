@@ -249,6 +249,12 @@ export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskS
   return 'video'
 }
 
+export function shouldUseTimelineSecondsForVideoSequenceClipEdit(span: MermaidGanttTimelineTaskSpan | null | undefined): boolean {
+  if (!span) return false
+  if (resolveVideoSequenceTimelineLane(span) !== 'fbf') return false
+  return /\b\d+(?:\.\d+)?s\b/i.test(`${span.label} ${span.raw}`)
+}
+
 export function shouldRenderVideoSequenceTimelineSpan(span: MermaidGanttTimelineTaskSpan): boolean {
   if (/(^|[:,\s])vert([,\s]|$)/i.test(span.raw)) return true
   return clean(span.label).length > 0 && span.durationMinutes > 0.0001 && span.endMinutes > span.startMinutes

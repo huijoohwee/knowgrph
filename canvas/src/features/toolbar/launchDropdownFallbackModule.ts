@@ -1,14 +1,14 @@
-type LaunchDropdownFallbackModule = typeof import('@/features/toolbar/launchDropdownFallbacks')
+type LaunchDropdownFallbackModule = typeof import('./launchDropdownFallbacks')
 
 let launchDropdownFallbackModulePromise: Promise<LaunchDropdownFallbackModule> | null = null
 
 export const loadLaunchDropdownFallbackModule = (): Promise<LaunchDropdownFallbackModule> => {
   if (!launchDropdownFallbackModulePromise) {
-    launchDropdownFallbackModulePromise = import('@/features/toolbar/launchDropdownFallbacks')
-      .then(mod => mod)
-      .catch(err => {
+    launchDropdownFallbackModulePromise = import('./launchDropdownFallbacks')
+      .then(module => module)
+      .catch(error => {
         launchDropdownFallbackModulePromise = null
-        throw err
+        throw error
       })
   }
   return launchDropdownFallbackModulePromise

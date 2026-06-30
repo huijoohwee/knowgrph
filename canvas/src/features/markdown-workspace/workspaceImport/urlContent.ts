@@ -173,7 +173,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       name: String(converted.name || 'youtube-transcript.md'),
       text: buildYouTubeWorkspaceEntryText({ normalizedUrl, converted, viewHint: opts?.viewHint }),
       sourceMediaKind: 'video',
-      sourceMimeHint: 'text/markdown',
+      sourceMimeHint: 'text/markdown', transcriptJsonText: converted.transcriptJsonText,
     }
   }
 

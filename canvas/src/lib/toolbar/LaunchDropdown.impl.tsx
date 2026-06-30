@@ -17,7 +17,7 @@ import {
 } from './LaunchDropdownExportMenu'
 import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBridge'
 import { LaunchDropdownImportUrlItem } from './LaunchDropdownImportUrlItem'
-import { loadLaunchDropdownFallbackModule } from './launchDropdownFallbackModule'
+import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'

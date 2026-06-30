@@ -24,19 +24,26 @@ function formatClipEditTime(minutes: number, mediaDurationSeconds: number, maxMi
   return `${Math.max(0, Math.round(minutes))}m`
 }
 
+function formatTimelineSeconds(minutes: number): string {
+  return formatVideoSequenceTimelineSecondsOffset(minutes)
+}
+
 export function buildVideoSequenceClipEditDetailsLabel({
   maxMinutes,
   mediaDurationSeconds,
   selectedSpan,
+  useTimelineSeconds,
 }: {
   maxMinutes: number
   mediaDurationSeconds: number
   selectedSpan: VideoSequenceClipEditSpan | null
+  useTimelineSeconds?: boolean
 }): string {
   const hasSelection = Boolean(selectedSpan)
-  const startLabel = selectedSpan ? formatClipEditTime(selectedSpan.startMinutes, mediaDurationSeconds, maxMinutes) : ''
-  const endLabel = selectedSpan ? formatClipEditTime(selectedSpan.endMinutes, mediaDurationSeconds, maxMinutes) : ''
-  const durationLabel = selectedSpan ? formatClipEditTime(selectedSpan.durationMinutes, mediaDurationSeconds, maxMinutes) : ''
+  const formatTime = useTimelineSeconds ? formatTimelineSeconds : (minutes: number) => formatClipEditTime(minutes, mediaDurationSeconds, maxMinutes)
+  const startLabel = selectedSpan ? formatTime(selectedSpan.startMinutes) : ''
+  const endLabel = selectedSpan ? formatTime(selectedSpan.endMinutes) : ''
+  const durationLabel = selectedSpan ? formatTime(selectedSpan.durationMinutes) : ''
   return hasSelection
     ? `Selected clip: ${selectedSpan?.label}. Start ${startLabel}. End ${endLabel}. Duration ${durationLabel}.`
     : 'No clip selected'

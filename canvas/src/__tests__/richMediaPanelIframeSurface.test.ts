@@ -13,4 +13,7 @@ export function testRichMediaPanelInlineSrcDocIframeLoadsEagerly() {
   if (!inlineSrcDocBranch.includes('iframeLoading="eager"')) {
     throw new Error('expected inline Rich Media outputSrcDoc iframes to load eagerly inside transformed canvas overlays')
   }
+  if (!inlineSrcDocBranch.includes('autoplay') || !inlineSrcDocBranch.includes('encrypted-media') || !inlineSrcDocBranch.includes('picture-in-picture')) {
+    throw new Error('expected inline Rich Media outputSrcDoc iframes to allow audio-capable video playback')
+  }
 }

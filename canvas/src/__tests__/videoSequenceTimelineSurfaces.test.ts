@@ -720,7 +720,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportSurfaceModelText.includes('useTimelineMediaReaderSummary') ||
     !transportSurfaceModelText.includes('const mediaPreviewSourceUrl = React.useMemo') ||
     !transportSurfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
-    !transportSurfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds') ||
+    !['const timelinePlanSourceDurationSeconds = React.useMemo', 'const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds', 'sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds'].every(token => transportSurfaceModelText.includes(token)) ||
     !transportSurfaceModelText.includes('mediaReaderSummary: mediaPreviewSummary') ||
     !transportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
     !transportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !transportSurfaceModelText.includes('sourceThumbnailWindows') ||

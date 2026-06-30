@@ -15,6 +15,9 @@ import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { VideoAgentValidationImportControls } from '@/features/video-agent/VideoAgentValidationImportControls'
+import { FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS } from '@/features/video-agent/videoAgentValidationConfig'
+import type { WorkspaceImportUrlOpts } from '@/features/markdown-explorer/workspaceActionBridge'
+import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
 import {
   readFlowEditorFloatingPanelSplitHeightsPx,
   resolveFlowEditorFloatingPanelSplitResize,
@@ -182,6 +185,7 @@ export function FlowEditorFloatingPanelView() {
   const summary = React.useMemo(() => buildFlowEditorPortRows(graphData), [graphData])
   const selectedRowKey = useGraphStore(s => s.flowEditorSelectedPortRowKey || '')
   const setSelectedRowKey = useGraphStore(s => s.setFlowEditorSelectedPortRowKey)
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
   const listRef = React.useRef<HTMLElement | null>(null)
   const rowsPaneRef = React.useRef<HTMLElement | null>(null)
   const detailsPaneRef = React.useRef<HTMLElement | null>(null)
@@ -199,6 +203,16 @@ export function FlowEditorFloatingPanelView() {
     const key = String(rowKey || '').trim()
     setSelectedRowKey(selectedRowKey === key ? null : key)
   }, [selectedRowKey, setSelectedRowKey])
+  const importUrlFallback = React.useCallback(async (urlRaw: string, opts?: WorkspaceImportUrlOpts) => {
+    const importOptions = opts || FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS
+    const module = await loadLaunchDropdownFallbackModule()
+    await module.importUrlFallback({
+      urlRaw,
+      canvas2dRenderer: importOptions.canvas2dRenderer === 'storyboard' || importOptions.canvas2dRenderer === 'design' ? importOptions.canvas2dRenderer : 'd3',
+      documentSemanticMode: importOptions.documentSemanticMode,
+      pushUiToast,
+    })
+  }, [pushUiToast])
 
   React.useEffect(() => {
     if (!selectedRowKey) return
@@ -315,6 +329,8 @@ export function FlowEditorFloatingPanelView() {
           <VideoAgentValidationImportControls
             runtimeInput={graphData}
             optionMode="import"
+            importUrlFallback={importUrlFallback}
+            importUrlOpts={FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS}
             containerClassName={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.text.secondary)}
             fieldClassName={cn('min-h-8 min-w-0 rounded border px-2 py-1 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}
             textAreaClassName={cn('min-h-16 min-w-0 rounded border px-2 py-1 text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}

@@ -584,6 +584,25 @@ export default function StoryboardCanvas({
     () => resolveFlowEditorBaseGraphKind(storeGraphData || graphData || null),
     [graphData, storeGraphData],
   )
+  const commitStoryboardMarkdownMutation = React.useCallback((args: {
+    nextMarkdownText: string | null
+    historyLabel: string
+    nextSelectedNodeId?: string | null
+  }): boolean => {
+    if (!args.nextMarkdownText || !markdownDocumentName || args.nextMarkdownText === markdownDocumentText) return false
+    setMarkdownDocument(markdownDocumentName, args.nextMarkdownText, { applyViewPreset: false })
+    writeActiveMarkdownDocumentTextIfPresent({
+      state: useGraphStore.getState(),
+      sourceFiles: useGraphStore.getState().sourceFiles || [],
+      text: args.nextMarkdownText,
+      label: args.historyLabel,
+    })
+    addHistory(args.historyLabel)
+    if (Object.prototype.hasOwnProperty.call(args, 'nextSelectedNodeId')) {
+      selectNode(args.nextSelectedNodeId ? String(args.nextSelectedNodeId) : null)
+    }
+    return true
+  }, [addHistory, markdownDocumentName, markdownDocumentText, selectNode, setMarkdownDocument])
   const appendStoryboardRunNode = React.useCallback((appendArgs: {
     id?: string | null
     type: string
@@ -838,25 +857,6 @@ export default function StoryboardCanvas({
     }
     return endpointByNodeId
   }, [currentPropertiesByCardId, graphData?.nodes, nodeById, visibleCardIds, visibleLanes])
-  const commitStoryboardMarkdownMutation = React.useCallback((args: {
-    nextMarkdownText: string | null
-    historyLabel: string
-    nextSelectedNodeId?: string | null
-  }): boolean => {
-    if (!args.nextMarkdownText || !markdownDocumentName || args.nextMarkdownText === markdownDocumentText) return false
-    setMarkdownDocument(markdownDocumentName, args.nextMarkdownText, { applyViewPreset: false })
-    writeActiveMarkdownDocumentTextIfPresent({
-      state: useGraphStore.getState(),
-      sourceFiles: useGraphStore.getState().sourceFiles || [],
-      text: args.nextMarkdownText,
-      label: args.historyLabel,
-    })
-    addHistory(args.historyLabel)
-    if (Object.prototype.hasOwnProperty.call(args, 'nextSelectedNodeId')) {
-      selectNode(args.nextSelectedNodeId ? String(args.nextSelectedNodeId) : null)
-    }
-    return true
-  }, [addHistory, markdownDocumentName, markdownDocumentText, selectNode, setMarkdownDocument])
   const updateStoryboardCanonicalProperty = React.useCallback((args: {
     cardId: string
     propertyKeys: readonly string[]

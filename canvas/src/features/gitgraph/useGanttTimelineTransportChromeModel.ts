@@ -10,6 +10,7 @@ import {
 } from '@/components/timeline/videoSequenceExport'
 import {
   VIDEO_SEQUENCE_TIMELINE_TOOLS,
+  shouldUseTimelineSecondsForVideoSequenceClipEdit,
   type VideoSequenceTimelineToolId,
 } from '@/components/timeline/videoSequenceTimeline'
 import { type MermaidGanttTimelineTaskSpan, type MermaidGanttVideoSequenceTimingSyncMode } from '@/lib/mermaid/mermaidGanttBarInteraction'
@@ -129,6 +130,7 @@ export function useGanttTimelineTransportChromeModel(args: {
             maxMinutes: args.maxMinutes,
             mediaDurationSeconds: args.mediaDurationSeconds,
             selectedSpan,
+            useTimelineSeconds: shouldUseTimelineSecondsForVideoSequenceClipEdit(selectedSpan),
           }),
           maxMinutes: args.maxMinutes,
           mediaDurationSeconds: args.mediaDurationSeconds,

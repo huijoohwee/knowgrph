@@ -19,6 +19,7 @@ export {
   VIDEO_AGENT_VALIDATION_CONFIG_STORAGE_KEY,
   VIDEO_AGENT_VALIDATION_DOC_PATH_ENV_KEY,
   VIDEO_AGENT_VALIDATION_URLS_ENV_KEY,
+  FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS,
   buildVideoAgentValidationUrlOptions,
   mergeVideoAgentValidationConfigs,
   normalizeVideoAgentValidationConfig,
@@ -40,3 +41,5 @@ export {
   buildVideoAgentDatasetRuntime,
   type VideoAgentDatasetRuntime,
 } from './videoAgentDatasetRuntime'
+
+export { buildVideoAgentDatasetPanelSrcDoc } from './videoAgentDatasetProjection'

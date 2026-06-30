@@ -5,6 +5,7 @@ import {
   VIDEO_AGENT_REFERENCE_BOUNDARY,
   VIDEO_AGENT_SCHEMA_VERSION,
   VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES,
+  buildVideoAgentDatasetPanelSrcDoc,
   buildVideoAgentPipeline,
 } from '@/features/video-agent'
 import { buildVideoSequenceGeneratedFrameThumbnails } from '@/components/timeline/videoSequenceGeneratedFrameThumbnails'
@@ -79,11 +80,17 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
   if (!Array.isArray(pipeline.frameBoundingBoxes) || pipeline.frameBoundingBoxes.length < 8) {
     throw new Error('expected granular frame-by-frame bounding boxes for video reasoning')
   }
+  const expectedDetectionCount = pipeline.frameBoundingBoxes.reduce((total, box) => (
+    total + Math.max(1, box.detections.length)
+  ), 0)
+  if (expectedDetectionCount < pipeline.frameBoundingBoxes.length * 2) {
+    throw new Error('expected multi-object frame detections for every video-agent frame')
+  }
   if (
     pipeline.datasetRuntime.visualDataset.samples.length !== pipeline.frameBoundingBoxes.length
     || pipeline.datasetRuntime.mergedVisualDataset.samples.length !== pipeline.frameBoundingBoxes.length
     || pipeline.datasetRuntime.savedDatasetArtifact.sampleCount !== pipeline.frameBoundingBoxes.length
-    || pipeline.datasetRuntime.savedDatasetArtifact.annotationCount !== pipeline.frameBoundingBoxes.length
+    || pipeline.datasetRuntime.savedDatasetArtifact.annotationCount !== expectedDetectionCount
     || pipeline.datasetRuntime.datasetSplitSummary.total !== pipeline.frameBoundingBoxes.length
     || pipeline.datasetRuntime.datasetOperationSummary.loadedSamples !== pipeline.frameBoundingBoxes.length
     || pipeline.datasetRuntime.datasetOperationSummary.mergedSamples !== pipeline.frameBoundingBoxes.length
@@ -101,9 +108,30 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
     throw new Error('expected saved visual dataset artifact to contain the merged frame annotation samples')
   }
   const zoneHitTotal = Object.values(pipeline.datasetRuntime.zoneCounting.totals).reduce((sum, count) => sum + Number(count), 0)
-  if (zoneHitTotal !== pipeline.frameBoundingBoxes.length) {
+  if (zoneHitTotal !== expectedDetectionCount) {
     throw new Error(`expected real-time zone counts to account for every frame detection, got ${zoneHitTotal}`)
   }
+  const datasetPanelSrcDoc = buildVideoAgentDatasetPanelSrcDoc(pipeline.datasetRuntime)
+  for (const token of [
+    'data-kg-video-agent-dataset-panel',
+    'Load, split, merge, save',
+    'Real-time zone counting',
+    'knowgrph:render-frame',
+  ]) {
+    if (!datasetPanelSrcDoc.includes(token)) {
+      throw new Error(`expected dataset Rich Media projection to expose ${token}`)
+    }
+  }
+  const datasetPanelDom = new JSDOM(datasetPanelSrcDoc, { runScripts: 'dangerously', url: 'http://localhost' })
+  const targetFrame = pipeline.datasetRuntime.zoneCounting.frames[2]
+  datasetPanelDom.window.dispatchEvent(new datasetPanelDom.window.CustomEvent('knowgrph:render-frame', {
+    detail: { timeMs: targetFrame?.timestampMs || 0 },
+  }))
+  const datasetPanelRoot = datasetPanelDom.window.document.querySelector('[data-kg-video-agent-dataset-panel]')
+  if (datasetPanelRoot?.getAttribute('data-kg-video-agent-active-frame') !== String(targetFrame?.frameIndex)) {
+    throw new Error('expected dataset Rich Media projection to follow the shared frame clock')
+  }
+  datasetPanelDom.window.close()
   const pipelineFrameTimelineTracks = pipeline.timelineTracks.filter(track => track.source === 'frameBoundingBox' && track.timelineLane === 'fbf')
   if (pipelineFrameTimelineTracks.length !== pipeline.frameBoundingBoxes.length) {
     throw new Error('expected one BottomPanel FBF timeline track per frame bounding box')
@@ -114,6 +142,7 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
     timelineLanes: [
       { id: 'video-agent-stages', label: 'Video agent stages', tracks: pipeline.timelineTracks.filter(track => track.timelineLane === 'video').map(track => track.id) },
       { id: 'frame-by-frame-boxes', label: 'Frame-by-frame boxes', tracks: pipelineFrameTimelineTracks.map(track => track.id) },
+      { id: 'source-audio', label: 'Source audio', tracks: pipeline.timelineTracks.filter(track => track.timelineLane === 'audio').map(track => track.id) },
     ],
   })
   const fbfTimelineModel = buildMermaidGanttTimelineModel(fbfTimelineCode)
@@ -138,13 +167,20 @@ export function testVideoAgentPipelineBuildsE2EIngestionParsingRenderingPlan() {
     if (box.bbox.length !== 4 || box.bbox.some(value => typeof value !== 'number' || value < 0 || value > 1)) {
       throw new Error(`expected normalized frame bounding box, got ${JSON.stringify(box)}`)
     }
+    if (box.detections.length < 2 || box.detections.some(detection => detection.bbox.length !== 4)) {
+      throw new Error(`expected every frame to expose multi-object detections, got ${JSON.stringify(box)}`)
+    }
     if (!box.evidence.startsWith('frame-') || box.confidence <= 0 || box.confidence > 1) {
       throw new Error(`expected frame bounding box evidence and confidence, got ${JSON.stringify(box)}`)
     }
   }
+  const firstFrameBox = pipeline.frameBoundingBoxes[0]?.bbox
+  if (!firstFrameBox || firstFrameBox[1] < 0.35 || firstFrameBox[3] < 0.2) {
+    throw new Error(`expected first frame bbox seed to target lower-frame subject content, got ${JSON.stringify(firstFrameBox)}`)
+  }
   for (const capability of ['annotate', 'dataset', 'zone_count', 'search', 'edit', 'compile', 'generate', 'stream']) {
     const artifact = pipeline.reasoningArtifacts.find(entry => entry.capability === capability)
-    if (!artifact?.decision || !artifact.outputArtifact.startsWith('video-agent/') || !artifact.streamSignal.endsWith('ready')) {
+    if (!artifact?.decision || !artifact.outputArtifact.startsWith('/docs_/video-agent/') || !artifact.streamSignal.endsWith('ready')) {
       throw new Error(`expected structured reasoning artifact for ${capability}`)
     }
   }
@@ -179,6 +215,8 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   }
   for (const htmlToken of [
     'Granular frame-by-frame dataset strip',
+    'Audio-capable source video playback',
+    'data-kg-video-agent-source-playback',
     'Rich Media panel routes',
     'Real-time zone counts',
     'data-kg-video-agent-frame-strip-index',
@@ -192,7 +230,7 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   const data = validated.spec.data as {
     referenceBoundary?: unknown
     schemaVersion?: unknown
-    sourceVideo?: { url?: unknown; externalDependency?: unknown }
+    sourceVideo?: { url?: unknown; externalDependency?: unknown; playbackEmbedUrl?: unknown }
     reasoningArtifacts?: unknown
     frameBoundingBoxes?: unknown
     frameByFrameSamples?: unknown
@@ -208,12 +246,16 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
     timelineTracks?: unknown
     timelineLanes?: unknown
     bottomPanelTimelineSync?: { lane?: unknown; source?: unknown; surface?: unknown; thumbnailMode?: unknown; trackIds?: unknown }
-    workspaceFiles?: unknown
+    workspaceFiles?: Array<{ path?: unknown; role?: unknown }>
+    workspaceOutputRoot?: unknown
     streaming?: { fallback?: unknown; panel?: unknown; panels?: unknown }
   }
   if (data.schemaVersion !== VIDEO_AGENT_SCHEMA_VERSION) throw new Error('expected render data to carry video-agent schema')
   if (data.sourceVideo?.url !== neutralSourceUrl || data.sourceVideo.externalDependency !== false) {
     throw new Error('expected render data to preserve source-owned video URL')
+  }
+  if (data.sourceVideo.playbackEmbedUrl !== neutralSourceUrl) {
+    throw new Error('expected render data to expose audio-capable source playback embed URL')
   }
   if (data.referenceBoundary !== VIDEO_AGENT_REFERENCE_BOUNDARY) {
     throw new Error('expected render data to preserve the native inspiration boundary')
@@ -232,14 +274,18 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
     !Array.isArray(data.frameBoundingBoxTimelineTracks)
     || data.frameBoundingBoxTimelineTracks.length !== frameTimelineTracks.length
     || data.bottomPanelTimelineSync?.surface !== 'BottomPanel Timeline'
-    || data.bottomPanelTimelineSync?.source !== 'frameBoundingBoxes'
-    || data.bottomPanelTimelineSync?.lane !== 'fbf'
+    || data.bottomPanelTimelineSync?.source !== 'video+frameBoundingBoxes+audio'
+    || data.bottomPanelTimelineSync?.lane !== 'video-fbf-audio'
     || data.bottomPanelTimelineSync?.thumbnailMode !== 'frame-by-frame-image'
   ) {
-    throw new Error('expected render data to expose BottomPanel Timeline sync for frame bounding boxes')
+    throw new Error('expected render data to expose BottomPanel Timeline sync for video, FBF, and audio tracks')
   }
-  if (!Array.isArray(data.timelineLanes) || !data.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Frame-by-frame boxes')) {
-    throw new Error('expected render data to route frame boxes through a frame-by-frame timeline lane')
+  if (
+    !Array.isArray(data.timelineLanes)
+    || !data.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Frame-by-frame boxes')
+    || !data.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Source audio')
+  ) {
+    throw new Error('expected render data to route frame boxes and source audio through BottomPanel Timeline lanes')
   }
   if (!Array.isArray(data.reasoningArtifacts) || !data.reasoningArtifacts.some(entry => String((entry as { streamSignal?: unknown }).streamSignal || '') === 'stream-ready')) {
     throw new Error('expected render data to expose stream-ready reasoning artifacts')
@@ -247,7 +293,14 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   if (!Array.isArray(data.frameBoundingBoxes) || !data.frameBoundingBoxes.some(entry => Array.isArray((entry as { bbox?: unknown }).bbox))) {
     throw new Error('expected render data to expose frame-by-frame bounding boxes')
   }
-  const frameBoundingBoxCount = data.frameBoundingBoxes.length
+  const frameBoundingBoxRecords = data.frameBoundingBoxes as Array<{ detections?: unknown }>
+  const frameBoundingBoxCount = frameBoundingBoxRecords.length
+  const expectedDetectionCount = frameBoundingBoxRecords.reduce((total, box) => (
+    total + Math.max(1, Array.isArray(box.detections) ? box.detections.length : 0)
+  ), 0)
+  if (expectedDetectionCount < frameBoundingBoxCount * 2) {
+    throw new Error('expected render data to expose multi-object detections per frame')
+  }
   if (!Array.isArray(data.frameByFrameSamples) || data.frameByFrameSamples.length !== frameBoundingBoxCount) {
     throw new Error('expected render data to expose one frame-by-frame dataset sample per bounding box')
   }
@@ -282,27 +335,28 @@ export function testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec() {
   }
   if (
     !Array.isArray(data.visualDataset?.samples)
-    || data.visualDataset.samples.length !== data.frameBoundingBoxes.length
+    || data.visualDataset.samples.length !== frameBoundingBoxCount
     || !Array.isArray(data.mergedVisualDataset?.samples)
-    || data.mergedVisualDataset.samples.length !== data.frameBoundingBoxes.length
-    || data.datasetSplitSummary?.total !== data.frameBoundingBoxes.length
-    || data.datasetOperationSummary?.loadedSamples !== data.frameBoundingBoxes.length
-    || data.datasetOperationSummary?.mergedSamples !== data.frameBoundingBoxes.length
-    || data.datasetOperationSummary?.savedSamples !== data.frameBoundingBoxes.length
-    || data.datasetOperationSummary?.zoneCountedFrames !== data.frameBoundingBoxes.length
-    || data.savedDatasetArtifact?.sampleCount !== data.frameBoundingBoxes.length
-    || data.savedDatasetArtifact.annotationCount !== data.frameBoundingBoxes.length
+    || data.mergedVisualDataset.samples.length !== frameBoundingBoxCount
+    || data.datasetSplitSummary?.total !== frameBoundingBoxCount
+    || data.datasetOperationSummary?.loadedSamples !== frameBoundingBoxCount
+    || data.datasetOperationSummary?.mergedSamples !== frameBoundingBoxCount
+    || data.datasetOperationSummary?.savedSamples !== frameBoundingBoxCount
+    || data.datasetOperationSummary?.zoneCountedFrames !== frameBoundingBoxCount
+    || data.savedDatasetArtifact?.sampleCount !== frameBoundingBoxCount
+    || data.savedDatasetArtifact.annotationCount !== expectedDetectionCount
     || typeof data.savedDatasetArtifact.text !== 'string'
     || !Array.isArray(data.zoneCounting?.frames)
-    || data.zoneCounting.frames.length !== data.frameBoundingBoxes.length
+    || data.zoneCounting.frames.length !== frameBoundingBoxCount
   ) {
     throw new Error('expected render data to expose dataset load, split, merge, save, and real-time zone-counting artifacts')
   }
-  if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some(entry => String((entry as { role?: unknown }).role || '') === 'stream-output')) {
-    throw new Error('expected render data to expose stream manifest workspace output')
+  const workspaceFiles = Array.isArray(data.workspaceFiles) ? data.workspaceFiles : []
+  if (data.workspaceOutputRoot !== '/docs_/video-agent' || !workspaceFiles.some(entry => String(entry.role || '') === 'stream-output') || !workspaceFiles.every(entry => String(entry.path || '').startsWith('/docs_/video-agent/'))) {
+    throw new Error('expected render data to expose stream manifest workspace output under /docs_/video-agent')
   }
   for (const role of ['dataset-operation-summary', 'visual-annotation-dataset', 'real-time-zone-counting']) {
-    if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some(entry => String((entry as { role?: unknown }).role || '') === role)) {
+    if (!workspaceFiles.some(entry => String(entry.role || '') === role)) {
       throw new Error(`expected render data workspace files to expose ${role}`)
     }
   }
@@ -364,11 +418,11 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
   const visibleFrameBoxes = Array.from(renderDom.window.document.querySelectorAll('.frame-box:not([hidden])')) as Element[]
   if (
     visibleFrameImages.length !== 1
-    || visibleFrameBoxes.length !== 1
+    || visibleFrameBoxes.length < 2
     || visibleFrameImages[0]?.getAttribute('data-frame-index') !== String(laterFrame.frameIndex)
     || visibleFrameBoxes[0]?.getAttribute('data-frame-index') !== String(laterFrame.frameIndex)
   ) {
-    throw new Error('expected the shared render-frame event to select the matching Rich Media frame image and bounding box')
+    throw new Error('expected the shared render-frame event to select the matching Rich Media frame image and multi-object bounding boxes')
   }
   const activeStripItem = renderDom.window.document.querySelector('[data-kg-video-agent-frame-strip-index][data-active="1"]')
   const activeZoneFrame = renderDom.window.document.querySelector('[data-kg-video-agent-zone-frame]:not([hidden])')
@@ -414,6 +468,7 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
   const projectedImages = projectedDom.window.document.querySelectorAll('[data-kg-video-agent-frame-analysis] img')
   const projectedVisibleImage = projectedDom.window.document.querySelector('[data-kg-video-agent-frame-analysis] li:not([hidden])')
   const projectedVisibleBox = projectedDom.window.document.querySelector('[data-kg-video-agent-frame-analysis] mark:not([hidden])')
+  const projectedVisibleBoxes = projectedDom.window.document.querySelectorAll('[data-kg-video-agent-frame-analysis] mark:not([hidden])')
   const projectedRoot = projectedDom.window.document.querySelector('[data-kg-video-agent-frame-analysis]')
   if (
     projectedImages.length !== result.pipeline.frameBoundingBoxes.length
@@ -422,6 +477,9 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFbfTimeline
     || projectedRoot?.getAttribute('data-kg-video-agent-frame-state') !== String(laterFrame.frameIndex)
   ) {
     throw new Error('expected external Rich Media panel srcdoc to reuse the shared frame-analysis projection and timeline clock')
+  }
+  if (projectedVisibleBoxes.length < 2) {
+    throw new Error('expected projected Rich Media panel to render multi-object boxes for the active frame')
   }
   const projectedVisibleBoxLeft = String((projectedVisibleBox as HTMLElement | null)?.style?.left || '')
   if (!projectedVisibleBoxLeft || projectedVisibleBoxLeft === '22%') {

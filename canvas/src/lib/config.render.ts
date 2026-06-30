@@ -6,6 +6,8 @@ export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'media', 'multi
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
+export const VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS = ['flowEditor', 'media', 'storyboard'] as const satisfies readonly Canvas2dRendererId[]
+
 export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design', 'flowEditor']
 
 type Canvas2dRendererSpec = {
@@ -217,6 +219,10 @@ export const isDashboardCanvas2dRenderer = (id: Canvas2dRendererId | null | unde
 
 export const isGalleryCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'gallery'
+}
+
+export const isVisualAnnotationE2eCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return !!id && (VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS as readonly Canvas2dRendererId[]).includes(id)
 }
 
 export const isMediaCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {

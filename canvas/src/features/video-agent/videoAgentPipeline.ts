@@ -1,12 +1,22 @@
 import { HTML_VIDEO_ENGINE_IDS, type RenderSpec } from '@/features/html-video-renderer'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId } from 'grph-shared/rich-media/providers'
+import { buildRemoteVideoFrameRequestUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 import {
-  VIDEO_AGENT_DATASET_ARTIFACT_PATHS,
   buildVideoAgentDatasetRuntime,
   type VideoAgentDatasetRuntime,
 } from './videoAgentDatasetRuntime'
 import { CAPABILITY_META, DEFAULT_CAPABILITIES, REASONING_META } from './videoAgentPipelineMeta'
+import {
+  buildVideoAgentFrameBoundingBoxes,
+  type VideoAgentFrameBoundingBox,
+} from './videoAgentFrameBoxes'
+import {
+  buildVideoAgentWorkspaceOutputArtifactPath,
+  buildVideoAgentWorkspaceOutputPath,
+  normalizeVideoAgentWorkspaceOutputRootPath,
+} from './videoAgentWorkspaceOutput'
+
+export type { VideoAgentFrameBoundingBox, VideoAgentFrameDetection } from './videoAgentFrameBoxes'
 
 export const VIDEO_AGENT_SCHEMA_VERSION = 'knowgrph-video-agent/v1' as const
 
@@ -48,6 +58,7 @@ export type VideoAgentPipelineInput = {
   fps?: number
   durationMs?: number
   engineHint?: string
+  workspaceOutputRoot?: string
 }
 
 export type VideoAgentPipelineStage = {
@@ -69,16 +80,6 @@ export type VideoAgentReasoningArtifact = {
   streamSignal: string
 }
 
-export type VideoAgentFrameBoundingBox = {
-  frameIndex: number
-  timestampMs: number
-  label: string
-  bbox: readonly [number, number, number, number]
-  confidence: number
-  evidence: string
-  frameImageUrl: string
-}
-
 export type VideoAgentTimelineTrack = {
   id: string
   label: string
@@ -87,8 +88,8 @@ export type VideoAgentTimelineTrack = {
   durationMs: number
   phase: VideoAgentPipelineStage['phase']
   output: string
-  timelineLane: 'video' | 'fbf'
-  source: 'agent-stage' | 'frameBoundingBox'
+  timelineLane: 'video' | 'fbf' | 'audio'
+  source: 'agent-stage' | 'frameBoundingBox' | 'source-audio'
   bbox?: VideoAgentFrameBoundingBox['bbox']
   confidence?: number
   frameIndex?: number
@@ -200,33 +201,15 @@ const buildStages = (capabilities: readonly VideoAgentCapability[], durationMs: 
   })
 }
 
-const buildReasoningArtifacts = (capabilities: readonly VideoAgentCapability[]): VideoAgentReasoningArtifact[] =>
+const buildReasoningArtifacts = (
+  capabilities: readonly VideoAgentCapability[],
+  workspaceOutputRoot: ReturnType<typeof normalizeVideoAgentWorkspaceOutputRootPath>,
+): VideoAgentReasoningArtifact[] =>
   capabilities.map(capability => ({
     capability,
     ...REASONING_META[capability],
+    outputArtifact: buildVideoAgentWorkspaceOutputArtifactPath(REASONING_META[capability].outputArtifact, workspaceOutputRoot),
   }))
-
-const buildFrameBoundingBoxes = (durationMs: number, sourceUrl: string): VideoAgentFrameBoundingBox[] => {
-  const sampleCount = clampInteger(Math.ceil(durationMs / 700), 10, 6, 24)
-  const frameStepMs = Math.max(1, Math.floor(durationMs / sampleCount))
-  return Array.from({ length: sampleCount }, (_, index) => {
-    const progress = index / Math.max(1, sampleCount - 1)
-    const x = Number((0.13 + progress * 0.18).toFixed(3))
-    const y = Number((0.18 + (index % 2) * 0.05).toFixed(3))
-    const width = Number((0.34 - progress * 0.05).toFixed(3))
-    const height = Number((0.3 + progress * 0.04).toFixed(3))
-    const timestampMs = Math.min(durationMs - 1, index * frameStepMs)
-    return {
-      frameIndex: index,
-      timestampMs,
-      label: index % 2 === 0 ? 'tracked subject' : 'context object',
-      bbox: [x, y, width, height] as const,
-      confidence: Number((0.82 + progress * 0.08).toFixed(2)),
-      evidence: `frame-${index}-visual-detection`,
-      frameImageUrl: buildVideoAgentFrameImageUrl(sourceUrl, timestampMs),
-    }
-  })
-}
 
 const buildStageTimelineTracks = (stages: readonly VideoAgentPipelineStage[]): VideoAgentTimelineTrack[] =>
   stages.map((stage, index) => ({
@@ -267,6 +250,18 @@ const buildFrameBoundingBoxTimelineTracks = (
   })
 }
 
+const buildAudioTimelineTrack = (durationMs: number): VideoAgentTimelineTrack => ({
+  id: 'video_agent_source_audio',
+  label: 'Source audio waveform',
+  trackIndex: 0,
+  startMs: 0,
+  durationMs: Math.max(1, durationMs),
+  phase: 'rendering',
+  output: 'audio-capable source playback waveform and mix',
+  timelineLane: 'audio',
+  source: 'source-audio',
+})
+
 const buildVideoAgentCss = (): string =>
   [
     'main{--kg-video-agent-progress:0;width:100%;height:100%;box-sizing:border-box;display:grid;grid-template-rows:auto 1fr auto;gap:14px;padding:18px;font-family:Inter,system-ui,sans-serif;background:#07111f;color:#f8fafc;overflow:hidden}',
@@ -283,6 +278,7 @@ const buildVideoAgentCss = (): string =>
     '.url{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.badge{font-size:11px;color:#5eead4}',
     '.video-card{display:grid;gap:12px;padding:14px}',
+    '.source-playback{display:grid;gap:6px;margin:0}.source-playback iframe{display:block;width:100%;aspect-ratio:16/9;border:1px solid #334155;border-radius:8px;background:#020617}.source-playback figcaption{font-size:11px;color:#cbd5e1;line-height:1.35}',
     '.thumbnail{position:relative;aspect-ratio:16/9;border:1px solid #334155;border-radius:8px;background:linear-gradient(135deg,#123456,#0b1220 55%,#0f766e);overflow:hidden}',
     '.frame-images,.frame-images>li{position:absolute;inset:0;margin:0;padding:0;list-style:none}',
     '.frame-images>li[hidden],.frame-box[hidden]{display:none}',
@@ -334,16 +330,6 @@ const buildVideoAgentCss = (): string =>
   ].join('')
 
 const secondsLabel = (ms: number): string => `${(ms / 1000).toFixed(1)}s`
-
-const buildVideoAgentFrameImageUrl = (sourceUrl: string, timestampMs: number): string => {
-  const normalizedSourceUrl = String(sourceUrl || '').trim()
-  if (!normalizedSourceUrl || (!getYouTubeId(normalizedSourceUrl) && !getBilibiliVideoId(normalizedSourceUrl))) return ''
-  return buildRemoteVideoFrameRequestUrl({
-    sourceUrl: normalizedSourceUrl,
-    timeSeconds: Math.max(0, timestampMs / 1000),
-    format: 'png',
-  })
-}
 
 const buildVideoAgentHtml = (args: {
   sourceUrl: string
@@ -398,10 +384,14 @@ const buildVideoAgentHtml = (args: {
       return `<article><h3>${escapeHtml(role)}</h3><p>${escapeHtml(route)}</p><output>${escapeHtml(output)}</output></article>`
     })
     .join('')
+  const sourcePlayback = args.sourceUrl ? `<figure class="source-playback" data-kg-video-agent-source-playback="1"><iframe title="Audio-capable source video playback" src="${escapeHtml(buildYouTubeEmbedUrl(args.sourceUrl, { includeOrigin: false }) || args.sourceUrl)}" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe><figcaption>Source playback is embedded with controls so operator-initiated audio remains available while frame analysis stays native.</figcaption></figure>` : ''
   const frameBoxItems = args.frameBoundingBoxes
-    .map(box => {
-      const [x, y, width, height] = box.bbox
-      return `<mark class="frame-box" data-frame-index="${escapeHtml(box.frameIndex)}" hidden style="left:${escapeHtml(x * 100)}%;top:${escapeHtml(y * 100)}%;width:${escapeHtml(width * 100)}%;height:${escapeHtml(height * 100)}%"><span>${escapeHtml(`${secondsLabel(box.timestampMs)} ${box.label}`)}</span></mark>`
+    .flatMap(box => {
+      const detections = box.detections.length ? box.detections : [box]
+      return detections.map((detection, detectionIndex) => {
+        const [x, y, width, height] = detection.bbox
+        return `<mark class="frame-box" data-frame-index="${escapeHtml(box.frameIndex)}" data-detection-index="${escapeHtml(detectionIndex)}" hidden style="left:${escapeHtml(x * 100)}%;top:${escapeHtml(y * 100)}%;width:${escapeHtml(width * 100)}%;height:${escapeHtml(height * 100)}%"><span>${escapeHtml(`${secondsLabel(box.timestampMs)} ${detection.label}`)}</span></mark>`
+      })
     })
     .join('')
   const sourceFrameImageMarkup = args.frameBoundingBoxes
@@ -415,15 +405,16 @@ const buildVideoAgentHtml = (args: {
   })
   const frameTiming = JSON.stringify(args.frameBoundingBoxes.map((box, index) => ({
     bbox: box.bbox,
+    boxes: (box.detections.length ? box.detections : [box]).map(detection => detection.bbox),
     frameIndex: box.frameIndex,
     timestampMs: box.timestampMs,
     endMs: args.frameBoundingBoxes[index + 1]?.timestampMs ?? args.durationMs,
   })))
   const frameSyncScript = sourceFrameImageMarkup
-    ? `<script>(function(){var frames=JSON.parse('${frameTiming}');var duration=${Math.max(1, args.durationMs)};var root=document.querySelector('.thumbnail');var template=root?String(root.getAttribute('data-kg-video-agent-frame-url-template')||''):'';function frameSampleMs(){var min=0;for(var index=1;index<frames.length;index+=1){var delta=Number(frames[index].timestampMs)-Number(frames[index-1].timestampMs);if(delta>0&&(!min||delta<min))min=delta;}return min>0?Math.max(120,Math.min(350,min/4)):0;}var sampleMs=frameSampleMs();function formatSeconds(ms){var text=(Math.max(0,ms)/1000).toFixed(3);return text.replace(/0+$/,'').replace(/\\.$/,'');}function frameState(timeMs){var t=Math.max(0,Number(timeMs)||0);for(var index=0;index<frames.length;index+=1){var current=frames[index];var next=frames[index+1]||current;if(t>=current.timestampMs&&t<current.endMs){var span=Math.max(1,Number(next.timestampMs)-Number(current.timestampMs));return{current:current,next:next,ratio:Math.max(0,Math.min(1,(t-current.timestampMs)/span))};}}var last=frames[frames.length-1];return{current:last,next:last,ratio:0};}function mixedBox(state){var a=state.current.bbox||[0,0,0,0];var b=state.next.bbox||a;var r=state.ratio||0;return[0,1,2,3].map(function(index){return Number(a[index]||0)+(Number(b[index]||0)-Number(a[index]||0))*r;});}function applyBox(mark,state){var box=mixedBox(state);mark.style.left=(box[0]*100)+'%';mark.style.top=(box[1]*100)+'%';mark.style.width=(box[2]*100)+'%';mark.style.height=(box[3]*100)+'%';}function updateFrameImage(img,timeMs){if(!img||!template||!(sampleMs>0))return;var bucket=Math.max(0,Math.round((Number(timeMs)||0)/sampleMs)*sampleMs);if(String(img.getAttribute('data-kg-video-agent-frame-time-ms')||'')===String(bucket))return;try{var url=new URL(template,'http://localhost');url.searchParams.set('time',formatSeconds(bucket));img.setAttribute('src',url.pathname+url.search);img.setAttribute('data-kg-video-agent-frame-time-ms',String(bucket));}catch(e){}}function fitLayer(img){var layer=document.querySelector('.frame-boxes');if(!root||!layer)return;var w=root.clientWidth||root.getBoundingClientRect().width||0;var h=root.clientHeight||root.getBoundingClientRect().height||0;var nw=img&&img.naturalWidth?img.naturalWidth:16;var nh=img&&img.naturalHeight?img.naturalHeight:9;if(!(w>0)||!(h>0)||!(nw>0)||!(nh>0)){layer.style.inset='0';return;}var scale=Math.min(w/nw,h/nh);var vw=nw*scale;var vh=nh*scale;layer.style.left=((w-vw)/2)+'px';layer.style.top=((h-vh)/2)+'px';layer.style.width=vw+'px';layer.style.height=vh+'px';layer.style.right='auto';layer.style.bottom='auto';}function sync(timeMs){var state=frameState(timeMs);var active=state.current.frameIndex;document.documentElement.style.setProperty('--kg-video-agent-progress',String(Math.max(0,Math.min(1,(Number(timeMs)||0)/duration))));document.querySelectorAll('[data-frame-index]').forEach(function(element){var visible=Number(element.getAttribute('data-frame-index'))===active;element.hidden=!visible;if(visible&&element.classList&&element.classList.contains('frame-box'))applyBox(element,state);});document.querySelectorAll('[data-kg-video-agent-frame-strip-index]').forEach(function(element){element.setAttribute('data-active',Number(element.getAttribute('data-kg-video-agent-frame-strip-index'))===active?'1':'0');});document.querySelectorAll('[data-kg-video-agent-zone-frame]').forEach(function(element){element.hidden=Number(element.getAttribute('data-kg-video-agent-zone-frame'))!==active;});var img=document.querySelector('.frame-images>li:not([hidden]) img');updateFrameImage(img,timeMs);fitLayer(img);}document.querySelectorAll('.frame-images img').forEach(function(img){img.addEventListener('load',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});});window.addEventListener('resize',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});window.addEventListener('knowgrph:render-frame',function(event){var timeMs=Number(event&&event.detail&&event.detail.timeMs)||0;window.__KNOWGRPH_RENDER_TIME_MS__=timeMs;sync(timeMs);});sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);}());</script>`
+    ? `<script>(function(){var frames=JSON.parse('${frameTiming}');var duration=${Math.max(1, args.durationMs)};var root=document.querySelector('.thumbnail');var template=root?String(root.getAttribute('data-kg-video-agent-frame-url-template')||''):'';function frameSampleMs(){var min=0;for(var index=1;index<frames.length;index+=1){var delta=Number(frames[index].timestampMs)-Number(frames[index-1].timestampMs);if(delta>0&&(!min||delta<min))min=delta;}return min>0?Math.max(120,Math.min(350,min/4)):0;}var sampleMs=frameSampleMs();function formatSeconds(ms){var text=(Math.max(0,ms)/1000).toFixed(3);return text.replace(/0+$/,'').replace(/\\.$/,'');}function frameState(timeMs){var t=Math.max(0,Number(timeMs)||0);for(var index=0;index<frames.length;index+=1){var current=frames[index];var next=frames[index+1]||current;if(t>=current.timestampMs&&t<current.endMs){var span=Math.max(1,Number(next.timestampMs)-Number(current.timestampMs));return{current:current,next:next,ratio:Math.max(0,Math.min(1,(t-current.timestampMs)/span))};}}var last=frames[frames.length-1];return{current:last,next:last,ratio:0};}function readBox(frame,detectionIndex){var boxes=frame&&Array.isArray(frame.boxes)?frame.boxes:[];return boxes[detectionIndex]||frame.bbox||boxes[0]||[0,0,0,0];}function mixedBox(state,detectionIndex){var a=readBox(state.current,detectionIndex);var b=readBox(state.next,detectionIndex);var r=state.ratio||0;return[0,1,2,3].map(function(index){return Number(a[index]||0)+(Number(b[index]||0)-Number(a[index]||0))*r;});}function applyBox(mark,state){var detectionIndex=Number(mark.getAttribute('data-detection-index'))||0;var box=mixedBox(state,detectionIndex);mark.style.left=(box[0]*100)+'%';mark.style.top=(box[1]*100)+'%';mark.style.width=(box[2]*100)+'%';mark.style.height=(box[3]*100)+'%';}function updateFrameImage(img,timeMs){if(!img||!template||!(sampleMs>0))return;var bucket=Math.max(0,Math.round((Number(timeMs)||0)/sampleMs)*sampleMs);if(String(img.getAttribute('data-kg-video-agent-frame-time-ms')||'')===String(bucket))return;try{var url=new URL(template,'http://localhost');url.searchParams.set('time',formatSeconds(bucket));img.setAttribute('src',url.pathname+url.search);img.setAttribute('data-kg-video-agent-frame-time-ms',String(bucket));}catch(e){}}function fitLayer(img){var layer=document.querySelector('.frame-boxes');if(!root||!layer)return;var w=root.clientWidth||root.getBoundingClientRect().width||0;var h=root.clientHeight||root.getBoundingClientRect().height||0;var nw=img&&img.naturalWidth?img.naturalWidth:16;var nh=img&&img.naturalHeight?img.naturalHeight:9;if(!(w>0)||!(h>0)||!(nw>0)||!(nh>0)){layer.style.inset='0';return;}var scale=Math.min(w/nw,h/nh);var vw=nw*scale;var vh=nh*scale;layer.style.left=((w-vw)/2)+'px';layer.style.top=((h-vh)/2)+'px';layer.style.width=vw+'px';layer.style.height=vh+'px';layer.style.right='auto';layer.style.bottom='auto';}function sync(timeMs){var state=frameState(timeMs);var active=state.current.frameIndex;document.documentElement.style.setProperty('--kg-video-agent-progress',String(Math.max(0,Math.min(1,(Number(timeMs)||0)/duration))));document.querySelectorAll('[data-frame-index]').forEach(function(element){var visible=Number(element.getAttribute('data-frame-index'))===active;element.hidden=!visible;if(visible&&element.classList&&element.classList.contains('frame-box'))applyBox(element,state);});document.querySelectorAll('[data-kg-video-agent-frame-strip-index]').forEach(function(element){element.setAttribute('data-active',Number(element.getAttribute('data-kg-video-agent-frame-strip-index'))===active?'1':'0');});document.querySelectorAll('[data-kg-video-agent-zone-frame]').forEach(function(element){element.hidden=Number(element.getAttribute('data-kg-video-agent-zone-frame'))!==active;});var img=document.querySelector('.frame-images>li:not([hidden]) img');updateFrameImage(img,timeMs);fitLayer(img);}document.querySelectorAll('.frame-images img').forEach(function(img){img.addEventListener('load',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});});window.addEventListener('resize',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});window.addEventListener('knowgrph:render-frame',function(event){var timeMs=Number(event&&event.detail&&event.detail.timeMs)||0;window.__KNOWGRPH_RENDER_TIME_MS__=timeMs;sync(timeMs);});sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);}());</script>`
     : ''
 
-  return `<main data-composition-id="knowgrph-video-agent-runtime" data-start="0" data-duration="${escapeHtml((args.durationMs / 1000).toFixed(3))}" aria-label="Knowgrph video agent render"><header class="hero"><section><p class="eyebrow">Knowgrph video agent</p><h1>Reason through video, then stream the result</h1><p class="lede">${escapeHtml(args.intent)}</p></section><p class="chip">${escapeHtml(args.sourceUrl)}</p></header><section class="stage" aria-label="Video agent orchestration"><article class="source" data-start="0.000" data-duration="2.000" data-track-index="0"><header class="bar"><span class="dot" aria-hidden="true"></span><span class="url">${escapeHtml(args.sourceUrl)}</span><span class="badge">ingested</span></header><section class="video-card"><figure><section class="thumbnail" data-kg-video-agent-frame-url-template="${escapeHtml(frameUrlTemplate)}" aria-label="Frame-by-frame bounding box preview"><ol class="frame-images" aria-label="Source video frames">${sourceFrameImageMarkup}</ol><section class="frame-boxes" aria-label="Frame-by-frame bounding boxes">${frameBoxItems}</section></section><figcaption>Frame-by-frame bounding boxes are normalized validation data; rendering stays native to knowgrph.</figcaption></figure><h2>Annotate, count, then stream</h2><p>The pipeline records source metadata, annotation targets, reasoning stages, timeline decisions, frame boxes, dataset operations, zone counts, and stream-ready artifact routes as typed data.</p><ol class="tasks">${capabilityItems}</ol><ol class="frame-strip" aria-label="Granular frame-by-frame dataset strip">${frameStripItems}</ol></section></article><article class="reasoning" data-start="1.200" data-duration="4.800" data-track-index="1"><header><p class="eyebrow">Agent plan</p><h2>Native orchestration without external runtime dependency</h2></header><ol class="agents">${stageItems}</ol><section class="dataset-ops" aria-label="Visual dataset operations"><h3>Dataset operations</h3><ol>${datasetOperationItems}</ol></section><section class="zone-counts" aria-label="Real-time zone counts"><h3>Frame zone counts</h3><ol>${zoneFrameItems}</ol></section></article></section><section class="trace" aria-label="Video agent reasoning trace">${traceItems}</section><section class="rich-panels" aria-label="Rich Media panel routes">${richMediaPanelItems}</section><footer class="timeline" aria-label="Video agent timeline"><section class="rail" aria-label="Instant stream progress"></section><ol class="ticks">${tickItems}</ol><section class="stream" aria-label="Stream output contract"><strong>Instant stream</strong><p>Rich Media Panels receive stream output, frame analysis, and annotation dataset payloads from the same Render_Spec when browser encoding is unavailable.</p></section></footer>${frameSyncScript}</main>`
+  return `<main data-composition-id="knowgrph-video-agent-runtime" data-start="0" data-duration="${escapeHtml((args.durationMs / 1000).toFixed(3))}" aria-label="Knowgrph video agent render"><header class="hero"><section><p class="eyebrow">Knowgrph video agent</p><h1>Reason through video, then stream the result</h1><p class="lede">${escapeHtml(args.intent)}</p></section><p class="chip">${escapeHtml(args.sourceUrl)}</p></header><section class="stage" aria-label="Video agent orchestration"><article class="source" data-start="0.000" data-duration="2.000" data-track-index="0"><header class="bar"><span class="dot" aria-hidden="true"></span><span class="url">${escapeHtml(args.sourceUrl)}</span><span class="badge">ingested</span></header><section class="video-card">${sourcePlayback}<figure><section class="thumbnail" data-kg-video-agent-frame-url-template="${escapeHtml(frameUrlTemplate)}" aria-label="Frame-by-frame bounding box preview"><ol class="frame-images" aria-label="Source video frames">${sourceFrameImageMarkup}</ol><section class="frame-boxes" aria-label="Frame-by-frame bounding boxes">${frameBoxItems}</section></section><figcaption>Frame-by-frame bounding boxes are normalized validation data; rendering stays native to knowgrph.</figcaption></figure><h2>Annotate, count, then stream</h2><p>The pipeline records source metadata, annotation targets, reasoning stages, timeline decisions, frame boxes, dataset operations, zone counts, transcript windows, audio-capable source playback, and stream-ready artifact routes as typed data.</p><ol class="tasks">${capabilityItems}</ol><ol class="frame-strip" aria-label="Granular frame-by-frame dataset strip">${frameStripItems}</ol></section></article><article class="reasoning" data-start="1.200" data-duration="4.800" data-track-index="1"><header><p class="eyebrow">Agent plan</p><h2>Native orchestration without external runtime dependency</h2></header><ol class="agents">${stageItems}</ol><section class="dataset-ops" aria-label="Visual dataset operations"><h3>Dataset operations</h3><ol>${datasetOperationItems}</ol></section><section class="zone-counts" aria-label="Real-time zone counts"><h3>Frame zone counts</h3><ol>${zoneFrameItems}</ol></section></article></section><section class="trace" aria-label="Video agent reasoning trace">${traceItems}</section><section class="rich-panels" aria-label="Rich Media panel routes">${richMediaPanelItems}</section><footer class="timeline" aria-label="Video agent timeline"><section class="rail" aria-label="Instant stream progress"></section><ol class="ticks">${tickItems}</ol><section class="stream" aria-label="Stream output contract"><strong>Instant stream</strong><p>Rich Media Panels receive source playback, stream output, frame analysis, transcript alignment, and annotation dataset payloads from the same Render_Spec when browser encoding is unavailable.</p></section></footer>${frameSyncScript}</main>`
 }
 
 export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAgentPipelineResult {
@@ -445,17 +436,20 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
   const width = clampInteger(input.width, 1280, 1, 7680)
   const height = clampInteger(input.height, 720, 1, 4320)
   const intent = String(input.intent || 'Reason through complex video tasks, then publish a stream-ready result.').trim()
+  const workspaceOutputRoot = normalizeVideoAgentWorkspaceOutputRootPath(input.workspaceOutputRoot)
   const stages = buildStages(capabilities, durationMs)
-  const reasoningArtifacts = buildReasoningArtifacts(capabilities)
-  const frameBoundingBoxes = buildFrameBoundingBoxes(durationMs, sourceUrl)
+  const reasoningArtifacts = buildReasoningArtifacts(capabilities, workspaceOutputRoot)
+  const frameBoundingBoxes = buildVideoAgentFrameBoundingBoxes(durationMs, sourceUrl)
   const datasetRuntime = buildVideoAgentDatasetRuntime({
     frameBoundingBoxes,
+    saveFilename: buildVideoAgentWorkspaceOutputPath('visual-dataset.json', workspaceOutputRoot),
     schemaVersion: VIDEO_AGENT_SCHEMA_VERSION,
     sourceUrl,
   })
   const stageTimelineTracks = buildStageTimelineTracks(stages)
   const frameBoundingBoxTimelineTracks = buildFrameBoundingBoxTimelineTracks(frameBoundingBoxes, durationMs)
-  const timelineTracks = [...stageTimelineTracks, ...frameBoundingBoxTimelineTracks]
+  const audioTimelineTrack = buildAudioTimelineTrack(durationMs)
+  const timelineTracks = [...stageTimelineTracks, ...frameBoundingBoxTimelineTracks, audioTimelineTrack]
   const stream = {
     primary: 'video/mp4',
     fallback: 'outputSrcDoc',
@@ -476,6 +470,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
       label: box.label,
       confidence: box.confidence,
       bbox: box.bbox,
+      detections: box.detections,
       frameImageUrl: box.frameImageUrl,
       sampleId: sample?.sampleId || '',
       annotationCount: sample?.annotations.length || 0,
@@ -492,7 +487,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
         ? 'frame-analysis'
         : 'visual-annotation-dataset',
     inputs: route.endsWith(':stream')
-      ? ['videoUrl', 'outputSrcDoc', 'frameBoundingBoxes']
+      ? ['videoUrl', 'audioUrl', 'outputSrcDoc', 'frameBoundingBoxes']
       : route.endsWith(':frame-analysis')
         ? ['outputSrcDoc', 'frameBoundingBoxes', 'zoneCounting']
         : ['visualDataset', 'mergedVisualDataset', 'zoneCounting'],
@@ -503,6 +498,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
       url: sourceUrl,
       sourceKey: buildSourceKey(sourceUrl),
       externalDependency: false,
+      playbackEmbedUrl: buildYouTubeEmbedUrl(sourceUrl, { includeOrigin: false }) || sourceUrl,
     },
     referenceBoundary: VIDEO_AGENT_REFERENCE_BOUNDARY,
     intent,
@@ -537,26 +533,28 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     timelineLanes: [
       { id: 'video-agent-stages', label: 'Video agent stages', tracks: stageTimelineTracks.map(track => track.id) },
       { id: 'frame-by-frame-boxes', label: 'Frame-by-frame boxes', tracks: frameBoundingBoxTimelineTracks.map(track => track.id) },
+      { id: 'source-audio', label: 'Source audio', tracks: [audioTimelineTrack.id] },
     ],
     bottomPanelTimelineSync: {
       surface: 'BottomPanel Timeline',
-      source: 'frameBoundingBoxes',
-      lane: 'fbf',
+      source: 'video+frameBoundingBoxes+audio',
+      lane: 'video-fbf-audio',
       thumbnailMode: 'frame-by-frame-image',
-      trackIds: frameBoundingBoxTimelineTracks.map(track => track.id),
+      trackIds: [...stageTimelineTracks, ...frameBoundingBoxTimelineTracks, audioTimelineTrack].map(track => track.id),
     },
+    workspaceOutputRoot,
     workspaceFiles: [
-      { path: 'video-agent/source.json', kind: 'json', role: 'source-manifest' },
-      { path: VIDEO_AGENT_DATASET_ARTIFACT_PATHS.datasetOperations, kind: 'json', role: 'dataset-operation-summary' },
-      { path: VIDEO_AGENT_DATASET_ARTIFACT_PATHS.visualDataset, kind: 'json', role: 'visual-annotation-dataset' },
-      { path: 'video-agent/zone-counts.json', kind: 'json', role: 'real-time-zone-counting' },
-      { path: 'video-agent/moments.json', kind: 'json', role: 'search-index' },
-      { path: 'video-agent/parse.json', kind: 'json', role: 'parse-output' },
-      { path: 'video-agent/frame-boxes.json', kind: 'json', role: 'frame-bounding-boxes' },
-      { path: 'video-agent/timeline.json', kind: 'json', role: 'edit-plan' },
-      { path: 'video-agent/generated-assets.json', kind: 'json', role: 'generation-plan' },
-      { path: 'video-agent/render.html', kind: 'html', role: 'composition' },
-      { path: 'video-agent/stream-manifest.json', kind: 'json', role: 'stream-output' },
+      { path: buildVideoAgentWorkspaceOutputPath('source.json', workspaceOutputRoot), kind: 'json', role: 'source-manifest' },
+      { path: buildVideoAgentWorkspaceOutputPath('dataset-operations.json', workspaceOutputRoot), kind: 'json', role: 'dataset-operation-summary' },
+      { path: buildVideoAgentWorkspaceOutputPath('visual-dataset.json', workspaceOutputRoot), kind: 'json', role: 'visual-annotation-dataset' },
+      { path: buildVideoAgentWorkspaceOutputPath('zone-counts.json', workspaceOutputRoot), kind: 'json', role: 'real-time-zone-counting' },
+      { path: buildVideoAgentWorkspaceOutputPath('moments.json', workspaceOutputRoot), kind: 'json', role: 'search-index' },
+      { path: buildVideoAgentWorkspaceOutputPath('parse.json', workspaceOutputRoot), kind: 'json', role: 'parse-output' },
+      { path: buildVideoAgentWorkspaceOutputPath('frame-boxes.json', workspaceOutputRoot), kind: 'json', role: 'frame-bounding-boxes' },
+      { path: buildVideoAgentWorkspaceOutputPath('timeline.json', workspaceOutputRoot), kind: 'json', role: 'edit-plan' },
+      { path: buildVideoAgentWorkspaceOutputPath('generated-assets.json', workspaceOutputRoot), kind: 'json', role: 'generation-plan' },
+      { path: buildVideoAgentWorkspaceOutputPath('render.html', workspaceOutputRoot), kind: 'html', role: 'composition' },
+      { path: buildVideoAgentWorkspaceOutputPath('stream-manifest.json', workspaceOutputRoot), kind: 'json', role: 'stream-output' },
     ],
     streaming: stream,
   }

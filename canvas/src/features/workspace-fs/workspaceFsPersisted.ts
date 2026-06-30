@@ -31,8 +31,8 @@ import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath
 const DB_NAME = 'kg:workspace-fs'
 let lastDocsMirrorSyncSignature = ''
 const WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS = 150
-const docsMirrorFolderFlushTimers = new Map<WorkspacePath, ReturnType<typeof setTimeout>>()
-const docsMirrorTextFlushTimers = new Map<WorkspacePath, ReturnType<typeof setTimeout>>()
+const docsMirrorFolderFlushTimers = new Map<WorkspacePath, number>()
+const docsMirrorTextFlushTimers = new Map<WorkspacePath, number>()
 const docsMirrorPendingTextByPath = new Map<WorkspacePath, string>()
 
 type WorkspaceEntryRow = WorkspaceEntry

@@ -365,9 +365,10 @@ export function listMediaOverlayNodes(args: {
           rank: 0,
           idx: i,
           preferred: preferredHit,
-        })
+      })
       : 0
     const rank = preferredHit ? rankBase + panelRankBonus + 1000 : rankBase + panelRankBonus
+    const nodeSize = n0 as unknown as { width?: number; height?: number }
     candidates.push({
       id,
       title,
@@ -383,8 +384,8 @@ export function listMediaOverlayNodes(args: {
       ...(typeof n0.y === 'number' && Number.isFinite(n0.y) ? { y: n0.y } : {}),
       ...(typeof n0.fx === 'number' && Number.isFinite(n0.fx) ? { fx: n0.fx } : {}),
       ...(typeof n0.fy === 'number' && Number.isFinite(n0.fy) ? { fy: n0.fy } : {}),
-      ...(typeof n0.width === 'number' && Number.isFinite(n0.width) ? { width: n0.width } : {}),
-      ...(typeof n0.height === 'number' && Number.isFinite(n0.height) ? { height: n0.height } : {}),
+      ...(typeof nodeSize.width === 'number' && Number.isFinite(nodeSize.width) ? { width: nodeSize.width } : {}),
+      ...(typeof nodeSize.height === 'number' && Number.isFinite(nodeSize.height) ? { height: nodeSize.height } : {}),
       rank,
       idx: i,
       preferred: preferredHit,

@@ -11,6 +11,7 @@ import {
   type MermaidDiagramPanelRowTreeResolver,
 } from './MermaidDiagramPanelView'
 import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useGanttFloatingPanelSelectionTransportSync } from './useGanttFloatingPanelSelectionTransportSync'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 import { useMermaidTimelineDocument } from './useMermaidTimelineDocument'
 import { PanelCheckbox } from '@/lib/ui/panelFormControls'
@@ -191,6 +192,10 @@ export function TimelineFloatingPanelView() {
     diagramModel: ganttModel,
     kind: 'gantt',
   })
+  const handleGanttSelectedRowKeyChange = useGanttFloatingPanelSelectionTransportSync({
+    code: ganttCode,
+    onSelectedRowKeyChange: handleGanttDiagramSelectedRowKeyChange,
+  })
   if (!timelineCode && ganttCode) {
     return (
       <section className="h-full min-h-0" data-kg-timeline-floating-panel="1" {...metadataAttrs} {...animationAttributes} style={animationStyle}>
@@ -205,7 +210,7 @@ export function TimelineFloatingPanelView() {
           renderMode="list"
           rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}
           rowTree={videoSequenceFloatingRowTree}
-          onSelectedRowKeyChange={handleGanttDiagramSelectedRowKeyChange}
+          onSelectedRowKeyChange={handleGanttSelectedRowKeyChange}
         />
       </section>
     )

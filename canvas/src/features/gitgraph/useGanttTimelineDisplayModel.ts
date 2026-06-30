@@ -62,6 +62,7 @@ export function useGanttTimelineDisplayModel(args: {
     previewPlan: args.previewPlan,
     sourceDurationSeconds: args.sourceDurationSeconds,
   }), [args.positionMinutes, args.previewPlan, args.sourceDurationSeconds])
+  const displayDurationSeconds = sourceTime?.totalSeconds || args.mediaDurationSeconds
   const currentLabel = sourceTime
     ? formatVideoSequenceTimelineSecondsOffset(sourceTime.currentSeconds)
     : hasMediaDurationScale
@@ -77,6 +78,19 @@ export function useGanttTimelineDisplayModel(args: {
     ? formatVideoSequenceTimelineSecondsOffset(args.mediaDurationSeconds)
     : formatMermaidGanttTimelineOffset(args.maxMinutes)
   const displayTicks = React.useMemo(() => {
+    if (sourceTime) {
+      return args.ticks.map(tick => {
+        const tickSourceTime = resolveGanttTimelineDisplaySourceTime({
+          positionMinutes: tick.minutes,
+          previewPlan: args.previewPlan,
+          sourceDurationSeconds: args.sourceDurationSeconds,
+        })
+        return {
+          ...tick,
+          label: formatVideoSequenceTimelineSecondsOffset(tickSourceTime?.currentSeconds ?? tick.minutes),
+        }
+      })
+    }
     if (!hasMediaDurationScale) return args.ticks
     return args.ticks.map(tick => ({
       ...tick,
@@ -86,12 +100,12 @@ export function useGanttTimelineDisplayModel(args: {
         positionMinutes: tick.minutes,
       })),
     }))
-  }, [args.maxMinutes, args.mediaDurationSeconds, args.ticks, hasMediaDurationScale])
+  }, [args.maxMinutes, args.mediaDurationSeconds, args.previewPlan, args.sourceDurationSeconds, args.ticks, hasMediaDurationScale, sourceTime])
   const playbackUnitsPerMs = React.useMemo(() => resolveVideoSequenceTimelineUnitsPerMs({
-    durationSeconds: args.mediaDurationSeconds,
+    durationSeconds: displayDurationSeconds,
     fallbackUnitsPerMs: 1 / 1000,
     maxMinutes: args.maxMinutes,
-  }), [args.maxMinutes, args.mediaDurationSeconds])
+  }), [args.maxMinutes, displayDurationSeconds])
 
   return {
     currentLabel,

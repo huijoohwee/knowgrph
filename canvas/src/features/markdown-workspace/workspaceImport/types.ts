@@ -23,6 +23,7 @@ export type WorkspaceUrlContent = {
   sourceMimeHint?: string | null
   thinkingText?: string
   thinkingTextTask?: Promise<string>
+  transcriptJsonText?: string
 }
 
 export type WorkspaceImportProgress = {

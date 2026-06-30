@@ -1,6 +1,7 @@
 import React from 'react'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
 import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useGanttFloatingPanelSelectionTransportSync } from './useGanttFloatingPanelSelectionTransportSync'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 
 export function GanttFloatingPanelView() {
@@ -9,6 +10,10 @@ export function GanttFloatingPanelView() {
     graphData,
     diagramModel: ganttModel,
     kind: 'gantt',
+  })
+  const handleSelectedRowKeyChange = useGanttFloatingPanelSelectionTransportSync({
+    code,
+    onSelectedRowKeyChange: handleDiagramSelectedRowKeyChange,
   })
   return (
     <section className="h-full min-h-0" data-kg-gantt-floating-panel="1">
@@ -21,7 +26,7 @@ export function GanttFloatingPanelView() {
         rootThemeMode={themeMode}
         surface="floatingPanel"
         renderMode="list"
-        onSelectedRowKeyChange={handleDiagramSelectedRowKeyChange}
+        onSelectedRowKeyChange={handleSelectedRowKeyChange}
       />
     </section>
   )

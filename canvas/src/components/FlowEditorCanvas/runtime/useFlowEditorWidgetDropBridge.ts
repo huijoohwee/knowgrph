@@ -96,6 +96,7 @@ export function useFlowEditorWidgetDropBridge(args: {
     vx?: number | null
     vy?: number | null
     properties?: Record<string, unknown>
+    skipPendingSelect?: boolean
   }) => string
   updateNode: (nodeId: string, patch: Partial<GraphNode>) => void
   shouldDedupeWidgetDrop: (key: string) => boolean

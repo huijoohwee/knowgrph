@@ -11,6 +11,7 @@ import {
   type VisualZoneCountingTimeline,
 } from '@/features/visual-annotation-engine/annotationDataset'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { buildVideoAgentWorkspaceOutputPath } from './videoAgentWorkspaceOutput'
 
 type VideoAgentDatasetFrameBox = {
   bbox: readonly [number, number, number, number]
@@ -38,8 +39,8 @@ export type VideoAgentDatasetRuntime = {
 }
 
 export const VIDEO_AGENT_DATASET_ARTIFACT_PATHS = Object.freeze({
-  datasetOperations: 'video-agent/dataset-operations.json',
-  visualDataset: 'video-agent/visual-dataset.json',
+  datasetOperations: buildVideoAgentWorkspaceOutputPath('dataset-operations.json'),
+  visualDataset: buildVideoAgentWorkspaceOutputPath('visual-dataset.json'),
 } as const)
 
 export const VIDEO_AGENT_DEFAULT_ZONE_LABELS = ['zone-a', 'zone-b', 'zone-c'] as const

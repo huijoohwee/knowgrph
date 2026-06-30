@@ -13,6 +13,7 @@ import {
 } from './videoAgentValidationConfig'
 
 export type VideoAgentValidationUrlActionMode = 'import' | 'select'
+type VideoAgentValidationImportState = 'idle' | 'running' | 'success' | 'error'
 
 type ImportUrlFallback = (urlRaw: string, opts?: WorkspaceImportUrlOpts) => void | Promise<void>
 
@@ -81,6 +82,8 @@ export function VideoAgentValidationImportControls({
   )
   const [validationDocPathDraft, setValidationDocPathDraft] = React.useState(initialConfig.validationDocPath)
   const [validationUrlsDraft, setValidationUrlsDraft] = React.useState(serializeVideoAgentValidationUrls(initialConfig.importUrls))
+  const [importState, setImportState] = React.useState<VideoAgentValidationImportState>('idle')
+  const [importStatus, setImportStatus] = React.useState('')
   const validationImportUrls = React.useMemo(() => splitVideoAgentValidationUrls(validationUrlsDraft), [validationUrlsDraft])
   const validationUrlOptions = React.useMemo(() => buildVideoAgentValidationUrlOptions(validationImportUrls), [validationImportUrls])
   const initialImportUrlsDraft = React.useMemo(() => serializeVideoAgentValidationUrls(initialConfig.importUrls), [initialConfig.importUrls])
@@ -108,37 +111,62 @@ export function VideoAgentValidationImportControls({
     writeVideoAgentValidationConfig({ validationDocPath: validationDocPathDraft, importUrls: splitVideoAgentValidationUrls(next) })
   }, [validationDocPathDraft])
 
-  const importValidationUrl = React.useCallback((urlRaw: string) => {
+  const importValidationUrl = React.useCallback(async (urlRaw: string): Promise<void> => {
     const url = String(urlRaw || '').trim()
     if (!url) return
     const opts = resolveImportUrlOpts(importUrlOpts)
     const bridge = getMarkdownWorkspaceActionBridge()
     if (typeof bridge.importUrl === 'function') {
-      bridge.importUrl(url, opts)
+      await bridge.importUrl(url, opts)
       return
     }
-    if (importUrlFallback) void importUrlFallback(url, opts)
+    if (importUrlFallback) {
+      await importUrlFallback(url, opts)
+      return
+    }
+    throw new Error('URL import is unavailable')
   }, [importUrlFallback, importUrlOpts])
 
-  const activateValidationUrl = React.useCallback((option: VideoAgentValidationUrlOption) => {
+  const activateValidationUrl = React.useCallback(async (option: VideoAgentValidationUrlOption) => {
     if (optionMode === 'select') {
       onSelectUrl?.(option.url)
       return
     }
-    onBeforeImport?.()
-    importValidationUrl(option.url)
+    setImportState('running')
+    setImportStatus(`Importing ${option.label}`)
+    try {
+      onBeforeImport?.()
+      await importValidationUrl(option.url)
+      setImportState('success')
+      setImportStatus(`Imported ${option.label}`)
+    } catch (error) {
+      setImportState('error')
+      setImportStatus(error instanceof Error ? error.message : 'URL import failed')
+    }
   }, [importValidationUrl, onBeforeImport, onSelectUrl, optionMode])
 
-  const importValidationUrls = React.useCallback(() => {
+  const importValidationUrls = React.useCallback(async () => {
     if (validationImportUrls.length === 0) return
-    onBeforeImport?.()
-    for (const url of validationImportUrls) importValidationUrl(url)
+    setImportState('running')
+    setImportStatus(`Importing ${validationImportUrls.length} URLs`)
+    try {
+      onBeforeImport?.()
+      for (const url of validationImportUrls) await importValidationUrl(url)
+      setImportState('success')
+      setImportStatus(`Imported ${validationImportUrls.length} URLs`)
+    } catch (error) {
+      setImportState('error')
+      setImportStatus(error instanceof Error ? error.message : 'URL import failed')
+    }
   }, [importValidationUrl, onBeforeImport, validationImportUrls])
+
+  const importRunning = importState === 'running'
 
   return (
     <section
       className={containerClassName}
       aria-label={containerAriaLabel}
+      aria-busy={importRunning}
       data-kg-flow-editor-video-agent-validation-controls={flowEditorDataHook ? '1' : undefined}
     >
       <label className={cn(showFieldLabels && 'grid min-w-0 gap-1 text-[11px]')}>
@@ -170,7 +198,8 @@ export function VideoAgentValidationImportControls({
             title={option.url}
             aria-label={optionAriaLabel ? optionAriaLabel(option) : `Use validation ${option.label}`}
             data-kg-video-agent-validation-url-option={option.index + 1}
-            onClick={() => activateValidationUrl(option)}
+            disabled={importRunning}
+            onClick={() => void activateValidationUrl(option)}
           >
             {optionButtonLabel ? optionButtonLabel(option) : `Use ${option.label}`}
           </button>
@@ -178,12 +207,17 @@ export function VideoAgentValidationImportControls({
         <button
           type="button"
           className={actionClassName}
-          disabled={validationImportUrls.length === 0}
-          onClick={importValidationUrls}
+          disabled={validationImportUrls.length === 0 || importRunning}
+          onClick={() => void importValidationUrls()}
         >
           {importSetLabel}
         </button>
       </section>
+      {importStatus ? (
+        <output aria-live="polite" data-kg-video-agent-validation-import-state={importState}>
+          {importStatus}
+        </output>
+      ) : null}
     </section>
   )
 }

@@ -360,7 +360,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const requestZoom = useGraphStore(s => s.requestZoom)
-  const toolMode = useGraphStore(s => s.toolMode)
+  const toolMode = useGraphStore(s => ((s as unknown as { toolMode?: 'select' | 'addEdge' }).toolMode || 'select'))
   const fixedLayoutEnabled = strybldrStoryboardBoardLayoutMode === 'fixed'
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)

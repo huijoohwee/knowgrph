@@ -48,6 +48,15 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       || null
     return source ? resolveTimelinePlanSourceUrl(source) : ''
   }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const timelinePlanSourceDurationSeconds = React.useMemo(() => {
+    if (selectedPreviewEmpty) return 0
+    const source = transportSession.previewPlan?.segments.find(segment => Number(segment.source.durationSeconds) > 0)?.source
+      || transportSession.thumbnailPlan?.segments.find(segment => Number(segment.source.durationSeconds) > 0)?.source
+      || transportSession.exportPlan?.segments.find(segment => Number(segment.source.durationSeconds) > 0)?.source
+      || null
+    const durationSeconds = Number(source?.durationSeconds)
+    return Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0
+  }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
   const thumbnailSourceUrl = React.useMemo(() => {
     const source = transportSession.thumbnailPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
       || transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
@@ -59,6 +68,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     active: !!mediaPreviewSourceUrl,
     url: mediaPreviewSourceUrl,
   })
+  const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds
   const thumbnailSummary = useTimelineMediaReaderSummary({
     active: !!thumbnailSourceUrl,
     url: thumbnailSourceUrl,
@@ -81,7 +91,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
     positionMinutes: transportSession.positionMinutes,
     previewPlan: selectedPreviewEmpty ? null : transportSession.previewPlan,
-    sourceDurationSeconds: selectedPreviewEmpty ? 0 : mediaPreviewSummary.durationSeconds,
+    sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds,
     ticks: transportSession.ticks,
   })
   const transportCommandModel = useGanttTimelineTransportCommandModel({
@@ -158,7 +168,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     maxMinutes: transportSession.maxMinutes,
     onPositionChange: transportInteractionModel.handlePositionChange,
     playbackRate: transportSession.playbackRate,
-    playbackUnitsPerMs: transportSession.playbackUnitsPerMs,
+    playbackUnitsPerMs: transportClockDisplayModel.playbackUnitsPerMs,
     playing: transportSession.playing,
     positionMinutes: transportSession.positionMinutes,
     setTransportPlaying: transportSession.setTransportPlaying,

@@ -60,6 +60,7 @@ export type FlowEditorOverlayEdgeGraphLookup = {
 }
 
 export type FlowEditorWidgetPlacementContext = {
+  canvas2dRenderer?: string
   graphSemanticKey: string
   graphMetaKind: string | null
   isFrontmatterFlow: boolean

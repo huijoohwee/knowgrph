@@ -2,6 +2,7 @@ import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { LS_KEYS } from '@/lib/config'
+import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
@@ -39,6 +40,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
               iframeSrcDoc={model.directVideoFallbackSrcDoc}
               iframeRef={model.directVideoFallbackFrameRef}
               iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              iframeSandbox={model.directVideoFallbackSrcDoc.includes('data-kg-video-agent-source-playback') ? resolveIframeSandbox('direct') : undefined}
               iframeScrolling="no"
               iframeReferrerPolicy="no-referrer"
               style={{
@@ -81,12 +83,13 @@ export function RichMediaPanelDirectMediaSurface(args: {
               iframeSrcDoc={model.directVideoFallbackSrcDoc}
               iframeRef={model.directVideoFallbackFrameRef}
               iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              iframeSandbox={model.directVideoFallbackSrcDoc.includes('data-kg-video-agent-source-playback') ? resolveIframeSandbox('direct') : undefined}
               iframeLoading="eager"
               iframeScrolling="no"
               iframeReferrerPolicy="no-referrer"
               iframeSelectableSurfaceDataAttr
               className="block h-full w-full select-none border-0"
-              style={{ background: 'transparent', pointerEvents: 'none' }}
+              style={{ background: 'transparent', pointerEvents: props.videoControls === true ? 'auto' : 'none' }}
               onLoad={() => {
                 model.setReady(true)
                 model.scheduleInlineSrcDocTimelineFrameBurst()
@@ -99,10 +102,10 @@ export function RichMediaPanelDirectMediaSurface(args: {
               title={model.title}
               {...model.directMediaPreviewCardProps}
               fit="contain"
-              videoControls={false}
-              videoMuted={model.kind === 'video' ? true : undefined}
-              videoAutoPlay={model.kind === 'video' ? true : undefined}
-              videoLoop={model.kind === 'video' ? true : undefined}
+              videoControls={model.kind === 'video' ? props.videoControls === true : false}
+              videoMuted={model.kind === 'video' ? props.videoControls !== true : undefined}
+              videoAutoPlay={model.kind === 'video' ? props.videoControls !== true : undefined}
+              videoLoop={model.kind === 'video' ? props.videoControls !== true : undefined}
               videoPoster={model.kind === 'video' ? props.videoPoster : undefined}
               mediaThumbnailDataAttr
               onMediaElement={model.handleDirectMediaElement}

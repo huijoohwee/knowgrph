@@ -25,7 +25,7 @@ import {
   parseImportUrlRendererSelection,
   type ImportUrlRendererSelection,
 } from './ImportUrlRendererSelect'
-import { loadLaunchDropdownFallbackModule } from './launchDropdownFallbackModule'
+import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
 
 const DEFAULT_VIDEO_DOWNLOAD_OPTIONS: VideoDownloadOptions = {
   format: 'best',
@@ -44,6 +44,7 @@ export function LaunchDropdownImportUrlItem(props: {
   open: boolean
   pushUiToast: PushUiToast
 }) {
+  const { onClose, pushUiToast } = props
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
   const [importUrlRenderer, setImportUrlRenderer] = React.useState<ImportUrlRendererSelection>('default')
@@ -89,29 +90,29 @@ export function LaunchDropdownImportUrlItem(props: {
   React.useEffect(() => {
     if (!downloadOptionsOpen || endpointConfigured || hasBridgeVideoDownload || endpointWarningShownRef.current) return
     endpointWarningShownRef.current = true
-    props.pushUiToast({
+    pushUiToast({
       id: 'launch:video-download:not-configured',
       kind: 'warning',
       message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading',
       ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })
-  }, [downloadOptionsOpen, endpointConfigured, hasBridgeVideoDownload, props])
+  }, [downloadOptionsOpen, endpointConfigured, hasBridgeVideoDownload, pushUiToast])
 
   const importUrlFallback = React.useCallback(
     async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast: props.pushUiToast })
+      await mod.importUrlFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
     },
-    [props.pushUiToast],
+    [pushUiToast],
   )
 
   const importUrlDeerFlowFallback = React.useCallback(
     async (urlRaw: string, opts?: { canvas2dRenderer?: WorkspaceUrlImportCanvasRendererId | null; documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null }) => {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast: props.pushUiToast })
+      await mod.importUrlDeerFlowFallback({ urlRaw, canvas2dRenderer: opts?.canvas2dRenderer, documentSemanticMode: opts?.documentSemanticMode, pushUiToast })
     },
-    [props.pushUiToast],
+    [pushUiToast],
   )
 
   const selectedImportOpts = React.useCallback(() => parseImportUrlRendererSelection(importUrlRenderer) || undefined, [importUrlRenderer])
@@ -120,7 +121,7 @@ export function LaunchDropdownImportUrlItem(props: {
     (nextUrlRaw: string) => {
       const nextUrl = String(nextUrlRaw || '').trim()
       if (!nextUrl) return
-      props.onClose()
+      onClose()
       const launchBridge = getMarkdownWorkspaceActionBridge()
       const opts = selectedImportOpts()
       if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
@@ -128,50 +129,50 @@ export function LaunchDropdownImportUrlItem(props: {
       else void importUrlFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
-    [importUrlFallback, props.onClose, selectedImportOpts],
+    [importUrlFallback, onClose, selectedImportOpts],
   )
 
   const runImportUrlDeerFlow = React.useCallback(
     (nextUrlRaw: string) => {
       const nextUrl = String(nextUrlRaw || '').trim()
       if (!nextUrl) return
-      props.onClose()
+      onClose()
       const opts = selectedImportOpts()
       if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
       void importUrlDeerFlowFallback(nextUrl, opts)
       setUrlInputOpen(false)
     },
-    [importUrlDeerFlowFallback, props.onClose, selectedImportOpts],
+    [importUrlDeerFlowFallback, onClose, selectedImportOpts],
   )
 
   const runVideoDownload = React.useCallback(async () => {
     const next = String(urlDraft || '').trim()
     if (!next || isDownloading) return
     if (!isVideoDownloadEligible(next)) {
-      props.pushUiToast({ id: 'launch:video-download:ineligible', kind: 'warning', message: 'URL is not eligible for local video download', ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
+      pushUiToast({ id: 'launch:video-download:ineligible', kind: 'warning', message: 'URL is not eligible for local video download', ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
       return
     }
     if (!endpointConfigured && typeof getMarkdownWorkspaceActionBridge().downloadVideo !== 'function') {
-      props.pushUiToast({ id: 'launch:video-download:not-configured', kind: 'warning', message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading', ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
+      pushUiToast({ id: 'launch:video-download:not-configured', kind: 'warning', message: 'Configure VITE_VIDEO_DOWNLOAD_ENDPOINT before downloading', ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
       return
     }
     setIsDownloading(true)
     try {
       const mod = await loadLaunchDropdownFallbackModule()
-      await mod.videoDownloadFallback({ url: next, options: downloadOptions, pushUiToast: props.pushUiToast })
+      await mod.videoDownloadFallback({ url: next, options: downloadOptions, pushUiToast })
       setDownloadOptionsOpen(false)
       setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
     } finally {
       setIsDownloading(false)
     }
-  }, [downloadOptions, endpointConfigured, isDownloading, props, urlDraft])
+  }, [downloadOptions, endpointConfigured, isDownloading, pushUiToast, urlDraft])
 
   const beforeValidationImport = React.useCallback(() => {
-    props.onClose()
+    onClose()
     const opts = selectedImportOpts()
     if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
     setUrlInputOpen(false)
-  }, [props.onClose, selectedImportOpts])
+  }, [onClose, selectedImportOpts])
 
   return (
     <li className="list-none">

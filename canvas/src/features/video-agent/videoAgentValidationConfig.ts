@@ -1,8 +1,13 @@
 import { readEnvString } from '@/lib/config.env'
+import type { WorkspaceImportUrlOpts } from '@/features/markdown-explorer/workspaceActionBridge'
 
 export const VIDEO_AGENT_VALIDATION_CONFIG_STORAGE_KEY = 'knowgrph:video-agent:validation-config:v1'
 export const VIDEO_AGENT_VALIDATION_DOC_PATH_ENV_KEY = 'VITE_KNOWGRPH_VIDEO_AGENT_VALIDATION_DOC_PATH'
 export const VIDEO_AGENT_VALIDATION_URLS_ENV_KEY = 'VITE_KNOWGRPH_VIDEO_AGENT_VALIDATION_URLS'
+export const FLOW_EDITOR_VIDEO_AGENT_VALIDATION_IMPORT_OPTIONS = Object.freeze({
+  canvas2dRenderer: 'flowEditor',
+  documentSemanticMode: 'document',
+} satisfies WorkspaceImportUrlOpts)
 
 export type VideoAgentValidationConfig = {
   validationDocPath: string
