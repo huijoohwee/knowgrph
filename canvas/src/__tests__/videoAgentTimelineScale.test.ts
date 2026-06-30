@@ -90,8 +90,8 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css'),
     readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css'),
   ].join('\n')
-  if (!rulerText.includes("lane === 'fbf' && !verticalMarker && widthPercent < 3.5")) {
-    throw new Error('expected BottomPanel Timeline to mark only temporally dense FBF clips')
+  if (!rulerText.includes('VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES') || !rulerText.includes("lane === 'fbf' && !verticalMarker && (durationMinutes <=")) {
+    throw new Error('expected BottomPanel Timeline to mark temporally dense FBF clips')
   }
   for (const token of [
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',

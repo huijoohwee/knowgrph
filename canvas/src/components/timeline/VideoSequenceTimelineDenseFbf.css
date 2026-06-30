@@ -1,6 +1,8 @@
 .timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] {
+  height: 38px;
   min-width: 8px;
   overflow: hidden;
+  border-radius: 6px;
 }
 
 .timeline-video-sequence-ruler-content [data-kg-video-sequence-dense-fbf="1"] .timeline-transport-track-clip-move {
