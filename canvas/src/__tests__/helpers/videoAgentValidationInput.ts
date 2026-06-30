@@ -47,10 +47,11 @@ export function installVideoAgentValidationYouTubeTranscriptFetch(calls: string[
       title,
       video_id: videoId,
       source_url: sourceUrl,
-      segment_count: 2,
+      segment_count: 3,
       segments: [
         { text: 'Validation import source evidence.', start: 0, duration: 1 },
-        { text: 'Validation import parse evidence.', start: 2, duration: 1 },
+        { text: 'Validation import parse evidence.', start: 26, duration: 1 },
+        { text: 'Validation import render evidence.', start: 52, duration: 1 },
       ],
     }
     return new Response(JSON.stringify({

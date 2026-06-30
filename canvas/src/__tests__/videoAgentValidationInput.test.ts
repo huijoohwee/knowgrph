@@ -525,7 +525,7 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
       || videoSequenceTimelineModel.sources.length !== 1
       || videoSequenceTimelineModel.sources[0]?.sourceUrl !== sourceUrl
       || videoSequenceTimelineModel.sources[0]?.importMode !== 'url'
-      || !(Number(videoSequenceTimelineModel.sources[0]?.durationSeconds || 0) > 0)
+      || !(Number(videoSequenceTimelineModel.sources[0]?.durationSeconds || 0) >= 50)
     ) {
       throw new Error(`expected video-agent import to activate shared timeline transport source model, got ${JSON.stringify(videoSequenceTimelineModel)}`)
     }

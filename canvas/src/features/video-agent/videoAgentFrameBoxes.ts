@@ -22,6 +22,17 @@ const clampInteger = (value: unknown, fallback: number, min: number, max: number
   return Math.max(min, Math.min(max, Math.round(value)))
 }
 
+const round3 = (value: number): number => Number(value.toFixed(3))
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
+
+const buildBox = (centerX: number, centerY: number, width: number, height: number): readonly [number, number, number, number] => [
+  round3(clamp01(centerX - width / 2)),
+  round3(clamp01(centerY - height / 2)),
+  round3(Math.min(width, 1 - clamp01(centerX - width / 2))),
+  round3(Math.min(height, 1 - clamp01(centerY - height / 2))),
+]
+
 const buildVideoAgentFrameImageUrl = (sourceUrl: string, timestampMs: number): string => {
   const normalizedSourceUrl = String(sourceUrl || '').trim()
   if (!normalizedSourceUrl || (!getYouTubeId(normalizedSourceUrl) && !getBilibiliVideoId(normalizedSourceUrl))) return ''
@@ -33,22 +44,24 @@ const buildVideoAgentFrameImageUrl = (sourceUrl: string, timestampMs: number): s
 }
 
 export const buildVideoAgentFrameBoundingBoxes = (durationMs: number, sourceUrl: string): VideoAgentFrameBoundingBox[] => {
-  const sampleCount = clampInteger(Math.ceil(durationMs / 700), 10, 10, 24)
+  const sampleCount = clampInteger(Math.ceil(durationMs / 700), 10, 10, 120)
   const frameStepMs = Math.max(1, Math.floor(durationMs / sampleCount))
   return Array.from({ length: sampleCount }, (_, index) => {
     const progress = index / Math.max(1, sampleCount - 1)
-    const primaryBox = [
-      Number((0.1 + progress * 0.2).toFixed(3)),
-      Number((0.42 - progress * 0.16 + (index % 2) * 0.035).toFixed(3)),
-      Number((0.36 - progress * 0.06).toFixed(3)),
-      Number((0.26 + progress * 0.06).toFixed(3)),
-    ] as const
-    const secondaryBox = [
-      Number(Math.max(0.04, Math.min(0.76, 0.58 - progress * 0.22)).toFixed(3)),
-      Number(Math.max(0.18, Math.min(0.68, 0.32 + progress * 0.12)).toFixed(3)),
-      Number((0.22 + progress * 0.04).toFixed(3)),
-      Number((0.28 - progress * 0.03).toFixed(3)),
-    ] as const
+    const phase = progress * Math.PI * 2
+    const sceneBand = Math.floor(progress * 6) % 3
+    const primaryBox = buildBox(
+      0.25 + progress * 0.44 + Math.sin(phase * 1.5) * 0.045,
+      0.6 - Math.sin(phase) * 0.13 + sceneBand * 0.025,
+      0.24 - progress * 0.045,
+      0.27 + Math.sin(phase * 0.5) * 0.045,
+    )
+    const secondaryBox = buildBox(
+      0.68 - progress * 0.38 + Math.cos(phase) * 0.04,
+      0.5 + Math.sin(phase * 0.7) * 0.11,
+      0.18 + progress * 0.055,
+      0.22 + Math.cos(phase * 0.8) * 0.04,
+    )
     const timestampMs = Math.min(durationMs - 1, index * frameStepMs)
     const primaryLabel = index % 2 === 0 ? 'tracked subject' : 'context object'
     const secondaryLabel = index % 2 === 0 ? 'context object' : 'tracked subject'
