@@ -142,7 +142,8 @@ runtime predicates.
 | Agent-ready smoke | `scripts/check-agent-ready.mjs` | Validates deployed metadata, MCP behavior, and generated vdeoxpln routes. | Keep deployed skill metadata equal to the registry projection. |
 | Vdeoxpln smoke | `scripts/check-vdeoxpln.mjs` | Validates registry shape, owner existence, generated Markdown, tool resolution, and graph-owner coverage. | Run before sync/deploy when vdeoxpln metadata changes. |
 | Visual annotation dataset runtime | `canvas/src/features/visual-annotation-engine/annotationDataset.ts` | Loads annotation results or frame-box arrays, normalizes detections, splits/merges/saves datasets, and builds frame-ordered zone counts. | Keep dataset operations native, deterministic, and provider-neutral without external CV runtime dependencies. |
-| Video-agent dataset bridge | `canvas/src/features/video-agent/videoAgentDatasetRuntime.ts` | Projects video-agent frame boxes into the shared visual dataset runtime and exposes saved dataset plus zone-count artifacts in Render_Spec data. | Reuse annotation dataset operators instead of adding panel-local counting or duplicated frame evidence paths. |
+| Video-agent dataset bridge | `canvas/src/features/video-agent/videoAgentDatasetRuntime.ts` | Projects video-agent frame boxes into the shared visual dataset runtime and exposes `frameByFrameSamples`, `richMediaPanels`, `visualAnnotationE2E`, load, split, merge, save, dataset-operation summary, and zone-count artifacts in Render_Spec data. | Reuse annotation dataset operators instead of adding panel-local counting or duplicated frame evidence paths. |
+| Video-agent validation config | `canvas/src/features/video-agent/videoAgentValidationConfig.ts` | Merges env/storage validation settings with active runtime/frontmatter URL sets and exposes per-URL import options. | Keep validation inputs operator supplied or fixture-owned; never hardcode validation URLs in repo source. |
 | Publish sync | `scripts/sync-pages-knowgrph.mjs` | Syncs source-owned Pages and static artifacts into the production mirror. | Prod mirror receives generated vdeoxpln artifacts only through sync. |
 | Workspace FS | `canvas/src/features/workspace-fs/workspaceFs.ts` | Persists workspace entries and source-backed documents. | Skill artifacts are workspace documents or source files, not chat-only state. |
 | Source Files | `canvas/src/features/source-files/*` | Owns source-layer composition and signatures. | Skill runs that produce graph material enter through Source Files. |
@@ -520,6 +521,7 @@ npm run agent-ready:check
 npm run pages:check-sync
 npm --prefix canvas run test:ci:unit -- "agentReady|mcpServiceDocs|sourceFiles|chatResponseContract"
 npm --prefix canvas run test:ci:unit -- "vdeoxpln|mcp.server.localToolContract"
+npm --prefix canvas run test:ci:unit -- "videoAgent.pipeline|videoAgent.importUrl.completeParsedGraph"
 ```
 
 Registry-specific checks must prove:

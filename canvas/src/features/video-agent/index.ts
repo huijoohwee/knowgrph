@@ -19,18 +19,24 @@ export {
   VIDEO_AGENT_VALIDATION_CONFIG_STORAGE_KEY,
   VIDEO_AGENT_VALIDATION_DOC_PATH_ENV_KEY,
   VIDEO_AGENT_VALIDATION_URLS_ENV_KEY,
+  buildVideoAgentValidationUrlOptions,
+  mergeVideoAgentValidationConfigs,
   normalizeVideoAgentValidationConfig,
   readVideoAgentValidationConfig,
   readVideoAgentValidationConfigFromEnv,
+  readVideoAgentValidationConfigFromRuntimeInput,
   readVideoAgentValidationConfigFromStorage,
   serializeVideoAgentValidationUrls,
   splitVideoAgentValidationUrls,
   writeVideoAgentValidationConfig,
   writeVideoAgentValidationConfigToStorage,
   type VideoAgentValidationConfig,
+  type VideoAgentValidationUrlOption,
 } from './videoAgentValidationConfig'
 
 export {
+  VIDEO_AGENT_DATASET_ARTIFACT_PATHS,
+  VIDEO_AGENT_DEFAULT_ZONE_LABELS,
   buildVideoAgentDatasetRuntime,
   type VideoAgentDatasetRuntime,
 } from './videoAgentDatasetRuntime'

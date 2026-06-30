@@ -22,6 +22,8 @@ import {
 import { importXrImageWorkspaceAssetsFromUrl, isXrImageAssetUrl } from './xrImageAssets'
 import { materializeCsvJsonImportArtifacts } from './csvJsonConversion'
 import { materializeVideoSequenceTimelineImportDocument } from './videoSequenceTimelineImport'
+import { materializeVideoAgentUrlImportDocument } from './videoAgentUrlImport'
+import { getYouTubeId } from 'grph-shared/rich-media/providers'
 
 export async function importWorkspaceUrl(args: {
   fs: WorkspaceFs
@@ -199,29 +201,54 @@ export async function importWorkspaceUrl(args: {
   let effectiveApplyToGraph = applyToGraph
   const removedVideoSourcePaths: WorkspacePath[] = []
   if (sourceUnit.mediaKind === 'video') {
-    const videoSequencePath = await materializeVideoSequenceTimelineImportDocument({
-      fs: args.fs,
-      parentPath,
-      assets: [{
-        workspacePath: normalized,
-        relativePath: sourceUrl,
-        originalName: fetched.name.replace(/\.source\.md$/i, '') || fetched.name,
+    const materializeVideoAgentImport = async (): Promise<void> => {
+      const videoAgentPath = await materializeVideoAgentUrlImportDocument({
+        fs: args.fs,
+        parentPath,
+        sourceName: fetched.name,
+        sourceText: fetched.text,
         sourceUrl,
-        mimeHint: fetched.sourceMimeHint || '',
-        byteSize: fetched.text.length,
-        importMode: 'url',
-      }],
-    })
-    if (videoSequencePath) {
+      })
       await args.fs.deleteEntry(normalized).catch(() => void 0)
       removedVideoSourcePaths.push(normalized)
       const retainedCreatedPaths = createdPaths.filter(path => normalizeWorkspacePath(path) !== normalized)
       createdPaths.splice(0, createdPaths.length, ...retainedCreatedPaths)
       const retainedSources = sources.filter(item => normalizeWorkspacePath(item.path) !== normalized)
       sources.splice(0, sources.length, ...retainedSources)
-      createdPaths.unshift(videoSequencePath)
-      sources.unshift({ path: videoSequencePath, source: { kind: 'url', url: sourceUrl } })
+      createdPaths.unshift(videoAgentPath)
+      sources.unshift({ path: videoAgentPath, source: { kind: 'url', url: sourceUrl } })
       effectiveApplyToGraph = true
+    }
+
+    const shouldUseVideoAgentImport = args.canvas2dRenderer !== 'storyboard' && !!getYouTubeId(sourceUrl)
+    if (shouldUseVideoAgentImport) {
+      await materializeVideoAgentImport()
+    } else {
+      const videoSequencePath = await materializeVideoSequenceTimelineImportDocument({
+        fs: args.fs,
+        parentPath,
+        assets: [{
+          workspacePath: normalized,
+          relativePath: sourceUrl,
+          originalName: fetched.name.replace(/\.source\.md$/i, '') || fetched.name,
+          sourceUrl,
+          mimeHint: fetched.sourceMimeHint || '',
+          byteSize: fetched.text.length,
+          importMode: 'url',
+        }],
+      })
+      if (videoSequencePath) {
+        await args.fs.deleteEntry(normalized).catch(() => void 0)
+        removedVideoSourcePaths.push(normalized)
+        const retainedCreatedPaths = createdPaths.filter(path => normalizeWorkspacePath(path) !== normalized)
+        createdPaths.splice(0, createdPaths.length, ...retainedCreatedPaths)
+        const retainedSources = sources.filter(item => normalizeWorkspacePath(item.path) !== normalized)
+        sources.splice(0, sources.length, ...retainedSources)
+        createdPaths.unshift(videoSequencePath)
+        sources.unshift({ path: videoSequencePath, source: { kind: 'url', url: sourceUrl } })
+        effectiveApplyToGraph = true
+      }
+      if (!videoSequencePath && args.canvas2dRenderer !== 'storyboard') await materializeVideoAgentImport()
     }
   }
   if (args.canvas2dRenderer === 'storyboard') {

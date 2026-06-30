@@ -134,6 +134,38 @@ export function testFlowEditorDiagramSelectionBridgeMatchesSemanticRows() {
           },
         },
       },
+      {
+        id: 'html_video_source_spec',
+        label: 'Programmatic Video Agent Render Spec',
+        type: 'InputWidget',
+        x: 660,
+        y: 0,
+        properties: {
+          'flow:portTypes': {
+            out: {
+              html: 'html_video_spec',
+              css: 'html_video_spec',
+              data_json: 'html_video_spec',
+              frameBoundingBoxes: 'annotation_json',
+            },
+          },
+        },
+      },
+      {
+        id: 'floating_media_ingestion_source',
+        label: 'FloatingPanel Media Source',
+        type: 'MediaSource',
+        x: 880,
+        y: 0,
+        properties: {
+          'flow:portTypes': {
+            out: {
+              image_asset_url: 'visual_media_asset',
+              video_frame_asset_url: 'visual_media_asset',
+            },
+          },
+        },
+      },
     ],
     edges: [
       {
@@ -185,6 +217,8 @@ export function testFlowEditorDiagramSelectionBridgeMatchesSemanticRows() {
     '  dateFormat HH:mm',
     '  section Source intake',
     '  Ingest test URL : ingest, 00:00, 1m',
+    '  section Frame-by-frame boxes',
+    '  Frame-by-frame bbox 0.0s tracked subject : frame_box_0_fbf, 00:00, 1m',
   ].join('\n'), 'gantt')
   const ingestBridge = buildFlowEditorDiagramSelectionBridge({
     diagramRows: ingestTimelineModel.rows,
@@ -195,8 +229,19 @@ export function testFlowEditorDiagramSelectionBridgeMatchesSemanticRows() {
     throw new Error('expected ingestion Gantt row to parse')
   }
   const ingestPortRowKey = resolveFlowEditorPortRowKeyForDiagramRow(ingestBridge, ingestTimelineRow.key)
-  if (ingestPortRowKey !== 'media_ingestion_source:output:source_url') {
-    throw new Error(`expected ingestion/source URL Gantt row to select the Media Ingestion Source KV row, got ${ingestPortRowKey}`)
+  if (ingestPortRowKey !== 'html_video_source_spec:output:data_json') {
+    throw new Error(`expected video-agent Ingest test URL Gantt row to select the source Render_Spec data_json KV row, got ${ingestPortRowKey}`)
+  }
+  const frameBoxTimelineRow = ingestTimelineModel.rows.find(row => row.label === 'Frame-by-frame bbox 0.0s tracked subject')
+  if (!frameBoxTimelineRow) {
+    throw new Error('expected frame-by-frame Gantt row to parse')
+  }
+  const frameBoxPortRowKey = resolveFlowEditorPortRowKeyForDiagramRow(ingestBridge, frameBoxTimelineRow.key)
+  if (frameBoxPortRowKey !== 'html_video_source_spec:output:frameBoundingBoxes') {
+    throw new Error(`expected frame-by-frame Gantt row to select the source Render_Spec frameBoundingBoxes KV row, got ${frameBoxPortRowKey}`)
+  }
+  if (ingestPortRowKey.includes('image_asset_url') || frameBoxPortRowKey.includes('image_asset_url')) {
+    throw new Error('expected video-agent Gantt selection to avoid FloatingPanel media asset rows')
   }
 
   const titleTimelineRow = timelineModel.rows.find(row => row.kind === 'title')
@@ -248,6 +293,7 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
   const viewTypeText = readFileSync(resolve(root, 'src', 'hooks', 'store', 'store-types', 'graph-state-chat-import.ts'), 'utf8')
   const uiSliceText = readFileSync(resolve(root, 'src', 'hooks', 'store', 'uiSliceInitialState.ts'), 'utf8')
   const panelText = readFileSync(resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorFloatingPanelView.tsx'), 'utf8')
+  const videoAgentValidationControlsText = readFileSync(resolve(root, 'src', 'features', 'video-agent', 'VideoAgentValidationImportControls.tsx'), 'utf8')
   const flowCanvasText = readFileSync(resolve(root, 'src', 'components', 'FlowCanvas.tsx'), 'utf8')
   const nativeRuntimeText = readFileSync(resolve(root, 'src', 'components', 'FlowCanvas', 'nativeRuntime.ts'), 'utf8')
   const overlayEdgesText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts'), 'utf8')
@@ -309,19 +355,40 @@ export function testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome
     || !panelText.includes('data-kg-flow-editor-floating-panel="1"')) {
     throw new Error('expected FlowEditor floating panel to render shared KTV rows with stable test hooks')
   }
-  if (!panelText.includes('FlowEditorVideoAgentValidationImportControls')
-    || !panelText.includes('Flow Editor video-agent validation import controls')
+  if (!panelText.includes('VideoAgentValidationImportControls')
     || !panelText.includes('Flow Editor video-agent validation document path')
     || !panelText.includes('Flow Editor video-agent validation import URLs')
-    || !panelText.includes('readVideoAgentValidationConfig')
-    || !panelText.includes('writeVideoAgentValidationConfig')
-    || !panelText.includes('getMarkdownWorkspaceActionBridge')
-    || !panelText.includes("canvas2dRenderer: FLOW_EDITOR_VIDEO_AGENT_VALIDATION_RENDERER")
-    || !panelText.includes('data-kg-flow-editor-video-agent-validation-controls="1"')) {
-    throw new Error('expected FlowEditor floating panel to own user-configurable video-agent validation imports through shared config and import bridge')
+    || !panelText.includes('runtimeInput={graphData}')
+    || !panelText.includes('optionMode="import"')
+    || !panelText.includes('optionButtonLabel={option => `Import ${option.label}`}')
+    || !panelText.includes('flowEditorDataHook')) {
+    throw new Error('expected FlowEditor floating panel to delegate user-configurable video-agent validation imports to the shared owner')
+  }
+  if (panelText.includes('readVideoAgentValidationConfig')
+    || panelText.includes('writeVideoAgentValidationConfig')
+    || panelText.includes('getMarkdownWorkspaceActionBridge')
+    || panelText.includes('canvas2dRenderer:')) {
+    throw new Error('expected FlowEditor floating panel to avoid a local video-agent validation config or URL-import alias path')
+  }
+  if (!videoAgentValidationControlsText.includes('containerAriaLabel')
+    || !videoAgentValidationControlsText.includes('docPathAriaLabel')
+    || !videoAgentValidationControlsText.includes('urlsAriaLabel')
+    || !videoAgentValidationControlsText.includes('readVideoAgentValidationConfig')
+    || !videoAgentValidationControlsText.includes('readVideoAgentValidationConfigFromRuntimeInput')
+    || !videoAgentValidationControlsText.includes('mergeVideoAgentValidationConfigs')
+    || !videoAgentValidationControlsText.includes('buildVideoAgentValidationUrlOptions')
+    || !videoAgentValidationControlsText.includes('writeVideoAgentValidationConfig')
+    || !videoAgentValidationControlsText.includes('getMarkdownWorkspaceActionBridge')
+    || !videoAgentValidationControlsText.includes("optionMode === 'select'")
+    || !videoAgentValidationControlsText.includes('data-kg-video-agent-validation-url-option')
+    || !videoAgentValidationControlsText.includes('data-kg-flow-editor-video-agent-validation-controls')) {
+    throw new Error('expected shared video-agent validation controls to own URL derivation, storage, and import behavior')
+  }
+  if (panelText.includes('Use first')) {
+    throw new Error('expected FlowEditor validation imports to keep the configured URL set and expose per-URL actions')
   }
   for (const forbidden of ['video-db', 'VideoDB', '@video-db', 'Director(', 'VIDEODB_API_KEY', 'youtu.be/']) {
-    if (panelText.includes(forbidden)) {
+    if (panelText.includes(forbidden) || videoAgentValidationControlsText.includes(forbidden)) {
       throw new Error(`expected FlowEditor video-agent validation controls to avoid hardcoded external dependency or URL token ${forbidden}`)
     }
   }

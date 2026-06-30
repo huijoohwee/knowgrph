@@ -147,6 +147,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["videoAgent.pipeline.invalidInputAndDependencyGuard","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDependencyImports"],
   ["videoAgent.validationConfig.userConfiguredImportUrls","@/__tests__/videoAgentValidationInput.test","testVideoAgentValidationConfigSupportsUserConfiguredImportUrls"],
   ["videoAgent.pipeline.externalValidationInputsNoRepoHardcodes","@/__tests__/videoAgentValidationInput.test","testVideoAgentPipelineUsesExternalValidationInputsWithoutRepoHardcodes"],
+  ["videoAgent.importUrl.completeParsedGraph","@/__tests__/videoAgentValidationInput.test","testVideoAgentImportUrlMaterializesCompleteParsedGraph"],
   ["htmlVideoRenderer.validationInput.vdeoxplnAnimatedMp4","@/__tests__/htmlVideoRendererValidationInput.test","testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWithoutHardcodedRuntimeArtifacts"],
   ["mcp.server.agenticCanvasOsRuntime.dryRunPrdTad","@/__tests__/mcpLocalToolContract.test","testKnowgrphAgenticCanvasOsRuntimeCoversDryRunPrdTad"],
   ["mcp.server.videoRemixRuntime.prdTadAcceptanceShape","@/__tests__/mcpLocalToolContract.test","testKnowgrphVideoRemixRuntimeCoversPrdTadAcceptanceShape"],

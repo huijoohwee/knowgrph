@@ -16,12 +16,8 @@ import type { VideoDownloadOptions } from '@/lib/video-download/types'
 import { isVideoDownloadEligible } from '@/lib/video-download/isVideoDownloadEligible'
 import { resolveVideoDownloadEndpoint } from '@/lib/video-download/videoDownloadResolver'
 import { activateDesignEditorSurface } from '@/features/design/designEditorLaunchState'
-import {
-  readVideoAgentValidationConfig,
-  serializeVideoAgentValidationUrls,
-  splitVideoAgentValidationUrls,
-  writeVideoAgentValidationConfig,
-} from '@/features/video-agent'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { VideoAgentValidationImportControls } from '@/features/video-agent/VideoAgentValidationImportControls'
 import { buildAutoWebsiteImportOptions } from './importUrlWebsiteMode'
 import {
   DESIGN_IMPORT_URL_RENDERER_SELECTION,
@@ -55,9 +51,7 @@ export function LaunchDropdownImportUrlItem(props: {
   const [downloadOptions, setDownloadOptions] = React.useState<VideoDownloadOptions>(DEFAULT_VIDEO_DOWNLOAD_OPTIONS)
   const [isDownloading, setIsDownloading] = React.useState(false)
   const [validationConfigOpen, setValidationConfigOpen] = React.useState(false)
-  const initialValidationConfig = React.useMemo(() => readVideoAgentValidationConfig(), [])
-  const [validationDocPathDraft, setValidationDocPathDraft] = React.useState(initialValidationConfig.validationDocPath)
-  const [validationUrlsDraft, setValidationUrlsDraft] = React.useState(serializeVideoAgentValidationUrls(initialValidationConfig.importUrls))
+  const activeGraphData = useActiveGraphRenderData(true)
   const importUrlControlsId = React.useId()
   const endpointWarningShownRef = React.useRef(false)
 
@@ -74,7 +68,6 @@ export function LaunchDropdownImportUrlItem(props: {
     }
   }, [])
   const isVideoEligible = isVideoDownloadEligible(urlDraft)
-  const validationImportUrls = React.useMemo(() => splitVideoAgentValidationUrls(validationUrlsDraft), [validationUrlsDraft])
 
   React.useEffect(() => {
     if (!props.open) {
@@ -173,31 +166,12 @@ export function LaunchDropdownImportUrlItem(props: {
     }
   }, [downloadOptions, endpointConfigured, isDownloading, props, urlDraft])
 
-  const updateValidationDocPath = React.useCallback((next: string) => {
-    setValidationDocPathDraft(next)
-    writeVideoAgentValidationConfig({ validationDocPath: next, importUrls: splitVideoAgentValidationUrls(validationUrlsDraft) })
-  }, [validationUrlsDraft])
-
-  const updateValidationUrls = React.useCallback((next: string) => {
-    setValidationUrlsDraft(next)
-    writeVideoAgentValidationConfig({ validationDocPath: validationDocPathDraft, importUrls: splitVideoAgentValidationUrls(next) })
-  }, [validationDocPathDraft])
-
-  const importValidationUrls = React.useCallback(() => {
-    if (validationImportUrls.length === 0) {
-      props.pushUiToast({ id: 'launch:video-agent-validation:empty', kind: 'warning', message: 'Configure video-agent validation URLs before importing', ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
-      return
-    }
+  const beforeValidationImport = React.useCallback(() => {
     props.onClose()
-    const launchBridge = getMarkdownWorkspaceActionBridge()
     const opts = selectedImportOpts()
     if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
-    for (const url of validationImportUrls) {
-      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(url, opts)
-      else void importUrlFallback(url, opts)
-    }
     setUrlInputOpen(false)
-  }, [importUrlFallback, props, selectedImportOpts, validationImportUrls])
+  }, [props.onClose, selectedImportOpts])
 
   return (
     <li className="list-none">
@@ -267,18 +241,26 @@ export function LaunchDropdownImportUrlItem(props: {
             }
           />
           {validationConfigOpen ? (
-            <section className="mt-1 grid gap-1" aria-label="Video-agent validation import controls">
-              <input className={cn(UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME, 'rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)} placeholder="Validation document path" aria-label="Video-agent validation document path" value={validationDocPathDraft} onChange={e => updateValidationDocPath(e.target.value)} />
-              <textarea className={cn(UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME, 'min-h-16 rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)} placeholder="Validation import URLs" aria-label="Video-agent validation import URLs" value={validationUrlsDraft} onChange={e => updateValidationUrls(e.target.value)} />
-              <section className="flex min-w-0 items-stretch gap-1">
-                <button type="button" className={cn(UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME, 'rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)} disabled={validationImportUrls.length === 0} onClick={() => { if (validationImportUrls[0]) setUrlDraft(validationImportUrls[0]) }}>
-                  Use first
-                </button>
-                <button type="button" className={cn(UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME, 'rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)} disabled={validationImportUrls.length === 0} onClick={importValidationUrls}>
-                  Import set
-                </button>
-              </section>
-            </section>
+            <VideoAgentValidationImportControls
+              runtimeInput={activeGraphData}
+              optionMode="select"
+              containerClassName="mt-1 grid gap-1"
+              fieldClassName={cn(UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME, 'rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}
+              textAreaClassName={cn(UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME, 'min-h-16 rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.text)}
+              actionClassName={cn(UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME, 'rounded border text-xs', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+              containerAriaLabel="Video-agent validation import controls"
+              docPathAriaLabel="Video-agent validation document path"
+              urlsAriaLabel="Video-agent validation import URLs"
+              actionsAriaLabel="Video-agent validation URL actions"
+              importUrlOpts={selectedImportOpts}
+              importUrlFallback={importUrlFallback}
+              onBeforeImport={beforeValidationImport}
+              onSelectUrl={url => {
+                setUrlDraft(url)
+                setUrlInputOpen(true)
+              }}
+              optionButtonLabel={option => `Use ${option.label}`}
+            />
           ) : null}
           {downloadOptionsOpen ? (
             <VideoDownloadOptionsPanel options={downloadOptions} onOptionsChange={setDownloadOptions} onConfirm={() => { void runVideoDownload() }} onCancel={() => { setDownloadOptionsOpen(false); setDownloadOptions(DEFAULT_VIDEO_DOWNLOAD_OPTIONS) }} isDownloading={isDownloading} endpointConfigured={endpointConfigured || hasBridgeVideoDownload} />

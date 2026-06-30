@@ -9,6 +9,12 @@ export type VideoAgentValidationConfig = {
   importUrls: string[]
 }
 
+export type VideoAgentValidationUrlOption = {
+  index: number
+  label: string
+  url: string
+}
+
 export const splitVideoAgentValidationUrls = (value: string): string[] =>
   Array.from(new Set(
     String(value || '')
@@ -25,6 +31,111 @@ export function normalizeVideoAgentValidationConfig(value: Partial<VideoAgentVal
     validationDocPath: String(value?.validationDocPath || '').trim(),
     importUrls: splitVideoAgentValidationUrls(Array.isArray(value?.importUrls) ? value.importUrls.join('\n') : ''),
   }
+}
+
+export function mergeVideoAgentValidationConfigs(
+  primary: Partial<VideoAgentValidationConfig> | null | undefined,
+  fallback: Partial<VideoAgentValidationConfig> | null | undefined,
+): VideoAgentValidationConfig {
+  const primaryConfig = normalizeVideoAgentValidationConfig(primary)
+  const fallbackConfig = normalizeVideoAgentValidationConfig(fallback)
+  return {
+    validationDocPath: primaryConfig.validationDocPath || fallbackConfig.validationDocPath,
+    importUrls: primaryConfig.importUrls.length > 0 ? primaryConfig.importUrls : fallbackConfig.importUrls,
+  }
+}
+
+export function buildVideoAgentValidationUrlOptions(urls: readonly string[]): VideoAgentValidationUrlOption[] {
+  return splitVideoAgentValidationUrls(urls.join('\n')).map((url, index) => ({
+    index,
+    label: `URL ${index + 1}`,
+    url,
+  }))
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+
+const unwrapValidationValue = (value: unknown): unknown => {
+  if (!isRecord(value)) return value
+  return 'value' in value ? value.value : value
+}
+
+const readRecord = (value: unknown): Record<string, unknown> | null => {
+  const unwrapped = unwrapValidationValue(value)
+  return isRecord(unwrapped) ? unwrapped : null
+}
+
+const readJsonRecord = (value: unknown): Record<string, unknown> | null => {
+  const unwrapped = unwrapValidationValue(value)
+  if (isRecord(unwrapped)) return unwrapped
+  if (typeof unwrapped !== 'string') return null
+  const text = unwrapped.trim()
+  if (!text.startsWith('{')) return null
+  try {
+    const parsed = JSON.parse(text) as unknown
+    return isRecord(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+const appendValidationUrls = (out: string[], value: unknown): void => {
+  const unwrapped = unwrapValidationValue(value)
+  const raw = Array.isArray(unwrapped)
+    ? unwrapped.map(item => String(unwrapValidationValue(item) || '')).join('\n')
+    : String(unwrapped || '')
+  for (const url of splitVideoAgentValidationUrls(raw)) {
+    if (!out.includes(url)) out.push(url)
+  }
+}
+
+const collectValidationUrlsFromRecord = (out: string[], record: Record<string, unknown>): void => {
+  appendValidationUrls(out, record.testUrls)
+  appendValidationUrls(out, record.testUrl)
+  appendValidationUrls(out, record.importUrls)
+  appendValidationUrls(out, record.validationUrls)
+  appendValidationUrls(out, record.validationImportUrls)
+  const sourceVideo = readRecord(record.sourceVideo)
+  if (!sourceVideo) return
+  appendValidationUrls(out, sourceVideo.testUrls)
+  appendValidationUrls(out, sourceVideo.urls)
+  appendValidationUrls(out, sourceVideo.url)
+}
+
+const collectValidationUrlsFromRuntimeInput = (out: string[], input: unknown): void => {
+  const record = readRecord(input)
+  if (!record) return
+  collectValidationUrlsFromRecord(out, record)
+
+  const contract = readRecord(record.videoAgentRuntimeContract)
+  if (contract) collectValidationUrlsFromRecord(out, contract)
+
+  const metadata = readRecord(record.metadata)
+  if (metadata) {
+    collectValidationUrlsFromRecord(out, metadata)
+    const metadataContract = readRecord(metadata.videoAgentRuntimeContract)
+    if (metadataContract) collectValidationUrlsFromRecord(out, metadataContract)
+    const frontmatterMeta = readRecord(metadata.frontmatterMeta)
+    if (frontmatterMeta) {
+      collectValidationUrlsFromRecord(out, frontmatterMeta)
+      const frontmatterContract = readRecord(frontmatterMeta.videoAgentRuntimeContract)
+      if (frontmatterContract) collectValidationUrlsFromRecord(out, frontmatterContract)
+    }
+  }
+
+  const properties = readRecord(record.properties)
+  const dataJson = readJsonRecord(record.data_json) || readJsonRecord(record.dataJson) || readJsonRecord(properties?.data_json)
+  if (dataJson) collectValidationUrlsFromRecord(out, dataJson)
+}
+
+export function readVideoAgentValidationConfigFromRuntimeInput(input: unknown): VideoAgentValidationConfig {
+  const importUrls: string[] = []
+  collectValidationUrlsFromRuntimeInput(importUrls, input)
+  const graphRecord = readRecord(input)
+  const nodes = Array.isArray(graphRecord?.nodes) ? graphRecord.nodes : []
+  for (const node of nodes) collectValidationUrlsFromRuntimeInput(importUrls, node)
+  return normalizeVideoAgentValidationConfig({ importUrls })
 }
 
 export function readVideoAgentValidationConfigFromEnv(): VideoAgentValidationConfig {

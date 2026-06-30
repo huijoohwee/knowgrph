@@ -13,6 +13,26 @@ export type FlowEditorDiagramSelectionBridge = {
 }
 
 const MIN_FLOW_DIAGRAM_SELECTION_SCORE = 4
+const VIDEO_AGENT_TIMELINE_AFFINITY_SCORE = 96
+
+const VIDEO_AGENT_STAGE_TASK_IDS = new Set([
+  'ingest',
+  'parse',
+  'search',
+  'edit',
+  'compile',
+  'generate',
+  'stream',
+])
+
+const VIDEO_AGENT_SOURCE_STAGE_TASK_IDS = new Set([
+  'ingest',
+  'parse',
+  'search',
+  'edit',
+  'compile',
+  'generate',
+])
 
 const FLOW_DIAGRAM_SELECTION_STOP_TOKENS = new Set([
   'branch',
@@ -52,6 +72,10 @@ const normalizeToken = (token: string): string => {
   const lower = token.toLowerCase()
   if (lower.length > 4 && lower.endsWith('s')) return lower.slice(0, -1)
   return lower
+}
+
+const normalizeComparableKey = (value: unknown): string => {
+  return normalizeDiagramSelectionText(value).replace(/\s+/g, '')
 }
 
 const pushComparableTokens = (out: Set<string>, value: unknown): void => {
@@ -98,9 +122,59 @@ const readPrimaryDiagramLabels = (row: DiagramSelectionRow): string[] => {
   return [row.label, row.raw].map(value => String(value || '').trim()).filter(Boolean)
 }
 
+const readDiagramComparableText = (row: DiagramSelectionRow): string => {
+  return readDiagramLabels(row).join(' ')
+}
+
+const readMermaidTaskId = (row: DiagramSelectionRow): string => {
+  const raw = String(row.raw || '')
+  const match = raw.match(/:\s*([A-Za-z][A-Za-z0-9_-]*)\s*,/)
+  return normalizeToken(match?.[1] || '')
+}
+
 const isFlowSelectableDiagramRow = (row: DiagramSelectionRow): boolean => {
   const kind = normalizeDiagramSelectionText(row.kind)
   return kind !== 'title' && kind !== 'section'
+}
+
+const isVideoAgentSourceSpecPort = (portRow: FlowEditorPortRow): boolean => {
+  const tokens = readComparableTokens([portRow.nodeId, portRow.nodeLabel, portRow.nodeType, portRow.socketType])
+  return (
+    tokens.has('video')
+    && (tokens.has('agent') || tokens.has('html'))
+    && (tokens.has('render') || tokens.has('spec') || tokens.has('renderer') || tokens.has('source'))
+  )
+}
+
+const scoreVideoAgentTimelineAffinity = (diagramRow: DiagramSelectionRow, portRow: FlowEditorPortRow): number => {
+  if (normalizeDiagramSelectionText(diagramRow.kind) !== 'task') return 0
+  const taskId = readMermaidTaskId(diagramRow)
+  const diagramText = normalizeComparableKey(readDiagramComparableText(diagramRow))
+  const normalizedPortKey = normalizeComparableKey(portRow.portKey)
+  const normalizedSocketType = normalizeComparableKey(portRow.socketType)
+  let score = 0
+
+  if (
+    normalizedPortKey === 'frameboundingboxes'
+    && (/framebox|framebyframe|bbox|boundingbox/.test(diagramText) || taskId.startsWith('frame_box'))
+  ) {
+    score += VIDEO_AGENT_TIMELINE_AFFINITY_SCORE
+    if (normalizedSocketType === 'annotationjson') score += 24
+    if (isVideoAgentSourceSpecPort(portRow)) score += 12
+  }
+
+  if (!VIDEO_AGENT_STAGE_TASK_IDS.has(taskId)) return score
+  if (VIDEO_AGENT_SOURCE_STAGE_TASK_IDS.has(taskId)) {
+    if (normalizedPortKey === 'datajson') score += VIDEO_AGENT_TIMELINE_AFFINITY_SCORE
+    if (normalizedSocketType === 'htmlvideospec') score += 36
+    if (portRow.direction === 'output') score += 12
+    if (isVideoAgentSourceSpecPort(portRow)) score += 24
+  } else if (taskId === 'stream') {
+    if (normalizedPortKey === 'outputsrcdoc' || normalizedPortKey === 'videourl') score += VIDEO_AGENT_TIMELINE_AFFINITY_SCORE
+    if (normalizedSocketType === 'htmlvideoartifact' || normalizedSocketType === 'richmediainlinehtml') score += 36
+    if (isVideoAgentSourceSpecPort(portRow)) score += 12
+  }
+  return score
 }
 
 const scoreDiagramRowAgainstPortRow = (diagramRow: DiagramSelectionRow, portRow: FlowEditorPortRow): number => {
@@ -129,7 +203,7 @@ const scoreDiagramRowAgainstPortRow = (diagramRow: DiagramSelectionRow, portRow:
   const portTokens = readComparableTokens([portRow.portKey, portRow.socketType, portRow.direction])
   const sharedNodeTokens = countSharedTokens(diagramTokens, nodeTokens)
   const sharedPortTokens = countSharedTokens(diagramTokens, portTokens)
-  let score = sharedNodeTokens * 8 + sharedPortTokens * 3
+  let score = sharedNodeTokens * 8 + sharedPortTokens * 3 + scoreVideoAgentTimelineAffinity(diagramRow, portRow)
   if (hasExactOrContainedNodeLabel) score += 32
   if (hasExactOrContainedPortKey) score += 24
   if (portRow.connectedEdgeCount > 0) score += 1

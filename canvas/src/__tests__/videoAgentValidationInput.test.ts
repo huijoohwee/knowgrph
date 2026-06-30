@@ -6,14 +6,18 @@ import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-works
 import {
   VIDEO_AGENT_REFERENCE_BOUNDARY,
   VIDEO_AGENT_SCHEMA_VERSION,
+  buildVideoAgentValidationUrlOptions,
   buildVideoAgentPipeline,
+  mergeVideoAgentValidationConfigs,
   normalizeVideoAgentValidationConfig,
+  readVideoAgentValidationConfigFromRuntimeInput,
   readVideoAgentValidationConfigFromStorage,
   serializeVideoAgentValidationUrls,
   splitVideoAgentValidationUrls,
   writeVideoAgentValidationConfigToStorage,
 } from '@/features/video-agent'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildMermaidGanttCodeFromNeutralTimelinePayload } from '@/lib/mermaid/mermaidDiagramCode'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
@@ -135,8 +139,39 @@ export function testVideoAgentValidationConfigSupportsUserConfiguredImportUrls()
   ) {
     throw new Error(`expected normalized operator validation config, got ${JSON.stringify(normalizedConfig)}`)
   }
+  const runtimeConfig = readVideoAgentValidationConfigFromRuntimeInput({
+    metadata: {
+      frontmatterMeta: {
+        videoAgentRuntimeContract: {
+          testUrls: operatorUrls,
+        },
+      },
+    },
+    nodes: [
+      {
+        properties: {
+          data_json: JSON.stringify({
+            sourceVideo: {
+              url: operatorUrls[0],
+              testUrls: operatorUrls,
+              externalDependency: false,
+            },
+          }),
+        },
+      },
+    ],
+  })
+  if (runtimeConfig.importUrls.join('|') !== operatorUrls.join('|')) {
+    throw new Error(`expected runtime validation config to derive the full active document URL set, got ${JSON.stringify(runtimeConfig)}`)
+  }
+  const mergedRuntimeConfig = mergeVideoAgentValidationConfigs({ importUrls: [] }, runtimeConfig)
+  const optionLabels = buildVideoAgentValidationUrlOptions(mergedRuntimeConfig.importUrls).map(option => option.label)
+  if (optionLabels.join('|') !== 'URL 1|URL 2') {
+    throw new Error(`expected validation URL options for each configured test URL, got ${JSON.stringify(optionLabels)}`)
+  }
 
   const configSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'video-agent', 'videoAgentValidationConfig.ts'), 'utf8')
+  const validationControlsSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'video-agent', 'VideoAgentValidationImportControls.tsx'), 'utf8')
   const launchImportSource = readFileSync(resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdownImportUrlItem.tsx'), 'utf8')
   if (
     !configSource.includes('VIDEO_AGENT_VALIDATION_CONFIG_STORAGE_KEY')
@@ -145,13 +180,40 @@ export function testVideoAgentValidationConfigSupportsUserConfiguredImportUrls()
   ) {
     throw new Error('expected video-agent validation config to expose one storage and env owner')
   }
-  for (const requiredUiToken of ['Video-agent validation import controls', 'Video-agent validation document path', 'Video-agent validation import URLs', 'Import set']) {
+  for (const requiredUiToken of [
+    'VideoAgentValidationImportControls',
+    'Video-agent validation import controls',
+    'Video-agent validation document path',
+    'Video-agent validation import URLs',
+    'optionMode="select"',
+    'onBeforeImport={beforeValidationImport}',
+    'onSelectUrl={url =>',
+    'optionButtonLabel={option => `Use ${option.label}`}',
+  ]) {
     if (!launchImportSource.includes(requiredUiToken)) {
       throw new Error(`expected Launch Import URL UI to expose ${requiredUiToken}`)
     }
   }
+  for (const requiredSharedToken of [
+    'readVideoAgentValidationConfigFromRuntimeInput',
+    'writeVideoAgentValidationConfig',
+    'getMarkdownWorkspaceActionBridge',
+    "optionMode === 'select'",
+    'data-kg-video-agent-validation-url-option',
+    'Import set',
+  ]) {
+    if (!validationControlsSource.includes(requiredSharedToken)) {
+      throw new Error(`expected shared video-agent validation controls to expose ${requiredSharedToken}`)
+    }
+  }
+  if (launchImportSource.includes('readVideoAgentValidationConfig') || launchImportSource.includes('writeVideoAgentValidationConfig')) {
+    throw new Error('expected Launch Import URL to delegate video-agent validation config state to the shared owner')
+  }
+  if (launchImportSource.includes('Use first')) {
+    throw new Error('expected Launch Import URL validation UI to preserve the full URL set instead of collapsing to the first URL')
+  }
   for (const forbidden of ['video-db', 'VideoDB', '@video-db', 'Director(', 'VIDEODB_API_KEY', 'youtu.be/']) {
-    if (configSource.includes(forbidden) || launchImportSource.includes(forbidden)) {
+    if (configSource.includes(forbidden) || launchImportSource.includes(forbidden) || validationControlsSource.includes(forbidden)) {
       throw new Error(`expected user-configurable validation owners to avoid hardcoded external dependency or URL token ${forbidden}`)
     }
   }
@@ -213,8 +275,15 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     }
   }
   const outputBoundary = Array.isArray(contract.outputBoundary) ? contract.outputBoundary.map(String).join('\n') : ''
-  if (!outputBoundary.includes('visualDataset') || !outputBoundary.includes('zoneCounting')) {
-    throw new Error('expected external validation document outputBoundary to name visualDataset and zoneCounting')
+  if (
+    !outputBoundary.includes('frameByFrameSamples')
+    || !outputBoundary.includes('richMediaPanels')
+    || !outputBoundary.includes('visualDataset')
+    || !outputBoundary.includes('mergedVisualDataset')
+    || !outputBoundary.includes('datasetOperationSummary')
+    || !outputBoundary.includes('zoneCounting')
+  ) {
+    throw new Error('expected external validation document outputBoundary to name frame samples, Rich Media panels, visual datasets, dataset summaries, and zoneCounting')
   }
   const contractFrameBoxes = Array.isArray(contract.frameBoundingBoxes) ? contract.frameBoundingBoxes : []
   if (contractFrameBoxes.length < 5) {
@@ -234,8 +303,21 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const sourceSpecData = JSON.parse(readKtvString(sourceSpecNode?.data_json) || '{}') as {
     bottomPanelTimelineSync?: { lane?: unknown; source?: unknown; surface?: unknown; thumbnailMode?: unknown; trackIds?: unknown }
     frameBoundingBoxTimelineTracks?: unknown
+    sourceVideo?: { testUrls?: unknown; url?: unknown; urls?: unknown }
     timelineLanes?: unknown
     timelineTracks?: unknown
+    validationImportUrls?: unknown
+  }
+  const sourceSpecValidationUrls = splitVideoAgentValidationUrls([
+    Array.isArray(sourceSpecData.validationImportUrls) ? sourceSpecData.validationImportUrls.join('\n') : String(sourceSpecData.validationImportUrls || ''),
+    Array.isArray(sourceSpecData.sourceVideo?.testUrls) ? sourceSpecData.sourceVideo.testUrls.join('\n') : String(sourceSpecData.sourceVideo?.testUrls || ''),
+    Array.isArray(sourceSpecData.sourceVideo?.urls) ? sourceSpecData.sourceVideo.urls.join('\n') : String(sourceSpecData.sourceVideo?.urls || ''),
+    String(sourceSpecData.sourceVideo?.url || ''),
+  ].join('\n'))
+  for (const suppliedTestUrl of suppliedTestUrls) {
+    if (!sourceSpecValidationUrls.includes(suppliedTestUrl)) {
+      throw new Error(`expected Ingest test URL graph data to expose configurable validation URL ${suppliedTestUrl}`)
+    }
   }
   const sourceTimelineTracks = Array.isArray(sourceSpecData.timelineTracks) ? sourceSpecData.timelineTracks : []
   const sourceFrameTimelineTracks = sourceTimelineTracks.filter(entry => (
@@ -330,6 +412,23 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
       if (!importedText.includes('kgYoutubeVideoId:') || !importedText.includes(suppliedTestUrl)) {
         throw new Error(`expected Import URL to materialize parsed YouTube source markdown from ${suppliedTestUrl}`)
       }
+      for (const completeParseToken of [
+        'kgVideoAgentImport: true',
+        'videoAgentRuntimeContract:',
+        'frameBoundingBoxes:',
+        'frameByFrameSamples',
+        'richMediaPanels',
+        'datasetOperationSummary',
+        'visualDataset',
+        'mergedVisualDataset',
+        'zoneCounting',
+        'html_video_source_spec',
+        'HtmlVideoRenderer',
+      ]) {
+        if (!importedText.includes(completeParseToken)) {
+          throw new Error(`expected Import URL to materialize complete video-agent parse token ${completeParseToken} for ${suppliedTestUrl}`)
+        }
+      }
 
       const result = buildVideoAgentPipeline({
         sourceUrl: suppliedTestUrl,
@@ -357,5 +456,79 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const transcriptImports = importCalls.filter(call => call.startsWith('/__youtube_transcript?'))
   if (transcriptImports.length < suppliedTestUrls.length) {
     throw new Error(`expected Import URL to use the shared YouTube transcript endpoint for each validation URL, got ${transcriptImports.length}`)
+  }
+}
+
+export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
+  const videoId = 'CompleteParse123'
+  const sourceUrl = ['https://', 'youtu.be/', videoId].join('')
+  const importCalls: string[] = []
+  const restoreFetch = installVideoAgentValidationYouTubeTranscriptFetch(importCalls)
+  try {
+    resetWorkspaceUrlContentCacheForTests()
+    const fs = createMemoryWorkspaceFs()
+    const imported = await importWorkspaceUrl({
+      fs,
+      urlRaw: sourceUrl,
+      documentSemanticMode: 'document',
+    })
+    if (imported.applyToGraph !== true) {
+      throw new Error(`expected imported video-agent document to apply to graph, got ${String(imported.applyToGraph)}`)
+    }
+    if (imported.createdPaths.length !== 1 || !String(imported.createdPaths[0] || '').endsWith('.video-agent.md')) {
+      throw new Error(`expected Import URL to focus a single video-agent document, got ${imported.createdPaths.join(', ')}`)
+    }
+    const sourceUnit = imported.corpusManifest?.sourceUnits?.[0] || null
+    if (sourceUnit?.mediaKind !== 'video' || sourceUnit.provenance?.importMode !== 'url') {
+      throw new Error(`expected complete video-agent import to preserve video URL provenance, got ${JSON.stringify(sourceUnit)}`)
+    }
+    const importedText = String((await fs.readFileText(imported.createdPaths[0] || '')) || '')
+    for (const token of [
+      'kgVideoAgentImport: true',
+      `kgYoutubeVideoId: "${videoId}"`,
+      'videoAgentRuntimeContract:',
+      'frameBoundingBoxes:',
+      'frameByFrameSamples',
+      'richMediaPanels',
+      'visualAnnotationE2E',
+      'datasetOperationSummary',
+      'visualDataset',
+      'mergedVisualDataset',
+      'datasetSplitSummary',
+      'savedDatasetArtifact',
+      'zoneCounting',
+      'html_video_source_spec',
+      'HtmlVideoRenderer',
+      'RichMediaPanel',
+      'type: "mermaid_gantt"',
+      sourceUrl,
+    ]) {
+      if (!importedText.includes(token)) {
+        throw new Error(`expected complete video-agent import document to include ${token}`)
+      }
+    }
+    const parsed = await loadGraphDataFromTextViaParser('youtube.video-agent.md', importedText, { applyToStore: false })
+    const nodes = Array.isArray(parsed?.graphData?.nodes) ? parsed.graphData.nodes : []
+    const sourceSpecNode = nodes.find(node => String(node.id || '') === 'html_video_source_spec')
+    const rendererNode = nodes.find(node => String(node.type || '') === 'HtmlVideoRenderer')
+    const richMediaPanel = nodes.find(node => String(node.type || '') === 'RichMediaPanel')
+    if (!sourceSpecNode || !rendererNode || !richMediaPanel) {
+      throw new Error(`expected complete video-agent import to parse Flow Editor graph nodes, got ${JSON.stringify(nodes.map(node => ({ id: node.id, type: node.type })))}`)
+    }
+    const sourceSpecProperties = (sourceSpecNode.properties || {}) as Record<string, unknown>
+    if (
+      !String(sourceSpecProperties.data_json || '').includes('datasetOperationSummary')
+      || !String(sourceSpecProperties.data_json || '').includes('zoneCounting')
+      || !String(sourceSpecProperties.frameBoundingBoxes || '').includes('tracked subject')
+    ) {
+      throw new Error('expected source Render_Spec node to carry parsed dataset operation data_json and frameBoundingBoxes')
+    }
+  } finally {
+    restoreFetch()
+    resetWorkspaceUrlContentCacheForTests()
+  }
+  const transcriptImports = importCalls.filter(call => call.startsWith('/__youtube_transcript?'))
+  if (transcriptImports.length !== 1) {
+    throw new Error(`expected complete video-agent import to use one shared YouTube transcript request, got ${transcriptImports.length}`)
   }
 }

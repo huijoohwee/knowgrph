@@ -305,26 +305,6 @@ export async function testWorkspaceImportUrlYouTubeStrybldrCreatesStoryboardDocu
     resetWorkspaceUrlContentCacheForTests()
   }
 }
-export async function testWorkspaceImportUrlCarriesApplyPolicyFromIngestion(): Promise<void> {
-  resetWorkspaceUrlContentCacheForTests()
-  const calls: string[] = []
-  const restore = installYouTubeTranscriptFetch(calls)
-  try {
-    const fakeId = 'PolicyId1234'
-    const watchUrl = `https://www.youtube.com/watch?v=${fakeId}`
-    const fs = createMemoryWorkspaceFs()
-    await fs.ensureSeed()
-    const result = await importWorkspaceUrl({ fs, urlRaw: watchUrl, parentPath: '/' })
-    if (result.applyToGraph !== false) {
-      throw new Error(`expected YouTube URL import to carry passive apply policy, got ${String(result.applyToGraph)}`)
-    }
-    const transcriptCalls = calls.filter(call => call.startsWith('/__youtube_transcript?'))
-    if (transcriptCalls.length !== 1) throw new Error(`expected one YouTube ingestion request, got ${transcriptCalls.length}`)
-  } finally {
-    restore()
-    resetWorkspaceUrlContentCacheForTests()
-  }
-}
 export async function testWorkspaceImportUrlExportsEligibleShareArtifactsIntoDocsRoot(): Promise<void> {
   const shareUrl = MIROMIND_SHARE_FIXTURE.url
   const exportToken = MIROMIND_SHARE_FIXTURE.token

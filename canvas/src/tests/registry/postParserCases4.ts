@@ -25,6 +25,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["toolbar.interaction.runMode.control","@/__tests__/canvasRunModeInteractionPanel.test","testToolbarInteractionPanelIncludesRunModeControl"],
   ["toolbar.interaction.runMode.persistedManualDefault","@/__tests__/canvasRunModeInteractionPanel.test","testCanvasRunModeUsesPersistedManualDefault"],
   ["floatingPanel.flowEditor.portRows.typedHandles","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorFloatingPanelPortRowsUseTypedHandles"],
+  ["floatingPanel.flowEditor.diagramSelection.semanticRows","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorDiagramSelectionBridgeMatchesSemanticRows"],
   ["floatingPanel.flowEditor.reusesSharedChrome","@/__tests__/flowEditorFloatingPanelPorts.test","testFlowEditorFloatingPanelReusesSharedFloatingPanelAndKtvChrome"],
   ["floatingPanel.formControls.sharedDensity","@/__tests__/panelFormControlReuse.test","testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity"],
   ["floatingPanel.formControls.chatModelCredentials.sharedStoryboardFlow","@/__tests__/panelFormControlReuse.test","testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialControls"],
