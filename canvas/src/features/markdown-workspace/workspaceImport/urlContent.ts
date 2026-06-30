@@ -37,6 +37,7 @@ import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
 import { WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS, WORKSPACE_WEBPAGE_MARKDOWN_REFRESH_MAX_CHARS, chooseDomRecoveredMarkdown, chooseWebpageMarkdownByContentCoverage, clipLargeWebpageMarkdown, looksLikeMostlyTitleOnlyMarkdown, shouldAcceptConvertedDomRecoveredMarkdown } from './webpageMarkdownFidelity'
 import { shouldSkipUnifiedMarkdownConversion } from '@/lib/websites/webpageMarkdownConversionBudget'
 import { isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
+import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import {
   GLB_ASSET_MIME_TYPE,
   GLTF_ASSET_MIME_TYPE,
@@ -161,13 +162,12 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const isGlb = /\.glb(\?|#|$)/i.test(normalizedLower)
   const isGltf = /\.gltf(\?|#|$)/i.test(normalizedLower)
   const isWeChat = isWeChatArticleUrl(normalizedUrl)
-
   if (isYouTube) {
     opts?.onProgress?.(10)
     const converted = await fetchYouTubeTranscriptMarkdown(normalizedUrl)
     opts?.onProgress?.(100)
-    if (!converted) throw new Error('YouTube import failed')
-    if (converted.ok === false) throw new Error(converted.error || 'YouTube import failed')
+    const conversionError = converted && converted.ok === false ? converted.error || 'YouTube transcript unavailable' : 'YouTube transcript unavailable'
+    if (!converted || converted.ok === false) return { normalizedUrl, name: getYouTubeId(normalizedUrl) ? `youtube-${getYouTubeId(normalizedUrl)}.md` : 'youtube-video.md', text: ['# YouTube Video Source', '', normalizedUrl, '', `Transcript status: ${conversionError}`, ''].join('\n'), sourceMediaKind: 'video', sourceMimeHint: 'text/markdown' }
     return {
       normalizedUrl,
       name: String(converted.name || 'youtube-transcript.md'),

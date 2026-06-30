@@ -578,7 +578,7 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
     const frameAnalysisSrcDoc = String(frameAnalysisMediaSpec && 'srcDoc' in frameAnalysisMediaSpec ? frameAnalysisMediaSpec.srcDoc || '' : '')
     if (
       frameAnalysisMediaSpec?.kind !== 'iframe' || !frameAnalysisSrcDoc.includes('data-kg-video-agent-frame-analysis')
-      || !frameAnalysisSrcDoc.includes('kg-rich-media-panel-srcdoc-timeline-transport') || frameAnalysisSrcDoc.includes('data-kg-video-agent-source-playback')
+      || !frameAnalysisSrcDoc.includes('kg-rich-media-panel-srcdoc-timeline-transport') || frameAnalysisSrcDoc.includes('data-kg-video-agent-source-playback="1"')
     ) throw new Error('expected frame-analysis Rich Media panel to stay route-owned and timeline-synced instead of reusing stream playback srcdoc')
     const datasetPanelProperties = (datasetPanel.properties || {}) as Record<string, unknown>
     if (

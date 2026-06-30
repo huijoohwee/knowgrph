@@ -18,14 +18,14 @@ export function testFrameByFrameClipContextUsesTimelineSeconds() {
   })
   const frameByFrameSpan = buildMermaidGanttTimelineModel(frameByFrameContextCode).taskSpans[0] || null
   if (
-    !shouldUseTimelineSecondsForVideoSequenceClipEdit(frameByFrameSpan) ||
+    shouldUseTimelineSecondsForVideoSequenceClipEdit(frameByFrameSpan) ||
     buildVideoSequenceClipEditDetailsLabel({
-      maxMinutes: 6.3,
-      mediaDurationSeconds: 70,
+      maxMinutes: 1,
+      mediaDurationSeconds: 60,
       selectedSpan: frameByFrameSpan,
       useTimelineSeconds: shouldUseTimelineSecondsForVideoSequenceClipEdit(frameByFrameSpan),
     }) !== 'Selected clip: Frame-by-frame bbox 2.8s tracked subject. Start 0:03. End 0:04. Duration 0:01.'
   ) {
-    throw new Error('expected frame-by-frame clip context to use timeline seconds instead of source media-duration scaling')
+    throw new Error('expected frame-by-frame clip context to preserve source seconds after transport scaling')
   }
 }

@@ -89,7 +89,7 @@ export type VideoAgentTimelineTrack = {
   phase: VideoAgentPipelineStage['phase']
   output: string
   timelineLane: 'video' | 'fbf' | 'audio'
-  source: 'agent-stage' | 'frameBoundingBox' | 'source-audio'
+  source: 'source-video' | 'frameBoundingBox' | 'source-audio'
   bbox?: VideoAgentFrameBoundingBox['bbox']
   confidence?: number
   frameIndex?: number
@@ -211,18 +211,17 @@ const buildReasoningArtifacts = (
     outputArtifact: buildVideoAgentWorkspaceOutputArtifactPath(REASONING_META[capability].outputArtifact, workspaceOutputRoot),
   }))
 
-const buildStageTimelineTracks = (stages: readonly VideoAgentPipelineStage[]): VideoAgentTimelineTrack[] =>
-  stages.map((stage, index) => ({
-    id: stage.id,
-    label: stage.label,
-    trackIndex: index,
-    startMs: stage.startMs,
-    durationMs: stage.durationMs,
-    phase: stage.phase,
-    output: stage.output,
-    timelineLane: 'video',
-    source: 'agent-stage',
-  }))
+const buildSourceVideoTimelineTrack = (durationMs: number): VideoAgentTimelineTrack => ({
+  id: 'video_agent_source_video',
+  label: 'Source video',
+  trackIndex: 0,
+  startMs: 0,
+  durationMs: Math.max(1, durationMs),
+  phase: 'ingestion',
+  output: 'audio-capable source frames',
+  timelineLane: 'video',
+  source: 'source-video',
+})
 
 const buildFrameBoundingBoxTimelineTracks = (
   frameBoundingBoxes: readonly VideoAgentFrameBoundingBox[],
@@ -446,10 +445,10 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     schemaVersion: VIDEO_AGENT_SCHEMA_VERSION,
     sourceUrl,
   })
-  const stageTimelineTracks = buildStageTimelineTracks(stages)
+  const sourceVideoTimelineTrack = buildSourceVideoTimelineTrack(durationMs)
   const frameBoundingBoxTimelineTracks = buildFrameBoundingBoxTimelineTracks(frameBoundingBoxes, durationMs)
   const audioTimelineTrack = buildAudioTimelineTrack(durationMs)
-  const timelineTracks = [...stageTimelineTracks, ...frameBoundingBoxTimelineTracks, audioTimelineTrack]
+  const timelineTracks = [sourceVideoTimelineTrack, ...frameBoundingBoxTimelineTracks, audioTimelineTrack]
   const stream = {
     primary: 'video/mp4',
     fallback: 'outputSrcDoc',
@@ -531,7 +530,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     frameBoundingBoxTimelineTracks,
     timelineTracks,
     timelineLanes: [
-      { id: 'video-agent-stages', label: 'Video agent stages', tracks: stageTimelineTracks.map(track => track.id) },
+      { id: 'source-video', label: 'Source video', tracks: [sourceVideoTimelineTrack.id] },
       { id: 'frame-by-frame-boxes', label: 'Frame-by-frame boxes', tracks: frameBoundingBoxTimelineTracks.map(track => track.id) },
       { id: 'source-audio', label: 'Source audio', tracks: [audioTimelineTrack.id] },
     ],
@@ -540,7 +539,7 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
       source: 'video+frameBoundingBoxes+audio',
       lane: 'video-fbf-audio',
       thumbnailMode: 'frame-by-frame-image',
-      trackIds: [...stageTimelineTracks, ...frameBoundingBoxTimelineTracks, audioTimelineTrack].map(track => track.id),
+      trackIds: timelineTracks.map(track => track.id),
     },
     workspaceOutputRoot,
     workspaceFiles: [

@@ -78,6 +78,18 @@ const pushUniqueCode = (out: string[], code: string): void => {
   out.push(next)
 }
 
+const TYPED_MERMAID_PRIORITY_KEYS = new Set(['flow_diagrams', 'frontmatterMeta', 'diagrams', 'mermaid', 'value'])
+
+const readTypedMermaidScanValues = (record: Record<string, unknown>): unknown[] => {
+  const priority: unknown[] = []
+  const rest: unknown[] = []
+  for (const [key, value] of Object.entries(record)) {
+    if (TYPED_MERMAID_PRIORITY_KEYS.has(key)) priority.push(value)
+    else rest.push(value)
+  }
+  return priority.concat(rest)
+}
+
 const readNeutralTimelineString = (value: unknown): string => (
   typeof value === 'string' ? String(value || '').trim() : ''
 )
@@ -170,15 +182,21 @@ const resolveNeutralTimelineUnitMs = (tracks: readonly NeutralTimelineTrack[]): 
   return maxEndMs > 0 && maxEndMs <= 60000 ? 1000 : 60000
 }
 
+const formatNeutralTimelinePositionToken = (ms: number): string => {
+  const minutes = Math.max(0, ms / 60000)
+  return `kgpos_${String(Number(minutes.toFixed(6))).replace(/\./g, '_')}`
+}
+
 const formatNeutralTimelineClock = (ms: number, unitMs: number): string => {
-  const totalMinutes = Math.max(0, Math.round(ms / Math.max(1, unitMs)))
+  const totalMinutes = Math.max(0, Math.round(unitMs === 1000 ? ms / 1000 : ms / Math.max(1, unitMs)))
   const hours = Math.floor(totalMinutes / 60) % 24
   const minutes = totalMinutes % 60
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
 const formatNeutralTimelineDurationMinutes = (ms: number, unitMs: number): string => {
-  return `${Math.max(1, Math.round(ms / Math.max(1, unitMs)))}m`
+  const minutes = unitMs === 1000 ? ms / 60000 : ms / Math.max(1, unitMs)
+  return `${Math.max(0.001, Number(minutes.toFixed(6)))}m`
 }
 
 const readNeutralTimelineTitle = (payload: Record<string, unknown>): string => (
@@ -213,7 +231,8 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
     for (const track of laneTracks) {
       assignedTrackIds.add(track.id)
       const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
-      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
+      const positionToken = unitMs === 1000 ? formatNeutralTimelinePositionToken(track.startMs) : ''
+      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   for (const lane of lanes) pushLane(lane)
@@ -222,7 +241,8 @@ export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown):
     lines.push('  section Timeline')
     for (const track of unassigned) {
       const thumbnailToken = formatMermaidGanttFrameThumbnailToken(track.thumbnailUrl)
-      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
+      const positionToken = unitMs === 1000 ? formatNeutralTimelinePositionToken(track.startMs) : ''
+      lines.push(`  ${track.label} : ${[track.id, thumbnailToken, positionToken, formatNeutralTimelineClock(track.startMs, unitMs), formatNeutralTimelineDurationMinutes(track.durationMs, unitMs)].filter(Boolean).join(', ')}`)
     }
   }
   return lines.join('\n')
@@ -283,7 +303,7 @@ const collectTypedMermaidDiagramCodes = (
   }
 
   state.depth += 1
-  for (const item of Object.values(record)) {
+  for (const item of readTypedMermaidScanValues(record)) {
     collectTypedMermaidDiagramCodes(item, kind, out, state)
   }
   state.depth -= 1

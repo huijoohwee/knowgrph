@@ -40,6 +40,7 @@ const RENDERER_NODE_ID = 'html_video_renderer_node'
 const STREAM_PANEL_NODE_ID = 'html_video_stream_panel'
 const FRAME_ANALYSIS_PANEL_NODE_ID = 'video_agent_frame_analysis_panel'
 const DATASET_PANEL_NODE_ID = 'video_agent_dataset_panel'
+const TRANSCRIPT_UNAVAILABLE_REMOTE_VIDEO_FALLBACK_DURATION_MS = 60_000
 
 const cleanInline = (value: unknown): string => String(value || '').replace(/\s+/g, ' ').trim()
 
@@ -176,9 +177,10 @@ const buildTranscriptImportArtifacts = (args: {
   }
 }
 
-const readTranscriptDurationMs = (args: Pick<VideoAgentUrlImportDocumentArgs, 'sourceTranscriptJsonText'>): number => {
+const readTranscriptDurationMs = (args: Pick<VideoAgentUrlImportDocumentArgs, 'sourceTranscriptJsonText' | 'sourceUrl'>): number => {
   const segments = readTranscriptSegmentsFromJson(String(args.sourceTranscriptJsonText || ''))
-  return segments.reduce((durationMs, segment) => Math.max(durationMs, segment.endMs), 0)
+  const transcriptDurationMs = segments.reduce((durationMs, segment) => Math.max(durationMs, segment.endMs), 0)
+  return transcriptDurationMs || (getYouTubeId(args.sourceUrl) ? TRANSCRIPT_UNAVAILABLE_REMOTE_VIDEO_FALLBACK_DURATION_MS : 0)
 }
 
 const pushBlockScalar = (lines: string[], indent: string, key: string, value: string): void => {
@@ -211,6 +213,13 @@ const pushFrameBoxes = (
   for (const box of frameBoundingBoxes) {
     lines.push(`${indent}  - {frameIndex: ${box.frameIndex}, timestampMs: ${box.timestampMs}, label: ${yamlQuote(box.label)}, bbox: [${box.bbox.join(', ')}], confidence: ${box.confidence}}`)
   }
+}
+
+const buildVideoAgentProcessFlowchartCode = (stages: readonly { id: string; label: string; output: string }[]): string => {
+  const lines = ['flowchart LR']
+  stages.forEach(stage => lines.push(`  ${stage.id}["${cleanInline(stage.label)}<br/>${cleanInline(stage.output)}"]`))
+  for (let index = 0; index < stages.length - 1; index += 1) lines.push(`  ${stages[index]?.id} --> ${stages[index + 1]?.id}`)
+  return lines.join('\n')
 }
 
 export function buildVideoAgentUrlImportDocumentName(args: { sourceName?: string | null; sourceUrl: string }): string {
@@ -266,6 +275,7 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
   const mergedVisualDatasetJson = jsonBlock(pipeline.datasetRuntime.mergedVisualDataset)
   const zoneCountingJson = jsonBlock(pipeline.datasetRuntime.zoneCounting)
   const ganttCode = buildMermaidGanttCodeFromNeutralTimelinePayload(renderData)
+  const flowchartCode = buildVideoAgentProcessFlowchartCode(pipeline.stages)
   const youtubeId = getYouTubeId(sourceUrl)
 
   const lines: string[] = [
@@ -337,11 +347,20 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
   pushFrameBoxes(lines, '  ', pipeline.frameBoundingBoxes)
   lines.push(
     'flow_diagrams:',
-    '  video_agent_timeline:',
-    '    key: "video_agent_timeline"',
-    '    type: "mermaid_gantt"',
+    '  key: "flow_diagrams"',
+    '  type: "object"',
+    '  value:',
+    '    video_agent_process:',
+    '      key: "video_agent_process"',
+    '      type: "mermaid_flowchart"',
   )
-  pushBlockScalar(lines, '    ', 'value', ganttCode)
+  pushBlockScalar(lines, '      ', 'value', flowchartCode)
+  lines.push(
+    '    video_media_timeline:',
+    '      key: "video_media_timeline"',
+    '      type: "mermaid_gantt"',
+  )
+  pushBlockScalar(lines, '      ', 'value', ganttCode)
   lines.push(
     'flow:',
     '  direction: "LR"',

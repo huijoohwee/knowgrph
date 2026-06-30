@@ -252,6 +252,7 @@ export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskS
 export function shouldUseTimelineSecondsForVideoSequenceClipEdit(span: MermaidGanttTimelineTaskSpan | null | undefined): boolean {
   if (!span) return false
   if (resolveVideoSequenceTimelineLane(span) !== 'fbf') return false
+  if (/\bkgpos_\d+(?:_\d+)?\b/i.test(span.raw)) return false
   return /\b\d+(?:\.\d+)?s\b/i.test(`${span.label} ${span.raw}`)
 }
 

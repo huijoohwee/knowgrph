@@ -24,6 +24,7 @@ export type GanttTimelineTransportRulerModel = {
     dragPreview: MermaidGanttTimelineDragPreview | null
     draggingRowKey: string
     maxMinutes: number
+    mediaDurationSeconds: number
     playheadPercent: number
     scopes: readonly VideoSequenceTimelineScope[]
     selectedRowKey: string
@@ -46,6 +47,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingRowKey: string
   maxMinutes: number
+  mediaDurationSeconds: number
   playheadPercent: number
   positionMinutes: number
   scopes: readonly VideoSequenceTimelineScope[]
@@ -84,6 +86,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       dragPreview: args.dragPreview,
       draggingRowKey: args.draggingRowKey,
       maxMinutes: args.maxMinutes,
+      mediaDurationSeconds: args.mediaDurationSeconds,
       onRulerPointerDown: args.onRulerPointerDown,
       onSelectRowKey: args.onSelectRowKey,
       onSelectRowPosition: args.onSelectRowPosition,
@@ -104,6 +107,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.dragPreview,
     args.draggingRowKey,
     args.maxMinutes,
+    args.mediaDurationSeconds,
     args.onRulerPointerDown,
     args.onSelectRowKey,
     args.onSelectRowPosition,

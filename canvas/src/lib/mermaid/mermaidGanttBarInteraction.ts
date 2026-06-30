@@ -163,13 +163,14 @@ function parseGanttClockTime(value: string): GanttTimeParts | null {
   if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
   return { hours, minutes }
 }
-
 function readClockMinutes(value: string): number | null {
+  const positionMatch = /^kgpos_(\d+(?:_\d+)?)$/i.exec(String(value || '').trim())
+  const positionMinutes = positionMatch?.[1] ? Number(positionMatch[1].replace(/_/g, '.')) : NaN
+  if (Number.isFinite(positionMinutes) && positionMinutes >= 0) return positionMinutes
   const time = parseGanttClockTime(value)
   if (!time) return null
   return time.hours * 60 + time.minutes
 }
-
 function formatClockMinutes(value: number): string {
   const totalMinutes = Math.max(0, Math.round(value))
   const hours = Math.floor(totalMinutes / 60) % 24
@@ -181,8 +182,7 @@ function readDurationMinutes(value: string): number | null {
   const match = /^(\d+(?:\.\d+)?)m$/i.exec(String(value || '').trim())
   if (!match) return null
   const minutes = Number(match[1])
-  if (!Number.isFinite(minutes) || minutes <= 0) return null
-  return Math.round(minutes)
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : null
 }
 
 function formatDurationMinutes(value: number): string {

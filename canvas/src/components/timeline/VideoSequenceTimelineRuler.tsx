@@ -13,6 +13,7 @@ import {
   buildVideoSequenceTimelineWaveformSamples,
   formatVideoSequenceTimelineSecondsOffset,
   resolveRenderableVideoSequenceTimelineSpans,
+  resolveVideoSequenceTimelineMediaSeconds,
   resolveVideoSequenceTimelineLane,
   resolveVisibleVideoSequenceTimelineLanes,
   type VideoSequenceTimelineLane,
@@ -39,7 +40,6 @@ export type VideoSequenceTimelineThumbnailWindow = {
   timelineEndMinutes: number
   timelineStartMinutes: number
 }
-
 const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'>, string> = {
   'resize-end': 'end',
   'resize-start': 'start',
@@ -239,6 +239,7 @@ export function VideoSequenceTimelineRuler({
   dragPreview,
   draggingRowKey,
   maxMinutes,
+  mediaDurationSeconds = 0,
   playheadPercent,
   selectedRowKey,
   sourceThumbnails = [],
@@ -257,6 +258,7 @@ export function VideoSequenceTimelineRuler({
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingRowKey: string
   maxMinutes: number
+  mediaDurationSeconds?: number
   playheadPercent: number
   selectedRowKey: string
   sourceThumbnails?: readonly TimelineMediaReaderThumbnail[]
@@ -276,6 +278,9 @@ export function VideoSequenceTimelineRuler({
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const visibleLaneIndexById = React.useMemo(() => new Map<VideoSequenceTimelineLaneId, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
+  const formatClipTime = React.useCallback((positionMinutes: number) => formatVideoSequenceTimelineSecondsOffset(
+    mediaDurationSeconds > 0 && maxMinutes > 0 ? resolveVideoSequenceTimelineMediaSeconds({ durationSeconds: mediaDurationSeconds, maxMinutes, positionMinutes }) : positionMinutes,
+  ), [maxMinutes, mediaDurationSeconds])
   const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   const animationState = React.useMemo(() => buildTimelineAnimationState({
     active: !!draggingRowKey || !!selectedRowKey,
@@ -358,8 +363,9 @@ export function VideoSequenceTimelineRuler({
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
           const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
           const leftPercent = maxMinutes > 0 ? (startMinutes / maxMinutes) * 100 : 0
-          const widthPercent = maxMinutes > 0 ? Math.max(2, (durationMinutes / maxMinutes) * 100) : 0
           const lane = resolveVideoSequenceTimelineLane(span)
+          const minWidthPercent = lane === 'fbf' ? 0.24 : 2
+          const widthPercent = maxMinutes > 0 ? Math.max(minWidthPercent, (durationMinutes / maxMinutes) * 100) : 0
           const laneIndex = visibleLaneIndexById.get(lane) ?? 0
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
@@ -421,8 +427,8 @@ export function VideoSequenceTimelineRuler({
             && !thumbnailSamples.length
             ? buildVideoSequenceTimelineFrameSamples({ sampleCount: Math.max(4, Math.round(durationMinutes * 1.1)), seedText: `${span.label} ${span.raw} nested` })
             : []
-          const clipStartLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes)
-          const clipEndLabel = formatVideoSequenceTimelineSecondsOffset(startMinutes + durationMinutes)
+          const clipStartLabel = formatClipTime(startMinutes)
+          const clipEndLabel = formatClipTime(startMinutes + durationMinutes)
           return (
             <article
               key={`span:${span.rowKey}`}
