@@ -196,6 +196,9 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     await execTest(results, 'ui.overlay.schedule.includesMarkdownOverlays', modOverlayCursor.testGraphCanvasRootOverlayScheduleIncludesMarkdownOverlays)
     await execTest(results, 'ui.overlay.edges.panelNodes.pixelConstantPadOut', modOverlayCursor.testPanelNodeEdgeEndpointsUsePixelConstantPadOut)
 
+    const modStoryboardFixedCardPerf = await import('../../__tests__/storyboardFixedCardOverlayPerformanceRegression.test')
+    await execTest(results, 'ui.storyboard.fixedCardOverlay.skipsNoopTransformWrites', modStoryboardFixedCardPerf.testStoryboardFixedCardOverlaySkipsNoopTransformWrites)
+
     const modRichMediaEditorDrag = await import('../../__tests__/richMediaPanelEditorModeDragRegression.test')
     await execTest(results, 'ui.richMediaPanel.editorMode.disablesContentPointerEvents', modRichMediaEditorDrag.testRichMediaPanelEditorModeDisablesInteractiveContentForDragging)
     await execTest(results, 'ui.richMediaPanel.d3Overlay.wheelForwardsBeforeScrollableBody', modRichMediaEditorDrag.testD3RichMediaOverlayForwardsWheelBeforeScrollableBody)

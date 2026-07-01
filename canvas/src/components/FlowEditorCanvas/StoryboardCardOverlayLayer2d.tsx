@@ -31,13 +31,6 @@ type StoryboardCardPlacement = {
   y: number
 }
 
-type StoryboardCardAppliedBox = {
-  left: number
-  top: number
-  scale: number
-  display: string
-}
-
 const readFiniteNumber = (value: unknown): number | null => {
   const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN
   return Number.isFinite(n) && n > 0 ? n : null
@@ -258,7 +251,6 @@ function StoryboardCardOverlayItem(props: {
         height,
         transformOrigin: '0 0',
         willChange: 'transform',
-        backfaceVisibility: 'hidden',
         ...RICH_MEDIA_PANEL_DEFAULT_CSS_VARS,
       }}
     >
@@ -374,7 +366,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
-  const lastAppliedBoxByCardIdRef = React.useRef<Map<string, StoryboardCardAppliedBox>>(new Map())
+  const lastAppliedBoxByCardIdRef = React.useRef<Map<string, { left: number; top: number; scale: number; display: string }>>(new Map())
   const initialFitCommitKeyRef = React.useRef('')
   const board = React.useMemo(
     () => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }),
@@ -411,7 +403,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     const key = String(id || '').trim()
     if (!key) return
     if (el) overlayElsRef.current.set(key, el)
-    else overlayElsRef.current.delete(key)
+    else { overlayElsRef.current.delete(key); lastAppliedBoxByCardIdRef.current.delete(key) }
   }, [])
   const commitNodePatch = React.useCallback((card: StoryboardCardModel, patch: Partial<GraphNode>, historyLabel: string) => {
     const id = String(card.id || '').trim()
@@ -513,10 +505,8 @@ export function StoryboardCardOverlayLayer2d(props: {
       }
       let visibleCardCount = 0
       const pending: Array<{ card: StoryboardCardModel; el: HTMLElement; node: GraphNode; x: number; y: number; width: number; height: number }> = []
-      const keepCardIds = new Set<string>()
       for (let i = 0; i < cards.length; i += 1) {
         const card = cards[i]!
-        keepCardIds.add(card.id)
         const node = nodeById.get(card.id)
         const el = overlayElsRef.current.get(card.id)
         if (!node || !el) continue
@@ -557,16 +547,8 @@ export function StoryboardCardOverlayLayer2d(props: {
         if (boxChanged) {
           el.style.transform = `translate3d(${box.left}px, ${box.top}px, 0) scale(${box.scale})`
           el.style.display = display
-          lastAppliedBoxByCardIdRef.current.set(pending[i]!.card.id, {
-            left: box.left,
-            top: box.top,
-            scale: box.scale,
-            display,
-          })
+          lastAppliedBoxByCardIdRef.current.set(pending[i]!.card.id, { left: box.left, top: box.top, scale: box.scale, display })
         }
-      }
-      for (const cardId of Array.from(lastAppliedBoxByCardIdRef.current.keys())) {
-        if (!keepCardIds.has(cardId)) lastAppliedBoxByCardIdRef.current.delete(cardId)
       }
       frame = window.requestAnimationFrame(update)
     }
