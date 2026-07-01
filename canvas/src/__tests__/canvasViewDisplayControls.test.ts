@@ -3,6 +3,7 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 import { BLOCK_SCHEMA } from '@/__tests__/canvas3dMode.test'
 import { CANVAS_2D_RENDERER_ORDER, isD3Like2dRenderer } from '@/lib/config.render'
+import { CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID, type CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID, type CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 
 export function testGridSnapDisplayControlsReuseSharedUtilityOwner() {
@@ -365,10 +366,13 @@ export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
       throw new Error(`expected shared Board layout utility owner to define snippet: ${snippet}`)
     }
   }
-  if (!panelSource.includes('CANVAS_BOARD_LAYOUT_OPTIONS') || !panelSource.includes('readCanvasBoardLayoutMode')) {
-    throw new Error('expected Strybldr FloatingPanel board select to reuse shared board layout options and coercion')
-  }
   for (const forbidden of [
+    'CANVAS_BOARD_LAYOUT_OPTIONS',
+    'readCanvasBoardLayoutMode',
+    'strybldrStoryboardBoardLayoutMode',
+    'setStrybldrStoryboardBoardLayoutMode',
+    'Strybldr storyboard board layout',
+    '<PanelField label="Board">',
     "event.target.value === 'fixed' ? 'fixed' : 'flex'",
     '<option value="flex">Flex</option>',
     '<option value="fixed">Fixed</option>',
@@ -450,6 +454,99 @@ export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
     }
     if (unexpectedViewMutations.length > 0) {
       throw new Error(`Expected ${renderer} Board toggle not to mutate renderer, schema, behavior, or surface setters, got ${unexpectedViewMutations.join(', ')}`)
+    }
+  }
+}
+
+export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
+  const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
+  const menuSource = readFileSync(new URL('../components/toolbar/canvasViewMenu.ts', import.meta.url), 'utf8')
+  const panelSource = readFileSync(new URL('../features/strybldr/StrybldrFloatingPanelView.tsx', import.meta.url), 'utf8')
+  const sharedSource = readFileSync(new URL('../lib/canvas/canvasAspectRatioDisplayControls.ts', import.meta.url), 'utf8')
+  for (const snippet of ['CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID', 'toggleCanvasAspectRatioMode']) {
+    if (!actionsSource.includes(snippet)) throw new Error(`expected Canvas View actions to reuse shared Aspect utility snippet: ${snippet}`)
+  }
+  for (const snippet of ['CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_DESCRIPTION', 'CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_LABEL', 'readCanvasAspectRatioDisplayControlActive', 'readCanvasAspectRatioDisplayControlTitle']) {
+    if (!menuSource.includes(snippet)) throw new Error(`expected Canvas View menu to reuse shared Aspect utility snippet: ${snippet}`)
+  }
+  for (const snippet of ["CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID = 'control:aspectRatio'", "CANVAS_ASPECT_RATIO_MODE_DEFAULT: CanvasAspectRatioMode = '16:9'", 'CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'toggleCanvasAspectRatioMode']) {
+    if (!sharedSource.includes(snippet)) throw new Error(`expected shared Aspect utility owner to define snippet: ${snippet}`)
+  }
+  for (const forbidden of ['CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'strybldrStoryboardCardAspectMode', 'setStrybldrStoryboardCardAspectMode', 'Strybldr storyboard layout controls', 'Strybldr storyboard card aspect ratio', '<PanelField label="Layout">', "event.target.value === '9:16' ? '9:16' : '16:9'", '<option value="16:9">16:9</option>', '<option value="9:16">9:16</option>']) {
+    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden) || panelSource.includes(forbidden)) {
+      throw new Error(`expected aspect ratio ownership to avoid FloatingPanel/local literal or local logic: ${forbidden}`)
+    }
+  }
+
+  for (const renderer of CANVAS_2D_RENDERER_ORDER) {
+    const displayControls = buildCanvasViewOptions(
+      {
+        canvas2dRenderer: renderer,
+        canvas3dMode: '3d',
+        canvasRenderMode: '2d',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: false,
+        multiDimTableModeEnabled: false,
+        renderMediaAsNodes: false,
+        timelineEnabled: false,
+        bottomSurfaceCollapsed: true,
+        bottomSurfaceTab: 'stats',
+        minimapCollapsed: false,
+        aspectRatioMode: '16:9',
+        geospatialEnabled: false,
+        layoutMode: 'block',
+        schema: BLOCK_SCHEMA,
+        frontmatterOnlyAllowed: false,
+        isD3Like2dLayoutToggle: isD3Like2dRenderer(renderer),
+      },
+      getCanvasViewRendererOptions(),
+    ).find(option => option.id === 'control:menu')
+    const aspectToggle = displayControls?.children?.find(child => child.id === CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID)
+    if (!aspectToggle || aspectToggle.title !== 'Aspect: 16:9' || aspectToggle.label !== 'Aspect' || aspectToggle.disabled || aspectToggle.children?.length || aspectToggle.isActive === true) {
+      throw new Error(`Expected ${renderer} Display Controls to expose shared inactive Aspect toggle`)
+    }
+
+    const unexpectedViewMutations: string[] = []
+    const aspectRatioModes: CanvasAspectRatioMode[] = []
+    const markUnexpected = (name: string) => () => { unexpectedViewMutations.push(`${renderer}:${name}`) }
+    applyCanvasViewSelection({
+      id: CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID,
+      ensureBaselineUnlocked: () => true,
+      geospatialEnabled: false,
+      onOpenGeospatialMode: () => { throw new Error(`Expected ${renderer} Aspect toggle to avoid opening Geospatial Mode`) },
+      canvas2dRenderer: renderer,
+      canvas3dMode: '3d',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: false,
+      timelineEnabled: false,
+      bottomSurfaceCollapsed: true,
+      bottomSurfaceTab: 'stats',
+      minimapCollapsed: false,
+      aspectRatioMode: '16:9',
+      schema: BLOCK_SCHEMA,
+      setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+      setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+      setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+      setSchema: markUnexpected('setSchema') as any,
+      setBehavior: markUnexpected('setBehavior') as any,
+      setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
+      setTimelineEnabled: markUnexpected('setTimelineEnabled'),
+      setBottomSurfaceCollapsed: markUnexpected('setBottomSurfaceCollapsed'),
+      setBottomSurfaceTab: markUnexpected('setBottomSurfaceTab') as any,
+      setMinimapCollapsed: markUnexpected('setMinimapCollapsed'),
+      setAspectRatioMode: mode => { aspectRatioModes.push(mode) },
+      setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+      setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+      setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
+    })
+    if (aspectRatioModes.join('|') !== '9:16') {
+      throw new Error(`Expected ${renderer} Aspect toggle to write only shared aspect setter, got ${aspectRatioModes.join('|')}`)
+    }
+    if (unexpectedViewMutations.length > 0) {
+      throw new Error(`Expected ${renderer} Aspect toggle not to mutate renderer, schema, behavior, or surface setters, got ${unexpectedViewMutations.join(', ')}`)
     }
   }
 }
