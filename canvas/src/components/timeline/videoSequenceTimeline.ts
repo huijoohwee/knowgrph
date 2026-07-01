@@ -16,11 +16,6 @@ export type VideoSequenceTimelineProjectionOptions = {
 }
 
 const VIDEO_AGENT_COMPACT_TRACK_PATTERN = /\bvideo_agent_(?:source_video|frame_by_frame_boxes|source_audio)\b/
-const VIDEO_AGENT_COMPACT_FBF_PATTERN = /\bvideo_agent_frame_by_frame_boxes\b/
-
-export function isVideoAgentCompactFbfSpan(span: MermaidGanttTimelineTaskSpan): boolean {
-  return VIDEO_AGENT_COMPACT_FBF_PATTERN.test(span.raw)
-}
 
 export function isVideoAgentCompactMediaSpan(span: MermaidGanttTimelineTaskSpan, lane: VideoSequenceTimelineLaneId): boolean {
   if (lane !== 'video' && lane !== 'fbf' && lane !== 'audio') return false
@@ -244,6 +239,7 @@ export function readVideoSequenceSourcePlayableUrl(source: VideoSequenceTimeline
 export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskSpan): VideoSequenceTimelineLaneId {
   const signature = `${span.label} ${span.raw}`.toLowerCase()
   if (/\baudio|sound|voice|music\b/.test(signature)) return 'audio'
+  if (/\bsource[-_\s]?video\b/.test(signature) || /\bvideo_agent_source_video\b/.test(signature)) return 'video'
   if (/\bnested|composite|child timeline|timeline inside|inside timeline|timeline[-\s]?in[-\s]?fbf|fbf[-\s]?in[-\s]?timeline|timeline inside frame[-\s]?by[-\s]?frame|frame[-\s]?by[-\s]?frame inside timeline\b/.test(signature) || /_nested\b/.test(signature)) return 'nested'
   if (/\bfbf|frame[-\s]?by[-\s]?frame|cel|onion|onion skin\b/.test(signature) || /_fbf\b/.test(signature)) return 'fbf'
   if (/\bdetached|persistent|continuous|background|ui chrome\b/.test(signature) || /_detached\b/.test(signature)) return 'detached'

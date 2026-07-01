@@ -43,3 +43,13 @@ export {
 } from './videoAgentDatasetRuntime'
 
 export { buildVideoAgentDatasetPanelSrcDoc } from './videoAgentDatasetProjection'
+export {
+  buildVideoAgentFrameTableMarkdown,
+  buildVideoAgentFrameTablePanelSrcDoc,
+  buildVideoAgentFrameTableRows,
+  type VideoAgentFrameTableRow,
+} from './videoAgentFrameTableProjection'
+export {
+  buildVideoAgentTranscriptPanelSrcDoc,
+  type VideoAgentTranscriptSegment,
+} from './videoAgentTranscriptProjection'

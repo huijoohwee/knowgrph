@@ -1,6 +1,5 @@
 import { HTML_VIDEO_ENGINE_IDS, type RenderSpec } from '@/features/html-video-renderer'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { buildRemoteVideoFrameRequestUrl } from 'grph-shared/rich-media/providers'
 import {
   buildVideoAgentDatasetRuntime,
   type VideoAgentDatasetRuntime,
@@ -22,9 +21,7 @@ import {
 import { buildVideoAgentSourcePlaybackUrl } from './videoAgentSourcePlayback'
 
 export type { VideoAgentFrameBoundingBox, VideoAgentFrameDetection } from './videoAgentFrameBoxes'
-
 export const VIDEO_AGENT_SCHEMA_VERSION = 'knowgrph-video-agent/v1' as const
-
 export const VIDEO_AGENT_CAPABILITIES = Object.freeze({
   ingest: 'ingest',
   parse: 'parse',
@@ -40,7 +37,10 @@ export const VIDEO_AGENT_CAPABILITIES = Object.freeze({
 
 export const VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES = [
   'RichMediaPanel:stream',
+  'RichMediaPanel:source-playback',
+  'RichMediaPanel:transcript',
   'RichMediaPanel:frame-analysis',
+  'RichMediaPanel:multi-dimensional-table',
   'RichMediaPanel:floatingpanel-annotation',
 ] as const
 
@@ -94,7 +94,7 @@ export type VideoAgentTimelineTrack = {
   phase: VideoAgentPipelineStage['phase']
   output: string
   timelineLane: 'video' | 'fbf' | 'audio'
-  source: 'source-video' | 'frameBoundingBox' | 'source-audio'
+  source: 'source-video' | 'frame-bounding-boxes' | 'source-audio'
   bbox?: VideoAgentFrameBoundingBox['bbox']
   confidence?: number
   frameIndex?: number
@@ -218,7 +218,7 @@ const buildReasoningArtifacts = (
     outputArtifact: buildVideoAgentWorkspaceOutputArtifactPath(REASONING_META[capability].outputArtifact, workspaceOutputRoot),
   }))
 
-const buildSourceVideoTimelineTrack = (durationMs: number): VideoAgentTimelineTrack => ({
+const buildSourceVideoTimelineTrack = (durationMs: number, frameBoundingBoxes: readonly VideoAgentFrameBoundingBox[]): VideoAgentTimelineTrack => ({
   id: 'video_agent_source_video',
   label: 'Source video',
   trackIndex: 0,
@@ -228,31 +228,23 @@ const buildSourceVideoTimelineTrack = (durationMs: number): VideoAgentTimelineTr
   output: 'audio-capable source frames',
   timelineLane: 'video',
   source: 'source-video',
+  frameSamples: buildVideoAgentTimelineFrameSamples(frameBoundingBoxes),
+  frameSampleCount: frameBoundingBoxes.length,
 })
 
-const buildFrameBoundingBoxTimelineTracks = (
-  frameBoundingBoxes: readonly VideoAgentFrameBoundingBox[],
-  durationMs: number,
-): VideoAgentTimelineTrack[] => {
-  if (!frameBoundingBoxes.length) return []
-  const firstBox = frameBoundingBoxes[0]
-  return [{
-    id: 'video_agent_frame_by_frame_boxes',
-    label: `Frame-by-frame annotation samples (${frameBoundingBoxes.length})`,
-    trackIndex: 0,
-    startMs: 0,
-    durationMs: Math.max(1, durationMs),
-    phase: 'parsing',
-    output: `${frameBoundingBoxes.length} frame samples with ${frameBoundingBoxes.reduce((count, box) => count + Math.max(1, box.detections.length), 0)} detections`,
-    timelineLane: 'fbf',
-    source: 'frameBoundingBox',
-    bbox: firstBox?.bbox,
-    confidence: firstBox?.confidence,
-    frameIndex: firstBox?.frameIndex,
-    frameSamples: buildVideoAgentTimelineFrameSamples(frameBoundingBoxes),
-    frameSampleCount: frameBoundingBoxes.length,
-  }]
-}
+const buildFrameByFrameTimelineTrack = (durationMs: number, frameBoundingBoxes: readonly VideoAgentFrameBoundingBox[]): VideoAgentTimelineTrack => ({
+  id: 'video_agent_frame_by_frame_boxes',
+  label: `Frame-by-frame annotation samples (${frameBoundingBoxes.length})`,
+  trackIndex: 1,
+  startMs: 0,
+  durationMs: Math.max(1, durationMs),
+  phase: 'parsing',
+  output: 'source frame-by-frame annotations and bounding boxes',
+  timelineLane: 'fbf',
+  source: 'frame-bounding-boxes',
+  frameSamples: buildVideoAgentTimelineFrameSamples(frameBoundingBoxes),
+  frameSampleCount: frameBoundingBoxes.length,
+})
 
 const buildAudioTimelineTrack = (durationMs: number): VideoAgentTimelineTrack => ({
   id: 'video_agent_source_audio',
@@ -282,14 +274,6 @@ const buildVideoAgentCss = (): string =>
     '.url{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.badge{font-size:11px;color:#5eead4}',
     '.video-card{display:grid;gap:12px;padding:14px}',
-    '.source-playback{display:grid;gap:6px;margin:0}.source-playback iframe{display:block;width:100%;aspect-ratio:16/9;border:1px solid #334155;border-radius:8px;background:#020617}.source-playback figcaption{font-size:11px;color:#cbd5e1;line-height:1.35}',
-    '.thumbnail{position:relative;aspect-ratio:16/9;border:1px solid #334155;border-radius:8px;background:linear-gradient(135deg,#123456,#0b1220 55%,#0f766e);overflow:hidden}',
-    '.frame-images,.frame-images>li{position:absolute;inset:0;margin:0;padding:0;list-style:none}',
-    '.frame-images>li[hidden],.frame-box[hidden]{display:none}',
-    '.thumbnail-source{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.82;background:#020617}',
-    '.frame-boxes{position:absolute;inset:0;pointer-events:none}',
-    '.frame-box{position:absolute;border:2px solid #fbbf24;border-radius:6px;background:rgba(251,191,36,.08);box-shadow:0 0 0 1px rgba(15,23,42,.7);transition:left 80ms linear,top 80ms linear,width 80ms linear,height 80ms linear}',
-    '.frame-box span{position:absolute;left:0;top:-18px;border-radius:4px;background:#fbbf24;color:#1f2937;padding:2px 5px;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}',
     '.tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}',
     '.tasks li{list-style:none;border:1px solid #334155;border-radius:8px;padding:8px;background:#111827;color:#e2e8f0;font-size:11px;text-align:center}',
     '.frame-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin:0;padding:0;max-height:116px;overflow:auto}',
@@ -383,43 +367,29 @@ const buildVideoAgentHtml = (args: {
   ].map(([label, value]) => `<li><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></li>`).join('')
   const richMediaPanelItems = VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES
     .map(route => {
-      const role = route.endsWith(':stream') ? 'Stream output' : route.endsWith(':frame-analysis') ? 'Frame analysis' : 'Floating annotation'
-      const output = route.endsWith(':stream') ? 'videoUrl or outputSrcDoc' : route.endsWith(':frame-analysis') ? 'frameBoundingBoxes and zoneCounting' : 'visualDataset and annotation JSON'
+      const role = route.endsWith(':stream')
+        ? 'Stream output'
+        : route.endsWith(':source-playback')
+          ? 'Source playback'
+          : route.endsWith(':transcript')
+            ? 'Transcript'
+            : route.endsWith(':frame-analysis')
+              ? 'Frame analysis'
+              : 'Floating annotation'
+      const output = route.endsWith(':stream')
+        ? 'videoUrl or outputSrcDoc'
+        : route.endsWith(':source-playback')
+          ? 'sourcePlaybackUrl'
+          : route.endsWith(':transcript')
+            ? 'sourceTranscript and frameByFrameTranscript'
+            : route.endsWith(':frame-analysis')
+              ? 'frameBoundingBoxes and zoneCounting'
+              : 'visualDataset and annotation JSON'
       return `<article><h3>${escapeHtml(role)}</h3><p>${escapeHtml(route)}</p><output>${escapeHtml(output)}</output></article>`
     })
     .join('')
-  const sourcePlaybackUrl = buildVideoAgentSourcePlaybackUrl(args.sourceUrl)
-  const sourcePlayback = args.sourceUrl ? `<figure class="source-playback" data-kg-video-agent-source-playback="1"><iframe title="Audio-capable source video playback" src="${escapeHtml(sourcePlaybackUrl)}" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe><figcaption>Source playback is embedded with controls so operator-initiated audio remains available while frame analysis stays native.</figcaption></figure>` : ''
-  const frameBoxItems = args.frameBoundingBoxes
-    .flatMap(box => {
-      const detections = box.detections.length ? box.detections : [box]
-      return detections.map((detection, detectionIndex) => {
-        const [x, y, width, height] = detection.bbox
-        return `<mark class="frame-box" data-frame-index="${escapeHtml(box.frameIndex)}" data-detection-index="${escapeHtml(detectionIndex)}" hidden style="left:${escapeHtml(x * 100)}%;top:${escapeHtml(y * 100)}%;width:${escapeHtml(width * 100)}%;height:${escapeHtml(height * 100)}%"><span>${escapeHtml(`${secondsLabel(box.timestampMs)} ${detection.label}`)}</span></mark>`
-      })
-    })
-    .join('')
-  const sourceFrameImageMarkup = args.frameBoundingBoxes
-    .filter(box => box.frameImageUrl)
-    .map(box => `<li data-frame-index="${escapeHtml(box.frameIndex)}" hidden><img class="thumbnail-source" src="${escapeHtml(box.frameImageUrl)}" alt="" loading="lazy" decoding="async"></li>`)
-    .join('')
-  const frameUrlTemplate = buildRemoteVideoFrameRequestUrl({
-    sourceUrl: args.sourceUrl,
-    timeSeconds: 0,
-    format: 'png',
-  })
-  const frameTiming = JSON.stringify(args.frameBoundingBoxes.map((box, index) => ({
-    bbox: box.bbox,
-    boxes: (box.detections.length ? box.detections : [box]).map(detection => detection.bbox),
-    frameIndex: box.frameIndex,
-    timestampMs: box.timestampMs,
-    endMs: args.frameBoundingBoxes[index + 1]?.timestampMs ?? args.durationMs,
-  })))
-  const frameSyncScript = sourceFrameImageMarkup
-    ? `<script>(function(){var frames=JSON.parse('${frameTiming}');var duration=${Math.max(1, args.durationMs)};var root=document.querySelector('.thumbnail');var template=root?String(root.getAttribute('data-kg-video-agent-frame-url-template')||''):'';function frameSampleMs(){var min=0;for(var index=1;index<frames.length;index+=1){var delta=Number(frames[index].timestampMs)-Number(frames[index-1].timestampMs);if(delta>0&&(!min||delta<min))min=delta;}return min>0?Math.max(120,Math.min(350,min/4)):0;}var sampleMs=frameSampleMs();function formatSeconds(ms){var text=(Math.max(0,ms)/1000).toFixed(3);return text.replace(/0+$/,'').replace(/\\.$/,'');}function frameState(timeMs){var t=Math.max(0,Number(timeMs)||0);for(var index=0;index<frames.length;index+=1){var current=frames[index];var next=frames[index+1]||current;if(t>=current.timestampMs&&t<current.endMs){var span=Math.max(1,Number(next.timestampMs)-Number(current.timestampMs));return{current:current,next:next,ratio:Math.max(0,Math.min(1,(t-current.timestampMs)/span))};}}var last=frames[frames.length-1];return{current:last,next:last,ratio:0};}function readBox(frame,detectionIndex){var boxes=frame&&Array.isArray(frame.boxes)?frame.boxes:[];return boxes[detectionIndex]||frame.bbox||boxes[0]||[0,0,0,0];}function mixedBox(state,detectionIndex){var a=readBox(state.current,detectionIndex);var b=readBox(state.next,detectionIndex);var r=state.ratio||0;return[0,1,2,3].map(function(index){return Number(a[index]||0)+(Number(b[index]||0)-Number(a[index]||0))*r;});}function applyBox(mark,state){var detectionIndex=Number(mark.getAttribute('data-detection-index'))||0;var box=mixedBox(state,detectionIndex);mark.style.left=(box[0]*100)+'%';mark.style.top=(box[1]*100)+'%';mark.style.width=(box[2]*100)+'%';mark.style.height=(box[3]*100)+'%';}function updateFrameImage(img,timeMs){if(!img||!template||!(sampleMs>0))return;var bucket=Math.max(0,Math.round((Number(timeMs)||0)/sampleMs)*sampleMs);if(String(img.getAttribute('data-kg-video-agent-frame-time-ms')||'')===String(bucket))return;try{var url=new URL(template,'http://localhost');url.searchParams.set('time',formatSeconds(bucket));img.setAttribute('src',url.pathname+url.search);img.setAttribute('data-kg-video-agent-frame-time-ms',String(bucket));}catch(e){}}function fitLayer(img){var layer=document.querySelector('.frame-boxes');if(!root||!layer)return;var w=root.clientWidth||root.getBoundingClientRect().width||0;var h=root.clientHeight||root.getBoundingClientRect().height||0;var nw=img&&img.naturalWidth?img.naturalWidth:16;var nh=img&&img.naturalHeight?img.naturalHeight:9;if(!(w>0)||!(h>0)||!(nw>0)||!(nh>0)){layer.style.inset='0';return;}var scale=Math.min(w/nw,h/nh);var vw=nw*scale;var vh=nh*scale;layer.style.left=((w-vw)/2)+'px';layer.style.top=((h-vh)/2)+'px';layer.style.width=vw+'px';layer.style.height=vh+'px';layer.style.right='auto';layer.style.bottom='auto';}function sync(timeMs){var state=frameState(timeMs);var active=state.current.frameIndex;document.documentElement.style.setProperty('--kg-video-agent-progress',String(Math.max(0,Math.min(1,(Number(timeMs)||0)/duration))));document.querySelectorAll('[data-frame-index]').forEach(function(element){var visible=Number(element.getAttribute('data-frame-index'))===active;element.hidden=!visible;if(visible&&element.classList&&element.classList.contains('frame-box'))applyBox(element,state);});document.querySelectorAll('[data-kg-video-agent-frame-strip-index]').forEach(function(element){element.setAttribute('data-active',Number(element.getAttribute('data-kg-video-agent-frame-strip-index'))===active?'1':'0');});document.querySelectorAll('[data-kg-video-agent-zone-frame]').forEach(function(element){element.hidden=Number(element.getAttribute('data-kg-video-agent-zone-frame'))!==active;});var img=document.querySelector('.frame-images>li:not([hidden]) img');updateFrameImage(img,timeMs);fitLayer(img);}document.querySelectorAll('.frame-images img').forEach(function(img){img.addEventListener('load',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});});window.addEventListener('resize',function(){sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);},{passive:true});window.addEventListener('knowgrph:render-frame',function(event){var timeMs=Number(event&&event.detail&&event.detail.timeMs)||0;window.__KNOWGRPH_RENDER_TIME_MS__=timeMs;sync(timeMs);});sync(Number(window.__KNOWGRPH_RENDER_TIME_MS__)||0);}());</script>`
-    : ''
 
-  return `<main data-composition-id="knowgrph-video-agent-runtime" data-kg-rich-media-panel-size="viewport" data-start="0" data-duration="${escapeHtml((args.durationMs / 1000).toFixed(3))}" aria-label="Knowgrph video agent render"><header class="hero"><section><p class="eyebrow">Knowgrph video agent</p><h1>Reason through video, then stream the result</h1><p class="lede">${escapeHtml(args.intent)}</p></section><p class="chip">${escapeHtml(args.sourceUrl)}</p></header><section class="stage" aria-label="Video agent orchestration"><article class="source" data-start="0.000" data-duration="2.000" data-track-index="0"><header class="bar"><span class="dot" aria-hidden="true"></span><span class="url">${escapeHtml(args.sourceUrl)}</span><span class="badge">ingested</span></header><section class="video-card">${sourcePlayback}<figure><section class="thumbnail" data-kg-video-agent-frame-url-template="${escapeHtml(frameUrlTemplate)}" aria-label="Frame-by-frame bounding box preview"><ol class="frame-images" aria-label="Source video frames">${sourceFrameImageMarkup}</ol><section class="frame-boxes" aria-label="Frame-by-frame bounding boxes">${frameBoxItems}</section></section><figcaption>Frame-by-frame bounding boxes are normalized validation data; rendering stays native to knowgrph.</figcaption></figure><h2>Annotate, count, then stream</h2><p>The pipeline records source metadata, annotation targets, reasoning stages, timeline decisions, frame boxes, dataset operations, zone counts, transcript windows, audio-capable source playback, and stream-ready artifact routes as typed data.</p><ol class="tasks">${capabilityItems}</ol><ol class="frame-strip" aria-label="Granular frame-by-frame dataset strip">${frameStripItems}</ol></section></article><article class="reasoning" data-start="1.200" data-duration="4.800" data-track-index="1"><header><p class="eyebrow">Agent plan</p><h2>Native orchestration without external runtime dependency</h2></header><ol class="agents">${stageItems}</ol><section class="dataset-ops" aria-label="Visual dataset operations"><h3>Dataset operations</h3><ol>${datasetOperationItems}</ol></section><section class="zone-counts" aria-label="Real-time zone counts"><h3>Frame zone counts</h3><ol>${zoneFrameItems}</ol></section></article></section><section class="trace" aria-label="Video agent reasoning trace">${traceItems}</section><section class="rich-panels" aria-label="Rich Media panel routes">${richMediaPanelItems}</section><footer class="timeline" aria-label="Video agent timeline"><section class="rail" aria-label="Instant stream progress"></section><ol class="ticks">${tickItems}</ol><section class="stream" aria-label="Stream output contract"><strong>Instant stream</strong><p>Rich Media Panels receive source playback, stream output, frame analysis, transcript alignment, and annotation dataset payloads from the same Render_Spec when browser encoding is unavailable.</p></section></footer>${frameSyncScript}</main>`
+  return `<main data-composition-id="knowgrph-video-agent-runtime" data-kg-rich-media-panel-size="viewport" data-start="0" data-duration="${escapeHtml((args.durationMs / 1000).toFixed(3))}" aria-label="Knowgrph video agent render"><header class="hero"><section><p class="eyebrow">Knowgrph video agent</p><h1>Reason through video, then stream the result</h1><p class="lede">${escapeHtml(args.intent)}</p></section><p class="chip">${escapeHtml(args.sourceUrl)}</p></header><section class="stage" aria-label="Video agent orchestration"><article class="source" data-start="0.000" data-duration="2.000" data-track-index="0"><header class="bar"><span class="dot" aria-hidden="true"></span><span class="url">${escapeHtml(args.sourceUrl)}</span><span class="badge">ingested</span></header><section class="video-card"><h2>Annotate, count, then stream</h2><p>The pipeline records source metadata, annotation targets, reasoning stages, timeline decisions, dataset operations, zone counts, transcript windows, and stream-ready artifact routes as typed data. Source playback and frame analysis are isolated into route-owned Rich Media panels.</p><ol class="tasks">${capabilityItems}</ol><ol class="frame-strip" aria-label="Granular frame-by-frame dataset strip">${frameStripItems}</ol></section></article><article class="reasoning" data-start="1.200" data-duration="4.800" data-track-index="1"><header><p class="eyebrow">Agent plan</p><h2>Native orchestration without external runtime dependency</h2></header><ol class="agents">${stageItems}</ol><section class="dataset-ops" aria-label="Visual dataset operations"><h3>Dataset operations</h3><ol>${datasetOperationItems}</ol></section><section class="zone-counts" aria-label="Real-time zone counts"><h3>Frame zone counts</h3><ol>${zoneFrameItems}</ol></section></article></section><section class="trace" aria-label="Video agent reasoning trace">${traceItems}</section><section class="rich-panels" aria-label="Rich Media panel routes">${richMediaPanelItems}</section><footer class="timeline" aria-label="Video agent timeline"><section class="rail" aria-label="Instant stream progress"></section><ol class="ticks">${tickItems}</ol><section class="stream" aria-label="Stream output contract"><strong>Instant stream</strong><p>Rich Media Panels receive stream output, source playback, frame analysis, transcript alignment, and annotation dataset payloads through separate route-owned surfaces.</p></section></footer></main>`
 }
 
 export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAgentPipelineResult {
@@ -451,10 +421,10 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     schemaVersion: VIDEO_AGENT_SCHEMA_VERSION,
     sourceUrl,
   })
-  const sourceVideoTimelineTrack = buildSourceVideoTimelineTrack(durationMs)
-  const frameBoundingBoxTimelineTracks = buildFrameBoundingBoxTimelineTracks(frameBoundingBoxes, durationMs)
+  const sourceVideoTimelineTrack = buildSourceVideoTimelineTrack(durationMs, frameBoundingBoxes)
+  const frameByFrameTimelineTrack = buildFrameByFrameTimelineTrack(durationMs, frameBoundingBoxes)
   const audioTimelineTrack = buildAudioTimelineTrack(durationMs)
-  const timelineTracks = [sourceVideoTimelineTrack, ...frameBoundingBoxTimelineTracks, audioTimelineTrack]
+  const timelineTracks = [sourceVideoTimelineTrack, frameByFrameTimelineTrack, audioTimelineTrack]
   const stream = {
     primary: 'video/mp4',
     fallback: 'outputSrcDoc',
@@ -488,14 +458,26 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     timelineSync: 'knowgrph:render-frame',
     role: route.endsWith(':stream')
       ? 'stream-output'
-      : route.endsWith(':frame-analysis')
-        ? 'frame-analysis'
-        : 'visual-annotation-dataset',
+      : route.endsWith(':source-playback')
+        ? 'source-playback'
+        : route.endsWith(':transcript')
+          ? 'source-transcript'
+          : route.endsWith(':frame-analysis')
+            ? 'frame-analysis'
+            : route.endsWith(':multi-dimensional-table')
+              ? 'multi-dimensional-table'
+              : 'visual-annotation-dataset',
     inputs: route.endsWith(':stream')
-      ? ['videoUrl', 'audioUrl', 'outputSrcDoc', 'frameBoundingBoxes']
-      : route.endsWith(':frame-analysis')
-        ? ['outputSrcDoc', 'frameBoundingBoxes', 'zoneCounting']
-        : ['visualDataset', 'mergedVisualDataset', 'zoneCounting'],
+      ? ['videoUrl', 'outputSrcDoc']
+      : route.endsWith(':source-playback')
+        ? ['sourcePlaybackUrl']
+        : route.endsWith(':transcript')
+          ? ['sourceTranscript', 'frameByFrameTranscript']
+          : route.endsWith(':frame-analysis')
+            ? ['frameBoundingBoxes', 'zoneCounting']
+            : route.endsWith(':multi-dimensional-table')
+              ? ['frameBoundingBoxes', 'frameByFrameTranscript']
+              : ['visualDataset', 'mergedVisualDataset', 'zoneCounting'],
   }))
   const data = {
     schemaVersion: VIDEO_AGENT_SCHEMA_VERSION,
@@ -533,16 +515,15 @@ export function buildVideoAgentPipeline(input: VideoAgentPipelineInput): VideoAg
     datasetSplitSummary: datasetRuntime.datasetSplitSummary,
     savedDatasetArtifact: datasetRuntime.savedDatasetArtifact,
     zoneCounting: datasetRuntime.zoneCounting,
-    frameBoundingBoxTimelineTracks,
     timelineTracks,
     timelineLanes: [
       { id: 'source-video', label: 'Source video', tracks: [sourceVideoTimelineTrack.id] },
-      { id: 'frame-by-frame-boxes', label: 'Frame-by-frame boxes', tracks: frameBoundingBoxTimelineTracks.map(track => track.id) },
+      { id: 'frame-by-frame-boxes', label: 'Frame-by-frame boxes', tracks: [frameByFrameTimelineTrack.id] },
       { id: 'source-audio', label: 'Source audio', tracks: [audioTimelineTrack.id] },
     ],
     bottomPanelTimelineSync: {
       surface: 'BottomPanel Timeline',
-      source: 'video+frameBoundingBoxes+audio',
+      source: 'video+fbf+audio',
       lane: 'video-fbf-audio',
       thumbnailMode: 'semantic-frame-samples',
       trackIds: timelineTracks.map(track => track.id),

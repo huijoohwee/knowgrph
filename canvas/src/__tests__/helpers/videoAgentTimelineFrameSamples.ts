@@ -44,3 +44,15 @@ export const assertProviderFrameThumbnails = (
     throw new Error(`expected compact FBF transport thumbnails to use distinct provider frame URLs, got ${JSON.stringify(thumbnails)}`)
   }
 }
+
+export const assertProviderFrameSemanticSamples = (
+  samples: readonly TimelineMediaReaderThumbnail[],
+): void => {
+  if (
+    samples.length < 3
+    || samples.some(sample => sample.format !== 'png' || !String(sample.dataUrl || '').startsWith('/__video_frame?'))
+    || !hasDistinctNumbers(samples.map(sample => sample.timestampSeconds), 3)
+  ) {
+    throw new Error(`expected compact FBF semantic rail samples to preserve distinct provider frame URLs, got ${JSON.stringify(samples)}`)
+  }
+}

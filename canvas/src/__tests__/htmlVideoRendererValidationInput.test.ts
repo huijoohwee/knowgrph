@@ -206,7 +206,7 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
     !Array.isArray(data.timelineTracks)
     || data.timelineTracks.length !== 3
     || !data.timelineTracks.some(entry => String((entry as { source?: unknown }).source || '') === 'source-video')
-    || !data.timelineTracks.some(entry => String((entry as { source?: unknown; timelineLane?: unknown }).source || '') === 'frameBoundingBox' && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf')
+    || !data.timelineTracks.some(entry => String((entry as { source?: unknown }).source || '') === 'frame-bounding-boxes' && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf')
     || !data.timelineTracks.some(entry => String((entry as { source?: unknown }).source || '') === 'source-audio')
   ) throw new Error('expected validation doc data_json to expose compact source video, FBF, and source audio timeline tracks')
   if (!Array.isArray(data.workspaceFiles) || !data.workspaceFiles.some((entry) => {

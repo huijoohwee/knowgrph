@@ -2,6 +2,8 @@ import type { RemoteMarkdownConversionOk } from '@/lib/net/remoteMarkdownConvers
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { yamlQuote } from './yaml'
 
+export { formatWorkspaceImportTranscriptStatusLine } from './transcriptImportText'
+
 export function buildYouTubeWorkspaceEntryText(args: {
   normalizedUrl: string
   converted: Pick<RemoteMarkdownConversionOk, 'markdown' | 'transcriptJsonText'>

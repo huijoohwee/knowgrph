@@ -14,6 +14,7 @@ import {
 import {
   normalizeRichMediaPanelInlineSrcDoc,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
+  shouldUsePanelOwnedRichMediaPanelSrcDocScroll,
   shouldUseViewportRichMediaPanelSrcDocSize,
 } from '@/lib/render/richMediaPanelSrcDoc'
 import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
@@ -52,6 +53,8 @@ export type RichMediaPanelMediaState = {
   infiniteCanvasInteractionMode: string
   inlineSrcDocContentSize: { width: number; height: number } | null
   inlineSrcDocFrameRef: React.RefObject<HTMLIFrameElement | null>
+  inlineSrcDocRequestsPanelScroll: boolean
+  inlineSrcDocUsesViewportSize: boolean
   isFlowEditorRenderer: boolean
   kind: RichMediaKind
   markdownDocumentName: string
@@ -93,7 +96,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   const title = String(props.title || '').trim() || 'Media node'
   const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
   const headerControlsActive = props.widgetToolbarActive !== false
-  const scrollOwner = props.scrollOwner === 'panel' ? 'panel' : 'media'
+  const declaredScrollOwner = props.scrollOwner === 'panel' ? 'panel' : 'media'
   const kind: RichMediaKind =
     props.kind === 'image'
     || props.kind === 'svg'
@@ -177,12 +180,14 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     kind === 'iframe' ? rawUrl : applyImageLikeProxySrc(playableRawUrl)
   ), [kind, playableRawUrl, rawUrl])
   const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
-  const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(normalizedInlineSrcDoc), [normalizedInlineSrcDoc])
+  const inlineSrcDocRequestsPanelScroll = React.useMemo(() => shouldUsePanelOwnedRichMediaPanelSrcDocScroll(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
+  const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
+  const scrollOwner = inlineSrcDocRequestsPanelScroll ? 'panel' : declaredScrollOwner
   React.useEffect(() => {
     setInlineSrcDocContentSize(null)
   }, [normalizedInlineSrcDoc])
   React.useEffect(() => {
-    if (!normalizedInlineSrcDoc || scrollOwner !== 'panel' || inlineSrcDocUsesViewportSize) return
+    if (!normalizedInlineSrcDoc || scrollOwner !== 'panel' || (inlineSrcDocUsesViewportSize && !inlineSrcDocRequestsPanelScroll)) return
     const onMessage = (event: MessageEvent) => {
       const frame = inlineSrcDocFrameRef.current
       if (!frame || event.source !== frame.contentWindow) return
@@ -202,7 +207,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [inlineSrcDocUsesViewportSize, normalizedInlineSrcDoc, props.onInlineContentSize, scrollOwner])
+  }, [inlineSrcDocRequestsPanelScroll, inlineSrcDocUsesViewportSize, normalizedInlineSrcDoc, props.onInlineContentSize, scrollOwner])
 
   const panel = props.panel || null
   const panelSelectedTab = resolveRichMediaPanelSelectedTab({
@@ -502,6 +507,8 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     infiniteCanvasInteractionMode,
     inlineSrcDocContentSize,
     inlineSrcDocFrameRef,
+    inlineSrcDocRequestsPanelScroll,
+    inlineSrcDocUsesViewportSize,
     isFlowEditorRenderer,
     kind,
     markdownDocumentName,

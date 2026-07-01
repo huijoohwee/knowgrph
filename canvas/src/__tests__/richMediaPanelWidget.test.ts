@@ -539,7 +539,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     'data-kg-canvas-wheel-ignore="true"',
     'data-kg-overlay-pan-ignore="true"',
     'data-kg-canvas-overlay-control="true"',
-    "targetElement?.closest('[data-kg-rich-media-resize-handle=\"1\"]')",
+    "targetEl?.closest('[data-kg-rich-media-resize-handle=\"1\"]')",
   ]) {
     if (!componentText.includes(snippet)) {
       throw new Error(`expected shared Rich Media Panel resize handle to be protected from canvas pan forwarding: ${snippet}`)

@@ -22,7 +22,7 @@ import { runInIdle } from '@/features/panels/utils/idle'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { looksLikeConnectionFailureWebpageShellText } from '@/lib/websites/webpageShellHeuristics'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
-import { buildYouTubeWorkspaceEntryText } from './youtubeEntryText'
+import { buildYouTubeWorkspaceEntryText, formatWorkspaceImportTranscriptStatusLine } from './youtubeEntryText'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import { getWorkspaceUrlImportCanvasPreset, normalizeWorkspaceUrlImportCanvas2dRenderer, normalizeWorkspaceUrlImportDocumentMode } from './canvasPresets'
 import { buildWebpageWorkspaceEntryStubText, buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
@@ -167,7 +167,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     const converted = await fetchYouTubeTranscriptMarkdown(normalizedUrl)
     opts?.onProgress?.(100)
     const conversionError = converted && converted.ok === false ? converted.error || 'YouTube transcript unavailable' : 'YouTube transcript unavailable'
-    if (!converted || converted.ok === false) return { normalizedUrl, name: getYouTubeId(normalizedUrl) ? `youtube-${getYouTubeId(normalizedUrl)}.md` : 'youtube-video.md', text: ['# YouTube Video Source', '', normalizedUrl, '', `Transcript status: ${conversionError}`, ''].join('\n'), sourceMediaKind: 'video', sourceMimeHint: 'text/markdown' }
+    if (!converted || converted.ok === false) return { normalizedUrl, name: getYouTubeId(normalizedUrl) ? `youtube-${getYouTubeId(normalizedUrl)}.md` : 'youtube-video.md', text: ['# YouTube Video Source', '', normalizedUrl, '', formatWorkspaceImportTranscriptStatusLine(conversionError), ''].join('\n'), sourceMediaKind: 'video', sourceMimeHint: 'text/markdown' }
     return {
       normalizedUrl,
       name: String(converted.name || 'youtube-transcript.md'),

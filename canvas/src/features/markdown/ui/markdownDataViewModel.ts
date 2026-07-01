@@ -1,4 +1,4 @@
-import type { TokensTable } from './MarkdownTokens'
+import type { TableCellToken, TokensTable } from './MarkdownTokens'
 import { normalizeTableCellText, parseBacktickJsonStringArray, toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 
 export type MarkdownDataViewColumnKind = 'text' | 'select' | 'multi-select'
@@ -23,6 +23,28 @@ export type MarkdownDataView = {
 }
 
 const normalizeCellText = (v: unknown): string => normalizeTableCellText(v)
+
+const escapeMarkdownImageLabel = (raw: unknown): string => String(raw ?? '')
+  .replace(/\]/g, '\\]')
+  .replace(/\r?\n/g, ' ')
+  .trim()
+
+const escapeMarkdownImageHref = (raw: unknown): string => String(raw ?? '')
+  .replace(/\)/g, '%29')
+  .replace(/\s+/g, '%20')
+  .trim()
+
+const normalizeDataViewTableCell = (cell: TableCellToken | undefined): string => {
+  const image = Array.isArray(cell?.tokens) && cell.tokens.length === 1 && cell.tokens[0]?.type === 'image'
+    ? cell.tokens[0]
+    : null
+  if (image && image.href) {
+    const label = escapeMarkdownImageLabel(image.text || 'Image')
+    const href = escapeMarkdownImageHref(image.href)
+    if (label && href) return `![${label}](${href})`
+  }
+  return normalizeCellText(cell?.text ?? '')
+}
 
 const parseTrailingColumnIndex = (columnId: string): number | null => {
   const match = /^col_(\d+)$/.exec(String(columnId || '').trim())
@@ -188,9 +210,9 @@ export const buildMarkdownDataViewFromTableToken = (table: TokensTable): Markdow
   const colCount = Math.max(headerCells.length, ...rowsCells.map(r => r.length))
   if (!Number.isFinite(colCount) || colCount <= 0) return null
 
-  const headerNames = Array.from({ length: colCount }).map((_, i) => normalizeCellText(headerCells[i]?.text ?? ''))
+  const headerNames = Array.from({ length: colCount }).map((_, i) => normalizeDataViewTableCell(headerCells[i]))
   const rows: MarkdownDataViewRow[] = rowsCells.map((r, rowIndex) => {
-    const cells = Array.from({ length: colCount }).map((_, colIndex) => normalizeCellText(r[colIndex]?.text ?? ''))
+    const cells = Array.from({ length: colCount }).map((_, colIndex) => normalizeDataViewTableCell(r[colIndex]))
     return { id: `row_${rowIndex}`, cells }
   })
 

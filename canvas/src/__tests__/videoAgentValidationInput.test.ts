@@ -30,36 +30,29 @@ import {
   assertProviderFrameThumbnails,
 } from './helpers/videoAgentTimelineFrameSamples'
 import {
+  assertVideoAgentTranscriptPanelOwnsTimelineSyncedSrcDoc,
   assertVideoAgentContractCoversValidationUrls,
   installVideoAgentValidationYouTubeTranscriptFetch,
   readVideoAgentValidationUrlsFromEnv,
 } from './helpers/videoAgentValidationInput'
-
 const sourceFileExtensions = new Set(['.js', '.jsx', '.mjs', '.ts', '.tsx'])
-
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>()
-
   get length(): number {
     return this.values.size
   }
-
   clear(): void {
     this.values.clear()
   }
-
   getItem(key: string): string | null {
     return this.values.get(key) ?? null
   }
-
   key(index: number): string | null {
     return Array.from(this.values.keys())[index] ?? null
   }
-
   removeItem(key: string): void {
     this.values.delete(key)
   }
-
   setItem(key: string, value: string): void {
     this.values.set(key, value)
   }
@@ -326,7 +319,6 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const sourceSpecNode = nodes.find(node => readKtvString(node.id) === 'html_video_source_spec')
   const sourceSpecData = JSON.parse(readKtvString(sourceSpecNode?.data_json) || '{}') as {
     bottomPanelTimelineSync?: { lane?: unknown; source?: unknown; surface?: unknown; thumbnailMode?: unknown; trackIds?: unknown }
-    frameBoundingBoxTimelineTracks?: unknown
     sourceVideo?: { testUrls?: unknown; url?: unknown; urls?: unknown }
     timelineLanes?: unknown
     timelineTracks?: unknown
@@ -342,37 +334,37 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     if (!sourceSpecValidationUrls.includes(suppliedTestUrl)) throw new Error(`expected Ingest test URL graph data to expose configurable validation URL ${suppliedTestUrl}`)
   }
   const sourceTimelineTracks = Array.isArray(sourceSpecData.timelineTracks) ? sourceSpecData.timelineTracks : []
-  const sourceFrameTimelineTracks = sourceTimelineTracks.filter(entry => (
-    String((entry as { source?: unknown }).source || '') === 'frameBoundingBox'
-    && String((entry as { timelineLane?: unknown }).timelineLane || '') === 'fbf'
-  ))
+  const sourceVideoTimelineTracks = sourceTimelineTracks.filter(entry => String((entry as { source?: unknown }).source || '') === 'source-video')
+  const sourceFbfTimelineTracks = sourceTimelineTracks.filter(entry => String((entry as { source?: unknown }).source || '') === 'frame-bounding-boxes')
   if (
-    sourceFrameTimelineTracks.length !== 1
-    || !Array.isArray(sourceSpecData.frameBoundingBoxTimelineTracks)
-    || sourceSpecData.frameBoundingBoxTimelineTracks.length !== 1
+    sourceTimelineTracks.length !== 3
+    || sourceVideoTimelineTracks.length !== 1
+    || Number((sourceVideoTimelineTracks[0] as { frameSampleCount?: unknown })?.frameSampleCount || 0) < 3
+    || sourceFbfTimelineTracks.length !== 1
+    || Number((sourceFbfTimelineTracks[0] as { frameSampleCount?: unknown })?.frameSampleCount || 0) < 3
+    || String((sourceFbfTimelineTracks[0] as { timelineLane?: unknown })?.timelineLane || '') !== 'fbf'
     || sourceSpecData.bottomPanelTimelineSync?.surface !== 'BottomPanel Timeline'
-    || sourceSpecData.bottomPanelTimelineSync?.source !== 'video+frameBoundingBoxes+audio'
+    || sourceSpecData.bottomPanelTimelineSync?.source !== 'video+fbf+audio'
     || sourceSpecData.bottomPanelTimelineSync?.lane !== 'video-fbf-audio'
     || sourceSpecData.bottomPanelTimelineSync?.thumbnailMode !== 'semantic-frame-samples'
-  ) {
-    throw new Error('expected external validation document to sync compact video, FBF, and audio media tracks into BottomPanel Timeline')
-  }
+  ) throw new Error('expected external validation document to sync compact video, FBF, and audio media tracks into BottomPanel Timeline')
   if (
     !Array.isArray(sourceSpecData.timelineLanes)
     || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Frame-by-frame boxes')
+    || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Source video')
     || !sourceSpecData.timelineLanes.some(entry => String((entry as { label?: unknown }).label || '') === 'Source audio')
   ) {
-    throw new Error('expected external validation document to expose frame-by-frame and audio BottomPanel Timeline lanes')
+    throw new Error('expected external validation document to expose source video and audio BottomPanel Timeline lanes')
   }
-  const externalFbfTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(sourceSpecData)
-  if (!externalFbfTimelineCode.includes('kgframes_') || externalFbfTimelineCode.includes('kgthumb_')) {
+  const externalMediaTimelineCode = buildMermaidGanttCodeFromNeutralTimelinePayload(sourceSpecData)
+  if (!externalMediaTimelineCode.includes('kgframes_') || externalMediaTimelineCode.includes('kgthumb_') || !externalMediaTimelineCode.includes('video_agent_frame_by_frame_boxes')) {
     throw new Error('expected external validation BottomPanel FBF timeline to carry compact source-frame sample metadata')
   }
-  const externalFbfTimelineModel = buildMermaidGanttTimelineModel(externalFbfTimelineCode)
-  const externalFbfSpan = externalFbfTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
-  if (!externalFbfSpan) throw new Error('expected external validation BottomPanel FBF span')
-  assertProviderFrameSampleToken(externalFbfSpan.raw)
-  const externalFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: externalFbfSpan })
+  const externalMediaTimelineModel = buildMermaidGanttTimelineModel(externalMediaTimelineCode)
+  const externalVideoSpan = externalMediaTimelineModel.taskSpans.find(span => /video_agent_source_video/.test(span.raw))
+  if (!externalVideoSpan) throw new Error('expected external validation BottomPanel VIDEO span')
+  assertProviderFrameSampleToken(externalVideoSpan.raw)
+  const externalFrameThumbnails = buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: null, span: externalVideoSpan })
   assertProviderFrameThumbnails(externalFrameThumbnails)
   const richMediaPanels = nodes.filter(node => readKtvString(node.type) === 'RichMediaPanel')
   const frameAnalysisPanels = richMediaPanels.filter(node => {
@@ -512,7 +504,7 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
       'kgVideoAgentImport: true', 'kgWorkspaceOutputRoot: "/docs_/', `kgYoutubeVideoId: "${videoId}"`, 'kgVideoSequenceTimeline: true', 'kgVideoSequenceSources:',
       'videoAgentRuntimeContract:', 'frameBoundingBoxes:', 'frameByFrameSamples', 'sourcePlaybackUrl', 'sourceTranscript', 'frameByFrameTranscript',
       'richMediaPanels', 'visualAnnotationE2E', 'datasetOperationSummary', 'visualDataset', 'mergedVisualDataset', 'datasetSplitSummary',
-      'savedDatasetArtifact', 'zoneCounting', 'workspace output store /docs_/', 'html_video_source_spec', 'video_agent_dataset_panel', 'data-kg-video-agent-dataset-panel',
+      'savedDatasetArtifact', 'zoneCounting', 'workspace output store /docs_/', 'html_video_source_spec', 'video_agent_transcript_panel', 'data-kg-video-agent-transcript-panel', 'video_agent_dataset_panel', 'data-kg-video-agent-dataset-panel',
       'HtmlVideoRenderer', 'RichMediaPanel', 'type: "mermaid_gantt"', sourceUrl,
     ]) {
       if (!importedText.includes(token)) {
@@ -533,7 +525,7 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
     const nodes = Array.isArray(parsed?.graphData?.nodes) ? parsed.graphData.nodes : []
     const sourceSpecNode = nodes.find(node => String(node.id || '') === 'html_video_source_spec')
     const rendererNode = nodes.find(node => String(node.type || '') === 'HtmlVideoRenderer')
-    const videoAgentPanelIds = new Set(['html_video_stream_panel', 'video_agent_frame_analysis_panel', 'video_agent_dataset_panel'])
+    const videoAgentPanelIds = new Set(['html_video_stream_panel', 'video_agent_source_playback_panel', 'video_agent_transcript_panel', 'video_agent_frame_analysis_panel', 'video_agent_multi_dimensional_table_panel', 'video_agent_dataset_panel'])
     const videoAgentPanels = nodes.filter(node => videoAgentPanelIds.has(String(node.id || '')))
     const datasetPanel = videoAgentPanels.find(node => String(node.id || '') === 'video_agent_dataset_panel')
     if (!sourceSpecNode || !rendererNode || videoAgentPanels.length !== VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES.length || !datasetPanel) {
@@ -550,31 +542,39 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
       || !String(sourceSpecProperties.frameBoundingBoxes || '').includes('tracked subject')
       || !String(sourceSpecProperties.sourceTranscript || '').includes('Validation import parse evidence')
       || !String(sourceSpecProperties.frameByFrameTranscript || '').includes('transcriptSegmentIndex')
-    ) {
-      throw new Error('expected source Render_Spec node to carry parsed dataset, frame, and transcript artifacts')
-    }
-    const streamPanel = videoAgentPanels.find(node => String(node.id || '') === 'html_video_stream_panel')
+    ) throw new Error('expected source Render_Spec node to carry parsed dataset, frame, and transcript artifacts')
+    const [streamPanel, sourcePlaybackPanel, transcriptPanel] = ['html_video_stream_panel', 'video_agent_source_playback_panel', 'video_agent_transcript_panel']
+      .map(id => videoAgentPanels.find(node => String(node.id || '') === id))
     const streamPanelProperties = (streamPanel?.properties || {}) as Record<string, unknown>
     if (
-      !String(streamPanelProperties.outputSrcDoc || '').includes('data-kg-video-agent-source-playback')
-      || !readKtvString(streamPanelProperties.sourcePlaybackUrl).includes('youtube-nocookie.com/embed')
+      !String(streamPanelProperties.outputSrcDoc || '').includes('data-kg-video-agent-stream-panel')
+      || String(streamPanelProperties.outputSrcDoc || '').includes('data-kg-video-agent-source-playback="1"')
       || readKtvString(streamPanelProperties.kind) !== 'iframe'
       || readKtvString(streamPanelProperties.videoAgentKind) !== 'stream'
       || unwrapKtvValue(streamPanelProperties.media_interactive) !== true
-    ) {
-      throw new Error('expected stream Rich Media panel to demonstrate audio-capable source playback and video-agent output')
-    }
+    ) throw new Error('expected stream Rich Media panel to stay separated from source playback and frame analysis')
     const streamPanelMediaSpec = streamPanel ? getNodeMediaSpec(streamPanel) : null
     if (
       streamPanelMediaSpec?.kind !== 'iframe'
       || streamPanelMediaSpec.interactive !== true
-      || !String(streamPanelMediaSpec.srcDoc || '').includes('data-kg-video-agent-source-playback')
-      || !String(streamPanelMediaSpec.srcDoc || '').includes('youtube-nocookie.com/embed')
-      || !String(streamPanelMediaSpec.srcDoc || '').includes('kg-rich-media-panel-srcdoc-timeline-transport')
-      || !String(streamPanelMediaSpec.srcDoc || '').includes('knowgrph:render-frame')
-    ) {
-      throw new Error(`expected stream Rich Media panel to resolve as playable timeline-synced iframe srcdoc, got ${JSON.stringify(streamPanelMediaSpec)}`)
-    }
+      || !String(streamPanelMediaSpec.srcDoc || '').includes('data-kg-video-agent-stream-panel')
+      || String(streamPanelMediaSpec.srcDoc || '').includes('data-kg-video-agent-source-playback="1"')
+      || String(streamPanelMediaSpec.srcDoc || '').includes('data-kg-video-agent-frame-analysis')
+    ) throw new Error(`expected stream Rich Media panel to resolve as isolated stream srcdoc, got ${JSON.stringify(streamPanelMediaSpec)}`)
+    const sourcePlaybackPanelMediaSpec = sourcePlaybackPanel ? getNodeMediaSpec(sourcePlaybackPanel) : null
+    const sourcePlaybackSrcDoc = String(sourcePlaybackPanelMediaSpec && 'srcDoc' in sourcePlaybackPanelMediaSpec ? sourcePlaybackPanelMediaSpec.srcDoc || '' : '')
+    const [sourcePlaybackFrameIndex, sourcePlaybackFallbackIndex] = [sourcePlaybackSrcDoc.indexOf('data-kg-video-agent-source-playback="1"'), sourcePlaybackSrcDoc.indexOf('data-kg-video-agent-source-playback-fallback')]
+    if (
+      sourcePlaybackPanelMediaSpec?.kind !== 'iframe'
+      || !sourcePlaybackSrcDoc.includes('data-kg-video-agent-source-playback')
+      || !sourcePlaybackSrcDoc.includes('data-kg-video-agent-source-playback-fallback')
+      || !sourcePlaybackSrcDoc.includes('youtube-nocookie.com/embed')
+      || !sourcePlaybackSrcDoc.includes('kg-rich-media-panel-srcdoc-timeline-transport')
+      || !sourcePlaybackSrcDoc.includes('knowgrph:render-frame')
+      || sourcePlaybackSrcDoc.includes('data-kg-video-agent-frame-analysis')
+    ) throw new Error(`expected source playback Rich Media panel to own playable timeline-synced iframe srcdoc, got ${JSON.stringify(sourcePlaybackPanelMediaSpec)}`)
+    if (sourcePlaybackFrameIndex < 0 || sourcePlaybackFallbackIndex < 0 || sourcePlaybackFrameIndex > sourcePlaybackFallbackIndex) throw new Error('expected source playback iframe to render before fallback source link')
+    assertVideoAgentTranscriptPanelOwnsTimelineSyncedSrcDoc(transcriptPanel)
     const frameAnalysisMediaSpec = getNodeMediaSpec(videoAgentPanels.find(node => String(node.id || '') === 'video_agent_frame_analysis_panel') || null)
     const frameAnalysisSrcDoc = String(frameAnalysisMediaSpec && 'srcDoc' in frameAnalysisMediaSpec ? frameAnalysisMediaSpec.srcDoc || '' : '')
     if (

@@ -80,6 +80,93 @@ export async function testMarkdownDataViewInlineEditLargeTablesRenderProgressive
   }
 }
 
+export async function testMarkdownDataViewTableRendersMarkdownImageCellsAsThumbnails() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Time', kind: 'text' },
+        { id: 'c2', name: 'Frame (Thumbnail)', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['0:00', '![Frame 0 thumbnail](/__video_frame?url=https%3A%2F%2Fexample.test%2Fwatch%3Fv%3Dabc&time=0&format=png)'] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate={false}
+        onUpdateCell={() => {}}
+      />,
+    )
+    await tick()
+    await tick()
+
+    const thumbnail = dom.window.document.querySelector('tbody img[alt="Frame 0 thumbnail"]') as HTMLImageElement | null
+    if (!thumbnail) throw new Error('expected Markdown image table cell to render an img thumbnail')
+    if (!String(thumbnail.getAttribute('src') || '').startsWith('/__video_frame?')) {
+      throw new Error(`expected thumbnail src to keep frame route, got ${thumbnail.getAttribute('src')}`)
+    }
+    if (String(container.textContent || '').includes('![Frame 0 thumbnail]')) {
+      throw new Error('expected rendered data-view thumbnail cell not to expose Markdown image source text')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownDataViewColumnsOrientationRendersMarkdownImageCellsAsThumbnails() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Time', kind: 'text' },
+        { id: 'c2', name: 'Frame (Thumbnail)', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['0:00', '![Frame 0 thumbnail](/__video_frame?url=https%3A%2F%2Fexample.test%2Fwatch%3Fv%3Dabc&time=0&format=png)'] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate={false}
+        onUpdateCell={() => {}}
+        orientation="columns"
+      />,
+    )
+    await tick()
+    await tick()
+
+    const thumbnail = dom.window.document.querySelector('tbody img[alt="Frame 0 thumbnail"]') as HTMLImageElement | null
+    if (!thumbnail) throw new Error('expected columns-oriented data view to render Markdown image thumbnail')
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPreviewAndEditFullValue() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {

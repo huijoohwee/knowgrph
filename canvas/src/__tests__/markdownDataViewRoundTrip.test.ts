@@ -35,6 +35,26 @@ export function testMarkdownDataViewInfersGroupAndTitleColumns() {
   }
 }
 
+export function testMarkdownDataViewPreservesMarkdownImageCells() {
+  const markdown = [
+    '| Time | Frame (Thumbnail) | Objects |',
+    '| --- | --- | --- |',
+    '| 0:00 | ![Frame 0 thumbnail](/__video_frame?url=https%3A%2F%2Fexample.test%2Fwatch%3Fv%3Dabc&time=0&format=png) | tracked subject |',
+    '| 0:01 | ![Frame 1 thumbnail](/__video_frame?url=https%3A%2F%2Fexample.test%2Fwatch%3Fv%3Dabc&time=1&format=png) | context object |',
+  ].join('\n')
+
+  const { tokens } = lexMarkdown(markdown)
+  const tableTok = tokens.find(t => t.type === 'table') as unknown as (TokensTable & { startLine: number; endLine: number }) | undefined
+  if (!tableTok) throw new Error('expected a table token')
+
+  const view = buildMarkdownDataViewFromTableToken(tableTok)
+  if (!view) throw new Error('expected dataview to be inferred from image table')
+  const imageCell = view.rows[0]?.cells[1] || ''
+  if (!imageCell.startsWith('![Frame 0 thumbnail](/__video_frame?')) {
+    throw new Error(`expected data-view model to preserve Markdown image cell, got ${JSON.stringify(imageCell)}`)
+  }
+}
+
 export function testMarkdownDataViewEditsRoundTripToMarkdownTable() {
   const markdown = [
     '## Data-intensive blocks',

@@ -2,8 +2,8 @@ import React from 'react'
 import { Blend, Film, Filter, Gauge, GitCompareArrows, KeyRound, Layers, Palette, Scissors, SlidersHorizontal, Sparkles, SplitSquareVertical, Type, type LucideIcon } from 'lucide-react'
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
 import { buildTimelineAnimationState } from './timelineAnimationEngine'
+import { VideoSequenceFrameSampleRail } from './VideoSequenceFrameSampleRail'
 import { VideoSequenceClipThumbnailStrip } from './VideoSequenceClipThumbnailStrip'
-import { VideoSequenceCompactFbfRail } from './VideoSequenceCompactMediaLane'
 import { buildVideoSequenceGeneratedFrameThumbnails } from './videoSequenceGeneratedFrameThumbnails'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
@@ -13,7 +13,6 @@ import {
   buildVideoSequenceTimelineFrameSamples,
   buildVideoSequenceTimelineWaveformSamples,
   formatVideoSequenceTimelineSecondsOffset,
-  isVideoAgentCompactFbfSpan,
   isVideoAgentCompactMediaSpan,
   resolveRenderableVideoSequenceTimelineSpans,
   resolveVideoSequenceTimelineMediaSeconds,
@@ -359,8 +358,9 @@ export function VideoSequenceTimelineRuler({
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
           const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
-          const compactVideoAgentFbf = lane === 'fbf' && isVideoAgentCompactFbfSpan(span)
           const compactVideoAgentMedia = isVideoAgentCompactMediaSpan(span, lane)
+          const compactVideoAgentVideo = compactVideoAgentMedia && lane === 'video'
+          const compactVideoAgentFrameSamples = compactVideoAgentMedia && lane === 'fbf'
           const showsMediaContent = !verticalMarker && (
             VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
             VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
@@ -375,14 +375,16 @@ export function VideoSequenceTimelineRuler({
                 windows: sourceThumbnailWindows,
               })
             : null
-          const nativeFrameSamples = showsMediaContent && !compactVideoAgentMedia
+          const nativeFrameSamples = showsMediaContent && (!compactVideoAgentMedia || compactVideoAgentVideo)
             ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
             : []
-          const showCompactVideoAgentFbfThumbnails = compactVideoAgentFbf && !nativeFrameSamples.length
-          const generatedFrameSamples = showsGeneratedFrameContent && !nativeFrameSamples.length && (!compactVideoAgentMedia || showCompactVideoAgentFbfThumbnails)
+          const semanticFrameSamples = compactVideoAgentFrameSamples
             ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span })
             : []
-          const thumbnailSamples = compactVideoAgentMedia && !showCompactVideoAgentFbfThumbnails ? [] : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)
+          const generatedFrameSamples = (showsGeneratedFrameContent || compactVideoAgentVideo) && !nativeFrameSamples.length && !semanticFrameSamples.length
+            ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span })
+            : []
+          const thumbnailSamples = compactVideoAgentFrameSamples || (compactVideoAgentMedia && lane === 'audio') ? [] : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
@@ -420,7 +422,7 @@ export function VideoSequenceTimelineRuler({
             : []
           const clipStartLabel = formatClipTime(startMinutes)
           const clipEndLabel = formatClipTime(startMinutes + durationMinutes)
-          const denseFbfClip = lane === 'fbf' && !compactVideoAgentFbf && !verticalMarker && (durationMinutes <= VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES || widthPercent < 3.5)
+          const denseFbfClip = lane === 'fbf' && !verticalMarker && (durationMinutes <= VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES || widthPercent < 3.5)
           return (
             <article
               key={`span:${span.rowKey}`}
@@ -435,7 +437,6 @@ export function VideoSequenceTimelineRuler({
               data-kg-gantt-timeline-track-dragging={dragging ? '1' : undefined}
               data-kg-gantt-timeline-track-row-key={span.rowKey}
               data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
-              data-kg-video-agent-compact-fbf={compactVideoAgentFbf ? '1' : undefined}
               data-kg-video-agent-compact-media={compactVideoAgentMedia ? '1' : undefined}
               data-kg-video-sequence-dense-fbf={denseFbfClip ? '1' : undefined}
               data-kg-video-sequence-lane={lane}
@@ -456,9 +457,8 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-motion-work-area={`${animationState.workArea.start}-${animationState.workArea.end}`}
               title={span.label}
             >
-              {compactVideoAgentFbf
-                ? <VideoSequenceCompactFbfRail onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
-                : <VideoSequenceClipThumbnailStrip generated={generatedFrameSamples.length > 0} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />}
+              <VideoSequenceClipThumbnailStrip generated={generatedFrameSamples.length > 0} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
+              <VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />
               {frameSamples.length ? (
                 <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">
                   {frameSamples.map((sample, frameIndex) => (

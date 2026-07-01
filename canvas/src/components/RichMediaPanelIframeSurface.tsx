@@ -31,7 +31,7 @@ export function RichMediaPanelIframeSurface(args: {
           iframeSandbox={shouldUseDirectRichMediaPanelSrcDocSandbox(model.normalizedInlineSrcDoc) ? resolveIframeSandbox('direct') : undefined}
           iframeLoading="eager"
           iframeRef={model.inlineSrcDocFrameRef}
-          iframeScrolling={model.panelOwnsInlineSrcDocScroll ? 'no' : undefined}
+          iframeScrolling={model.panelOwnsInlineSrcDocScroll ? 'no' : 'auto'}
           iframeReferrerPolicy="no-referrer"
           style={model.inlineSrcDocSurfaceStyle}
           onLoad={() => {

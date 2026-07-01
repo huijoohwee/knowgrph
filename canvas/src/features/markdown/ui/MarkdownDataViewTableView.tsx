@@ -36,6 +36,7 @@ import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS } from './markdownEditSurfaceLayout'
+import { renderMarkdownDataViewTableCellImage } from './MarkdownDataViewImageCell'
 import {
   coerceDataViewFieldLineMode,
   coerceDataViewRowHeightPreset,
@@ -82,7 +83,6 @@ const safeLinkHref = (raw: string): string | null => {
 export const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
 export const MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT = 32
 export const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
-
 export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
   const value = String(raw || '')
   if (value.length <= MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT) return value
@@ -375,7 +375,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         }}
                         role={canMutate ? 'button' : undefined}
                       >
-                        {uiType === 'checkbox' ? (
+                        {renderMarkdownDataViewTableCellImage(value) || (uiType === 'checkbox' ? (
                           <input
                             type="checkbox"
                             checked={isTruthy(value)}
@@ -406,7 +406,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>
                             {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
                           </span>
-                        )}
+                        ))}
                       </td>
                     )
                   })}
@@ -619,7 +619,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                     }}
                     role={canMutate ? 'button' : undefined}
                   >
-                    {uiType === 'checkbox' ? (
+                    {renderMarkdownDataViewTableCellImage(value) || (uiType === 'checkbox' ? (
                       <span className={['inline-flex items-center gap-2', UI_THEME_TOKENS.text.primary].join(' ')}>
                         <input
                           type="checkbox"
@@ -652,7 +652,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                       <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
                         {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
                       </span>
-                    )}
+                    ))}
                   </td>
                 )
               })}

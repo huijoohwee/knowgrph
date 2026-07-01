@@ -3,7 +3,10 @@ import {
   VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES,
   VIDEO_AGENT_SCHEMA_VERSION,
   buildVideoAgentDatasetPanelSrcDoc,
+  buildVideoAgentFrameTableMarkdown,
+  buildVideoAgentFrameTablePanelSrcDoc,
   buildVideoAgentPipeline,
+  buildVideoAgentTranscriptPanelSrcDoc,
 } from '@/features/video-agent'
 import { projectVideoAgentFrameAnalysisSrcDoc } from '@/features/video-agent/videoAgentFrameAnalysisProjection'
 import {
@@ -17,6 +20,15 @@ import { buildMermaidGanttCodeFromNeutralTimelinePayload } from '@/lib/mermaid/m
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { joinWorkspacePath, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import {
+  buildFrameAnalysisPanelBaseSrcDoc,
+  buildVideoAgentSourcePlaybackPanelSrcDoc,
+  buildVideoAgentStreamPanelSrcDoc,
+} from './videoAgentImportPanels'
+import {
+  buildVideoAgentTranscriptImportArtifacts,
+  readVideoAgentTranscriptDurationMs,
+} from './videoAgentTranscriptImportArtifacts'
 import { yamlQuote } from './yaml'
 
 type VideoAgentUrlImportDocumentArgs = {
@@ -27,20 +39,14 @@ type VideoAgentUrlImportDocumentArgs = {
   workspaceOutputRoot?: WorkspacePath | null
 }
 
-type VideoAgentTranscriptSegment = {
-  durationMs: number
-  endMs: number
-  index: number
-  startMs: number
-  text: string
-}
-
 const SOURCE_SPEC_NODE_ID = 'html_video_source_spec'
 const RENDERER_NODE_ID = 'html_video_renderer_node'
 const STREAM_PANEL_NODE_ID = 'html_video_stream_panel'
+const SOURCE_PLAYBACK_PANEL_NODE_ID = 'video_agent_source_playback_panel'
+const TRANSCRIPT_PANEL_NODE_ID = 'video_agent_transcript_panel'
 const FRAME_ANALYSIS_PANEL_NODE_ID = 'video_agent_frame_analysis_panel'
+const FRAME_TABLE_PANEL_NODE_ID = 'video_agent_multi_dimensional_table_panel'
 const DATASET_PANEL_NODE_ID = 'video_agent_dataset_panel'
-const TRANSCRIPT_UNAVAILABLE_REMOTE_VIDEO_FALLBACK_DURATION_MS = 60_000
 
 const cleanInline = (value: unknown): string => String(value || '').replace(/\s+/g, ' ').trim()
 
@@ -55,132 +61,11 @@ const sanitizeFilenamePart = (value: unknown): string => {
 
 const jsonBlock = (value: unknown): string => JSON.stringify(value)
 
-const escapeHtml = (value: unknown): string => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-
-const buildFrameAnalysisPanelBaseSrcDoc = (frameBoundingBoxes: ReadonlyArray<{ frameImageUrl?: unknown }>): string => {
-  const firstFrameImageUrl = String(frameBoundingBoxes.find(box => String(box.frameImageUrl || '').trim())?.frameImageUrl || '').trim()
-  return [
-    '<main aria-label="Video agent frame analysis">',
-    '<section class="thumbnail" aria-label="Timeline-synchronized frame-by-frame annotation">',
-    `<img class="thumbnail-source" src="${escapeHtml(firstFrameImageUrl)}" alt="">`,
-    '<section class="frame-boxes" aria-label="Frame-by-frame bounding boxes"></section>',
-    '</section>',
-    '</main>',
-  ].join('')
-}
-
-const buildVideoAgentStreamPanelSrcDoc = (args: {
-  frameCount: number
-  sourcePlaybackUrl: string
-  sourceUrl: string
-  transcriptSegmentCount: number
-}): string => [
-  '<main data-kg-video-agent-stream-panel="1" aria-label="Video agent stream output">',
-  '<section class="source-playback" data-kg-video-agent-source-playback="1" aria-label="Audio-capable source playback">',
-  `<iframe title="Audio-capable source video playback" src="${escapeHtml(args.sourcePlaybackUrl || args.sourceUrl)}" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>`,
-  '</section>',
-  '<section aria-label="Video agent stream contract">',
-  '<h2>Stream output</h2>',
-  `<p data-kg-video-agent-source-url="${escapeHtml(args.sourceUrl)}">Source playback, frame analysis, annotation data, and transcript windows share the timeline transport clock.</p>`,
-  `<p><strong>${Math.max(0, args.frameCount)}</strong> frame samples, <strong>${Math.max(0, args.transcriptSegmentCount)}</strong> transcript windows.</p>`,
-  '</section>',
-  '<script>(function(){var root=document.querySelector("[data-kg-video-agent-stream-panel]");window.addEventListener("knowgrph:render-frame",function(event){var timeMs=Number(event&&event.detail&&event.detail.timeMs)||0;if(root)root.setAttribute("data-kg-video-agent-render-time-ms",String(timeMs));});}());</script>',
-  '</main>',
-].join('')
-
-const readNumber = (value: unknown): number | null => {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : null
-}
-
-const secondsToMs = (value: unknown): number | null => {
-  const n = readNumber(value)
-  return n === null ? null : Math.max(0, Math.round(n * 1000))
-}
-
-const readTranscriptSegmentsFromJson = (text: string): VideoAgentTranscriptSegment[] => {
-  if (!text.trim()) return []
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    return []
-  }
-  const rawSegments = Array.isArray((parsed as { segments?: unknown })?.segments)
-    ? (parsed as { segments?: unknown[] }).segments || []
-    : []
-  return rawSegments.map((segment, index) => {
-    const record = segment as Record<string, unknown>
-    const startMs = secondsToMs(record.start) ?? secondsToMs(record.start_seconds) ?? readNumber(record.startMs) ?? 0
-    const durationMs = Math.max(1, secondsToMs(record.duration) ?? readNumber(record.durationMs) ?? 1000)
-    const endMs = Math.max(startMs + 1, secondsToMs(record.end) ?? readNumber(record.endMs) ?? startMs + durationMs)
-    return { durationMs, endMs, index, startMs, text: cleanInline(record.text) }
-  }).filter(segment => !!segment.text)
-}
-
-const readTranscriptSegmentsFromMarkdown = (text: string, durationMs: number): VideoAgentTranscriptSegment[] => {
-  const lines = text
-    .replace(/\r/g, '')
-    .split('\n')
-    .map(cleanInline)
-    .filter(line => line && line !== '---' && !/^kg[A-Z]/.test(line) && !/^https?:\/\//i.test(line))
-  const stepMs = Math.max(1, Math.floor(Math.max(1, durationMs) / Math.max(1, lines.length)))
-  return lines.map((line, index) => {
-    const startMs = index * stepMs
-    const endMs = index === lines.length - 1 ? Math.max(startMs + 1, durationMs) : startMs + stepMs
-    return { durationMs: Math.max(1, endMs - startMs), endMs, index, startMs, text: line.replace(/^#+\s*/, '') }
-  }).filter(segment => !!segment.text)
-}
-
-const buildTranscriptImportArtifacts = (args: {
-  durationMs: number
-  frameBoundingBoxes: ReadonlyArray<{ frameIndex: number; timestampMs: number }>
-  sourceText: string
-  sourceTranscriptJsonText?: string | null
-}) => {
-  const jsonSegments = readTranscriptSegmentsFromJson(String(args.sourceTranscriptJsonText || ''))
-  const segments = jsonSegments.length > 0
-    ? jsonSegments
-    : readTranscriptSegmentsFromMarkdown(args.sourceText, args.durationMs)
-  const segmentForTime = (timestampMs: number, fallbackIndex: number): VideoAgentTranscriptSegment | null => {
-    const active = segments.find(segment => timestampMs >= segment.startMs && timestampMs < segment.endMs)
-    if (active) return active
-    return segments.reduce<VideoAgentTranscriptSegment | null>((best, segment) => {
-      const bestDistance = best ? Math.min(Math.abs(timestampMs - best.startMs), Math.abs(timestampMs - best.endMs)) : Number.POSITIVE_INFINITY
-      const distance = Math.min(Math.abs(timestampMs - segment.startMs), Math.abs(timestampMs - segment.endMs))
-      return distance < bestDistance ? segment : best
-    }, null) || segments[Math.min(segments.length - 1, fallbackIndex % Math.max(1, segments.length))] || null
-  }
-  return {
-    sourceTranscript: {
-      schemaVersion: 'knowgrph-video-agent-transcript/v1',
-      source: jsonSegments.length > 0 ? 'youtube-transcript-json' : 'youtube-transcript-markdown',
-      format: jsonSegments.length > 0 ? 'json' : 'markdown',
-      segmentCount: segments.length,
-      segments,
-    },
-    frameByFrameTranscript: args.frameBoundingBoxes.map((box, index) => {
-      const segment = segmentForTime(box.timestampMs, index)
-      return {
-        frameIndex: box.frameIndex,
-        timestampMs: box.timestampMs,
-        transcriptSegmentIndex: segment?.index ?? -1,
-        segmentStartMs: segment?.startMs ?? 0,
-        segmentEndMs: segment?.endMs ?? 0,
-        text: segment?.text || '',
-      }
-    }),
-  }
-}
-
 const readTranscriptDurationMs = (args: Pick<VideoAgentUrlImportDocumentArgs, 'sourceTranscriptJsonText' | 'sourceUrl'>): number => {
-  const segments = readTranscriptSegmentsFromJson(String(args.sourceTranscriptJsonText || ''))
-  const transcriptDurationMs = segments.reduce((durationMs, segment) => Math.max(durationMs, segment.endMs), 0)
-  return transcriptDurationMs || (getYouTubeId(args.sourceUrl) ? TRANSCRIPT_UNAVAILABLE_REMOTE_VIDEO_FALLBACK_DURATION_MS : 0)
+  return readVideoAgentTranscriptDurationMs({
+    hasRemoteVideoSource: !!getYouTubeId(args.sourceUrl),
+    sourceTranscriptJsonText: args.sourceTranscriptJsonText,
+  })
 }
 
 const pushBlockScalar = (lines: string[], indent: string, key: string, value: string): void => {
@@ -244,7 +129,7 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
   const pipeline = result.pipeline
   const renderSpec = pipeline.renderSpec
   const sourceText = String(args.sourceText || '').trim()
-  const transcriptArtifacts = buildTranscriptImportArtifacts({
+  const transcriptArtifacts = buildVideoAgentTranscriptImportArtifacts({
     durationMs: renderSpec.durationMs,
     frameBoundingBoxes: pipeline.frameBoundingBoxes,
     sourceText,
@@ -264,11 +149,24 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     frameBoundingBoxes: pipeline.frameBoundingBoxes,
     srcDoc: buildFrameAnalysisPanelBaseSrcDoc(pipeline.frameBoundingBoxes),
   })
+  const frameTablePanelSrcDoc = buildVideoAgentFrameTablePanelSrcDoc({
+    frameBoundingBoxes: pipeline.frameBoundingBoxes,
+    frameByFrameTranscript: transcriptArtifacts.frameByFrameTranscript,
+  })
+  const frameTableMarkdown = buildVideoAgentFrameTableMarkdown({
+    frameBoundingBoxes: pipeline.frameBoundingBoxes,
+    frameByFrameTranscript: transcriptArtifacts.frameByFrameTranscript,
+  })
   const streamPanelSrcDoc = buildVideoAgentStreamPanelSrcDoc({
     frameCount: pipeline.frameBoundingBoxes.length,
-    sourcePlaybackUrl,
     sourceUrl,
     transcriptSegmentCount: transcriptArtifacts.sourceTranscript.segmentCount,
+  })
+  const sourcePlaybackPanelSrcDoc = buildVideoAgentSourcePlaybackPanelSrcDoc({ sourcePlaybackUrl, sourceUrl })
+  const transcriptPanelSrcDoc = buildVideoAgentTranscriptPanelSrcDoc({
+    frameByFrameTranscript: transcriptArtifacts.frameByFrameTranscript,
+    sourceTranscript: transcriptArtifacts.sourceTranscript,
+    sourceUrl,
   })
   const datasetPanelSrcDoc = buildVideoAgentDatasetPanelSrcDoc(pipeline.datasetRuntime)
   const visualDatasetJson = jsonBlock(pipeline.datasetRuntime.visualDataset)
@@ -332,6 +230,7 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     'frameByFrameSamples',
     'sourceTranscript',
     'frameByFrameTranscript',
+    'multiDimensionalFrameTable',
     'richMediaPanels',
     'visualAnnotationE2E',
     'datasetOperationSummary',
@@ -449,27 +348,68 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     '        videoAgentKind: "stream"',
     '        media_interactive: true',
     `        sourceUrl: ${yamlQuote(sourceUrl)}`,
-    `        sourcePlaybackUrl: ${yamlQuote(sourcePlaybackUrl)}`,
     '        "flow:portTypes":',
     '          in:',
     '            outputSrcDoc: "html_video_artifact"',
     '            videoUrl: "html_video_artifact"',
-    '            sourcePlaybackUrl: "html_video_artifact"',
-    '            frameBoundingBoxes: "annotation_json"',
-    '            frameByFrameTranscript: "transcript_json"',
     '          out:',
     '            outputSrcDoc: "html_video_artifact"',
-    '            frameBoundingBoxes: "annotation_json"',
-    '            frameByFrameTranscript: "transcript_json"',
   )
   pushBlockScalar(lines, '        ', 'outputSrcDoc', streamPanelSrcDoc)
-  pushBlockScalar(lines, '        ', 'frameBoundingBoxes', frameBoundingBoxesJson)
+  lines.push(
+    `    - id: ${yamlQuote(SOURCE_PLAYBACK_PANEL_NODE_ID)}`,
+    '      type: "RichMediaPanel"',
+    '      label: "Video Agent Source Playback"',
+    '      position: {x: 860, y: 420}',
+    '      properties:',
+    '        "frontmatter:primitive": "node"',
+    '        "flow:widgetFormId": "richMediaPanel"',
+    '        richMediaActiveTab: "auto"',
+    '        kind: "iframe"',
+    '        videoAgentKind: "source-playback"',
+    '        media_interactive: true',
+    '        freezeConnectedOutput: true',
+    `        sourceUrl: ${yamlQuote(sourceUrl)}`,
+    `        sourcePlaybackUrl: ${yamlQuote(sourcePlaybackUrl)}`,
+    '        "flow:portTypes":',
+    '          in:',
+    '            sourcePlaybackUrl: "html_video_artifact"',
+    '          out:',
+    '            outputSrcDoc: "html_video_artifact"',
+    '            sourcePlaybackUrl: "html_video_artifact"',
+  )
+  pushBlockScalar(lines, '        ', 'outputSrcDoc', sourcePlaybackPanelSrcDoc)
+  lines.push(
+    `    - id: ${yamlQuote(TRANSCRIPT_PANEL_NODE_ID)}`,
+    '      type: "RichMediaPanel"',
+    '      label: "Video Agent Source Transcript"',
+    '      position: {x: 860, y: 840}',
+    '      properties:',
+    '        "frontmatter:primitive": "node"',
+    '        "flow:widgetFormId": "richMediaPanel"',
+    '        richMediaActiveTab: "text"',
+    '        kind: "iframe"',
+    '        videoAgentKind: "transcript"',
+    '        freezeConnectedOutput: true',
+    `        sourceUrl: ${yamlQuote(sourceUrl)}`,
+    '        "flow:portTypes":',
+    '          in:',
+    '            outputSrcDoc: "rich_media_inline_html"',
+    '            sourceTranscript: "transcript_json"',
+    '            frameByFrameTranscript: "transcript_json"',
+    '          out:',
+    '            outputSrcDoc: "rich_media_inline_html"',
+    '            sourceTranscript: "transcript_json"',
+    '            frameByFrameTranscript: "transcript_json"',
+  )
+  pushBlockScalar(lines, '        ', 'outputSrcDoc', transcriptPanelSrcDoc)
+  pushBlockScalar(lines, '        ', 'sourceTranscript', sourceTranscriptJson)
   pushBlockScalar(lines, '        ', 'frameByFrameTranscript', frameByFrameTranscriptJson)
   lines.push(
     `    - id: ${yamlQuote(FRAME_ANALYSIS_PANEL_NODE_ID)}`,
     '      type: "RichMediaPanel"',
     '      label: "Video Agent Frame Analysis"',
-    '      position: {x: 860, y: 420}',
+    '      position: {x: 860, y: 1260}',
     '      properties:',
     '        "frontmatter:primitive": "node"',
     '        "flow:widgetFormId": "richMediaPanel"',
@@ -491,10 +431,35 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
   pushBlockScalar(lines, '        ', 'frameBoundingBoxes', frameBoundingBoxesJson)
   pushBlockScalar(lines, '        ', 'frameByFrameTranscript', frameByFrameTranscriptJson)
   lines.push(
+    `    - id: ${yamlQuote(FRAME_TABLE_PANEL_NODE_ID)}`,
+    '      type: "RichMediaPanel"',
+    '      label: "Video Agent Multi-dimensional Table"',
+    '      position: {x: 860, y: 1680}',
+    '      properties:',
+    '        "frontmatter:primitive": "node"',
+    '        "flow:widgetFormId": "richMediaPanel"',
+    '        richMediaActiveTab: "text"',
+    '        kind: "iframe"',
+    '        videoAgentKind: "multi-dimensional-table"',
+    '        freezeConnectedOutput: true',
+    '        "flow:portTypes":',
+    '          in:',
+    '            outputSrcDoc: "rich_media_inline_html"',
+    '            frameBoundingBoxes: "annotation_json"',
+    '            frameByFrameTranscript: "transcript_json"',
+    '          out:',
+    '            outputSrcDoc: "rich_media_inline_html"',
+    '            frameBoundingBoxes: "annotation_json"',
+    '            frameByFrameTranscript: "transcript_json"',
+  )
+  pushBlockScalar(lines, '        ', 'outputSrcDoc', frameTablePanelSrcDoc)
+  pushBlockScalar(lines, '        ', 'frameBoundingBoxes', frameBoundingBoxesJson)
+  pushBlockScalar(lines, '        ', 'frameByFrameTranscript', frameByFrameTranscriptJson)
+  lines.push(
     `    - id: ${yamlQuote(DATASET_PANEL_NODE_ID)}`,
     '      type: "RichMediaPanel"',
     '      label: "Video Agent Dataset and Zone Counts"',
-    '      position: {x: 860, y: 840}',
+    '      position: {x: 860, y: 2100}',
     '      properties:',
     '        "frontmatter:primitive": "node"',
     '        "flow:widgetFormId": "richMediaPanel"',
@@ -520,11 +485,14 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     `    - {id: "video-agent-e04b", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "frameByFrameTranscript", target: ${yamlQuote(RENDERER_NODE_ID)}, targetHandle: "frameByFrameTranscript_in"}`,
     `    - {id: "video-agent-e04c", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "sourcePlaybackUrl", target: ${yamlQuote(RENDERER_NODE_ID)}, targetHandle: "sourcePlaybackUrl_in"}`,
     `    - {id: "video-agent-e05", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "outputSrcDoc", target: ${yamlQuote(STREAM_PANEL_NODE_ID)}, targetHandle: "outputSrcDoc"}`,
-    `    - {id: "video-agent-e05b", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "sourcePlaybackUrl", target: ${yamlQuote(STREAM_PANEL_NODE_ID)}, targetHandle: "sourcePlaybackUrl"}`,
-    `    - {id: "video-agent-e06", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "frameBoundingBoxes", target: ${yamlQuote(STREAM_PANEL_NODE_ID)}, targetHandle: "frameBoundingBoxes"}`,
+    `    - {id: "video-agent-e06", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "sourcePlaybackUrl", target: ${yamlQuote(SOURCE_PLAYBACK_PANEL_NODE_ID)}, targetHandle: "sourcePlaybackUrl"}`,
+    `    - {id: "video-agent-e06b", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "sourceTranscript", target: ${yamlQuote(TRANSCRIPT_PANEL_NODE_ID)}, targetHandle: "sourceTranscript"}`,
+    `    - {id: "video-agent-e06c", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "frameByFrameTranscript", target: ${yamlQuote(TRANSCRIPT_PANEL_NODE_ID)}, targetHandle: "frameByFrameTranscript"}`,
     `    - {id: "video-agent-e07", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "outputSrcDoc", target: ${yamlQuote(FRAME_ANALYSIS_PANEL_NODE_ID)}, targetHandle: "outputSrcDoc"}`,
     `    - {id: "video-agent-e08", source: ${yamlQuote(RENDERER_NODE_ID)}, sourceHandle: "frameBoundingBoxes", target: ${yamlQuote(FRAME_ANALYSIS_PANEL_NODE_ID)}, targetHandle: "frameBoundingBoxes"}`,
     `    - {id: "video-agent-e08b", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "frameByFrameTranscript", target: ${yamlQuote(FRAME_ANALYSIS_PANEL_NODE_ID)}, targetHandle: "frameByFrameTranscript"}`,
+    `    - {id: "video-agent-e08c", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "frameBoundingBoxes", target: ${yamlQuote(FRAME_TABLE_PANEL_NODE_ID)}, targetHandle: "frameBoundingBoxes"}`,
+    `    - {id: "video-agent-e08d", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "frameByFrameTranscript", target: ${yamlQuote(FRAME_TABLE_PANEL_NODE_ID)}, targetHandle: "frameByFrameTranscript"}`,
     `    - {id: "video-agent-e09", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "visualDataset", target: ${yamlQuote(DATASET_PANEL_NODE_ID)}, targetHandle: "visualDataset"}`,
     `    - {id: "video-agent-e10", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "mergedVisualDataset", target: ${yamlQuote(DATASET_PANEL_NODE_ID)}, targetHandle: "mergedVisualDataset"}`,
     `    - {id: "video-agent-e11", source: ${yamlQuote(SOURCE_SPEC_NODE_ID)}, sourceHandle: "zoneCounting", target: ${yamlQuote(DATASET_PANEL_NODE_ID)}, targetHandle: "zoneCounting"}`,
@@ -546,6 +514,7 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     `- Timeline tracks: ${pipeline.timelineTracks.length}`,
     '',
   )
+  if (frameTableMarkdown) lines.push(frameTableMarkdown, '')
   if (sourceText) {
     lines.push('## Source Transcript', '', sourceText, '')
   }

@@ -18,6 +18,8 @@ export const RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID = 'kg-rich-media-panel-s
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE = 'kg-rich-media-panel-srcdoc-size'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR = 'data-kg-rich-media-panel-size'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT = 'viewport'
+export const RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_ATTR = 'data-kg-rich-media-panel-scroll-owner'
+export const RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_PANEL = 'panel'
 
 const richMediaPanelSrcDocCache = new LRUCache<string, string>(64, 2 * 60_000)
 const TIMELINE_AWARE_VIDEO_AGENT_SRCDOC_MARKERS = [
@@ -27,6 +29,7 @@ const TIMELINE_AWARE_VIDEO_AGENT_SRCDOC_MARKERS = [
   'data-kg-video-agent-frame-analysis',
   'data-kg-video-agent-source-playback',
   'data-kg-video-agent-stream-panel',
+  'data-kg-video-agent-transcript-panel',
 ] as const
 
 function escapeHtmlText(raw: unknown): string {
@@ -55,7 +58,22 @@ function buildRichMediaPanelSrcDocResetStyle(): string {
   ].join('')
 }
 
-function buildRichMediaPanelSrcDocResizeScript(): string {
+function usesViewportRichMediaPanelSrcDocSize(srcDoc: string): boolean {
+  return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT}["']`, 'i').test(srcDoc)
+    || /data-composition-id=["']knowgrph-video-agent-runtime["']|data-kg-video-agent-(?:dataset-panel|frame-analysis|source-playback|stream-panel|transcript-panel)\b/i.test(srcDoc)
+}
+
+function requestsPanelOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
+  return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_PANEL}["']`, 'i').test(srcDoc)
+}
+
+function buildRichMediaPanelSrcDocResizeScript(args: { preserveDocumentOverflow: boolean }): string {
+  const overflowClamp = args.preserveDocumentOverflow
+    ? ''
+    : [
+      'if(document.documentElement)document.documentElement.style.overflow="hidden";',
+      'if(document.body)document.body.style.overflow="hidden";',
+    ].join('')
   return [
     `<script id="${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}">`,
     '(function(){',
@@ -70,8 +88,7 @@ function buildRichMediaPanelSrcDocResizeScript(): string {
     'function send(){',
     'raf=0;',
     'try{',
-    'if(document.documentElement)document.documentElement.style.overflow="hidden";',
-    'if(document.body)document.body.style.overflow="hidden";',
+    overflowClamp,
     'var s=readSize();',
     'if(!(s.width>0)||!(s.height>0))return;',
     'var sig=s.width+"x"+s.height;',
@@ -235,7 +252,9 @@ function injectStyleIntoDocument(args: {
   const existingResetStylePattern = new RegExp(`<style\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}["'])[^>]*>[\\s\\S]*?<\\/style>`, 'i')
   const existingResizeScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
   const existingTimelineScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
-  const script = `${buildRichMediaPanelSrcDocResizeScript()}${buildRichMediaPanelSrcDocTimelineTransportScript()}`
+  const script = `${buildRichMediaPanelSrcDocResizeScript({
+    preserveDocumentOverflow: usesViewportRichMediaPanelSrcDocSize(args.srcDoc) && !requestsPanelOwnedRichMediaPanelSrcDocScroll(args.srcDoc),
+  })}${buildRichMediaPanelSrcDocTimelineTransportScript()}`
   const srcDoc = markedSrcDoc
     .replace(existingResetStylePattern, '')
     .replace(existingResizeScriptPattern, '')
@@ -284,8 +303,11 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
 }
 
 export function shouldUseViewportRichMediaPanelSrcDocSize(srcDoc: string): boolean {
-  return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT}["']`, 'i').test(srcDoc)
-    || /data-composition-id=["']knowgrph-video-agent-runtime["']|data-kg-video-agent-(?:dataset-panel|frame-analysis|source-playback|stream-panel)\b/i.test(srcDoc)
+  return usesViewportRichMediaPanelSrcDocSize(srcDoc)
+}
+
+export function shouldUsePanelOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
+  return requestsPanelOwnedRichMediaPanelSrcDocScroll(srcDoc)
 }
 
 export function shouldUseDirectRichMediaPanelSrcDocSandbox(srcDoc: unknown): boolean {

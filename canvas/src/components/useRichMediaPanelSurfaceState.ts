@@ -299,6 +299,7 @@ export function useRichMediaPanelSurfaceState(
     && mediaState.scrollOwner === 'panel'
     && mediaState.kind === 'iframe'
     && !!mediaState.effectiveInlineSrcDoc
+    && (!mediaState.inlineSrcDocUsesViewportSize || mediaState.inlineSrcDocRequestsPanelScroll)
   const inlineSrcDocPanelContentHeight =
     panelOwnsInlineSrcDocScroll && mediaState.inlineSrcDocContentSize && mediaState.inlineSrcDocContentSize.height > 0
       ? Math.ceil(mediaState.inlineSrcDocContentSize.height)

@@ -19,9 +19,9 @@ export function testRichMediaPanelSrcDocBridgeControlsVideoAgentSourcePlaybackAu
   }
 
   const normalized = normalizeRichMediaPanelInlineSrcDoc({
-    title: 'Video Agent Stream Output',
+    title: 'Video Agent Source Playback',
     srcDoc: [
-      '<main data-kg-video-agent-stream-panel="1" data-kg-rich-media-panel-size="viewport" aria-label="Video agent stream output">',
+      '<main data-kg-video-agent-source-playback-panel="1" data-kg-rich-media-panel-size="viewport" aria-label="Video agent source playback">',
       '<section data-kg-video-agent-source-playback="1" aria-label="Audio-capable source playback">',
       '<iframe title="Audio-capable source video playback" src="https://www.youtube-nocookie.com/embed/source-video?enablejsapi=1&playsinline=1"></iframe>',
       '</section>',
@@ -80,5 +80,12 @@ export function testRichMediaPanelSrcDocBridgeControlsVideoAgentSourcePlaybackAu
   })
   if (!shouldUseDirectRichMediaPanelSrcDocSandbox(frameAnalysis)) {
     throw new Error('expected frame-analysis srcdoc to use direct iframe sandbox for BottomPanel transport sync')
+  }
+  const transcriptPanel = normalizeRichMediaPanelInlineSrcDoc({
+    title: 'Video Agent Source Transcript',
+    srcDoc: '<main data-kg-video-agent-transcript-panel="1" data-kg-rich-media-panel-size="viewport" aria-label="Timeline-synchronized source transcript"></main>',
+  })
+  if (!shouldUseViewportRichMediaPanelSrcDocSize(transcriptPanel) || !shouldUseDirectRichMediaPanelSrcDocSandbox(transcriptPanel)) {
+    throw new Error('expected transcript srcdoc to use the shared direct iframe timeline sandbox')
   }
 }

@@ -77,25 +77,25 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
     throw new Error(`expected media Timeline panels to exclude video-agent workflow stages: ${mediaGantt}`)
   }
   const mediaTimelineModel = buildMermaidGanttTimelineModel(mediaGantt)
+  const mediaVideoSpan = mediaTimelineModel.taskSpans.find(span => /video_agent_source_video/.test(span.raw))
   const mediaFbfSpan = mediaTimelineModel.taskSpans.find(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
-  const mediaFrameSamples = readMermaidGanttFrameSamples(mediaFbfSpan?.raw || '')
+  const mediaFbfFrameSamples = readMermaidGanttFrameSamples(mediaFbfSpan?.raw || '')
   const mediaLaneIds = resolveVisibleVideoSequenceTimelineLanes(mediaTimelineModel.taskSpans, {
     disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   }).map(lane => lane.id).join(',')
   if (
     mediaTimelineModel.taskSpans.length !== 3
-    || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_video/.test(span.raw))
-    || !mediaTimelineModel.taskSpans.some(span => /video_agent_frame_by_frame_boxes/.test(span.raw))
+    || !mediaVideoSpan
+    || !mediaFbfSpan
     || !mediaTimelineModel.taskSpans.some(span => /video_agent_source_audio/.test(span.raw))
     || mediaLaneIds !== 'video,fbf,audio'
     || mediaTimelineModel.taskSpans.some(span => /frame_box_\d+_fbf/.test(span.raw))
-    || !mediaFbfSpan
-    || mediaFrameSamples.length < 3
-    || new Set(mediaFrameSamples.map(sample => sample.timestampSeconds)).size < 3
-    || mediaFrameSamples.some(sample => !sample.url.startsWith('/__video_frame?'))
+    || readMermaidGanttFrameSamples(mediaVideoSpan.raw).length < 3
+    || mediaFbfFrameSamples.length < 3
+    || mediaFbfFrameSamples.some(sample => !sample.url.startsWith('/__video_frame?'))
     || mediaGantt.includes('kgthumb_')
   ) {
-    throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks without per-frame overlap rows: ${JSON.stringify({ mediaGantt, mediaLaneIds })}`)
+    throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks with frame samples on FBF: ${JSON.stringify({ mediaGantt, mediaLaneIds })}`)
   }
 }
 
@@ -156,53 +156,60 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
 
 export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const frameSampleRailText = readSource('components', 'timeline', 'VideoSequenceFrameSampleRail.tsx')
   const surfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
   const sequenceTimelineText = readSource('components', 'timeline', 'videoSequenceTimeline.ts')
   const cssText = [
     readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css'),
     readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css'),
   ].join('\n')
-  const compactMediaText = readSource('components', 'timeline', 'VideoSequenceCompactMediaLane.tsx')
-  if (!rulerText.includes('VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES') || !rulerText.includes("lane === 'fbf' && !compactVideoAgentFbf && !verticalMarker")) {
+  if (!rulerText.includes('VIDEO_SEQUENCE_DENSE_FBF_MAX_DURATION_MINUTES') || !rulerText.includes("lane === 'fbf' && !verticalMarker")) {
     throw new Error('expected BottomPanel Timeline to mark temporally dense FBF clips')
   }
   for (const token of [
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
-    'data-kg-video-agent-compact-fbf={compactVideoAgentFbf ?',
     'data-kg-video-agent-compact-media={compactVideoAgentMedia ?',
     'compactVideoAgentTimeline',
     'resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })',
     'const compactVideoAgentTimeline = React.useMemo',
     'timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
+    'video_agent_source_video',
+    'frame_by_frame_boxes',
     'scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes',
     "const showMediaCues = showsMediaContent && lane !== 'audio' && !compactVideoAgentMedia",
-    'const showCompactVideoAgentFbfThumbnails = compactVideoAgentFbf && !nativeFrameSamples.length',
-    'const thumbnailSamples = compactVideoAgentMedia && !showCompactVideoAgentFbfThumbnails ? []',
+    "const compactVideoAgentVideo = compactVideoAgentMedia && lane === 'video'",
+    "const compactVideoAgentFrameSamples = compactVideoAgentMedia && lane === 'fbf'",
+    'const semanticFrameSamples = compactVideoAgentFrameSamples',
+    'showsGeneratedFrameContent || compactVideoAgentVideo',
+    "const thumbnailSamples = compactVideoAgentFrameSamples || (compactVideoAgentMedia && lane === 'audio') ? []",
+    '<VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />',
+    'data-kg-video-sequence-frame-sample-rail="semantic"',
+    "'--kg-video-sequence-frame-sample-count': samples.length",
     "&& !verticalMarker && !compactVideoAgentMedia",
-    "lane === 'fbf' && !compactVideoAgentFbf && !verticalMarker",
+    "lane === 'fbf' && !verticalMarker",
     'compactVideoAgentMedia ? 0 : (index % 2) * 2',
-    '[data-kg-video-agent-compact-fbf="1"]',
-    '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]):not([data-kg-video-agent-compact-fbf="1"])',
-    '.timeline-transport-track-clip[data-kg-video-agent-compact-fbf="1"]',
+    '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
+    '.timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
     '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]::before',
     '[data-kg-video-agent-compact-media="1"] .timeline-transport-track-clip-move',
     '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-timecode',
     '!verticalMarker && !compactVideoAgentMedia',
     '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-audio-waveform',
-    'timeline-video-sequence-compact-fbf-rail',
-    'timeline-video-sequence-compact-fbf-preview',
-    'data-kg-video-agent-compact-fbf-preview="1"',
-    'data-kg-video-agent-compact-fbf-thumbnail="1"',
-    'data-kg-video-agent-compact-fbf-samples',
-    'formatVideoSequenceTimelineSecondsOffset',
-    'Math.min(14, sampleCount || 10)',
+    '.timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-frame-sample-rail',
+    '.timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"] .timeline-transport-track-clip-move',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail-strip',
+    '.timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail-strip',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail-preview',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-preview',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"]:hover .timeline-video-sequence-clip-thumbnail:first-child .timeline-video-sequence-clip-thumbnail-preview',
+    'transform: translate(-50%, -4px) scale(0.96)',
+    'inset: 20px 18px 5px',
+    'z-index: 8',
+    'background-size: var(--kg-video-sequence-frame-sample-cell) 100%',
+    'inset: 9px 18px 4px',
+    'min-width: 10px',
     'VIDEO_AGENT_COMPACT_TRACK_PATTERN',
-    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-frame-strip',
-    '[data-kg-video-agent-compact-fbf="1"]:hover .timeline-video-sequence-compact-fbf-preview',
-    '[data-kg-video-agent-compact-fbf="1"]:focus-within .timeline-video-sequence-compact-fbf-preview',
-    'timeline-video-sequence-compact-fbf-thumbnail',
-    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-cues',
-    '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-nested-strip',
     '[data-kg-video-sequence-dense-fbf="1"]',
     'min-width: 8px',
     'overflow: hidden',
@@ -211,14 +218,24 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-transport-track-clip-label',
     '.timeline-video-sequence-clip-timecode',
   ]) {
-    if (!`${rulerText}\n${surfaceModelText}\n${sequenceTimelineText}\n${cssText}\n${compactMediaText}`.includes(token)) {
+    if (!`${rulerText}\n${frameSampleRailText}\n${surfaceModelText}\n${sequenceTimelineText}\n${cssText}`.includes(token)) {
       throw new Error(`expected dense FBF no-overlap guard token: ${token}`)
     }
   }
   for (const staleToken of [
+    'VideoSequenceCompactMediaLane',
+    'VideoSequenceCompactFbfRail',
+    'data-kg-video-agent-compact-fbf',
     '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-thumbnail-strip',
     '[data-kg-video-agent-compact-fbf="1"] .timeline-video-sequence-clip-thumbnail-caption',
+    'timeline-video-sequence-compact-fbf-preview',
+    'data-kg-video-agent-compact-fbf-preview',
+    'data-kg-video-agent-compact-fbf-thumbnail',
+    'timeline-video-sequence-compact-fbf-thumbnail',
+    'hoverPreview',
+    'showsGeneratedFrameContent || compactVideoAgentFrameSamples || compactVideoAgentVideo',
+    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail > img',
   ]) {
-    if (cssText.includes(staleToken)) throw new Error(`expected compact FBF to avoid stale shared thumbnail strip selector: ${staleToken}`)
+    if (`${rulerText}\n${cssText}\n${sequenceTimelineText}`.includes(staleToken)) throw new Error(`expected video-agent timeline to avoid stale compact FBF selector: ${staleToken}`)
   }
 }

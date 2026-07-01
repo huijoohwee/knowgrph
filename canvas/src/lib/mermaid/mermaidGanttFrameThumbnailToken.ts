@@ -1,6 +1,5 @@
 const FRAME_THUMBNAIL_TOKEN_PREFIX = 'kgthumb_'
 const FRAME_SAMPLE_TOKEN_PREFIX = 'kgframes_'
-const FRAME_SAMPLE_TOKEN_MAX_COUNT = 80
 
 export type MermaidGanttFrameSampleToken = {
   frameIndex?: number
@@ -83,7 +82,6 @@ export const formatMermaidGanttFrameSamplesToken = (frameSamples: unknown): stri
       t: sample.timestampSeconds,
       u: sample.url,
     })
-    if (samples.length >= FRAME_SAMPLE_TOKEN_MAX_COUNT) break
   }
   if (!samples.length) return ''
   const encoded = encodeBase64Url(JSON.stringify(samples))
@@ -124,7 +122,7 @@ export const readMermaidGanttFrameSamples = (line: string): readonly MermaidGant
         timestampSeconds: record.t ?? record.timestampSeconds,
         url: record.u ?? record.url,
       })
-    }).filter((item): item is MermaidGanttFrameSampleToken => !!item).slice(0, FRAME_SAMPLE_TOKEN_MAX_COUNT)
+    }).filter((item): item is MermaidGanttFrameSampleToken => !!item)
   } catch {
     return []
   }

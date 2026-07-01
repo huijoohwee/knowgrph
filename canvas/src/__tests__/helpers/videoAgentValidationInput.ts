@@ -1,5 +1,6 @@
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { splitVideoAgentValidationUrls } from '@/features/video-agent'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 
@@ -26,6 +27,27 @@ export function assertVideoAgentContractCoversValidationUrls(args: {
     if (!contractUrls.includes(expectedUrl)) {
       throw new Error(`expected validation input video-agent contract to include supplied test URL ${expectedUrl}`)
     }
+  }
+}
+
+export function assertVideoAgentTranscriptPanelOwnsTimelineSyncedSrcDoc(node: unknown): void {
+  const properties = ((node as { properties?: unknown } | null)?.properties || {}) as Record<string, unknown>
+  const mediaSpec = getNodeMediaSpec(node as Parameters<typeof getNodeMediaSpec>[0])
+  const srcDoc = String(mediaSpec && 'srcDoc' in mediaSpec ? mediaSpec.srcDoc || '' : '')
+  for (const token of [
+    'data-kg-video-agent-transcript-panel',
+    'data-kg-video-agent-transcript-cue',
+    'kg-rich-media-panel-srcdoc-timeline-transport',
+    'knowgrph:render-frame',
+  ]) {
+    if (!srcDoc.includes(token)) throw new Error(`expected transcript Rich Media panel srcdoc token ${token}`)
+  }
+  if (
+    mediaSpec?.kind !== 'iframe'
+    || !String(properties.sourceTranscript || '').includes('Validation import parse evidence')
+    || !String(properties.frameByFrameTranscript || '').includes('transcriptSegmentIndex')
+  ) {
+    throw new Error(`expected transcript Rich Media panel to own timeline-synced transcript srcdoc, got ${JSON.stringify(mediaSpec)}`)
   }
 }
 
