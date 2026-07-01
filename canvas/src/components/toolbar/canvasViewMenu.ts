@@ -1,4 +1,4 @@
-import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, History, Image as ImageIcon, Images, LayoutPanelTop, Magnet, Map, MonitorPlay, Network, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags, Workflow } from 'lucide-react'
+import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, Frame, GitGraph, GitMerge, Glasses, Grid3x3, Hexagon, History, Image as ImageIcon, Images, LayoutPanelTop, Magnet, Map, MonitorPlay, Network, Palette, PanelsTopLeft, Pencil, Share2, Square, Table, Tags, Workflow } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
@@ -22,6 +22,13 @@ import {
   readCanvasGridDisplayControlActive,
   readSnapGridDisplayControlActive,
 } from '@/lib/canvas/canvasGridDisplayControls'
+import {
+  CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_DESCRIPTION,
+  CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID,
+  CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_LABEL,
+  readCanvasAspectRatioDisplayControlActive,
+  readCanvasAspectRatioDisplayControlTitle,
+} from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import {
   CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_DESCRIPTION,
   CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID,
@@ -398,6 +405,14 @@ export const buildCanvasViewOptions = (
           Icon: Magnet,
           description: SNAP_GRID_DISPLAY_CONTROL_DESCRIPTION,
           isActive: readSnapGridDisplayControlActive(state.schema),
+        },
+        {
+          id: CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID,
+          title: readCanvasAspectRatioDisplayControlTitle(state.aspectRatioMode),
+          label: CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_LABEL,
+          Icon: Frame,
+          description: CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_DESCRIPTION,
+          isActive: readCanvasAspectRatioDisplayControlActive(state.aspectRatioMode),
         },
         {
           id: CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID,

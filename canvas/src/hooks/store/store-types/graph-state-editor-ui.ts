@@ -12,6 +12,7 @@ import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import type { CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
@@ -49,7 +50,7 @@ import type {
   WorkspaceViewMode,
 } from './core'
 
-export type StoryboardCardAspectMode = '16:9' | '9:16'
+export type StoryboardCardAspectMode = CanvasAspectRatioMode
 export type StoryboardBoardLayoutMode = CanvasBoardLayoutMode
 
 export interface GraphStateEditorUi {

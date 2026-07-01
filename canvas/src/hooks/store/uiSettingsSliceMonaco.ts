@@ -5,12 +5,12 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetBool } from '@/lib/persistence'
 import type { UiStorageReaders } from './uiSliceStorage'
 import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
+import { CANVAS_ASPECT_RATIO_MODE_DEFAULT, readCanvasAspectRatioMode, type CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { CANVAS_BOARD_LAYOUT_MODE_DEFAULT, readCanvasBoardLayoutMode, type CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
 const readMarkdownViewerMediaMode = (raw: unknown): 'chip' | 'image' => String(raw || '').trim() === 'image' ? 'image' : 'chip'
-const readStoryboardCardAspectMode = (raw: unknown): '16:9' | '9:16' => String(raw || '').trim() === '9:16' ? '9:16' : '16:9'
 
 export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageReaders)=> {
   const { lsBool, readMonacoLoadMode, writeLsString } = readers
@@ -33,9 +33,9 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
-  strybldrStoryboardCardAspectMode: readStoryboardCardAspectMode(readers.readLsString(LS_KEYS.strybldrStoryboardCardAspectMode, '16:9')),
-  setStrybldrStoryboardCardAspectMode: (v: '16:9' | '9:16') => {
-    const next = v === '9:16' ? '9:16' : '16:9'
+  strybldrStoryboardCardAspectMode: readCanvasAspectRatioMode(readers.readLsString(LS_KEYS.strybldrStoryboardCardAspectMode, CANVAS_ASPECT_RATIO_MODE_DEFAULT)),
+  setStrybldrStoryboardCardAspectMode: (v: CanvasAspectRatioMode) => {
+    const next = readCanvasAspectRatioMode(v)
     writeLsString(LS_KEYS.strybldrStoryboardCardAspectMode, next)
     set({ strybldrStoryboardCardAspectMode: next })
   },

@@ -4,6 +4,7 @@ import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorP
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import { FlowEditorOverlayPortHandles } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 import { StoryboardCardMediaDropSlot2d } from '@/components/FlowEditorCanvas/StoryboardCardMediaDropSlot2d'
+import { buildFixedStoryboardCardPlacements2d, readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/FlowEditorCanvas/storyboardCardPlacements2d'
 import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useStoryboardCardOverlayInteractions2d, useStoryboardCardOverlayWheelForwarding } from '@/components/FlowEditorCanvas/storyboardCardOverlayInteractions2d'
 import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/FlowEditorCanvas/useStoryboardCardMediaDrop2d'
@@ -13,164 +14,21 @@ import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/story
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { computeFlowEditorOverlayScreenBox, type FlowEditorOverlayDragTransform } from '@/lib/flowEditor/overlayWorldDrag'
-import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS } from '@/lib/graph/keywordTerms'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS, RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
+import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS } from '@/lib/render/richMediaPanelDefaults'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
-const DEFAULT_GRID_GAP = 64
-type StoryboardCardPlacement = {
-  x: number
-  y: number
-}
-const readFiniteNumber = (value: unknown): number | null => {
-  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN
-  return Number.isFinite(n) && n > 0 ? n : null
-}
-
-const readNodeCardSize = (node: GraphNode): { width: number; height: number } => {
-  const props = (node.properties || {}) as Record<string, unknown>
-  return {
-    width: readFiniteNumber(props['visual:width']) || RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX,
-    height: readFiniteNumber(props['visual:height']) || RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX,
-  }
-}
-
-const readNodeCenter = (node: GraphNode | undefined): StoryboardCardPlacement | null => {
-  if (!node) return null
-  const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
-  const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
-  return x == null || y == null ? null : { x, y }
-}
 
 const isScreenBoxVisible = (box: { left: number; top: number; scale: number }, size: { width: number; height: number }, viewport: { width: number; height: number }): boolean => {
   const width = Math.max(1, size.width) * Math.max(0.001, box.scale)
   const height = Math.max(1, size.height) * Math.max(0.001, box.scale)
   return width > 0 && height > 0 && box.left + width > 0 && box.top + height > 0 && box.left < viewport.width && box.top < viewport.height
-}
-
-const ceilToStep = (value: number, step: number): number => {
-  const v = Number.isFinite(value) ? Math.max(1, value) : 1
-  const s = Number.isFinite(step) ? Math.max(1, step) : 1
-  return Math.ceil(v / s) * s
-}
-
-export const buildFixedStoryboardCardPlacements2d = (args: {
-  board: ReturnType<typeof buildStoryboardBoardModel>
-  nodeById: Map<string, GraphNode>
-  schema: GraphSchema | null | undefined
-}): Map<string, StoryboardCardPlacement> => {
-  const { board, nodeById, schema } = args
-  const out = new Map<string, StoryboardCardPlacement>()
-  const orderedCards = board.lanes
-    .flatMap(lane => lane.cards)
-    .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
-  if (orderedCards.length === 0) return out
-
-  const centers: StoryboardCardPlacement[] = []
-  let maxCardWidth: number = RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX
-  let maxCardHeight: number = RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX
-  for (let i = 0; i < orderedCards.length; i += 1) {
-    const node = nodeById.get(orderedCards[i]!.id)
-    if (!node) continue
-    const center = readNodeCenter(node)
-    if (center) centers.push(center)
-    const size = readNodeCardSize(node)
-    maxCardWidth = Math.max(maxCardWidth, size.width)
-    maxCardHeight = Math.max(maxCardHeight, size.height)
-  }
-
-  const origin = centers.length > 0
-    ? {
-        x: centers.reduce((sum, p) => sum + p.x, 0) / centers.length,
-        y: centers.reduce((sum, p) => sum + p.y, 0) / centers.length,
-      }
-    : { x: 0, y: 0 }
-  const grid = readSnapGridConfigFromSchema(schema)
-  const gapX = grid.enabled ? Math.max(grid.x * 2, DEFAULT_GRID_GAP) : DEFAULT_GRID_GAP
-  const gapY = grid.enabled ? Math.max(grid.y * 2, DEFAULT_GRID_GAP) : DEFAULT_GRID_GAP
-  const cellWidth = grid.enabled ? ceilToStep(maxCardWidth + gapX, grid.x) : maxCardWidth + gapX
-  const cellHeight = grid.enabled ? ceilToStep(maxCardHeight + gapY, grid.y) : maxCardHeight + gapY
-  const visibleLanes = board.lanes
-    .map(lane => ({ ...lane, cards: lane.cards.filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id))) }))
-    .filter(lane => lane.cards.length > 0)
-  const columnCount = Math.max(1, visibleLanes.length)
-  const rowCount = Math.max(1, visibleLanes.reduce((max, lane) => Math.max(max, lane.cards.length), 0))
-  const centerLaneOffset = (columnCount - 1) / 2
-  const centerRowOffset = (rowCount - 1) / 2
-
-  for (let laneIndex = 0; laneIndex < visibleLanes.length; laneIndex += 1) {
-    const lane = visibleLanes[laneIndex]!
-    for (let rowIndex = 0; rowIndex < lane.cards.length; rowIndex += 1) {
-      const card = lane.cards[rowIndex]!
-      const node = nodeById.get(card.id)
-      const size = node ? readNodeCardSize(node) : { width: RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX, height: RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX }
-      const rawCenter = {
-        x: origin.x + (laneIndex - centerLaneOffset) * cellWidth,
-        y: origin.y + (rowIndex - centerRowOffset) * cellHeight,
-      }
-      if (!grid.enabled) {
-        out.set(card.id, rawCenter)
-        continue
-      }
-      const snappedTopLeft = snapPointToGrid({
-        x: rawCenter.x - size.width / 2,
-        y: rawCenter.y - size.height / 2,
-      }, grid)
-      out.set(card.id, {
-        x: snappedTopLeft.x + size.width / 2,
-        y: snappedTopLeft.y + size.height / 2,
-      })
-    }
-  }
-  return out
-}
-
-export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
-  graphData: GraphData | null
-  graphRevision: number
-  schema: GraphSchema | null | undefined
-  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
-}): GraphData | null => {
-  const { graphData, graphRevision, schema, widgetRegistry } = args
-  const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []
-  if (!graphData || nodes.length === 0) return graphData
-  const board = buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry })
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const node = nodes[i]
-    const id = String(node?.id || '').trim()
-    if (id) nodeById.set(id, node)
-  }
-  const placements = buildFixedStoryboardCardPlacements2d({ board, nodeById, schema })
-  if (placements.size === 0) return graphData
-  let changed = false
-  const nextNodes = nodes.map(node => {
-    const id = String(node?.id || '').trim()
-    const placement = id ? placements.get(id) : null
-    if (!placement) return node
-    changed = true
-    return {
-      ...node,
-      x: placement.x,
-      y: placement.y,
-      fx: placement.x,
-      fy: placement.y,
-      vx: 0,
-      vy: 0,
-    } as GraphNode
-  })
-  if (!changed) return graphData
-  return {
-    ...graphData,
-    nodes: nextNodes,
-  }
 }
 
 const buildCardRows = (card: StoryboardCardModel): string[] => {
@@ -187,11 +45,12 @@ function StoryboardCardOverlayItem(props: {
   onDuplicate: (card: StoryboardCardModel) => void; onOpenInSidepane: (card: StoryboardCardModel) => void; onRemove: (card: StoryboardCardModel) => void; onSelect: (card: StoryboardCardModel) => void
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void; onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void; onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void; onCommitType: (card: StoryboardCardModel, nextValue: string) => void
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
+  readCardSize: (node: GraphNode) => { width: number; height: number }
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>, node: GraphNode) => void
   onResizePointerDown: (event: React.PointerEvent<HTMLButtonElement>, node: GraphNode) => void
 }) {
-  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onRemove, onResizePointerDown, onSelect, pendingMedia, register, selected, selectionDisabled = false } = props
-  const { width, height } = readNodeCardSize(node)
+  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onRemove, onResizePointerDown, onSelect, pendingMedia, readCardSize, register, selected, selectionDisabled = false } = props
+  const { width, height } = readCardSize(node)
   const rows = buildCardRows(card)
   const displayMedia = pendingMedia || card.media
   const toolbarProps = buildStoryboardToolbarProps({ active: true, duplicateDisabled: false, primaryReferenceUrl: card.href || card.references[0]?.url })
@@ -336,6 +195,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
   const { active, flowEditorSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, schema, widgetRegistry } = props
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -384,16 +244,20 @@ export function StoryboardCardOverlayLayer2d(props: {
     markdownDocumentText,
     nodeById,
   })
+  const readCardSize = React.useCallback(
+    (node: GraphNode) => readStoryboardCardSize2d(node, strybldrStoryboardCardAspectMode),
+    [strybldrStoryboardCardAspectMode],
+  )
   const fixedCardPlacements = React.useMemo(
-    () => fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d({ board, nodeById, schema }) : new Map<string, StoryboardCardPlacement>(),
-    [board, fixedLayoutEnabled, nodeById, schema],
+    () => fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d({ aspectRatioMode: strybldrStoryboardCardAspectMode, board, nodeById, schema }) : new Map<string, StoryboardCardPlacement>(),
+    [board, fixedLayoutEnabled, nodeById, schema, strybldrStoryboardCardAspectMode],
   )
   const setDragVisualOverride = React.useCallback((id: string, point: { x: number; y: number } | null) => { const key = String(id || '').trim(); if (!key) return; if (point) dragWorldOverrideByCardIdRef.current.set(key, point); else dragWorldOverrideByCardIdRef.current.delete(key) }, [])
   useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })
   const interactions = useStoryboardCardOverlayInteractions2d({
     addHistory,
     getTransform,
-    readNodeSize: readNodeCardSize,
+    readNodeSize: readCardSize,
     schema,
     setDragVisualOverride,
     updateNode,
@@ -510,10 +374,10 @@ export function StoryboardCardOverlayLayer2d(props: {
         const el = overlayElsRef.current.get(card.id)
         if (!node || !el) continue
         const fixedPlacement = fixedCardPlacements.get(card.id)
-        const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id) || readNodeCenter(node)
+        const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id) || readStoryboardCardCenter2d(node)
         const x = fixedPlacement?.x ?? nodeCenter?.x ?? 0
         const y = fixedPlacement?.y ?? nodeCenter?.y ?? 0
-        const { width, height } = readNodeCardSize(node)
+        const { width, height } = readCardSize(node)
         const currentBox = computeFlowEditorOverlayScreenBox({
           transform: currentTransform,
           centerWorld: { x, y },
@@ -553,7 +417,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     }
     frame = window.requestAnimationFrame(update)
     return () => window.cancelAnimationFrame(frame)
-  }, [active, cards, fixedCardPlacements, flowEditorSurfaceId, getTransform, graphRevision, markdownDocumentName, nodeById, requestZoom])
+  }, [active, cards, fixedCardPlacements, flowEditorSurfaceId, getTransform, graphRevision, markdownDocumentName, nodeById, readCardSize, requestZoom])
 
   if (!active || cards.length === 0) return null
   return (
@@ -577,6 +441,7 @@ export function StoryboardCardOverlayLayer2d(props: {
             flowEditorSurfaceId={flowEditorSurfaceId}
             node={node}
             pendingMedia={pendingMediaByCardId[card.id] || null}
+            readCardSize={readCardSize}
             onCommitLane={commitLane}
             onCommitSummary={commitSummary}
             onCommitTitle={commitTitle}

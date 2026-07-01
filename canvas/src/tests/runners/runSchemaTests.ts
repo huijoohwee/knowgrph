@@ -94,6 +94,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasViewDisplayControls()
     await mod.testAll2dRenderersExposeSharedBoardLayoutDisplayControl()
   })
+  await execTest(results, 'canvas.viewDisplayControls.aspectRatio.all2dRenderers', async () => {
+    const mod = await modCanvasViewDisplayControls()
+    await mod.testAll2dRenderersExposeSharedAspectRatioDisplayControl()
+  })
   await execTest(results, 'canvas.xrMode.glbAssetRenderGate', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate()

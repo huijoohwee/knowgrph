@@ -462,6 +462,8 @@ export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
   const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
   const menuSource = readFileSync(new URL('../components/toolbar/canvasViewMenu.ts', import.meta.url), 'utf8')
   const panelSource = readFileSync(new URL('../features/strybldr/StrybldrFloatingPanelView.tsx', import.meta.url), 'utf8')
+  const storyboardOverlaySource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const storyboardPlacementSource = readFileSync(new URL('../components/FlowEditorCanvas/storyboardCardPlacements2d.ts', import.meta.url), 'utf8')
   const sharedSource = readFileSync(new URL('../lib/canvas/canvasAspectRatioDisplayControls.ts', import.meta.url), 'utf8')
   for (const snippet of ['CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID', 'toggleCanvasAspectRatioMode']) {
     if (!actionsSource.includes(snippet)) throw new Error(`expected Canvas View actions to reuse shared Aspect utility snippet: ${snippet}`)
@@ -469,8 +471,14 @@ export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
   for (const snippet of ['CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_DESCRIPTION', 'CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_LABEL', 'readCanvasAspectRatioDisplayControlActive', 'readCanvasAspectRatioDisplayControlTitle']) {
     if (!menuSource.includes(snippet)) throw new Error(`expected Canvas View menu to reuse shared Aspect utility snippet: ${snippet}`)
   }
-  for (const snippet of ["CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID = 'control:aspectRatio'", "CANVAS_ASPECT_RATIO_MODE_DEFAULT: CanvasAspectRatioMode = '16:9'", 'CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'toggleCanvasAspectRatioMode']) {
+  for (const snippet of ["CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID = 'control:aspectRatio'", "CANVAS_ASPECT_RATIO_MODE_DEFAULT: CanvasAspectRatioMode = '16:9'", 'CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'toggleCanvasAspectRatioMode', 'resolveCanvasAspectRatioSize']) {
     if (!sharedSource.includes(snippet)) throw new Error(`expected shared Aspect utility owner to define snippet: ${snippet}`)
+  }
+  for (const snippet of ['strybldrStoryboardCardAspectMode', 'readCardSize', 'aspectRatioMode: strybldrStoryboardCardAspectMode', 'readStoryboardCardSize2d']) {
+    if (!storyboardOverlaySource.includes(snippet)) throw new Error(`expected Storyboard overlay to apply shared Aspect utility snippet: ${snippet}`)
+  }
+  for (const snippet of ['resolveCanvasAspectRatioSize', 'readStoryboardCardSize2d', 'buildFixedStoryboardCardPlacements2d']) {
+    if (!storyboardPlacementSource.includes(snippet)) throw new Error(`expected Storyboard placement helper to reuse shared Aspect utility snippet: ${snippet}`)
   }
   for (const forbidden of ['CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'strybldrStoryboardCardAspectMode', 'setStrybldrStoryboardCardAspectMode', 'Strybldr storyboard layout controls', 'Strybldr storyboard card aspect ratio', '<PanelField label="Layout">', "event.target.value === '9:16' ? '9:16' : '16:9'", '<option value="16:9">16:9</option>', '<option value="9:16">9:16</option>']) {
     if (actionsSource.includes(forbidden) || menuSource.includes(forbidden) || panelSource.includes(forbidden)) {

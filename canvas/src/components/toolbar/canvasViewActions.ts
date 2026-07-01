@@ -9,6 +9,11 @@ import {
   buildSnapGridBehaviorPatch,
 } from '@/lib/canvas/canvasGridDisplayControls'
 import {
+  CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID,
+  type CanvasAspectRatioMode,
+  toggleCanvasAspectRatioMode,
+} from '@/lib/canvas/canvasAspectRatioDisplayControls'
+import {
   CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID,
   type CanvasBoardLayoutMode,
   toggleCanvasBoardLayoutMode,
@@ -50,6 +55,8 @@ type CanvasViewActionParams = {
   setBottomSurfaceCollapsed: (collapsed: boolean) => void
   setBottomSurfaceTab: (tab: BottomSurfaceTab) => void
   setMinimapCollapsed?: (collapsed: boolean) => void
+  aspectRatioMode?: CanvasAspectRatioMode
+  setAspectRatioMode?: (mode: CanvasAspectRatioMode) => void
   boardLayoutMode?: CanvasBoardLayoutMode
   setBoardLayoutMode?: (mode: CanvasBoardLayoutMode) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
@@ -74,6 +81,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     bottomSurfaceCollapsed,
     bottomSurfaceTab,
     minimapCollapsed = false,
+    aspectRatioMode,
     boardLayoutMode,
     schema,
     setCanvas2dRenderer,
@@ -85,6 +93,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setBottomSurfaceCollapsed,
     setBottomSurfaceTab,
     setMinimapCollapsed,
+    setAspectRatioMode,
     setBoardLayoutMode,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
@@ -269,6 +278,10 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   if (id === 'control:minimap') {
     if (geospatialEnabled || canvasRenderMode !== '2d' || !supportsCanvas2dMinimap(canvas2dRenderer)) return
     setMinimapCollapsed?.(!minimapCollapsed)
+    return
+  }
+  if (id === CANVAS_ASPECT_RATIO_DISPLAY_CONTROL_ID) {
+    setAspectRatioMode?.(toggleCanvasAspectRatioMode(aspectRatioMode))
     return
   }
   if (id === CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID) {

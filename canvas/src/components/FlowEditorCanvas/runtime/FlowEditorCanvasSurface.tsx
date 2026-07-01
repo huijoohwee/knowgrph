@@ -1,10 +1,8 @@
 import React from 'react'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import FlowCanvas from '@/components/FlowCanvas'
-import {
-  StoryboardCardOverlayLayer2d,
-  applyFixedStoryboardCardPlacementsToGraphData2d,
-} from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'
+import { StoryboardCardOverlayLayer2d } from '@/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d'
+import { applyFixedStoryboardCardPlacementsToGraphData2d } from '@/components/FlowEditorCanvas/storyboardCardPlacements2d'
 import { filterGraphByExcludedNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -87,16 +85,18 @@ export default function FlowEditorCanvasSurface(props: {
   const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const schema = useGraphStore(s => s.schema)
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'
   const storyboardGraphData = React.useMemo(() => {
     if (!storyboardCardsActive) return null
     return applyFixedStoryboardCardPlacementsToGraphData2d({
+      aspectRatioMode: strybldrStoryboardCardAspectMode,
       graphData: props.storyboardSourceGraphData || null,
       graphRevision: graphContentRevision || graphDataRevision || 0,
       schema,
       widgetRegistry: props.widgetRegistry,
     })
-  }, [graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive])
+  }, [graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive, strybldrStoryboardCardAspectMode])
   const storyboardHiddenNodeIds = React.useMemo(() => {
     if (!storyboardCardsActive) return []
     const board = buildStoryboardBoardModel({
