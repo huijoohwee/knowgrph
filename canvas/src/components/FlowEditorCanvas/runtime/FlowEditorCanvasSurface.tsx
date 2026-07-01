@@ -502,6 +502,7 @@ export default function FlowEditorCanvasSurface(props: {
         active={storyboardCardsActive}
         flowEditorSurfaceId={props.flowEditorSurfaceId}
         getTransform={props.getLiveZoomTransform}
+        getWheelForwardTarget={() => props.rootRef.current?.querySelector('[data-kg-canvas-interactive="1"]') || null}
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}
         schema={schema}

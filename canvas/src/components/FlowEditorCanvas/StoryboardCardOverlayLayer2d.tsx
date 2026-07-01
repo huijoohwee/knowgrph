@@ -4,6 +4,7 @@ import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorP
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import { FlowEditorOverlayPortHandles } from '@/components/FlowEditor/FlowEditorOverlayPortHandles'
 import { StoryboardCardMediaDropSlot2d } from '@/components/FlowEditorCanvas/StoryboardCardMediaDropSlot2d'
+import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useStoryboardCardOverlayInteractions2d, useStoryboardCardOverlayWheelForwarding } from '@/components/FlowEditorCanvas/storyboardCardOverlayInteractions2d'
 import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/FlowEditorCanvas/useStoryboardCardMediaDrop2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
@@ -22,15 +23,12 @@ import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS, RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { cn } from '@/lib/utils'
-
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
 const DEFAULT_GRID_GAP = 64
-
 type StoryboardCardPlacement = {
   x: number
   y: number
 }
-
 const readFiniteNumber = (value: unknown): number | null => {
   const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN
   return Number.isFinite(n) && n > 0 ? n : null
@@ -184,42 +182,23 @@ const buildCardRows = (card: StoryboardCardModel): string[] => {
 const ignoreStoryboardCardAction = () => void 0
 
 function StoryboardCardOverlayItem(props: {
-  card: StoryboardCardModel
-  node: GraphNode
-  pendingMedia: StoryboardCardModel['media']
-  flowEditorSurfaceId: string
-  register: (id: string, el: HTMLElement | null) => void
-  selectionDisabled?: boolean
-  onCommitLane: (card: StoryboardCardModel, nextValue: string) => void
-  onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void
-  onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void
-  onCommitType: (card: StoryboardCardModel, nextValue: string) => void
-  onDuplicate: (card: StoryboardCardModel) => void
+  card: StoryboardCardModel; node: GraphNode; pendingMedia: StoryboardCardModel['media']; flowEditorSurfaceId: string
+  register: (id: string, el: HTMLElement | null) => void; selectionDisabled?: boolean; selected: boolean
+  onDuplicate: (card: StoryboardCardModel) => void; onOpenInSidepane: (card: StoryboardCardModel) => void; onRemove: (card: StoryboardCardModel) => void; onSelect: (card: StoryboardCardModel) => void
+  onCommitLane: (card: StoryboardCardModel, nextValue: string) => void; onCommitSummary: (card: StoryboardCardModel, nextValue: string) => void; onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void; onCommitType: (card: StoryboardCardModel, nextValue: string) => void
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
-  onOpenInSidepane: (card: StoryboardCardModel) => void
-  onRemove: (card: StoryboardCardModel) => void
-  onSelect: (card: StoryboardCardModel) => void
-  selected: boolean
+  onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>, node: GraphNode) => void
+  onResizePointerDown: (event: React.PointerEvent<HTMLButtonElement>, node: GraphNode) => void
 }) {
-  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onOpenInSidepane, onRemove, onSelect, pendingMedia, register, selected, selectionDisabled = false } = props
+  const { card, flowEditorSurfaceId, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onRemove, onResizePointerDown, onSelect, pendingMedia, register, selected, selectionDisabled = false } = props
   const { width, height } = readNodeCardSize(node)
   const rows = buildCardRows(card)
   const displayMedia = pendingMedia || card.media
-  const toolbarProps = buildStoryboardToolbarProps({
-    active: true,
-    duplicateDisabled: false,
-    primaryReferenceUrl: card.href || card.references[0]?.url,
-  })
+  const toolbarProps = buildStoryboardToolbarProps({ active: true, duplicateDisabled: false, primaryReferenceUrl: card.href || card.references[0]?.url })
   const toolbarActionBindings = buildStoryboardToolbarActionBindings({
-    card,
-    runCard: ignoreStoryboardCardAction,
-    openCardInSidepane: onOpenInSidepane,
-    duplicateCard: onDuplicate,
-    clearCardOutput: ignoreStoryboardCardAction,
-    showCardHelp: ignoreStoryboardCardAction,
-    removeCard: onRemove,
-    openCardWorkflowManagerMapping: ignoreStoryboardCardAction,
-    convertCardToLoop: ignoreStoryboardCardAction,
+    card, runCard: ignoreStoryboardCardAction, openCardInSidepane: onOpenInSidepane, duplicateCard: onDuplicate,
+    clearCardOutput: ignoreStoryboardCardAction, showCardHelp: ignoreStoryboardCardAction, removeCard: onRemove,
+    openCardWorkflowManagerMapping: ignoreStoryboardCardAction, convertCardToLoop: ignoreStoryboardCardAction,
   })
   return (
     <article
@@ -234,6 +213,7 @@ function StoryboardCardOverlayItem(props: {
       data-kg-storyboard-fixed-card-id={card.id}
       data-kg-storyboard-fixed-card-lane={card.lane || 'Storyboard'}
       data-kg-storyboard-fixed-card-rich-media-chrome="1"
+      data-kg-overlay-pan-owner="canvas"
       data-node-id={card.id}
       data-kg-flow-editor-surface={flowEditorSurfaceId}
       onClickCapture={event => {
@@ -243,7 +223,12 @@ function StoryboardCardOverlayItem(props: {
       }}
       onPointerDownCapture={event => {
         if (selectionDisabled) return
-        if (event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]')) return
+        const target = event.target instanceof Element ? event.target : null
+        if (target?.closest('[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]')) return
+        if (target?.closest('[data-kg-rich-media-flow-editor-header="1"]') && !isStoryboardHeaderDragBlockedTarget(target)) {
+          onHeaderPointerDown(event, node)
+          return
+        }
         onSelect(card)
       }}
       style={{
@@ -297,7 +282,8 @@ function StoryboardCardOverlayItem(props: {
             />
           </section>}
           richMediaHeader
-          dragHandle={false}
+          dragHandle
+          onHeaderPointerDown={event => onHeaderPointerDown(event, node)}
           showFieldToggle={false}
           showPinToggle={false}
           showValidate={false}
@@ -334,6 +320,7 @@ function StoryboardCardOverlayItem(props: {
           <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} onDropMedia={onDropMedia} />
         </section>
       </section>
+      {selected ? <StoryboardCardResizeHandle onPointerDown={event => onResizePointerDown(event, node)} /> : null}
     </article>
   )
 }
@@ -344,10 +331,11 @@ export function StoryboardCardOverlayLayer2d(props: {
   graphData: GraphData | null
   graphRevision: number
   getTransform: () => FlowEditorOverlayDragTransform | null
+  getWheelForwardTarget?: () => Element | null
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
-  const { active, flowEditorSurfaceId, getTransform, graphData, graphRevision, schema, widgetRegistry } = props
+  const { active, flowEditorSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, schema, widgetRegistry } = props
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const updateNode = useGraphStore(s => s.updateNode)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -366,6 +354,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
+  const dragWorldOverrideByCardIdRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, { left: number; top: number; scale: number; display: string }>>(new Map())
   const initialFitCommitKeyRef = React.useRef('')
   const board = React.useMemo(
@@ -399,6 +388,16 @@ export function StoryboardCardOverlayLayer2d(props: {
     () => fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d({ board, nodeById, schema }) : new Map<string, StoryboardCardPlacement>(),
     [board, fixedLayoutEnabled, nodeById, schema],
   )
+  const setDragVisualOverride = React.useCallback((id: string, point: { x: number; y: number } | null) => { const key = String(id || '').trim(); if (!key) return; if (point) dragWorldOverrideByCardIdRef.current.set(key, point); else dragWorldOverrideByCardIdRef.current.delete(key) }, [])
+  useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })
+  const interactions = useStoryboardCardOverlayInteractions2d({
+    addHistory,
+    getTransform,
+    readNodeSize: readNodeCardSize,
+    schema,
+    setDragVisualOverride,
+    updateNode,
+  })
   const register = React.useCallback((id: string, el: HTMLElement | null) => {
     const key = String(id || '').trim()
     if (!key) return
@@ -511,7 +510,7 @@ export function StoryboardCardOverlayLayer2d(props: {
         const el = overlayElsRef.current.get(card.id)
         if (!node || !el) continue
         const fixedPlacement = fixedCardPlacements.get(card.id)
-        const nodeCenter = readNodeCenter(node)
+        const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id) || readNodeCenter(node)
         const x = fixedPlacement?.x ?? nodeCenter?.x ?? 0
         const y = fixedPlacement?.y ?? nodeCenter?.y ?? 0
         const { width, height } = readNodeCardSize(node)
@@ -584,8 +583,10 @@ export function StoryboardCardOverlayLayer2d(props: {
             onCommitType={commitType}
             onDuplicate={duplicateCard}
             onDropMedia={dropCardMedia}
+            onHeaderPointerDown={interactions.beginHeaderDrag}
             onOpenInSidepane={openCardInSidepane}
             onRemove={removeCard}
+            onResizePointerDown={interactions.beginResize}
             onSelect={selectCard}
             register={register}
             selectionDisabled={toolMode === 'addEdge'}

@@ -167,6 +167,9 @@ export function bindFlowNativeInteractionListeners(args: {
       resolved.kind === 'overlay'
       && (typeof resolved.overlayRoot.matches === 'function')
       && resolved.overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+    const overlayPanOwnerCanvas =
+      resolved.kind === 'overlay'
+      && String(resolved.overlayRoot.getAttribute('data-kg-overlay-pan-owner') || '').trim() === 'canvas'
     const overlayBodyViewportPan =
       resolved.kind === 'overlay'
       && button === 0
@@ -203,7 +206,7 @@ export function bindFlowNativeInteractionListeners(args: {
     // Resize handles are always local owner interactions. Never let window-capture proxy steal them.
     if (overlayResizeHandle) return
 
-    if (overlayBodyViewportPan && flowEditorOverlayInteractionMode) return
+    if (overlayBodyViewportPan && flowEditorOverlayInteractionMode && !overlayPanOwnerCanvas) return
 
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && overlayDragHandle && button === 0 && spacePanHeld !== true) return
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return

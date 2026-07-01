@@ -66,8 +66,27 @@ const dryRun = hasFlag('--dry-run')
 
 const SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])
 const DEFAULT_CANONICAL_DOCS_ROOT = 'huijoohwee/docs'
+const MAX_INLINE_DOCUMENT_CONTENT_CHARS = 48 * 1024
 
 const contentHash = (text) => createHash('sha256').update(text).digest('hex')
+
+const estimateTokenCount = (text) => Math.max(1, Math.ceil(String(text || '').length / 4))
+
+const splitDocumentContentIntoChunks = (text) => {
+  const markdown = String(text || '')
+  if (!markdown) return []
+  const chunks = []
+  for (let start = 0, order = 0; start < markdown.length; start += MAX_INLINE_DOCUMENT_CONTENT_CHARS, order += 1) {
+    const slice = markdown.slice(start, start + MAX_INLINE_DOCUMENT_CONTENT_CHARS)
+    if (!slice) continue
+    chunks.push({
+      chunkOrder: order,
+      chunkKey: `part-${String(order).padStart(4, '0')}`,
+      markdown: slice,
+    })
+  }
+  return chunks
+}
 
 const walkDocsSourceFiles = async (rootDir) => {
   const out = []
@@ -110,7 +129,7 @@ const readDocsSourceFileContent = async (filePath) => {
   }
 }
 
-const buildMutation = async (args) => {
+const buildDocumentSeed = async (args) => {
   const stats = await fs.stat(args.filePath)
   const fileContent = await readDocsSourceFileContent(args.filePath)
   const relPath = toPosixRel(args.docsRoot, args.filePath)
@@ -118,9 +137,13 @@ const buildMutation = async (args) => {
   const revision = Math.max(1, Math.floor(stats.mtimeMs))
   const documentId = `docs:${contentHash(canonicalPath).slice(0, 24)}`
   const graphId = `docs-graph:${contentHash(canonicalPath).slice(0, 24)}`
-  const mutationId = `seed:${Date.now()}:${contentHash(`${canonicalPath}:${fileContent.contentHash}`).slice(0, 12)}`
-  return {
-    mutationId,
+  const contentText = String(fileContent.contentMd || '')
+  const chunkParts =
+    contentText.length > MAX_INLINE_DOCUMENT_CONTENT_CHARS
+      ? splitDocumentContentIntoChunks(contentText)
+      : []
+  const documentMutation = {
+    mutationId: `seed:${Date.now()}:${contentHash(`${canonicalPath}:${fileContent.contentHash}`).slice(0, 12)}`,
     workspaceId: args.workspaceId,
     entity: 'document',
     op: 'upsert',
@@ -135,13 +158,39 @@ const buildMutation = async (args) => {
       lang: null,
       graphId,
       sourceKind: 'markdown',
-      contentMd: fileContent.contentMd,
+      contentMd: chunkParts.length > 0 ? '' : contentText,
       contentHash: fileContent.contentHash,
       parserVersion: 'seed-storage-docs-to-cloudflare:v1',
       revision,
       updatedAtMs: Math.floor(stats.mtimeMs),
       deleted: false,
     },
+  }
+  const chunkMutations = chunkParts.map(part => ({
+    mutationId: `seed-chunk:${Date.now()}:${contentHash(`${canonicalPath}:${part.chunkKey}:${fileContent.contentHash}`).slice(0, 12)}`,
+    workspaceId: args.workspaceId,
+    entity: 'documentChunk',
+    op: 'upsert',
+    recordId: `docchunk:${contentHash(`${documentId}:${part.chunkKey}`).slice(0, 24)}`,
+    baseRevision: null,
+    record: {
+      id: `docchunk:${contentHash(`${documentId}:${part.chunkKey}`).slice(0, 24)}`,
+      documentId,
+      workspaceId: args.workspaceId,
+      chunkKey: part.chunkKey,
+      chunkOrder: part.chunkOrder,
+      heading: null,
+      markdown: part.markdown,
+      tokenEstimate: estimateTokenCount(part.markdown),
+      contentHash: contentHash(part.markdown),
+      updatedAtMs: Math.floor(stats.mtimeMs),
+    },
+  }))
+  return {
+    canonicalPath,
+    documentId,
+    documentMutation,
+    chunkMutations,
   }
 }
 
@@ -295,12 +344,13 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `updated_at = excluded.updated_at;`,
     ].join('\n'),
   )
-  for (let i = 0; i < args.mutations.length; i += 1) {
-    const mutation = args.mutations[i]
+  for (let i = 0; i < args.documentSeeds.length; i += 1) {
+    const seed = args.documentSeeds[i]
+    const mutation = seed?.documentMutation
     if (!mutation || mutation.entity !== 'document' || mutation.op !== 'upsert') continue
     const record = mutation.record
     const updatedAtIso = new Date(Math.max(1, Number(record.updatedAtMs || Date.now()))).toISOString()
-    const sql = [
+    const statements = [
       'PRAGMA foreign_keys = ON;',
       `INSERT INTO documents (`,
       `  id, workspace_id, canonical_path, title, doc_type, lang, graph_id, source_kind,`,
@@ -336,8 +386,43 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `  revision = excluded.revision,`,
       `  deleted = excluded.deleted,`,
       `  updated_at = excluded.updated_at;`,
-    ].join('\n')
-    await executeD1SqlFile(sql)
+      `DELETE FROM document_chunks WHERE document_id = ${toSqlString(record.id)} AND workspace_id = ${toSqlString(record.workspaceId)};`,
+    ]
+    for (let chunkIndex = 0; chunkIndex < seed.chunkMutations.length; chunkIndex += 1) {
+      const chunkMutation = seed.chunkMutations[chunkIndex]
+      if (!chunkMutation || chunkMutation.entity !== 'documentChunk' || chunkMutation.op !== 'upsert') continue
+      const chunk = chunkMutation.record
+      const chunkUpdatedAtIso = new Date(Math.max(1, Number(chunk.updatedAtMs || Date.now()))).toISOString()
+      statements.push(
+        [
+          `INSERT INTO document_chunks (`,
+          `  id, document_id, workspace_id, chunk_key, chunk_order, heading, markdown, token_estimate, content_hash, updated_at`,
+          `) VALUES (`,
+          `  ${toSqlString(chunk.id)},`,
+          `  ${toSqlString(chunk.documentId)},`,
+          `  ${toSqlString(chunk.workspaceId)},`,
+          `  ${toSqlString(chunk.chunkKey)},`,
+          `  ${Math.max(0, Number(chunk.chunkOrder || 0))},`,
+          `  ${toSqlNullableString(chunk.heading)},`,
+          `  ${toSqlString(chunk.markdown)},`,
+          `  ${Math.max(1, Number(chunk.tokenEstimate || 1))},`,
+          `  ${toSqlString(chunk.contentHash)},`,
+          `  ${toSqlString(chunkUpdatedAtIso)}`,
+          `)`,
+          `ON CONFLICT(id) DO UPDATE SET`,
+          `  document_id = excluded.document_id,`,
+          `  workspace_id = excluded.workspace_id,`,
+          `  chunk_key = excluded.chunk_key,`,
+          `  chunk_order = excluded.chunk_order,`,
+          `  heading = excluded.heading,`,
+          `  markdown = excluded.markdown,`,
+          `  token_estimate = excluded.token_estimate,`,
+          `  content_hash = excluded.content_hash,`,
+          `  updated_at = excluded.updated_at;`,
+        ].join('\n'),
+      )
+    }
+    await executeD1SqlFile(statements.join('\n'))
   }
   for (let i = 0; i < args.deleteMutations.length; i += 1) {
     const mutation = args.deleteMutations[i]
@@ -355,6 +440,7 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `  updated_at = ${toSqlString(updatedAtIso)}`,
       `WHERE workspace_id = ${toSqlString(record.workspaceId)}`,
       `  AND (id = ${toSqlString(record.id)} OR canonical_path = ${toSqlString(record.canonicalPath)});`,
+      `DELETE FROM document_chunks WHERE document_id = ${toSqlString(record.id)} AND workspace_id = ${toSqlString(record.workspaceId)};`,
     ].join('\n')
     await executeD1SqlFile(sql)
   }
@@ -374,65 +460,76 @@ const run = async () => {
   if (docsSourceFiles.length === 0) {
     throw new Error(`No supported source files found under docs root: ${docsRoot}`)
   }
+  const documentSeeds = []
   const mutations = []
   for (let i = 0; i < docsSourceFiles.length; i += 1) {
-    const mutation = await buildMutation({
+    const seed = await buildDocumentSeed({
       filePath: docsSourceFiles[i],
       docsRoot,
       workspaceId,
     })
-    mutations.push(mutation)
+    documentSeeds.push(seed)
+    mutations.push(seed.documentMutation, ...seed.chunkMutations)
   }
+  const chunkedDocuments = documentSeeds.filter(seed => seed.chunkMutations.length > 0)
   console.log(`[knowgrph] docs-root=${docsRoot}`)
   console.log(`[knowgrph] workspace-id=${workspaceId}`)
   console.log(`[knowgrph] base-url=${baseUrl}`)
   console.log(`[knowgrph] source-files=${docsSourceFiles.length}`)
+  if (chunkedDocuments.length > 0) {
+    console.log(`[knowgrph] chunked-source-files=${chunkedDocuments.length}`)
+  }
   if (dryRun) {
     console.log('[knowgrph] dry-run enabled; no remote push executed')
     console.log('[knowgrph] sample canonical paths:')
-    for (const mutation of mutations.slice(0, 10)) {
-      console.log(`  - ${mutation.record.canonicalPath}`)
+    for (const seed of documentSeeds.slice(0, 10)) {
+      console.log(`  - ${seed.documentMutation.record.canonicalPath}`)
     }
     return
   }
   let deleteMutations = []
-  try {
-    const beforeExport = await exportWorkspace({ baseUrl, workspaceId })
-    deleteMutations = buildReconciliationMutations({
-      exported: beforeExport,
-      mutations,
-      workspaceId,
-    })
-    if (deleteMutations.length > 0) {
-      console.log(`[knowgrph] stale-source-files=${deleteMutations.length}`)
-      mutations.push(...deleteMutations)
+  const beforeExport = await exportWorkspace({ baseUrl, workspaceId })
+  deleteMutations = buildReconciliationMutations({
+    exported: beforeExport,
+    mutations,
+    workspaceId,
+  })
+  if (deleteMutations.length > 0) {
+    console.log(`[knowgrph] stale-source-files=${deleteMutations.length}`)
+    mutations.push(...deleteMutations)
+  }
+  const shouldUseDirectD1Seed = chunkedDocuments.length > 0
+  if (!shouldUseDirectD1Seed) {
+    try {
+      const pushJson = await pushMutations({
+        baseUrl,
+        workspaceId,
+        deviceId,
+        mutations,
+      })
+      const acknowledgements = Array.isArray(pushJson.acknowledgements) ? pushJson.acknowledgements : []
+      const applied = acknowledgements.filter(item => item && item.status === 'applied').length
+      const conflict = acknowledgements.filter(item => item && item.status === 'conflict').length
+      const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
+      console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
+      const exported = await exportWorkspace({ baseUrl, workspaceId })
+      const documentCount = countActiveExportedDocuments(exported)
+      console.log(`[knowgrph] export verification: documents=${documentCount}`)
+      if (documentCount !== docsSourceFiles.length) {
+        throw new Error(`Source Files mismatch after seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
+      }
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`[knowgrph] API push path unavailable: ${message}`)
+      console.warn('[knowgrph] Falling back to direct D1 remote upsert via npx wrangler.')
     }
-    const pushJson = await pushMutations({
-      baseUrl,
-      workspaceId,
-      deviceId,
-      mutations,
-    })
-    const acknowledgements = Array.isArray(pushJson.acknowledgements) ? pushJson.acknowledgements : []
-    const applied = acknowledgements.filter(item => item && item.status === 'applied').length
-    const conflict = acknowledgements.filter(item => item && item.status === 'conflict').length
-    const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
-    console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
-    const exported = await exportWorkspace({ baseUrl, workspaceId })
-    const documentCount = countActiveExportedDocuments(exported)
-    console.log(`[knowgrph] export verification: documents=${documentCount}`)
-    if (documentCount !== docsSourceFiles.length) {
-      throw new Error(`Source Files mismatch after seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
-    }
-    return
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn(`[knowgrph] API push path unavailable: ${message}`)
-    console.warn('[knowgrph] Falling back to direct D1 remote upsert via npx wrangler.')
+  } else {
+    console.warn('[knowgrph] Large canonical docs detected; skipping bulk API push and using direct D1 remote upsert.')
   }
   await seedDocumentsDirectlyToD1({
     workspaceId,
-    mutations,
+    documentSeeds,
     deleteMutations,
   })
   const exported = await exportWorkspace({ baseUrl, workspaceId })

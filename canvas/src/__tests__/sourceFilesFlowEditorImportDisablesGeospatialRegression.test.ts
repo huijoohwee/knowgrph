@@ -89,8 +89,11 @@ export const testSourceFilesWidgetRegistryImportDisablesGeospatialMode = () => {
   const seedScriptText = fs.readFileSync(seedScriptPath, 'utf8')
   if (!seedScriptText.includes("SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])")
     || !seedScriptText.includes("docType: ext === '.gltf' ? 'gltf' : 'markdown'")
-    || !seedScriptText.includes("docType: 'glb'")) {
-    throw new Error('Expected D1 docs seeding to include Markdown, GLTF, and GLB source files')
+    || !seedScriptText.includes("docType: 'glb'")
+    || !seedScriptText.includes("entity: 'documentChunk'")
+    || !seedScriptText.includes("contentMd: chunkParts.length > 0 ? '' : contentText")
+    || !seedScriptText.includes('DELETE FROM document_chunks WHERE document_id =')) {
+    throw new Error('Expected D1 docs seeding to include Markdown, GLTF, and GLB source files with chunked large-document fallback')
   }
 
   const workspaceSeedProviderPath = path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceSeedProvider.ts')
