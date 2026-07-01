@@ -4,6 +4,7 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     const modPointerDrag = await import('../../__tests__/pointerDragUnstickOnAnyPointerDownRegression.test')
     await execTest(results, 'ui.pointerDrag.unstickOnAnyPointerDown', modPointerDrag.testPointerDragUnsticksOnAnyPointerDown)
     await execTest(results, 'ui.pointerDrag.watchdogTimeout', modPointerDrag.testPointerDragHasWatchdogTimeout)
+    await execTest(results, 'ui.pointerDrag.coalescesMoveHandlersOnAnimationFrames', modPointerDrag.testPointerDragCoalescesMoveHandlersOnAnimationFrames)
 
     const modPointerDragTarget = await import('../../__tests__/pointerDragTargetElementResolutionRegression.test')
     await execTest(

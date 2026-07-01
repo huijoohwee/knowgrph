@@ -26,3 +26,20 @@ export function testPointerDragHasWatchdogTimeout() {
     throw new Error('expected shared pointerDrag to use a timeout watchdog')
   }
 }
+
+export function testPointerDragCoalescesMoveHandlersOnAnimationFrames() {
+  const p = resolve(process.cwd(), '..', 'grph-shared', 'src', 'dom', 'pointerDrag.ts')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('let pendingMove: PointerEvent | null = null')) {
+    throw new Error('expected shared pointerDrag to track the latest pending move')
+  }
+  if (!text.includes('window.requestAnimationFrame')) {
+    throw new Error('expected shared pointerDrag to coalesce high-frequency moves on animation frames')
+  }
+  if (!text.includes('flushPendingMove()')) {
+    throw new Error('expected shared pointerDrag to flush the latest pending move before drag end or cancel')
+  }
+  if (text.includes('\n    onMove(mv)\n')) {
+    throw new Error('expected pointer move events to avoid immediate per-event handler churn')
+  }
+}

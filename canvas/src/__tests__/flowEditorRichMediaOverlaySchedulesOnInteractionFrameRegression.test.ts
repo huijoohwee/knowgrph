@@ -32,7 +32,7 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
 export function testMediaOverlayLayoutLoopQuantizesAndSkipsNoopBoxWrites() {
   const p = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number }>()')) {
+  if (!text.includes('const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale?: number }>()')) {
     throw new Error('expected media overlay layout loop to keep last-applied panel boxes for no-op write suppression')
   }
   if (!text.includes('const quantizePanelPos = (v: number) => {')) {

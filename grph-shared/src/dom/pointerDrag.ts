@@ -171,6 +171,16 @@ export function startPointerDrag(args: {
   let active = true
   let watchdog: number | null = null
   let clickSuppressed = false
+  let pendingMove: PointerEvent | null = null
+  let moveFrame: number | null = null
+  const requestMoveFrame = (callback: () => void): number => {
+    if (typeof window.requestAnimationFrame === 'function') return window.requestAnimationFrame(callback)
+    return window.setTimeout(callback, 16)
+  }
+  const cancelMoveFrame = (frame: number) => {
+    if (typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(frame)
+    else window.clearTimeout(frame)
+  }
   const suppressNextClickCapture = (e: Event) => {
     try {
       ;(e as unknown as { preventDefault?: () => void }).preventDefault?.()
@@ -191,6 +201,15 @@ export function startPointerDrag(args: {
   const cleanup = () => {
     if (!active) return
     active = false
+    if (moveFrame != null) {
+      try {
+        cancelMoveFrame(moveFrame)
+      } catch {
+        void 0
+      }
+      moveFrame = null
+    }
+    pendingMove = null
     window.removeEventListener('pointermove', handleMove)
     window.removeEventListener('pointerup', handleUp)
     window.removeEventListener('pointercancel', handleCancel)
@@ -225,6 +244,34 @@ export function startPointerDrag(args: {
         void 0
       }
     }
+  }
+
+  const flushPendingMove = () => {
+    if (!active) return
+    if (moveFrame != null) {
+      try {
+        cancelMoveFrame(moveFrame)
+      } catch {
+        void 0
+      }
+      moveFrame = null
+    }
+    const nextMove = pendingMove
+    pendingMove = null
+    if (!nextMove) return
+    onMove(nextMove)
+  }
+
+  const scheduleMove = (mv: PointerEvent) => {
+    pendingMove = mv
+    if (moveFrame != null) return
+    moveFrame = requestMoveFrame(() => {
+      moveFrame = null
+      const nextMove = pendingMove
+      pendingMove = null
+      if (!active || !nextMove) return
+      onMove(nextMove)
+    })
   }
 
   const cancelIfTargetDetached = (ev: PointerEvent): boolean => {
@@ -274,7 +321,7 @@ export function startPointerDrag(args: {
       return
     }
 
-    onMove(mv)
+    scheduleMove(mv)
   }
 
   const handleUp = (up: PointerEvent, opts?: { ignorePointerId?: boolean }) => {
@@ -291,6 +338,7 @@ export function startPointerDrag(args: {
       void 0
     }
     try {
+      flushPendingMove()
       onEnd?.(up)
     } finally {
       cleanup()
@@ -311,6 +359,7 @@ export function startPointerDrag(args: {
       void 0
     }
     try {
+      flushPendingMove()
       onCancel?.(pc)
     } finally {
       cleanup()
@@ -331,6 +380,7 @@ export function startPointerDrag(args: {
     if (!active) return
     const ev = lost as unknown as PointerEvent
     try {
+      flushPendingMove()
       onCancel?.(ev)
     } finally {
       cleanup()
@@ -340,6 +390,7 @@ export function startPointerDrag(args: {
   const handleWindowBlur = () => {
     if (!active) return
     try {
+      flushPendingMove()
       onCancel?.(ev)
     } finally {
       cleanup()
