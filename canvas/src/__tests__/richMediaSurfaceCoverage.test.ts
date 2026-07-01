@@ -151,6 +151,7 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
   const three = readFileSync(resolve(root, 'src', 'lib', 'three', 'useThreeRichMediaOverlayController.tsx'), 'utf8')
   const threeGraph = readFileSync(resolve(root, 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
   const design = readFileSync(resolve(root, 'src', 'components', 'DesignCanvas', 'MediaOverlay.tsx'), 'utf8')
+  const sharedPanelSurface = readFileSync(resolve(root, 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
 
   if (!ssot.includes('export function computeRichMediaOverlayConnectedValuesByNodeId')) {
     throw new Error('expected connected Rich Media overlay value derivation to live in the Rich Media SSOT')
@@ -172,6 +173,10 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
   if (!three.includes('panelChrome="flowEditor"') || !three.includes('overlayId={n.id}')) {
     throw new Error('expected 3D/XR/Voxel Rich Media overlays to reuse the shared 2D panel chrome and overlay identity')
   }
+  for (const snippet of ['readCanvasAspectRatioWidthToHeight', 'strybldrStoryboardCardAspectMode', 'directMediaZoomContentSize']) {
+    if (!sharedPanelSurface.includes(snippet)) throw new Error(`expected shared Rich Media panel surface to reuse Canvas Aspect display control: ${snippet}`)
+  }
+  if (sharedPanelSurface.includes('{ h: 9, w: 16 }')) throw new Error('expected shared Rich Media panel surface to avoid hardcoded 16:9 direct media viewport size')
   for (const snippet of [
     'computePanelFrameResizeFromDrag16x9({',
     'readRichMediaPanelFrameMetrics(el)',

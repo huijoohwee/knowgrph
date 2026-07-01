@@ -20,6 +20,7 @@ import {
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { readCanvasAspectRatioWidthToHeight } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
 import { handleRichMediaPanelOverlayDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
@@ -78,6 +79,7 @@ export function useRichMediaPanelSurfaceState(
 ): RichMediaPanelSurfaceState {
   const rootElementRef = React.useRef<HTMLElement | null>(null)
   const lastPointerDownAtRef = React.useRef(0)
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
   const showFlowEditorChrome = panelChrome === 'flowEditor'
   const frameMode = props.frameMode === 'surface' ? 'surface' : 'panel'
@@ -396,7 +398,10 @@ export function useRichMediaPanelSurfaceState(
     width: '100%',
     ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocEmbeddedSurfaceHeight, minHeight: '100%' } : null),
   }), [inlineSrcDocEmbeddedSurfaceHeight, inlineSrcDocPanelContentHeight, panelOwnsInlineSrcDocScroll])
-  const directMediaZoomContentSize = React.useMemo(() => ({ h: 9, w: 16 }), [])
+  const directMediaZoomContentSize = React.useMemo(() => {
+    const ratio = readCanvasAspectRatioWidthToHeight(strybldrStoryboardCardAspectMode)
+    return ratio >= 1 ? { h: 1, w: ratio } : { h: 1 / ratio, w: 1 }
+  }, [strybldrStoryboardCardAspectMode])
   const directMediaPreviewSelectionProps = React.useMemo(() => resolveMediaPreviewSurfaceSelectionProps({
     ariaLabel: `${mediaState.title} pan and zoom media preview`,
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
