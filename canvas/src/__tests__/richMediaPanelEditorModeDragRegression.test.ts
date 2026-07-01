@@ -264,28 +264,35 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const overlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
   const toolbarHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts')
   const sharedToolbarPropsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'richMediaOverlayToolbarProps.ts')
+  const sharedBubbleToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayBubbleToolbarPresentation.ts')
   const panelChromePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
   const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
   const graphCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
   const richMediaShellPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanelShell.tsx')
+  const storyboardToolbarPropsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardCanvas', 'storyboardToolbarProps.ts')
   const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
   const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
   const sharedToolbarPropsText = readFileSync(sharedToolbarPropsPath, 'utf8')
+  const sharedBubbleToolbarText = readFileSync(sharedBubbleToolbarPath, 'utf8')
   const panelChromeText = readFileSync(panelChromePath, 'utf8')
   const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
   const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
   const graphCanvasToolbarText = readFileSync(graphCanvasToolbarPath, 'utf8')
   const richMediaShellText = readFileSync(richMediaShellPath, 'utf8')
+  const storyboardToolbarPropsText = readFileSync(storyboardToolbarPropsPath, 'utf8')
 
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
   }
-  if (!sharedToolbarPropsText.includes("navClassName: args?.navClassName || 'absolute left-full top-1/2 z-30 ml-2 -translate-y-1/2'")) {
-    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the Flow Editor side-docked Rich Media toolbar')
+  if (!sharedToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !sharedBubbleToolbarText.includes("'right-middle'")) {
+    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the shared bubble-toolbar presentation helper')
+  }
+  if (!storyboardToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !sharedBubbleToolbarText.includes("'above-center'")) {
+    throw new Error('expected Storyboard card/widget toolbar placement to reuse the shared bubble-toolbar presentation helper')
   }
   if (panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
     throw new Error('expected RichMediaPanel to stop deriving floating-toolbar visibility locally after upstream toolbar consolidation')
@@ -355,7 +362,7 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
     "const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')",
     'isCanonicalNodeIdEqual(selectedNodeId, node.id)',
     'isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)',
-    'onPointerDownCapture={() => setActiveRichMediaPanelId(node.id)}',
+    'setActiveRichMediaPanelId(id)',
     'visible={isSelected}',
   ]) {
     if (!flowCanvasOverlayText.includes(snippet)) {
