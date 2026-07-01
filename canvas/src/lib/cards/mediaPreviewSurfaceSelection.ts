@@ -38,9 +38,11 @@ export function resolveMediaPreviewSurfaceCardProps(args: {
 export function resolveMediaPreviewSurfaceSelectionProps(args: {
   enabled: boolean
   ariaLabel?: string
+  claimPointerDown?: boolean
   onSelect?: (event: MediaPreviewSurfaceSelectionEvent) => void
 }): MediaPreviewSurfaceSelectionProps {
   if (!args.enabled) return {}
+  const claimPointerDown = args.claimPointerDown !== false
   const selectSurface = (event: MediaPreviewSurfaceSelectionEvent) => {
     if (event.button !== 0) return
     args.onSelect?.(event)
@@ -59,6 +61,10 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
       void 0
     }
   }
+  const claimPointerSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {
+    if (claimPointerDown) claimSurfaceEvent(event)
+    else selectSurface(event)
+  }
   const claimSurfaceClick = (event: React.MouseEvent<HTMLElement>) => {
     claimSurfaceEvent(event)
   }
@@ -66,8 +72,8 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
     role: 'group',
     'aria-label': args.ariaLabel,
     [MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]: MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE,
-    onPointerDownCapture: claimSurfaceEvent,
-    onMouseDownCapture: claimSurfaceEvent,
+    onPointerDownCapture: claimPointerSurfaceEvent,
+    onMouseDownCapture: claimPointerSurfaceEvent,
     onClickCapture: claimSurfaceClick,
   }
 }

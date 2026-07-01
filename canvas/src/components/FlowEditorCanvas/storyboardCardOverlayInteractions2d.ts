@@ -64,6 +64,7 @@ export function useStoryboardCardOverlayWheelForwarding(args: {
 export function useStoryboardCardOverlayInteractions2d(args: {
   addHistory: (label: string) => void
   getTransform: () => FlowEditorOverlayDragTransform | null
+  readNodeCenter?: (node: GraphNode) => CardPoint | null
   readNodeSize: (node: GraphNode) => CardSize
   schema: GraphSchema | null | undefined
   setDragVisualOverride?: (id: string, point: CardPoint | null) => void
@@ -84,7 +85,7 @@ export function useStoryboardCardOverlayInteractions2d(args: {
     if (event.button !== 0) return
     const id = String(node.id || '').trim()
     if (!id) return
-    const startCenter = readNodeCenter(node)
+    const startCenter = args.readNodeCenter?.(node) || readNodeCenter(node)
     const startWorld = readPointerWorldPoint(args.getTransform(), event.clientX, event.clientY)
     const grab = { x: startWorld.x - startCenter.x, y: startWorld.y - startCenter.y }
     let latest = startCenter

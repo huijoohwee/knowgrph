@@ -11,6 +11,9 @@ import {
   testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot,
 } from '@/__tests__/flowEditorRichMediaPanelResizeHandleSsotRegression.test'
 import {
+  testRichMediaPanelDirectImageSurfaceStartsOverlayDrag,
+} from '@/__tests__/richMediaPanelDirectSurfaceDragRegression.test'
+import {
   testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle,
   testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface,
 } from '@/__tests__/richMediaPanelWidget.test'
@@ -29,6 +32,7 @@ async function main() {
   testRichMediaPanelEditorModeDisablesInteractiveContentForDragging()
   await testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll()
   testD3RichMediaOverlayForwardsWheelBeforeScrollableBody()
+  await testRichMediaPanelDirectImageSurfaceStartsOverlayDrag()
   testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
 
   testRichMediaPanelUsesSectionBodyResizeHandleSsot()

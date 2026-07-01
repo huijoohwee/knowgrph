@@ -24,6 +24,7 @@ import {
 } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { seedMissingFlowWidgetPinnedByIds } from '@/lib/flowEditor/flowWidgetPinnedState'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
@@ -526,15 +527,8 @@ export function useFlowEditorOverlaySurface(args: {
     seededFrontmatterAutoWidgetsKeyRef.current = seedKey
     if (missingIds.length === 0) return
 
-    const nextPinned = { ...pinnedById }
-    let changed = false
-    for (let i = 0; i < missingIds.length; i += 1) {
-      const id = missingIds[i]
-      if (!id) continue
-      nextPinned[id] = defaultPinned
-      changed = true
-    }
-    if (!changed) return
+    const nextPinned = seedMissingFlowWidgetPinnedByIds({ pinnedById, nodeIds: missingIds, pinned: defaultPinned })
+    if (!nextPinned) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
   }, [deferComposedGraphOverlayRender, overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
@@ -589,8 +583,8 @@ export function useFlowEditorOverlaySurface(args: {
     if (seededGeospatialOverlayWidgetPinsKeyRef.current === seedKey) return
     seededGeospatialOverlayWidgetPinsKeyRef.current = seedKey
     if (missingIds.length === 0) return
-    const nextPinned = { ...pinnedById }
-    for (let i = 0; i < missingIds.length; i += 1) nextPinned[missingIds[i]!] = defaultPinned
+    const nextPinned = seedMissingFlowWidgetPinnedByIds({ pinnedById, nodeIds: missingIds, pinned: defaultPinned })
+    if (!nextPinned) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
   }, [deferComposedGraphOverlayRender, geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphMetaKey, scheduleOverlayCollisionResolve])

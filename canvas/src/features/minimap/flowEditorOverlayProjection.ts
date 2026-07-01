@@ -4,6 +4,7 @@ import { isFlowEditorCanvas2dRenderer, type Canvas2dRendererId } from '@/lib/con
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readFlowWidgetPinnedInCanvas } from '@/lib/flowEditor/flowWidgetPinnedState'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import type { GraphSchema } from '@/lib/graph/schemaTypes'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -74,7 +75,6 @@ export const buildMinimapFlowEditorOverlaySubset = (args: {
   const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
   const [schemaMinK, schemaMaxK] = readZoomScaleExtent(args.schema || defaultSchema)
   const extent = { minK: Math.min(schemaMinK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK: schemaMaxK }
-  const pinnedById = args.flowWidgetPinnedByNodeId || {}
   const posById = args.flowWidgetPosByNodeId || {}
   const worldById = args.flowWidgetWorldPosByNodeId || {}
   const overlayNodes: GraphNode[] = []
@@ -83,7 +83,7 @@ export const buildMinimapFlowEditorOverlaySubset = (args: {
     const id = ids[stackIndex]!
     const node = nodeById.get(id)
     if (!node) continue
-    const pinnedInCanvas = typeof pinnedById[id] === 'boolean' ? pinnedById[id] : true
+    const pinnedInCanvas = readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId as Record<string, boolean> | null | undefined, id)
     const panelScale = computeWidgetScale(k, extent, { mode: 'pinnedInCanvas' })
     const wPx = WIDGET_BASE_SIZE.width * panelScale
     const hPx = WIDGET_BASE_SIZE.height * panelScale

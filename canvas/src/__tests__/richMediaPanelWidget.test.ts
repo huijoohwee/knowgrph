@@ -492,8 +492,8 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !cardMediaPreviewText.includes('data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}')
     || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceSelectionProps')
     || !mediaSurfaceSelectionText.includes('const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
-    || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimSurfaceEvent')
-    || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimSurfaceEvent')
+    || !mediaSurfaceSelectionText.includes('claimPointerDown?: boolean') || !mediaSurfaceSelectionText.includes('const claimPointerDown = args.claimPointerDown !== false')
+    || !mediaSurfaceSelectionText.includes('const claimPointerSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {') || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimPointerSurfaceEvent') || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimPointerSurfaceEvent')
     || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
     || !mediaSurfaceSelectionText.includes('event.preventDefault()')
     || !mediaSurfaceSelectionText.includes('event.stopPropagation()')
@@ -1032,14 +1032,14 @@ export function testRichMediaPanelRegistryPortsExposeWidgetConnectionHandles() {
 }
 
 export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
-  const filePath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const filePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
   const text = readFileSync(filePath, 'utf8')
   const requiredSnippets = [
     `const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled`,
-    `data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}`,
-    `data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}`,
-    `data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
-    `data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}`,
+    `'data-kg-rich-media-overlay': flowEditorRichMediaOverlayRoot ? '1' : undefined`,
+    `'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? '1' : undefined`,
+    `'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined`,
+    `'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined`,
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
@@ -1082,7 +1082,7 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
   const text = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const requiredSnippets = [
     'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
-    'const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)', "const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'",
+    'const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)', "const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'",
     'resolveFlowCanvasMediaOverlayInteractionPolicy',
     'const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive',
     'const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive',

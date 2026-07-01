@@ -15,6 +15,7 @@ const setPointerDragActiveClass = (active: boolean) => {
 export function startPointerDrag(args: {
   ev: PointerEvent
   cursor: string
+  target?: Element | null
   shouldStart?: (ev: PointerEvent) => boolean
   onMove: (ev: PointerEvent) => void
   onEnd?: (ev: PointerEvent) => void
@@ -79,6 +80,7 @@ export function startPointerDrag(args: {
   const startClientY = typeof (ev as unknown as { clientY?: unknown }).clientY === 'number' ? ev.clientY : 0
 
   const resolvedTarget = (() => {
+    if (args.target instanceof Element) return args.target
     const direct = (ev as unknown as { target?: unknown }).target
     if (direct instanceof Element) return direct
     try {

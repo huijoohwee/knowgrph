@@ -42,6 +42,8 @@ export function RichMediaPanelShell(args: {
             pinned={props.headerPinned === true}
             richMediaHeader={true}
             dragHandle={Boolean(props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd)}
+            onHeaderPointerDown={model.handleRootPointerDownCapture}
+            onHeaderMouseDown={model.handleRootMouseDownCapture}
             onValidate={props.onHeaderValidate}
             onTogglePinned={props.onHeaderTogglePinned}
             onPinnedPointerDown={props.onHeaderPinnedPointerDown}

@@ -91,6 +91,7 @@ export interface GraphStateStructure {
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void;
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => void;
+  setFlowWidgetPinnedByNodeIdForGraph: (graphMetaKey: string | null | undefined, pinnedById: Record<string, boolean>) => void;
 
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;

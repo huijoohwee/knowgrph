@@ -1,8 +1,9 @@
 import IconButton from '@/components/IconButton'
-import { Search as SearchIcon, X as CloseIcon, Save as SaveIcon, RotateCcw as ResetIcon, Minimize2, Maximize2, Pin, PinOff } from 'lucide-react'
+import { PinToggleIconButton } from '@/components/PinToggleIconButton'
+import { Search as SearchIcon, X as CloseIcon, Save as SaveIcon, RotateCcw as ResetIcon, Minimize2, Maximize2 } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import { getIconSizeClass } from '@/lib/ui'
 import { uiToolbarRowScrollJustifyEndClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 interface HeaderActionsProps {
@@ -58,19 +59,15 @@ export default function HeaderActions({
         </IconButton>
       ) : null}
       {onPinToggle && (
-        <IconButton
-          className={getPinToggleButtonClassName(pinned)}
+        <PinToggleIconButton
           title={pinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}
+          pinned={pinned === true}
           onClick={onPinToggle}
           showTooltip
-          aria-pressed={!!pinned}
-        >
-          {pinned ? (
-            <Pin className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-          ) : (
-            <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-          )}
-        </IconButton>
+          ariaPressed={!!pinned}
+          iconClassName={iconSizeClass}
+          strokeWidth={uiIconStrokeWidth}
+        />
       )}
       {showApplyButton ? (
         <IconButton

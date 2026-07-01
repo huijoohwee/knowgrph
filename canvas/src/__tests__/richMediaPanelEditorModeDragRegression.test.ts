@@ -224,12 +224,25 @@ export function testD3RichMediaOverlayForwardsWheelBeforeScrollableBody() {
     || !panelText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
     throw new Error('expected RichMediaPanel to reuse shared overlay pointer target/button guards')
   }
+  if (!panelText.includes('pointerTarget.isSelectableSurface && !installOverlayPan')) {
+    throw new Error('expected selectable Rich Media surfaces to keep drag ownership when overlay pan handlers are installed')
+  }
+  if (!panelText.includes('claimPointerDown: !installOverlayPan')) {
+    throw new Error('expected direct Rich Media surfaces to avoid claiming pointerdown while shared overlay pan is installed')
+  }
+  if (!panelText.includes('handleRichMediaPanelOverlayNativeDragStartCapture')
+    || !panelText.includes("root.addEventListener('pointerdown', handleNativeStart, { capture: true })")
+    || !panelText.includes("root.addEventListener('mousedown', handleNativeStart, { capture: true })")) {
+    throw new Error('expected RichMediaPanel surface state to install native capture drag ownership for Storyboard/Flow 2D panels')
+  }
   const overlayDragPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanelOverlayDrag.ts')
   const overlayDragText = readFileSync(overlayDragPath, 'utf8')
   if (!overlayDragText.includes("from 'grph-shared/dom/overlayPointerGuards'")
     || !overlayDragText.includes('readOverlayPointerTargetState')
     || !overlayDragText.includes('isOverlayPanStartButtonEvent(native)')
-    || !overlayDragText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')) {
+    || !overlayDragText.includes('shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })')
+    || !overlayDragText.includes('startRichMediaPanelOverlayPan(native, args.handlers, dragTarget)')
+    || !overlayDragText.includes('export const handleRichMediaPanelOverlayNativeDragStartCapture')) {
     throw new Error('expected RichMediaPanel overlay drag owner to reuse shared overlay pointer target/button guards')
   }
 
@@ -267,6 +280,8 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const sharedBubbleToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'nodeOverlayBubbleToolbarPresentation.ts')
   const panelChromePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
   const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const flowCanvasHeaderToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowCanvasRichMediaPanelHeaderToolbar.ts')
+  const flowCanvasMediaOverlayWorldPointPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowCanvasMediaOverlayWorldPoint.ts')
   const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
   const graphCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
   const richMediaShellPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanelShell.tsx')
@@ -280,6 +295,8 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const sharedBubbleToolbarText = readFileSync(sharedBubbleToolbarPath, 'utf8')
   const panelChromeText = readFileSync(panelChromePath, 'utf8')
   const flowCanvasOverlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
+  const flowCanvasHeaderToolbarText = readFileSync(flowCanvasHeaderToolbarPath, 'utf8')
+  const flowCanvasMediaOverlayWorldPointText = readFileSync(flowCanvasMediaOverlayWorldPointPath, 'utf8')
   const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
   const graphCanvasToolbarText = readFileSync(graphCanvasToolbarPath, 'utf8')
   const richMediaShellText = readFileSync(richMediaShellPath, 'utf8')
@@ -288,11 +305,23 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
     throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
   }
-  if (!sharedToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !sharedBubbleToolbarText.includes("'right-middle'")) {
-    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the shared bubble-toolbar presentation helper')
+  if (!sharedToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !sharedToolbarPropsText.includes("placement: 'flow-rich-media-right-middle'")) {
+    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the Flow Editor Rich Media bubble-toolbar presentation helper')
   }
-  if (!storyboardToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !sharedBubbleToolbarText.includes("'above-center'")) {
-    throw new Error('expected Storyboard card/widget toolbar placement to reuse the shared bubble-toolbar presentation helper')
+  if (sharedBubbleToolbarText.includes("'right-middle'") || sharedBubbleToolbarText.includes('absolute left-full top-1/2')) {
+    throw new Error('expected the shared bubble-toolbar presentation helper to remove the stale generic Rich Media side placement')
+  }
+  if (sharedToolbarPropsText.includes('run: false') || sharedToolbarPropsText.includes('updateKvEntry: false') || sharedToolbarPropsText.includes('clearOutput: false') || sharedToolbarPropsText.includes('help: false')) {
+    throw new Error('expected shared Rich Media overlay toolbar props to reuse the Flow Editor Rich Media action surface without an overlay-only action mask')
+  }
+  if (!storyboardToolbarPropsText.includes('buildNodeOverlayBubbleToolbarPresentation({') || !storyboardToolbarPropsText.includes("placement: 'flow-widget-above-center'")) {
+    throw new Error('expected Storyboard card/widget toolbar placement to reuse the Flow Editor widget bubble-toolbar presentation helper')
+  }
+  if (sharedBubbleToolbarText.includes("'above-center'") || sharedBubbleToolbarText.includes('absolute bottom-full left-1/2')) {
+    throw new Error('expected the shared bubble-toolbar presentation helper to remove the stale Storyboard-only above-card placement')
+  }
+  if (flowCanvasOverlayText.includes('onPointerDownCapture={richMediaPanelHeaderToolbar.activate}')) {
+    throw new Error('expected Rich Media overlay shell not to preempt shared panel header drag with a parent capture-phase activation')
   }
   if (panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
     throw new Error('expected RichMediaPanel to stop deriving floating-toolbar visibility locally after upstream toolbar consolidation')
@@ -316,10 +345,16 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
     "showPinToggle={typeof props.onHeaderTogglePinned === 'function'}",
     "showValidate={typeof props.onHeaderValidate === 'function'}",
     "showMinimizeToggle={typeof props.onHeaderToggleMinimized === 'function'}",
+    'onHeaderPointerDown={model.handleRootPointerDownCapture}',
+    'onHeaderMouseDown={model.handleRootMouseDownCapture}',
   ]) {
     if (!richMediaShellText.includes(snippet)) {
       throw new Error(`expected RichMediaPanelShell not to force stale header controls without callbacks: ${snippet}`)
     }
+  }
+  if (!panelChromeText.includes('onHeaderMouseDown?: (event: React.MouseEvent<HTMLElement>) => void')
+    || !panelChromeText.includes('onMouseDown={onHeaderMouseDown}')) {
+    throw new Error('expected shared Flow Editor panel chrome header to expose mouse fallback drag ownership')
   }
   if (richMediaShellText.includes('showPinToggle={true}')) {
     throw new Error('expected RichMediaPanelShell not to force stale Rich Media header pin controls without callbacks')
@@ -359,15 +394,106 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
     "from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'",
     '<FlowCanvasRichMediaOverlayToolbar',
     'data-kg-rich-media-flow-editor-overlay-shell="1"',
+    'resolveFlowWidgetStateGraphKey',
+    'resolveScopedFlowWidgetNodeMap',
+    'const useFlowEditorRichMediaPanelHeaderToolbar = storyboardSharedSurfaceRendererMode',
+    'const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)',
+    'const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData: sceneGraphData }), [sceneGraphData])',
+    'const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({',
+    'graphMetaKey: flowWidgetStateGraphKey',
+    'keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey',
+    'readFlowWidgetPinnedInCanvas',
+    'nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}}',
+    'panel={node.panel}',
+    'openUrl={node.openUrl}',
+    'sceneGraphData={sceneGraphData}',
+    'workspaceMutationBlockedRef={workspaceMutationBlockedRef}',
+    'buildFlowCanvasRichMediaPanelHeaderToolbar({',
+    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
+    '{...richMediaPanelHeaderToolbar.panelProps}',
+    'mediaOverlayWorldPositionOverrideRef.current.set(id, next)',
+    'mediaOverlayWorldPositionOverrideRef.current.get(id)',
+    'const start = readNodeWorldTopLeft2d(node) || mediaOverlayWorldPositionOverrideRef.current.get(id)',
+    'readElementWorldTopLeft2d(mediaOverlayElsRef.current.get(id), runtime?.transform)',
+    'if (!start) return',
+    'const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, node.id)',
+    'const bodyDragMovesRichMediaPanel = headerDragInteractionActive && !richMediaPanelPinned',
+    "data-kg-rich-media-flow-editor-pinned={richMediaPanelPinned ? '1' : '0'}",
+    'if (bodyDragMovesRichMediaPanel) { beginMediaOverlayHeaderDrag(node.id, payload.pointerId); return }',
+    'if (bodyDragMovesRichMediaPanel) { finishMediaOverlayHeaderDrag(node.id, payload.pointerId); return }',
+    'useGraphStore.getState().updateNode(id, {',
+    'fx: finalPoint.x,',
+    'fy: finalPoint.y,',
+    'x: finalPoint.x,',
+    'y: finalPoint.y,',
+    'getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id)',
     "const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')",
     'isCanonicalNodeIdEqual(selectedNodeId, node.id)',
     'isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)',
-    'setActiveRichMediaPanelId(id)',
     'visible={isSelected}',
   ]) {
     if (!flowCanvasOverlayText.includes(snippet)) {
       throw new Error(`expected Flow Editor Rich Media overlay owner to mount the shared floating toolbar shell: ${snippet}`)
     }
+  }
+  if (
+    flowCanvasOverlayText.includes('const bodyDragMovesRichMediaPanel = headerDragInteractionActive && (flowWidgetPinnedByNodeId || {})[node.id] === false')
+    || flowCanvasOverlayText.includes('const bodyDragMovesRichMediaPanel = headerDragInteractionActive && effectiveFlowWidgetPinnedByNodeId[node.id] === false')
+  ) {
+    throw new Error('expected Storyboard Rich Media body drag to use graph-scoped widget pin state instead of the raw global map')
+  }
+  if (flowCanvasOverlayText.includes('{useFlowEditorRichMediaPanelHeaderToolbar ? null')) {
+    throw new Error('expected Storyboard Rich Media panels to reuse the Flow Editor Rich Media bubble toolbar instead of suppressing it')
+  }
+  if (flowCanvasOverlayText.includes('const start = node ? { x: node.x, y: node.y }')) {
+    throw new Error('expected Storyboard Rich Media drag to reject scene nodes without finite top-left geometry before DOM fallback')
+  }
+  if (flowCanvasOverlayText.includes('mediaOverlayWorldPositionOverrideRef.current.delete(id)')) {
+    throw new Error('expected Storyboard Rich Media drag end to retain the visible world-position override until graph state catches up')
+  }
+  if (
+    flowCanvasOverlayText.includes('if (!active || !mediaOverlayDragInteractionMode) return')
+    || flowCanvasOverlayText.includes('}, [active, mediaOverlayDragInteractionMode, runtimeRef])')
+    || flowCanvasOverlayText.includes('}, [active, mediaNodes, mediaOverlayDragInteractionMode, runtimeRef')
+  ) {
+    throw new Error('expected rendered Storyboard Rich Media overlay pan/header drag to avoid stale active-prop gating')
+  }
+  for (const snippet of [
+    'export function readElementWorldTopLeft2d',
+    'const parentRect = el.offsetParent instanceof Element ? el.offsetParent.getBoundingClientRect() : null',
+    'if (!transform) return { x: localX, y: localY }',
+    'return { x: transform.invertX(localX), y: transform.invertY(localY) }',
+  ]) {
+    if (!flowCanvasMediaOverlayWorldPointText.includes(snippet)) {
+      throw new Error(`expected shared media overlay world-point helper to own DOM fallback geometry: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'export function buildFlowCanvasRichMediaPanelHeaderToolbar',
+    'args.setActiveRichMediaPanelId(nodeId)',
+    "from '@/lib/flowEditor/flowWidgetPinnedState'",
+    "from '@/lib/flowEditor/widgetStateScope'",
+    'const commitTogglePinned = () => {',
+    'resolveScopedFlowWidgetNodeMap({',
+    'markFlowWidgetPinPointerActivation(nodeId)',
+    'if (shouldSkipFlowWidgetPinClickAfterPointerActivation(nodeId)) return',
+    'commitTogglePinned()',
+    'toggleFlowWidgetPinnedById(currentPinnedById, nodeId)',
+    'st.setFlowWidgetPinnedByNodeIdForGraph(args.flowWidgetStateGraphKey, nextPinnedById)',
+    'widgetToolbarActive: args.isSelected',
+    'onHeaderValidate: activate',
+    'onHeaderTogglePinned: togglePinned',
+    'onHeaderToggleMinimized: toggleSize',
+  ]) {
+    if (!flowCanvasHeaderToolbarText.includes(snippet)) {
+      throw new Error(`expected Storyboard Rich Media panels to reuse Flow Editor header-toolbar controls through the shared helper: ${snippet}`)
+    }
+  }
+  if (flowCanvasHeaderToolbarText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedById, [nodeId]: !pinned })')) {
+    throw new Error('expected Storyboard Rich Media pin toggles to write through explicit graph-scoped widget state')
+  }
+  if (!panelText.includes("'data-kg-rich-media-header-pinned': typeof props.headerPinned === 'boolean' ? (props.headerPinned ? '1' : '0') : undefined")) {
+    throw new Error('expected Rich Media root state to expose effective header pin state for runtime verification')
   }
   for (const snippet of [
     'buildSharedRichMediaOverlayControlProps',
@@ -382,10 +508,37 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
     if (!graphCanvasToolbarText.includes(snippet)) throw new Error(`expected Storyboard Rich Media overlay to reuse shared toolbar controls: ${snippet}`)
   }
   for (const snippet of [
+    "import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'",
+    'resolveFlowWidgetStateGraphKey',
+    'resolveScopedFlowWidgetNodeMap',
+    'const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)',
+    'const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)',
+    'const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({',
+    'const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, n.id)',
+    'const headerPinProps = buildFlowCanvasHeaderPinProps({',
+    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
+    'flowWidgetStateGraphKey',
+    'data-kg-rich-media-overlay-pinned={richMediaPanelPinned ? \'1\' : \'0\'}',
+    '{...headerPinProps}',
+  ]) {
+    if (!graphCanvasToolbarText.includes(snippet)) {
+      throw new Error(`expected D3 Rich Media panel pin controls to reuse graph-scoped Card pin utilities: ${snippet}`)
+    }
+  }
+  for (const snippet of [
     "from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'",
     "from '@/components/FlowEditor/richMediaOverlayToolbarProps'",
+    'buildSharedRichMediaOverlayControlProps',
+    'commitRichMediaPanelChange',
+    'const toolbarControlProps = React.useMemo(() => buildSharedRichMediaOverlayControlProps({',
+    'properties: toolbarProperties,',
+    'panel: props.panel,',
+    'openUrl: props.openUrl,',
+    'onPatchProperties: patchProperties,',
+    'onPanelChange: changePanel,',
     '<NodeOverlayEditorActionsToolbar',
     '{...buildSharedRichMediaOverlayToolbarProps()}',
+    '{...toolbarControlProps}',
     'onOpenInSidepane={openInSidepane}',
     'onDuplicate={duplicate}',
     'onRemove={remove}',

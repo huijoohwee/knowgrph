@@ -14,6 +14,7 @@ import {
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveEffectiveFlowWidgetPinnedInCanvas, shouldUseFlowEditorWidgetFloatingScreenAuthority } from '@/lib/flowEditor/widgetPlacementAuthority'
+import { setFlowWidgetPinnedById } from '@/lib/flowEditor/flowWidgetPinnedState'
 import { computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsSetBool } from '@/lib/persistence'
@@ -379,12 +380,8 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
     pinnedInCanvasRef.current = resolved
     setPinnedInCanvasState(prevState => (prevState === resolved ? prevState : resolved))
     if (!nodeId) return
-    const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
-    const nextMap = { ...map, [nodeId]: resolved }
-    const prevHas = Object.prototype.hasOwnProperty.call(map, nodeId)
-    const nextHas = Object.prototype.hasOwnProperty.call(nextMap, nodeId)
-    if (prevHas === nextHas && map[nodeId] === nextMap[nodeId]) return
-    setFlowWidgetPinnedByNodeId(nextMap)
+    const nextMap = setFlowWidgetPinnedById(useGraphStore.getState().flowWidgetPinnedByNodeId, nodeId, resolved)
+    if (nextMap) setFlowWidgetPinnedByNodeId(nextMap)
   }, [graphMetaKind, node, nodeId, persistCurrentScreenPlacementAsWorldPlacement, setFlowWidgetPinnedByNodeId])
 
   const togglePinnedInternal = React.useCallback(() => {

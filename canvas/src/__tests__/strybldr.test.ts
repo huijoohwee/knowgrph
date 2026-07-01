@@ -923,6 +923,13 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(!readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes("canvas2dRenderer !== 'storyboard'"), 'expected mounted Strybldr panel to keep its Run All event consumer registered')
 }
 
+export function testStrybldrPanelCanvasSelectionKeepsNonStorytreeCardsSelectable() {
+  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
+  assert(panelText.includes("const nonStorytreeCards = cards.filter(card => card.lane !== 'Storytree')"), 'expected Strybldr panel card editor to keep Source/Storyboard cards selectable from the canvas')
+  assert(!panelText.includes("const elementCards = cards.filter(card => card.lane === 'Elements')"), 'expected Strybldr panel card editor to avoid an Elements-only selection gate')
+  assert(panelText.includes('if (!editableCards.some(card => card.id === selectedCanvasCard.id)) return'), 'expected Strybldr panel card editor to follow selected canvas cards through the selectable card owner')
+}
+
 export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArtifact() {
   const doc = buildStrybldrStoryboardDocument({
     createdAtMs: 1,

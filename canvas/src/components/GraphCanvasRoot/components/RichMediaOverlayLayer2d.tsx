@@ -1,4 +1,5 @@
 import React, { type RefObject, type SyntheticEvent } from 'react'
+import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/FlowEditor/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -10,6 +11,8 @@ import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
+import { readFlowWidgetPinnedInCanvas } from '@/lib/flowEditor/flowWidgetPinnedState'
+import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 type RichMediaResizeState = {
   id: string
@@ -73,6 +76,9 @@ export function RichMediaOverlayLayer2d(props: {
   const addHistory = useGraphStore(s => s.addHistory)
   const removeNode = useGraphStore(s => s.removeNode)
   const selectNode = useGraphStore(s => s.selectNode)
+  const graphData = useGraphStore(s => s.graphData)
+  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
+  const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
@@ -80,6 +86,12 @@ export function RichMediaOverlayLayer2d(props: {
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
+  const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData }), [graphData])
+  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
+    graphMetaKey: flowWidgetStateGraphKey,
+    keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
+    globalByNodeId: flowWidgetPinnedByNodeId,
+  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
   const [activePanelId, setActivePanelId] = React.useState('')
 
   const selectPanel = React.useCallback((id: string) => {
@@ -211,6 +223,14 @@ export function RichMediaOverlayLayer2d(props: {
       {mediaOverlayNodes.map(n => {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
         const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
+        const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, n.id)
+        const headerPinProps = buildFlowCanvasHeaderPinProps({
+          enabled: true,
+          flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
+          flowWidgetStateGraphKey,
+          nodeId: n.id,
+          stopEvent,
+        })
         const baseProperties = readGraphNodePropertiesFromStore(n.id)
         const patchProperties = (patch: Record<string, unknown>) => updateNode(n.id, { properties: { ...baseProperties, ...patch } } as Partial<GraphNode>)
         const changePanel = (next: import('@/lib/render/richMediaSsot').RichMediaPanelChange) => commitRichMediaPanelChange({
@@ -232,6 +252,7 @@ export function RichMediaOverlayLayer2d(props: {
             className="absolute left-0 top-0 pointer-events-none overflow-visible"
             data-kg-rich-media-overlay-shell="1"
             data-kg-rich-media-overlay-shell-id={n.id}
+            data-kg-rich-media-overlay-pinned={richMediaPanelPinned ? '1' : '0'}
           >
             <NodeOverlayEditorActionsToolbar
               visible={selected}
@@ -254,6 +275,7 @@ export function RichMediaOverlayLayer2d(props: {
               openUrl={n.openUrl}
               kind={kind}
               panelChrome="flowEditor"
+              {...headerPinProps}
               interactive={resolveRichMediaPanelInteractive({
                 nodeInteractive: n.interactive,
                 renderMediaAsNodes,

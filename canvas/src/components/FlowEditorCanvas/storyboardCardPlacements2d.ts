@@ -5,7 +5,9 @@ import { resolveCanvasAspectRatioSize, type CanvasAspectRatioMode } from '@/lib/
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/flowEditor/flowWidgetPinnedState'
 import { RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
+import { readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
 
 const DEFAULT_GRID_GAP = 64
 
@@ -14,18 +16,11 @@ export type StoryboardCardPlacement = {
   y: number
 }
 
-const readFiniteNumber = (value: unknown): number | null => {
-  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN
-  return Number.isFinite(n) && n > 0 ? n : null
-}
-
 export const readStoryboardCardSize2d = (node: GraphNode, aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } => {
   const props = (node.properties || {}) as Record<string, unknown>
-  return resolveCanvasAspectRatioSize({
-    defaultWidth: RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX,
-    mode: aspectRatioMode,
-    width: readFiniteNumber(props['visual:width']),
-  })
+  const stablePanelSize = readStableRichMediaPanelSize(props, aspectRatioMode)
+  if (stablePanelSize) return { width: stablePanelSize.w, height: stablePanelSize.h }
+  return readDefaultCardSize(aspectRatioMode)
 }
 
 const readDefaultCardSize = (aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } =>
@@ -47,17 +42,20 @@ const ceilToStep = (value: number, step: number): number => {
   return Math.ceil(v / s) * s
 }
 
-export const buildFixedStoryboardCardPlacements2d = (args: {
+const buildStoryboardCardPlacements2d = (args: {
   aspectRatioMode: CanvasAspectRatioMode
   board: ReturnType<typeof buildStoryboardBoardModel>
+  flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null
+  includeUnpinned: boolean
   nodeById: Map<string, GraphNode>
   schema: GraphSchema | null | undefined
 }): Map<string, StoryboardCardPlacement> => {
-  const { aspectRatioMode, board, nodeById, schema } = args
+  const { aspectRatioMode, board, flowWidgetPinnedByNodeId, includeUnpinned, nodeById, schema } = args
   const out = new Map<string, StoryboardCardPlacement>()
   const orderedCards = board.lanes
     .flatMap(lane => lane.cards)
     .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
+    .filter(card => includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id))
   if (orderedCards.length === 0) return out
 
   const centers: StoryboardCardPlacement[] = []
@@ -86,7 +84,9 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
   const cellWidth = grid.enabled ? ceilToStep(maxCardWidth + gapX, grid.x) : maxCardWidth + gapX
   const cellHeight = grid.enabled ? ceilToStep(maxCardHeight + gapY, grid.y) : maxCardHeight + gapY
   const visibleLanes = board.lanes
-    .map(lane => ({ ...lane, cards: lane.cards.filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id))) }))
+    .map(lane => ({ ...lane, cards: lane.cards
+      .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
+      .filter(card => includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)) }))
     .filter(lane => lane.cards.length > 0)
   const columnCount = Math.max(1, visibleLanes.length)
   const rowCount = Math.max(1, visibleLanes.reduce((max, lane) => Math.max(max, lane.cards.length), 0))
@@ -120,8 +120,24 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
   return out
 }
 
+export const buildFixedStoryboardCardPlacements2d = (args: {
+  aspectRatioMode: CanvasAspectRatioMode
+  board: ReturnType<typeof buildStoryboardBoardModel>
+  flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null
+  nodeById: Map<string, GraphNode>
+  schema: GraphSchema | null | undefined
+}): Map<string, StoryboardCardPlacement> => buildStoryboardCardPlacements2d({ ...args, includeUnpinned: false })
+
+export const buildFixedStoryboardCardReferencePlacements2d = (args: {
+  aspectRatioMode: CanvasAspectRatioMode
+  board: ReturnType<typeof buildStoryboardBoardModel>
+  nodeById: Map<string, GraphNode>
+  schema: GraphSchema | null | undefined
+}): Map<string, StoryboardCardPlacement> => buildStoryboardCardPlacements2d({ ...args, flowWidgetPinnedByNodeId: null, includeUnpinned: true })
+
 export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
   aspectRatioMode: CanvasAspectRatioMode
+  flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null
   graphData: GraphData | null
   graphRevision: number
   schema: GraphSchema | null | undefined
@@ -137,7 +153,7 @@ export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
     const id = String(node?.id || '').trim()
     if (id) nodeById.set(id, node)
   }
-  const placements = buildFixedStoryboardCardPlacements2d({ aspectRatioMode, board, nodeById, schema })
+  const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, schema })
   if (placements.size === 0) return graphData
   let changed = false
   const nextNodes = nodes.map(node => {

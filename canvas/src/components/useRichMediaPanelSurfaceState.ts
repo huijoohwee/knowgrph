@@ -22,7 +22,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readCanvasAspectRatioWidthToHeight } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
-import { handleRichMediaPanelOverlayDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
+import { handleRichMediaPanelOverlayDragStartCapture, handleRichMediaPanelOverlayNativeDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelMediaState } from './useRichMediaPanelMediaState'
@@ -224,10 +224,10 @@ export function useRichMediaPanelSurfaceState(
       onResizeEnd: props.onResizeEnd,
     })
   }, [installResize, props.onResize, props.onResizeEnd, props.onResizeStart, selectSelf])
-  const startHeaderDrag = React.useCallback((native: PointerEvent | MouseEvent) => {
+  const startHeaderDrag = React.useCallback((native: PointerEvent | MouseEvent, target?: Element | null) => {
     if (!installHeaderDrag) return false
     selectSelf(native as PointerEvent)
-    return startRichMediaPanelHeaderDrag(native, props)
+    return startRichMediaPanelHeaderDrag(native, props, target)
   }, [installHeaderDrag, props, selectSelf])
   const handleRootDragStartCapture = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
     const targetEl = event.target instanceof Element ? event.target : null
@@ -236,7 +236,7 @@ export function useRichMediaPanelSurfaceState(
     const pointerTarget = readOverlayPointerTargetState(targetEl)
     const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
     const nativePointerEvent = event.nativeEvent as PointerEvent | undefined
-    if (!isHeaderTarget && pointerTarget.isSelectableSurface) {
+    if (!isHeaderTarget && pointerTarget.isSelectableSurface && !installOverlayPan) {
       selectSelf(nativePointerEvent || null)
       return false
     }
@@ -256,6 +256,37 @@ export function useRichMediaPanelSurfaceState(
       selectSelf,
       startHeaderDrag,
     })
+  }, [forwardModifierWheelZoomOnly, installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
+  React.useEffect(() => {
+    const root = rootElementRef.current
+    if (!root || (!installHeaderDrag && !installOverlayPan)) return
+    const handleNativeStart = (native: PointerEvent | MouseEvent) => {
+      const targetEl = native.target instanceof Element ? native.target : null
+      if (targetEl?.closest('[data-kg-rich-media-resize-handle="1"]')) return
+      const pointerTarget = readOverlayPointerTargetState(targetEl)
+      const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
+      const canForwardPointerDown =
+        typeof props.forwardPointerTo === 'function'
+        && typeof props.shouldForwardPointerDown === 'function'
+        && native instanceof PointerEvent
+        && props.shouldForwardPointerDown(native)
+      if (!pointerTarget.isHeader && shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer }) && !canForwardPointerDown) return
+      handleRichMediaPanelOverlayNativeDragStartCapture({
+        native,
+        currentTarget: root,
+        handlers: props,
+        installHeaderDrag,
+        installOverlayPan,
+        selectSelf,
+        startHeaderDrag,
+      })
+    }
+    root.addEventListener('pointerdown', handleNativeStart, { capture: true })
+    root.addEventListener('mousedown', handleNativeStart, { capture: true })
+    return () => {
+      root.removeEventListener('pointerdown', handleNativeStart, { capture: true })
+      root.removeEventListener('mousedown', handleNativeStart, { capture: true })
+    }
   }, [forwardModifierWheelZoomOnly, installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
   const handleRootPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const handled = handleRootDragStartCapture(event)
@@ -404,9 +435,10 @@ export function useRichMediaPanelSurfaceState(
   }, [strybldrStoryboardCardAspectMode])
   const directMediaPreviewSelectionProps = React.useMemo(() => resolveMediaPreviewSurfaceSelectionProps({
     ariaLabel: `${mediaState.title} pan and zoom media preview`,
+    claimPointerDown: !installOverlayPan,
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
     onSelect: event => selectSelf(event.nativeEvent as PointerEvent),
-  }), [mediaState.kind, mediaState.title, selectSelf])
+  }), [installOverlayPan, mediaState.kind, mediaState.title, selectSelf])
   const directMediaPreviewCardProps = React.useMemo(() => resolveMediaPreviewSurfaceCardProps({
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
     interactive: false,
@@ -424,6 +456,7 @@ export function useRichMediaPanelSurfaceState(
     'data-kg-flow-editor-mode': flowEditorInteractionMode ? '1' : undefined,
     'data-kg-flow-editor-surface': flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined,
     'data-kg-frontmatter-document-mode': flowEditorFrontmatterDocumentMode ? '1' : undefined,
+    'data-kg-rich-media-header-pinned': typeof props.headerPinned === 'boolean' ? (props.headerPinned ? '1' : '0') : undefined,
     'data-kg-kind': mediaState.kind,
     'data-kg-open-url': mediaState.openUrl,
     'data-kg-resize-enabled': installResize ? '1' : undefined,

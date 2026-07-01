@@ -8,6 +8,7 @@ export function assertStoryboard2dMediaDropContract() {
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/FlowEditorCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
   const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
   const flowCanvasMediaOverlaysSource = readFileSync(new URL('../components/FlowCanvas/FlowCanvasMediaOverlays.tsx', import.meta.url), 'utf8')
+  const flowCanvasMediaOverlayWorldPointSource = readFileSync(new URL('../components/FlowCanvas/flowCanvasMediaOverlayWorldPoint.ts', import.meta.url), 'utf8')
   const flowCanvasZoomRequestSource = readFileSync(new URL('../components/FlowCanvas/applyZoomRequestNative.ts', import.meta.url), 'utf8')
   const mediaOverlayLayoutLoopSource = readFileSync(new URL('../lib/render/mediaOverlayLayoutLoop2d.ts', import.meta.url), 'utf8')
   const graphStoryboardCardOverlaySource = [graphStoryboardOverlaySource, graphStoryboardMediaDropSlotSource, graphStoryboardMediaDropHookSource].join('\n')
@@ -21,6 +22,14 @@ export function assertStoryboard2dMediaDropContract() {
     }
     if (!flowEditorWidgetDropBridgeSource.includes(snippet)) {
       throw new Error(`expected Flow Editor widget drop bridge to skip nested media drop targets: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "document.querySelectorAll<HTMLElement>('[data-kg-flow-editor-surface-root]')",
+    'if (activeSurface) return activeSurface.getBoundingClientRect()',
+  ]) {
+    if (!flowEditorWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected bridge-only media drops to resolve against the active renderer surface before falling back to the window: ${snippet}`)
     }
   }
   if (!flowCanvasGraphStateSource.includes("...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot)")) {
@@ -83,11 +92,10 @@ export function assertStoryboard2dMediaDropContract() {
   }
   for (const snippet of [
     "const storyboardSharedSurfaceRendererMode = canvas2dRenderer === 'storyboard'",
-    'function readNodeWorldTopLeft2d(',
-    'function readNodeWorldCenterFromTopLeft2d(',
+    "from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'",
     'projectWithWorldTransformScale: storyboardSharedSurfaceRendererMode',
     'getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode',
-    '? id => readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))',
+    '? id => mediaOverlayWorldPositionOverrideRef.current.get(id) || readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))',
     "getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))",
     'if (storyboardSharedSurfaceRendererMode) return override',
     'w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width',
@@ -96,6 +104,15 @@ export function assertStoryboard2dMediaDropContract() {
   ]) {
     if (!flowCanvasMediaOverlaysSource.includes(snippet)) {
       throw new Error(`expected Storyboard Rich Media Panels to reuse card-sized world geometry during pan/drag/zoom/resize: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'export function readNodeWorldTopLeft2d(',
+    'export function readNodeWorldCenterFromTopLeft2d(',
+    "return readNodeCenterWorld2d(node, { coords: 'topLeft' })",
+  ]) {
+    if (!flowCanvasMediaOverlayWorldPointSource.includes(snippet)) {
+      throw new Error(`expected shared FlowCanvas media overlay world-point helpers to stay source-owned: ${snippet}`)
     }
   }
   if (flowEditorSurfaceSource.includes('http://127.0.0.1:7777') || flowEditorSurfaceSource.includes('storyboard-media-panel-loop') || flowEditorSurfaceSource.includes('[DEBUG]')) {
@@ -165,7 +182,7 @@ export function assertStoryboard2dMediaDropContract() {
   if (overlayPendingMediaIndex < overlayDropMediaIndex || overlayPendingMediaIndex > overlayDropGraphPatchIndex) {
     throw new Error('expected fixed Storyboard card media drops to publish an immediate pending media preview before graph/Markdown commit work')
   }
-  if (graphStoryboardCardOverlaySource.includes('RichMediaPanel')) {
+  if (/<RichMediaPanel\b/.test(graphStoryboardCardOverlaySource)) {
     throw new Error('expected fixed Storyboard card media slots to render raw CardMediaPreview media, not RichMediaPanel chrome')
   }
 }

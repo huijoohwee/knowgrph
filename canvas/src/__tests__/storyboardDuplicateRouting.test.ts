@@ -14,6 +14,7 @@ import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/
 import { commitStoryboardMarkdownDuplicate, runStoryboardMarkdownDuplicateAction } from '@/components/StoryboardCanvas/storyboardMarkdownDuplicate'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { runStoryboardStrybldrDuplicateAction } from '@/components/StoryboardCanvas/storyboardStrybldrDuplicate'
+import { WIDGET_ACTIONS_TOOLBAR_OFFSET_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { findDuplicatedMarkdownNodeId } from '@/components/StoryboardCanvas/storyboardDuplicateSelection'
@@ -22,7 +23,6 @@ import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
 import { duplicateMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
-
 async function buildMixedDuplicateRoutingFixture(): Promise<{
   mixedGraph: GraphData
   markdownBackedNode: GraphNode
@@ -932,11 +932,11 @@ export function testStoryboardToolbarPropsBuildSharedToolbarConfig() {
     duplicateDisabled: false,
     primaryReferenceUrl: 'https://example.com/reference',
   })
-  if (props.ariaLabel !== 'Storyboard card actions' || props.navClassName !== 'absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2') {
-    throw new Error(`expected storyboard toolbar props to preserve the shared visual contract, got ${JSON.stringify(props)}`)
+  if (props.ariaLabel !== 'Storyboard card actions' || props.navClassName !== 'absolute left-1/2 z-10') {
+    throw new Error(`expected storyboard toolbar props to reuse the Flow Editor widget bubble-toolbar anchor, got ${JSON.stringify(props)}`)
   }
-  if (props.navStyle?.pointerEvents !== 'auto' || props.iconSizeClass !== 'h-3.5 w-3.5' || props.iconStrokeWidth !== 1.8) {
-    throw new Error(`expected storyboard toolbar props to preserve the shared nav/icon configuration, got ${JSON.stringify(props)}`)
+  if (props.navStyle?.pointerEvents !== 'auto' || props.navStyle?.transform !== 'translateX(-50%)' || props.navStyle?.top !== -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX || props.iconSizeClass !== 'h-3.5 w-3.5' || props.iconStrokeWidth !== 1.8) {
+    throw new Error(`expected storyboard toolbar props to preserve the shared Flow Editor widget nav/icon configuration, got ${JSON.stringify(props)}`)
   }
   if (!props.active || props.enableHandlesDisabled !== true || props.convertToLoopDisabled !== false || props.duplicateDisabled !== false) {
     throw new Error(`expected storyboard toolbar props to preserve active/disabled state, got ${JSON.stringify(props)}`)

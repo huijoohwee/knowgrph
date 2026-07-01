@@ -1,12 +1,13 @@
 import React from 'react'
 
 import IconButton from '@/components/IconButton'
+import { PinToggleIconButton } from '@/components/PinToggleIconButton'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2, Pin, PinOff } from 'lucide-react'
+import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react'
 
 export function FlowEditorPanelChromeHeader(props: {
   active: boolean
@@ -25,6 +26,7 @@ export function FlowEditorPanelChromeHeader(props: {
   richMediaHeader?: boolean
   dragHandle?: boolean
   onHeaderPointerDown?: (event: React.PointerEvent<HTMLElement>) => void
+  onHeaderMouseDown?: (event: React.MouseEvent<HTMLElement>) => void
   onValidate?: () => void
   onToggleHideFields?: () => void
   onToggleMinimized?: () => void
@@ -48,6 +50,7 @@ export function FlowEditorPanelChromeHeader(props: {
     richMediaHeader = false,
     dragHandle = true,
     onHeaderPointerDown,
+    onHeaderMouseDown,
     onValidate,
     onToggleHideFields,
     onToggleMinimized,
@@ -120,6 +123,7 @@ export function FlowEditorPanelChromeHeader(props: {
       data-kg-canvas-overlay-drag-handle={dragHandle ? 'true' : undefined}
       data-kg-rich-media-flow-editor-header={richMediaHeader ? '1' : undefined}
       onPointerDown={onHeaderPointerDown}
+      onMouseDown={onHeaderMouseDown}
     >
       <section
         className={cn('flex items-center justify-between gap-2', minimized ? 'h-full' : '')}
@@ -185,22 +189,20 @@ export function FlowEditorPanelChromeHeader(props: {
           </IconButton> : null}
 
           {hasPinAction ? (
-            <IconButton
+            <PinToggleIconButton
               title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
               tooltipContent={pinned ? UI_COPY.flowWidgetUnpin : UI_COPY.flowWidgetPin}
+              pinned={pinned}
               showTooltip
               disabled={!active}
               onPointerDown={onPinnedPointerDown}
               onClick={onTogglePinned}
-              className={getPinToggleButtonClassName(pinned)}
               style={richMediaActionStyle}
-            >
-              {pinned ? (
-                <Pin className={cn(iconSizeClass, UI_THEME_TOKENS.icon.active)} style={richMediaIconStyle} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-              ) : (
-                <PinOff className={iconSizeClass} style={richMediaIconStyle} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-              )}
-            </IconButton>
+              iconClassName={iconSizeClass}
+              activeIconClassName={UI_THEME_TOKENS.icon.active}
+              iconStyle={richMediaIconStyle}
+              strokeWidth={uiIconStrokeWidth}
+            />
           ) : null}
         </nav>
         ) : null}

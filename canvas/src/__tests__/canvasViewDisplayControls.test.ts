@@ -477,7 +477,7 @@ export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
   for (const snippet of ['strybldrStoryboardCardAspectMode', 'readCardSize', 'aspectRatioMode: strybldrStoryboardCardAspectMode', 'readStoryboardCardSize2d']) {
     if (!storyboardOverlaySource.includes(snippet)) throw new Error(`expected Storyboard overlay to apply shared Aspect utility snippet: ${snippet}`)
   }
-  for (const snippet of ['resolveCanvasAspectRatioSize', 'readStoryboardCardSize2d', 'buildFixedStoryboardCardPlacements2d']) {
+  for (const snippet of ['resolveCanvasAspectRatioSize', 'readStableRichMediaPanelSize', 'readStoryboardCardSize2d', 'buildFixedStoryboardCardPlacements2d']) {
     if (!storyboardPlacementSource.includes(snippet)) throw new Error(`expected Storyboard placement helper to reuse shared Aspect utility snippet: ${snippet}`)
   }
   for (const forbidden of ['CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'strybldrStoryboardCardAspectMode', 'setStrybldrStoryboardCardAspectMode', 'Strybldr storyboard layout controls', 'Strybldr storyboard card aspect ratio', '<PanelField label="Layout">', "event.target.value === '9:16' ? '9:16' : '16:9'", '<option value="16:9">16:9</option>', '<option value="9:16">9:16</option>']) {

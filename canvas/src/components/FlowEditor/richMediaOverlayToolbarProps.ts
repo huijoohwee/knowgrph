@@ -31,19 +31,11 @@ export function buildSharedRichMediaOverlayToolbarProps(args?: {
   return buildNodeOverlayBubbleToolbarPresentation({
     ariaLabel: 'Rich Media panel actions',
     navClassName: args?.navClassName,
-    placement: 'right-middle',
+    placement: 'flow-rich-media-right-middle',
     active: true,
     enableHandlesDisabled: true,
     convertToLoopDisabled: true,
     duplicateDisabled: false,
-    actionVisibility: {
-      run: false,
-      updateKvEntry: false,
-      enableHandles: false,
-      convertToLoop: false,
-      clearOutput: false,
-      help: false,
-    },
   })
 }
 

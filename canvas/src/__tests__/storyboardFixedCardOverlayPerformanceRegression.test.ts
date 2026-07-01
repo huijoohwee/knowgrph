@@ -24,18 +24,25 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   const richMediaDrag = readFileSync(resolve(process.cwd(), 'src/components/RichMediaPanelOverlayDrag.ts'), 'utf8')
   const richMediaResize = readFileSync(resolve(process.cwd(), 'src/components/RichMediaPanelResizeHandle.tsx'), 'utf8')
   const richMediaSurface = readFileSync(resolve(process.cwd(), 'src/components/useRichMediaPanelSurfaceState.ts'), 'utf8')
+  const overlayProxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/flow-editor-overlay-proxy.ts'), 'utf8')
+  const pinToggleButton = readFileSync(resolve(process.cwd(), 'src/components/PinToggleIconButton.tsx'), 'utf8')
+  const placements = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/storyboardCardPlacements2d.ts'), 'utf8')
+  const flowEditorChrome = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/FlowEditorPanelChrome.tsx'), 'utf8')
+  const headerActions = readFileSync(resolve(process.cwd(), 'src/features/panels/ui/HeaderActions.tsx'), 'utf8')
+  const hoverTooltip = readFileSync(resolve(process.cwd(), 'src/components/GraphHoverTooltip.tsx'), 'utf8')
   const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
   const listeners = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/interactions/listeners.ts'), 'utf8')
   const canvasViewMenu = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
   const canvasGridControls = readFileSync(resolve(process.cwd(), 'src/lib/canvas/canvasGridDisplayControls.ts'), 'utf8')
+  const canvasBoardControls = readFileSync(resolve(process.cwd(), 'src/lib/canvas/canvasBoardLayoutDisplayControls.ts'), 'utf8')
   for (const snippet of [
     'data-kg-overlay-pan-owner="canvas"',
-    'dragHandle',
-    'onHeaderPointerDown={event => onHeaderPointerDown(event, node)}',
+    'dragHandle={cardMoveEnabled}',
+    'onHeaderPointerDown={cardMoveEnabled ? event => onHeaderPointerDown(event, node) : undefined}',
     '<StoryboardCardResizeHandle',
     'useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })',
     'fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d',
-    'dragWorldOverrideByCardIdRef.current.get(card.id) || readStoryboardCardCenter2d(node)',
+    'dragWorldOverrideByCardIdRef.current.get(card.id) || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || referencePlacement : referencePlacement || readStoryboardCardCenter2d(node))',
     'getWheelForwardTarget={() => props.rootRef.current?.querySelector',
     'const overlayPanOwnerCanvas =',
     'overlayBodyViewportPan && flowEditorOverlayInteractionMode && !overlayPanOwnerCanvas',
@@ -58,7 +65,79 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   for (const snippet of ['CANVAS_GRID_DISPLAY_CONTROL_ID', 'SNAP_GRID_DISPLAY_CONTROL_ID', 'readCanvasGridDisplayControlActive', 'readSnapGridDisplayControlActive']) {
     if (!canvasViewMenu.includes(snippet) || !canvasGridControls.includes(snippet)) throw new Error(`expected Canvas View Grid/Snap controls to stay shared: ${snippet}`)
   }
+  for (const snippet of ['CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID', 'readCanvasBoardLayoutDisplayControlActive']) {
+    if (!canvasViewMenu.includes(snippet) || !canvasBoardControls.includes(snippet)) throw new Error(`expected Canvas View Board controls to stay shared: ${snippet}`)
+  }
+  if (!canvasBoardControls.includes('readCanvasBoardLayoutMode')) {
+    throw new Error('expected shared Board layout owner to retain readCanvasBoardLayoutMode')
+  }
+  for (const snippet of [
+    'buildFlowCanvasHeaderPinProps',
+    'resolveFlowWidgetStateGraphKey({ graphData })',
+    'resolveScopedFlowWidgetNodeMap({',
+    'keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey',
+    'cardMoveEnabled: boolean',
+    'if (cardMoveEnabled) onHeaderPointerDown(event, node)',
+    'cardMoveEnabled={!fixedLayoutEnabled || headerPinProps.headerPinned === false}',
+    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
+    'buildFixedStoryboardCardReferencePlacements2d',
+    'const fixedCardReferencePlacements = React.useMemo(',
+    'fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || fixedCardReferencePlacements.get(id) : fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)',
+    'const previousPinned = lastPinnedByCardIdRef.current.get(card.id)',
+    'previousPinned === true && cardPinned === false && referencePlacement',
+    'dragWorldOverrideByCardIdRef.current.set(card.id, referencePlacement)',
+    'const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement || fixedCardPlacements.get(card.id) : null',
+    'readNodeCenter: readCardCenter',
+    'duplicateDisabled: headerPinProps.headerPinned === true',
+    'target?.closest(\'[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]\')',
+    "data-kg-storyboard-fixed-card-pinned={headerPinProps.headerPinned === true ? '1' : '0'}",
+    'showPinToggle={selected && typeof headerPinProps.onHeaderTogglePinned ===',
+    'pinned={headerPinProps.headerPinned === true}',
+    'onTogglePinned={headerPinProps.onHeaderTogglePinned}',
+    'onPinnedPointerDown={headerPinProps.onHeaderPinnedPointerDown}',
+  ]) {
+    if (!overlay.includes(snippet)) throw new Error(`expected Storyboard card header pin/unpin to reuse shared Rich Media header pin controls: ${snippet}`)
+  }
+  for (const snippet of ['readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)', "storyboardBoardLayoutMode === 'fixed'", 'if (!storyboardCardsActive) return null', 'return applyFixedStoryboardCardPlacementsToGraphData2d({']) {
+    if (!overlay.includes(snippet) && !surface.includes(snippet)) throw new Error(`expected Storyboard card/Rich Media surface to reuse shared Board Fixed mode: ${snippet}`)
+  }
+  for (const snippet of [
+    "from '@/lib/flowEditor/flowWidgetPinnedState'",
+    'flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null',
+    'includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)',
+    'const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, schema })',
+    'if (!placement) return node',
+    'export const buildFixedStoryboardCardReferencePlacements2d',
+    'includeUnpinned: true',
+  ]) {
+    if (!placements.includes(snippet)) throw new Error(`expected Board Fixed placements to keep pin-agnostic reference geometry while reusing shared pin semantics: ${snippet}`)
+  }
   if (overlay.includes('input,textarea,select,button,[role="button"]')) {
     throw new Error('expected Storyboard header drag guard to avoid blocking inline display editors by role')
+  }
+  if (!overlayProxy.includes('export const FLOW_EDITOR_OVERLAY_MODE_SELECTOR = \'[data-kg-flow-editor-mode="1"]\'') || !overlayProxy.includes('export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`')) {
+    throw new Error('expected Flow Editor overlay proxy to keep widget roots scoped to Flow Editor widgets')
+  }
+  for (const snippet of ['data-kg-widget={card.id}', 'data-kg-flow-editor-mode="1"', 'data-kg-widget-pinned=']) {
+    if (overlay.includes(snippet)) {
+      throw new Error(`expected fixed Storyboard cards to stay out of Flow Editor collective widget scans: ${snippet}`)
+    }
+  }
+  for (const snippet of ['selectionDisabled', 'toolMode === \'addEdge\'']) {
+    if (overlay.includes(snippet)) {
+      throw new Error(`expected fixed Storyboard cards to stay selectable so shared pin/unpin controls are reachable: ${snippet}`)
+    }
+  }
+  for (const snippet of ['<PinToggleIconButton', "title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}", 'activeIconClassName={UI_THEME_TOKENS.icon.active}']) {
+    if (!flowEditorChrome.includes(snippet)) throw new Error(`expected Flow Editor chrome to reuse shared pin toggle button: ${snippet}`)
+  }
+  for (const snippet of ['<PinToggleIconButton', 'title={pinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}', 'ariaPressed={!!pinned}']) {
+    if (!headerActions.includes(snippet)) throw new Error(`expected floating panel header actions to reuse shared pin toggle button: ${snippet}`)
+  }
+  for (const snippet of ['<PinToggleIconButton', 'title={tooltipPinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}', 'ariaPressed={tooltipPinned}']) {
+    if (!hoverTooltip.includes(snippet)) throw new Error(`expected hover tooltip to reuse shared pin toggle button: ${snippet}`)
+  }
+  for (const snippet of ['Pin className={renderedIconClassName}', 'PinOff className={renderedIconClassName}', 'getPinToggleButtonClassName(pinned)']) {
+    if (!pinToggleButton.includes(snippet)) throw new Error(`expected shared pin toggle button to own pin/unpin icon rendering: ${snippet}`)
   }
 }

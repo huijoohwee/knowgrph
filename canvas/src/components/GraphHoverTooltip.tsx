@@ -4,7 +4,8 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { summarizePropertySpec, getNodePropSpec, getEdgePropSpec, buildEdgeSchemaBadges } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
-import { getBadgeChipClass, getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
+import { PinToggleIconButton } from '@/components/PinToggleIconButton'
+import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import {
   UI_RESPONSIVE_TOOLTIP_EXPANDED_BODY_CLASSNAME,
   UI_RESPONSIVE_TOOLTIP_KEY_LABEL_CLASSNAME,
@@ -23,7 +24,7 @@ import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
-import { Pin, PinOff, X as CloseIcon } from 'lucide-react'
+import { X as CloseIcon } from 'lucide-react'
 import { extractVoxelScores, VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import {
@@ -693,19 +694,15 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
           <section className="flex items-start justify-between gap-2">
             <section className="min-w-0 flex-1">{content}</section>
             <section className="flex flex-col gap-1 flex-none">
-              <IconButton
-                className={getPinToggleButtonClassName(tooltipPinned)}
+              <PinToggleIconButton
                 title={tooltipPinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}
+                pinned={tooltipPinned}
                 onClick={handleTogglePinned}
                 showTooltip
-                aria-pressed={tooltipPinned}
-              >
-                {tooltipPinned ? (
-                  <Pin className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                ) : (
-                  <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                )}
-              </IconButton>
+                ariaPressed={tooltipPinned}
+                iconClassName={iconSizeClass}
+                strokeWidth={uiIconStrokeWidth}
+              />
               <IconButton
                 className="App-toolbar__btn"
                 title={UI_LABELS.close}

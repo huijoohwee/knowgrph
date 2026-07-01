@@ -42,6 +42,7 @@ import { FlowEditorOverlayPortHandleProvider } from '@/components/FlowEditor/Flo
 import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/components/FlowEditor/flowPortHandlePointerDrag'
 import { useStoryboardEdgeCreationRequest } from '@/components/FlowEditorCanvas/runtime/useStoryboardEdgeCreationRequest'
 import { isStoryboardFixedCardOwnedNode } from '@/components/FlowEditorCanvas/storyboardCardOwnership2d'
+import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 export default function FlowEditorCanvasSurface(props: {
@@ -86,17 +87,29 @@ export default function FlowEditorCanvasSurface(props: {
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const schema = useGraphStore(s => s.schema)
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
+  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
+  const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
   const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'
+  const flowWidgetStateGraphKey = React.useMemo(
+    () => resolveFlowWidgetStateGraphKey({ graphData: props.storyboardSourceGraphData || null }),
+    [props.storyboardSourceGraphData],
+  )
+  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
+    graphMetaKey: flowWidgetStateGraphKey,
+    keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
+    globalByNodeId: flowWidgetPinnedByNodeId,
+  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
   const storyboardGraphData = React.useMemo(() => {
     if (!storyboardCardsActive) return null
     return applyFixedStoryboardCardPlacementsToGraphData2d({
       aspectRatioMode: strybldrStoryboardCardAspectMode,
+      flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
       graphData: props.storyboardSourceGraphData || null,
       graphRevision: graphContentRevision || graphDataRevision || 0,
       schema,
       widgetRegistry: props.widgetRegistry,
     })
-  }, [graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive, strybldrStoryboardCardAspectMode])
+  }, [effectiveFlowWidgetPinnedByNodeId, graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardCardsActive, strybldrStoryboardCardAspectMode])
   const storyboardHiddenNodeIds = React.useMemo(() => {
     if (!storyboardCardsActive) return []
     const board = buildStoryboardBoardModel({

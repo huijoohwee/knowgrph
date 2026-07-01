@@ -343,8 +343,10 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     || !mediaSurfaceSelectionText.includes('resolveMediaPreviewSurfaceCardProps')
     || !mediaSurfaceSelectionText.includes('interactive: args.enabled ? false : args.interactive === true')
     || !mediaSurfaceSelectionText.includes('const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
-    || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimSurfaceEvent')
-    || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimSurfaceEvent')
+    || !mediaSurfaceSelectionText.includes('const claimPointerSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
+    || !mediaSurfaceSelectionText.includes('if (claimPointerDown) claimSurfaceEvent(event)')
+    || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimPointerSurfaceEvent')
+    || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimPointerSurfaceEvent')
     || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
     || !mediaSurfaceSelectionText.includes('event.preventDefault()')
     || !mediaSurfaceSelectionText.includes('event.stopPropagation()')) {

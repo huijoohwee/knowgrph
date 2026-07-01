@@ -29,7 +29,7 @@ export function buildStoryboardToolbarProps(args: {
   return {
     ...buildNodeOverlayBubbleToolbarPresentation({
       ariaLabel: 'Storyboard card actions',
-      placement: 'above-center',
+      placement: 'flow-widget-above-center',
       active: args.active,
       enableHandlesDisabled: true,
       convertToLoopDisabled: false,

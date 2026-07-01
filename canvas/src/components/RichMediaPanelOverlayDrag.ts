@@ -51,9 +51,28 @@ const tryPreventDragEvent = (e: React.SyntheticEvent): void => {
   }
 }
 
+const tryPreventNativeDragEvent = (e: Event): void => {
+  try {
+    e.preventDefault()
+  } catch {
+    void 0
+  }
+  try {
+    e.stopPropagation()
+  } catch {
+    void 0
+  }
+  try {
+    ;(e as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+  } catch {
+    void 0
+  }
+}
+
 export const startRichMediaPanelHeaderDrag = (
   native: PointerEvent | MouseEvent,
   handlers: RichMediaPanelHeaderDragHandlers,
+  target?: Element | null,
 ): boolean => {
   if (typeof handlers.shouldStartHeaderDrag === 'function') {
     try {
@@ -73,6 +92,7 @@ export const startRichMediaPanelHeaderDrag = (
   startPointerDrag({
     ev: native as PointerEvent,
     cursor: 'grabbing',
+    target,
     onMove: ev => {
       try {
         handlers.onHeaderDrag?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, dx: ev.clientX - x0, dy: ev.clientY - y0 })
@@ -98,59 +118,71 @@ export const startRichMediaPanelHeaderDrag = (
   return true
 }
 
+export const startRichMediaPanelOverlayPan = (
+  native: PointerEvent | MouseEvent,
+  handlers: RichMediaPanelOverlayPanHandlers,
+  target?: Element | null,
+): boolean => {
+  const pointerId = readDragPointerId(native)
+  const x0 = native.clientX
+  const y0 = native.clientY
+  try {
+    handlers.onOverlayPanStart?.({ pointerId, clientX: x0, clientY: y0, buttons: readButtons(native), shiftKey: native.shiftKey === true })
+  } catch {
+    void 0
+  }
+  startPointerDrag({
+    ev: native as PointerEvent,
+    cursor: 'grabbing',
+    target,
+    onMove: ev => {
+      try {
+        handlers.onOverlayPan?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, dx: ev.clientX - x0, dy: ev.clientY - y0, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
+      } catch {
+        void 0
+      }
+    },
+    onEnd: ev => {
+      try {
+        handlers.onOverlayPanEnd?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
+      } catch {
+        void 0
+      }
+    },
+    onCancel: ev => {
+      try {
+        handlers.onOverlayPanEnd?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
+      } catch {
+        void 0
+      }
+    },
+  })
+  return true
+}
+
 export const handleRichMediaPanelOverlayDragStartCapture = (args: {
   event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>
   installHeaderDrag: boolean
   installOverlayPan: boolean
   selectSelf: (native: PointerEvent | null) => void
-  startHeaderDrag: (native: PointerEvent | MouseEvent) => boolean
+  startHeaderDrag: (native: PointerEvent | MouseEvent, target?: Element | null) => boolean
   handlers: RichMediaPanelOverlayPanHandlers
 }): boolean => {
   const native = args.event.nativeEvent as PointerEvent | MouseEvent
+  const dragTarget = args.event.currentTarget instanceof Element ? args.event.currentTarget : null
   args.selectSelf(native as PointerEvent)
   const pointerTarget = readOverlayPointerTargetState((native as unknown as { target?: EventTarget | null }).target)
   const scrollSurfaceCanForwardPointer = pointerTarget.isScrollSurface && typeof args.handlers.shouldForwardPointerDown === 'function'
     ? args.handlers.shouldForwardPointerDown(native as PointerEvent) === true
     : false
   const blockOverlayPanForTarget = shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })
-  if (pointerTarget.isHeader && !blockOverlayPanForTarget && args.startHeaderDrag(native)) {
+  if (pointerTarget.isHeader && !blockOverlayPanForTarget && args.startHeaderDrag(native, dragTarget)) {
     tryPreventDragEvent(args.event)
     return true
   }
   if (!pointerTarget.isHeader && !blockOverlayPanForTarget && args.installOverlayPan && isOverlayPanStartButtonEvent(native)) {
-    const pointerId = readDragPointerId(native)
-    const x0 = native.clientX
-    const y0 = native.clientY
-    try {
-      args.handlers.onOverlayPanStart?.({ pointerId, clientX: x0, clientY: y0, buttons: readButtons(native), shiftKey: native.shiftKey === true })
-    } catch {
-      void 0
-    }
-    startPointerDrag({
-      ev: native as PointerEvent,
-      cursor: 'grabbing',
-      onMove: ev => {
-        try {
-          args.handlers.onOverlayPan?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, dx: ev.clientX - x0, dy: ev.clientY - y0, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
-        } catch {
-          void 0
-        }
-      },
-      onEnd: ev => {
-        try {
-          args.handlers.onOverlayPanEnd?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
-        } catch {
-          void 0
-        }
-      },
-      onCancel: ev => {
-        try {
-          args.handlers.onOverlayPanEnd?.({ pointerId, clientX: ev.clientX, clientY: ev.clientY, buttons: readButtons(ev), shiftKey: ev.shiftKey === true })
-        } catch {
-          void 0
-        }
-      },
-    })
+    startRichMediaPanelOverlayPan(native, args.handlers, dragTarget)
+    tryPreventDragEvent(args.event)
     return true
   }
   if (!(pointerTarget.isHeader && args.installHeaderDrag)) {
@@ -159,6 +191,36 @@ export const handleRichMediaPanelOverlayDragStartCapture = (args: {
     } catch {
       void 0
     }
+  }
+  return false
+}
+
+export const handleRichMediaPanelOverlayNativeDragStartCapture = (args: {
+  native: PointerEvent | MouseEvent
+  currentTarget: Element
+  installHeaderDrag: boolean
+  installOverlayPan: boolean
+  selectSelf: (native: PointerEvent | null) => void
+  startHeaderDrag: (native: PointerEvent | MouseEvent, target?: Element | null) => boolean
+  handlers: RichMediaPanelOverlayPanHandlers
+}): boolean => {
+  const native = args.native
+  args.selectSelf(native instanceof PointerEvent ? native : null)
+  const target = (native as unknown as { target?: EventTarget | null }).target
+  const targetEl = target instanceof Element ? target : null
+  const pointerTarget = readOverlayPointerTargetState(targetEl)
+  const scrollSurfaceCanForwardPointer = pointerTarget.isScrollSurface && typeof args.handlers.shouldForwardPointerDown === 'function'
+    ? args.handlers.shouldForwardPointerDown(native as PointerEvent) === true
+    : false
+  const blockOverlayPanForTarget = shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer })
+  if (pointerTarget.isHeader && !blockOverlayPanForTarget && args.startHeaderDrag(native, args.currentTarget)) {
+    tryPreventNativeDragEvent(native)
+    return true
+  }
+  if (!pointerTarget.isHeader && !blockOverlayPanForTarget && args.installOverlayPan && isOverlayPanStartButtonEvent(native)) {
+    startRichMediaPanelOverlayPan(native, args.handlers, args.currentTarget)
+    tryPreventNativeDragEvent(native)
+    return true
   }
   return false
 }

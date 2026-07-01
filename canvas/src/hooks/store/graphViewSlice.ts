@@ -343,6 +343,28 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     }
     set({ flowWidgetPinnedByNodeId: nextPinnedById })
   },
+  setFlowWidgetPinnedByNodeIdForGraph: (graphMetaKey: string | null | undefined, pinnedById: Record<string, boolean>) => {
+    const state = get()
+    if (isWorkspaceGraphMutationBlocked(state)) return
+    const nextPinnedById = normalizePinnedByNodeId(pinnedById)
+    const graphKey = String(graphMetaKey || '').trim() || buildGraphMetaKeyIgnoringPending(state.graphData)
+    const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
+    const prevPinnedById = state.flowWidgetPinnedByNodeId || {}
+    const prevGraphPinnedById = graphKey ? (by[graphKey] || {}) : prevPinnedById
+    const sameGlobal = isSamePinnedByNodeId(prevPinnedById, nextPinnedById)
+    const sameForGraph = isSamePinnedByNodeId(prevGraphPinnedById, nextPinnedById)
+    if (sameGlobal && sameForGraph) return
+    if (!graphKey) {
+      set({ flowWidgetPinnedByNodeId: nextPinnedById })
+      return
+    }
+    const nextBy = { ...by, [graphKey]: nextPinnedById }
+    set({
+      flowWidgetPinnedByNodeId: nextPinnedById,
+      flowWidgetPinnedByNodeIdByGraphMetaKey: nextBy,
+    })
+    scheduleFlowWidgetPersistence({ pinned: { graphKey, value: nextPinnedById } })
+  },
   flowWidgetPosByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPosByGraphMetaKey, raw => normalizePosByNodeId(raw as Record<string, { top: number; left: number }> | null | undefined), parseFlowWidgetPosByGraphMap),
   flowWidgetPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
     LS_KEYS.flowWidgetPosByNodeId,

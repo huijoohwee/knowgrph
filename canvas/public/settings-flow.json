@@ -6447,7 +6447,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L58; canvas/src/hooks/store/historySlice.ts:L210; canvas/src/hooks/store/store-types/graph-state-structure.ts:L215"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L58; canvas/src/hooks/store/historySlice.ts:L210; canvas/src/hooks/store/store-types/graph-state-structure.ts:L216"
   },
   "keyword.source.maxLines": {
     "area": "—",

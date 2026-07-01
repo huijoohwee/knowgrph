@@ -86,7 +86,7 @@ export const testGeospatialFlowEditorWidgetDropBridgeStaysMounted = () => {
 
 export const testGeospatialWidgetPanelsDefaultToFloatingAndHideMapDots = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWidgetDropBridge.ts')
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const viewportText = readUtf8(viewportPath)
   const flowEditorText = readUtf8(flowEditorPath)
@@ -95,7 +95,8 @@ export const testGeospatialWidgetPanelsDefaultToFloatingAndHideMapDots = () => {
   if (!viewportText.includes('geospatialPanelNodeIds')) {
     throw new Error('Expected CanvasViewport geospatial snapshot to publish panel-rendered widget node ids')
   }
-  if (!flowEditorText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })')) {
+  if (!flowEditorText.includes("import { setFlowWidgetPinnedById } from '@/lib/flowEditor/flowWidgetPinnedState'")
+    || !flowEditorText.includes('setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
     throw new Error('Expected geospatial widget drops to default to unpinned floating panels')
   }
   if (!hostText.includes('if (panelNodeIds.has(nodeId)) continue')) {
@@ -131,13 +132,13 @@ export const testGeospatialWidgetPanelsDoNotBindDiscoveryWidgetsToGeoCoordinates
 }
 
 export const testGeospatialWidgetPanelsOverrideStalePinnedReuseOnDrop = () => {
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWidgetDropBridge.ts')
   const flowEditorText = readUtf8(flowEditorPath)
 
-  if (!flowEditorText.includes('if (pinnedMap[actualId] !== false) {')) {
+  if (!flowEditorText.includes('const nextPinnedMap = setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
     throw new Error('Expected geospatial widget panel drops to override stale pinned state for reused node ids')
   }
-  if (!flowEditorText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })')) {
+  if (!flowEditorText.includes('if (nextPinnedMap) st.setFlowWidgetPinnedByNodeId(nextPinnedMap)')) {
     throw new Error('Expected geospatial widget panel drops to force new widgets back to floating mode')
   }
 }

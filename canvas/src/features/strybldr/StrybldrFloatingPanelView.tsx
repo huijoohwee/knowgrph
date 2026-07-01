@@ -152,8 +152,8 @@ export function StrybldrFloatingPanelView({
   const availableSourceUnitIds = React.useMemo(() => sourceUnitIds.filter(id => !!getStrybldrImageFile(id)), [sourceUnitIds])
   const cards = React.useMemo(() => board.lanes.flatMap(lane => lane.cards), [board])
   const editableCards = React.useMemo(() => {
-    const elementCards = cards.filter(card => card.lane === 'Elements')
-    return elementCards.length > 0 ? elementCards : cards
+    const nonStorytreeCards = cards.filter(card => card.lane !== 'Storytree')
+    return nonStorytreeCards.length > 0 ? nonStorytreeCards : cards
   }, [cards])
   const storytreeCards = React.useMemo(() => cards.filter(card => card.lane === 'Storytree'), [cards])
   const visibleStorytreeCards = React.useMemo(() => {

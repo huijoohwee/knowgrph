@@ -103,6 +103,10 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     '<StoryboardCardOverlayLayer2d',
     'active={storyboardCardsActive}',
     'graphData={storyboardGraphData}',
+    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
+    'resolveFlowWidgetStateGraphKey({',
+    'graphData: props.storyboardSourceGraphData || null',
+    'resolveScopedFlowWidgetNodeMap({',
   ]) {
     if (!flowEditorSurfaceSource.includes(snippet)) {
       throw new Error(`expected FlowEditorCanvas surface to own Storyboard fixed-card geometry snippet: ${snippet}`)
@@ -212,8 +216,14 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'for (let rowIndex = 0; rowIndex < lane.cards.length; rowIndex += 1)',
     'readSnapGridConfigFromSchema',
     'snapPointToGrid',
+    'readStableRichMediaPanelSize',
     'buildFixedStoryboardCardPlacements2d',
     'applyFixedStoryboardCardPlacementsToGraphData2d',
+    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
+    'resolveFlowWidgetStateGraphKey({',
+    'resolveScopedFlowWidgetNodeMap({',
+    'readCanvasBoardLayoutMode',
+    "storyboardBoardLayoutMode === 'fixed'",
     'CardInlineTextEditor',
     'getFlowEditorPanelChromeClassName',
     'buildStoryboardToolbarActionBindings',
@@ -231,14 +241,18 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'buildGraphNodeCanonicalTextPatch',
     'GRAPH_KEYWORD_LANE_PROPERTY_KEYS',
     'const snappedTopLeft = snapPointToGrid({',
-    'data-kg-storyboard-fixed-card-layout={fixedLayoutEnabled ? \'fixed\' : \'flex\'}',
-    'selectionDisabled?: boolean',
-    'const toolMode = useGraphStore(s => ((s as unknown as { toolMode?:',
-    "selectionDisabled={toolMode === 'addEdge'}",
-    'if (selectionDisabled) return',
+    'data-kg-storyboard-fixed-card-layout={storyboardBoardLayoutMode}',
+    'cardMoveEnabled={!fixedLayoutEnabled || headerPinProps.headerPinned === false}',
+    'target?.closest(\'[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]\')',
+    'showPinToggle={selected && typeof headerPinProps.onHeaderTogglePinned ===',
   ]) {
     if (!graphStoryboardOverlaySource.includes(snippet)) {
       throw new Error(`expected shared Canvas surface to restore Storyboard card overlay snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of ['selectionDisabled', "toolMode === 'addEdge'"]) {
+    if (graphStoryboardOverlaySource.includes(snippet)) {
+      throw new Error(`expected Storyboard fixed cards to stay selectable while port handles own edge creation: ${snippet}`)
     }
   }
   for (const snippet of [

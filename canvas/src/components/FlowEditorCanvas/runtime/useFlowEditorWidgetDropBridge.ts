@@ -46,6 +46,7 @@ import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/
 import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
+import { setFlowWidgetPinnedById } from '@/lib/flowEditor/flowWidgetPinnedState'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   claimMediaPointerDragDrop,
@@ -282,8 +283,8 @@ export function useFlowEditorWidgetDropBridge(args: {
       args.reservedNodeIdsRef.current.add(actualId)
       if (args.geospatialWidgetPanelMode) {
         const st = useGraphStore.getState()
-        const pinnedMap = st.flowWidgetPinnedByNodeId || {}
-        if (pinnedMap[actualId] !== false) st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })
+        const nextPinnedMap = setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)
+        if (nextPinnedMap) st.setFlowWidgetPinnedByNodeId(nextPinnedMap)
       }
       args.setOverlayNodeIdOverride(actualId)
       args.pendingOverlayNodeIdRef.current = actualId
@@ -367,6 +368,14 @@ export function useFlowEditorWidgetDropBridge(args: {
     if (typeof document === 'undefined') return
     const readDropRect = (): DOMRect | null => {
       if (args.widgetDropBridgeOnly) {
+        if (typeof document !== 'undefined') {
+          const surfaces = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-flow-editor-surface-root]'))
+          const activeSurface = surfaces.find(surface => {
+            const rect = surface.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          })
+          if (activeSurface) return activeSurface.getBoundingClientRect()
+        }
         const w = typeof window !== 'undefined' ? window.innerWidth : 0
         const h = typeof window !== 'undefined' ? window.innerHeight : 0
         if (!(Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0)) return null

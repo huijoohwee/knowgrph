@@ -473,10 +473,12 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
     || !mediaOverlay.includes('const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')) {
     throw new Error('expected Storyboard Rich Media Panels to use manual canvas placement and drag authority, not balanced viewport layout')
   }
+  const mediaOverlayWorldPoint = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint.ts'), 'utf8')
   if (!mediaOverlayPool.includes('x?: number')
     || !mediaOverlayPool.includes("...(typeof n0.x === 'number' && Number.isFinite(n0.x) ? { x: n0.x } : {})")
-    || !mediaOverlay.includes('function readNodeWorldTopLeft2d(')
-    || !mediaOverlay.includes('function readNodeWorldCenterFromTopLeft2d(')
+    || !mediaOverlay.includes("from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'")
+    || !mediaOverlayWorldPoint.includes('export function readNodeWorldTopLeft2d(')
+    || !mediaOverlayWorldPoint.includes('export function readNodeWorldCenterFromTopLeft2d(')
     || !mediaOverlay.includes('readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))')
     || !mediaOverlay.includes("readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))")) {
     throw new Error('expected Rich Media overlay nodes to preserve dropped graph coordinates for immediate Storyboard placement')
