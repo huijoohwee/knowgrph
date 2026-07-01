@@ -152,6 +152,7 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
   const threeGraph = readFileSync(resolve(root, 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
   const design = readFileSync(resolve(root, 'src', 'components', 'DesignCanvas', 'MediaOverlay.tsx'), 'utf8')
   const sharedPanelSurface = readFileSync(resolve(root, 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
+  const sharedLayoutLoop = readFileSync(resolve(root, 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts'), 'utf8')
 
   if (!ssot.includes('export function computeRichMediaOverlayConnectedValuesByNodeId')) {
     throw new Error('expected connected Rich Media overlay value derivation to live in the Rich Media SSOT')
@@ -177,6 +178,9 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
     if (!sharedPanelSurface.includes(snippet)) throw new Error(`expected shared Rich Media panel surface to reuse Canvas Aspect display control: ${snippet}`)
   }
   if (sharedPanelSurface.includes('{ h: 9, w: 16 }')) throw new Error('expected shared Rich Media panel surface to avoid hardcoded 16:9 direct media viewport size')
+  for (const snippet of ['aspectRatioMode?: unknown', 'resolveCanvasAspectRatioSize({ defaultWidth: useSizing.panelW', 'aspectRatioMode: strybldrStoryboardCardAspectMode']) {
+    if (!(sharedLayoutLoop.includes(snippet) || d3Hook.includes(snippet))) throw new Error(`expected shared Rich Media layout fallback to reuse Canvas Aspect display control: ${snippet}`)
+  }
   for (const snippet of [
     'computePanelFrameResizeFromDrag16x9({',
     'readRichMediaPanelFrameMetrics(el)',

@@ -1,6 +1,6 @@
 import type { NodeOverlayEditorActionsToolbarProps } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'
-import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { buildNodeOverlayBubbleToolbarPresentation } from '@/components/FlowEditor/nodeOverlayBubbleToolbarPresentation'
 import type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import {
   normalizeRichMediaPanelTab,
@@ -9,8 +9,6 @@ import {
   type RichMediaPanelChange,
 } from '@/lib/render/richMediaSsot'
 import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
-
-const RICH_MEDIA_OVERLAY_TOOLBAR_NAV_STYLE = { pointerEvents: 'auto' } as const
 
 export type SharedRichMediaOverlayToolbarProps = Pick<
   NodeOverlayEditorActionsToolbarProps,
@@ -30,13 +28,11 @@ export type SharedRichMediaOverlayToolbarProps = Pick<
 export function buildSharedRichMediaOverlayToolbarProps(args?: {
   navClassName?: string
 }): SharedRichMediaOverlayToolbarProps {
-  return {
+  return buildNodeOverlayBubbleToolbarPresentation({
     ariaLabel: 'Rich Media panel actions',
-    navClassName: args?.navClassName || 'absolute left-full top-1/2 z-30 ml-2 -translate-y-1/2',
-    navStyle: RICH_MEDIA_OVERLAY_TOOLBAR_NAV_STYLE,
+    navClassName: args?.navClassName,
+    placement: 'right-middle',
     active: true,
-    iconSizeClass: 'h-3.5 w-3.5',
-    iconStrokeWidth: 1.8,
     enableHandlesDisabled: true,
     convertToLoopDisabled: true,
     duplicateDisabled: false,
@@ -48,8 +44,7 @@ export function buildSharedRichMediaOverlayToolbarProps(args?: {
       clearOutput: false,
       help: false,
     },
-    maxWidthPx: WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX,
-  }
+  })
 }
 
 export function buildSharedRichMediaOverlayControlProps(args: {

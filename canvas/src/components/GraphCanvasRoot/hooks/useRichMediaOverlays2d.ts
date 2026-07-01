@@ -405,6 +405,7 @@ export function useRichMediaOverlays2d(args: {
       readLayoutViewport: readVisibleOverlayLayoutViewport,
       schema: schemaRef.current,
       collision: { enabled: true },
+      aspectRatioMode: strybldrStoryboardCardAspectMode,
       readTransform: () => {
         const svgEl = svgRef.current
         if (!svgEl) return null

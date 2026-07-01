@@ -15,6 +15,7 @@ import {
 } from '@/lib/ui/overlayBalancedSpread'
 import { projectCollectiveScreenLayoutForZoom } from '@/lib/canvas/overlayWidgetZoom'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
+import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 export type MediaOverlayLayoutItem = { id: string }
 
 export type MediaOverlayLayoutLoop = {
@@ -79,6 +80,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   } | null
   readTransform: () => d3.ZoomTransform | null
   computeSizingZoomK?: (zoomK: number) => number
+  aspectRatioMode?: unknown
   scaleLayoutOnZoom?: boolean
   projectWithWorldTransformScale?: boolean
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
@@ -197,7 +199,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
       if (!el) continue
       const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(id) : null
       const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
-      const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
+      const fallbackSize = overrideSize ? null : resolveCanvasAspectRatioSize({ defaultWidth: useSizing.panelW, mode: args.aspectRatioMode, width: useSizing.panelW })
+      const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : Math.max(1, fallbackSize?.height || useSizing.panelH)
 
       const topLeftNow = args.getNodeWorldTopLeftForId?.(id) || null
       const centerNow = topLeftNow

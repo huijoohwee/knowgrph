@@ -35,9 +35,7 @@ import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthor
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { initializeMediaOverlayShell, startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
-import {
-  readStableRichMediaPanelSize,
-} from '@/lib/render/mediaPanelLayout'
+import { readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
 import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
@@ -639,6 +637,7 @@ export default function FlowCanvasMediaOverlays(args: {
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width,
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height,
       ),
+      aspectRatioMode: strybldrStoryboardCardAspectMode,
       scaleLayoutOnZoom: flowEditorSharedSurfaceRendererMode,
       projectWithWorldTransformScale: storyboardSharedSurfaceRendererMode,
       getPanelSizeForId: id => {

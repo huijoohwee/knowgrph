@@ -1,8 +1,6 @@
 import type { NodeOverlayEditorActionsToolbarProps } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { buildNodeOverlayBubbleToolbarPresentation } from '@/components/FlowEditor/nodeOverlayBubbleToolbarPresentation'
 import { buildStoryboardToolbarPresentation } from '@/components/StoryboardCanvas/storyboardToolbarPresentation'
-
-const STORYBOARD_TOOLBAR_NAV_STYLE = { pointerEvents: 'auto' } as const
 
 export type StoryboardToolbarProps = Pick<
   NodeOverlayEditorActionsToolbarProps,
@@ -29,17 +27,15 @@ export function buildStoryboardToolbarProps(args: {
     primaryReferenceUrl: args.primaryReferenceUrl,
   })
   return {
-    ariaLabel: 'Storyboard card actions',
-    navClassName: 'absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2',
-    navStyle: STORYBOARD_TOOLBAR_NAV_STYLE,
-    active: args.active,
-    iconSizeClass: 'h-3.5 w-3.5',
-    iconStrokeWidth: 1.8,
-    enableHandlesDisabled: true,
-    convertToLoopDisabled: false,
-    duplicateDisabled: args.duplicateDisabled,
-    actionVisibility: presentation.actionVisibility,
+    ...buildNodeOverlayBubbleToolbarPresentation({
+      ariaLabel: 'Storyboard card actions',
+      placement: 'above-center',
+      active: args.active,
+      enableHandlesDisabled: true,
+      convertToLoopDisabled: false,
+      duplicateDisabled: args.duplicateDisabled,
+      actionVisibility: presentation.actionVisibility,
+    }),
     openExternalAction: presentation.openExternalAction,
-    maxWidthPx: WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX,
   }
 }
