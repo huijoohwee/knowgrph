@@ -86,6 +86,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modVideoSequenceTimelinePreset()
     await mod.testVideoSequenceTimelinePresetRespectsExplicitFlowEditorRenderer()
   })
+  await execTest(results, 'canvas.viewDisplayControls.gridSnap.all2dRenderers', async () => {
+    const mod = await modCanvasViewDisplayControls()
+    await mod.testAll2dRenderersExposeSharedGridSnapDisplayControls()
+  })
   await execTest(results, 'canvas.xrMode.glbAssetRenderGate', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate()

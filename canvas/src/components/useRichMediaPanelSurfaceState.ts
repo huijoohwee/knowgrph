@@ -11,7 +11,6 @@ import {
   readOverlayPointerTargetState,
   shouldBlockOverlayPanTarget,
 } from 'grph-shared/dom/overlayPointerGuards'
-import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import {
   MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
   MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,
@@ -22,7 +21,7 @@ import {
 } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
-import { handleRichMediaPanelOverlayDragStartCapture, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
+import { handleRichMediaPanelOverlayDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelMediaState } from './useRichMediaPanelMediaState'
@@ -187,7 +186,7 @@ export function useRichMediaPanelSurfaceState(
   React.useEffect(() => {
     const element = rootElementRef.current
     if (!element) return
-    return installWheelForwardingAndBrowserZoomGuards(element, {
+    return installRichMediaOverlayWheelForwarding(element, {
       forwardWheelBeforeScrollableTarget: props.forwardWheelBeforeScrollableTarget === true,
       forwardWheelTo: installWheelForwarding ? props.forwardWheelTo : undefined,
       forwardedFlagKey: '__kgForwarded',

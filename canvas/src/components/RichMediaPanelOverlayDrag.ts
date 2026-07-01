@@ -5,6 +5,7 @@ import {
   shouldBlockOverlayPanTarget,
 } from 'grph-shared/dom/overlayPointerGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 
 export type RichMediaPanelHeaderDragHandlers = {
   shouldStartHeaderDrag?: (e: PointerEvent) => boolean
@@ -20,6 +21,18 @@ export type RichMediaPanelOverlayPanHandlers = {
   onOverlayPanEnd?: (args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => void
   onPointerDownCapture?: React.PointerEventHandler<HTMLElement>
 }
+
+export const installRichMediaOverlayWheelForwarding = (
+  element: Element,
+  options: {
+    forwardWheelBeforeScrollableTarget?: boolean
+    forwardWheelTo?: () => Element | null
+    forwardedFlagKey?: string
+    shouldForwardWheel?: (e: WheelEvent) => boolean
+    stopPropagationOnForward?: boolean
+    stopPropagationOnPreventZoom?: boolean
+  },
+): (() => void) => installWheelForwardingAndBrowserZoomGuards(element, options)
 
 const readDragPointerId = (native: PointerEvent | MouseEvent): number => {
   const raw = (native as unknown as { pointerId?: unknown }).pointerId

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 import { BLOCK_SCHEMA } from '@/__tests__/canvas3dMode.test'
+import { CANVAS_2D_RENDERER_ORDER, isD3Like2dRenderer } from '@/lib/config.render'
 
 export function testGridSnapDisplayControlsReuseSharedUtilityOwner() {
   const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
@@ -243,5 +244,88 @@ export function testDashboardRendererGridToggleUsesSharedDisplayControl() {
   }
   if (unexpectedViewMutations.length > 0) {
     throw new Error(`Expected Dashboard Grid/Snap toggles not to mutate renderer or surface setters, got ${unexpectedViewMutations.join(', ')}`)
+  }
+}
+
+export function testAll2dRenderersExposeSharedGridSnapDisplayControls() {
+  for (const renderer of CANVAS_2D_RENDERER_ORDER) {
+    const displayControls = buildCanvasViewOptions(
+      {
+        canvas2dRenderer: renderer,
+        canvas3dMode: '3d',
+        canvasRenderMode: '2d',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: false,
+        multiDimTableModeEnabled: false,
+        renderMediaAsNodes: false,
+        timelineEnabled: false,
+        bottomSurfaceCollapsed: true,
+        bottomSurfaceTab: 'stats',
+        minimapCollapsed: false,
+        geospatialEnabled: false,
+        layoutMode: 'block',
+        schema: BLOCK_SCHEMA,
+        frontmatterOnlyAllowed: false,
+        isD3Like2dLayoutToggle: isD3Like2dRenderer(renderer),
+      },
+      getCanvasViewRendererOptions(),
+    ).find(option => option.id === 'control:menu')
+    const gridToggle = displayControls?.children?.find(child => child.id === 'control:grid')
+    const snapGridToggle = displayControls?.children?.find(child => child.id === 'control:snapGrid')
+    if (!gridToggle || gridToggle.title !== 'Grid' || gridToggle.disabled || gridToggle.children?.length) {
+      throw new Error(`Expected ${renderer} Display Controls to expose shared Grid toggle`)
+    }
+    if (!snapGridToggle || snapGridToggle.title !== 'Snap to Grid' || snapGridToggle.disabled || snapGridToggle.children?.length) {
+      throw new Error(`Expected ${renderer} Display Controls to expose shared Snap to Grid toggle`)
+    }
+
+    const unexpectedViewMutations: string[] = []
+    const markUnexpected = (name: string) => () => { unexpectedViewMutations.push(`${renderer}:${name}`) }
+    const runToggle = (id: 'control:grid' | 'control:snapGrid') => {
+      let nextBehavior: any = null
+      applyCanvasViewSelection({
+        id,
+        ensureBaselineUnlocked: () => true,
+        geospatialEnabled: false,
+        onOpenGeospatialMode: () => { throw new Error(`Expected ${renderer} ${id} toggle to avoid opening Geospatial Mode`) },
+        canvas2dRenderer: renderer,
+        canvas3dMode: '3d',
+        canvasRenderMode: '2d',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: false,
+        multiDimTableModeEnabled: false,
+        renderMediaAsNodes: false,
+        timelineEnabled: false,
+        bottomSurfaceCollapsed: true,
+        bottomSurfaceTab: 'stats',
+        minimapCollapsed: false,
+        schema: BLOCK_SCHEMA,
+        setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+        setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+        setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+        setSchema: markUnexpected('setSchema') as any,
+        setBehavior: behavior => { nextBehavior = behavior },
+        setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
+        setTimelineEnabled: markUnexpected('setTimelineEnabled'),
+        setBottomSurfaceCollapsed: markUnexpected('setBottomSurfaceCollapsed'),
+        setBottomSurfaceTab: markUnexpected('setBottomSurfaceTab') as any,
+        setMinimapCollapsed: markUnexpected('setMinimapCollapsed'),
+        setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+        setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+        setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
+      })
+      return nextBehavior
+    }
+    const nextGridBehavior = runToggle('control:grid')
+    if (nextGridBehavior?.canvasGrid?.enabled !== true || nextGridBehavior?.snapGrid) {
+      throw new Error(`Expected ${renderer} Grid toggle to write only shared canvasGrid behavior, got ${JSON.stringify(nextGridBehavior)}`)
+    }
+    const nextSnapBehavior = runToggle('control:snapGrid')
+    if (nextSnapBehavior?.snapGrid?.enabled !== true || nextSnapBehavior?.canvasGrid) {
+      throw new Error(`Expected ${renderer} Snap to Grid toggle to write only shared snapGrid behavior, got ${JSON.stringify(nextSnapBehavior)}`)
+    }
+    if (unexpectedViewMutations.length > 0) {
+      throw new Error(`Expected ${renderer} Grid/Snap toggles not to mutate renderer or surface setters, got ${unexpectedViewMutations.join(', ')}`)
+    }
   }
 }
