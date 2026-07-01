@@ -35,7 +35,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     '<StoryboardCardResizeHandle',
     'useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })',
     'fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d',
-    'dragWorldOverrideByCardIdRef.current.get(card.id) || readNodeCenter(node)',
+    'dragWorldOverrideByCardIdRef.current.get(card.id) || readStoryboardCardCenter2d(node)',
     'getWheelForwardTarget={() => props.rootRef.current?.querySelector',
     'const overlayPanOwnerCanvas =',
     'overlayBodyViewportPan && flowEditorOverlayInteractionMode && !overlayPanOwnerCanvas',

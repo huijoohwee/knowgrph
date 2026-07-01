@@ -46,6 +46,7 @@ export function useRichMediaOverlays2d(args: {
   sceneHeight: number
   freezeOverlayMembership?: boolean
 }) {
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const {
     active,
     activeRef,
@@ -423,7 +424,7 @@ export function useRichMediaOverlays2d(args: {
         })
         const n = nodeById.get(id) || null
         const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? n.properties as Record<string, unknown> : null
-        return readStableRichMediaPanelSize(props)
+        return readStableRichMediaPanelSize(props, strybldrStoryboardCardAspectMode)
       },
       getNodeWorldCenterForId: id => {
         const graph = sceneGraphDataRef.current
@@ -467,6 +468,7 @@ export function useRichMediaOverlays2d(args: {
     sceneGraphDataRef,
     schemaRef,
     simulationRef,
+    strybldrStoryboardCardAspectMode,
     svgRef,
     overlaySizing,
     readVisibleOverlayLayoutViewport,

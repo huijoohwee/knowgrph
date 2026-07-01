@@ -153,12 +153,12 @@ export function testRichMediaPanelFlowEditorChromeMaintainsContentAspectAcrossZo
   const mediaPanelLayoutPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaPanelLayout.ts')
   const mediaPanelLayoutText = readFileSync(mediaPanelLayoutPath, 'utf8')
   for (const snippet of [
-    'readRichMediaPanelFrameMetrics',
-    'computePanelFrameResizeFromDrag16x9',
-    'computePanelFrameSizeFromWidth16x9',
+    'resolveCanvasAspectRatioResizeSize',
+    'resolveCanvasAspectRatioSize',
+    'strybldrStoryboardCardAspectMode',
   ]) {
     if (!flowCanvasOverlayText.includes(snippet)) {
-      throw new Error(`expected Flow Canvas rich-media resize path to reuse shared frame metrics/aspect helpers: ${snippet}`)
+      throw new Error(`expected Flow Canvas rich-media resize path to reuse shared Canvas Aspect helpers: ${snippet}`)
     }
   }
   for (const snippet of [
@@ -449,9 +449,11 @@ export function testRichMediaPanelResizeWiredAcross2dRendererOwners() {
   ]
   for (const file of files) {
     const text = readFileSync(file.path, 'utf8')
+    const sharedAspectSnippets = file.label === 'D3 Graph' || file.label === 'Flow Canvas'
+      ? ['resolveCanvasAspectRatioResizeSize', 'strybldrStoryboardCardAspectMode']
+      : ['computePanelFrameResizeFromDrag16x9', 'readRichMediaPanelFrameMetrics']
     for (const snippet of [
-      'computePanelFrameResizeFromDrag16x9',
-      'readRichMediaPanelFrameMetrics',
+      ...sharedAspectSnippets,
       'resizable=',
       'onResizeStart=',
       'onResize=',

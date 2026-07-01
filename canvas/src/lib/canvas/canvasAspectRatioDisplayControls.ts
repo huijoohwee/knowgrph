@@ -48,6 +48,26 @@ export const resolveCanvasAspectRatioSize = (args: {
   }
 }
 
+export const resolveCanvasAspectRatioResizeSize = (args: {
+  deltaX: number
+  deltaY: number
+  minWidth?: number
+  mode: unknown
+  startHeight: number
+  startWidth: number
+}): CanvasAspectRatioSize => {
+  const ratio = readCanvasAspectRatioWidthToHeight(args.mode)
+  const minWidth = readPositiveFiniteNumber(args.minWidth) || 1
+  const startWidth = readPositiveFiniteNumber(args.startWidth) || minWidth
+  const startHeight = readPositiveFiniteNumber(args.startHeight) || Math.round(startWidth / ratio)
+  const deltaX = Number.isFinite(args.deltaX) ? args.deltaX : 0
+  const deltaY = Number.isFinite(args.deltaY) ? args.deltaY : 0
+  const width = Math.abs(deltaY) > Math.abs(deltaX)
+    ? Math.max(minWidth, Math.round((startHeight + deltaY) * ratio))
+    : Math.max(minWidth, Math.round(startWidth + deltaX))
+  return resolveCanvasAspectRatioSize({ defaultWidth: minWidth, mode: args.mode, width })
+}
+
 export const toggleCanvasAspectRatioMode = (mode: unknown): CanvasAspectRatioMode =>
   readCanvasAspectRatioMode(mode) === '16:9' ? '9:16' : '16:9'
 

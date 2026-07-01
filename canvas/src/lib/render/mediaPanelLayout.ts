@@ -1,3 +1,4 @@
+import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 export type MediaPanelCssMetrics = {
@@ -214,11 +215,16 @@ export function computePanelFrameResizeFromDrag16x9(args: {
   return computePanelFrameSizeFromWidthAspect({ panelW, metrics: args.metrics, aspect })
 }
 
-export function readStableRichMediaPanelSize(props: Record<string, unknown> | null | undefined): { w: number; h: number } | null {
+export function readStableRichMediaPanelSize(props: Record<string, unknown> | null | undefined, aspectRatioMode?: unknown): { w: number; h: number } | null {
   if (!props) return null
   const width = Number(props['visual:width'])
   const height = Number(props['visual:height'])
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  if (!Number.isFinite(width) || width <= 0) return null
+  if (aspectRatioMode != null) {
+    const size = resolveCanvasAspectRatioSize({ defaultWidth: 24, mode: aspectRatioMode, width })
+    return { w: Math.max(24, Math.round(size.width)), h: Math.max(24, Math.round(size.height)) }
+  }
+  if (!Number.isFinite(height) || height <= 0) return null
   return {
     w: Math.max(24, Math.round(width)),
     h: Math.max(24, Math.round(height)),

@@ -9,19 +9,13 @@ import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
-import {
-  computePanelFrameResizeFromDrag16x9,
-  computePanelFrameSizeFromWidth16x9,
-  readRichMediaPanelFrameMetrics,
-  type MediaPanelCssMetrics,
-} from '@/lib/render/mediaPanelLayout'
+import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 type RichMediaResizeState = {
   id: string
   pointerId: number
   startW: number
   startH: number
-  frameMetrics: Pick<MediaPanelCssMetrics, 'headerH' | 'padding' | 'borderW'>
   lastW: number
   lastH: number
 }
@@ -84,6 +78,7 @@ export function RichMediaOverlayLayer2d(props: {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateNode = useGraphStore(s => s.updateNode)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
   const [activePanelId, setActivePanelId] = React.useState('')
 
@@ -153,34 +148,33 @@ export function RichMediaOverlayLayer2d(props: {
     const measuredH = rect && Number.isFinite(rect.height) ? Math.max(24, Math.round(rect.height)) : 0
     const baseProps = readGraphNodePropertiesFromStore(id)
     const storedW = Number(baseProps['visual:width'])
-    const storedH = Number(baseProps['visual:height'])
-    const frameMetrics = readRichMediaPanelFrameMetrics(el)
     const startW = Number.isFinite(storedW) && storedW > 0 ? Math.max(24, Math.round(storedW)) : Math.max(24, measuredW)
-    const startH = Number.isFinite(storedH) && storedH > 0
-      ? Math.max(24, Math.round(storedH))
-      : (measuredH || Math.max(24, Math.round(computePanelFrameSizeFromWidth16x9({ panelW: startW, metrics: frameMetrics }).panelH)))
-    resizeRef.current = { id, pointerId, startW, startH, frameMetrics, lastW: startW, lastH: startH }
+    const aspectSize = resolveCanvasAspectRatioSize({
+      defaultWidth: Math.max(24, measuredW || startW),
+      mode: strybldrStoryboardCardAspectMode,
+      width: startW,
+    })
+    const startH = Math.max(24, Math.round(aspectSize.height || measuredH))
+    resizeRef.current = { id, pointerId, startW, startH, lastW: startW, lastH: startH }
     if (el) {
       el.style.width = `${startW}px`
       el.style.height = `${startH}px`
     }
-  }, [])
+  }, [strybldrStoryboardCardAspectMode])
 
   const moveResize = React.useCallback((id: string, payload: { pointerId: number; dx: number; dy: number }) => {
     const drag = resizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== payload.pointerId) return
-    const next = computePanelFrameResizeFromDrag16x9({
-      startW: drag.startW,
-      startH: drag.startH,
-      dxClientPx: payload.dx,
-      dyClientPx: payload.dy,
-      scale: 1,
-      metrics: drag.frameMetrics,
-      minPanelW: 24,
-      minPanelH: 24,
+    const next = resolveCanvasAspectRatioResizeSize({
+      startWidth: drag.startW,
+      startHeight: drag.startH,
+      deltaX: payload.dx,
+      deltaY: payload.dy,
+      minWidth: 24,
+      mode: strybldrStoryboardCardAspectMode,
     })
-    const nextW = Math.max(24, Math.round(next.panelW))
-    const nextH = Math.max(24, Math.round(next.panelH))
+    const nextW = Math.max(24, Math.round(next.width))
+    const nextH = Math.max(24, Math.round(next.height))
     drag.lastW = nextW
     drag.lastH = nextH
     const el = overlayElsRef.current.get(id) || null
@@ -188,7 +182,7 @@ export function RichMediaOverlayLayer2d(props: {
       el.style.width = `${nextW}px`
       el.style.height = `${nextH}px`
     }
-  }, [])
+  }, [strybldrStoryboardCardAspectMode])
 
   const endResize = React.useCallback((id: string, pointerId: number) => {
     const drag = resizeRef.current
