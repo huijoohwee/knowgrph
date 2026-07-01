@@ -8,7 +8,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const flowEditorSurfaceSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx', import.meta.url), 'utf8')
   const flowEditorWidgetDropBridgeSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts', import.meta.url), 'utf8')
   const graphCanvasRootSource = readFileSync(new URL('../components/GraphCanvasRoot/GraphCanvasRootImpl.tsx', import.meta.url), 'utf8')
-  const graphStoryboardOverlaySource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const graphStoryboardOverlaySource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8') + readFileSync(new URL('../components/FlowEditorCanvas/storyboardCardPlacements2d.ts', import.meta.url), 'utf8')
   const graphCanvasSceneSource = readFileSync(new URL('../components/GraphCanvas/scene.ts', import.meta.url), 'utf8')
   const graphCanvasZoomSource = readFileSync(new URL('../components/GraphCanvas/zoom.ts', import.meta.url), 'utf8')
   const graphRichMediaOverlaySource = readFileSync(new URL('../components/GraphCanvasRoot/components/RichMediaOverlayLayer2d.tsx', import.meta.url), 'utf8')
@@ -328,10 +328,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   }
   for (const snippet of [
     'Visual Brief',
-    'STORYBOARD_CARD_RATIO_CLASS_BY_MODE',
-    "'9:16': 'aspect-[9/16] w-[min(22rem,calc(100vw-2rem))]'",
-    'data-kg-storyboard-card-aspect={strybldrStoryboardCardAspectMode}',
-    'data-kg-storyboard-board-layout={strybldrStoryboardBoardLayoutMode}',
+    'STORYBOARD_CARD_RATIO_CLASS_BY_MODE', "'9:16': 'aspect-[9/16] w-[min(22rem,calc(100vw-2rem))]'",
+    'data-kg-storyboard-card-aspect={strybldrStoryboardCardAspectMode}', 'data-kg-storyboard-board-layout={strybldrStoryboardBoardLayoutMode}',
     "const shouldUseFullHeightFixedLanes = strybldrStoryboardBoardLayoutMode === 'fixed' && !isWideStoryboardLayout",
     'shouldUseFullHeightFixedLanes ? `h-full ${UI_RESPONSIVE_KANBAN_LANE_CLASSNAME}` : `max-h-full ${storyboardLaneWidthClassName}`',
     "grid-cols-[minmax(0,1fr)_minmax(13rem,0.86fr)]",
