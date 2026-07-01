@@ -11,6 +11,7 @@ import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storybo
 import type { JSONValue } from '@/lib/graph/types'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { CANVAS_BOARD_LAYOUT_OPTIONS, readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { notifyWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS, generateRunVideoWithBytePlus } from '@/features/chat/byteplusRunGeneration'
@@ -637,11 +638,10 @@ export function StrybldrFloatingPanelView({
                   value={strybldrStoryboardBoardLayoutMode}
                   aria-label="Strybldr storyboard board layout"
                   onChange={event => {
-                    setStrybldrStoryboardBoardLayoutMode(event.target.value === 'fixed' ? 'fixed' : 'flex')
+                    setStrybldrStoryboardBoardLayoutMode(readCanvasBoardLayoutMode(event.target.value))
                   }}
                 >
-                  <option value="flex">Flex</option>
-                  <option value="fixed">Fixed</option>
+                  {CANVAS_BOARD_LAYOUT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </PanelSelect>
               </PanelField>
             </section>

@@ -3,6 +3,7 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
 import { BLOCK_SCHEMA } from '@/__tests__/canvas3dMode.test'
 import { CANVAS_2D_RENDERER_ORDER, isD3Like2dRenderer } from '@/lib/config.render'
+import { CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID, type CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 
 export function testGridSnapDisplayControlsReuseSharedUtilityOwner() {
   const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
@@ -326,6 +327,129 @@ export function testAll2dRenderersExposeSharedGridSnapDisplayControls() {
     }
     if (unexpectedViewMutations.length > 0) {
       throw new Error(`Expected ${renderer} Grid/Snap toggles not to mutate renderer or surface setters, got ${unexpectedViewMutations.join(', ')}`)
+    }
+  }
+}
+
+export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
+  const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
+  const menuSource = readFileSync(new URL('../components/toolbar/canvasViewMenu.ts', import.meta.url), 'utf8')
+  const panelSource = readFileSync(new URL('../features/strybldr/StrybldrFloatingPanelView.tsx', import.meta.url), 'utf8')
+  const sharedSource = readFileSync(new URL('../lib/canvas/canvasBoardLayoutDisplayControls.ts', import.meta.url), 'utf8')
+  for (const snippet of [
+    'CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID',
+    'toggleCanvasBoardLayoutMode',
+  ]) {
+    if (!actionsSource.includes(snippet)) {
+      throw new Error(`expected Canvas View actions to reuse shared Board layout utility snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_DESCRIPTION',
+    'CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_LABEL',
+    'readCanvasBoardLayoutDisplayControlActive',
+    'readCanvasBoardLayoutDisplayControlTitle',
+  ]) {
+    if (!menuSource.includes(snippet)) {
+      throw new Error(`expected Canvas View menu to reuse shared Board layout utility snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID = 'control:boardLayout'",
+    "CANVAS_BOARD_LAYOUT_MODE_DEFAULT: CanvasBoardLayoutMode = 'fixed'",
+    'CANVAS_BOARD_LAYOUT_OPTIONS',
+    'readCanvasBoardLayoutMode',
+    'toggleCanvasBoardLayoutMode',
+  ]) {
+    if (!sharedSource.includes(snippet)) {
+      throw new Error(`expected shared Board layout utility owner to define snippet: ${snippet}`)
+    }
+  }
+  if (!panelSource.includes('CANVAS_BOARD_LAYOUT_OPTIONS') || !panelSource.includes('readCanvasBoardLayoutMode')) {
+    throw new Error('expected Strybldr FloatingPanel board select to reuse shared board layout options and coercion')
+  }
+  for (const forbidden of [
+    "event.target.value === 'fixed' ? 'fixed' : 'flex'",
+    '<option value="flex">Flex</option>',
+    '<option value="fixed">Fixed</option>',
+    "title: 'Board'",
+    "label: 'Board'",
+    "description: 'Toggle board layout mode'",
+  ]) {
+    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden) || panelSource.includes(forbidden)) {
+      throw new Error(`expected board layout Flex/Fixed ownership to avoid local literal or local logic: ${forbidden}`)
+    }
+  }
+
+  for (const renderer of CANVAS_2D_RENDERER_ORDER) {
+    const displayControls = buildCanvasViewOptions(
+      {
+        canvas2dRenderer: renderer,
+        canvas3dMode: '3d',
+        canvasRenderMode: '2d',
+        documentSemanticMode: 'document',
+        frontmatterModeEnabled: false,
+        multiDimTableModeEnabled: false,
+        renderMediaAsNodes: false,
+        timelineEnabled: false,
+        bottomSurfaceCollapsed: true,
+        bottomSurfaceTab: 'stats',
+        minimapCollapsed: false,
+        boardLayoutMode: 'fixed',
+        geospatialEnabled: false,
+        layoutMode: 'block',
+        schema: BLOCK_SCHEMA,
+        frontmatterOnlyAllowed: false,
+        isD3Like2dLayoutToggle: isD3Like2dRenderer(renderer),
+      },
+      getCanvasViewRendererOptions(),
+    ).find(option => option.id === 'control:menu')
+    const boardToggle = displayControls?.children?.find(child => child.id === CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID)
+    if (!boardToggle || boardToggle.title !== 'Board: Fixed' || boardToggle.label !== 'Board' || boardToggle.disabled || boardToggle.children?.length || boardToggle.isActive !== true) {
+      throw new Error(`Expected ${renderer} Display Controls to expose shared active Board layout toggle`)
+    }
+
+    const unexpectedViewMutations: string[] = []
+    const boardLayoutModes: CanvasBoardLayoutMode[] = []
+    const markUnexpected = (name: string) => () => { unexpectedViewMutations.push(`${renderer}:${name}`) }
+    applyCanvasViewSelection({
+      id: CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID,
+      ensureBaselineUnlocked: () => true,
+      geospatialEnabled: false,
+      onOpenGeospatialMode: () => { throw new Error(`Expected ${renderer} Board toggle to avoid opening Geospatial Mode`) },
+      canvas2dRenderer: renderer,
+      canvas3dMode: '3d',
+      canvasRenderMode: '2d',
+      documentSemanticMode: 'document',
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      renderMediaAsNodes: false,
+      timelineEnabled: false,
+      bottomSurfaceCollapsed: true,
+      bottomSurfaceTab: 'stats',
+      minimapCollapsed: false,
+      boardLayoutMode: 'fixed',
+      schema: BLOCK_SCHEMA,
+      setCanvas2dRenderer: markUnexpected('setCanvas2dRenderer') as any,
+      setCanvasRenderMode: markUnexpected('setCanvasRenderMode') as any,
+      setCanvas3dMode: markUnexpected('setCanvas3dMode'),
+      setSchema: markUnexpected('setSchema') as any,
+      setBehavior: markUnexpected('setBehavior') as any,
+      setRenderMediaAsNodes: markUnexpected('setRenderMediaAsNodes'),
+      setTimelineEnabled: markUnexpected('setTimelineEnabled'),
+      setBottomSurfaceCollapsed: markUnexpected('setBottomSurfaceCollapsed'),
+      setBottomSurfaceTab: markUnexpected('setBottomSurfaceTab') as any,
+      setMinimapCollapsed: markUnexpected('setMinimapCollapsed'),
+      setBoardLayoutMode: mode => { boardLayoutModes.push(mode) },
+      setDocumentSemanticMode: markUnexpected('setDocumentSemanticMode') as any,
+      setFrontmatterModeEnabled: markUnexpected('setFrontmatterModeEnabled'),
+      setMultiDimTableModeEnabled: markUnexpected('setMultiDimTableModeEnabled'),
+    })
+    if (boardLayoutModes.join('|') !== 'flex') {
+      throw new Error(`Expected ${renderer} Board toggle to write only shared board layout setter, got ${boardLayoutModes.join('|')}`)
+    }
+    if (unexpectedViewMutations.length > 0) {
+      throw new Error(`Expected ${renderer} Board toggle not to mutate renderer, schema, behavior, or surface setters, got ${unexpectedViewMutations.join(', ')}`)
     }
   }
 }

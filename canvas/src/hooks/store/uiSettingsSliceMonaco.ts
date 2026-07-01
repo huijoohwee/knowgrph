@@ -5,14 +5,12 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetBool } from '@/lib/persistence'
 import type { UiStorageReaders } from './uiSliceStorage'
 import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
+import { CANVAS_BOARD_LAYOUT_MODE_DEFAULT, readCanvasBoardLayoutMode, type CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
 const readMarkdownViewerMediaMode = (raw: unknown): 'chip' | 'image' => String(raw || '').trim() === 'image' ? 'image' : 'chip'
 const readStoryboardCardAspectMode = (raw: unknown): '16:9' | '9:16' => String(raw || '').trim() === '9:16' ? '9:16' : '16:9'
-const STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT = 'fixed' as const
-const readStoryboardBoardLayoutMode = (raw: unknown): 'flex' | 'fixed' =>
-  String(raw || STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT).trim() === 'flex' ? 'flex' : STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT
 
 export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageReaders)=> {
   const { lsBool, readMonacoLoadMode, writeLsString } = readers
@@ -41,9 +39,9 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
     writeLsString(LS_KEYS.strybldrStoryboardCardAspectMode, next)
     set({ strybldrStoryboardCardAspectMode: next })
   },
-  strybldrStoryboardBoardLayoutMode: readStoryboardBoardLayoutMode(readers.readLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, STORYBOARD_BOARD_LAYOUT_MODE_DEFAULT)),
-  setStrybldrStoryboardBoardLayoutMode: (v: 'flex' | 'fixed') => {
-    const next = v === 'fixed' ? 'fixed' : 'flex'
+  strybldrStoryboardBoardLayoutMode: readCanvasBoardLayoutMode(readers.readLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, CANVAS_BOARD_LAYOUT_MODE_DEFAULT)),
+  setStrybldrStoryboardBoardLayoutMode: (v: CanvasBoardLayoutMode) => {
+    const next = readCanvasBoardLayoutMode(v)
     writeLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, next)
     set({ strybldrStoryboardBoardLayoutMode: next })
   },

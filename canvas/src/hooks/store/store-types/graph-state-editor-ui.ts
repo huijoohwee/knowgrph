@@ -13,6 +13,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
+import type { CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -49,7 +50,7 @@ import type {
 } from './core'
 
 export type StoryboardCardAspectMode = '16:9' | '9:16'
-export type StoryboardBoardLayoutMode = 'flex' | 'fixed'
+export type StoryboardBoardLayoutMode = CanvasBoardLayoutMode
 
 export interface GraphStateEditorUi {
   codeHighlightDurationMs: number;

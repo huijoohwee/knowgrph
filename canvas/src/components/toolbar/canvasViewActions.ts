@@ -8,6 +8,11 @@ import {
   buildCanvasGridVisibilityBehaviorPatch,
   buildSnapGridBehaviorPatch,
 } from '@/lib/canvas/canvasGridDisplayControls'
+import {
+  CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID,
+  type CanvasBoardLayoutMode,
+  toggleCanvasBoardLayoutMode,
+} from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import {
   isFrontmatterOnlyCanvas2dRenderer,
@@ -45,6 +50,8 @@ type CanvasViewActionParams = {
   setBottomSurfaceCollapsed: (collapsed: boolean) => void
   setBottomSurfaceTab: (tab: BottomSurfaceTab) => void
   setMinimapCollapsed?: (collapsed: boolean) => void
+  boardLayoutMode?: CanvasBoardLayoutMode
+  setBoardLayoutMode?: (mode: CanvasBoardLayoutMode) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
@@ -67,6 +74,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     bottomSurfaceCollapsed,
     bottomSurfaceTab,
     minimapCollapsed = false,
+    boardLayoutMode,
     schema,
     setCanvas2dRenderer,
     setCanvasRenderMode,
@@ -77,6 +85,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setBottomSurfaceCollapsed,
     setBottomSurfaceTab,
     setMinimapCollapsed,
+    setBoardLayoutMode,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
@@ -260,6 +269,10 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   if (id === 'control:minimap') {
     if (geospatialEnabled || canvasRenderMode !== '2d' || !supportsCanvas2dMinimap(canvas2dRenderer)) return
     setMinimapCollapsed?.(!minimapCollapsed)
+    return
+  }
+  if (id === CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID) {
+    setBoardLayoutMode?.(toggleCanvasBoardLayoutMode(boardLayoutMode))
     return
   }
   if (id === 'control:nodeShape') {
