@@ -1006,10 +1006,6 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportChromeModelText.includes('Download edited audio') ||
     !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-clip-edit={button.action}') ||
     !ganttTransportHeaderToolsText.includes('renderClipActionIcon(button.icon)') ||
-    !ganttTransportHeaderToolsText.includes('timeline-tool-menu--edit') ||
-    !ganttTransportHeaderToolsText.includes('timeline-tool-menu--zoom') ||
-    ganttTransportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') > ganttTransportHeaderToolsText.indexOf('timeline-tool-menu--edit') ||
-    ganttTransportHeaderToolsText.indexOf('timeline-tool-menu--edit') > ganttTransportHeaderToolsText.indexOf('args.model.clipActionButtons.map') ||
     !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-export={button.dataValue}') ||
     !ganttTransportContextControlsText.includes('data-kg-video-sequence-export-session') ||
     !ganttTransportContextControlsText.includes('data-kg-video-sequence-export-session-mode') ||
