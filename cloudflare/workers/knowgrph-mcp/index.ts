@@ -26,6 +26,7 @@ import {
   buildKnowgrphMcpToolDefinitions,
   KNOWGRPH_MCP_CONTRACT_VERSION,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
+  KNOWGRPH_OS_STATUS_TOOL_NAME,
 } from "./tool-registry.mjs";
 import {
   defaultPersistenceDiagnosticEmitter,
@@ -164,6 +165,11 @@ const CHECKOUT_INPUT = {
   runId: z.string().optional(),
 };
 
+const OS_STATUS_INPUT = {
+  view: z.enum(["process_list", "capabilities", "cost_summary", "gate_catalog", "circuit_breakers"]),
+  cloudflareMcpUrl: z.string().optional(),
+};
+
 // ---------------------------------------------------------------------------
 // Output schemas (R14.4 / Property 26).
 //
@@ -255,6 +261,24 @@ const CHECKOUT_OUTPUT = {
   ...STAGE_OUTPUT_ENVELOPE,
   sessionId: z.string().optional(),
   payoutSettled: z.boolean().optional(),
+};
+
+const OS_STATUS_OUTPUT = {
+  ok: z.boolean().optional(),
+  view: z.string().optional(),
+  entries: z.array(z.record(z.unknown())).optional(),
+  truncated: z.boolean().optional(),
+  unavailableSources: z.array(z.record(z.unknown())).optional(),
+  unreachableCatalogs: z.array(z.string()).optional(),
+  totalsByHarness: z.record(z.object({ estimated_cost_usd: z.number() }).passthrough()).optional(),
+  validationFailures: z.array(z.record(z.unknown())).optional(),
+  costEmissionGaps: z.array(z.record(z.unknown())).optional(),
+  gates: z.array(z.record(z.unknown())).optional(),
+  approvalTokenTtlMs: z.number().optional(),
+  breakers: z.array(z.record(z.unknown())).optional(),
+  cost_log: z.record(z.unknown()).optional(),
+  errorCode: z.string().optional(),
+  message: z.string().optional(),
 };
 
 type ToolHandlerArgs = Record<string, unknown>;
@@ -358,6 +382,7 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
     register("knowgrph.video_remix.render", RENDER_INPUT, RENDER_OUTPUT);
     register("knowgrph.video_remix.publish", PUBLISH_INPUT, PUBLISH_OUTPUT);
     register("knowgrph.video_remix.checkout", CHECKOUT_INPUT, CHECKOUT_OUTPUT);
+    register(KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_INPUT, OS_STATUS_OUTPUT);
   }
 }
 
@@ -396,8 +421,8 @@ const jsonResponse = (body: unknown, init?: ResponseInit): Response =>
  * Director state change the McpAgent persists within 2s, so this endpoint
  * is the read-back surface that satisfies R14.2 / Property 25.
  *
- * Caller authentication and authorization are enforced upstream by the
- * AWS Agent_Api (R15) before forwarding to this Worker.
+ * Caller authentication and authorization are handled by the Cloudflare MCP
+ * gateway boundary before this read-back handler is exposed.
  */
 async function handleRunsRead(
   env: KnowgrphMcpEnv,

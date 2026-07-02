@@ -144,8 +144,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     controlsText.includes('onPointerDown={onPlaybackPointerDown}') ||
     !controlsCssText.includes('.timeline-player-progress::-webkit-progress-value') ||
     !controlsCssText.includes('.timeline-transport-chrome--mermaid-gantt .timeline-player-progress') ||
-    !controlsCssText.includes('min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 42px))') ||
-    !controlsCssText.includes('line-height: 42px') ||
+    !controlsCssText.includes('min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * var(--kg-video-sequence-lane-height)))') ||
+    !controlsCssText.includes('line-height: var(--kg-video-sequence-lane-height)') ||
     controlsCssText.includes('.timeline-transport-ruler-layout:has(.timeline-transport-ruler-aside)') ||
     controlsCssText.includes('.timeline-transport-ruler-below') ||
     !clipEditText.includes('buildVideoSequenceClipEditDetailsLabel') ||
@@ -194,7 +194,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     rulerText.includes('Color grading controls') ||
     rulerText.includes('timeline-video-sequence-ruler-scope-header') ||
     rulerText.includes('<meter') ||
-    !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42') ||
+    !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61') ||
     !sequenceText.includes("VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['mask', 'grade']") ||
     !sequenceText.includes('disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]') ||
     !sequenceText.includes('const disabledLaneIds = new Set(options.disabledLaneIds || [])') ||
@@ -211,9 +211,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     rulerText.includes("sourceCoverageMode: 'source-covered'") ||
     !rulerText.includes('visibleLanes.map(lane =>') ||
     !['resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)', 'visibleLaneIndexById.get(displayLaneId)', 'data-kg-video-sequence-display-lane', 'data-kg-video-sequence-display-lane-label'].every(token => rulerText.includes(token)) ||
-    !rulerText.includes('buildVideoSequenceTimelineCueSamples') ||
-    !rulerText.includes('buildVideoSequenceTimelineFrameSamples') ||
-    !rulerText.includes('buildVideoSequenceTimelineWaveformSamples') ||
+    !['buildVideoSequenceTimelineCueSamples', 'buildVideoSequenceTimelineFrameSamples', 'buildVideoSequenceTimelineWaveformSamples', 'buildVideoSequenceClipMediaCache', 'const clipMediaByRowKey = React.useMemo'].every(token => rulerText.includes(token)) ||
     !rulerText.includes('timeline-video-sequence-clip-timecode') ||
     !rulerText.includes('VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX + laneIndex * VIDEO_SEQUENCE_LANE_HEIGHT_PX') ||
     !rulerCssText.includes('.timeline-transport-shell--video-sequence') ||
@@ -240,7 +238,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerCssText.includes('@media (prefers-reduced-motion: reduce)') ||
     rulerCssText.includes('.timeline-video-sequence-grade-strip') ||
     rulerCssText.includes('.timeline-video-sequence-ruler-scope-header') ||
-    !rulerCssText.includes('height: 38px') || !rulerCssText.includes('top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * 42px) + 2px)') ||
+    !['grid-column: 1 / -1', 'contain: layout paint style', 'height: var(--kg-timeline-bar-height, 57px)', 'top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px)'].every(token => rulerCssText.includes(token)) ||
     !rulerCssText.includes('grid-template-columns: repeat(6, minmax(5.5rem, 1fr))') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-scope-bar') ||
     rulerCssText.includes('.timeline-video-sequence-slot-grid') ||
@@ -737,7 +735,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('if (!window) return []') ||
     rulerText.includes('sort((left, right) => Math.abs(left.timestampSeconds') ||
     !rulerText.includes('readMermaidGanttTaskSourceRangeMinutes(args.span.raw)') ||
-    !rulerText.includes('const allowTimelineFallbackThumbnails = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane)') ||
+    !rulerText.includes('allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent') ||
     !rulerText.includes('resolveVideoSequenceThumbnailTimelinePosition') ||
     !rulerText.includes('thumbnailWindow') ||
     !rulerText.includes('onSelectRowPosition(span.rowKey') ||

@@ -29,7 +29,7 @@ import {
 import { readMermaidGanttTaskSourceRangeMinutes, type MermaidGanttBarDragMode, type MermaidGanttTimelineDragPreview, type MermaidGanttTimelineTaskSpan, type MermaidGanttTimelineTick } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import './VideoSequenceTimelineRuler.css'
 import './VideoSequenceTimelineRulerTimeAxis.css'
-export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 42
+export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61
 export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
 export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
 export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 28 + VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX
@@ -98,6 +98,63 @@ function resolveVideoSequenceClipThumbnails(args: {
   )
   if (withinWindow.length) return withinWindow
   return []
+}
+
+function buildVideoSequenceClipMediaCache(args: {
+  renderableSpans: readonly MermaidGanttTimelineTaskSpan[]
+  sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
+  sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
+}) {
+  const cache = new Map<string, {
+    compactVideoAgentFrameSamples: boolean
+    compactVideoAgentMedia: boolean
+    compactVideoAgentVideo: boolean
+    generatedFrameSamples: readonly TimelineMediaReaderThumbnail[]
+    lane: VideoSequenceTimelineLaneId
+    semanticFrameSamples: readonly TimelineMediaReaderThumbnail[]
+    showMediaCues: boolean
+    thumbnailSamples: readonly TimelineMediaReaderThumbnail[]
+    thumbnailWindow: VideoSequenceTimelineThumbnailWindow | null
+    verticalMarker: boolean
+  }>()
+  for (const span of args.renderableSpans) {
+    const verticalMarker = /(^|[:,\s])vert([,\s]|$)/i.test(span.raw)
+    const lane = resolveVideoSequenceTimelineLane(span)
+    const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
+    const compactVideoAgentMedia = isVideoAgentCompactMediaSpan(span, lane)
+    const compactVideoAgentVideo = compactVideoAgentMedia && lane === 'video'
+    const compactVideoAgentFrameSamples = compactVideoAgentMedia && lane === 'fbf'
+    const showsMediaContent = !verticalMarker && (
+      VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
+      VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
+      showsGeneratedFrameContent
+    )
+    const thumbnailWindow = showsMediaContent
+      ? resolveVideoSequenceSpanThumbnailWindow({
+          allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent,
+          span,
+          windows: args.sourceThumbnailWindows,
+        })
+      : null
+    const nativeFrameSamples = showsMediaContent && (!compactVideoAgentMedia || compactVideoAgentVideo)
+      ? resolveVideoSequenceClipThumbnails({ sourceThumbnails: args.sourceThumbnails, sourceWindow: thumbnailWindow, span })
+      : []
+    const semanticFrameSamples = compactVideoAgentFrameSamples ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
+    const generatedFrameSamples = (showsGeneratedFrameContent || compactVideoAgentVideo) && !nativeFrameSamples.length && !semanticFrameSamples.length ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
+    cache.set(span.rowKey, {
+      compactVideoAgentFrameSamples,
+      compactVideoAgentMedia,
+      compactVideoAgentVideo,
+      generatedFrameSamples,
+      lane,
+      semanticFrameSamples,
+      showMediaCues: showsMediaContent && lane !== 'audio' && !compactVideoAgentMedia,
+      thumbnailSamples: compactVideoAgentFrameSamples || (compactVideoAgentMedia && lane === 'audio') ? [] : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples),
+      thumbnailWindow,
+      verticalMarker,
+    })
+  }
+  return cache
 }
 
 function resolveActiveVideoSequenceResizeMode(args: {
@@ -208,6 +265,7 @@ export function VideoSequenceTimelineRuler({
   const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>(() => ({ disabledLaneIds }), [disabledLaneIds])
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
+  const clipMediaByRowKey = React.useMemo(() => buildVideoSequenceClipMediaCache({ renderableSpans, sourceThumbnailWindows, sourceThumbnails }), [renderableSpans, sourceThumbnailWindows, sourceThumbnails])
   const visibleLaneIndexById = React.useMemo(() => new Map<string, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
   const displayLaneIdByRowKey = React.useMemo(() => new Map(renderableSpans.map(span => [span.rowKey, resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)])), [projectionOptions, renderableSpans])
   const formatClipTime = React.useCallback((positionMinutes: number) => formatVideoSequenceTimelineSecondsOffset(
@@ -281,12 +339,13 @@ export function VideoSequenceTimelineRuler({
         </span>
         <VideoSequenceTimelineRulerTicks displayTicks={timelineAxisTicks} />
         {renderableSpans.map((span, index) => {
-          const verticalMarker = /(^|[:,\s])vert([,\s]|$)/i.test(span.raw)
+          const media = clipMediaByRowKey.get(span.rowKey)
+          if (!media) return null
+          const { compactVideoAgentMedia, generatedFrameSamples, lane, semanticFrameSamples, showMediaCues, thumbnailSamples, thumbnailWindow, verticalMarker } = media
           const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
           const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
           const leftPercent = timelineScaleMaxMinutes > 0 ? (startMinutes / timelineScaleMaxMinutes) * 100 : 0
-          const lane = resolveVideoSequenceTimelineLane(span)
           const displayLaneId = displayLaneIdByRowKey.get(span.rowKey) || lane
           const minWidthPercent = lane === 'fbf' ? 0.24 : 2
           const widthPercent = timelineScaleMaxMinutes > 0 ? Math.max(minWidthPercent, (durationMinutes / timelineScaleMaxMinutes) * 100) : 0
@@ -294,34 +353,6 @@ export function VideoSequenceTimelineRuler({
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
-          const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
-          const compactVideoAgentMedia = isVideoAgentCompactMediaSpan(span, lane)
-          const compactVideoAgentVideo = compactVideoAgentMedia && lane === 'video'
-          const compactVideoAgentFrameSamples = compactVideoAgentMedia && lane === 'fbf'
-          const showsMediaContent = !verticalMarker && (
-            VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
-            VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
-            showsGeneratedFrameContent
-          )
-          const showMediaCues = showsMediaContent && lane !== 'audio' && !compactVideoAgentMedia
-          const allowTimelineFallbackThumbnails = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane)
-          const thumbnailWindow = showsMediaContent
-            ? resolveVideoSequenceSpanThumbnailWindow({
-                allowTimelineFallback: allowTimelineFallbackThumbnails || showsGeneratedFrameContent,
-                span,
-                windows: sourceThumbnailWindows,
-              })
-            : null
-          const nativeFrameSamples = showsMediaContent && (!compactVideoAgentMedia || compactVideoAgentVideo)
-            ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
-            : []
-          const semanticFrameSamples = compactVideoAgentFrameSamples
-            ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span })
-            : []
-          const generatedFrameSamples = (showsGeneratedFrameContent || compactVideoAgentVideo) && !nativeFrameSamples.length && !semanticFrameSamples.length
-            ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span })
-            : []
-          const thumbnailSamples = compactVideoAgentFrameSamples || (compactVideoAgentMedia && lane === 'audio') ? [] : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),

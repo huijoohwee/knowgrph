@@ -6,7 +6,7 @@
 }
 
 .timeline-transport-shell--video-sequence .timeline-player {
-  grid-column: 2;
+  grid-column: 1 / -1;
 }
 
 .timeline-transport-track-clip--lane-effect,
@@ -36,9 +36,11 @@
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
-  height: 38px;
+  contain: layout paint style;
+  height: var(--kg-timeline-bar-height, 57px);
   overflow: visible;
   border-radius: 6px;
+  will-change: transform;
 }
 
 .timeline-video-sequence-editor[data-kg-animation-engine="native"] {
@@ -137,7 +139,7 @@
   min-width: 0;
   overflow: visible;
   border-radius: 4px;
-  background: linear-gradient(90deg, rgb(15 23 42 / 0.2), transparent 22%, transparent 78%, rgb(15 23 42 / 0.18));
+  background: linear-gradient(90deg, rgb(15 23 42 / 0.26), transparent 18%, transparent 82%, rgb(15 23 42 / 0.22));
   touch-action: none;
   user-select: none;
 }
@@ -552,7 +554,7 @@
   position: absolute;
   right: 0;
   left: 0;
-  top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * 42px) + 2px);
+  top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px);
   z-index: 1;
   display: grid;
   height: 24px;

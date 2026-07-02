@@ -116,11 +116,11 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
 
   for (const token of [
     '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"]',
-    'height: var(--kg-control-height)',
-    'translate: 0 calc((38px - var(--kg-control-height)) / 2)',
+    'height: var(--kg-timeline-bar-height, 57px)',
+    'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-timeline-bar-height, 57px)) / 2)',
     'border-color: var(--kg-canvas-accent',
     'inset: 2px 6px',
-    'min-width: 15px',
+    'min-width: 18px',
     'filter: saturate(1.04) contrast(1.02)',
     'background: linear-gradient(90deg, rgb(2 6 23 / 0.64), transparent 28%, transparent)',
   ]) {
@@ -130,7 +130,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     throw new Error('expected compact timeline chrome to use design token canvas accent')
   }
   if (denseFbfCssText.includes('height: var(--kg-control-height,')) {
-    throw new Error('expected compact timeline bar height to directly reuse the toolbar control-height token')
+    throw new Error('expected compact timeline bar height to use the main-toolbar-derived timeline bar token')
   }
 
   if (
@@ -173,8 +173,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   for (const token of [
     '.timeline-transport-chrome--mermaid-gantt .timeline-player',
-    'height: var(--kg-control-height)',
-    'flex: 0 0 24px',
+    'height: var(--kg-main-toolbar-height, 38px)',
+    'flex: 0 0 var(--kg-timeline-toolbar-button-size, 28px)',
     'border-bottom: 1px solid var(--kg-border',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label',

@@ -1,5 +1,9 @@
 .timeline-transport-shell {
   --kg-timeline-progress: 0%;
+  --kg-main-toolbar-height: 38px;
+  --kg-timeline-toolbar-button-size: 28px;
+  --kg-timeline-bar-height: calc(var(--kg-main-toolbar-height) * 1.5);
+  --kg-video-sequence-lane-height: 61px;
   width: 100%;
 }
 
@@ -867,7 +871,7 @@
 }
 
 .timeline-transport-ruler--video-sequence {
-  min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * 42px));
+  min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * var(--kg-video-sequence-lane-height)));
   background:
     linear-gradient(90deg, rgb(100 116 139 / 0.22) 1px, transparent 1px) repeat-x 0 0 / 12.5% 100%,
     linear-gradient(180deg, rgb(248 250 252 / 1) 0, rgb(248 250 252 / 1) 24px, rgb(241 245 249 / 1) 24px, rgb(241 245 249 / 1) 100%);
@@ -901,7 +905,7 @@
   color: rgb(51 65 85 / 1);
   font-size: 10px;
   font-weight: 700;
-  line-height: 42px;
+  line-height: var(--kg-video-sequence-lane-height);
   text-transform: uppercase;
 }
 
@@ -950,14 +954,19 @@
   position: absolute;
   left: 14px;
   right: 14px;
-  top: 42px;
+  top: 26px;
+  height: var(--kg-timeline-bar-height);
   border: 1px dashed rgb(100 116 139 / 0.48);
   border-radius: 6px;
   background: rgb(255 255 255 / 0.72);
+  box-sizing: border-box;
   color: rgb(71 85 105 / 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  line-height: 18px;
-  padding: 10px 12px;
+  line-height: 16px;
+  padding: 0 12px;
   text-align: center;
 }
 

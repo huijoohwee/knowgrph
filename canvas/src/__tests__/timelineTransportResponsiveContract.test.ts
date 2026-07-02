@@ -53,6 +53,9 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
     '.timeline-transport-track-clip--lane-mask',
     '.timeline-transport-track-clip--lane-grade',
     '.timeline-video-sequence-empty-dropzone',
+    '--kg-main-toolbar-height: 38px',
+    '--kg-timeline-toolbar-button-size: 28px',
+    '--kg-timeline-bar-height: calc(var(--kg-main-toolbar-height) * 1.5)',
     '.timeline-transport-track-clip--milestone .timeline-transport-track-handle',
     'opacity: 0;',
   ]) {

@@ -15,8 +15,10 @@
 // 3.1+ for research/storyboard/render and the commerce harness work.
 
 import { runVideoRemix } from "../../../mcp/video-remix-runtime.js";
+import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
+export { KNOWGRPH_OS_STATUS_TOOL_NAME };
 
 export const KNOWGRPH_MCP_DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
@@ -436,7 +438,6 @@ const DIRECTOR_TOOL_DEFINITION = Object.freeze({
   inputSchema: VIDEO_REMIX_RUN_INPUT_SCHEMA,
   outputSchema: VIDEO_REMIX_RUN_OUTPUT_SCHEMA,
 });
-
 /**
  * Returns the canonical tool list this McpAgent exposes at
  * airvio.co/knowgrph/control-plane/mcp. Property 26 / R14.4: every entry carries both
@@ -451,7 +452,12 @@ export function buildKnowgrphMcpToolDefinitions() {
       gateId: KNOWGRPH_MCP_STAGE_GATES[tool.name] ?? null,
     },
   });
-  return [DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS].map(decorate);
+  return [DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION].map((tool) => {
+    const decorated = decorate(tool);
+    return tool.name === KNOWGRPH_OS_STATUS_TOOL_NAME
+      ? { ...decorated, annotations: { ...decorated.annotations, readOnlyHint: true } }
+      : decorated;
+  });
 }
 
 /**
@@ -525,6 +531,8 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
       text: result.text,
     };
   }
+
+  if (toolName === KNOWGRPH_OS_STATUS_TOOL_NAME) return executeCloudflareOsStatusTool(args, { toolDefinitions: buildKnowgrphMcpToolDefinitions() });
 
   const gateId = KNOWGRPH_MCP_STAGE_GATES[toolName];
   if (!gateId) {

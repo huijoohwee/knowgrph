@@ -2,10 +2,10 @@
 title: "Knowgrph — Agentic OS PRD/TAD"
 id: "md:knowgrph-agentic-os-prd-tad"
 author: "airvio / joohwee"
-date: "2026-07-10"
+date: "2026-07-02"
 updated: "2026-07-02"
-version: "0.2.0"
-status: "design-phase"
+version: "0.3.0"
+status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -61,7 +61,7 @@ Every capability is **read-only aggregation at call time**. The Agentic OS intro
 
 | Lens | Applied Constraint (this feature) | Key Decision |
 |---|---|---|
-| **Min-Viable-Max-Value** | Ship exactly the Must-tier surface first: Os_Status_Tool exposing `process_list` and `capabilities` only, through the existing Local_Mcp_Tool_Catalog | Should-tier `cost_summary` and the Gate_Catalog extension, and Could-tier `circuit_breakers`, are explicitly deferred to later increments (see Min-Viable Scope) |
+| **Min-Viable-Max-Value** | Ship the combined Os_Status_Tool through the existing Local_Mcp_Tool_Catalog with all five read views: `process_list`, `capabilities`, `cost_summary`, `gate_catalog`, and `circuit_breakers` | Keep the surface to one read-only tool and avoid a new OS datastore, scheduler, dependency, or external tier |
 | **TCO-Zero** | Every registry computed at read time from files/state that already exist; no new D1 table, R2 bucket, KV namespace, or Durable Object class; no external tier (Vercel/Supabase/AWS) to provision or pay for | Reuse `contracts/*.schema.js`, `mcp/local-tool-contract.js`, `knowgrph.vdeoxpln.list` instead of any new store — 12-month TCO delta is $0 (see ADR-2); removing the AWS/Vercel tiers removes their residual free-tier-overrun and ops-audit exposure entirely (ADR-3) |
 | **Token Economics** | The Os_Status_Tool performs zero model calls on any of its views | Every call emits a Cost_Log with `estimated_cost_usd`, `prompt_tokens`, `completion_tokens` computed as exactly `0` — never clamped — so a non-zero value surfaces as a defect, not a suppressed metric (Requirement 6.4) |
 | **Harness-First** | The Agentic OS is not a new harness with its own model calls; it is a read-time projection over existing harnesses' already-typed contracts | One combined tool (`knowgrph.os.status`) chosen over four separate tools — see ADR-1 — to minimize the surface an External_Agent must learn while still exposing distinct, independently-testable read views |
@@ -107,11 +107,11 @@ Additionally, the former Agentic Canvas OS PRD/TAD spread the product runtime ac
 |---|---|---|
 | **PRD-AOS-1**: Operator visibility across in-flight harness work | Os_Status_Tool `process_list` returns one Process_Entry per readable Pipeline_Run/Run_Manifest/Superagent_Run state source | `Verify the process-list response contains one Process_Entry per readable state source found on disk at call time, with no existing Harness state file modified` |
 | **PRD-AOS-2**: Unified capability/tool discovery | Capability_Registry returns the union of the 3 existing catalogs (Vdeoxpln_Registry, Local_Mcp_Tool_Catalog, Cloudflare_Mcp_Agent) | `Verify the response tool-id set equals the union of the three existing catalogs' tool-id sets recorded in the test fixture, with none of the three source catalog files modified` |
-| **PRD-AOS-3**: Unified cost/token ledger with coverage-gap detection | Cost_Ledger_Aggregator sums valid Cost_Log entries per harness, flags Cost_Emission_Gap harnesses | `Verify every included Cost_Log entry passes contracts/cost-log.schema.js validateCostLog(), every failing entry is in the validation-failures list, with the schema file unmodified` |
+| **PRD-AOS-3**: Unified cost/token ledger with coverage-gap detection | Cost_Ledger_Aggregator sums valid Cost_Log entries and normalized Credit_Ledger events per harness, flags Cost_Emission_Gap harnesses | `Verify every included Cost_Log-shaped entry passes contracts/cost-log.schema.js validateCostLog(), every Credit_Ledger source event passes contracts/credit-ledger.schema.js validateCreditLedgerEvent(), and every failing entry is in the validation-failures list, with schema files unmodified` |
 | **PRD-AOS-4**: Approval-gate consistency across harnesses | Gate_Catalog lists the six canonical gate ids plus the Showrunner stage-approval boundary, read/describe-only | `Verify APPROVAL_GATE_ID_VALUES, APPROVAL_TOKEN_TTL_MS, and the R11 secret-scan smoke tests are byte-identical before and after this increment` |
 | **PRD-AOS-5**: Circuit-breaker bound observability | Circuit_Breaker_Registry reports each harness's already-configured bound and current iteration count, read-only | `Verify no Harness configuration file, retry counter, or circuit-breaker state file changes value as a result of a read call (before/after snapshot diff is empty)` |
 | **PRD-AOS-6**: One MCP surface for OS-level visibility | Os_Status_Tool reachable via Local_Mcp_Tool_Catalog and, WHERE deployed, Cloudflare_Mcp_Agent; structured error on failure; $0 cost log | `Verify every induced registry failure yields { ok:false, errorCode } with the test process exiting 0 and no unhandled rejection logged` |
-| **PRD-AOS-7**: TCO-zero and no new dependency by default (guardrail) | Zero new datastore; zero new dependency unless flagged/justified by ADR; zero external tier (no Vercel/Supabase/AWS) | `Verify package.json/pnpm-lock.yaml across canvas/, mcp/, contracts/, cloudflare/workers/knowgrph-mcp show zero added dependencies attributable to this increment; no new D1 migration/R2 bucket/KV namespace/Durable Object class is present in the diff; and no aws/, vercel*, or supabase* runtime configuration is referenced by any Agentic OS module` |
+| **PRD-AOS-7**: TCO-zero and no new dependency by default (guardrail) | Zero new datastore; zero new dependency unless flagged/justified by ADR; zero external tier (no Vercel/Supabase/AWS) | `Verify package manifests and lockfiles (package.json/package-lock.json where present) across canvas/, mcp/, contracts/, cloudflare/workers/knowgrph-mcp show zero added dependencies attributable to this increment; no new D1 migration/R2 bucket/KV namespace/Durable Object class is present in the diff; and no aws/, vercel*, or supabase* runtime configuration is referenced by any Agentic OS module` |
 
 ### Success Metrics
 
@@ -122,7 +122,7 @@ Additionally, the former Agentic Canvas OS PRD/TAD spread the product runtime ac
 | Time-to-value (TTV elapsed) | N/A | ≤ 1 minute on a clean checkout with local MCP server already running | Validated before Phase 3 sign-off |
 | Harnesses covered by Process_Registry | 0 of 3 run-state sources unified | 3 of 3 (Pipeline_Run, Run_Manifest, Superagent_Run) | First increment ship |
 | Capability catalogs unified | 0 of 3 (each queried separately) | 3 of 3 (Vdeoxpln_Registry, Local_Mcp_Tool_Catalog, Cloudflare_Mcp_Agent) | First increment ship |
-| Cost_Emission_Gap harnesses identified | Unknown | 100% classified as covered or gapped | Should-tier increment |
+| Cost_Emission_Gap harnesses identified | Unknown before Agentic OS | 100% of model-bearing Harnesses classified as covered or gapped | Runtime-ready increment |
 | External tiers in runtime topology | 3 vendors (Cloudflare + Vercel + AWS per superseded canvas-os doc) | 1 (Cloudflare only, plus local dev) | This document (ADR-3) |
 | Token cost / month (Os_Status_Tool itself) | N/A | $0 (read-only, zero model calls) | Ongoing |
 | Monthly TCO (Agentic_OS itself) | N/A | $0 (no new datastore, no new paid service) | Ongoing |
@@ -150,7 +150,7 @@ Reproduced from requirements.md (ROI Score = User Impact × Reach / (Build Hours
 
 ### Min-Viable Scope
 
-The Os_Status_Tool exposing exactly two read views — `process_list` and `capabilities` — through the existing Local_Mcp_Tool_Catalog only, subject to the R7 guardrails. Excludes `cost_summary`, the Gate_Catalog extension, and `circuit_breakers` from the first shippable increment. The ADR-3 vendor removal is documentation + topology scope only for this increment (no code deletion is required for MVP because no Agentic OS module ever referenced the removed tiers).
+The Os_Status_Tool exposes five read views — `process_list`, `capabilities`, `cost_summary`, `gate_catalog`, and `circuit_breakers` — through the existing Local_Mcp_Tool_Catalog, subject to the R7 guardrails. The Cloudflare `McpAgent` exposes the same tool name and zero-token read-view contract, returning Cloudflare-owned catalog/static guard data while marking non-enumerable local filesystem or Durable Object index sources in `unavailableSources`; it does not add a filesystem datastore or model-bearing remote execution path.
 
 ### Out of Scope
 
@@ -176,7 +176,7 @@ The Os_Status_Tool exposing exactly two read views — `process_list` and `capab
 | 3 | Retention/time window for "recently completed" runs | Deferred — the 200-record cap (Requirement 1.5) is the only bound in this increment; a time-based window is a candidate for a later increment, not required for Must-tier scope. |
 | 4 | Real Approval_Token issuance for Showrunner stage-approval | Deferred — this increment's Gate_Catalog is read/describe-only (Requirement 4.5); token issuance is out of scope (see Out of Scope). |
 | 5 | Auth_Token/Caller_Identity requirement for remote Os_Status_Tool access | Deferred to whichever increment first deploys the Os_Status_Tool over the Cloudflare_Mcp_Agent for External_Agent use; local-stdio access has no such requirement for this increment's Must-tier scope. |
-| 6 | Current per-Harness Cost_Log emission coverage audit | Deferred to the Should-tier Cost_Ledger_Aggregator increment; the Cost_Emission_Gap mechanism (Property 10) is designed to surface this coverage gap empirically once implemented, rather than requiring a pre-implementation audit. |
+| 6 | Current per-Harness Cost_Log emission coverage audit | Runtime-classified by Cost_Ledger_Aggregator; `costEmissionGaps` surfaces model-bearing harnesses without schema-valid Cost_Log or Credit_Ledger entries. |
 | 7 | (New, from consolidation) Where do the former Vercel/AWS Agent-API responsibilities land? | Frontend hosting → existing CF Pages; remote MCP access → existing Cloudflare `McpAgent`; run persistence → existing CF D1/R2/Durable Objects; auth session mint/verify → existing JWT-in-CF-Worker pattern. No responsibility is orphaned. See ADR-3. |
 
 ## TAD
@@ -186,13 +186,13 @@ The Os_Status_Tool exposing exactly two read views — `process_list` and `capab
 | Journey Stage | Workflow | Data Flow | Orchestration/Harness Flow | Topology Node(s) | Component |
 |---|---|---|---|---|---|
 | Operator: Trigger/Discover | Workflow: Os_Status_Tool `process_list` Read | Data Flow: Process_Registry Read | Orchestration/Harness Flow: Os_Status_Tool (zero-token) | Local MCP server, Process_Registry | `mcp/os-status-runtime.js` |
-| Operator: Engage/Complete | Workflow: Os_Status_Tool `cost_summary` / `circuit_breakers` Read | Data Flow: Cost_Ledger_Aggregator Read, Circuit_Breaker_Registry Read | Orchestration/Harness Flow: Os_Status_Tool (zero-token) | Local MCP server, Cost_Ledger_Aggregator, Circuit_Breaker_Registry | `mcp/os-status-runtime.js`, `contracts/cost-log.schema.js` |
+| Operator: Engage/Complete | Workflow: Os_Status_Tool `cost_summary` / `circuit_breakers` Read | Data Flow: Cost_Ledger_Aggregator Read, Circuit_Breaker_Registry Read | Orchestration/Harness Flow: Os_Status_Tool (zero-token) | Local MCP server, Cost_Ledger_Aggregator, Circuit_Breaker_Registry | `mcp/os-status-runtime.js`, `mcp/os-status-cost-ledger.js`, `contracts/cost-log.schema.js` |
 | External_Agent: Trigger/Discover | Workflow: Os_Status_Tool `capabilities` Read | Data Flow: Capability_Registry Read | Orchestration/Harness Flow: Os_Status_Tool (zero-token) | Local MCP server, Cloudflare `McpAgent` (WHERE deployed) | `mcp/os-status-runtime.js`, `mcp/local-tool-contract.js` |
 | Operator: approval consistency | Workflow: Gate_Catalog Read | Data Flow: Gate_Catalog Read | Orchestration/Harness Flow: Os_Status_Tool (zero-token) | Local MCP server, Gate_Catalog | `mcp/os-status-runtime.js`, `contracts/approval.schema.js` |
 
 ### Topology
 
-**Version**: 2.0.0 — 2026-07-02 (supersedes v1.0.0 of 2026-07-10 design draft; extends `knowgrph-tech-stack-document.md` Topology v1.0.0)
+**Version**: 2.0.0 — 2026-07-02 (supersedes the v1.0.0 design draft; extends `knowgrph-tech-stack-document.md` Topology v1.0.0)
 **Boundaries**: Local Dev (stdio), CF Edge (`airvio.co`, WHERE deployed) — two trust boundaries only. The AWS and Vercel boundaries present in the superseded Agentic Canvas OS topology are **removed** (ADR-3); the Agentic OS adds no new boundary.
 
 | Node | Role | Type | Connects to | Connection type | Data residency |
@@ -200,7 +200,7 @@ The Os_Status_Tool exposing exactly two read views — `process_list` and `capab
 | Os_Status_Tool | Aggregator + gateway | Node.js module (`mcp/os-status-runtime.js`), dispatched from `mcp/server.js` | Process_Registry, Capability_Registry, Cost_Ledger_Aggregator, Gate_Catalog, Circuit_Breaker_Registry | In-process function calls (sync/async, no network) | Local dev process memory (no persistence) |
 | Process_Registry | Read-only aggregator | In-process function | Showrunner `state.json`, Video_Remix Run_Manifest, SuperAgent `state.json` | Sync filesystem read / in-memory read | Local filesystem (existing files, unmodified) |
 | Capability_Registry | Read-only aggregator | In-process function | Vdeoxpln_Registry, Local_Mcp_Tool_Catalog, Cloudflare_Mcp_Agent (WHERE reachable) | Sync in-process call (local 2) + async HTTPS MCP Streamable HTTP (remote 1) | Local module memory; CF edge (catalog only, no state written) |
-| Cost_Ledger_Aggregator | Read-only aggregator | In-process function | `contracts/cost-log.schema.js`, `mcp/video-remix/cost-log.js`, `Credit_Ledger` | Sync in-process read | Local filesystem / in-memory Director state (existing, unmodified) |
+| Cost_Ledger_Aggregator | Read-only aggregator | In-process function | `contracts/cost-log.schema.js`, `contracts/credit-ledger.schema.js`, `mcp/video-remix/cost-log.js`, `Credit_Ledger` | Sync in-process read | Local filesystem / in-memory Director state (existing, unmodified) |
 | Gate_Catalog | Read-only aggregator | In-process function | `contracts/approval.schema.js`, `contracts/run-manifest.schema.js`, Showrunner `awaiting_review` state | Sync in-process read | Local filesystem (existing, unmodified) |
 | Circuit_Breaker_Registry | Read-only aggregator | In-process function | Showrunner, Video_Remix Director, SuperAgent existing bound configs | Sync in-process read | Local filesystem / in-memory (existing, unmodified) |
 | Local MCP server | Tool surface | Node.js stdio server (`mcp/server.js`, existing) | Os_Status_Tool, Canvas SPA, AI agents | stdio (local) | Local dev |
@@ -215,7 +215,7 @@ flowchart TB
 
     subgraph LocalDev["Local Dev (stdio)"]
         MCP["Local MCP Server\nmcp/server.js"]
-        OST["Os_Status_Tool\nmcp/os-status-runtime.js (new)"]
+        OST["Os_Status_Tool\nmcp/os-status-runtime.js\nmcp/os-status-cost-ledger.js"]
         PR["Process_Registry"]
         CRg["Capability_Registry"]
         CLA["Cost_Ledger_Aggregator"]
@@ -258,7 +258,7 @@ flowchart TB
     GC -. read-only .-> APS
 ```
 
-**Version notes**: v2.0.0 — (a) adds `Os_Status_Tool` and its five in-process aggregator nodes; (b) **removes** the AWS AgentCore node, the AWS Agent-API fallback tier, and every Vercel node carried over from the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md` topology (ADR-3); (c) reduces the Capability_Registry catalog union from four sources to three. No node from `knowgrph-tech-stack-document.md` Topology v1.0.0 is changed; the Cloudflare `McpAgent` row gains one additive catalog entry (`knowgrph.os.status`) using its existing forwarding connection type. Prior version (v1.0.0, four-catalog / AWS-inclusive) is archived in git history of this file.
+**Version notes**: v2.0.0 — (a) adds `Os_Status_Tool` and its five in-process aggregator nodes; (b) **removes** the AWS AgentCore node, the AWS Agent-API fallback tier, and every Vercel node carried over from the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md` topology (ADR-3); (c) reduces the Capability_Registry catalog union from four sources to three. No node from `knowgrph-tech-stack-document.md` Topology v1.0.0 is changed; the Cloudflare `McpAgent` row gains one additive catalog entry (`knowgrph.os.status`) and a Worker-owned remote read-view dispatcher. Prior version (v1.0.0, four-catalog / AWS-inclusive) is archived in git history of this file.
 
 ### Orchestration/Harness Flow: Os_Status_Tool (zero-token)
 
@@ -326,18 +326,18 @@ flowchart TB
 
 ### Workflow: Cost_Ledger_Aggregator Read
 
-**Trigger**: `knowgrph.os.status` called with `view:"cost_summary"` (Should-tier)
-**Actors**: Operator (caller), Cost_Ledger_Aggregator, `contracts/cost-log.schema.js`, `mcp/video-remix/cost-log.js`, `Credit_Ledger`
+**Trigger**: `knowgrph.os.status` called with `view:"cost_summary"`
+**Actors**: Operator (caller), Cost_Ledger_Aggregator, `contracts/cost-log.schema.js`, `contracts/credit-ledger.schema.js`, `mcp/video-remix/cost-log.js`, `Credit_Ledger`
 
 **Happy Path**:
 1. Caller invokes `view:"cost_summary"`.
-2. Cost_Ledger_Aggregator collects available Cost_Log entries per harness from each harness's existing emission point.
-3. Each entry is validated via `validateCostLog()`; valid entries are summed into `totalsByHarness[harness].estimated_cost_usd`.
-4. Any harness with a known model-bearing call and no matching Cost_Log entry is added to `costEmissionGaps`.
+2. Cost_Ledger_Aggregator collects available Cost_Log entries and Credit_Ledger events per harness from each harness's existing emission point.
+3. Each Cost_Log-shaped entry is validated via `validateCostLog()`; Credit_Ledger source events are validated via `validateCreditLedgerEvent()` before normalization; valid entries are summed into `totalsByHarness[harness].estimated_cost_usd`.
+4. Any harness with a known model-bearing call and no matching schema-valid Cost_Log or Credit_Ledger entry is added to `costEmissionGaps`.
 5. Response returned with `ok:true`, `totalsByHarness`, `validationFailures`, `costEmissionGaps`.
 
 **Alternate Paths**:
-- A harness emits no Cost_Log entries at all and has no known model-bearing calls: it is simply absent from both `totalsByHarness` and `costEmissionGaps` (nothing to report).
+- A harness emits no Cost_Log/Credit_Ledger entries at all and has no known model-bearing calls: it is simply absent from both `totalsByHarness` and `costEmissionGaps` (nothing to report).
 
 **Error Paths**:
 - An entry fails `validateCostLog()`: excluded from the total, recorded in `validationFailures`, aggregation of the remaining entries continues.
@@ -346,7 +346,7 @@ flowchart TB
 
 ### Workflow: Gate_Catalog Read
 
-**Trigger**: `knowgrph.os.status` called with `view:"gate_catalog"` (Should-tier, folds into the Requirement 4 Gate_Catalog extension)
+**Trigger**: `knowgrph.os.status` called with `view:"gate_catalog"`
 **Actors**: Operator (caller), Gate_Catalog, `contracts/approval.schema.js`, `contracts/run-manifest.schema.js`, Showrunner run state
 
 **Happy Path**:
@@ -365,7 +365,7 @@ flowchart TB
 
 ### Workflow: Circuit_Breaker_Registry Read
 
-**Trigger**: `knowgrph.os.status` called with `view:"circuit_breakers"` (Could-tier)
+**Trigger**: `knowgrph.os.status` called with `view:"circuit_breakers"`
 **Actors**: Operator (caller), Circuit_Breaker_Registry, Showrunner/Video_Remix/SuperAgent existing bound configs
 
 **Happy Path**:
@@ -404,8 +404,8 @@ flowchart TB
 
 | Stage | Component | Input Format | Output Format | Persistence | Error Handling |
 |---|---|---|---|---|---|
-| Ingest | `summarizeCostLedger()` | `{ rootDir }` | Raw Cost_Log entries per harness's existing emission point | None | Missing emission point → harness excluded from totals; candidate for `costEmissionGaps` |
-| Transform | `validateCostLog()` gate + per-harness sum | Raw Cost_Log entries | Valid entries summed; invalid entries routed to `validationFailures` | None | Invalid entry → excluded + recorded, aggregation continues |
+| Ingest | `summarizeCostLedger()` | `{ rootDir }` | Raw Cost_Log entries and Credit_Ledger events per harness's existing emission point | None | Missing emission point → harness excluded from totals; candidate for `costEmissionGaps` |
+| Transform | `validateCostLog()` / `validateCreditLedgerEvent()` gates + per-harness sum | Raw Cost_Log entries and Credit_Ledger events | Valid normalized entries summed; invalid entries routed to `validationFailures` | None | Invalid entry → excluded + recorded, aggregation continues |
 | Store | — (no Store stage) | — | — | **None — explicitly no second cost-tracking system** | N/A |
 | Serve | `runOsStatusTool("cost_summary", ...)` | `view:"cost_summary"` args | `Cost_Ledger_Response` JSON | None (on-demand) | Registry throw → `{ ok:false, errorCode }` |
 
@@ -429,7 +429,7 @@ flowchart TB
 
 ### Component Specifications
 
-**Component**: `mcp/os-status-runtime.js` (new module — Os_Status_Tool dispatcher + all five registries)
+**Component**: `mcp/os-status-runtime.js` + `mcp/os-status-cost-ledger.js` (new modules — Os_Status_Tool dispatcher + all five registries)
 **Responsibility**: Aggregate existing Harness state into read-only registries and dispatch them behind one MCP tool
 **Interfaces**: `listProcessRegistry()`, `listCapabilityRegistry()`, `summarizeCostLedger()`, `listGateCatalog()`, `listCircuitBreakerRegistry()`, `runOsStatusTool(view, args, { rootDir })`
 **Dependencies**: `contracts/cost-log.schema.js`, `contracts/approval.schema.js`, `contracts/run-manifest.schema.js`, `mcp/video-remix/cost-log.js`, `mcp/video-remix-runtime.js`, `mcp/showrunner-runtime.js` (state-path convention reuse), `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`, `mcp/local-tool-contract.js`
@@ -461,12 +461,12 @@ flowchart TB
 **VCC Conditions**: `Verify the response tool-id set equals the union of the three existing catalogs' tool-id sets recorded in the test fixture, with none of the three source catalog files modified` (Requirement 2.1)
 
 **Component**: Cost_Ledger_Aggregator
-**Responsibility**: Sum `validateCostLog()`-valid Cost_Log entries per harness; flag harnesses with an identified Cost_Emission_Gap
+**Responsibility**: Sum `validateCostLog()`-valid Cost_Log entries and `validateCreditLedgerEvent()`-valid normalized Credit_Ledger events per harness; flag harnesses with an identified Cost_Emission_Gap
 **Interfaces**: `summarizeCostLedger({ rootDir })`
-**Dependencies**: `contracts/cost-log.schema.js` (`validateCostLog`), `mcp/video-remix/cost-log.js` (`buildModelStageCostLogs`, `aggregateCostLogs`), `Credit_Ledger` (`contracts/credit-ledger.schema.js`)
+**Dependencies**: `contracts/cost-log.schema.js` (`validateCostLog`), `contracts/credit-ledger.schema.js` (`validateCreditLedgerEvent`), `mcp/video-remix/cost-log.js` (`buildModelStageCostLogs`, `aggregateCostLogs`), `Credit_Ledger`
 **Configuration**: `KNOWGRPH_ROOT`
 **FOSS / Vendor**: FOSS/internal
-**VCC Conditions**: `Verify every Cost_Log entry included in a reported total passes contracts/cost-log.schema.js validateCostLog(), and every entry that fails is present in the validation-failures list instead, with the schema file itself unmodified` (Requirement 3.2)
+**VCC Conditions**: `Verify every Cost_Log-shaped entry included in a reported total passes contracts/cost-log.schema.js validateCostLog(), every Credit_Ledger source event passes contracts/credit-ledger.schema.js validateCreditLedgerEvent(), and every entry that fails is present in the validation-failures list instead, with schema files unmodified` (Requirement 3.2)
 
 **Component**: Gate_Catalog (extension)
 **Responsibility**: List the six canonical `APPROVAL_GATE_ID_VALUES` plus the Showrunner stage-approval boundary under the existing `ApprovalGate` shape, read/describe-only
@@ -496,8 +496,8 @@ flowchart TB
 **Dependencies**: `mcp/os-status-runtime.js`
 **FOSS / Vendor**: FOSS/internal
 
-**Component**: Cloudflare `tool-registry.mjs` (additive catalog entry, no new module)
-**Responsibility**: Advertise `knowgrph.os.status` through the existing keyless MCP-forwarding pattern of the Cloudflare `McpAgent`, WHERE deployed
+**Component**: Cloudflare `tool-registry.mjs` + `os-status-tool.mjs` (additive catalog entry and remote read-view dispatcher)
+**Responsibility**: Advertise and serve `knowgrph.os.status` through the existing keyless MCP-forwarding pattern of the Cloudflare `McpAgent`, WHERE deployed
 **Interfaces**: existing `tools/list` entry addition
 **Dependencies**: existing forwarder code (`cloudflare/workers/knowgrph-mcp/tool-registry.mjs`)
 **FOSS / Vendor**: FOSS/internal — no model key added; preserves the Spend_Isolation_Boundary by construction (holds no secret to leak)
@@ -513,20 +513,16 @@ flowchart TB
 ### Integration Contracts
 
 **Interface**: `knowgrph.os.status` (local stdio) | **Protocol**: MCP stdio (JSON-RPC over stdio) | **Format**: JSON | **Errors**: structured `{ ok:false, errorCode, message }`, never an uncaught exception
-**Interface**: `knowgrph.os.status` (Cloudflare `McpAgent`, WHERE deployed) | **Protocol**: MCP Streamable HTTP | **Format**: JSON | **Errors**: same structured error shape, forwarded verbatim from the local implementation; the `McpAgent` tier holds no model key (R11 preserved by construction)
-
-### Architectural Decisions
-
-See ADR-1, ADR-2, and ADR-3 below.
+**Interface**: `knowgrph.os.status` (Cloudflare `McpAgent`, WHERE deployed) | **Protocol**: MCP Streamable HTTP | **Format**: JSON | **Errors**: same structured error shape; remote read views return available Cloudflare catalog/static guard data and list non-enumerable local sources in `unavailableSources`; the `McpAgent` tier holds no model key (R11 preserved by construction)
 
 ## ADR-1: Single combined `knowgrph.os.status` tool vs. four separate tools
 
 **Status**: Accepted
-**Date**: 2026-07-10
+**Date**: 2026-07-02
 
 ### Context
 
-Open Question 2 in requirements.md asks whether the Os_Status_Tool should be exposed as one combined MCP tool (`knowgrph.os.status`) with a `view` argument, or as four (five, counting the Gate_Catalog extension) separate tools (`knowgrph.os.process_list`, `knowgrph.os.capabilities`, `knowgrph.os.cost_summary`, `knowgrph.os.circuit_breakers`). This is a design-phase naming/ergonomics decision per the requirements document, not a requirements-level constraint.
+Resolved Question 2 in requirements.md asked whether the Os_Status_Tool should be exposed as one combined MCP tool (`knowgrph.os.status`) with a `view` argument, or as separate per-view tools (`knowgrph.os.process_list`, `knowgrph.os.capabilities`, `knowgrph.os.cost_summary`, `knowgrph.os.gate_catalog`, `knowgrph.os.circuit_breakers`). This is resolved here as a runtime-ready naming/ergonomics decision.
 
 ### Decision
 
@@ -539,7 +535,7 @@ Open Question 2 in requirements.md asks whether the Os_Status_Tool should be exp
 
 ### Rationale
 
-- **Min-viable-max-value**: one tool descriptor, one dispatch branch, one Cloudflare catalog entry addition — the smallest wiring surface that still exposes all read views. The Min-Viable Scope increment ships only `process_list` and `capabilities` as `view` values on this one tool; adding `cost_summary`, `gate_catalog`, and `circuit_breakers` later is a matter of extending the `view` union and `runOsStatusTool()`'s dispatch, not registering new tools across two MCP surfaces.
+- **Min-viable-max-value**: one tool descriptor, one dispatch branch, one Cloudflare catalog entry addition — the smallest wiring surface that still exposes all five read views. Keeping `cost_summary`, `gate_catalog`, and `circuit_breakers` as `view` values avoids registering separate tools across two MCP surfaces.
 - **Harness-first / self-listing consistency**: Requirement 6.5 requires the Os_Status_Tool to list itself in the Capability_Registry it exposes. A single tool id self-lists once; five tool ids would require five self-listing entries, all pointing back at the same underlying module — redundant bookkeeping for identical behavior.
 - **TCO-zero**: no cost difference between the two options (both are $0 token cost, $0 infra cost), so this decision is resolved on wiring-surface and ergonomics grounds, not TCO.
 - **Discoverability tradeoff acknowledged**: the four/five-separate-tools alternative does make each capability's schema marginally more self-evident from `tools/list` alone (no `view` branch to read). This is a real, if minor, ergonomics cost of the chosen option — mitigated by documenting the `view` union directly in the tool's `inputSchema` (an enum with each value's conditional output shape documented in the tool description), so `tools/list` output still communicates the full capability surface without requiring five separate entries.
@@ -565,11 +561,11 @@ Both options are read-only, zero-model-call, zero-new-infrastructure choices —
 ## ADR-2: Aggregate at read-time vs. new datastore
 
 **Status**: Accepted
-**Date**: 2026-07-10
+**Date**: 2026-07-02
 
 ### Context
 
-Every one of the four registries (Process_Registry, Capability_Registry, Cost_Ledger_Aggregator, Circuit_Breaker_Registry) plus the Gate_Catalog extension needs to present a unified view across state that today lives in at least seven different places (three run-state shapes, three capability catalogs, several cost-log emission points, one approval-gate schema, four circuit-breaker configs). The architectural question is whether the Agentic OS should aggregate this data **at read time** from those existing sources, or **write a new, denormalized index/datastore** (a table, a KV namespace, a JSON index file) that is kept in sync with the sources and read from directly.
+Every one of the five read views (Process_Registry, Capability_Registry, Cost_Ledger_Aggregator, Gate_Catalog, Circuit_Breaker_Registry) needs to present a unified view across state that today lives in at least seven different places (three run-state shapes, three capability catalogs, several cost-log emission points, one approval-gate schema, four circuit-breaker configs). The architectural question is whether the Agentic OS should aggregate this data **at read time** from those existing sources, or **write a new, denormalized index/datastore** (a table, a KV namespace, a JSON index file) that is kept in sync with the sources and read from directly.
 
 ### Decision
 
@@ -664,21 +660,20 @@ No Hybrid/Consolidated estimate is required: nothing provisioned remains to cons
 
 ### Deployment Strategy
 
-The Agentic OS ships as an in-repo code change to `mcp/os-status-runtime.js` (new), `mcp/local-tool-contract.js` (extended), and `mcp/server.js` (extended) — no separate deployment artifact. Local stdio availability requires only restarting the local MCP server process (no migration, no rollback beyond reverting the commit). Exposure through the Cloudflare `McpAgent`, WHERE deployed, follows that surface's existing deploy command (`npm run mcp:worker:deploy`) unchanged — this increment adds a catalog entry, not a new deploy pipeline. Rollback is the existing worker rollback path (redeploy the prior version); the Agentic OS introduces no new rollback complexity because it holds no state to roll back. There is no Vercel or AWS deploy step anywhere in this strategy (ADR-3).
-
-### Architecture Diagrams
-
-See Topology (above) and the Orchestration/Harness Flow: Os_Status_Tool (zero-token) diagram (above); design.md's Architecture section carries the equivalent `flowchart TB` component diagram at the code-module level.
+The Agentic OS ships as an in-repo code change to `mcp/os-status-runtime.js`, `mcp/os-status-cost-ledger.js`, `mcp/local-tool-contract.js`, `mcp/server.js`, and the existing Cloudflare worker MCP catalog/read-view modules — no separate deployment artifact or datastore. Local stdio availability requires only restarting the local MCP server process (no migration, no rollback beyond reverting the commit). Exposure through the Cloudflare `McpAgent`, WHERE deployed, follows that surface's existing deploy command unchanged; this increment adds a catalog entry and Worker-owned read-view dispatcher, not a new deploy pipeline. Rollback is the existing worker rollback path (redeploy the prior version); the Agentic OS introduces no new rollback complexity because it holds no state to roll back. There is no Vercel or AWS deploy step anywhere in this strategy (ADR-3).
 
 ### Component Inventory
 
 | Layer | Component | File / Module | Status |
 |---|---|---|---|
-| Aggregation | Os_Status_Tool dispatcher + 5 registries | `mcp/os-status-runtime.js` | New (this increment) |
+| Aggregation | Os_Status_Tool dispatcher + read registries | `mcp/os-status-runtime.js` | New (this increment) |
+| Aggregation | Cost_Ledger_Aggregator helper | `mcp/os-status-cost-ledger.js` | New (this increment) |
 | Local MCP wiring | Tool descriptor | `mcp/local-tool-contract.js` | Extended (additive) |
 | Local MCP wiring | Dispatch branch | `mcp/server.js` | Extended (additive) |
 | Remote MCP wiring | Catalog entry | `cloudflare/workers/knowgrph-mcp/tool-registry.mjs` | Extended (additive, WHERE deployed) |
+| Remote MCP wiring | Worker read-view dispatcher | `cloudflare/workers/knowgrph-mcp/os-status-tool.mjs` | New (additive, WHERE deployed) |
 | Reused contract | Cost_Log validator | `contracts/cost-log.schema.js` | Unmodified (read-only dependency) |
+| Reused contract | Credit_Ledger validator | `contracts/credit-ledger.schema.js` | Unmodified (read-only dependency) |
 | Reused contract | Approval gate constants | `contracts/approval.schema.js` | Unmodified (read-only dependency) |
 | Reused contract | Run_Manifest constants | `contracts/run-manifest.schema.js` | Unmodified (read-only dependency) |
 | Reused source | Showrunner run state | `mcp/showrunner-runtime.js`, `showrunner/runs/*/state.json` | Unmodified (read-only source) |
@@ -703,7 +698,7 @@ This Agentic OS increment **introduces no new spend boundary and no new approval
 |---|
 | `PRD-AOS-1 ↔ TAD-Process_Registry-listProcessRegistry ↔ VCC "one Process_Entry per readable state source, no state file modified"` |
 | `PRD-AOS-2 ↔ TAD-Capability_Registry-listCapabilityRegistry ↔ VCC "tool-id set equals union of three catalogs, no source catalog modified"` |
-| `PRD-AOS-3 ↔ TAD-Cost_Ledger_Aggregator-summarizeCostLedger ↔ VCC "every included entry passes validateCostLog(), failures listed, schema unmodified"` |
+| `PRD-AOS-3 ↔ TAD-Cost_Ledger_Aggregator-summarizeCostLedger ↔ VCC "every included Cost_Log-shaped entry passes validateCostLog(), every Credit_Ledger source passes validateCreditLedgerEvent(), failures listed, schema files unmodified"` |
 | `PRD-AOS-4 ↔ TAD-Gate_Catalog-listGateCatalog ↔ VCC "APPROVAL_GATE_ID_VALUES, APPROVAL_TOKEN_TTL_MS, R11 smoke tests byte-identical"` |
 | `PRD-AOS-5 ↔ TAD-Circuit_Breaker_Registry-listCircuitBreakerRegistry ↔ VCC "no harness config/counter/state file changes value (before/after diff empty)"` |
 | `PRD-AOS-6 ↔ TAD-Os_Status_Tool-runOsStatusTool ↔ VCC "every induced registry failure yields { ok:false, errorCode }, process exits 0, no unhandled rejection"` |
@@ -711,11 +706,12 @@ This Agentic OS increment **introduces no new spend boundary and no new approval
 
 ## Validation
 
-Focused Dev checks (once implemented):
+Focused Dev checks:
 
 ```bash
-npm -C canvas run test:ci:unit -- mcp.osStatus.runtime
-npm -C canvas run test:ci:unit -- mcp.server.localToolContract.sharedAndStable
+node --test mcp/__tests__/os-status-runtime.test.mjs mcp/__pbt__/os-status.pbt.test.mjs
+node --test cloudflare/workers/knowgrph-mcp/__tests__/tool-registry.test.mjs
+npm run mcp:worker:test
 npm run vdeoxpln:check
 npm run hygiene:check
 ```

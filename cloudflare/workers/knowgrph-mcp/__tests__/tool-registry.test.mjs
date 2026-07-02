@@ -24,16 +24,18 @@ import {
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_MCP_STAGE_GATES,
   KNOWGRPH_MCP_STAGE_TOOL_NAMES,
+  KNOWGRPH_OS_STATUS_TOOL_NAME,
 } from "../tool-registry.mjs";
 
-test("tool surface lists the Director plus all five stage tools", () => {
+test("tool surface lists the Director, all five stage tools, and OS status", () => {
   const definitions = buildKnowgrphMcpToolDefinitions();
   const names = definitions.map((tool) => tool.name);
   assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
   for (const stageName of Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES)) {
     assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
   }
-  assert.equal(definitions.length, 6);
+  assert.ok(names.includes(KNOWGRPH_OS_STATUS_TOOL_NAME));
+  assert.equal(definitions.length, 7);
 });
 
 test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
@@ -43,6 +45,7 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
   const expectedNames = [
     KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
     ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
+    KNOWGRPH_OS_STATUS_TOOL_NAME,
   ];
   const listedNames = definitions.map((tool) => tool.name);
   for (const expected of expectedNames) {
@@ -127,6 +130,24 @@ test("Director tool runs the existing video-remix runtime end-to-end (dry-run)",
   assert.ok(Array.isArray(payload.approvalGates));
   assert.ok(payload.approvalGates.length >= 5);
   assert.equal(payload.budgetMeters.estimatedCostUsd, 0);
+});
+
+test("OS status tool is cataloged remotely and returns zero-cost read views", () => {
+  const result = executeKnowgrphMcpTool(KNOWGRPH_OS_STATUS_TOOL_NAME, { view: "process_list" });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.structuredContent?.ok, true);
+  assert.ok(Array.isArray(result.structuredContent?.unavailableSources));
+  assert.equal(result.structuredContent?.cost_log?.estimated_cost_usd, 0);
+  assert.equal(result.structuredContent?.cost_log?.model, "none");
+});
+
+test("OS status Cloudflare capabilities view self-lists the OS tool", () => {
+  const result = executeKnowgrphMcpTool(KNOWGRPH_OS_STATUS_TOOL_NAME, { view: "capabilities" });
+  const ids = new Set(result.structuredContent?.entries?.map((entry) => entry.toolId));
+
+  assert.equal(result.ok, true);
+  assert.ok(ids.has(KNOWGRPH_OS_STATUS_TOOL_NAME));
 });
 
 test("Director tool: live mode without approvals halts with zero paid calls (Property 2 / R2.3 sanity check)", () => {
