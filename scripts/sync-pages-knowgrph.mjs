@@ -358,6 +358,11 @@ const isPreservedRelativePath = (rel) => {
   return false
 }
 
+const isRetainedAssetRelativePath = (rel) => {
+  if (!rel) return false
+  return rel.startsWith('assets/')
+}
+
 const isPublicManagedRelativePath = (rel) => {
   if (!rel) return false
   return rel.startsWith('assets/') || publicManagedRootFiles.has(rel)
@@ -616,6 +621,7 @@ if (await existsDir(targetDir)) {
   const targetFiles = await listAllFiles(targetDir)
   for (const rel of targetFiles) {
     if (isPreservedRelativePath(rel)) continue
+    if (isRetainedAssetRelativePath(rel)) continue
     if (sourceSet.has(rel)) continue
     filesToRemove.push(rel)
   }
@@ -633,6 +639,7 @@ if (await existsDir(publicRouteDir)) {
   const publicFiles = await listAllFiles(publicRouteDir)
   for (const rel of publicFiles) {
     if (!isPublicManagedRelativePath(rel)) continue
+    if (isRetainedAssetRelativePath(rel)) continue
     if (sourceSet.has(rel)) continue
     publicFilesToRemove.push(rel)
   }
