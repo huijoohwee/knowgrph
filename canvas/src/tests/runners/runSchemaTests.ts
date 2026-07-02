@@ -87,6 +87,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modVideoSequenceTimelinePreset()
     await mod.testVideoSequenceTimelinePresetRespectsExplicitStoryboardRenderer()
   })
+  await execTest(results, 'canvas.frontmatter.panelRoutingPreset', async () => {
+    const mod = await modVideoSequenceTimelinePreset()
+    await mod.testCanvasFrontmatterPresetAppliesExplicitPanelRouting()
+  })
+  await execTest(results, 'canvas.frontmatter.strybldrTimelineRoutingSerialization', async () => {
+    const mod = await modVideoSequenceTimelinePreset()
+    await mod.testStrybldrSerializerEmitsBottomPanelTimelineRouting()
+  })
   await execTest(results, 'canvas.viewDisplayControls.gridSnap.all2dRenderers', async () => {
     const mod = await modCanvasViewDisplayControls()
     await mod.testAll2dRenderersExposeSharedGridSnapDisplayControls()

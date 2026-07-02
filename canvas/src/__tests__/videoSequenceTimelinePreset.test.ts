@@ -1,4 +1,5 @@
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { buildStrybldrStoryboardDocument, serializeStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function testVideoSequenceTimelinePresetRespectsExplicitStoryboardRenderer() {
@@ -41,5 +42,45 @@ export function testVideoSequenceTimelinePresetRespectsExplicitStoryboardRendere
       floatingPanelView: next.floatingPanelView,
       floatingPanelOpen: next.floatingPanelOpen,
     })}`)
+  }
+}
+
+export function testCanvasFrontmatterPresetAppliesExplicitPanelRouting() {
+  const store = useGraphStore.getState()
+  store.resetAll()
+  store.setBottomSurfaceTab('stats')
+  store.setBottomSurfaceCollapsed(true)
+  store.setFloatingPanelView('chat')
+  store.setFloatingPanelOpen(false)
+  const changed = applyCanvasFrontmatterPreset({
+    rawText: [
+      '---',
+      'kgBottomPanelOpen: true',
+      'kgBottomPanelTab: "timeline"',
+      'kgFloatingPanelOpen: true',
+      'kgFloatingPanelView: "strybldr"',
+      '---',
+      '',
+    ].join('\n'),
+  })
+  const next = useGraphStore.getState()
+  if (!changed || next.bottomSurfaceTab !== 'timeline' || next.bottomSurfaceCollapsed === true || next.floatingPanelView !== 'strybldr' || next.floatingPanelOpen !== true) {
+    throw new Error(`expected frontmatter panel routing to open Timeline and Strybldr panels, got ${JSON.stringify({
+      changed,
+      bottomSurfaceTab: next.bottomSurfaceTab,
+      bottomSurfaceCollapsed: next.bottomSurfaceCollapsed,
+      floatingPanelView: next.floatingPanelView,
+      floatingPanelOpen: next.floatingPanelOpen,
+    })}`)
+  }
+}
+
+export function testStrybldrSerializerEmitsBottomPanelTimelineRouting() {
+  const text = serializeStrybldrStoryboardMarkdown(buildStrybldrStoryboardDocument({
+    createdAtMs: 1,
+    sourceUnits: [],
+  }))
+  for (const snippet of ['kgBottomPanelOpen: true', 'kgBottomPanelTab: "timeline"', 'kgFloatingPanelOpen: true', 'kgFloatingPanelView: "strybldr"']) {
+    if (!text.includes(snippet)) throw new Error(`expected serialized Strybldr markdown to include ${snippet}`)
   }
 }
