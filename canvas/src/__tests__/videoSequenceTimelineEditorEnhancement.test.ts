@@ -177,12 +177,12 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'flex: 0 0 24px',
     'border-bottom: 1px solid var(--kg-border',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls',
-    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-rail',
-    'width: var(--kg-timeline-zoom-progress, 0%)',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
+    'flex-wrap: nowrap',
     'gap: 2px',
-    'border-left: 1px solid var(--kg-border',
     'color-mix(in srgb, var(--kg-canvas-accent',
     'background: color-mix(in srgb, var(--kg-panel-bg-hover',
   ]) {
@@ -191,8 +191,11 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   for (const token of [
     'timeline-transport-zoom-controls',
     'data-kg-timeline-zoom-control',
-    'timeline-transport-zoom-rail',
     'timeline-transport-zoom-label',
+    'timeline-tool-menu--edit',
+    'timeline-tool-menu--zoom',
+    'aria-label="Video sequence edit tools"',
+    'aria-label="Timeline fit and center tools"',
     'renderZoomButton',
     "renderZoomButton('zoom-out')",
     "renderZoomButton('zoom-in')",
@@ -209,11 +212,13 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   if (
     !transportHeaderToolsText.includes('@/components/timeline/VideoSequenceTimelineToolButton') ||
+    transportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') > transportHeaderToolsText.indexOf('timeline-tool-menu--edit') ||
+    transportHeaderToolsText.indexOf('timeline-tool-menu--edit') > transportHeaderToolsText.indexOf('args.model.clipActionButtons.map') ||
     rulerText.includes('TimelineVideoSequenceToolButton') ||
     rulerText.includes('VIDEO_SEQUENCE_TOOL_ICONS') ||
     rulerText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS.map')
   ) {
-    throw new Error('expected BottomPanel Timeline tool strip to be consolidated in the transport header without ruler-local duplicates')
+    throw new Error('expected BottomPanel Timeline tool strip to stay compact in the transport header without ruler-local duplicates')
   }
   if (
     transportChromeModelText.includes("icon: 'audio' | 'center' | 'download'") ||

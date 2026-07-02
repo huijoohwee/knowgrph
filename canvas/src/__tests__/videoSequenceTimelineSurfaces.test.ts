@@ -417,10 +417,15 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportHeaderToolsText.includes('data-kg-video-sequence-clip-edit={button.action}') ||
     !transportHeaderToolsText.includes('renderClipActionIcon(button.icon)') ||
     !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--clip">') ||
+    !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--edit">') ||
+    !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--zoom">') ||
     !transportHeaderToolsText.includes('aria-label="Clip nudge and trim tools"') ||
+    !transportHeaderToolsText.includes('aria-label="Video sequence edit tools"') ||
+    !transportHeaderToolsText.includes('aria-label="Timeline fit and center tools"') ||
     !transportHeaderToolsText.includes('<details className="timeline-tool-menu timeline-tool-menu--utilities">') ||
     !transportHeaderToolsText.includes('aria-label="Timeline utility tools"') ||
-    transportHeaderToolsText.indexOf('args.model.clipActionButtons.map') > transportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') ||
+    transportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') > transportHeaderToolsText.indexOf('timeline-tool-menu--edit') ||
+    transportHeaderToolsText.indexOf('timeline-tool-menu--edit') > transportHeaderToolsText.indexOf('args.model.clipActionButtons.map') ||
     !transportHeaderToolsText.includes('TimelineVideoSequenceToolButton') ||
     !sequenceText.includes("{ id: 'grade', label: 'Grade', title: 'Add color grade lane for selected clip' }") ||
     !transportHeaderToolsText.includes('timeline-video-sequence-tool-strip') ||

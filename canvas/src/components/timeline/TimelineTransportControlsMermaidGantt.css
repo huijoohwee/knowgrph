@@ -11,7 +11,7 @@
 .timeline-transport-chrome--mermaid-gantt .timeline-player {
   min-height: var(--kg-control-height);
   height: var(--kg-control-height);
-  gap: 5px;
+  gap: 4px;
   border: 0;
   border-bottom: 1px solid var(--kg-border, rgb(226 232 240 / 1));
   border-radius: 0;
@@ -62,13 +62,24 @@
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-player-toolbar {
+  min-width: 0;
+  flex: 1 1 auto;
   align-self: stretch;
   align-items: center;
   justify-content: center;
-  padding-inline: 4px;
+  padding-inline: 2px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools {
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 6px;
+  overflow: visible;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip {
+  flex: 0 0 auto;
   gap: 2px;
 }
 
@@ -78,7 +89,7 @@
   height: 24px;
   align-items: center;
   gap: 2px;
-  padding-inline: 2px;
+  padding-inline: 0;
   border: 1px solid var(--kg-border, rgb(226 232 240 / 1));
   border-radius: 5px;
   background: color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 64%, var(--kg-panel-bg, #fff));
@@ -104,30 +115,10 @@
   min-width: 42px;
 }
 
-.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-rail {
-  position: relative;
-  display: inline-block;
-  flex: 0 0 52px;
-  width: 52px;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--kg-border, rgb(226 232 240 / 1));
-}
-
-.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-rail::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--kg-timeline-zoom-progress, 0%);
-  border-radius: inherit;
-  background: var(--kg-canvas-accent, rgb(59 130 246 / 1));
-  content: '';
-}
-
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label {
   display: inline-flex;
-  flex: 0 0 34px;
-  min-width: 34px;
+  flex: 0 0 36px;
+  min-width: 36px;
   justify-content: center;
   color: var(--kg-text-tertiary, rgb(107 114 128 / 1));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
@@ -154,8 +145,11 @@
 
 .timeline-transport-chrome--mermaid-gantt .timeline-player-context {
   align-self: stretch;
-  padding-inline-start: 4px;
-  border-left: 1px solid var(--kg-border, rgb(226 232 240 / 1));
+  padding-inline-start: 2px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty {
+  display: none;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-player-range-rail {

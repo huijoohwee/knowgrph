@@ -241,7 +241,10 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !ganttTransportHeaderToolsText.includes('GanttTimelineTransportHeaderTools') ||
     !ganttTransportHeaderToolsText.includes('TimelineVideoSequenceToolButton') ||
     !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-clip-edit={button.action}') ||
-    ganttTransportHeaderToolsText.indexOf('args.model.clipActionButtons.map') > ganttTransportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') ||
+    !ganttTransportHeaderToolsText.includes('timeline-tool-menu--edit') ||
+    !ganttTransportHeaderToolsText.includes('timeline-tool-menu--zoom') ||
+    ganttTransportHeaderToolsText.indexOf('args.model.syncModeButton.ariaLabel') > ganttTransportHeaderToolsText.indexOf('timeline-tool-menu--edit') ||
+    ganttTransportHeaderToolsText.indexOf('timeline-tool-menu--edit') > ganttTransportHeaderToolsText.indexOf('args.model.clipActionButtons.map') ||
     !ganttTransportHeaderToolsText.includes('data-kg-video-sequence-export={button.dataValue}') ||
     !ganttTransportRulerModelText.includes('useGanttTimelineTransportRulerModel') ||
     !ganttTransportRulerModelText.includes('clampTimelineTransportValue') ||
