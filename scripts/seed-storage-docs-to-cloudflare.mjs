@@ -299,6 +299,7 @@ const executeD1SqlFile = async (sqlText) => {
   const tempDir = path.resolve(knowgrphRoot, '.tmp')
   const fileName = `seed-storage-docs-${Date.now()}-${Math.random().toString(16).slice(2)}.sql`
   const tempFile = path.resolve(tempDir, fileName)
+  const tempFileArg = path.relative(knowgrphRoot, tempFile) || fileName
   await fs.mkdir(tempDir, { recursive: true })
   await fs.writeFile(tempFile, sqlText, 'utf8')
   try {
@@ -314,7 +315,7 @@ const executeD1SqlFile = async (sqlText) => {
         '--config',
         'cloudflare/workers/knowgrph-storage/wrangler.toml',
         '--file',
-        tempFile,
+        tempFileArg,
       ],
       {
         cwd: knowgrphRoot,
