@@ -19,7 +19,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const denseFbfCssText = readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css')
   const mermaidTransportCssText = readSource('components', 'timeline', 'TimelineTransportControlsMermaidGantt.css')
   const timelineTransportText = readSource('components', 'timeline', 'timelineTransport.ts')
-  const timelineTransportCssText = readSource('components', 'timeline', 'TimelineTransportControls.css')
   const videoSequenceToolButtonText = readSource('components', 'timeline', 'VideoSequenceTimelineToolButton.tsx')
   const transportText = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
   const transportHeaderToolsText = readSource('features', 'gitgraph', 'GanttTimelineTransportHeaderTools.tsx')
@@ -172,9 +171,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (!transportText.includes("import './TimelineTransportControlsMermaidGantt.css'")) {
     throw new Error('expected focused Mermaid Gantt transport chrome CSS to be imported after base transport CSS')
   }
-  if (!timelineTransportCssText.includes('.timeline-tool-menu:not([open]) > .timeline-tool-menu-panel')) {
-    throw new Error('expected closed timeline tool menus to hide panels at the shared transport CSS owner')
-  }
   for (const token of [
     '.timeline-transport-chrome--mermaid-gantt .timeline-player',
     'height: var(--kg-control-height)',
@@ -184,6 +180,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
     'flex-wrap: nowrap',
     'gap: 2px',

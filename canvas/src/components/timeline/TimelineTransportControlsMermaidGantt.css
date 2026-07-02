@@ -83,6 +83,10 @@
   gap: 2px;
 }
 
+.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel {
+  display: none;
+}
+
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls {
   display: inline-flex;
   min-width: 0;

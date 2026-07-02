@@ -130,8 +130,6 @@
   padding: 4px;
 }
 
-.timeline-tool-menu:not([open]) > .timeline-tool-menu-panel { display: none; }
-
 .timeline-tool-menu--clip .timeline-tool-menu-panel {
   left: 0;
   right: auto;
