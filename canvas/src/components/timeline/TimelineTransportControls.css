@@ -1,9 +1,6 @@
 .timeline-transport-shell {
   --kg-timeline-progress: 0%;
-  --kg-main-toolbar-height: 38px;
-  --kg-timeline-toolbar-button-size: 28px;
-  --kg-timeline-bar-height: calc(var(--kg-main-toolbar-height) * 1.5);
-  --kg-video-sequence-lane-height: 61px;
+  --kg-main-toolbar-height: 38px; --kg-timeline-toolbar-button-size: 28px; --kg-timeline-bar-height: calc(var(--kg-main-toolbar-height) * 1.5); --kg-video-sequence-lane-height: 61px;
   width: 100%;
 }
 
@@ -959,14 +956,10 @@
   border: 1px dashed rgb(100 116 139 / 0.48);
   border-radius: 6px;
   background: rgb(255 255 255 / 0.72);
-  box-sizing: border-box;
   color: rgb(71 85 105 / 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center;
   font-size: 12px;
-  line-height: 16px;
-  padding: 0 12px;
+  line-height: 16px; padding: 0 12px;
   text-align: center;
 }
 

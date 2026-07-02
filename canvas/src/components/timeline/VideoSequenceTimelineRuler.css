@@ -36,11 +36,9 @@
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
-  contain: layout paint style;
-  height: var(--kg-timeline-bar-height, 57px);
+  contain: layout paint style; height: var(--kg-timeline-bar-height, 57px);
   overflow: visible;
-  border-radius: 6px;
-  will-change: transform;
+  border-radius: 6px; will-change: transform;
 }
 
 .timeline-video-sequence-editor[data-kg-animation-engine="native"] {
