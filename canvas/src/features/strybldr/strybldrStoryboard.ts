@@ -344,7 +344,7 @@ export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocum
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "storyboard"',
+    ...'kgCanvas2dRenderer: "storyboard"\nkgDocumentSemanticMode: "document"\nkgFrontmatterModeEnabled: true\nkgMultiDimTableModeEnabled: false\nkgBottomPanelOpen: true\nkgBottomPanelTab: "timeline"\nkgFloatingPanelOpen: true\nkgFloatingPanelView: "strybldr"'.split('\n'),
     `strybldrRunId: ${yamlQuote(doc.runId)}`,
     ...yamlNestedBlock(STRYBLDR_FRONTMATTER_PAYLOAD_KEY, doc as unknown as Record<string, unknown>),
     '---',

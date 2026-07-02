@@ -221,7 +221,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   )
   const baseGraphData = React.useMemo(() => {
     if (canvas2dRenderer === 'storyboard') {
-      return workspaceFrontmatterFlowGraphData || workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
+      return workspaceStrybldrStoryboardGraphData || workspaceFrontmatterFlowGraphData || workspaceJsonGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
     }
     if (!frontmatterOnlyPolicyActive) {
       return workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceFrontmatterFlowGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph

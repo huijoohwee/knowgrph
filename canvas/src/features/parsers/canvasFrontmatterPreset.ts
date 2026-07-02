@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { DocumentSemanticMode } from '@/hooks/store/types'
+import type { BottomSurfaceTab, DocumentSemanticMode } from '@/hooks/store/types'
+import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import { isStoryboardCanvas2dRenderer, isFrontmatterOnlyPolicyActive, resolveCanvas2dRendererId } from '@/lib/config.render'
@@ -37,11 +38,52 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     return text === 'document' || text === 'keyword' ? text : undefined
   }
   const readBool = (value: unknown): boolean | undefined => typeof value === 'boolean' ? value : undefined
+  const readBottomSurfaceTab = (value: unknown): BottomSurfaceTab | undefined => {
+    const raw = String(value || '').trim()
+    return raw === 'stats' ||
+      raw === 'history' ||
+      raw === 'documentVersionGraph' ||
+      raw === 'flowchart' ||
+      raw === 'gitGraph' ||
+      raw === 'gantt' ||
+      raw === 'timeline' ||
+      raw === 'architecture' ||
+      raw === 'eventModeling'
+      ? raw
+      : undefined
+  }
+  const readFloatingPanelView = (value: unknown): FloatingPanelView | undefined => {
+    const raw = String(value || '').trim()
+    return raw === 'propsPanel' ||
+      raw === 'view' ||
+      raw === 'media' ||
+      raw === 'camera' ||
+      raw === 'interaction' ||
+      raw === 'design' ||
+      raw === 'chat' ||
+      raw === 'geo' ||
+      raw === 'renderer' ||
+      raw === 'storyboardWidget' ||
+      raw === 'flowchart' ||
+      raw === 'gitGraph' ||
+      raw === 'gantt' ||
+      raw === 'timeline' ||
+      raw === 'architecture' ||
+      raw === 'eventModeling' ||
+      raw === 'strybldr' ||
+      raw === 'graphTraversal'
+      ? raw
+      : undefined
+  }
 
   const canvasSurfaceMode = readSurface(raw.canvasSurfaceMode)
   const canvasRenderMode = readMode2d3d(raw.canvasRenderMode)
   const canvas2dRenderer = resolveCanvas2dRendererId(raw.canvas2dRenderer)
   const videoSequenceTimelineEnabled = readBool(raw.videoSequenceTimelineEnabled)
+  const bottomPanelOpen = readBool(raw.bottomPanelOpen)
+  const bottomPanelTab = readBottomSurfaceTab(raw.bottomPanelTab)
+  const floatingPanelOpen = readBool(raw.floatingPanelOpen)
+  const floatingPanelView = readFloatingPanelView(raw.floatingPanelView)
   const canvas3dMode = raw.canvas3dMode == null ? undefined : normalizeCanvas3dMode(raw.canvas3dMode)
   const documentSemanticMode = readSemantic(raw.documentSemanticMode)
   const frontmatterModeEnabled = readBool(raw.frontmatterModeEnabled)
@@ -53,6 +95,10 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     canvasRenderMode === undefined &&
     canvas2dRenderer === undefined &&
     videoSequenceTimelineEnabled === undefined &&
+    bottomPanelOpen === undefined &&
+    bottomPanelTab === undefined &&
+    floatingPanelOpen === undefined &&
+    floatingPanelView === undefined &&
     canvas3dMode === undefined &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
@@ -69,6 +115,10 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     videoSequenceTimelineEnabled,
     canvas3dMode,
     documentSemanticMode,
+    bottomPanelOpen,
+    bottomPanelTab,
+    floatingPanelOpen,
+    floatingPanelView,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
     documentStructureBaselineLock,
@@ -284,6 +334,49 @@ export function applyCanvasFrontmatterPreset(args: {
     }
     if (current.floatingPanelOpen !== true) {
       current.setFloatingPanelOpen(true)
+      changed = true
+    }
+  }
+
+  if (preset?.bottomPanelTab) {
+    const current = useGraphStore.getState()
+    if (current.bottomSurfaceTab !== preset.bottomPanelTab) {
+      current.setBottomSurfaceTab(preset.bottomPanelTab)
+      changed = true
+    }
+  }
+  if (preset?.bottomPanelOpen === true) {
+    const current = useGraphStore.getState()
+    if (current.bottomSurfaceCollapsed === true) {
+      current.setBottomSurfaceCollapsed(false)
+      changed = true
+    }
+  }
+  if (preset?.bottomPanelOpen === false) {
+    const current = useGraphStore.getState()
+    if (current.bottomSurfaceCollapsed !== true) {
+      current.setBottomSurfaceCollapsed(true)
+      changed = true
+    }
+  }
+  if (preset?.floatingPanelView) {
+    const current = useGraphStore.getState()
+    if (current.floatingPanelView !== preset.floatingPanelView) {
+      current.setFloatingPanelView(preset.floatingPanelView)
+      changed = true
+    }
+  }
+  if (preset?.floatingPanelOpen === true) {
+    const current = useGraphStore.getState()
+    if (current.floatingPanelOpen !== true) {
+      current.setFloatingPanelOpen(true)
+      changed = true
+    }
+  }
+  if (preset?.floatingPanelOpen === false) {
+    const current = useGraphStore.getState()
+    if (current.floatingPanelOpen !== false) {
+      current.setFloatingPanelOpen(false)
       changed = true
     }
   }

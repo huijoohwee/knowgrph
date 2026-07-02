@@ -2,6 +2,8 @@ import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
 import { resolveCanvas2dRendererId, type Canvas2dRendererId, type Canvas3dModeId } from '@/lib/config.render'
 import { isPlainObject } from '@/lib/graph/value'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
+import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
 
 export type YamlFrontmatterBlock = {
   rawBlock: string
@@ -17,6 +19,10 @@ export type CanvasWorkspaceFrontmatterPreset = {
   canvas3dMode?: Canvas3dModeId
   canvas2dRenderer?: Canvas2dRendererId
   videoSequenceTimelineEnabled?: boolean
+  bottomPanelOpen?: boolean
+  bottomPanelTab?: BottomSurfaceTab
+  floatingPanelOpen?: boolean
+  floatingPanelView?: FloatingPanelView
   documentSemanticMode?: 'document' | 'keyword'
   frontmatterModeEnabled?: boolean
   multiDimTableModeEnabled?: boolean
@@ -161,6 +167,51 @@ function readBooleanPreset(value: unknown): boolean | undefined {
   return undefined
 }
 
+function readBottomSurfaceTabPreset(value: unknown): BottomSurfaceTab | undefined {
+  const raw = String(value || '').trim()
+  if (
+    raw === 'stats' ||
+    raw === 'history' ||
+    raw === 'documentVersionGraph' ||
+    raw === 'flowchart' ||
+    raw === 'gitGraph' ||
+    raw === 'gantt' ||
+    raw === 'timeline' ||
+    raw === 'architecture' ||
+    raw === 'eventModeling'
+  ) {
+    return raw
+  }
+  return undefined
+}
+
+function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefined {
+  const raw = String(value || '').trim()
+  if (
+    raw === 'propsPanel' ||
+    raw === 'view' ||
+    raw === 'media' ||
+    raw === 'camera' ||
+    raw === 'interaction' ||
+    raw === 'design' ||
+    raw === 'chat' ||
+    raw === 'geo' ||
+    raw === 'renderer' ||
+    raw === 'storyboardWidget' ||
+    raw === 'flowchart' ||
+    raw === 'gitGraph' ||
+    raw === 'gantt' ||
+    raw === 'timeline' ||
+    raw === 'architecture' ||
+    raw === 'eventModeling' ||
+    raw === 'strybldr' ||
+    raw === 'graphTraversal'
+  ) {
+    return raw
+  }
+  return undefined
+}
+
 function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | null | undefined): CanvasWorkspaceFrontmatterPreset | null {
   if (!meta) return null
 
@@ -174,6 +225,10 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
   const canvas2dRenderer = videoSequenceTimelineEnabled && canvas2dRendererRaw === 'gantt'
     ? 'media'
     : canvas2dRendererRaw
+  const bottomPanelOpen = readBooleanPreset(meta.kgBottomPanelOpen)
+  const bottomPanelTab = readBottomSurfaceTabPreset(meta.kgBottomPanelTab)
+  const floatingPanelOpen = readBooleanPreset(meta.kgFloatingPanelOpen)
+  const floatingPanelView = readFloatingPanelViewPreset(meta.kgFloatingPanelView)
   const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
   const frontmatterModeEnabled = readBooleanPreset(meta.kgFrontmatterModeEnabled)
   const multiDimTableModeEnabled = readBooleanPreset(meta.kgMultiDimTableModeEnabled)
@@ -185,6 +240,10 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
     canvas3dMode === undefined &&
     canvas2dRenderer === undefined &&
     videoSequenceTimelineEnabled === false &&
+    bottomPanelOpen === undefined &&
+    bottomPanelTab === undefined &&
+    floatingPanelOpen === undefined &&
+    floatingPanelView === undefined &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
     multiDimTableModeEnabled === undefined &&
@@ -199,6 +258,10 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
     canvas3dMode,
     canvas2dRenderer,
     videoSequenceTimelineEnabled,
+    bottomPanelOpen,
+    bottomPanelTab,
+    floatingPanelOpen,
+    floatingPanelView,
     documentSemanticMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
@@ -233,6 +296,10 @@ export function parseCanvasWorkspaceFrontmatterPresetBlock(block: YamlFrontmatte
   const canvas3dModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas3dMode')
   const canvas2dRendererRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas2dRenderer')
   const videoSequenceTimelineRaw = readYamlFrontmatterValue(block.rawBlock, 'kgVideoSequenceTimeline')
+  const bottomPanelOpenRaw = readYamlFrontmatterValue(block.rawBlock, 'kgBottomPanelOpen')
+  const bottomPanelTabRaw = readYamlFrontmatterValue(block.rawBlock, 'kgBottomPanelTab')
+  const floatingPanelOpenRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFloatingPanelOpen')
+  const floatingPanelViewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFloatingPanelView')
   const documentSemanticModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentSemanticMode')
   const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
   const multiDimTableModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgMultiDimTableModeEnabled')
@@ -243,6 +310,10 @@ export function parseCanvasWorkspaceFrontmatterPresetBlock(block: YamlFrontmatte
     kgCanvas3dMode: canvas3dModeRaw || undefined,
     kgCanvas2dRenderer: canvas2dRendererRaw || undefined,
     kgVideoSequenceTimeline: readBooleanPreset(videoSequenceTimelineRaw),
+    kgBottomPanelOpen: readBooleanPreset(bottomPanelOpenRaw),
+    kgBottomPanelTab: bottomPanelTabRaw || undefined,
+    kgFloatingPanelOpen: readBooleanPreset(floatingPanelOpenRaw),
+    kgFloatingPanelView: floatingPanelViewRaw || undefined,
     kgDocumentSemanticMode: documentSemanticModeRaw || undefined,
     kgFrontmatterModeEnabled: readBooleanPreset(frontmatterModeEnabledRaw),
     kgMultiDimTableModeEnabled: readBooleanPreset(multiDimTableModeEnabledRaw),
