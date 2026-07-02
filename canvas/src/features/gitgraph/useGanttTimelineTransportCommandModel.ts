@@ -18,6 +18,7 @@ export type GanttTimelineTransportCommandModel = {
     | 'timingSyncMode'
   >
   handleCommittedDragUpdate: ReturnType<typeof useGanttTimelineDocumentActions>['handleCommittedDragUpdate']
+  handleMediaDrop: ReturnType<typeof useGanttTimelineDocumentActions>['handleMediaDrop']
 }
 
 export function useGanttTimelineTransportCommandModel(args: {
@@ -58,5 +59,6 @@ export function useGanttTimelineTransportCommandModel(args: {
       timingSyncMode: documentActions.timingSyncMode,
     },
     handleCommittedDragUpdate: documentActions.handleCommittedDragUpdate,
+    handleMediaDrop: documentActions.handleMediaDrop,
   }
 }

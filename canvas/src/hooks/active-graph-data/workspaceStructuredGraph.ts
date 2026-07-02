@@ -291,9 +291,16 @@ export const parseWorkspaceStrybldrStoryboardGraphDataCached = (args: {
   let graphData: GraphData | null = null
   try {
     const parsed = strybldrStoryboardSpec.parse(args.markdownName || 'workspace:strybldr-storyboard.md', text)
-    graphData = parsed?.graphData
+    const parsedGraphData = parsed?.graphData
+    const hasParsedGraph =
+      (Array.isArray(parsedGraphData?.nodes) && parsedGraphData.nodes.length > 0)
+      || (Array.isArray(parsedGraphData?.edges) && parsedGraphData.edges.length > 0)
+    const frontmatterFlowGraphData = hasParsedGraph
+      ? null
+      : tryParseMarkdownFrontmatterFlowGraph(args.markdownName || 'workspace:frontmatter-flow.md', text)?.graphData || null
+    graphData = parsedGraphData && (hasParsedGraph || !frontmatterFlowGraphData)
       ? withWorkspaceMarkdownSourceMetadata({
-          graphData: parsed.graphData,
+          graphData: parsedGraphData,
           markdownName: args.markdownName,
           fallbackSourceKind: 'strybldr-storyboard',
         })

@@ -6,6 +6,7 @@ import {
   claimMediaPointerDragDrop,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaDragPointInsideElement,
   isMediaPointerDragDropClaimed,
   readMediaDragPayload,
   readMediaPointerDragPayload,
@@ -59,8 +60,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
       const clientY = Number(detail?.clientY)
       const element = mediaDropRef.current
       if (!payload || !Number.isFinite(clientX) || !Number.isFinite(clientY) || !element) return
-      const rect = element.getBoundingClientRect()
-      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return
+      if (!isMediaDragPointInsideElement(element, clientX, clientY)) return
       claimMediaPointerDragDrop(detail as MediaPointerDragDropDetail | null | undefined)
       onDropMedia(card, payload)
       clearMediaPointerDragPayload()
@@ -78,12 +78,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return
-    const isInsideDropSlot = (clientX: number, clientY: number): boolean => {
-      const element = mediaDropRef.current
-      if (!element || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return false
-      const rect = element.getBoundingClientRect()
-      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
-    }
+    const isInsideDropSlot = (clientX: number, clientY: number): boolean => isMediaDragPointInsideElement(mediaDropRef.current, clientX, clientY)
     const handleDocumentDragOver = (event: DragEvent) => {
       const dataTransfer = event.dataTransfer
       if (!dataTransfer || !hasMediaDragPayload(dataTransfer) || !isInsideDropSlot(event.clientX, event.clientY)) return

@@ -157,6 +157,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   const isFrontmatterFlow = React.useMemo(() => {
     return String(graphMetaKind || '').trim() === 'frontmatter-flow'
   }, [graphMetaKind])
+  const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
   const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
@@ -188,7 +189,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   return (
     <FloatingPanel
       as="section"
-      ariaLabel={UI_LABELS.flowWidget}
+      ariaLabel={editorPanelLabel}
       className={getStoryboardWidgetPanelChromeClassName(panelTextClass)}
       onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitStoryboardWidgetInteractionFrame)}
       onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitStoryboardWidgetInteractionFrame)}

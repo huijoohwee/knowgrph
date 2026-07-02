@@ -51,6 +51,12 @@ export function isMediaDropClaimedByNestedTarget(clientX: number, clientY: numbe
   return target instanceof Element && !!target.closest(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)
 }
 
+export function isMediaDragPointInsideElement(element: Element | null | undefined, clientX: number, clientY: number): boolean {
+  if (!element || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return false
+  const rect = element.getBoundingClientRect()
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+}
+
 const readFirstDraggedUrl = (value: unknown): string => {
   const text = normalizeText(value)
   if (!text) return ''

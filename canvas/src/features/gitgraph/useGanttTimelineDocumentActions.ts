@@ -35,6 +35,8 @@ import {
   type MermaidGanttVideoSequenceTimingSyncMode,
   type MermaidGanttVideoSequenceOperation,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { appendMermaidGanttVideoSequenceMediaDrop } from '@/lib/mermaid/mermaidGanttVideoSequenceMediaDrop'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
 
 const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
@@ -132,6 +134,41 @@ export function useGanttTimelineDocumentActions(args: {
       args.selectedSpan.lineIndex + 1,
     )
   }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, commitGanttVideoSequenceCode, timingSyncMode])
+
+  const handleMediaDrop = React.useCallback((media: MediaDragPayload, positionMinutes: number) => {
+    const currentDocument = readDocumentSnapshot()
+    if (
+      currentDocument.markdownDocumentName !== args.markdownDocumentName ||
+      currentDocument.markdownText !== args.markdownText
+    ) {
+      return
+    }
+    const next = appendMermaidGanttVideoSequenceMediaDrop({
+      code: args.code,
+      markdownText: args.markdownText,
+      media,
+      startMinutes: Math.max(0, positionMinutes),
+    })
+    if (!next) {
+      upsertUiToast({
+        id: 'video-sequence:media-drop',
+        kind: 'neutral',
+        message: 'Media drop needs an active Video Sequence timeline.',
+        ttlMs: 4_000,
+      })
+      return
+    }
+    setMarkdownDocument(args.markdownDocumentName, next.markdownText, { applyViewPreset: false })
+    args.setSelectedRowKey(next.rowKey)
+  }, [
+    args.code,
+    args.markdownDocumentName,
+    args.markdownText,
+    args.setSelectedRowKey,
+    readDocumentSnapshot,
+    setMarkdownDocument,
+    upsertUiToast,
+  ])
 
   const handleVideoSequenceClipEdit = React.useCallback((action: VideoSequenceClipEditAction) => {
     if (!args.selectedSpan || args.maxMinutes <= 0) return
@@ -413,6 +450,7 @@ export function useGanttTimelineDocumentActions(args: {
     exportSessionCollection,
     handleCommittedDragUpdate,
     handleDownloadEditedMedia,
+    handleMediaDrop,
     handleRetryEditedMediaExport,
     handleRetryEditedMediaExportRunId,
     handleVideoSequenceClipEdit,

@@ -160,6 +160,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds),
+    onDropMedia: transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
     onSelectRowKey: transportSession.setSelectedRowKey,

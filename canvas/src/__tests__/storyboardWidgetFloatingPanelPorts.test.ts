@@ -213,10 +213,10 @@ export function testStoryboardWidgetDiagramSelectionBridgeMatchesSemanticRows() 
   }
   const ingestTimelineModel = parseMermaidDiagramCodeModel([
     'gantt',
-    '  title Video agent stages',
+    '  title Video media sequence',
     '  dateFormat HH:mm',
-    '  section Source intake',
-    '  Ingest test URL : ingest, 00:00, 1m',
+    '  section Source video',
+    '  Source video : video_agent_source_video, 00:00, 1m',
     '  section Frame-by-frame boxes',
     '  Frame-by-frame bbox 0.0s tracked subject : frame_box_0_fbf, 00:00, 1m',
   ].join('\n'), 'gantt')
@@ -224,13 +224,13 @@ export function testStoryboardWidgetDiagramSelectionBridgeMatchesSemanticRows() 
     diagramRows: ingestTimelineModel.rows,
     flowRows: portRows,
   })
-  const ingestTimelineRow = ingestTimelineModel.rows.find(row => row.label === 'Ingest test URL')
+  const ingestTimelineRow = ingestTimelineModel.rows.find(row => row.kind === 'task' && row.label === 'Source video')
   if (!ingestTimelineRow) {
-    throw new Error('expected ingestion Gantt row to parse')
+    throw new Error('expected source video Gantt row to parse')
   }
   const ingestPortRowKey = resolveStoryboardWidgetPortRowKeyForDiagramRow(ingestBridge, ingestTimelineRow.key)
   if (ingestPortRowKey !== 'html_video_source_spec:output:data_json') {
-    throw new Error(`expected video-agent Ingest test URL Gantt row to select the source Render_Spec data_json KV row, got ${ingestPortRowKey}`)
+    throw new Error(`expected video-agent source video Gantt row to select the source Render_Spec data_json KV row, got ${ingestPortRowKey}`)
   }
   const frameBoxTimelineRow = ingestTimelineModel.rows.find(row => row.label === 'Frame-by-frame bbox 0.0s tracked subject')
   if (!frameBoxTimelineRow) {

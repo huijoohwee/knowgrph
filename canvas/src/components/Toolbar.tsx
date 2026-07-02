@@ -17,6 +17,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { emitFloatingPanelOpen, emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
+import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { importStrybldrRunAllSource } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
 import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
@@ -104,7 +106,12 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
     if (strybldrToolbarRunAllRunning) return
     setStrybldrToolbarRunAllRunning(true)
     try {
-      const result = await createStrybldrLocalVideoArtifactFromGraphData(strybldrRunAllGraphData || useGraphStore.getState().graphData)
+      const graphData = strybldrRunAllGraphData || useGraphStore.getState().graphData
+      const sourceImport = await importStrybldrRunAllSource({
+        graphData,
+        importUrl: getMarkdownWorkspaceActionBridge().importUrl,
+      })
+      const result = await createStrybldrLocalVideoArtifactFromGraphData(graphData)
       if ('reason' in result) {
         const reason = result.reason
         pushUiToast({
@@ -118,7 +125,9 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
       pushUiToast({
         id: 'toolbar-run-all-strybldr-generated',
         kind: 'success',
-        message: 'Strybldr video handoff saved.',
+        message: sourceImport.importStarted
+          ? 'Video-agent source import started and analysis packet saved.'
+          : result.videoAgentAnalysis ? 'Video-agent analysis packet saved.' : 'Strybldr video handoff saved.',
       })
     } catch (error) {
       pushUiToast({

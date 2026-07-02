@@ -1,6 +1,7 @@
 import React from 'react'
 import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
 import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
 import { type VideoSequenceTimelineLaneId, type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
 import {
@@ -33,6 +34,7 @@ export type GanttTimelineTransportRulerModel = {
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
     disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
+    onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
     onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
     onSelectRowKey: (rowKey: string) => void
     onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
@@ -59,6 +61,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   totalLabel: string
   visibleLaneCount: number
   disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
+  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onRulerWheel: (event: React.WheelEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
@@ -90,6 +93,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       draggingRowKey: args.draggingRowKey,
       maxMinutes: args.maxMinutes,
       mediaDurationSeconds: args.mediaDurationSeconds,
+      onDropMedia: args.onDropMedia,
       onRulerPointerDown: args.onRulerPointerDown,
       onSelectRowKey: args.onSelectRowKey,
       onSelectRowPosition: args.onSelectRowPosition,
@@ -111,6 +115,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.draggingRowKey,
     args.maxMinutes,
     args.mediaDurationSeconds,
+    args.onDropMedia,
     args.onRulerPointerDown,
     args.onRulerWheel,
     args.onSelectRowKey,

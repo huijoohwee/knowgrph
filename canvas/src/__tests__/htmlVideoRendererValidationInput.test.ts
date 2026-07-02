@@ -15,10 +15,7 @@ import {
 } from '@/lib/config.storyboard-widget'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { VIDEO_AGENT_REFERENCE_BOUNDARY } from '@/features/video-agent'
-import {
-  assertVideoAgentContractCoversValidationUrls,
-  readVideoAgentValidationUrlsFromEnv,
-} from './helpers/videoAgentValidationInput'
+import { readVideoAgentValidationUrlsFromEnv } from './helpers/videoAgentValidationInput'
 
 const mockEngine = (engineId: string): RenderEngine => ({
   engineId,
@@ -66,8 +63,12 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
   if (expectedVideoAgentTestUrls.length === 0) {
     throw new Error('expected KNOWGRPH_VIDEO_AGENT_TEST_URLS to be provided for external video-agent validation')
   }
-  const primaryVideoAgentTestUrl = expectedVideoAgentTestUrls[0] || ''
   const markdown = readFileSync(demoPath, 'utf8')
+  for (const expectedVideoAgentTestUrl of expectedVideoAgentTestUrls) {
+    if (markdown.includes(expectedVideoAgentTestUrl)) {
+      throw new Error(`validation input must not persist operator URL fixture ${expectedVideoAgentTestUrl}`)
+    }
+  }
   for (const staleRuntimeLiteral of [
     ['blob', 'http://'].join(':'),
     ['outputManifestPath', ''].join(':'),
@@ -95,7 +96,16 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
   if (videoAgentContract.schema !== 'knowgrph-video-agent/v1') {
     throw new Error('expected validation input to declare knowgrph-video-agent/v1')
   }
-  assertVideoAgentContractCoversValidationUrls({ contract: videoAgentContract, expectedUrls: expectedVideoAgentTestUrls })
+  if ('testUrl' in videoAgentContract || 'testUrls' in videoAgentContract || 'sourceId' in videoAgentContract || 'sourceIds' in videoAgentContract) {
+    throw new Error('expected validation input video-agent contract to avoid persisted URL/source-id fixtures')
+  }
+  const operatorConfig = videoAgentContract.operatorConfig as Record<string, unknown> | undefined
+  if (
+    operatorConfig?.storageKey !== 'knowgrph:video-agent:validation-config:v1'
+    || typeof operatorConfig.validationUrlsSource !== 'string'
+  ) {
+    throw new Error('expected validation input video-agent contract to declare operator-owned validation URL config')
+  }
   const dependencyPolicy = Array.isArray(videoAgentContract.dependencyPolicy) ? videoAgentContract.dependencyPolicy.map(String) : []
   for (const requiredPolicy of ['no copied Director code', 'no VideoDB runtime dependency', 'no external API key requirement']) {
     if (!dependencyPolicy.includes(requiredPolicy)) throw new Error(`expected video-agent dependency policy ${requiredPolicy}`)
@@ -144,7 +154,12 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
     if (!validated.spec.html.includes(requiredHtml)) throw new Error(`expected validation doc Render_Spec HTML to include ${requiredHtml}`)
   }
   if (!String(validated.spec.css || '').includes('@keyframes')) throw new Error('expected validation doc Render_Spec CSS keyframes')
-  if (!validated.spec.html.includes(primaryVideoAgentTestUrl)) throw new Error('expected validation doc Render_Spec HTML to display the primary supplied test URL')
+  if (!validated.spec.html.includes('operator-supplied validation source')) throw new Error('expected validation doc Render_Spec HTML to display an operator-supplied validation source placeholder')
+  for (const expectedVideoAgentTestUrl of expectedVideoAgentTestUrls) {
+    if (validated.spec.html.includes(expectedVideoAgentTestUrl)) {
+      throw new Error(`expected validation doc Render_Spec HTML to avoid persisted operator URL fixture ${expectedVideoAgentTestUrl}`)
+    }
+  }
 
   const responsivePreviewSrcDoc = buildHtmlVideoPreviewSrcDocFromNode({
     id: 'html-video-preview-validation',
@@ -186,13 +201,16 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
     capabilities?: unknown
     composition?: { id?: unknown }
     reasoningArtifacts?: unknown
-    sourceVideo?: { url?: unknown; externalDependency?: unknown }
+    sourceVideo?: { externalDependency?: unknown; sourceKey?: unknown }
     streaming?: { fallback?: unknown; panel?: unknown; primary?: unknown }
     timelineTracks?: unknown
     workspaceFiles?: unknown
   }
   if (typeof data.composition?.id !== 'string' || !data.composition.id.includes('video-agent')) throw new Error('expected validation doc data_json to identify a video-agent composition')
-  if (data.sourceVideo?.url !== primaryVideoAgentTestUrl || data.sourceVideo.externalDependency !== false) throw new Error('expected validation doc data_json to expose the primary supplied test URL as source-owned input')
+  if (
+    data.sourceVideo?.externalDependency !== false
+    || !String(data.sourceVideo?.sourceKey || '').includes('operator-supplied-video-agent-validation-source')
+  ) throw new Error('expected validation doc data_json to expose operator-owned validation input without a persisted URL fixture')
   const capabilities = Array.isArray(data.capabilities) ? data.capabilities.map(String) : []
   for (const requiredCapability of ['ingest', 'parse', 'search', 'edit', 'compile', 'generate', 'stream']) {
     if (!capabilities.includes(requiredCapability)) throw new Error(`expected validation doc data_json capability ${requiredCapability}`)
@@ -244,8 +262,13 @@ export async function testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWit
       engine_hint: validated.spec.engineHint,
     },
   })
-  for (const requiredPreviewText of ['knowgrph-html-video-data', '@keyframes', primaryVideoAgentTestUrl, 'Knowgrph video agent', 'Video agent reasoning trace', 'Instant stream']) {
+  for (const requiredPreviewText of ['knowgrph-html-video-data', '@keyframes', 'operator-supplied validation source', 'Knowgrph video agent', 'Video agent reasoning trace', 'Instant stream']) {
     if (!previewSrcDoc.includes(requiredPreviewText)) throw new Error(`expected validation doc preview to include ${requiredPreviewText}`)
+  }
+  for (const expectedVideoAgentTestUrl of expectedVideoAgentTestUrls) {
+    if (previewSrcDoc.includes(expectedVideoAgentTestUrl)) {
+      throw new Error(`expected validation doc preview to avoid persisted operator URL fixture ${expectedVideoAgentTestUrl}`)
+    }
   }
 
   const originalTestText = readFileSync(resolve(process.cwd(), 'src', '__tests__', 'htmlVideoRenderer.test.ts'), 'utf8')

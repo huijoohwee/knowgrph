@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { GraphNode } from '@/lib/graph/types'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -24,6 +26,17 @@ const makeNode = (args: {
   } as unknown as GraphNode)
 
 export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes() {
+  const panelSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorPanel.tsx'), 'utf8')
+  const viewSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorView.tsx'), 'utf8')
+  if (
+    !panelSource.includes("const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget")
+    || !panelSource.includes('ariaLabel={editorPanelLabel}')
+    || !viewSource.includes("const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget")
+    || !viewSource.includes('aria-label={editorPanelLabel}')
+  ) {
+    throw new Error('expected frontmatter-flow Storyboard overlays and panels to expose Card as the accessible panel label')
+  }
+
   const alpha = resolveWidgetNodeTitle({
     graphMetaKind: 'frontmatter-flow',
     node: makeNode({ id: '1', type: 'input', label: '`bg#7F1D1D:Raw input`', data: { label: 'Alpha' } }),

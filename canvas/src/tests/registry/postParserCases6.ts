@@ -16,4 +16,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.relaySummary.openLogAction","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterRelaySummaryActionOpensLogCallback"],
   ["ui.floatingPanelChat.relayDiagnostics.disabledAndLoadingSkipSharedLogRows","@/__tests__/floatingPanelChatRelayDiagnostics.test","testBuildStorageChatRelayLogDescriptorReturnsNullForDisabledAndLoadingStates"],
   ["ui.floatingPanelChat.relayDiagnostics.readyAndBlockedUseSharedLogRows","@/__tests__/floatingPanelChatRelayDiagnostics.test","testBuildStorageChatRelayLogDescriptorBuildsReadyAndBlockedEntries"],
+  ["strybldr.markdown.workspaceParserSkipsEmptyMarkerOnlyFrontmatterFlow","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrWorkspaceParserSkipsEmptyMarkerOnlyFrontmatterFlow"],
+  ["strybldr.runAll.videoSourceWritesVideoAgentAnalysisPacket","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrRunAllVideoSourceWritesVideoAgentAnalysisPacket"],
+  ["strybldr.runAll.videoSourceUsesWorkspaceImportUrlBridge","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrRunAllVideoSourceUsesWorkspaceImportUrlBridge"],
 ]

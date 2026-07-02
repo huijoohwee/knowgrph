@@ -16,6 +16,9 @@ const MIN_FLOW_DIAGRAM_SELECTION_SCORE = 4
 const VIDEO_AGENT_TIMELINE_AFFINITY_SCORE = 96
 
 const VIDEO_AGENT_STAGE_TASK_IDS = new Set([
+  'video_agent_source_video',
+  'video_agent_frame_by_frame_boxe',
+  'video_agent_source_audio',
   'ingest',
   'parse',
   'search',
@@ -26,6 +29,9 @@ const VIDEO_AGENT_STAGE_TASK_IDS = new Set([
 ])
 
 const VIDEO_AGENT_SOURCE_STAGE_TASK_IDS = new Set([
+  'video_agent_source_video',
+  'video_agent_frame_by_frame_boxe',
+  'video_agent_source_audio',
   'ingest',
   'parse',
   'search',

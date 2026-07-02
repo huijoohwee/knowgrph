@@ -154,6 +154,8 @@ export function WidgetEditorView(args: {
   const pointerPolicy = resolveStoryboardWidgetSurfacePointerPolicy()
   const safeToolbarInlineShiftPx = Number.isFinite(toolbarInlineShiftPx) ? toolbarInlineShiftPx : 0
   const safeToolbarMaxWidthPx = Number.isFinite(toolbarMaxWidthPx) && toolbarMaxWidthPx > 0 ? toolbarMaxWidthPx : undefined
+  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget
   const toolbarMotionRef = React.useRef<HTMLElement | null>(null)
 
   React.useEffect(() => {
@@ -211,7 +213,7 @@ export function WidgetEditorView(args: {
   return (
     <aside
       ref={asideRef}
-      aria-label={UI_LABELS.flowWidget}
+      aria-label={editorPanelLabel}
       data-kg-widget={String(node.id || '')}
       data-kg-storyboard-widget-mode="1"
       data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId || undefined}

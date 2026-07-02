@@ -7,6 +7,7 @@ import { VideoSequenceClipThumbnailStrip } from './VideoSequenceClipThumbnailStr
 import { buildVideoSequenceGeneratedFrameThumbnails } from './videoSequenceGeneratedFrameThumbnails'
 import { VideoSequenceTimelineClipMeta, resolveVideoSequenceSourceWindowLabel } from './VideoSequenceTimelineClipMeta'
 import { VideoSequenceTimelineRulerTicks } from './VideoSequenceTimelineRulerTicks'
+import { useVideoSequenceTimelineMediaDropTarget } from './useVideoSequenceTimelineMediaDropTarget'
 import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineScaleMaxMinutes } from './videoSequenceTimelineZoom'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
@@ -27,6 +28,7 @@ import {
   type VideoSequenceTimelineScope,
 } from './videoSequenceTimeline'
 import { readMermaidGanttTaskSourceRangeMinutes, type MermaidGanttBarDragMode, type MermaidGanttTimelineDragPreview, type MermaidGanttTimelineTaskSpan, type MermaidGanttTimelineTick } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import './VideoSequenceTimelineRuler.css'
 import './VideoSequenceTimelineRulerTimeAxis.css'
 export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61
@@ -241,6 +243,7 @@ export function VideoSequenceTimelineRuler({
   onRulerPointerDown,
   onSelectRowKey,
   onSelectRowPosition,
+  onDropMedia,
   onTrackPointerStart,
 }: {
   contentRef: React.RefObject<HTMLElement | null>
@@ -260,8 +263,10 @@ export function VideoSequenceTimelineRuler({
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
   onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
+  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
 }) {
+  const mediaDropRef = React.useRef<HTMLElement | null>(null)
   const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>(() => ({ disabledLaneIds }), [disabledLaneIds])
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
@@ -273,6 +278,7 @@ export function VideoSequenceTimelineRuler({
   ), [maxMinutes, mediaDurationSeconds])
   const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   const timelineScaleMaxMinutes = React.useMemo(() => resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes, mediaDurationSeconds }), [maxMinutes, mediaDurationSeconds])
+  const mediaDropTargetProps = useVideoSequenceTimelineMediaDropTarget({ contentRef, maxMinutes: timelineScaleMaxMinutes, onDropMedia, targetRef: mediaDropRef })
   const timelineAxisTicks = React.useMemo(() => buildVideoSequenceTimelineZoomTicks({ displayTicks, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom }), [displayTicks, mediaDurationSeconds, timelineScaleMaxMinutes, timelineZoom])
   const appendSpacePercent = React.useMemo(() => resolveVideoSequenceTimelineAppendSpacePercent(timelineZoom), [timelineZoom])
   const animationState = React.useMemo(() => buildTimelineAnimationState({
@@ -310,7 +316,7 @@ export function VideoSequenceTimelineRuler({
           </section>
         ))}
       </aside>
-      <section className="timeline-video-sequence-ruler-scroll" aria-label="Video sequence timeline rail" data-kg-video-sequence-ruler-scroll="1">
+      <section ref={mediaDropRef} className="timeline-video-sequence-ruler-scroll" aria-label="Video sequence timeline rail" data-kg-video-sequence-ruler-scroll="1" {...mediaDropTargetProps}>
         <section className="timeline-video-sequence-ruler-scroll-content" aria-label="Video sequence timeline workspace" style={{ minHeight }}>
         <section ref={contentRef} className="timeline-transport-ruler-content timeline-video-sequence-ruler-content"
           style={{

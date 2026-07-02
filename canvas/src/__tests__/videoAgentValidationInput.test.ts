@@ -31,7 +31,6 @@ import {
 } from './helpers/videoAgentTimelineFrameSamples'
 import {
   assertVideoAgentTranscriptPanelOwnsTimelineSyncedSrcDoc,
-  assertVideoAgentContractCoversValidationUrls,
   installVideoAgentValidationYouTubeTranscriptFetch,
   readVideoAgentValidationUrlsFromEnv,
 } from './helpers/videoAgentValidationInput'
@@ -244,14 +243,29 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     assertRuntimeValidationLiteralNotInRepoSource(suppliedTestUrl, 'video-agent test URL')
   }
 
-  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(readFileSync(demoPath, 'utf8')))
+  const demoMarkdown = readFileSync(demoPath, 'utf8')
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(demoMarkdown))
   if (parsed.warnings.length > 0) throw new Error(`expected clean external validation frontmatter, got ${parsed.warnings.join('; ')}`)
   const contract = parsed.meta.videoAgentRuntimeContract as Record<string, unknown> | undefined
   if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
     throw new Error('expected external validation document to expose videoAgentRuntimeContract')
   }
   if (contract.schema !== VIDEO_AGENT_SCHEMA_VERSION) throw new Error('expected external validation document to carry the video-agent schema')
-  assertVideoAgentContractCoversValidationUrls({ contract, expectedUrls: suppliedTestUrls })
+  const operatorConfig = contract.operatorConfig as Record<string, unknown> | undefined
+  if (
+    operatorConfig?.storageKey !== 'knowgrph:video-agent:validation-config:v1'
+    || typeof operatorConfig.validationUrlsSource !== 'string'
+  ) {
+    throw new Error('expected external validation document to declare operator-owned validation URL config')
+  }
+  for (const suppliedTestUrl of suppliedTestUrls) {
+    if (demoMarkdown.includes(suppliedTestUrl)) {
+      throw new Error(`expected external validation document to avoid persisting operator URL fixture ${suppliedTestUrl}`)
+    }
+  }
+  if ('testUrl' in contract || 'testUrls' in contract || 'sourceId' in contract || 'sourceIds' in contract) {
+    throw new Error('expected external validation document contract to avoid legacy persisted URL/source-id fixtures')
+  }
   const referenceBoundary = contract.referenceBoundary as Record<string, unknown> | undefined
   for (const [key, value] of Object.entries(VIDEO_AGENT_REFERENCE_BOUNDARY)) {
     if (referenceBoundary?.[key] !== value) {
@@ -259,15 +273,7 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     }
   }
   const contractArtifacts = Array.isArray(contract.reasoningArtifacts) ? contract.reasoningArtifacts.map(String) : []
-  for (const required of [
-    'search evidence windows',
-    'edit decision plan',
-    'compiled timeline manifest',
-    'visual annotation dataset artifact',
-    'real-time zone counting timeline',
-    'generation placeholder manifest',
-    'instant stream manifest',
-  ]) {
+  for (const required of ['search evidence windows', 'edit decision plan', 'compiled timeline manifest', 'visual annotation dataset artifact', 'real-time zone counting timeline', 'generation placeholder manifest', 'instant stream manifest']) {
     if (!contractArtifacts.includes(required)) {
       throw new Error(`expected external validation document reasoning artifact ${required}`)
     }
@@ -279,26 +285,13 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     }
   }
   const contractSourceTruth = Array.isArray(contract.sourceTruth) ? contract.sourceTruth.map(String) : []
-  for (const owner of [
-    'canvas/src/features/video-agent/videoAgentDatasetRuntime.ts',
-    'canvas/src/features/visual-annotation-engine/annotationDataset.ts',
-  ]) {
+  for (const owner of ['canvas/src/features/video-agent/videoAgentDatasetRuntime.ts', 'canvas/src/features/visual-annotation-engine/annotationDataset.ts']) {
     if (!contractSourceTruth.includes(owner)) {
       throw new Error(`expected external validation document sourceTruth owner ${owner}`)
     }
   }
   const outputBoundary = Array.isArray(contract.outputBoundary) ? contract.outputBoundary.map(String).join('\n') : ''
-  if (
-    !outputBoundary.includes('frameByFrameSamples')
-    || !outputBoundary.includes('sourcePlaybackUrl')
-    || !outputBoundary.includes('sourceTranscript')
-    || !outputBoundary.includes('frameByFrameTranscript')
-    || !outputBoundary.includes('richMediaPanels')
-    || !outputBoundary.includes('visualDataset')
-    || !outputBoundary.includes('mergedVisualDataset')
-    || !outputBoundary.includes('datasetOperationSummary')
-    || !outputBoundary.includes('zoneCounting')
-  ) {
+  if (['frameByFrameSamples', 'sourcePlaybackUrl', 'sourceTranscript', 'frameByFrameTranscript', 'richMediaPanels', 'visualDataset', 'mergedVisualDataset', 'datasetOperationSummary', 'zoneCounting'].some(token => !outputBoundary.includes(token))) {
     throw new Error('expected external validation document outputBoundary to name frame samples, transcripts, Rich Media panels, visual datasets, dataset summaries, and zoneCounting')
   }
   const contractFrameBoxes = Array.isArray(contract.frameBoundingBoxes) ? contract.frameBoundingBoxes : []
@@ -318,7 +311,7 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const sourceSpecNode = nodes.find(node => readKtvString(node.id) === 'html_video_source_spec')
   const sourceSpecData = JSON.parse(readKtvString(sourceSpecNode?.data_json) || '{}') as {
     bottomPanelTimelineSync?: { lane?: unknown; source?: unknown; surface?: unknown; thumbnailMode?: unknown; trackIds?: unknown }
-    sourceVideo?: { testUrls?: unknown; url?: unknown; urls?: unknown }
+    sourceVideo?: { ingestMode?: unknown; sourceKey?: unknown; testUrls?: unknown; url?: unknown; urls?: unknown }
     timelineLanes?: unknown
     timelineTracks?: unknown
     validationImportUrls?: unknown
@@ -329,8 +322,14 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
     Array.isArray(sourceSpecData.sourceVideo?.urls) ? sourceSpecData.sourceVideo.urls.join('\n') : String(sourceSpecData.sourceVideo?.urls || ''),
     String(sourceSpecData.sourceVideo?.url || ''),
   ].join('\n'))
-  for (const suppliedTestUrl of suppliedTestUrls) {
-    if (!sourceSpecValidationUrls.includes(suppliedTestUrl)) throw new Error(`expected Ingest test URL graph data to expose configurable validation URL ${suppliedTestUrl}`)
+  if (sourceSpecValidationUrls.length > 0) {
+    throw new Error(`expected source graph data to avoid persisted validation URLs, got ${JSON.stringify(sourceSpecValidationUrls)}`)
+  }
+  if (
+    sourceSpecData.sourceVideo?.ingestMode !== 'operator-supplied-validation-config'
+    || !String(sourceSpecData.sourceVideo?.sourceKey || '').includes('operator-supplied-video-agent-validation-source')
+  ) {
+    throw new Error(`expected source graph data to declare operator-supplied validation source config, got ${JSON.stringify(sourceSpecData.sourceVideo)}`)
   }
   const sourceTimelineTracks = Array.isArray(sourceSpecData.timelineTracks) ? sourceSpecData.timelineTracks : []
   const sourceVideoTimelineTracks = sourceTimelineTracks.filter(entry => String((entry as { source?: unknown }).source || '') === 'source-video')
@@ -380,16 +379,16 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   if (frameAnalysisPanels.length < 3) {
     throw new Error('expected external validation document to show frame-by-frame bounding boxes in at least three RichMediaPanel nodes')
   }
-  if (!frameAnalysisPanels.some(node => readKtvString(node.srcDoc).includes('frame-box') && readKtvString(node.srcDoc).includes(primaryTestUrl))) {
-    throw new Error('expected at least one RichMediaPanel to render visible frame-box overlays for the supplied validation URL')
+  if (!frameAnalysisPanels.some(node => readKtvString(node.srcDoc).includes('frame-box'))) {
+    throw new Error('expected at least one RichMediaPanel to render visible frame-box overlays without persisted validation URL fixtures')
   }
   const floatingPanel = frameAnalysisPanels.find(node => readKtvString(node.id) === 'floating_panel_media_annotation_panel')
   if (!floatingPanel) {
     throw new Error('expected FloatingPanel Media Annotation Outputs to render frame-by-frame bounding-box analysis')
   }
   const floatingPanelSrcDoc = readKtvString(floatingPanel.srcDoc)
-  if (!floatingPanelSrcDoc.includes('frame-box') || !floatingPanelSrcDoc.includes(primaryTestUrl)) {
-    throw new Error('expected FloatingPanel Media Annotation Outputs to show visible frame-box overlays for the supplied validation URL')
+  if (!floatingPanelSrcDoc.includes('frame-box') || floatingPanelSrcDoc.includes(primaryTestUrl)) {
+    throw new Error('expected FloatingPanel Media Annotation Outputs to show visible frame-box overlays without persisted validation URL fixtures')
   }
   if (
     !floatingPanelSrcDoc.includes('data-kg-frame-sequence-strip="floating-panel"')
