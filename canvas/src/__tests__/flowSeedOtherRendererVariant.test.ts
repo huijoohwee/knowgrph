@@ -24,7 +24,7 @@ export function testFlowSeedFromOtherRendererPrefersExpectedVariant() {
   }
 }
 
-export function testFlowEditorPrefersSourceSeedOverOtherRendererCache() {
+export function testStoryboardPrefersSourceSeedOverOtherRendererCache() {
   const sourcePositions = {
     a: { x: 4200, y: 0 },
     b: { x: 4680, y: 0 },
@@ -43,11 +43,11 @@ export function testFlowEditorPrefersSourceSeedOverOtherRendererCache() {
     allowSource: true,
   })
   if (picked !== sourcePositions) {
-    throw new Error('expected Flow Editor frontmatter-document seed selection to prefer imported source positions over other-renderer cache positions')
+    throw new Error('expected Storyboard frontmatter-document seed selection to prefer imported source positions over other-renderer cache positions')
   }
 }
 
-export function testFlowSeedIsolatesFlowEditorFromFlowCanvasLayoutCache() {
+export function testFlowSeedIsolatesStoryboardFromFlowCanvasLayoutCache() {
   const nodes = [{ id: 'a' }, { id: 'b' }]
   const baseArgs = {
     datasetKey: 'graphId:flow-seed-isolation',
@@ -59,44 +59,44 @@ export function testFlowSeedIsolatesFlowEditorFromFlowCanvasLayoutCache() {
   }
   const baseKey = buildLayoutPositionCacheKey(baseArgs)
   const flowKey = buildLayoutPositionCacheKey({ ...baseArgs, renderVariant: 'flow' })
-  const flowEditorKey = buildLayoutPositionCacheKey({ ...baseArgs, renderVariant: 'flowEditor' })
+  const storyboardKey = buildLayoutPositionCacheKey({ ...baseArgs, renderVariant: 'storyboard' })
   const flowPositions = {
     a: { x: 10, y: 10 },
     b: { x: 180, y: 10 },
   }
-  const flowEditorPositions = {
+  const storyboardPositions = {
     a: { x: 1000, y: 1000 },
     b: { x: 1240, y: 1000 },
   }
 
-  const pickedForFlowEditor = pickSeedFromOtherRendererCache({
+  const pickedForStoryboard = pickSeedFromOtherRendererCache({
     nodes,
     cache: { [flowKey]: flowPositions },
     baseKey,
-    targetRenderer: 'flowEditor',
+    targetRenderer: 'storyboard',
   })
-  if (pickedForFlowEditor) {
-    throw new Error('expected Flow Editor layout seed to reject Flow Canvas cache')
+  if (pickedForStoryboard) {
+    throw new Error('expected Storyboard layout seed to reject Flow Canvas cache')
   }
 
   const pickedForFlowCanvas = pickSeedFromOtherRendererCache({
     nodes,
-    cache: { [flowEditorKey]: flowEditorPositions },
+    cache: { [storyboardKey]: storyboardPositions },
     baseKey,
     targetRenderer: 'flow',
   })
   if (pickedForFlowCanvas) {
-    throw new Error('expected Flow Canvas layout seed to reject Flow Editor cache')
+    throw new Error('expected Flow Canvas layout seed to reject Storyboard cache')
   }
 
   const pickedSameRenderer = pickSeedFromOtherRendererCache({
     nodes,
-    cache: { [flowEditorKey]: flowEditorPositions },
+    cache: { [storyboardKey]: storyboardPositions },
     baseKey,
-    targetRenderer: 'flowEditor',
+    targetRenderer: 'storyboard',
   })
-  if (pickedSameRenderer !== flowEditorPositions) {
-    throw new Error('expected Flow Editor layout seed to keep same-renderer cache available')
+  if (pickedSameRenderer !== storyboardPositions) {
+    throw new Error('expected Storyboard layout seed to keep same-renderer cache available')
   }
 }
 
@@ -120,10 +120,10 @@ export function testFlowSeedRejectsUnscopedLayoutCacheWhenTargetRendererIsKnown(
     cache: { [baseKey]: unscopedPositions },
     baseKey,
     allowVariantFallback: false,
-    targetRenderer: 'flowEditor',
+    targetRenderer: 'storyboard',
   })
   if (pickedWithTarget) {
-    throw new Error('expected known Flow Editor target to reject renderer-unscoped layout cache')
+    throw new Error('expected known Storyboard target to reject renderer-unscoped layout cache')
   }
 
   const pickedWithoutTarget = pickSeedFromOtherRendererCache({

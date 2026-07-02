@@ -28,7 +28,7 @@ export function testManusPrdTadStaysReferenceOnlyUntilSourceOwnersExist(): void 
     'manusRunGeneration.ts',
     'manusSsot.ts',
     'Manus Agent Task widget',
-    'appears in the flow editor palette',
+    'appears in the storyboard widget palette',
     'task.sendMessage is called',
     'Rollback plan',
     'Planned      |',

@@ -11,7 +11,7 @@ import {
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
-import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/flowEditor/widgetPlacementAuthority'
+import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 import { normalizeIds, normalizeOpenWidgetNodeIds } from '@/hooks/store/graphViewIds'
 import {

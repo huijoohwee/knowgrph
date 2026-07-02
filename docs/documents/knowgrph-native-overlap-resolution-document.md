@@ -132,7 +132,7 @@ Notes:
 | [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
 | [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
 | [scene.ts](../../canvas/src/components/GraphCanvas/scene.ts) | `relaxNodesWithCollision` | Runs a bounded collision relax pass during final collective-fit freeze to remove residual overlaps |
-| [relaxPositions.ts](../../canvas/src/components/FlowCanvas/relaxPositions.ts) | `relaxFlowPositionsWithCollision` | Reuses the same bbox + group collision forces to settle Flow/Flow Editor post-layout positions |
+| [relaxPositions.ts](../../canvas/src/components/FlowCanvas/relaxPositions.ts) | `relaxFlowPositionsWithCollision` | Reuses the same bbox + group collision forces to settle Flow/Storyboard Widget post-layout positions |
 | [DesignCanvas.tsx](../../canvas/src/components/DesignCanvas.tsx) | `relaxNodesWithCollision` | Resolves frame overlaps on drag end (pins dragged frame; batches store writes) |
 | [relaxRunner.ts](../../canvas/src/lib/graph/collision/relaxRunner.ts) | `runRelaxSteps` | SSOT relax step runner used by Graph structured layout relax and Flow post-layout collision settling |
 | [schema.ts](../../canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |

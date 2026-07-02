@@ -157,7 +157,7 @@ export function EdgeTypesRendererSettings(props: {
     <CollapsibleSection title="Edge Types" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <section className={uiToolbarSettingsPanelBodyClassName}>
         <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
-          Applies globally to Flowchart, Flow Canvas, Design, Flow Editor, document modes, 2D/3D/geospatial surfaces, and Text/Image/Video widgets. Default is Bezier with animated blue edges.
+          Applies globally to Flowchart, Flow Canvas, Design, Storyboard Widget, document modes, 2D/3D/geospatial surfaces, and Text/Image/Video widgets. Default is Bezier with animated blue edges.
         </section>
         <ResponsiveSelectRow
           label="Type"

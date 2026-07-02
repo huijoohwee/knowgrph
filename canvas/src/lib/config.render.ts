@@ -1,14 +1,16 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'media', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'flowEditor', 'design'] as const
+export const CANVAS_2D_SURFACES = ['d3', 'dashboard', 'gallery', 'media', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design'] as const
 
 export type Canvas2dSurfaceId = (typeof CANVAS_2D_SURFACES)[number]
 
-export const VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS = ['flowEditor', 'media', 'storyboard'] as const satisfies readonly Canvas2dRendererId[]
+export const VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS = ['media', 'storyboard'] as const satisfies readonly Canvas2dRendererId[]
 
-export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design', 'flowEditor']
+export const CANVAS_2D_RENDERER_ORDER: readonly Canvas2dRendererId[] = ['d3', 'dashboard', 'gallery', 'media', 'flowchart', 'multiDimTable', 'gitGraph', 'gantt', 'flow', 'animatic', 'storyboard', 'design']
+
+export const CANVAS_2D_RENDERER_MENU_ORDER: readonly Canvas2dRendererId[] = CANVAS_2D_RENDERER_ORDER
 
 type Canvas2dRendererSpec = {
   surfaceId: Canvas2dSurfaceId
@@ -16,7 +18,7 @@ type Canvas2dRendererSpec = {
   menuLabel: string
   menuDescription: string
   menuBadges: readonly string[]
-  sharesFlowEditorFrontmatterSyntax: boolean
+  supportsStoryboardFlowFrontmatterSyntax: boolean
 }
 
 const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec> = {
@@ -26,7 +28,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'D3',
     menuDescription: 'Node-link graph',
     menuBadges: ['Layout', 'Shape'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   dashboard: {
     surfaceId: 'dashboard',
@@ -34,7 +36,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Dash',
     menuDescription: 'Graph dashboard',
     menuBadges: ['D3', 'Grid'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   gallery: {
     surfaceId: 'gallery',
@@ -42,7 +44,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Gallery',
     menuDescription: 'Markdown gallery',
     menuBadges: ['Slides', 'Grid'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   media: {
     surfaceId: 'media',
@@ -50,7 +52,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Media',
     menuDescription: 'Rich media canvas',
     menuBadges: ['Rich', 'Preview'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   flowchart: {
     surfaceId: 'd3',
@@ -58,7 +60,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Bi',
     menuDescription: 'Bipartite flow',
     menuBadges: ['Block', 'Voxel'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   multiDimTable: {
     surfaceId: 'multiDimTable',
@@ -66,7 +68,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Table',
     menuDescription: 'Structured table view',
     menuBadges: ['Table', 'Data'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   gitGraph: {
     surfaceId: 'gitGraph',
@@ -74,7 +76,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Git',
     menuDescription: 'Mermaid GitGraph',
     menuBadges: ['Mermaid', 'History'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   gantt: {
     surfaceId: 'gantt',
@@ -82,7 +84,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Gantt',
     menuDescription: 'Mermaid Gantt timeline',
     menuBadges: ['Mermaid', 'Timeline'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   flow: {
     surfaceId: 'flow',
@@ -90,7 +92,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Canvas',
     menuDescription: 'Canvas flow',
     menuBadges: ['Overlay', 'Media'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   animatic: {
     surfaceId: 'animatic',
@@ -98,7 +100,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Anim',
     menuDescription: 'Beat timeline editor',
     menuBadges: ['Timeline', 'Beats'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
   storyboard: {
     surfaceId: 'storyboard',
@@ -106,15 +108,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Story',
     menuDescription: 'Storyboard lanes',
     menuBadges: ['Cards', 'Stages'],
-    sharesFlowEditorFrontmatterSyntax: false,
-  },
-  flowEditor: {
-    surfaceId: 'flowEditor',
-    registryLabel: 'Edit',
-    menuLabel: 'Edit',
-    menuDescription: 'Editable flow',
-    menuBadges: ['Widgets', 'Run'],
-    sharesFlowEditorFrontmatterSyntax: true,
+    supportsStoryboardFlowFrontmatterSyntax: true,
   },
   design: {
     surfaceId: 'design',
@@ -122,7 +116,7 @@ const CANVAS_2D_RENDERER_SPECS: Record<Canvas2dRendererId, Canvas2dRendererSpec>
     menuLabel: 'Design',
     menuDescription: 'DOM wireframe',
     menuBadges: ['Inspect', 'Tokens'],
-    sharesFlowEditorFrontmatterSyntax: false,
+    supportsStoryboardFlowFrontmatterSyntax: false,
   },
 }
 
@@ -144,7 +138,7 @@ const CANVAS_2D_RENDERER_ID_BY_NORMALIZED_TOKEN = (() => {
   return map
 })()
 
-export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'
+export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'storyboard'
 
 export const isCanvas2dRendererId = (id: unknown): id is Canvas2dRendererId => {
   return typeof id === 'string' && (CANVAS_2D_RENDERERS as readonly string[]).includes(id)
@@ -173,8 +167,8 @@ export const getCanvas2dRendererMenuBadges = (id: Canvas2dRendererId): readonly 
   return CANVAS_2D_RENDERER_SPECS[id].menuBadges
 }
 
-export const sharesFlowEditorFrontmatterSyntax = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return !!id && CANVAS_2D_RENDERER_SPECS[id].sharesFlowEditorFrontmatterSyntax
+export const supportsStoryboardFlowFrontmatterSyntax = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return !!id && CANVAS_2D_RENDERER_SPECS[id].supportsStoryboardFlowFrontmatterSyntax
 }
 
 export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -242,21 +236,13 @@ export const isStoryboardCanvas2dRenderer = (id: Canvas2dRendererId | null | und
 }
 
 export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flowEditor' || id === 'storyboard'
+  return id === 'storyboard'
 }
 
 export type ToolbarRunAllFloatingPanelTab = 'strybldr'
 
 export const getToolbarRunAllFloatingPanelTab = (id: Canvas2dRendererId | null | undefined): ToolbarRunAllFloatingPanelTab | null => {
   return id === 'storyboard' ? 'strybldr' : null
-}
-
-export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flowEditor'
-}
-
-export const isFlowEditorSharedCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flowEditor' || id === 'storyboard'
 }
 
 export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -302,6 +288,6 @@ export type CanvasRunMode = (typeof CANVAS_RUN_MODES)[number]
 
 export const DEFAULT_CANVAS_RUN_MODE: CanvasRunMode = 'manual'
 
-export const FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID = 'kg-flow-editor-inspector-slot'
+export const STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID = 'kg-storyboard-widget-inspector-slot'
 
 export const SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES = 'canvas:groupBoundsOverrides' as const

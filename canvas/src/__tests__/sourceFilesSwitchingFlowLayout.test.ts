@@ -134,7 +134,7 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   }
   if (
     !documentActionsText.includes('if (applyViewPresetForSwitch) {\n        get().setGraphData(buildPendingMarkdownDocumentGraph({') ||
-    documentActionsText.includes('if (strictFlowEditorPreset)') ||
+    documentActionsText.includes('if (strictStoryboardPreset)') ||
     documentActionsText.includes('applyViewPresetForSwitch && parsedTextPreset')
   ) {
     throw new Error('expected Source Files switches to prime Canvas from the selected file before parser output, without YAML/frontmatter-only gating')
@@ -283,48 +283,48 @@ export function testSourceFilesStableHydratedSelectionStillAppliesStaleCanvasDoc
 
 export function testSourceFilesDocumentSwitchSettlementStopsRetryChurn() {
   const settled = isWorkspaceDocumentSwitchApplySettled({
-    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
-    text: '# Flow Editor',
-    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
-    markdownDocumentText: '# Flow Editor',
-    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
-    canvas2dRenderer: 'flowEditor',
+    activeDocumentKey: 'docs/knowgrph-storyboard-widget-demo.md',
+    text: '# Storyboard Widget',
+    markdownDocumentName: 'docs/knowgrph-storyboard-widget-demo.md',
+    markdownDocumentText: '# Storyboard Widget',
+    graphDataSource: 'markdown:docs/knowgrph-storyboard-widget-demo.md',
+    canvas2dRenderer: 'storyboard',
   })
   if (!settled) {
     throw new Error('expected matching active markdown document and Canvas graph source to settle Source Files switch retries')
   }
 
   const staleGraph = isWorkspaceDocumentSwitchApplySettled({
-    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
-    text: '# Flow Editor',
-    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
-    markdownDocumentText: '# Flow Editor',
+    activeDocumentKey: 'docs/knowgrph-storyboard-widget-demo.md',
+    text: '# Storyboard Widget',
+    markdownDocumentName: 'docs/knowgrph-storyboard-widget-demo.md',
+    markdownDocumentText: '# Storyboard Widget',
     graphDataSource: 'markdown:docs/another-file.md',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
   })
   if (staleGraph) {
     throw new Error('expected stale Canvas graph source to keep Source Files switch apply work pending')
   }
 
   const staleText = isWorkspaceDocumentSwitchApplySettled({
-    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
-    text: '# Flow Editor',
-    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    activeDocumentKey: 'docs/knowgrph-storyboard-widget-demo.md',
+    text: '# Storyboard Widget',
+    markdownDocumentName: 'docs/knowgrph-storyboard-widget-demo.md',
     markdownDocumentText: '# Older text',
-    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
-    canvas2dRenderer: 'flowEditor',
+    graphDataSource: 'markdown:docs/knowgrph-storyboard-widget-demo.md',
+    canvas2dRenderer: 'storyboard',
   })
   if (staleText) {
     throw new Error('expected stale active markdown text to keep Source Files switch apply work pending')
   }
 
-  const staleRendererText = '---\nkgCanvas2dRenderer: "flowEditor"\n---\n# Flow Editor'
+  const staleRendererText = '---\nkgCanvas2dRenderer: "storyboard"\n---\n# Storyboard'
   const staleRenderer = isWorkspaceDocumentSwitchApplySettled({
-    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    activeDocumentKey: 'docs/knowgrph-storyboard-widget-demo.md',
     text: staleRendererText,
-    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentName: 'docs/knowgrph-storyboard-widget-demo.md',
     markdownDocumentText: staleRendererText,
-    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    graphDataSource: 'markdown:docs/knowgrph-storyboard-widget-demo.md',
     canvas2dRenderer: 'design',
   })
   if (!staleRenderer) {
@@ -334,13 +334,13 @@ export function testSourceFilesDocumentSwitchSettlementStopsRetryChurn() {
     throw new Error('expected selected-file frontmatter renderer helper to continue detecting preset differences for initial/import apply paths')
   }
   const staleRendererShouldApply = shouldApplyStableWorkspaceSelectionToCanvas({
-    activePath: '/docs/knowgrph-flow-editor-demo.md',
+    activePath: '/docs/knowgrph-storyboard-widget-demo.md',
     activeEntryKind: 'file',
-    activeDocumentKey: 'docs/knowgrph-flow-editor-demo.md',
+    activeDocumentKey: 'docs/knowgrph-storyboard-widget-demo.md',
     nextText: staleRendererText,
-    markdownDocumentName: 'docs/knowgrph-flow-editor-demo.md',
+    markdownDocumentName: 'docs/knowgrph-storyboard-widget-demo.md',
     markdownDocumentText: staleRendererText,
-    graphDataSource: 'markdown:docs/knowgrph-flow-editor-demo.md',
+    graphDataSource: 'markdown:docs/knowgrph-storyboard-widget-demo.md',
     canvas2dRenderer: 'design',
   })
   if (staleRendererShouldApply) {
@@ -364,7 +364,7 @@ export function testSourceFilesActiveGraphRejectsUnownedCanvasGraphForSelectedFi
   const active = resolveActiveMarkdownBaseGraph({
     baseGraphDataRaw: staleGraph,
     markdownName: 'docs/knowgrph-design-demo.md',
-    markdownText: '---\nkgCanvas2dRenderer: "flowEditor"\n---\n# Design',
+    markdownText: '---\nkgCanvas2dRenderer: "storyboard"\n---\n# Design',
   })
   const meta = ((active?.metadata || null) as Record<string, unknown> | null) || {}
   if (String(meta.source || '') !== 'markdown:docs/knowgrph-design-demo.md' || meta.pending !== true) {

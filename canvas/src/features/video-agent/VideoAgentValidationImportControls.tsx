@@ -26,7 +26,7 @@ export type VideoAgentValidationImportControlsProps = {
   docPathLabel?: string
   docPathPlaceholder?: string
   fieldClassName: string
-  flowEditorDataHook?: boolean
+  storyboardWidgetDataHook?: boolean
   importSetLabel?: string
   importUrlFallback?: ImportUrlFallback
   importUrlOpts?: WorkspaceImportUrlOpts | (() => WorkspaceImportUrlOpts | undefined)
@@ -59,7 +59,7 @@ export function VideoAgentValidationImportControls({
   docPathLabel = 'Validation document path',
   docPathPlaceholder = 'Validation document path',
   fieldClassName,
-  flowEditorDataHook = false,
+  storyboardWidgetDataHook = false,
   importSetLabel = 'Import set',
   importUrlFallback,
   importUrlOpts,
@@ -167,7 +167,7 @@ export function VideoAgentValidationImportControls({
       className={containerClassName}
       aria-label={containerAriaLabel}
       aria-busy={importRunning}
-      data-kg-flow-editor-video-agent-validation-controls={flowEditorDataHook ? '1' : undefined}
+      data-kg-storyboard-widget-video-agent-validation-controls={storyboardWidgetDataHook ? '1' : undefined}
     >
       <label className={cn(showFieldLabels && 'grid min-w-0 gap-1 text-[11px]')}>
         {showFieldLabels ? <span className="truncate">{docPathLabel}</span> : null}

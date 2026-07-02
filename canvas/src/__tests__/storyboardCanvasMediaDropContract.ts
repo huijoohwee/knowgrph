@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 
 export function assertStoryboard2dMediaDropContract() {
-  const flowEditorSurfaceSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx', import.meta.url), 'utf8')
-  const flowEditorWidgetDropBridgeSource = readFileSync(new URL('../components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts', import.meta.url), 'utf8')
-  const graphStoryboardOverlaySource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
-  const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/FlowEditorCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
-  const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/FlowEditorCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
+  const storyboardWidgetSurfaceSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx', import.meta.url), 'utf8')
+  const storyboardWidgetDropBridgeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts', import.meta.url), 'utf8')
+  const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
+  const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
   const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
   const flowCanvasMediaOverlaysSource = readFileSync(new URL('../components/FlowCanvas/FlowCanvasMediaOverlays.tsx', import.meta.url), 'utf8')
   const flowCanvasMediaOverlayWorldPointSource = readFileSync(new URL('../components/FlowCanvas/flowCanvasMediaOverlayWorldPoint.ts', import.meta.url), 'utf8')
@@ -17,18 +17,18 @@ export function assertStoryboard2dMediaDropContract() {
     'isMediaDropClaimedByNestedTarget',
     'if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false',
   ]) {
-    if (!flowEditorSurfaceSource.includes(snippet)) {
-      throw new Error(`expected Flow Editor canvas drop owner to skip nested media drop targets: ${snippet}`)
+    if (!storyboardWidgetSurfaceSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget canvas drop owner to skip nested media drop targets: ${snippet}`)
     }
-    if (!flowEditorWidgetDropBridgeSource.includes(snippet)) {
-      throw new Error(`expected Flow Editor widget drop bridge to skip nested media drop targets: ${snippet}`)
+    if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget drop bridge to skip nested media drop targets: ${snippet}`)
     }
   }
   for (const snippet of [
-    "document.querySelectorAll<HTMLElement>('[data-kg-flow-editor-surface-root]')",
+    "document.querySelectorAll<HTMLElement>('[data-kg-storyboard-widget-surface-root]')",
     'if (activeSurface) return activeSurface.getBoundingClientRect()',
   ]) {
-    if (!flowEditorWidgetDropBridgeSource.includes(snippet)) {
+    if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
       throw new Error(`expected bridge-only media drops to resolve against the active renderer surface before falling back to the window: ${snippet}`)
     }
   }
@@ -49,7 +49,7 @@ export function assertStoryboard2dMediaDropContract() {
     || !graphStoryboardOverlaySource.includes("requestZoom('fit', { intent: 'fitToView' })")
     || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef')
     || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== initialFitDocumentKey')
-    || !graphStoryboardOverlaySource.includes('`${flowEditorSurfaceId}::${String(markdownDocumentName || \'\').trim()}`')
+    || !graphStoryboardOverlaySource.includes('`${storyboardWidgetSurfaceId}::${String(markdownDocumentName || \'\').trim()}`')
   ) {
     throw new Error('expected Storyboard 2D fixed-card overlay to seed offscreen startup through the shared FlowCanvas zoom request path')
   }
@@ -65,11 +65,11 @@ export function assertStoryboard2dMediaDropContract() {
     throw new Error('expected Storyboard 2D fixed-card overlay to render from the live FlowCanvas transform instead of overriding pan/zoom with a private fit transform')
   }
   for (const snippet of [
-    "import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'",
-    'isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))',
+    "import { isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'",
+    'isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))',
   ]) {
     if (!flowCanvasZoomRequestSource.includes(snippet)) {
-      throw new Error(`expected FlowCanvas zoom requests to reuse the shared Flow Editor renderer predicate for Storyboard: ${snippet}`)
+      throw new Error(`expected FlowCanvas zoom requests to reuse the shared Storyboard renderer predicate for Storyboard: ${snippet}`)
     }
   }
   for (const snippet of [
@@ -115,7 +115,7 @@ export function assertStoryboard2dMediaDropContract() {
       throw new Error(`expected shared FlowCanvas media overlay world-point helpers to stay source-owned: ${snippet}`)
     }
   }
-  if (flowEditorSurfaceSource.includes('http://127.0.0.1:7777') || flowEditorSurfaceSource.includes('storyboard-media-panel-loop') || flowEditorSurfaceSource.includes('[DEBUG]')) {
+  if (storyboardWidgetSurfaceSource.includes('http://127.0.0.1:7777') || storyboardWidgetSurfaceSource.includes('storyboard-media-panel-loop') || storyboardWidgetSurfaceSource.includes('[DEBUG]')) {
     throw new Error('forbid hardcoded Storyboard surface debug endpoints and debug traces in the shared media drop owner')
   }
   if (flowCanvasMediaOverlaysSource.includes('http://127.0.0.1:7777') || flowCanvasMediaOverlaysSource.includes('[DEBUG] rich media overlay selected/opened on storyboard surface')) {

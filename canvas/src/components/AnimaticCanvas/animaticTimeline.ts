@@ -1,4 +1,4 @@
-import { resolveBeatRefForNode } from '@/components/FlowEditor/beatByBeat'
+import { resolveBeatRefForNode } from '@/components/StoryboardWidget/beatByBeat'
 import { FLOW_EDGE_SOURCE_PORT_KEY } from '@/lib/graph/flowPorts'
 import { isPlainObject } from '@/lib/graph/value'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'

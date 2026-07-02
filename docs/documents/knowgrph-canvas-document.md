@@ -42,7 +42,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 | Subgraph Containment | Prevent nodes escaping group bounds | - [x] Clamp member nodes within group bounds; forbid escape or touching borders |
 | Verification | Make layout and fit changes regression-resistant | - [ ] Cover fit and layout behaviors via bounded tests; forbid brittle dataset-specific assertions |
 | Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout toggles; apply presentation updates without changing zoom keys; forbid stale transforms when switching layers/modes/labels/groups |
-| Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one *active* renderer/mode at a time (2D: D3/Flow/Design/Flow Editor, 3D, Geospatial); inactive surfaces may be warm-mounted but must be effect-gated (no draw loops, no request consumption, no shared-cache writes) |
+| Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one *active* renderer/mode at a time (2D: D3/Flow/Design/Storyboard, 3D, Geospatial); inactive surfaces may be warm-mounted but must be effect-gated (no draw loops, no request consumption, no shared-cache writes) |
 
 ---
 
@@ -58,12 +58,12 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `gitGraph` (`MermaidGitGraphCanvas` Mermaid GitGraph SVG renderer)
   - `flow` (`FlowCanvas` native Canvas2D renderer)
   - `design` (`DesignCanvas` 2D design surface)
-  - `flowEditor` (`FlowEditorCanvas` 2D workflow editor surface)
+  - `storyboard` (`StoryboardWidgetCanvas` Storyboard surface; Display Controls choose Card or Widget presentation)
 - **Geospatial Mode**: hosted by `gympgrph` and treated as a mutually exclusive overlay mode.
 
 ### Exclusivity Rules (Non-Negotiable)
 
-- Only one renderer surface is active at a time (2D: D3/GitGraph/Flow/Design/Flow Editor, 3D, Geospatial).
+- Only one renderer surface is active at a time (2D: D3/GitGraph/Flow/Design/Storyboard, 3D, Geospatial).
 - The host may warm-mount inactive surfaces to reduce switch lag, but inactive surfaces must be effect-gated (no draw loops, no request consumption, no shared-cache writes).
 - Only the active renderer may consume shared requests (e.g. `zoomRequest`) and own interactive listeners.
 - Switching modes must preserve selection and avoid cross-mode cache contamination by keying layout/zoom caches with mode + renderer.
@@ -83,7 +83,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - FloatingPanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
 - MainPanel tab behavior must come from one metadata path for tab labels, searchable tabs, search placeholders, and footer copy; headers, search rows, footers, and key/value rows must wrap responsively on narrow widths instead of overlapping, and Settings lazy-load helpers must not depend on toolbar-owned init chunks.
 - FloatingPanel shell behavior must come from one metadata path for view buttons, shared header status chips, full-height body views, and renderer-only header actions; cap shell width to the viewport, let header/status rows wrap, and keep inactive views unmounted.
-- FloatingPanel Chat response and persistence contract: enforce markdown-syntax-guidelines-aligned output (variables/sigils/tables/flow blocks). Standard chat responses may include one optional `response:` YAML metadata block for Flow Editor (2D) + Multi-dimensional Table + Kanban follow-up parameterization, while `chatKnowgrph` accepts the structured KGC contract or a literal MCP result whose `structuredContent` already extracts to renderable Widgets, Rich Media Panels, Cards, Text/Image/Audio/Video media, safe inline compute, and handle-bearing edges. `useFloatingPanelChatSubmit` stays a thin shell for request guards and optimistic state, and the async submit lifecycle remains owned by `floatingPanelChatSubmitCoordinator.ts` plus the existing request, transport, streaming, validation, and recovery helpers. Commit one final chat bubble: concise bullets (≤50 words) plus a workspace link to the current canonical workspace document under `chatLocalStorageRootPath`, using the session-folder contract `/chat-log/YYYYMMDDTHHmmssZ/kgc_YYYYMMDDTHHmmssZ.md` (no per-message files). In `chatKnowgrph` mode, `New Chat` must create/open a fresh session folder plus canonical `kgc_*.md` and route the next turn to that file. For `chatKnowgrph`, saved KGC remains one standalone frontmatter-first parser-valid computing-flow-compatible document for direct ingest/render, while renderable literal MCP structured surfaces finalize without KGC retry or synthetic KGC text and then project through the same Editor Workspace -> Source Files -> frontmatter-flow -> Canvas path. Streaming keeps the canonical document parseable via deterministic fallback and upstream recovery while preserving the substantive answer content inside the canonical KGC document.
+- FloatingPanel Chat response and persistence contract: enforce markdown-syntax-guidelines-aligned output (variables/sigils/tables/flow blocks). Standard chat responses may include one optional `response:` YAML metadata block for Storyboard Widget (2D) + Multi-dimensional Table + Kanban follow-up parameterization, while `chatKnowgrph` accepts the structured KGC contract or a literal MCP result whose `structuredContent` already extracts to renderable Widgets, Rich Media Panels, Cards, Text/Image/Audio/Video media, safe inline compute, and handle-bearing edges. `useFloatingPanelChatSubmit` stays a thin shell for request guards and optimistic state, and the async submit lifecycle remains owned by `floatingPanelChatSubmitCoordinator.ts` plus the existing request, transport, streaming, validation, and recovery helpers. Commit one final chat bubble: concise bullets (≤50 words) plus a workspace link to the current canonical workspace document under `chatLocalStorageRootPath`, using the session-folder contract `/chat-log/YYYYMMDDTHHmmssZ/kgc_YYYYMMDDTHHmmssZ.md` (no per-message files). In `chatKnowgrph` mode, `New Chat` must create/open a fresh session folder plus canonical `kgc_*.md` and route the next turn to that file. For `chatKnowgrph`, saved KGC remains one standalone frontmatter-first parser-valid computing-flow-compatible document for direct ingest/render, while renderable literal MCP structured surfaces finalize without KGC retry or synthetic KGC text and then project through the same Editor Workspace -> Source Files -> frontmatter-flow -> Canvas path. Streaming keeps the canonical document parseable via deterministic fallback and upstream recovery while preserving the substantive answer content inside the canonical KGC document.
 
 ### Canvas Interaction Panel (Floating)
 
@@ -108,7 +108,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 - Agentic Canvas OS Dashboard is a Canvas-rendered Source Files Markdown document, not a new Canvas runtime. The canonical document path pattern is `agentic-os/<runId>/dashboard.agentic-os.md`.
 - The dashboard document owns stable frontmatter and human-readable body sections; the run manifest owns volatile runtime facts such as tool attempts, approval states, cost logs, artifacts, and failures.
-- Canvas renders the dashboard through the existing Editor Workspace -> Source Files -> frontmatter-flow -> Flow Editor path. It must not mount a dashboard-only graph store, renderer, preview, inspector, or mutation bridge.
+- Canvas renders the dashboard through the existing Editor Workspace -> Source Files -> frontmatter-flow -> Storyboard/shared widget-runtime path. It must not mount a dashboard-only graph store, renderer, preview, inspector, or mutation bridge.
 - The dashboard document may contain `AgenticOSProfile`, `AgenticOSPlan`, `AgenticOSToolCall`, `AgenticOSApprovalGate`, `AgenticOSBudget`, `AgenticOSEvidencePack`, `AgenticOSArtifact`, `AgenticOSFailure`, and `AgenticOSDemoPack` nodes. These are ordinary GraphData nodes projected from frontmatter-flow, not bespoke React component types.
 - Market validation and real-browser research extend the same document model. The dashboard document may also contain `AgenticOSMarketReport`, `AgenticOSSourceCard`, `AgenticOSBrowserSession`, and `AgenticOSMediaEvidence` nodes for source-backed social/community/product research, evidence levels, screenshots/media artifacts, and browser capture status.
 - Starter repo planning extends the same document model. The dashboard document may contain `AgenticOSStarterRepo`, `AgenticOSAuthBoundary`, `AgenticOSGatewayPolicy`, and `AgenticOSDeploymentPreflight` nodes for secured React frontend, agent backend, auth, tool policy, IaC choice, tests, docs, and deployment readiness.
@@ -177,30 +177,30 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Rendering uses the Markdown data-view table/kanban/multi-dimensional table utilities with a single scroll owner.
   - View shaping is driven by the data-view header/settings and persisted through workspace data-view config, not removed graph-table workspace local-storage keys.
   - Canvas and Workflow Manager must not open or warm a separate graph-table workspace route for this mode.
-  - Storyboard card and lane surfaces may project graph-backed cards differently, but toolbar/data-view affordances must still reuse the shared Flow Editor toolbar, shared Storyboard action/binding helpers, and shared Workspace/Kanban utility owners instead of re-authoring record/table controls per renderer.
+  - Storyboard card and lane surfaces may project graph-backed cards differently, but toolbar/data-view affordances must still reuse the shared Storyboard Widget toolbar, shared Storyboard action/binding helpers, and shared Workspace/Kanban utility owners instead of re-authoring record/table controls per renderer.
 
 ### Record Inspector (SSOT)
 
 - The Record Inspector UI is a host-owned SSOT component (`GraphRecordInspector`) and may be reused by inspector surfaces that still consume GraphRecordDb row primitives.
 - Editor mode must not mount a standalone inspector dock; inspector surfaces belong to Canvas mode (Floating Panel) or Graph Table workspaces only.
-- When the active 2D renderer is `flowEditor`, the Flow Editor Inspector is consolidated into the same Floating Panel "Inspector" surface via a portal slot id (`FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID`) to avoid duplicate inspector panels.
+- When Storyboard is in Widget presentation, the shared Storyboard Widget Inspector is consolidated into the same Floating Panel "Inspector" surface via `STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID` to avoid duplicate inspector panels.
 - The Inspector view must render its layout even with no active selection so the Floating Panel always shows stable structure; inputs may be disabled but the surface must stay visible.
 - Editing a field in the inspector updates the persisted Graph Table cache first, then applies a bounded write-through to the graph store to keep `graphDataRevision` and derived render views consistent.
 
-### Flow Editor Widget Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
+### Storyboard Widget Widget Live Sync (Canvas ↔ Editor Workspace ↔ Graph Data Table)
 
-- Flow Editor widget open state is stored in the shared graph view state (`openWidgetNodeIds`) and must not be local to a single renderer.
-- Flow Editor canvas and Graph Table Inspector must consult the same open list to render widget panels for node rows.
-- Editor Workspace must surface Flow Editor widgets **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second widget panel.
+- Storyboard Widget open state is stored in the shared graph view state (`openWidgetNodeIds`) and must not be local to a single renderer.
+- Storyboard Widget canvas and Graph Table Inspector must consult the same open list to render widget panels for node rows.
+- Editor Workspace must surface Storyboard widgets **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second widget panel.
 - Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
-- In Flow Editor, pinned widgets adjust anchor offsets on header drag; dragging a pinned widget moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
-- NodeOverlayEditor is decomposed into focused modules: `NodeOverlayEditorInner` (orchestrator), `NodeOverlayEditorView` (pure view), `nodeOverlayEditorShared` (types/constants), `useNodeOverlayPlacementRuntime` (position/scale), `useNodeOverlayDragHandlers` (pointer drag), `useNodeOverlayRichMediaToolbar` (rich-media toolbar). See `knowgrph-flow-editor-widget-document.md`.
-- Flow Editor overlay collision resolution is scheduled on overlay set changes and quantized zoom changes (not every interaction tick). See `knowgrph-flow-editor-pan-zoom-overlay-failsafe-document.md`.
+- In Storyboard Widget, pinned widgets adjust anchor offsets on header drag; dragging a pinned widget moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
+- WidgetEditor is decomposed into focused modules: `WidgetEditorInner` (orchestrator), `WidgetEditorView` (pure view), `flowWidgetOverlayShared` (types/constants), `useWidgetPlacementRuntime` (position/scale), `useWidgetDragHandlers` (pointer drag), `useWidgetRichMediaToolbar` (rich-media toolbar). See `knowgrph-storyboard-widget-document.md`.
+- Storyboard Widget overlay collision resolution is scheduled on overlay set changes and quantized zoom changes (not every interaction tick). See `knowgrph-storyboard-widget-pan-zoom-overlay-failsafe-document.md`.
 - Graph data commits preserve overlay-carryover state: when a commit modifies graph data, overlay-managed node positions and connected edges are carried over to the new revision so pinned overlays do not drift.
 - Widget world positions are stored per graph meta key (`flowWidgetWorldPosByNodeIdByGraphMetaKey`) so positions persist correctly when switching between frontmatter-flow graphs; transient placement authorities are reset on workspace reopen.
 - Frontmatter-flow auto-managed widgets (text/image/video generation, rich media panel, video transcriber) use a centralized placement authority (`widgetPlacementAuthority.ts`) that decides auto-placement, pinned-in-canvas defaults, screen-space authority for floating widgets, and balanced collective layout preservation.
-- Applied markdown document authority must include explicit reapply epochs, not only document path identity: when `applyMarkdownDocument(...)` replays the active source authority, Flow Editor draft lifetime must invalidate on the shared applied-document semantic key plus an incremented apply revision even if the path and markdown text are unchanged.
-- Same-path same-text source reapply is a real reset boundary: transient Flow Editor draft panels, Storyboard Rich Media panels, and authored draft-only edges must clear back to source-owned baseline state before the next render or drop cycle rather than persisting until a path/text change happens.
+- Applied markdown document authority must include explicit reapply epochs, not only document path identity: when `applyMarkdownDocument(...)` replays the active source authority, Storyboard Widget draft lifetime must invalidate on the shared applied-document semantic key plus an incremented apply revision even if the path and markdown text are unchanged.
+- Same-path same-text source reapply is a real reset boundary: transient Storyboard Widget draft panels, Storyboard Rich Media panels, and authored draft-only edges must clear back to source-owned baseline state before the next render or drop cycle rather than persisting until a path/text change happens.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 

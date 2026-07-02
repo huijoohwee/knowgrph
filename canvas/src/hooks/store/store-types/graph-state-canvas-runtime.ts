@@ -9,7 +9,7 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasRunMode, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
@@ -78,9 +78,9 @@ export interface GraphStateCanvasRuntime {
   requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) => void;
   clearGraphCanvasArrangeRequest: () => void;
 
-  flowEditorLayoutRebalanceRequest: null | { type: 'balanced-spread'; at: number };
-  requestFlowEditorLayoutRebalance: () => void;
-  clearFlowEditorLayoutRebalanceRequest: () => void;
+  storyboardWidgetLayoutRebalanceRequest: null | { type: 'balanced-spread'; at: number };
+  requestStoryboardWidgetLayoutRebalance: () => void;
+  clearStoryboardWidgetLayoutRebalanceRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
   zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>
@@ -165,8 +165,8 @@ export interface GraphStateCanvasRuntime {
   infiniteCanvasInteractionMode: InfiniteCanvasInteractionMode;
   canvasWorkspaceSyncMode: CanvasWorkspaceSyncMode;
   canvasRunMode: CanvasRunMode;
-  flowEditorSelectionOnDrag: boolean;
-  flowEditorOverlayWheelProxyEnabled: boolean;
+  storyboardWidgetSelectionOnDrag: boolean;
+  storyboardWidgetOverlayWheelProxyEnabled: boolean;
   flowWheelZoomSpeedMultiplier: number;
   flowWheelZoomIncrementMultiplier: number;
   flowWheelZoomSmoothMinDurationMs: number;
@@ -194,8 +194,8 @@ export interface GraphStateCanvasRuntime {
   setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => void;
   setCanvasWorkspaceSyncMode: (mode: CanvasWorkspaceSyncMode) => void;
   setCanvasRunMode: (mode: CanvasRunMode) => void;
-  setFlowEditorSelectionOnDrag: (v: boolean) => void;
-  setFlowEditorOverlayWheelProxyEnabled: (v: boolean) => void;
+  setStoryboardWidgetSelectionOnDrag: (v: boolean) => void;
+  setStoryboardWidgetOverlayWheelProxyEnabled: (v: boolean) => void;
   setFlowWheelZoomSpeedMultiplier: (v: number) => void;
   setFlowWheelZoomIncrementMultiplier: (v: number) => void;
   setFlowWheelZoomSmoothMinDurationMs: (v: number) => void;

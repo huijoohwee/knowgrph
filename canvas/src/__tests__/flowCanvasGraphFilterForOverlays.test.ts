@@ -1,4 +1,4 @@
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas'
 
 export function testFlowCanvasDoesNotFilterGraphForOverlays(): void {
@@ -13,7 +13,7 @@ export function testFlowCanvasDoesNotFilterGraphForOverlays(): void {
   if (nodes.length !== 2) throw new Error('Expected flow renderer to keep non-flow nodes for overlays')
 }
 
-export function testFlowCanvasFiltersFrontmatterFlowGraphForFlowEditorIsolation(): void {
+export function testFlowCanvasFiltersFrontmatterFlowGraphForStoryboardWidgetIsolation(): void {
   const g = {
     context: 'frontmatter-flow',
     metadata: { kind: 'frontmatter-flow' },
@@ -31,16 +31,16 @@ export function testFlowCanvasFiltersFrontmatterFlowGraphForFlowEditorIsolation(
   const out = pickGraphDataForFlowRenderer({
     graphData: g,
     effectiveFrontmatter: true,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
   })
   if (!out) throw new Error('Expected filtered graph data')
   const nodeIds = Array.isArray(out.nodes) ? out.nodes.map((node: any) => String(node?.id || '')).filter(Boolean).sort() : []
   if (nodeIds.join('|') !== 'flow1|flow2') {
-    throw new Error(`expected flow-editor frontmatter graph filter to keep only flow-widget-eligible nodes, got: ${nodeIds.join('|')}`)
+    throw new Error(`expected storyboard-widget frontmatter graph filter to keep only flow-widget-eligible nodes, got: ${nodeIds.join('|')}`)
   }
   const edgeIds = Array.isArray(out.edges) ? out.edges.map((edge: any) => String(edge?.id || '')).filter(Boolean).sort() : []
   if (edgeIds.join('|') !== 'e1') {
-    throw new Error(`expected flow-editor frontmatter graph filter to keep only edges fully contained in flow-widget nodes, got: ${edgeIds.join('|')}`)
+    throw new Error(`expected storyboard-widget frontmatter graph filter to keep only edges fully contained in flow-widget nodes, got: ${edgeIds.join('|')}`)
   }
 }
 
@@ -62,16 +62,16 @@ export function testFlowCanvasFrontmatterFlowIsolationDoesNotDependOnFrontmatter
   const out = pickGraphDataForFlowRenderer({
     graphData: g,
     effectiveFrontmatter: false,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
   })
   if (!out) throw new Error('Expected filtered graph data')
   const nodeIds = Array.isArray(out.nodes) ? out.nodes.map((node: any) => String(node?.id || '')).filter(Boolean).sort() : []
   if (nodeIds.join('|') !== 'flow1|flow2') {
-    throw new Error(`expected flow-editor frontmatter graph isolation to remain active even when effectiveFrontmatter toggles false, got: ${nodeIds.join('|')}`)
+    throw new Error(`expected storyboard-widget frontmatter graph isolation to remain active even when effectiveFrontmatter toggles false, got: ${nodeIds.join('|')}`)
   }
   const edgeIds = Array.isArray(out.edges) ? out.edges.map((edge: any) => String(edge?.id || '')).filter(Boolean).sort() : []
   if (edgeIds.join('|') !== 'e1') {
-    throw new Error(`expected flow-editor frontmatter graph isolation to keep only flow-widget-contained edges when effectiveFrontmatter toggles false, got: ${edgeIds.join('|')}`)
+    throw new Error(`expected storyboard-widget frontmatter graph isolation to keep only flow-widget-contained edges when effectiveFrontmatter toggles false, got: ${edgeIds.join('|')}`)
   }
 }
 

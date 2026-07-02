@@ -19,7 +19,7 @@ frontmatter_contract: "required"
 
 ## Parser Routing Keys, Diagram Kinds, Surfaces, Edges, And Forks
 
-- Runtime-ready Canvas documents declare `kgParserRoutingContract.version: "knowgrph-parser-routing/v1"` in opening frontmatter when parser output must route deterministically across Flow Editor, Storyboard, and Mermaid surfaces.
+- Runtime-ready Canvas documents declare `kgParserRoutingContract.version: "knowgrph-parser-routing/v1"` in opening frontmatter when parser output must route deterministically across Storyboard and Mermaid surfaces.
 - The parser treats opening frontmatter and authored source payloads as the SSOT. It reads `kgCanvasSurfaceMode`, `kgCanvasRenderMode`, `kgCanvas2dRenderer`, `kgDocumentSemanticMode`, `kgFrontmatterModeEnabled`, `flow`, `flow.nodes`, `flow.edges`, `flow_diagrams`, `workflow`, `workflow.edges`, and `kgStrybldrStoryboard` without requiring filename heuristics or body-side graph mirrors.
 - Diagram kinds remain data-level declarations: `mermaid_flowchart`, `mermaid_gitgraph`, `mermaid_architecture`, `mermaid_eventmodeling`, `mermaid_gantt`, `frontmatter_flow`, and `strybldr_storyboard`.
 - Parser output must preserve explicit topology from `graphData.edges`, `flow.edges`, workflow edges, Mermaid edges, and Strybldr payload edges. Renderers may filter what is visible, but parser output must not drop fork, branch, review, or publish relationships because they are not part of a default label allowlist.

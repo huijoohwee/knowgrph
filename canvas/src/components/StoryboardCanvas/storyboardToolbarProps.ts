@@ -1,9 +1,9 @@
-import type { NodeOverlayEditorActionsToolbarProps } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { buildNodeOverlayBubbleToolbarPresentation } from '@/components/FlowEditor/nodeOverlayBubbleToolbarPresentation'
+import type { WidgetEditorActionsToolbarProps } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
+import { buildWidgetBubbleToolbarPresentation } from '@/components/StoryboardWidget/widgetBubbleToolbarPresentation'
 import { buildStoryboardToolbarPresentation } from '@/components/StoryboardCanvas/storyboardToolbarPresentation'
 
 export type StoryboardToolbarProps = Pick<
-  NodeOverlayEditorActionsToolbarProps,
+  WidgetEditorActionsToolbarProps,
   | 'ariaLabel'
   | 'navClassName'
   | 'navStyle'
@@ -27,7 +27,7 @@ export function buildStoryboardToolbarProps(args: {
     primaryReferenceUrl: args.primaryReferenceUrl,
   })
   return {
-    ...buildNodeOverlayBubbleToolbarPresentation({
+    ...buildWidgetBubbleToolbarPresentation({
       ariaLabel: 'Storyboard card actions',
       placement: 'flow-widget-above-center',
       active: args.active,

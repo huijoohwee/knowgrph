@@ -23,7 +23,7 @@ This document defines the implementation-accurate product and technical contract
 
 The implemented path is:
 
-`MainPanel Integrations -> Settings-backed provider readiness -> FloatingPanel Chat -> New Chat -> shared LLM prompt contract -> SSE JSON chunk stream -> Workspace / Source Files -> Markdown with YAML frontmatter -> shared frontmatter parser -> Flow Editor / Storyboard / Animatic provider-neutral renderers`
+`MainPanel Integrations -> Settings-backed provider readiness -> FloatingPanel Chat -> New Chat -> shared LLM prompt contract -> SSE JSON chunk stream -> Workspace / Source Files -> Markdown with YAML frontmatter -> shared frontmatter parser -> Storyboard / Animatic provider-neutral renderers`
 
 ## Implementation Status
 
@@ -104,7 +104,7 @@ As a Knowgrph developer using MainPanel Integrations, I want to configure Agnes 
 
 - Given Agnes is used upstream,
   when the final markdown lands in the canvas pipeline,
-  then Flow Editor, Storyboard, and Animatic remain provider-neutral and consume only the shared markdown/frontmatter graph contract.
+  then Storyboard and Animatic remain provider-neutral and consume only the shared markdown/frontmatter graph contract.
 - Given provider switching occurs,
   when Agnes replaces OpenAI, MiroMind, or local chat,
   then no Agnes-only renderer flags, grouping aliases, or graph mutation branches are introduced.
@@ -145,7 +145,7 @@ flowchart LR
     SP --> KG["KGC markdown validation/finalize"]
     KG --> WS["Workspace + Source Files markdown"]
     WS --> FM["Frontmatter parser/apply"]
-    FM --> FE["Flow Editor / Storyboard / Animatic"]
+    FM --> FE["Storyboard / Animatic"]
 ```
 
 ## Architecture Decisions
@@ -273,7 +273,7 @@ When `chatStorageTarget` is `chatKnowgrph`, Agnes output must satisfy all of the
 - first block is valid YAML frontmatter,
 - downstream content is compatible with shared frontmatter parser,
 - output can persist to Workspace and Source Files without provider-specific post-processing,
-- output can land in Flow Editor, Storyboard, or Animatic using shared renderer ownership.
+- output can land in Storyboard or Animatic using shared renderer ownership.
 
 ### Guideline Alignment
 

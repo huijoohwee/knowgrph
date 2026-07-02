@@ -34,11 +34,11 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { canonicalMediaDedupUrl, listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 

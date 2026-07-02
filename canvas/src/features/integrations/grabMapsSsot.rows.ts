@@ -192,7 +192,7 @@ export const GRABMAPS_DOC_ROWS: ReadonlyArray<GrabMapsApiDocRow> = [
     keyDescription: 'Planner-model selector -> choose the LLM that translates user travel intent into GrabMaps operations -> keep the Props Panel discovery widget and MainPanel Maps defaults on one planning model SSOT.',
     valueDescription: `Default: ${CHAT_DEFAULT_MODEL}; Options: ${CHAT_DEFAULT_MODEL}; Switching models expands planning behavior only when the curated list grows; keeping one model narrows drift across widget and Maps surfaces.`,
     ssot: 'https://maps.grab.com/developer/documentation/mcp',
-    module: ['canvas/src/features/settings/registry-ui.grabmaps.ts', 'canvas/src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx', 'canvas/src/features/flow-editor-manager/grabMapsDiscoveryWidget.ts'],
+    module: ['canvas/src/features/settings/registry-ui.grabmaps.ts', 'canvas/src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx', 'canvas/src/features/storyboard-widget-manager/grabMapsDiscoveryWidget.ts'],
     className: ['SettingsRegistryItem', 'GrabMapsDiscoveryWidgetSection'],
     functionName: ['readGrabMapsDiscoverySettingsValues', 'planOperations', 'buildGrabMapsDiscoveryRegistryDraft'],
     valueKey: 'maps.grabmaps.mcp.discovery.chatModel',

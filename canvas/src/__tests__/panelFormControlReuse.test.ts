@@ -29,9 +29,9 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const graphTableToolbarText = readUtf8('src/features/graph-data-table/ui/GraphDataTableToolbar.tsx')
   const cardInlineTextEditorText = readUtf8('src/lib/cards/CardInlineTextEditor.tsx')
   const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
-  const flowEditorInlineValueEditorText = readUtf8('src/components/FlowEditor/FlowEditorInlineValueEditor.tsx')
-  const flowEditorInspectorText = readUtf8('src/components/FlowEditor/FlowEditorInspector.tsx')
-  const nodeOverlayEditorFormText = readUtf8('src/components/FlowEditor/NodeOverlayEditorForm.tsx')
+  const storyboardWidgetInlineValueEditorText = readUtf8('src/components/StoryboardWidget/StoryboardWidgetInlineValueEditor.tsx')
+  const storyboardWidgetInspectorText = readUtf8('src/components/StoryboardWidget/StoryboardWidgetInspector.tsx')
+  const widgetEditorFormText = readUtf8('src/components/StoryboardWidget/WidgetEditorForm.tsx')
   const graphEditorInspectorText = readUtf8('src/features/graph-editor/panels/GraphEditorInspectorTab.tsx')
   const researchCompilerText = readUtf8('src/features/panels/views/ResearchCompilerView.tsx')
   const siteSelectionWidgetText = readUtf8('src/features/maps/SiteSelectionWidget.tsx')
@@ -43,14 +43,14 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const floatingPanelChatSectionsText = readUtf8('src/features/chat/FloatingPanelChatSections.tsx')
   const chatModelCredentialControlsText = readUtf8('src/features/chat/ChatModelCredentialControls.tsx')
   const workspaceActionsPanelText = readUtf8('src/features/workspace-actions/WorkspaceActionsPanel.tsx')
-  const flowEditorMappingTabLayoutText = readUtf8('src/features/flow-editor-manager/FlowEditorMappingTabLayout.tsx')
-  const flowEditorMappingSettingsPanelText = readUtf8('src/features/flow-editor-manager/FlowEditorMappingSettingsPanel.tsx')
-  const flowMappingRowsTableText = readUtf8('src/features/flow-editor-manager/FlowMappingRowsTable.tsx')
-  const widgetRegistryTableText = readUtf8('src/features/flow-editor-manager/WidgetRegistryTable.tsx')
-  const widgetRegistryFieldsEditorText = readUtf8('src/features/flow-editor-manager/WidgetRegistryFieldsEditor.tsx')
-  const widgetRegistryPortsEditorText = readUtf8('src/features/flow-editor-manager/WidgetRegistryPortsEditor.tsx')
-  const widgetRegistrySchemaMappingsEditorText = readUtf8('src/features/flow-editor-manager/WidgetRegistrySchemaMappingsEditor.tsx')
-  const flowManagerRegistryEditorPrimitivesText = readUtf8('src/features/flow-editor-manager/FlowManagerRegistryEditorPrimitives.tsx')
+  const storyboardWidgetMappingTabLayoutText = readUtf8('src/features/storyboard-widget-manager/StoryboardWidgetMappingTabLayout.tsx')
+  const storyboardWidgetMappingSettingsPanelText = readUtf8('src/features/storyboard-widget-manager/StoryboardWidgetMappingSettingsPanel.tsx')
+  const flowMappingRowsTableText = readUtf8('src/features/storyboard-widget-manager/FlowMappingRowsTable.tsx')
+  const widgetRegistryTableText = readUtf8('src/features/storyboard-widget-manager/WidgetRegistryTable.tsx')
+  const widgetRegistryFieldsEditorText = readUtf8('src/features/storyboard-widget-manager/WidgetRegistryFieldsEditor.tsx')
+  const widgetRegistryPortsEditorText = readUtf8('src/features/storyboard-widget-manager/WidgetRegistryPortsEditor.tsx')
+  const widgetRegistrySchemaMappingsEditorText = readUtf8('src/features/storyboard-widget-manager/WidgetRegistrySchemaMappingsEditor.tsx')
+  const flowManagerRegistryEditorPrimitivesText = readUtf8('src/features/storyboard-widget-manager/FlowManagerRegistryEditorPrimitives.tsx')
   const floatingPropsPanelText = readUtf8('src/features/toolbar/FloatingPropsPanel.tsx')
   const toolbarToolMenuText = readUtf8('src/lib/toolbar/ToolbarToolMenu.impl.tsx')
   const panelLabeledRangeCardText = readUtf8('src/features/panels/ui/PanelLabeledRangeCard.tsx')
@@ -248,18 +248,18 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   }
 
   if (
-    !flowEditorInlineValueEditorText.includes('CardInlineTextEditor') ||
-    flowEditorInlineValueEditorText.includes('PlainTextInputEditor') ||
-    flowEditorInlineValueEditorText.includes('<textarea') ||
-    flowEditorInlineValueEditorText.includes('<input') ||
-    flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    flowEditorInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
-    !flowEditorInspectorText.includes('CardInlineTextEditor') ||
-    flowEditorInspectorText.includes('px-0 py-0')
+    !storyboardWidgetInlineValueEditorText.includes('CardInlineTextEditor') ||
+    storyboardWidgetInlineValueEditorText.includes('PlainTextInputEditor') ||
+    storyboardWidgetInlineValueEditorText.includes('<textarea') ||
+    storyboardWidgetInlineValueEditorText.includes('<input') ||
+    storyboardWidgetInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    storyboardWidgetInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
+    !storyboardWidgetInspectorText.includes('CardInlineTextEditor') ||
+    storyboardWidgetInspectorText.includes('px-0 py-0')
   ) {
-    throw new Error('expected Flow Editor inline textareas to route through shared CardInlineTextEditor without local raw controls or padding overrides')
+    throw new Error('expected Storyboard Widget inline textareas to route through shared CardInlineTextEditor without local raw controls or padding overrides')
   }
-  const flowEnvelopeValueBoxClassSource = nodeOverlayEditorFormText.match(/const flowEnvelopeValueBoxClass = React\.useMemo\(\(\) => \{[\s\S]*?\n\s{2}\}, \[[^\]]*\]\)/)?.[0] || ''
+  const flowEnvelopeValueBoxClassSource = widgetEditorFormText.match(/const flowEnvelopeValueBoxClass = React\.useMemo\(\(\) => \{[\s\S]*?\n\s{2}\}, \[[^\]]*\]\)/)?.[0] || ''
   if (
     !flowEnvelopeValueBoxClassSource ||
     flowEnvelopeValueBoxClassSource.includes('keyValueInputClass') ||
@@ -532,22 +532,22 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   }
 
   if (
-    !flowEditorMappingTabLayoutText.includes("from '@/lib/ui/panelFormControls'") ||
-    !flowEditorMappingTabLayoutText.includes('PanelCheckbox') ||
-    flowEditorMappingTabLayoutText.includes('type="checkbox"')
+    !storyboardWidgetMappingTabLayoutText.includes("from '@/lib/ui/panelFormControls'") ||
+    !storyboardWidgetMappingTabLayoutText.includes('PanelCheckbox') ||
+    storyboardWidgetMappingTabLayoutText.includes('type="checkbox"')
   ) {
-    throw new Error('expected FlowEditorMappingTabLayout enabled-only toggle to reuse the shared panel checkbox primitive')
+    throw new Error('expected StoryboardWidgetMappingTabLayout enabled-only toggle to reuse the shared panel checkbox primitive')
   }
 
   if (
-    !flowEditorMappingSettingsPanelText.includes("from '@/lib/ui/panelFormControls'") ||
-    !flowEditorMappingSettingsPanelText.includes('PanelCheckbox') ||
-    !flowEditorMappingSettingsPanelText.includes('PanelField') ||
-    !flowEditorMappingSettingsPanelText.includes('PanelTextInput') ||
-    flowEditorMappingSettingsPanelText.includes('type="checkbox"') ||
-    flowEditorMappingSettingsPanelText.includes('id="flow-editor-manager-nodeType"\n                    value={draft.nodeTypeId}\n                    onChange={e => onChangeDraft({ nodeTypeId: e.target.value })}\n                    className={fieldClassName}')
+    !storyboardWidgetMappingSettingsPanelText.includes("from '@/lib/ui/panelFormControls'") ||
+    !storyboardWidgetMappingSettingsPanelText.includes('PanelCheckbox') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('PanelField') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('PanelTextInput') ||
+    storyboardWidgetMappingSettingsPanelText.includes('type="checkbox"') ||
+    storyboardWidgetMappingSettingsPanelText.includes('id="storyboard-widget-manager-nodeType"\n                    value={draft.nodeTypeId}\n                    onChange={e => onChangeDraft({ nodeTypeId: e.target.value })}\n                    className={fieldClassName}')
   ) {
-    throw new Error('expected FlowEditorMappingSettingsPanel identity fields to reuse shared semantic panel checkbox, field, and text input primitives')
+    throw new Error('expected StoryboardWidgetMappingSettingsPanel identity fields to reuse shared semantic panel checkbox, field, and text input primitives')
   }
 
   if (
@@ -556,7 +556,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !flowManagerRegistryEditorPrimitivesText.includes('export function FlowManagerRegistryRemoveButton') ||
     !flowManagerRegistryEditorPrimitivesText.includes('export function FlowManagerRegistryEmptyState')
   ) {
-    throw new Error('expected flow-editor-manager registry editors to expose shared shell primitives for section headers, item cards, remove buttons, and empty states')
+    throw new Error('expected storyboard-widget-manager registry editors to expose shared shell primitives for section headers, item cards, remove buttons, and empty states')
   }
 
   if (
@@ -743,7 +743,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
 
   if (
     !widgetRegistryFieldsEditorText.includes("from '@/lib/ui/panelFormControls'") ||
-    !widgetRegistryFieldsEditorText.includes("from '@/features/flow-editor-manager/FlowManagerRegistryEditorPrimitives'") ||
+    !widgetRegistryFieldsEditorText.includes("from '@/features/storyboard-widget-manager/FlowManagerRegistryEditorPrimitives'") ||
     !widgetRegistryFieldsEditorText.includes('PanelCheckbox') ||
     !widgetRegistryFieldsEditorText.includes('PanelTextInput') ||
     !widgetRegistryFieldsEditorText.includes('FlowManagerRegistryItemCard') ||
@@ -755,7 +755,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
 
   if (
     !widgetRegistryPortsEditorText.includes("from '@/lib/ui/panelFormControls'") ||
-    !widgetRegistryPortsEditorText.includes("from '@/features/flow-editor-manager/FlowManagerRegistryEditorPrimitives'") ||
+    !widgetRegistryPortsEditorText.includes("from '@/features/storyboard-widget-manager/FlowManagerRegistryEditorPrimitives'") ||
     !widgetRegistryPortsEditorText.includes('PanelSelect') ||
     !widgetRegistryPortsEditorText.includes('PanelTextInput') ||
     !widgetRegistryPortsEditorText.includes('FlowManagerRegistryItemCard') ||
@@ -768,7 +768,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
 
   if (
     !widgetRegistrySchemaMappingsEditorText.includes("from '@/lib/ui/panelFormControls'") ||
-    !widgetRegistrySchemaMappingsEditorText.includes("from '@/features/flow-editor-manager/FlowManagerRegistryEditorPrimitives'") ||
+    !widgetRegistrySchemaMappingsEditorText.includes("from '@/features/storyboard-widget-manager/FlowManagerRegistryEditorPrimitives'") ||
     !widgetRegistrySchemaMappingsEditorText.includes('PanelTextInput') ||
     !widgetRegistrySchemaMappingsEditorText.includes('FlowManagerRegistryItemCard') ||
     !widgetRegistrySchemaMappingsEditorText.includes('FlowManagerRegistrySectionHeader') ||
@@ -873,7 +873,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
 
 export function testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialControls() {
   const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
-  const nodeOverlayEditorFormText = readUtf8('src/components/FlowEditor/NodeOverlayEditorForm.tsx')
+  const widgetEditorFormText = readUtf8('src/components/StoryboardWidget/WidgetEditorForm.tsx')
   const floatingPanelChatSectionsText = readUtf8('src/features/chat/FloatingPanelChatSections.tsx')
   const chatModelCredentialControlsText = readUtf8('src/features/chat/ChatModelCredentialControls.tsx')
   const chatModelCredentialResolverText = readUtf8('src/features/chat/chatModelCredentialResolver.ts')
@@ -882,7 +882,7 @@ export function testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialContro
 
   for (const [name, text] of [
     ['StoryboardCanvas', storyboardCanvasText],
-    ['NodeOverlayEditorForm', nodeOverlayEditorFormText],
+    ['WidgetEditorForm', widgetEditorFormText],
     ['FloatingPanelChatSections', floatingPanelChatSectionsText],
   ] as const) {
     if (!text.includes("from '@/features/chat/ChatModelCredentialControls'") || !text.includes('ChatModelCredentialControls')) {
@@ -892,7 +892,7 @@ export function testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialContro
 
   for (const [name, text] of [
     ['StoryboardCanvas', storyboardCanvasText],
-    ['NodeOverlayEditorForm', nodeOverlayEditorFormText],
+    ['WidgetEditorForm', widgetEditorFormText],
     ['FloatingPanelChat', readUtf8('src/features/chat/FloatingPanelChat.tsx')],
   ] as const) {
     if (!text.includes("from '@/features/chat/chatModelCredentialResolver'") || !text.includes('resolveSharedChatModelSelect')) {
@@ -920,8 +920,8 @@ export function testStoryboardAndFlowWidgetsReuseSharedChatModelCredentialContro
   }
 
   if (
-    !nodeOverlayEditorFormText.includes('onPatchProperties({ chatModel: nextModel })') ||
-    nodeOverlayEditorFormText.includes('apiKey: next') ||
+    !widgetEditorFormText.includes('onPatchProperties({ chatModel: nextModel })') ||
+    widgetEditorFormText.includes('apiKey: next') ||
     storyboardCanvasText.includes('apiKey: cleanModel')
   ) {
     throw new Error('expected Flow widgets to persist only chatModel while shared BYOK password stays in the chat credential store')

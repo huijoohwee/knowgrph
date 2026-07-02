@@ -21,7 +21,7 @@ import {
 } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readCanvasAspectRatioWidthToHeight } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { getFlowEditorPanelChromeClassName } from '@/components/FlowEditor/flowEditorPanelChromeClassName'
+import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { handleRichMediaPanelOverlayDragStartCapture, handleRichMediaPanelOverlayNativeDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
@@ -40,9 +40,9 @@ export type RichMediaPanelSurfaceState = {
   directMediaZoomContentSize: { w: number; h: number }
   expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant
   fallbackToRawSrc: () => boolean
-  flowEditorFrontmatterDocumentMode: boolean
-  flowEditorInteractionMode: boolean
-  flowEditorRichMediaOverlayRoot: boolean
+  storyboardWidgetFrontmatterDocumentMode: boolean
+  storyboardWidgetInteractionMode: boolean
+  storyboardWidgetRichMediaOverlayRoot: boolean
   forwardingEnabled: boolean
   handleRootMouseDownCapture: React.MouseEventHandler<HTMLElement>
   handleRootPointerDownCapture: React.PointerEventHandler<HTMLElement>
@@ -65,7 +65,7 @@ export type RichMediaPanelSurfaceState = {
   rootClassName: string
   rootRef: React.RefCallback<HTMLElement>
   rootStyle: React.CSSProperties
-  showFlowEditorChrome: boolean
+  showStoryboardWidgetChrome: boolean
   showPanelInlineTextEditor: boolean
   showPanelMarkdownPreview: boolean
   shouldHideSurfaceUntilReady: boolean
@@ -80,16 +80,16 @@ export function useRichMediaPanelSurfaceState(
   const rootElementRef = React.useRef<HTMLElement | null>(null)
   const lastPointerDownAtRef = React.useRef(0)
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
-  const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
-  const showFlowEditorChrome = panelChrome === 'flowEditor'
+  const panelChrome = props.panelChrome === 'storyboardWidget' ? 'storyboardWidget' : 'none'
+  const showStoryboardWidgetChrome = panelChrome === 'storyboardWidget'
   const frameMode = props.frameMode === 'surface' ? 'surface' : 'panel'
-  const useSurfaceFrame = frameMode === 'surface' && !showFlowEditorChrome
+  const useSurfaceFrame = frameMode === 'surface' && !showStoryboardWidgetChrome
   const resizeHandlePlacement = props.resizeHandlePlacement === 'external' ? 'external' : 'root'
   const headerPassthrough = props.headerPassthrough === true
-  const flowEditorFrontmatterDocumentMode =
-    props.flowEditorFrontmatterDocumentMode === true || mediaState.flowEditorFrontmatterDocumentModeFromStore
-  const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
-  const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode
+  const storyboardWidgetFrontmatterDocumentMode =
+    props.storyboardWidgetFrontmatterDocumentMode === true || mediaState.storyboardWidgetFrontmatterDocumentModeFromStore
+  const storyboardWidgetOverlayProxyMode = props.storyboardWidgetInteractionMode === true
+  const storyboardWidgetInteractionMode = storyboardWidgetOverlayProxyMode || storyboardWidgetFrontmatterDocumentMode
   const canInlineEditPanelText = Boolean(
     mediaState.panel && mediaState.panelSelectedTab === 'text' && typeof props.onPanelChange === 'function',
   )
@@ -116,7 +116,7 @@ export function useRichMediaPanelSurfaceState(
     workspaceCanvasPaneOpen: mediaState.workspaceCanvasPaneOpen,
   })
   const allowPanelContentPointerEvents =
-    !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || mediaState.isFlowEditorRenderer === true
+    !workspaceEditorOverlayOpen || storyboardWidgetInteractionMode === true || mediaState.isStoryboardRenderer === true
   const allowEmbedFromStore =
     mediaState.richMediaPanelMode === 'embed' || mediaState.infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
@@ -126,13 +126,13 @@ export function useRichMediaPanelSurfaceState(
     && (
       props.forwardWheelBeforeScrollableTarget === true
       || !preferEmbed
-      || flowEditorFrontmatterDocumentMode === true
+      || storyboardWidgetFrontmatterDocumentMode === true
     )
-  const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true
+  const forwardModifierWheelZoomOnly = installWheelForwarding && storyboardWidgetFrontmatterDocumentMode === true
   const forwardingEnabled =
     !playableCardMedia
     && !preferEmbed
-    && flowEditorFrontmatterDocumentMode !== true
+    && storyboardWidgetFrontmatterDocumentMode !== true
     && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
   React.useEffect(() => {
     if (!mediaState.hideUntilReady || mediaState.ready) return
@@ -147,7 +147,7 @@ export function useRichMediaPanelSurfaceState(
   const installResize =
     props.resizable === true && Boolean(props.onResizeStart || props.onResize || props.onResizeEnd)
   const canvasOverlayProxyEnabled = installOverlayPan || installHeaderDrag || typeof props.forwardWheelTo === 'function'
-  const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled
+  const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled
   const fallbackToRawSrc = React.useCallback(() => {
     if (!mediaState.rawUrl || mediaState.rawUrl === mediaState.mediaSrc) return false
     mediaState.setMediaSrc(mediaState.rawUrl)
@@ -198,7 +198,7 @@ export function useRichMediaPanelSurfaceState(
     })
   }, [forwardModifierWheelZoomOnly, installWheelForwarding, props.forwardWheelBeforeScrollableTarget, props.forwardWheelTo])
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
-    if (!flowEditorInteractionMode) return
+    if (!storyboardWidgetInteractionMode) return
     const id = String(props.overlayId || '').trim()
     if (!id || (native && native.button !== 0)) return
     try {
@@ -213,7 +213,7 @@ export function useRichMediaPanelSurfaceState(
     } catch {
       void 0
     }
-  }, [flowEditorInteractionMode, props.overlayId])
+  }, [storyboardWidgetInteractionMode, props.overlayId])
   const onResizePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (!installResize) return
     beginRichMediaPanelResizeDrag({
@@ -232,7 +232,7 @@ export function useRichMediaPanelSurfaceState(
   const handleRootDragStartCapture = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
     const targetEl = event.target instanceof Element ? event.target : null
     if (targetEl?.closest('[data-kg-rich-media-resize-handle="1"]')) return false
-    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header="1"]')
+    const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-storyboard-widget-header="1"]')
     const pointerTarget = readOverlayPointerTargetState(targetEl)
     const scrollSurfaceCanForwardPointer = forwardModifierWheelZoomOnly || props.forwardWheelBeforeScrollableTarget === true
     const nativePointerEvent = event.nativeEvent as PointerEvent | undefined
@@ -289,12 +289,13 @@ export function useRichMediaPanelSurfaceState(
     }
   }, [forwardModifierWheelZoomOnly, installHeaderDrag, installOverlayPan, props, selectSelf, startHeaderDrag])
   const handleRootPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    props.onPointerDownCapture?.(event)
     const handled = handleRootDragStartCapture(event)
     if (!handled) return
     lastPointerDownAtRef.current = typeof performance !== 'undefined' && typeof performance.now === 'function'
       ? performance.now()
       : Date.now()
-  }, [handleRootDragStartCapture])
+  }, [handleRootDragStartCapture, props])
   const handleRootMouseDownCapture = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
       ? performance.now()
@@ -341,8 +342,8 @@ export function useRichMediaPanelSurfaceState(
     : ''
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
-    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
-    ...(!useSurfaceFrame && flowEditorFrontmatterDocumentMode
+    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative'),
+    ...(!useSurfaceFrame && storyboardWidgetFrontmatterDocumentMode
       ? {
           background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
           borderRadius: '12px',
@@ -375,7 +376,7 @@ export function useRichMediaPanelSurfaceState(
     overflow: panelOwnsInlineSrcDocScroll ? 'visible' : undefined,
     padding: 0,
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
-    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (flowEditorInteractionMode ? 'absolute' : 'relative'),
+    position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative'),
   }
   const chromeBodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
@@ -433,37 +434,47 @@ export function useRichMediaPanelSurfaceState(
     const ratio = readCanvasAspectRatioWidthToHeight(strybldrStoryboardCardAspectMode)
     return ratio >= 1 ? { h: 1, w: ratio } : { h: 1 / ratio, w: 1 }
   }, [strybldrStoryboardCardAspectMode])
+  const directMediaPreviewUsesCollectivePan =
+    storyboardWidgetInteractionMode && props.headerPinned === true && !installHeaderDrag && !installOverlayPan
+  const canvasOverlayPanOwnedByCollective =
+    directMediaPreviewUsesCollectivePan
+    || storyboardWidgetInteractionMode
+  const directMediaPreviewClaimsPointerDown = !installOverlayPan && !directMediaPreviewUsesCollectivePan
+  const directMediaPreviewMarksSelectableSurface = !directMediaPreviewUsesCollectivePan
   const directMediaPreviewSelectionProps = React.useMemo(() => resolveMediaPreviewSurfaceSelectionProps({
     ariaLabel: `${mediaState.title} pan and zoom media preview`,
-    claimPointerDown: !installOverlayPan,
+    claimPointerDown: directMediaPreviewClaimsPointerDown,
+    selectableSurface: directMediaPreviewMarksSelectableSurface,
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
     onSelect: event => selectSelf(event.nativeEvent as PointerEvent),
-  }), [installOverlayPan, mediaState.kind, mediaState.title, selectSelf])
+  }), [directMediaPreviewClaimsPointerDown, directMediaPreviewMarksSelectableSurface, mediaState.kind, mediaState.title, selectSelf])
   const directMediaPreviewCardProps = React.useMemo(() => resolveMediaPreviewSurfaceCardProps({
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
     interactive: false,
-  }), [mediaState.kind])
+    selectableSurface: directMediaPreviewMarksSelectableSurface,
+  }), [directMediaPreviewMarksSelectableSurface, mediaState.kind])
   const rootClassName = [
     'kg-media',
     'kg-mediaBody',
-    showFlowEditorChrome ? getFlowEditorPanelChromeClassName(mediaState.uiPanelTextFontClass) : '',
+    showStoryboardWidgetChrome ? getStoryboardWidgetPanelChromeClassName(mediaState.uiPanelTextFontClass) : '',
     props.className || '',
   ].filter(Boolean).join(' ')
   const rootAttributes = {
     'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined,
     'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? '1' : undefined,
     'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined,
-    'data-kg-flow-editor-mode': flowEditorInteractionMode ? '1' : undefined,
-    'data-kg-flow-editor-surface': flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined,
-    'data-kg-frontmatter-document-mode': flowEditorFrontmatterDocumentMode ? '1' : undefined,
+    'data-kg-overlay-pan-owner': canvasOverlayPanOwnedByCollective ? 'canvas' : undefined,
+    'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined,
+    'data-kg-storyboard-widget-surface': storyboardWidgetInteractionMode ? (props.storyboardWidgetSurfaceId || undefined) : undefined,
+    'data-kg-frontmatter-document-mode': storyboardWidgetFrontmatterDocumentMode ? '1' : undefined,
     'data-kg-rich-media-header-pinned': typeof props.headerPinned === 'boolean' ? (props.headerPinned ? '1' : '0') : undefined,
     'data-kg-kind': mediaState.kind,
     'data-kg-open-url': mediaState.openUrl,
     'data-kg-resize-enabled': installResize ? '1' : undefined,
-    'data-kg-rich-media-flow-editor-chrome': showFlowEditorChrome ? '1' : undefined,
+    'data-kg-rich-media-storyboard-widget-chrome': showStoryboardWidgetChrome ? '1' : undefined,
     'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined,
     'data-kg-rich-media-image-format-preference': MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
-    'data-kg-rich-media-overlay': flowEditorRichMediaOverlayRoot ? '1' : undefined,
+    'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined,
     'data-kg-rich-media-panel': '1',
     'data-kg-rich-media-render-surface': '1',
     'data-kg-rich-media-shared-pan-drag-zoom': mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video' ? '1' : undefined,
@@ -485,9 +496,9 @@ export function useRichMediaPanelSurfaceState(
     directMediaZoomContentSize,
     expectedEmptyPlaceholderVariant,
     fallbackToRawSrc,
-    flowEditorFrontmatterDocumentMode,
-    flowEditorInteractionMode,
-    flowEditorRichMediaOverlayRoot,
+    storyboardWidgetFrontmatterDocumentMode,
+    storyboardWidgetInteractionMode,
+    storyboardWidgetRichMediaOverlayRoot,
     forwardingEnabled,
     handleRootMouseDownCapture,
     handleRootPointerDownCapture,
@@ -510,7 +521,7 @@ export function useRichMediaPanelSurfaceState(
     rootClassName,
     rootRef,
     rootStyle,
-    showFlowEditorChrome,
+    showStoryboardWidgetChrome,
     showPanelInlineTextEditor,
     showPanelMarkdownPreview,
     shouldHideSurfaceUntilReady,

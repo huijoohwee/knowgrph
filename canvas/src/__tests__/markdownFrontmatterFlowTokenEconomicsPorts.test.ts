@@ -4,14 +4,14 @@ import path from 'node:path'
 import {
   buildFrontmatterWidgetContractModel,
   buildFrontmatterWidgetContractRowSpecs,
-} from '@/features/flow-editor-manager/frontmatterWidgetContract'
-import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+} from '@/features/storyboard-widget-manager/frontmatterWidgetContract'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { FRONTMATTER_FLOW_HANDLES_VALUE_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
-const TOKEN_ECONOMICS_FLOW_EDITOR_FIXTURE_BASENAME = 'knowgrph-token-economics-model-demo.md'
+const TOKEN_ECONOMICS_STORYBOARD_WIDGET_FIXTURE_BASENAME = 'knowgrph-token-economics-model-demo.md'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -26,7 +26,7 @@ function readKnowgrphTokenEconomicsDemoPath(): string {
     ? process.env.KG_TEST_TOKEN_ECONOMICS_DOCS_SSOT_FIXTURE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return resolveDocsSsotFixturePath(TOKEN_ECONOMICS_FLOW_EDITOR_FIXTURE_BASENAME)
+  return resolveDocsSsotFixturePath(TOKEN_ECONOMICS_STORYBOARD_WIDGET_FIXTURE_BASENAME)
 }
 
 export function testMarkdownFrontmatterFlowGraphFidelityTokenEconomicsWidgetKeysMapToPortHandles() {

@@ -38,7 +38,7 @@ const stalePanelTableFieldInputSizingClass = (): string => `${'w'}-full ${'h'}-8
 const stalePanelInlineFieldSelectPaddingClass = (): string => `${'px'}-2 ${'py'}-1 text-xs border`
 const stalePanelInlineFieldPaddingClass = (): string => `${'px'}-2 ${'py'}-1 rounded border`
 const stalePanelInlineNarrowFieldPaddingClass = (): string => `${'px'}-1 ${'py'}-1 text-xs rounded border`
-const staleFlowEditorInlineValueSingleLineSizingClass = (): string => `${'min'}-h-7 ${'px'}-2 ${'py'}-1 truncate`
+const staleStoryboardWidgetInlineValueSingleLineSizingClass = (): string => `${'min'}-h-7 ${'px'}-2 ${'py'}-1 truncate`
 const stalePanelTextActionButtonSizingClass = (): string => `shrink-0 rounded border ${'px'}-2 ${'py'}-1`
 const staleFlowManagerPanelHeaderPaddingClass = (): string => `${'px'}-3 ${'py'}-2 border-b`
 const staleFlowManagerPanelHeaderRowGapClass = (): string => `flex items-center justify-between ${'gap'}-3`
@@ -168,8 +168,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const schemaEditorLayoutRoutingText = readUtf8(path.resolve(root, 'src/features/schema-editor/LayoutAndRoutingSection.tsx'))
   const schemaEditorSerializationText = readUtf8(path.resolve(root, 'src/features/schema-editor/SerializationSection.tsx'))
   const schemaUiEditorRowsText = readUtf8(path.resolve(root, 'src/features/schema/ui/SchemaUiEditorRows.tsx'))
-  const nodeOverlayEditorParamsText = readUtf8(path.resolve(root, 'src/components/FlowEditor/NodeOverlayEditorParamsSection.tsx'))
-  const nodeOverlayEditorSchemaTableText = readUtf8(path.resolve(root, 'src/components/FlowEditor/NodeOverlayEditorSchemaTable.tsx'))
+  const widgetEditorParamsText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/WidgetEditorParamsSection.tsx'))
+  const widgetEditorSchemaTableText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/WidgetEditorSchemaTable.tsx'))
   const graphRagWorkflowSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/GraphRagWorkflowSection.tsx'))
   const mainPanelText = readUtf8(path.resolve(root, 'src/features/panels/MainPanel.tsx'))
   const orchestratorTraversalPanelsText = readUtf8(path.resolve(root, 'src/features/panels/views/OrchestratorTraversalPanels.tsx'))
@@ -221,22 +221,22 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const toastHostText = readUtf8(path.resolve(root, 'src/components/ui/ToastHost.tsx'))
   const dataViewToolbarButtonText = readUtf8(path.resolve(root, 'src/lib/ui/dataViewToolbarButton.tsx'))
   const floatingPropsPanelText = readUtf8(path.resolve(root, 'src/features/toolbar/FloatingPropsPanel.tsx'))
-  const nodeOverlayEditorActionsToolbarText = readUtf8(path.resolve(root, 'src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx'))
-  const flowEditorGraphTabText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowEditorGraphTab.tsx'))
-  const flowEditorMappingTabLayoutText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowEditorMappingTabLayout.tsx'))
-  const flowEditorSpecificationTabText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowEditorSpecificationTab.tsx'))
-  const widgetRegistryTableText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/WidgetRegistryTable.tsx'))
-  const widgetRegistryFieldsEditorText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/WidgetRegistryFieldsEditor.tsx'))
-  const widgetRegistryPortsEditorText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/WidgetRegistryPortsEditor.tsx'))
-  const widgetRegistrySchemaMappingsEditorText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/WidgetRegistrySchemaMappingsEditor.tsx'))
-  const flowEditorMappingSettingsPanelText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowEditorMappingSettingsPanel.tsx'))
-  const mainPanelFlowEditorManagerHeaderText = readUtf8(path.resolve(root, 'src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx'))
-  const flowEditorPanelChromeText = readUtf8(path.resolve(root, 'src/components/FlowEditor/FlowEditorPanelChrome.tsx'))
-  const flowEditorInspectorText = readUtf8(path.resolve(root, 'src/components/FlowEditor/FlowEditorInspector.tsx'))
-  const flowEditorInspectorTabsText = readUtf8(path.resolve(root, 'src/components/FlowEditor/FlowEditorInspectorTabs.tsx'))
-  const flowEditorInlineValueEditorText = readUtf8(path.resolve(root, 'src/components/FlowEditor/FlowEditorInlineValueEditor.tsx'))
-  const nodeOverlayEditorFormText = readUtf8(path.resolve(root, 'src/components/FlowEditor/NodeOverlayEditorForm.tsx'))
-  const nodeOverlayEditorRegistrySectionText = readUtf8(path.resolve(root, 'src/components/FlowEditor/NodeOverlayEditorRegistrySection.tsx'))
+  const widgetEditorActionsToolbarText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/WidgetEditorActionsToolbar.tsx'))
+  const storyboardWidgetGraphTabText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/StoryboardWidgetGraphTab.tsx'))
+  const storyboardWidgetMappingTabLayoutText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/StoryboardWidgetMappingTabLayout.tsx'))
+  const storyboardWidgetSpecificationTabText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/StoryboardWidgetSpecificationTab.tsx'))
+  const widgetRegistryTableText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/WidgetRegistryTable.tsx'))
+  const widgetRegistryFieldsEditorText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/WidgetRegistryFieldsEditor.tsx'))
+  const widgetRegistryPortsEditorText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/WidgetRegistryPortsEditor.tsx'))
+  const widgetRegistrySchemaMappingsEditorText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/WidgetRegistrySchemaMappingsEditor.tsx'))
+  const storyboardWidgetMappingSettingsPanelText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/StoryboardWidgetMappingSettingsPanel.tsx'))
+  const mainPanelStoryboardWidgetManagerHeaderText = readUtf8(path.resolve(root, 'src/features/panels/ui/MainPanelStoryboardWidgetManagerHeader.tsx'))
+  const storyboardWidgetPanelChromeText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/StoryboardWidgetPanelChrome.tsx'))
+  const storyboardWidgetInspectorText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/StoryboardWidgetInspector.tsx'))
+  const storyboardWidgetInspectorTabsText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/StoryboardWidgetInspectorTabs.tsx'))
+  const storyboardWidgetInlineValueEditorText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/StoryboardWidgetInlineValueEditor.tsx'))
+  const widgetEditorFormText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/WidgetEditorForm.tsx'))
+  const widgetEditorRegistrySectionText = readUtf8(path.resolve(root, 'src/components/StoryboardWidget/WidgetEditorRegistrySection.tsx'))
   const canvasArrangeActionBarText = readUtf8(path.resolve(root, 'src/components/canvas/CanvasArrangeActionBar.tsx'))
   const flowCanvasInteractionRuntimeText = readUtf8(path.resolve(root, 'src/components/FlowCanvas/FlowCanvasInteractionRuntime.tsx'))
   const graphCanvasArrangeToolbarText = readUtf8(path.resolve(root, 'src/components/GraphCanvasRoot/components/ArrangeToolbar2d.tsx'))
@@ -265,7 +265,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const markdownSelectionToolbarText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSelectionToolbar.tsx'))
   const markdownSidebarSectionText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSidebarSection.tsx'))
   const dateCellEditorText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/fast-grid/DateCellEditor.tsx'))
-  const flowMappingRowsTableText = readUtf8(path.resolve(root, 'src/features/flow-editor-manager/FlowMappingRowsTable.tsx'))
+  const flowMappingRowsTableText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/FlowMappingRowsTable.tsx'))
   const expandCollapseAllButtonText = readUtf8(path.resolve(root, 'src/features/panels/ui/ExpandCollapseAllButton.tsx'))
   const floatingMenuStylesText = readUtf8(path.resolve(root, 'src/features/markdown-workspace/main/viewer/floatingMenuStyles.ts'))
   const columnHeaderMenuText = readUtf8(path.resolve(root, 'src/components/ui/ColumnHeaderMenu.tsx'))
@@ -1109,7 +1109,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveToolbarCssText.includes('--kg-history-recent-file-location-max-width') ||
     !responsiveToolbarCssText.includes('inset-block-end: calc(var(--kg-safe-bottom) + var(--kg-mobile-bottom-dock-clearance) + 0.5rem);')
   ) {
-    throw new Error('expected safe viewport panels, side panels, canvas status panels, diagnostic overlays, structured editors, floating action rows, kanban lanes, data-view panels, markdown geo/safe-html panels, preview overlays, wide dialogs, main panel cards, graph-fields editors, schema serialization editors, multiline text input editors, schema rules text editors, panel code editor frames, graph-stats token chart slots, responsive min-width owners, constrained value fields, split controls, touch targets, text action buttons, panel field rows, Flow Editor manager frames, History recent-file paths, and anchor previews to use shared responsive owner classes')
+    throw new Error('expected safe viewport panels, side panels, canvas status panels, diagnostic overlays, structured editors, floating action rows, kanban lanes, data-view panels, markdown geo/safe-html panels, preview overlays, wide dialogs, main panel cards, graph-fields editors, schema serialization editors, multiline text input editors, schema rules text editors, panel code editor frames, graph-stats token chart slots, responsive min-width owners, constrained value fields, split controls, touch targets, text action buttons, panel field rows, Storyboard Widget manager frames, History recent-file paths, and anchor previews to use shared responsive owner classes')
   }
   if (
     !toolMenuText.includes('UI_RESPONSIVE_SAFE_VIEWPORT_PANEL_CLASSNAME') ||
@@ -1124,14 +1124,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     canvas2dRendererSelectText.includes('max-w-[calc(100vw_-_2rem)]') ||
     ![toolMenuText, designFloatingPanelText].every(text => text.includes('UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     [toolMenuText, designFloatingPanelText].some(text => text.includes('menuWidthClass="w-56"')) ||
-    ![mainPanelFlowEditorManagerHeaderText, flowEditorSpecificationTabText].every(text => text.includes('UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
-    [mainPanelFlowEditorManagerHeaderText, flowEditorSpecificationTabText].some(text => text.includes('menuWidthClass="w-44"')) ||
+    ![mainPanelStoryboardWidgetManagerHeaderText, storyboardWidgetSpecificationTabText].every(text => text.includes('UI_RESPONSIVE_SLIM_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
+    [mainPanelStoryboardWidgetManagerHeaderText, storyboardWidgetSpecificationTabText].some(text => text.includes('menuWidthClass="w-44"')) ||
     (historyViewText.includes('ToolbarDropdownSelect') && !historyViewText.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     !historyViewText.includes('UI_RESPONSIVE_HISTORY_RECENT_FILE_LOCATION_CLASSNAME') ||
     historyViewText.includes('menuWidthClass="w-40"') ||
     historyViewText.includes('max-w-[200px]') ||
-    !flowEditorInspectorTabsText.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
-    flowEditorInspectorTabsText.includes('menuWidthClass="w-40"') ||
+    !storyboardWidgetInspectorTabsText.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
+    storyboardWidgetInspectorTabsText.includes('menuWidthClass="w-40"') ||
     !searchPanelText.includes('UI_RESPONSIVE_WIDE_TOOLBAR_DROPDOWN_PANEL_CLASSNAME') ||
     !searchPanelText.includes('UI_RESPONSIVE_TOOLBAR_FIELD_CLASSNAME') ||
     !toolbarDropdownSelectText.includes('UI_RESPONSIVE_TOUCH_MENU_OPTION_ROW_CLASSNAME') ||
@@ -1266,39 +1266,39 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     widgetRegistryFieldsEditorText,
     widgetRegistryPortsEditorText,
     widgetRegistrySchemaMappingsEditorText,
-    flowEditorMappingSettingsPanelText,
+    storyboardWidgetMappingSettingsPanelText,
   ]
   const flowManagerPanelHeaderTexts = [
-    flowEditorGraphTabText,
-    flowEditorMappingTabLayoutText,
-    flowEditorSpecificationTabText,
+    storyboardWidgetGraphTabText,
+    storyboardWidgetMappingTabLayoutText,
+    storyboardWidgetSpecificationTabText,
   ]
   const flowManagerPanelBodyTexts = [
-    flowEditorGraphTabText,
-    flowEditorMappingTabLayoutText,
-    flowEditorSpecificationTabText,
+    storyboardWidgetGraphTabText,
+    storyboardWidgetMappingTabLayoutText,
+    storyboardWidgetSpecificationTabText,
   ]
   if (
     flowManagerPanelHeaderTexts.some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME')) ||
-    !flowEditorGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME') ||
+    !storyboardWidgetGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME') ||
     flowManagerPanelBodyTexts.some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME')) ||
-    !flowEditorMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
-    !flowEditorSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
-    !flowEditorMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
-    !flowEditorSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME') ||
-    !flowEditorMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
+    !storyboardWidgetSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
+    !storyboardWidgetSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayoutText.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
     !widgetRegistryFieldsEditorText.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
-    !flowEditorSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_ALERT_CLASSNAME') ||
-    !flowEditorMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_FOOTER_ROW_CLASSNAME') ||
-    !flowEditorGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME') ||
-    !flowEditorGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME') ||
+    !storyboardWidgetSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_ALERT_CLASSNAME') ||
+    !storyboardWidgetMappingSettingsPanelText.includes('UI_RESPONSIVE_FLOW_MANAGER_FOOTER_ROW_CLASSNAME') ||
+    !storyboardWidgetGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME') ||
+    !storyboardWidgetGraphTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_TABLE_FRAME_CLASSNAME') ||
     !widgetRegistryTableText.includes('UI_RESPONSIVE_FLOW_MANAGER_TABLE_NODE_TEXT_CLASSNAME') ||
     !widgetRegistryTableText.includes('UI_RESPONSIVE_FLOW_MANAGER_TABLE_EDITOR_TEXT_CLASSNAME') ||
     !widgetRegistryTableText.includes('UI_RESPONSIVE_FLOW_MANAGER_TABLE_FORM_TEXT_CLASSNAME') ||
@@ -1409,34 +1409,34 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveToolbarCssText.includes('--kg-flow-manager-registry-item-header-gap') ||
     !responsiveToolbarCssText.includes('.kg-flow-manager-registry-item-grid') ||
     !responsiveToolbarCssText.includes('--kg-flow-manager-registry-item-grid-gap') ||
-    !flowEditorSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME') ||
+    !storyboardWidgetSpecificationTabText.includes('UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME') ||
     !responsiveToolbarCssText.includes('--kg-flow-manager-spec-editor-margin-block-start') ||
     !responsiveToolbarCssText.includes('--kg-flow-manager-spec-editor-padding-inline') ||
     !responsiveToolbarCssText.includes('--kg-flow-manager-spec-editor-padding-block') ||
-    flowEditorGraphTabText.includes('h-[360px]') ||
-    flowEditorGraphTabText.includes('min-h-[280px]') ||
-    flowEditorSpecificationTabText.includes('min-h-[320px]') ||
+    storyboardWidgetGraphTabText.includes('h-[360px]') ||
+    storyboardWidgetGraphTabText.includes('min-h-[280px]') ||
+    storyboardWidgetSpecificationTabText.includes('min-h-[320px]') ||
     flowManagerPanelHeaderTexts.some(text => text.includes(staleFlowManagerPanelHeaderPaddingClass())) ||
-    flowEditorGraphTabText.includes(staleFlowManagerPanelHeaderRowGapClass()) ||
+    storyboardWidgetGraphTabText.includes(staleFlowManagerPanelHeaderRowGapClass()) ||
     flowManagerPanelBodyTexts.some(text => staleFlowManagerPanelBodyPaddingClasses().some(className => text.includes(className))) ||
-    flowEditorGraphTabText.includes(staleFlowManagerPanelFramePaddingClass()) ||
-    flowEditorMappingTabLayoutText.includes(staleFlowManagerToolbarRowGapClass()) ||
-    flowEditorSpecificationTabText.includes(staleFlowManagerToolbarRowGapClass()) ||
-    flowEditorMappingSettingsPanelText.includes('sticky bottom-0 py-2 border-t flex items-center justify-between gap-2') ||
-    flowEditorMappingTabLayoutText.includes(staleFlowManagerWrappedActionMenuGapClass()) ||
-    flowEditorSpecificationTabText.includes(staleFlowManagerActionMenuGapClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerActionMenuGapClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerSectionHeaderGapClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerSectionGridGapClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerActionGroupGapClass()) ||
+    storyboardWidgetGraphTabText.includes(staleFlowManagerPanelFramePaddingClass()) ||
+    storyboardWidgetMappingTabLayoutText.includes(staleFlowManagerToolbarRowGapClass()) ||
+    storyboardWidgetSpecificationTabText.includes(staleFlowManagerToolbarRowGapClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes('sticky bottom-0 py-2 border-t flex items-center justify-between gap-2') ||
+    storyboardWidgetMappingTabLayoutText.includes(staleFlowManagerWrappedActionMenuGapClass()) ||
+    storyboardWidgetSpecificationTabText.includes(staleFlowManagerActionMenuGapClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerActionMenuGapClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerSectionHeaderGapClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerSectionGridGapClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerActionGroupGapClass()) ||
     [
-      flowEditorMappingTabLayoutText,
-      flowEditorMappingSettingsPanelText,
+      storyboardWidgetMappingTabLayoutText,
+      storyboardWidgetMappingSettingsPanelText,
       widgetRegistryFieldsEditorText,
     ].some(text => text.includes(staleFlowManagerInlineControlGapClass())) ||
-    flowEditorSpecificationTabText.includes(staleFlowManagerStatusTextPaddingClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerStatusAlertPaddingClass()) ||
-    flowEditorMappingSettingsPanelText.includes(staleFlowManagerFooterRowPaddingClass()) ||
+    storyboardWidgetSpecificationTabText.includes(staleFlowManagerStatusTextPaddingClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerStatusAlertPaddingClass()) ||
+    storyboardWidgetMappingSettingsPanelText.includes(staleFlowManagerFooterRowPaddingClass()) ||
     flowMappingRowsTableText.includes(staleFlowManagerTableHeaderCellPaddingClass()) ||
     flowMappingRowsTableText.includes(staleFlowManagerTableActionHeaderCellPaddingClass()) ||
     flowMappingRowsTableText.includes(staleFlowManagerTableCellPaddingClass()) ||
@@ -1446,7 +1446,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     flowMappingRowsTableText.includes(staleCompactFullWidthFieldSizingClass()) ||
     flowManagerFormEditorTexts.some(text => text.includes(staleFlowManagerFormFieldPaddingClass())) ||
     flowManagerFormEditorTexts.some(text => text.includes(staleFlowManagerFormFieldLocalFrameClass())) ||
-    flowEditorSpecificationTabText.includes(staleFlowManagerSpecEditorPaddingClass()) ||
+    storyboardWidgetSpecificationTabText.includes(staleFlowManagerSpecEditorPaddingClass()) ||
     [
       widgetRegistryFieldsEditorText,
       widgetRegistryPortsEditorText,
@@ -1466,7 +1466,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     widgetRegistryTableText.includes('max-w-[180px]') ||
     widgetRegistryTableText.includes('max-w-[160px]')
   ) {
-    throw new Error('expected Flow Editor manager table/spec panes, mapping fields, and registry cell widths to use shared responsive sizing classes')
+    throw new Error('expected Storyboard Widget manager table/spec panes, mapping fields, and registry cell widths to use shared responsive sizing classes')
   }
   if (
     !graphFieldsSettingsPanelText.includes('UI_RESPONSIVE_GRAPH_FIELDS_DESCRIPTION_EDITOR_CLASSNAME') ||
@@ -1586,11 +1586,11 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected compact panel field input sizing to live in the shared responsive owner class')
   }
   if (
-    !nodeOverlayEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') || !nodeOverlayEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME') ||
+    !widgetEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') || !widgetEditorSchemaTableText.includes('UI_RESPONSIVE_PANEL_TABLE_ICON_ACTION_CLASSNAME') ||
     !responsiveToolbarCssText.includes('.kg-responsive-panel-table-field-input') || !responsiveToolbarCssText.includes('.kg-responsive-panel-table-icon-action') ||
     !responsiveToolbarCssText.includes('--kg-responsive-panel-table-field-input-height') ||
     !responsiveToolbarCssText.includes('--kg-responsive-panel-table-field-input-padding-inline') ||
-    nodeOverlayEditorSchemaTableText.includes(stalePanelTableFieldInputSizingClass()) || nodeOverlayEditorSchemaTableText.includes("style={{ width: '32px', height: '32px' }}")
+    widgetEditorSchemaTableText.includes(stalePanelTableFieldInputSizingClass()) || widgetEditorSchemaTableText.includes("style={{ width: '32px', height: '32px' }}")
   ) {
     throw new Error('expected panel table field input sizing to live in the shared responsive owner class')
   }
@@ -1610,15 +1610,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected schema inline fields, rules editor height, and schema property-name widths to live in shared responsive owner classes')
   }
   if (
-    !nodeOverlayEditorParamsText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME') ||
-    !nodeOverlayEditorParamsText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
-    !nodeOverlayEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
+    !widgetEditorParamsText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME') ||
+    !widgetEditorParamsText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
+    !widgetEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_TOKEN_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_COMPACT_TOKEN_CLASSNAME') ||
     !orchestratorTraversalPanelsText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    nodeOverlayEditorParamsText.includes('min-h-[140px]') ||
-    [nodeOverlayEditorParamsText, nodeOverlayEditorRegistrySectionText].some(text => text.includes(stalePanelTextActionButtonSizingClass())) ||
+    widgetEditorParamsText.includes('min-h-[140px]') ||
+    [widgetEditorParamsText, widgetEditorRegistrySectionText].some(text => text.includes(stalePanelTextActionButtonSizingClass())) ||
     graphRagWorkflowSectionText.includes('min-h-[96px]') ||
     graphRagWorkflowSectionText.includes('max-w-[120px]') ||
     graphRagWorkflowSectionText.includes('max-w-[100px]') ||
@@ -1627,22 +1627,22 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected panel code editor frame heights, panel text action buttons, and GraphRAG workflow summary token widths to live in shared responsive owner classes')
   }
   if (
-    !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME') ||
-    !flowEditorInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME') ||
-    !flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME') ||
-    !nodeOverlayEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    flowEditorInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    flowEditorInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
-    flowEditorInlineValueEditorText.includes(staleFlowEditorInlineValueSingleLineSizingClass()) ||
-    [flowEditorInspectorText, flowEditorInlineValueEditorText, nodeOverlayEditorRegistrySectionText].some(text =>
+    !storyboardWidgetInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    !storyboardWidgetInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME') ||
+    !storyboardWidgetInspectorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME') ||
+    !storyboardWidgetInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_INLINE_FIELD_CLASSNAME') ||
+    !widgetEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    storyboardWidgetInlineValueEditorText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    storyboardWidgetInlineValueEditorText.includes('whitespace-pre-wrap break-words') ||
+    storyboardWidgetInlineValueEditorText.includes(staleStoryboardWidgetInlineValueSingleLineSizingClass()) ||
+    [storyboardWidgetInspectorText, storyboardWidgetInlineValueEditorText, widgetEditorRegistrySectionText].some(text =>
       ['h-20 px-2 py-1', 'h-24 px-2 py-1', 'h-28 px-2 py-1', 'min-h-24 px-2 py-1'].some(snippet => text.includes(snippet))
     )
   ) {
-    throw new Error('expected Flow Editor inspector, inline value, and registry editor sizing to reuse shared responsive panel owner classes')
+    throw new Error('expected Storyboard Widget inspector, inline value, and registry editor sizing to reuse shared responsive panel owner classes')
   }
   if (
-    [storyboardCanvasText, flowEditorInspectorText, graphTableKanbanViewText, markdownDataViewKanbanCardText].some(text =>
+    [storyboardCanvasText, storyboardWidgetInspectorText, graphTableKanbanViewText, markdownDataViewKanbanCardText].some(text =>
       !text.includes('UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME') ||
       !text.includes('UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME') ||
       text.includes('min-h-[1.5rem]') ||
@@ -1658,8 +1658,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (
     !settingsUiText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !settingsUiText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_SMALL_FRAME_CLASSNAME') ||
-    nodeOverlayEditorFormText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
-    nodeOverlayEditorFormText.includes("'h-24'") ||
+    widgetEditorFormText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
+    widgetEditorFormText.includes("'h-24'") ||
     settingsUiText.includes('min-h-24') ||
     settingsUiText.includes('min-h-16')
   ) {
@@ -1852,8 +1852,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !mainPanelFrameText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
     !collapsibleSectionText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
     !collapsibleSubsectionText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
-    !mainPanelFlowEditorManagerHeaderText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
-    !flowEditorPanelChromeText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
+    !mainPanelStoryboardWidgetManagerHeaderText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
+    !storyboardWidgetPanelChromeText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
     !toolMenuText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
     !settingsRegistryUiText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
     !uiSliceInitialStateText.includes('UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME') ||
@@ -1872,8 +1872,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     collapsibleSectionText.includes('max-w-[45%]') ||
     mainPanelSettingsPanelShellText.includes('max-w-[55%]') ||
     graphFieldsSamplesPanelText.includes('max-w-[65%]') ||
-    [tabHeaderText, mainPanelFrameText, collapsibleSectionText, collapsibleSubsectionText, mainPanelFlowEditorManagerHeaderText, flowEditorPanelChromeText, toolMenuText, settingsRegistryUiText, uiSliceInitialStateText, uiSliceCoreActionsText].some(text => text.includes('min-h-[36px]')) ||
-    flowEditorPanelChromeText.includes('h-[36px]') ||
+    [tabHeaderText, mainPanelFrameText, collapsibleSectionText, collapsibleSubsectionText, mainPanelStoryboardWidgetManagerHeaderText, storyboardWidgetPanelChromeText, toolMenuText, settingsRegistryUiText, uiSliceInitialStateText, uiSliceCoreActionsText].some(text => text.includes('min-h-[36px]')) ||
+    storyboardWidgetPanelChromeText.includes('h-[36px]') ||
     mainPanelContainerText.includes('headerBarHeightPx') ||
     mainPanelContainerText.includes('--kg-header-bar-height') ||
     settingsFallbackDetailsText.includes('Tailwind class for primary header row min-height') ||
@@ -1889,15 +1889,15 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected status badges, panel header rows, embedded workspace panes, and tag input forms to use shared responsive owners instead of local breakpoint literals')
   }
   if (
-    !nodeOverlayEditorActionsToolbarText.includes('UI_RESPONSIVE_TEXT_ACTION_BUTTON_CLASSNAME') ||
-    !nodeOverlayEditorActionsToolbarText.includes('UI_RESPONSIVE_WIDE_TEXT_ACTION_BUTTON_CLASSNAME') ||
+    !widgetEditorActionsToolbarText.includes('UI_RESPONSIVE_TEXT_ACTION_BUTTON_CLASSNAME') ||
+    !widgetEditorActionsToolbarText.includes('UI_RESPONSIVE_WIDE_TEXT_ACTION_BUTTON_CLASSNAME') ||
     !grabMapsDiscoveryWidgetSectionText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
     grabMapsDiscoveryWidgetSectionText.includes('inline-flex h-8 items-center gap-1 rounded border px-2 text-sm') ||
     grabMapsDiscoveryWidgetSectionText.includes('inline-flex h-8 items-center gap-1 rounded px-2 text-sm') ||
-    nodeOverlayEditorActionsToolbarText.includes('min-w-[36px]') ||
-    nodeOverlayEditorActionsToolbarText.includes('min-w-[40px]')
+    widgetEditorActionsToolbarText.includes('min-w-[36px]') ||
+    widgetEditorActionsToolbarText.includes('min-w-[40px]')
   ) {
-    throw new Error('expected Flow Editor and panel text action buttons to use shared responsive text action button owners')
+    throw new Error('expected Storyboard Widget and panel text action buttons to use shared responsive text action button owners')
   }
   if (
     !threeSizingAndWidthControlsText.includes('UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME') ||

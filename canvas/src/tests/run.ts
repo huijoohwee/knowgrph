@@ -116,12 +116,12 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
-      'ui.flowEditor.frontmatter.overlayIds.sharedEligibleNodes',
+      'ui.storyboardWidget.frontmatter.overlayIds.sharedEligibleNodes',
       modFlowCanvasFilter.testFrontmatterFlowOverlayIdsIncludeSharedEligibleNodes,
     )
     await execTest(
       results,
-      'ui.flowEditor.frontmatter.overlayIds.fallbackEligibleNodes',
+      'ui.storyboardWidget.frontmatter.overlayIds.fallbackEligibleNodes',
       modFlowCanvasFilter.testFrontmatterFlowOverlayIdsFallbackToEligibleNodesWithoutCanonicalCollective,
     )
 
@@ -372,11 +372,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modOverlayPanelBox.testMarkdownDesignOverlayDoesNotForceLeftTopPanelBox,
     )
 
-    const modFlowOverlayDrag = await import('../__tests__/flowEditorOverlayDragUsesRafLatestSchedulerRegression.test')
+    const modFlowOverlayDrag = await import('../__tests__/storyboardWidgetOverlayDragUsesRafLatestSchedulerRegression.test')
     await execTest(
       results,
-      'ui.flowEditor.nodeOverlay.drag.rafLatestScheduler',
-      modFlowOverlayDrag.testFlowEditorNodeOverlayEditorUsesRafLatestSchedulerForDrags,
+      'ui.storyboardWidget.widget.drag.rafLatestScheduler',
+      modFlowOverlayDrag.testStoryboardWidgetEditorUsesRafLatestSchedulerForDrags,
     )
 
     const modWebMcpRuntime = await import('../__tests__/webMcpRuntime.test')
@@ -430,75 +430,75 @@ export const runAllTests = async () => {
     modPinnedZoom.testZoomPinnedDoesNotBlockManualZoomRequests,
   )
 
-  const modOverlayZoomDirection = await import('../__tests__/flowEditorOverlayZoomDirectionRegression.test')
+  const modOverlayZoomDirection = await import('../__tests__/storyboardWidgetOverlayZoomDirectionRegression.test')
   await execTest(
     results,
-    'ui.flowEditor.overlay.zoomDirection.widgetScaleMonotonic',
-    modOverlayZoomDirection.testFlowEditorWidgetCollectiveScaleDoesNotReverseZoomDirection,
+    'ui.storyboardWidget.overlay.zoomDirection.widgetScaleMonotonic',
+    modOverlayZoomDirection.testStoryboardWidgetCollectiveScaleDoesNotReverseZoomDirection,
   )
   await execTest(
     results,
-    'ui.flowEditor.overlay.zoomDirection.richMediaScaleMonotonic',
-    modOverlayZoomDirection.testFlowEditorRichMediaCollectiveSizingDoesNotReverseZoomDirection,
+    'ui.storyboardWidget.overlay.zoomDirection.richMediaScaleMonotonic',
+    modOverlayZoomDirection.testStoryboardWidgetRichMediaCollectiveSizingDoesNotReverseZoomDirection,
   )
   await execTest(
     results,
     'ui.flowWidget.zoomLayout.proportionalScreenProjection',
-    modOverlayZoomDirection.testFlowEditorOverlayZoomUsesProportionalScreenProjection,
+    modOverlayZoomDirection.testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection,
   )
     await execTest(
       results,
       'ui.flowWidget.zoomLayout.proportionalMetricProbe',
-      modOverlayZoomDirection.testFlowEditorOverlayMetricProbeScalesProportionallyAcrossZoom,
+      modOverlayZoomDirection.testStoryboardWidgetOverlayMetricProbeScalesProportionallyAcrossZoom,
     )
 
-    const modOverlayOffscreenRecovery = await import('../__tests__/flowEditorOverlayOffscreenRecoveryRegression.test')
+    const modOverlayOffscreenRecovery = await import('../__tests__/storyboardWidgetOverlayOffscreenRecoveryRegression.test')
     await execTest(
       results,
-      'ui.flowEditor.overlay.offscreenRecovery.usesOverlayCollectiveViewportState',
-      modOverlayOffscreenRecovery.testFlowEditorRuntimeUsesOverlayCollectiveViewportStateForRecovery,
+      'ui.storyboardWidget.overlay.offscreenRecovery.usesOverlayCollectiveViewportState',
+      modOverlayOffscreenRecovery.testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateForRecovery,
     )
     await execTest(
       results,
-      'ui.flowEditor.overlay.fitRecentering.clampsOverlayBoundsIntoVisibleViewport',
-      modOverlayOffscreenRecovery.testFlowEditorFitRecenteringClampsOverlayBoundsIntoVisibleViewport,
+      'ui.storyboardWidget.overlay.fitRecentering.clampsOverlayBoundsIntoVisibleViewport',
+      modOverlayOffscreenRecovery.testStoryboardWidgetFitRecenteringClampsOverlayBoundsIntoVisibleViewport,
     )
     await execTest(
       results,
-      'ui.flowEditor.overlay.offscreenRecovery.frontmatterLandingUsesNeutralSeedZoomWhenWorkspaceBlocked',
-      modOverlayOffscreenRecovery.testFlowEditorRuntimeSceneUsesNeutralSeedZoomForWorkspaceBlockedFrontmatterLanding,
+      'ui.storyboardWidget.overlay.offscreenRecovery.frontmatterLandingUsesNeutralSeedZoomWhenWorkspaceBlocked',
+      modOverlayOffscreenRecovery.testStoryboardWidgetRuntimeSceneUsesNeutralSeedZoomForWorkspaceBlockedFrontmatterLanding,
     )
     await execTest(
       results,
-      'ui.flowEditor.overlay.offscreenRecovery.skipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets',
-      modOverlayOffscreenRecovery.testFlowEditorOverlayPlacementRuntimeSkipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets,
+      'ui.storyboardWidget.overlay.offscreenRecovery.skipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets',
+      modOverlayOffscreenRecovery.testStoryboardWidgetOverlayPlacementRuntimeSkipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets,
     )
     await execTest(
       results,
-      'ui.flowEditor.overlay.offscreenRecovery.autoSeedTransformRejectsPoisonedLastUsable',
-      modOverlayOffscreenRecovery.testFlowEditorRuntimeSceneNeutralizesPoisonedTransformForAutoSeededWidgets,
+      'ui.storyboardWidget.overlay.offscreenRecovery.autoSeedTransformRejectsPoisonedLastUsable',
+      modOverlayOffscreenRecovery.testStoryboardWidgetRuntimeSceneNeutralizesPoisonedTransformForAutoSeededWidgets,
     )
     await execTest(
       results,
-      'ui.flowEditor.overlay.offscreenRecovery.frontmatterWidgetsPreferAutoSeedWorldPos',
-      modOverlayOffscreenRecovery.testFlowEditorRuntimeScenePrefersAutoSeedWorldPosForWorkspaceBlockedFrontmatterWidgets,
+      'ui.storyboardWidget.overlay.offscreenRecovery.frontmatterWidgetsPreferAutoSeedWorldPos',
+      modOverlayOffscreenRecovery.testStoryboardWidgetRuntimeScenePrefersAutoSeedWorldPosForWorkspaceBlockedFrontmatterWidgets,
     )
 
-    const modWorkspaceVisibleViewportRecovery = await import('../__tests__/flowEditorWorkspaceVisibleViewportRecovery.test')
+    const modWorkspaceVisibleViewportRecovery = await import('../__tests__/storyboardWidgetWorkspaceVisibleViewportRecovery.test')
     await execTest(
       results,
-      'ui.flowEditor.workspaceRecovery.rejectsHugeCenteredCollective',
-      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryRejectsHugeCenteredCollective,
+      'ui.storyboardWidget.workspaceRecovery.rejectsHugeCenteredCollective',
+      modWorkspaceVisibleViewportRecovery.testStoryboardWidgetWorkspaceRecoveryRejectsHugeCenteredCollective,
     )
     await execTest(
       results,
-      'ui.flowEditor.workspaceRecovery.fitsGenericOverlayBounds',
-      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryFitsGenericOverlayBoundsIntoVisibleViewport,
+      'ui.storyboardWidget.workspaceRecovery.fitsGenericOverlayBounds',
+      modWorkspaceVisibleViewportRecovery.testStoryboardWidgetWorkspaceRecoveryFitsGenericOverlayBoundsIntoVisibleViewport,
     )
     await execTest(
       results,
-      'ui.flowEditor.workspaceRecovery.semanticKeyNoDocumentHardcodes',
-      modWorkspaceVisibleViewportRecovery.testFlowEditorWorkspaceRecoveryUsesSemanticKeyAndForbidsDocumentHardcodes,
+      'ui.storyboardWidget.workspaceRecovery.semanticKeyNoDocumentHardcodes',
+      modWorkspaceVisibleViewportRecovery.testStoryboardWidgetWorkspaceRecoveryUsesSemanticKeyAndForbidsDocumentHardcodes,
     )
 
     const modWorkspaceVisibleViewportD3Fit = await import('../__tests__/workspaceVisibleViewportD3FitRegression.test')

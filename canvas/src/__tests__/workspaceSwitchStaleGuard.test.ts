@@ -107,7 +107,7 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
     throw new Error('Expected Canvas page to show a switching-document placeholder without unmounting toolbar-owned floating panels during source-file handoff')
   }
   const canvasViewportText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'))
-  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive') || !canvasViewportText.includes('documentSwitchBlocksCanvas ? (')) {
+  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterStoryboardWidgetSurfaceActive') || !canvasViewportText.includes('documentSwitchBlocksCanvas ? (')) {
     throw new Error('Expected Canvas viewport to render a switching-document placeholder while the active document handoff is pending')
   }
   if (!canvasViewportText.includes('Preparing canvas view...')) {
@@ -182,14 +182,14 @@ export const testMarkdownWorkspaceRuntimeWidgetBundleIncludesOpenWidgetSet = () 
   }
 }
 
-export const testMarkdownWorkspaceRuntimeFlowEditorDirectApplyUsesIncomingGraphInsteadOfPreviousComposition = () => {
+export const testMarkdownWorkspaceRuntimeStoryboardWidgetDirectApplyUsesIncomingGraphInsteadOfPreviousComposition = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
   const text = readUtf8(runtimePath)
   if (!text.includes('const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) =>')) {
     throw new Error('Expected markdown workspace runtime to compute direct-apply policy from incoming graph data')
   }
   if (!text.includes("return String(meta.sourceLayerComposition || '') !== 'compose'")) {
-    throw new Error('Expected flow editor direct-apply policy to keep non-composed incoming graphs direct')
+    throw new Error('Expected storyboard widget direct-apply policy to keep non-composed incoming graphs direct')
   }
   if (!text.includes('if (shouldUseDirectGraphDataFor(gd))')) {
     throw new Error('Expected parsed markdown graph apply path to use incoming graph data for direct/composed decision')
@@ -264,8 +264,8 @@ export const testMarkdownWorkspaceSelectionAppliesFrontmatterFileSwitchAtActiveD
   ) {
     throw new Error('Expected Source Files switching to avoid local YAML Canvas preset aliases outside the active document owner')
   }
-  if (text.includes('primeStrictFrontmatterFlowEditorMode') || text.includes('shouldPrimeStrictFlowEditorModeForWorkspaceText')) {
-    throw new Error('Expected markdown workspace selection to avoid stale Flow Editor-only preset priming')
+  if (text.includes('primeStrictFrontmatterStoryboardWidgetMode') || text.includes('shouldPrimeStrictStoryboardWidgetModeForWorkspaceText')) {
+    throw new Error('Expected markdown workspace selection to avoid stale Storyboard Widget-only preset priming')
   }
   if (text.includes('applyCanvasWorkspacePresetForSwitch')) {
     throw new Error('Expected markdown workspace selection not to pre-apply YAML Canvas presets while switching files')

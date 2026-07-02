@@ -12,11 +12,11 @@ import {
 import {
   buildCanonicalWidgetRegistryDraft,
   getWidgetRegistryEntryLabel,
-} from '@/features/flow-editor-manager/registryTemplates'
+} from '@/features/storyboard-widget-manager/registryTemplates'
 import {
   FLOW_SWARM_PREDICTION_NODE_LABEL,
   FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 
 const scenarioRequest = () => ({
   scenarioTitle: 'Regional demand shock response',
@@ -130,13 +130,13 @@ export function testSwarmPredictionEngineUsesSharedSemanticKeyAndNoCopiedMirofis
 }
 
 export function testSwarmPredictionWorkflowRunnerUsesSharedConnectedValues() {
-  const runnerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const runnerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
   const text = readFileSync(runnerPath, 'utf8')
   for (const token of [
     'FLOW_SWARM_PREDICTION_NODE_TYPE_ID',
     "import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'",
     "String(node.type || '').trim() === FLOW_SWARM_PREDICTION_NODE_TYPE_ID",
-    'resolveFlowEditorWorkflowConnectedValuesInput({',
+    'resolveStoryboardWidgetWorkflowConnectedValuesInput({',
     "readConnectedProperty('properties.seedSignalsJson', 'seedSignalsJson')",
     "message: 'Ran swarm prediction.'",
   ]) {

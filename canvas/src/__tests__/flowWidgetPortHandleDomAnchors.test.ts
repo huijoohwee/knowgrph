@@ -2,8 +2,8 @@ import { JSDOM } from 'jsdom'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
-import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
+import { WidgetEditorSchemaTable } from '@/components/StoryboardWidget/WidgetEditorSchemaTable'
+import { WidgetEditorRegistrySection } from '@/components/StoryboardWidget/WidgetEditorRegistrySection'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
@@ -11,10 +11,10 @@ import {
 } from '@/lib/chatEndpoint'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
-  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
-  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
-} from '@/lib/config.flow-editor'
+  STORYBOARD_WIDGET_ASPECT_RATIO_OPTIONS,
+  STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS,
+  STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
+} from '@/lib/config.storyboard-widget'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 type DomGlobalState = {
   window?: unknown
@@ -154,7 +154,7 @@ export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
         React.createElement(
           'div',
           { style: { width: 360, height: 420 } },
-          React.createElement(NodeOverlayEditorSchemaTable, {
+          React.createElement(WidgetEditorSchemaTable, {
             active: true,
             schemaFields: [{ id: 'prompt', label: 'Prompt', type: 'string' }],
             portHandlesEnabled: true,
@@ -165,7 +165,7 @@ export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
             keyValueInputClass: 'border',
             onCommitSchemaFields: () => void 0,
           }),
-          React.createElement(NodeOverlayEditorRegistrySection, {
+          React.createElement(WidgetEditorRegistrySection, {
             active: true,
             properties: {},
             registryEntry: {
@@ -225,7 +225,7 @@ export const testTextWidgetCellsStayLocallyEditable = async () => {
   const root = createRoot(host)
   const patched: Array<Record<string, unknown>> = []
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         chatProvider: 'openai',
@@ -290,10 +290,10 @@ export const testWidgetRegistrySelectFieldsStayEditable = async () => {
   const patched: Array<Record<string, unknown>> = []
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
-        model: FLOW_EDITOR_IMAGE_MODEL_OPTIONS[0]?.value,
+        model: STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS[0]?.value,
         aspect_ratio: 'landscape',
       },
       registryEntry: {
@@ -302,8 +302,8 @@ export const testWidgetRegistrySelectFieldsStayEditable = async () => {
         widgetTypeId: 'default',
         formId: 'imageGeneration',
         fields: [
-          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS },
-          { fieldKey: 'aspect_ratio', fieldType: 'select', schemaPath: 'properties.aspect_ratio', label: 'Aspect ratio', options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS },
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS },
+          { fieldKey: 'aspect_ratio', fieldType: 'select', schemaPath: 'properties.aspect_ratio', label: 'Aspect ratio', options: STORYBOARD_WIDGET_ASPECT_RATIO_OPTIONS },
         ],
         ports: [{ portKey: 'imageUrl', direction: 'output', schemaPath: 'properties.imageUrl' }],
       } as any,
@@ -352,7 +352,7 @@ export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
   const patched: Array<Record<string, unknown>> = []
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         chatProvider: 'openai',
@@ -421,10 +421,10 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
   const patched: Array<Record<string, unknown>> = []
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
-        model: FLOW_EDITOR_IMAGE_MODEL_OPTIONS[0]?.value,
+        model: STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS[0]?.value,
         size: '2K',
         reference_image: 'https://example.invalid/seedream-ref.png',
       },
@@ -434,7 +434,7 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
         widgetTypeId: 'default',
         formId: 'imageGeneration',
         fields: [
-          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS },
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS },
           { fieldKey: 'size', fieldType: 'select', schemaPath: 'properties.size', label: 'Size', options: [{ value: '2K', label: '2K' }, { value: '4K', label: '4K' }] },
           { fieldKey: 'reference_image', fieldType: 'text', schemaPath: 'properties.reference_image', label: 'Reference image' },
         ],
@@ -486,10 +486,10 @@ export const testBytePlusVideoWidgetKvRowsStayEditable = async () => {
   const patched: Array<Record<string, unknown>> = []
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
-        model: FLOW_EDITOR_VIDEO_MODEL_OPTIONS[0]?.value,
+        model: STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS[0]?.value,
         duration: 2,
         prompt: 'Imagination run wild, 2s; Singapore',
       },
@@ -499,7 +499,7 @@ export const testBytePlusVideoWidgetKvRowsStayEditable = async () => {
         widgetTypeId: 'default',
         formId: 'videoGeneration',
         fields: [
-          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS },
           { fieldKey: 'duration', fieldType: 'select', schemaPath: 'properties.duration', label: 'Duration', options: [{ value: 2, label: '2s' }, { value: 4, label: '4s' }, { value: 6, label: '6s' }] },
           { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', label: 'Prompt' },
         ],
@@ -550,7 +550,7 @@ export const testTextWidgetRegistryFieldRowsKeepPlaceholderPortHandles = async (
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         chatProvider: 'byteplus',
@@ -617,7 +617,7 @@ export const testBytePlusTextWidgetUsesGlobalDefaultsUntilLocallyOverridden = as
   storeApi.setChatModel(CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT)
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         prompt: 'hello',
@@ -688,7 +688,7 @@ export const testBytePlusTextWidgetLocalOverridesStayEditable = async () => {
   storeApi.setChatModel('gpt-5-nano')
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         chatProvider: 'byteplus-modelark',
@@ -766,7 +766,7 @@ export const testOpenAiTextWidgetPortHandleLinksToOpenAiIntegrations = async () 
   eventWindow.addEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
         chatProvider: 'openai',
@@ -843,10 +843,10 @@ export const testBytePlusVideoWidgetPortHandleLinksToVideoIntegrations = async (
   eventWindow.addEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
 
   root.render(
-    React.createElement(NodeOverlayEditorRegistrySection, {
+    React.createElement(WidgetEditorRegistrySection, {
       active: true,
       properties: {
-        model: FLOW_EDITOR_VIDEO_MODEL_OPTIONS[0]?.value,
+        model: STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS[0]?.value,
         prompt: 'hello',
       },
       registryEntry: {
@@ -855,7 +855,7 @@ export const testBytePlusVideoWidgetPortHandleLinksToVideoIntegrations = async (
         widgetTypeId: 'default',
         formId: 'videoGeneration',
         fields: [
-          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS },
         ],
         ports: [{ portKey: 'videoUrl', direction: 'output', schemaPath: 'properties.videoUrl' }],
       } as any,

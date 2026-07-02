@@ -8,9 +8,9 @@ import {
   resolveExpectedFrontmatterWidgetFormId,
   resolveWidgetIdentity,
   resolveWidgetRegistryEntry,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
+} from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import type { GraphNode } from '@/lib/graph/types'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 export const testFlowWidgetRegistryResolvePrefersDefault = () => {
   const registry: WidgetRegistryEntry[] = [

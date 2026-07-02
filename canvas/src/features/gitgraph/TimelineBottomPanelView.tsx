@@ -4,7 +4,7 @@ import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timelin
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
-import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 import { useMermaidTimelineDocument } from './useMermaidTimelineDocument'
 
@@ -17,7 +17,7 @@ export function TimelineBottomPanelView({
   const { code: timelineCode, graphData, themeMode, timelineModel } = useMermaidTimelineDocument()
   const { code: ganttCode } = useMermaidGanttDocument()
   const videoSequenceModel = React.useMemo(() => readVideoSequenceTimelineModelFromMarkdown(markdownDocumentText), [markdownDocumentText])
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: timelineModel,
     kind: 'timeline',

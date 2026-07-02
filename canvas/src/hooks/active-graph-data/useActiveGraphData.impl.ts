@@ -220,7 +220,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     [baseGraphDataRaw, markdownName, markdownText],
   )
   const baseGraphData = React.useMemo(() => {
-    if (canvas2dRenderer === 'flowEditor') {
+    if (canvas2dRenderer === 'storyboard') {
       return workspaceFrontmatterFlowGraphData || workspaceJsonGraphData || workspaceStrybldrStoryboardGraphData || workspaceKgcSemanticGraphData || workspaceFrontmatterMermaidGraphData || activeMarkdownBaseGraph
     }
     if (!frontmatterOnlyPolicyActive) {

@@ -4,7 +4,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 
 function isRecord(v: unknown): v is Record<string, unknown> {

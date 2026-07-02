@@ -82,41 +82,41 @@ export function testWorkspaceGraphMutationTransitionKeysAutoFitVisibility() {
   if (closedSig === openedSig) {
     throw new Error('expected workspace open/close semantic keys to create distinct auto-fit visibility signatures')
   }
-  const flowEditorClosedSig = buildAutoFitToScreenSignature({
+  const storyboardWidgetClosedSig = buildAutoFitToScreenSignature({
     ...base,
     graphDataRevision: 0,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     visibilityFrameKey: '',
   })
-  const flowEditorOpenedSig = buildAutoFitToScreenSignature({
+  const storyboardWidgetOpenedSig = buildAutoFitToScreenSignature({
     ...base,
     graphDataRevision: 99,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     visibilityFrameKey: '',
   })
-  if (flowEditorClosedSig !== flowEditorOpenedSig) {
-    throw new Error('expected Flow Editor auto-fit signatures to ignore output-only revisions and mutation visibility keys')
+  if (storyboardWidgetClosedSig !== storyboardWidgetOpenedSig) {
+    throw new Error('expected Storyboard Widget auto-fit signatures to ignore output-only revisions and mutation visibility keys')
   }
-  const flowEditorSelectionBefore = buildAutoZoomSelectionSignature({
+  const storyboardWidgetSelectionBefore = buildAutoZoomSelectionSignature({
     graphDataRevision: 1,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     selectedNodeId: 'html_video_mp4_panel',
     selectedEdgeId: null,
   })
-  const flowEditorSelectionAfter = buildAutoZoomSelectionSignature({
+  const storyboardWidgetSelectionAfter = buildAutoZoomSelectionSignature({
     graphDataRevision: 2,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     selectedNodeId: 'html_video_mp4_panel',
     selectedEdgeId: null,
   })
-  if (flowEditorSelectionBefore !== flowEditorSelectionAfter) {
-    throw new Error('expected Flow Editor selection auto-zoom signatures to ignore output-only graph revisions')
+  if (storyboardWidgetSelectionBefore !== storyboardWidgetSelectionAfter) {
+    throw new Error('expected Storyboard Widget selection auto-zoom signatures to ignore output-only graph revisions')
   }
 
   const autoZoomPath = resolve(process.cwd(), 'src', 'features', 'zoom', 'useAutoZoomModes2d.ts')
   const autoZoomText = readFileSync(autoZoomPath, 'utf8')
   if (!autoZoomText.includes("const visibilityFrameKey = graphLayoutSignature ? '' : state.workspaceGraphMutationBlockKey")) {
-    throw new Error('expected 2D auto-fit signatures to suppress mutation visibility keys only for Flow Editor layout signatures')
+    throw new Error('expected 2D auto-fit signatures to suppress mutation visibility keys only for Storyboard Widget layout signatures')
   }
   if (!autoZoomText.includes('workspaceGraphMutationBlockKey: s.workspaceGraphMutationBlockKey')) {
     throw new Error('expected 2D auto-fit scheduling to subscribe to workspace graph visibility key changes')
@@ -178,7 +178,7 @@ export function testWorkspaceCloseTransitionBlocksLayoutCacheMutation() {
   }
 }
 
-export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraphCommit() {
+export function testRunAllLayoutLockPreservesStoryboardWidgetGeometryDuringGraphCommit() {
   const previous = useGraphStore.getState()
   const previousPatch = {
     workspaceViewMode: previous.workspaceViewMode,
@@ -230,7 +230,7 @@ export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraph
       workspaceGraphMutationBlockUntilMs: 0,
       workspaceGraphMutationBlockKey: '',
       workspaceGraphMutationLayoutLockActive: true,
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       graphData: baseGraph,
       flowWidgetPinnedByNodeId: { widgetA: true, widgetB: false },
       flowWidgetPinnedByNodeIdByGraphMetaKey: {
@@ -253,13 +253,13 @@ export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraph
       throw new Error(`expected Run all output graph commit to continue while layout lock is active, got ${committedOutput}`)
     }
     if (after.flowWidgetPinnedByNodeId.widgetA !== true) {
-      throw new Error('expected Run all layout lock to preserve Flow Editor widget pin state during graph commit')
+      throw new Error('expected Run all layout lock to preserve Storyboard Widget pin state during graph commit')
     }
     if (after.flowWidgetPosByNodeId.widgetA?.top !== 10 || after.flowWidgetPosByNodeId.widgetA?.left !== 20) {
-      throw new Error('expected Run all layout lock to block graph-commit replay of Flow Editor screen positions')
+      throw new Error('expected Run all layout lock to block graph-commit replay of Storyboard Widget screen positions')
     }
     if (after.flowWidgetWorldPosByNodeId.widgetB?.x !== 300 || after.flowWidgetWorldPosByNodeId.widgetB?.y !== 400) {
-      throw new Error('expected Run all layout lock to block graph-commit replay of Flow Editor world positions')
+      throw new Error('expected Run all layout lock to block graph-commit replay of Storyboard Widget world positions')
     }
   } finally {
     useGraphStore.setState(previousPatch as never)
@@ -267,45 +267,45 @@ export function testRunAllLayoutLockPreservesFlowEditorWidgetGeometryDuringGraph
 }
 
 export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases() {
-  const flowEditorFitBefore = buildAutoFitToScreenSignature({
+  const storyboardWidgetFitBefore = buildAutoFitToScreenSignature({
     nodeCount: 3,
     viewportW: 866,
     viewportH: 962,
     graphDataRevision: 1,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     schema: null,
     mediaPanelDensity: 'comfortable',
     renderMediaAsNodes: true,
     visibilityFrameKey: '',
   })
-  const flowEditorFitAfter = buildAutoFitToScreenSignature({
+  const storyboardWidgetFitAfter = buildAutoFitToScreenSignature({
     nodeCount: 3,
     viewportW: 866,
     viewportH: 962,
     graphDataRevision: 2,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     schema: null,
     mediaPanelDensity: 'comfortable',
     renderMediaAsNodes: true,
     visibilityFrameKey: '',
   })
-  if (flowEditorFitBefore !== flowEditorFitAfter) {
-    throw new Error('expected Flow Editor auto-fit signatures to ignore output-only Run all revisions and mutation visibility keys')
+  if (storyboardWidgetFitBefore !== storyboardWidgetFitAfter) {
+    throw new Error('expected Storyboard Widget auto-fit signatures to ignore output-only Run all revisions and mutation visibility keys')
   }
-  const flowEditorSelectionBefore = buildAutoZoomSelectionSignature({
+  const storyboardWidgetSelectionBefore = buildAutoZoomSelectionSignature({
     graphDataRevision: 1,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     selectedNodeId: 'html_video_mp4_panel',
     selectedEdgeId: null,
   })
-  const flowEditorSelectionAfter = buildAutoZoomSelectionSignature({
+  const storyboardWidgetSelectionAfter = buildAutoZoomSelectionSignature({
     graphDataRevision: 2,
-    graphLayoutSignature: 'flow-editor-topology-layout',
+    graphLayoutSignature: 'storyboard-widget-topology-layout',
     selectedNodeId: 'html_video_mp4_panel',
     selectedEdgeId: null,
   })
-  if (flowEditorSelectionBefore !== flowEditorSelectionAfter) {
-    throw new Error('expected Flow Editor selection auto-zoom signatures to ignore output-only Run all graph revisions')
+  if (storyboardWidgetSelectionBefore !== storyboardWidgetSelectionAfter) {
+    throw new Error('expected Storyboard Widget selection auto-zoom signatures to ignore output-only Run all graph revisions')
   }
   const autoZoomPath = resolve(process.cwd(), 'src', 'features', 'zoom', 'useAutoZoomModes2d.ts')
   const autoZoomText = readFileSync(autoZoomPath, 'utf8')
@@ -315,17 +315,17 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!autoZoomText.includes('if (isWorkspaceGraphMutationBlocked(state)) return')) {
     throw new Error('expected auto-fit and selection zoom dispatch to stop while Run all holds the shared graph mutation guard')
   }
-  if (!autoZoomText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'")) {
-    throw new Error('expected Flow Editor auto-fit signatures to reuse the shared topology/layout signature')
+  if (!autoZoomText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'")) {
+    throw new Error('expected Storyboard Widget auto-fit signatures to reuse the shared topology/layout signature')
   }
-  if (!autoZoomText.includes('const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)')) {
-    throw new Error('expected Flow Editor auto-fit to ignore output-only graph revisions and key by semantic layout topology')
+  if (!autoZoomText.includes('const graphLayoutSignature = isStoryboardCanvas2dRenderer(state.canvas2dRenderer)')) {
+    throw new Error('expected Storyboard Widget auto-fit to ignore output-only graph revisions and key by semantic layout topology')
   }
   if (!autoZoomText.includes("const visibilityFrameKey = graphLayoutSignature ? '' : state.workspaceGraphMutationBlockKey")) {
-    throw new Error('expected Flow Editor auto-fit to ignore mutation visibility keys when semantic layout topology is stable')
+    throw new Error('expected Storyboard Widget auto-fit to ignore mutation visibility keys when semantic layout topology is stable')
   }
   if (!autoZoomText.includes('graphLayoutSignature,')) {
-    throw new Error('expected selection auto-zoom signatures to receive the semantic Flow Editor layout signature')
+    throw new Error('expected selection auto-zoom signatures to receive the semantic Storyboard Widget layout signature')
   }
   const signaturePath = resolve(process.cwd(), 'src', 'lib', 'zoom', 'autoModeSignatures.ts')
   const signatureText = readFileSync(signaturePath, 'utf8')
@@ -335,51 +335,51 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!signatureText.includes('graphLayoutSignature || graphDataRevision')) {
     throw new Error('expected shared auto-fit signatures to prefer semantic layout signatures over raw graph revisions')
   }
-  const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeScene.ts')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   if (!runtimeSceneText.includes("reason: 'workspace-blocked-using-last-usable-transform'")) {
-    throw new Error('expected Flow Editor runtime widgets to keep the last usable zoom transform while Run all blocks graph mutation')
+    throw new Error('expected Storyboard Widget runtime widgets to keep the last usable zoom transform while Run all blocks graph mutation')
   }
   if (!runtimeSceneText.includes("reason: 'workspace-blocked-rejecting-live-runtime-transform'")) {
-    throw new Error('expected Flow Editor runtime widgets to reject transient live zoom transforms while Run all blocks graph mutation')
+    throw new Error('expected Storyboard Widget runtime widgets to reject transient live zoom transforms while Run all blocks graph mutation')
   }
   if (!runtimeSceneText.includes('screenLeft: rect.left') || !runtimeSceneText.includes('screenX: item.x + surfaceOffsetLeft')) {
-    throw new Error('expected Flow Editor DOM collective recovery to preserve viewport screen coordinates separately from surface-relative bounds')
+    throw new Error('expected Storyboard Widget DOM collective recovery to preserve viewport screen coordinates separately from surface-relative bounds')
   }
   const flowRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
   const flowRuntimeText = readFileSync(flowRuntimePath, 'utf8')
   if (!flowRuntimeText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected native FlowCanvas runtime fit to import the shared workspace graph mutation guard')
   }
-  if (!flowRuntimeText.includes('if (isFlowEditor && isWorkspaceGraphMutationBlocked(state)) return')) {
+  if (!flowRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return')) {
     throw new Error('expected native FlowCanvas runtime fit to stop while Run all holds the shared graph mutation guard')
   }
-  if (!flowRuntimeText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'")) {
-    throw new Error('expected native FlowCanvas runtime fit to reuse the shared Flow Editor topology/layout signature')
+  if (!flowRuntimeText.includes("import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'")) {
+    throw new Error('expected native FlowCanvas runtime fit to reuse the shared Storyboard Widget topology/layout signature')
   }
-  if (!flowRuntimeText.includes('const initKey = isFlowEditor ? `flowEditor:${flowEditorLayoutSignature}` : zoomViewKey')) {
-    throw new Error('expected Flow Editor init fit to ignore output-only zoom key churn')
+  if (!flowRuntimeText.includes('const initKey = storyboardWidgetMode ? `storyboardWidget:${storyboardWidgetLayoutSignature}` : zoomViewKey')) {
+    throw new Error('expected Storyboard Widget init fit to ignore output-only zoom key churn')
   }
   const interactionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
   const interactionRuntimeText = readFileSync(interactionRuntimePath, 'utf8')
   if (!interactionRuntimeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected native FlowCanvas zoom request runtime to import the shared workspace graph mutation guard')
   }
-  if (!interactionRuntimeText.includes('if (isFlowEditor && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
+  if (!interactionRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
     throw new Error('expected native FlowCanvas zoom requests to stop while Run all holds the shared graph mutation guard')
   }
-  const runAllPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts')
+  const runAllPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts')
   const runAllText = readFileSync(runAllPath, 'utf8')
   if (!runAllText.includes('export const setRunAllLayoutMutationLock = (active: boolean): void =>')) {
     throw new Error('expected Run all layout lock to be shared by toolbar and workflow runtime')
   }
-  if (runAllText.includes('flow-editor-run-all:release')) {
+  if (runAllText.includes('storyboard-widget-run-all:release')) {
     throw new Error('expected Run all release to avoid stamping a fresh workspace mutation key that can trigger post-run auto-fit')
   }
   if (!runAllText.includes('if (!active)') || !runAllText.includes('workspaceGraphMutationLayoutLockActive: false')) {
     throw new Error('expected Run all release to clear only the explicit layout lock')
   }
-  const runActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
+  const runActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
   const runActionText = readFileSync(runActionPath, 'utf8')
   if (!runActionText.includes('if (!suppressLayoutMutation && activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath))')) {
     throw new Error('expected Run all node execution to skip KGC companion document side effects while layout mutation is locked')
@@ -395,13 +395,13 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   }
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
-  if (!toolbarText.includes("import { setRunAllLayoutMutationLock } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowRunAll'")) {
-    throw new Error('expected Toolbar Run all to reuse the shared Flow Editor layout lock helper')
+  if (!toolbarText.includes("import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'")) {
+    throw new Error('expected Toolbar Run all to reuse the shared Storyboard Widget layout lock helper')
   }
   if (!toolbarText.includes("import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'")) {
-    throw new Error('expected Toolbar Run all to treat Flow Editor execution as a user gesture before auto-fit can recompute')
+    throw new Error('expected Toolbar Run all to treat Storyboard Widget execution as a user gesture before auto-fit can recompute')
   }
-  if (!toolbarText.includes('onPointerDownCapture={() => {') || !toolbarText.includes('primeFlowEditorRunAllLayoutLockFromToolbar()')) {
+  if (!toolbarText.includes('onPointerDownCapture={() => {') || !toolbarText.includes('primeStoryboardWidgetRunAllLayoutLockFromToolbar()')) {
     throw new Error('expected Toolbar Run all to prime the layout lock before click dispatch')
   }
   if (!toolbarText.includes('data-kg-canvas-pointer-ignore="true"')) {
@@ -453,7 +453,7 @@ export function testRunAllLayoutLockBlocksWorkspaceFrameMutation() {
   }
 }
 
-export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation() {
+export function testRendererSwitchTransitionBlocksStoryboardWidgetLayoutMutation() {
   const previous = useGraphStore.getState()
   const previousPatch = {
     canvas2dRenderer: previous.canvas2dRenderer,
@@ -470,7 +470,7 @@ export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation
 
   try {
     useGraphStore.setState({
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       workspaceViewMode: 'canvas',
       workspaceCanvasPaneOpen: false,
       markdownWorkspaceIndexingInFlight: false,
@@ -483,7 +483,7 @@ export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation
         type: 'Graph',
         nodes: [{ id: 'widgetA', label: 'Widget A', type: 'rich_media_panel' }],
         edges: [],
-        metadata: { title: 'Flow Editor renderer transition guard' },
+        metadata: { title: 'Storyboard renderer transition guard' },
       },
     } as never)
     useGraphStore.getState().setCanvas2dRenderer('d3')
@@ -496,42 +496,42 @@ export function testRendererSwitchTransitionBlocksFlowEditorWidgetLayoutMutation
     afterSwitch.setFlowWidgetWorldPosByNodeId({ widgetA: { x: 500, y: 600 } })
     const blocked = useGraphStore.getState()
     if (blocked.flowWidgetPinnedByNodeId.widgetA !== true) {
-      throw new Error('expected renderer transition guard to block Flow Editor widget pin mutation')
+      throw new Error('expected renderer transition guard to block Storyboard Widget pin mutation')
     }
     if (blocked.flowWidgetPosByNodeId.widgetA?.top !== 10 || blocked.flowWidgetPosByNodeId.widgetA?.left !== 20) {
-      throw new Error('expected renderer transition guard to block Flow Editor widget screen-position mutation')
+      throw new Error('expected renderer transition guard to block Storyboard Widget screen-position mutation')
     }
     if (blocked.flowWidgetWorldPosByNodeId.widgetA?.x !== 30 || blocked.flowWidgetWorldPosByNodeId.widgetA?.y !== 40) {
-      throw new Error('expected renderer transition guard to block Flow Editor widget world-position mutation')
+      throw new Error('expected renderer transition guard to block Storyboard Widget world-position mutation')
     }
   } finally {
     useGraphStore.setState(previousPatch as never)
   }
 }
 
-export function testFlowEditorOverlayPositionBypassesHonorWorkspaceMutationGuard() {
-  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+export function testStoryboardWidgetOverlayPositionBypassesHonorWorkspaceMutationGuard() {
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts')
   const collisionText = readFileSync(collisionPath, 'utf8')
   if (!collisionText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor overlay collision to import the shared workspace graph mutation guard')
+    throw new Error('expected Storyboard Widget overlay collision to import the shared workspace graph mutation guard')
   }
   if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
-    throw new Error('expected Flow Editor overlay collision scheduling to stop during workspace and renderer transitions')
+    throw new Error('expected Storyboard Widget overlay collision scheduling to stop during workspace and renderer transitions')
   }
   if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(st)) return')) {
-    throw new Error('expected Flow Editor overlay collision direct position commits to honor the workspace mutation guard')
+    throw new Error('expected Storyboard Widget overlay collision direct position commits to honor the workspace mutation guard')
   }
   if (!collisionText.includes('if (isWorkspaceGraphMutationBlocked(prev)) return {}')) {
-    throw new Error('expected graph-scoped Flow Editor overlay position writes to honor the workspace mutation guard')
+    throw new Error('expected graph-scoped Storyboard Widget overlay position writes to honor the workspace mutation guard')
   }
 
-  const recenterPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowEditorOverlayRecenter.ts')
+  const recenterPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'storyboardWidgetOverlayRecenter.ts')
   const recenterText = readFileSync(recenterPath, 'utf8')
   if (!recenterText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor overlay recenter to import the shared workspace graph mutation guard')
+    throw new Error('expected Storyboard Widget overlay recenter to import the shared workspace graph mutation guard')
   }
   if (!recenterText.includes('if (isWorkspaceGraphMutationBlocked(st as never)) return')) {
-    throw new Error('expected Flow Editor overlay recenter to skip lifecycle mutation windows')
+    throw new Error('expected Storyboard Widget overlay recenter to skip lifecycle mutation windows')
   }
   if (!recenterText.includes('if (isWorkspaceGraphMutationBlocked(prev as never)) return {}')) {
     throw new Error('expected graph-scoped overlay recenter writes to honor the workspace mutation guard')
@@ -601,7 +601,7 @@ export async function testActiveMarkdownDocumentSwitchStampsMutationGuardWithout
     const text = [
       '---',
       'kgCanvasSurfaceMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       '---',

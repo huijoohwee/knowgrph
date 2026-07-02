@@ -51,7 +51,7 @@ export async function testRichMediaPanelDirectImageSurfaceStartsOverlayDrag() {
         title: 'Generated image',
         url: 'https://example.com/generated.png',
         kind: 'image',
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         interactive: false,
         onOverlayPanStart: () => overlayEvents.push('start'),
         onOverlayPan: ({ dx, dy }) => overlayEvents.push(`move:${dx}:${dy}`),

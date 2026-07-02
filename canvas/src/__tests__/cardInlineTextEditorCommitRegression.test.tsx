@@ -2,7 +2,7 @@ import React, { act } from 'react'
 import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'
+import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'
 import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
 import {
   clearWorkspaceDataViewFloatingBinding,
@@ -82,7 +82,7 @@ export function testPlainTextInputEditorUsesReactChangeContract() {
 
 export function testCardInlineTextEditorPreservesSharedMultilineCommitContract() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
-  const flowEditorOverlayProxy = readUtf8('../lib/canvas/flow-editor-overlay-proxy.ts')
+  const storyboardWidgetOverlayProxy = readUtf8('../lib/canvas/storyboard-widget-overlay-proxy.ts')
   for (const snippet of [
     '<PanelTextarea',
     '<PanelTextInput',
@@ -104,8 +104,8 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
       throw new Error(`expected CardInlineTextEditor to preserve the shared multiline commit contract: ${snippet}`)
     }
   }
-  if (!flowEditorOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
-    throw new Error('expected Flow Editor overlay pointer routing to treat shared card inline editors as interactive controls')
+  if (!storyboardWidgetOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
+    throw new Error('expected Storyboard Widget overlay pointer routing to treat shared card inline editors as interactive controls')
   }
 }
 
@@ -734,7 +734,7 @@ export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity()
   }
 }
 
-export async function testFlowEditorInlineValueEditorReusesDensityAwareCardSurfaceAndTextarea() {
+export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCardSurfaceAndTextarea() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -744,7 +744,7 @@ export async function testFlowEditorInlineValueEditorReusesDensityAwareCardSurfa
     await act(async () => {
       setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode: 'double' })
       root.render(
-        React.createElement(FlowEditorInlineValueEditor, {
+        React.createElement(StoryboardWidgetInlineValueEditor, {
           id: 'flow-widget-value',
           value: 'Widget output should reuse the shared card surface and textarea density controls.',
           active: true,
@@ -759,15 +759,15 @@ export async function testFlowEditorInlineValueEditorReusesDensityAwareCardSurfa
     })
 
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
-    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Flow Editor widget value display to reuse CardInlineTextEditor')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard Widget value display to reuse CardInlineTextEditor')
     if (!display.className.includes('line-clamp-2')) {
-      throw new Error(`expected Flow Editor widget display surface to reuse two-line field density, got class=${display.className}`)
+      throw new Error(`expected Storyboard Widget display surface to reuse two-line field density, got class=${display.className}`)
     }
     if (display.className.split(/\s+/).includes('block')) {
-      throw new Error(`expected Flow Editor widget display surface to avoid block overriding line-clamp-2, got class=${display.className}`)
+      throw new Error(`expected Storyboard Widget display surface to avoid block overriding line-clamp-2, got class=${display.className}`)
     }
     if (display.className.includes('h-6')) {
-      throw new Error(`expected Flow Editor widget display surface to ignore single-line/editor sizing classes, got class=${display.className}`)
+      throw new Error(`expected Storyboard Widget display surface to ignore single-line/editor sizing classes, got class=${display.className}`)
     }
 
     await act(async () => {
@@ -776,12 +776,12 @@ export async function testFlowEditorInlineValueEditorReusesDensityAwareCardSurfa
     })
 
     const textarea = container.querySelector('textarea[aria-label="Widget value"]')
-    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Flow Editor widget value to open a shared textarea')
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Storyboard Widget value to open a shared textarea')
     if (textarea.rows !== 2 || !textarea.className.includes('min-h-12') || !textarea.className.includes('resize-y')) {
-      throw new Error(`expected Flow Editor widget textarea to use two-line panel density instead of caller rows, got rows=${textarea.rows} class=${textarea.className}`)
+      throw new Error(`expected Storyboard Widget textarea to use two-line panel density instead of caller rows, got rows=${textarea.rows} class=${textarea.className}`)
     }
     if (textarea.className.split(/\s+/).includes('resize')) {
-      throw new Error(`expected Flow Editor widget textarea resizing to keep width fixed with resize-y, got class=${textarea.className}`)
+      throw new Error(`expected Storyboard Widget textarea resizing to keep width fixed with resize-y, got class=${textarea.className}`)
     }
   } finally {
     setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
@@ -1774,7 +1774,7 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
   }
 }
 
-export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits() {
+export async function testStoryboardWidgetInlineValueEditorFirstInactiveClickCommits() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -1793,8 +1793,8 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
         parentClicks += 1
         setActive(true)
       },
-    }, React.createElement(FlowEditorInlineValueEditor, {
-      id: 'flow-editor-first-click-value',
+    }, React.createElement(StoryboardWidgetInlineValueEditor, {
+      id: 'storyboard-widget-first-click-value',
       value: '50',
       active,
       ariaLabel: 'Metric target',
@@ -1812,7 +1812,7 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
 
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) {
-      throw new Error('expected Flow Editor Value cell to render the shared click-activated inline editor')
+      throw new Error('expected Storyboard Widget Value cell to render the shared click-activated inline editor')
     }
 
     await act(async () => {
@@ -1822,15 +1822,15 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
     })
 
     if (parentPointerDowns !== 0) {
-      throw new Error(`expected first inactive Flow Editor value pointer-down to stay local and avoid workspace/indexing activation, got ${parentPointerDowns}`)
+      throw new Error(`expected first inactive Storyboard Widget value pointer-down to stay local and avoid workspace/indexing activation, got ${parentPointerDowns}`)
     }
     if (parentClicks !== 0) {
-      throw new Error(`expected first inactive Flow Editor value click to stay local and avoid workspace/indexing activation, got ${parentClicks}`)
+      throw new Error(`expected first inactive Storyboard Widget value click to stay local and avoid workspace/indexing activation, got ${parentClicks}`)
     }
 
     const input = container.querySelector('input[aria-label="Metric target"]')
     if (!(input instanceof dom.window.HTMLInputElement)) {
-      throw new Error('expected first inactive Flow Editor value click to open the shared editable input')
+      throw new Error('expected first inactive Storyboard Widget value click to open the shared editable input')
     }
     const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
     if (!setter) throw new Error('expected input value setter')
@@ -1845,7 +1845,7 @@ export async function testFlowEditorInlineValueEditorFirstInactiveClickCommits()
     })
 
     if (committed !== '77') {
-      throw new Error(`expected first Flow Editor inline edit value to commit without requiring a second click, got ${JSON.stringify(committed)}`)
+      throw new Error(`expected first Storyboard Widget inline edit value to commit without requiring a second click, got ${JSON.stringify(committed)}`)
     }
   } finally {
     await act(async () => {

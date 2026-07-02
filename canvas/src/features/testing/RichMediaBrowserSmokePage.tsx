@@ -146,7 +146,7 @@ export function RichMediaBrowserSmokePage() {
       <header className="mx-auto flex w-full max-w-7xl flex-col gap-3">
         <h1 className="text-2xl font-semibold">Rich Media Browser Smoke</h1>
         <p className="max-w-3xl text-sm text-[var(--kg-text-secondary)]">
-          Dev-only runtime harness for verifying rich media text, iframe, overlay, direct-media, and flow-editor chrome interactions.
+          Dev-only runtime harness for verifying rich media text, iframe, overlay, direct-media, and storyboard-widget chrome interactions.
         </p>
       </header>
 
@@ -246,12 +246,12 @@ export function RichMediaBrowserSmokePage() {
           />
         </article>
 
-        <article className={smokePanelCardClassName} data-kg-smoke-panel="flow-editor">
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="storyboard-widget">
           <header className="mb-3">
-            <h2 className="text-sm font-semibold">Flow Editor Chrome</h2>
+            <h2 className="text-sm font-semibold">Storyboard Widget Chrome</h2>
           </header>
           <section
-            aria-label="Flow editor panel stage"
+            aria-label="Storyboard widget panel stage"
             className="relative overflow-hidden rounded-2xl border border-dashed border-[var(--kg-border)] bg-[var(--kg-canvas-bg)]/40"
             style={{ height: 320 }}
           >
@@ -264,11 +264,11 @@ export function RichMediaBrowserSmokePage() {
               }}
             >
               <RichMediaPanel
-                title="Flow Editor Rich Media"
+                title="Storyboard Widget Rich Media"
                 url="/demo/placeholder.svg"
                 kind="image"
-                panelChrome="flowEditor"
-                flowEditorInteractionMode
+                panelChrome="storyboardWidget"
+                storyboardWidgetInteractionMode
                 resizable
                 style={{ height: '100%', width: '100%' }}
                 onResizeStart={handleFlowResizeStart}

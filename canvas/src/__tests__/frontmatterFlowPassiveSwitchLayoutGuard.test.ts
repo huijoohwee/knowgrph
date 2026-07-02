@@ -37,7 +37,7 @@ export function testFrontmatterFlowImportModeKeepsWidgetPlacementCachesForPassiv
   if (st.flowWidgetPosByNodeId.w1?.left !== 2400 || st.flowWidgetWorldPosByNodeId.w1?.x !== 2400) {
     throw new Error('expected passive frontmatter-flow Source Files switch not to clear widget placement caches')
   }
-  if (st.canvas2dRenderer === 'flowEditor') {
-    throw new Error('expected passive frontmatter-flow Source Files switch not to force Flow Editor renderer from YAML/frontmatter')
+  if (st.canvas2dRenderer === 'storyboard') {
+    throw new Error('expected passive frontmatter-flow Source Files switch not to force Storyboard renderer from YAML/frontmatter')
   }
 }

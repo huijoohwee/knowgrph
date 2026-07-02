@@ -27,7 +27,7 @@ The document must:
 - **MainPanel Integrations**: The `integrations` tab (key: `integrations`) in knowgrph's MainPanel. Description: "Configure model, media, provider, and API readiness rows."
 - **SettingsView**: The React component (`canvas/src/features/panels/views/SettingsView.tsx`) that renders integration rows in the MainPanel.
 - **useSettingsView**: The hook (`canvas/src/features/panels/views/useSettingsView.ts`) that wires settings rows to the SettingsView renderer.
-- **FlowEditor_Manager**: The widget registry manager (`canvas/src/features/flow-editor-manager/`) that consumes SSOT rows to populate NodeOverlayEditor and Workflow Manager widget fields.
+- **StoryboardWidget_Manager**: The widget registry manager (`canvas/src/features/storyboard-widget-manager/`) that consumes SSOT rows to populate NodeOverlayEditor and Workflow Manager widget fields.
 - **VideodbSsot**: The TypeScript SSOT file at `canvas/src/features/integrations/videodbSsot.ts`.
 - **CLI_Generator**: The planned generator script at `canvas/src/cli/generate-videodb-reference.ts` that emits the static markdown doc from the SSOT.
 - **x-access-token**: The VideoDB authentication header. Operator-supplied value; must never be hardcoded in the repository.
@@ -67,7 +67,7 @@ The document must:
 1. THE Document SHALL open with an H1 heading containing the exact text `knowgrph — VideoDB API Reference (SSOT + Codebase Map)`.
 2. THE Document SHALL include an `SSOT:` line containing the value `https://docs.videodb.io/api-reference/introduction.md`.
 3. THE Document SHALL include an `App SSOT entrypoint:` line containing the value `canvas/src/features/integrations/videodbSsot.ts`.
-4. THE Document SHALL include a `Scope:` section that mentions `MainPanel Integrations`, `FlowEditor Manager`, and `NodeOverlayEditor` as the surfaces this reference covers.
+4. THE Document SHALL include a `Scope:` section that mentions `MainPanel Integrations`, `StoryboardWidget Manager`, and `NodeOverlayEditor` as the surfaces this reference covers.
 5. THE Document SHALL include a `Table columns:` section that lists each of the nine columns by name (`key`, `type`, `value`, `key-description`, `value-description`, `ssot`, `module`, `class`, `function`) with a purpose description for each.
 6. THE Document SHALL include a `## knowgrph VideoDB Integration Overlay` section containing a table with columns `area | source | acceptance boundary` and at least five rows covering: auth credential handling, runtime SSOT entrypoint, planned CLI generator, SSOT sync directive, and operator-supplied runtime values policy.
 7. THE Integration Overlay section SHALL contain text asserting that `x-access-token` is an operator-supplied value and SHALL contain text asserting it must not be hardcoded in the repository.
@@ -336,6 +336,6 @@ The document must:
 6. THE demo SHALL NOT fabricate collection IDs, job IDs, video IDs, or stream URLs with hardcoded prefixes, default identifiers, or mock URL hosts.
 7. THE demo SHALL document the async circuit-breaker as 36 iterations at 10-second intervals and SHALL state that polling returns failure instead of looping indefinitely on exhaustion.
 8. THE demo SHALL NOT assert Prod or Cloudflare availability and SHALL NOT require deployment to `airvio.co` or `airvio.co/knowgrph`.
-9. THE demo SHALL declare renderer compatibility for `2D Renderer: Flow Editor`, `2D Renderer: Storyboard`, and `2D Renderer: Strybldr` without forking source data per renderer.
+9. THE demo SHALL declare renderer compatibility for `2D Renderer: Storyboard` and `2D Renderer: Strybldr` without forking source data per renderer.
 10. THE demo SHALL include Storyboard-compatible neutral aliases on `flow.nodes[*]` and a parseable `json strybldr-storyboard` fenced payload for Strybldr direct-open validation.
 11. THE demo SHALL use a knowgrph-native workflow and SHALL NOT contain copied external workflow-platform or external notes-database terms from the inspiration document.

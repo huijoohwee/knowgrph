@@ -14,7 +14,7 @@ lang: "en-US"
 ## Overview
 
 `knowgrph-html-video-renderer` adds a pluggable HTML-to-video render pipeline to the knowgrph
-platform. It accepts a typed `Render_Spec` from coding agents, Flow Editor nodes, or MCP clients,
+platform. It accepts a typed `Render_Spec` from coding agents, Storyboard Widget nodes, or MCP clients,
 resolves an active `Render_Engine` at runtime via the `KNOWGRPH_HTML_VIDEO_ENGINE` environment
 variable (never cached, never hardcoded), produces a real `video/mp4` blob, and routes the artifact
 through the existing `writeRichMediaWidgetRunOutputArtifact` → storage → manifest → canvas-apply
@@ -47,9 +47,9 @@ as the `VideoGeneration` and `SwarmPrediction` nodes do today.
 | `engines/headlessBrowserAdapter.ts` | Headless-browser adapter stub implementing `Render_Engine` | Adapter |
 | `engines/canvas2dAdapter.ts` | Canvas-2D adapter stub implementing `Render_Engine` | Adapter |
 | `engines/serverSideAdapter.ts` | Server-side adapter stub implementing `Render_Engine` | Adapter |
-| `htmlVideoFlowNode.ts` | Flow Editor node run handler (imports `htmlVideoRenderJob`) | Surface |
+| `htmlVideoFlowNode.ts` | Storyboard Widget node run handler (imports `htmlVideoRenderJob`) | Surface |
 | `index.ts` | Public barrel (no adapter re-exports at top level) | Barrel |
-| `canvas/src/lib/config.flow-editor.ts` | Adds `FLOW_HTML_VIDEO_RENDERER_*` constants (existing file, additive) | Config |
+| `canvas/src/lib/config.storyboard-widget.ts` | Adds `FLOW_HTML_VIDEO_RENDERER_*` constants (existing file, additive) | Config |
 | `canvas/src/features/chat/richMediaRun.ts` | `writeRichMediaWidgetRunOutputArtifact`, `resolveRichMediaWidgetKind` (existing, no changes) | Shared |
 | `mcp/local-tool-contract.js` | Registers `knowgrph.html_video.render` tool (existing file, additive) | MCP |
 | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Adds `htmlVideoRender` to `KNOWGRPH_LOCAL_MCP_TOOL_NAMES` + vdeoxpln entry (existing file, additive) | Registry |
@@ -61,7 +61,7 @@ as the `VideoGeneration` and `SwarmPrediction` nodes do today.
 flowchart TD
     subgraph Callers["Callers"]
         A1[Coding Agent]
-        A2[Flow Editor Node]
+        A2[Storyboard Widget Node]
         A3[MCP Client]
     end
 
@@ -140,7 +140,7 @@ flowchart LR
         R2["resolveHtmlVideoEngine(registry, engineHint?)"]
     end
 
-    subgraph Config["config.flow-editor.ts (additive)"]
+    subgraph Config["config.storyboard-widget.ts (additive)"]
         CF1["FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID\n= 'HtmlVideoRenderer'"]
         CF2["FLOW_HTML_VIDEO_RENDERER_FORM_ID\n= 'htmlVideoRenderer'"]
         CF3["FLOW_HTML_VIDEO_RENDERER_WIDGET_TYPE_ID\n= 'default'"]
@@ -387,9 +387,9 @@ export const serverSideAdapter: RenderEngine = {
 ```
 
 
-### Flow Editor Node Registration (additive changes to existing files)
+### Storyboard Widget Node Registration (additive changes to existing files)
 
-**`canvas/src/lib/config.flow-editor.ts`** — new constants added alongside existing node type constants:
+**`canvas/src/lib/config.storyboard-widget.ts`** — new constants added alongside existing node type constants:
 
 ```typescript
 // Additive — no existing constants modified
@@ -403,13 +403,13 @@ export const FLOW_HTML_VIDEO_RENDERER_FORM_ID = 'htmlVideoRenderer' as const
 
 ```typescript
 // Additive case in the existing switch — no structural change to the function
-import { FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 
 // Inside resolveRichMediaWidgetKind:
 if (typeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return 'video'
 ```
 
-**`canvas/src/features/html-video-renderer/htmlVideoFlowNode.ts`** — Flow Editor node run handler:
+**`canvas/src/features/html-video-renderer/htmlVideoFlowNode.ts`** — Storyboard Widget node run handler:
 
 ```typescript
 // canvas/src/features/html-video-renderer/htmlVideoFlowNode.ts
@@ -420,9 +420,9 @@ import { createHtmlVideoEngineRegistry, resolveHtmlVideoEngine } from './htmlVid
 import type { HtmlVideoRunResult } from './htmlVideoRenderJob'
 
 /**
- * Flow Editor node run handler for HtmlVideoRenderer nodes.
+ * Storyboard Widget node run handler for HtmlVideoRenderer nodes.
  * Reads properties via readNodeProperty pattern (html, css, data_json, duration_ms,
- * fps, width, height, engine_hint) — no FlowEditorSmartNodeProperties key collisions.
+ * fps, width, height, engine_hint) — no StoryboardWidgetSmartNodeProperties key collisions.
  */
 export async function runHtmlVideoFlowNode(args: {
   node: GraphNode
@@ -609,7 +609,7 @@ function buildRenderJobId(spec: RenderSpec, engineId: string): string {
     "canvas/src/features/html-video-renderer/htmlVideoRendererSpec.ts",
     "canvas/src/features/html-video-renderer/htmlVideoFlowNode.ts",
     "canvas/src/features/chat/richMediaRun.ts",
-    "canvas/src/lib/config.flow-editor.ts",
+    "canvas/src/lib/config.storyboard-widget.ts",
     "canvas/src/lib/graph/semanticKey.ts",
     "mcp/local-tool-contract.js",
     "canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs",
@@ -785,7 +785,7 @@ binary is invoked during testing.
 - `HTML_VIDEO_ENGINE_IDS` is frozen (assign new key → no effect)
 - `buildKnowgrphLocalMcpToolDefinitions()` returns an entry with name `"knowgrph.html_video.render"`
 - `validateKnowgrphVdeoxplnRegistry()` returns `{ ok: true, errors: [] }` with updated registry
-- `HtmlVideoFlowNode` property keys do not intersect `FlowEditorSmartNodeProperties` keys
+- `HtmlVideoFlowNode` property keys do not intersect `StoryboardWidgetSmartNodeProperties` keys
 - `writeRichMediaWidgetRunOutputArtifact` returns `outputPath: null` → run result has all paths null
 
 **Property tests** cover the 5 Correctness Properties above. Library: **fast-check** (TypeScript,

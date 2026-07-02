@@ -23,13 +23,13 @@ import {
   validateAnnotationSpec,
   type AnnotationWorkerHandle,
 } from '@/features/visual-annotation-engine'
-import { FLOW_ANNOTATION_ENGINE_FORM_ID, FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
+import { FLOW_ANNOTATION_ENGINE_FORM_ID, FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { buildFlowRunAllNodeSequence } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-import { resolveFlowEditorWorkflowDownstreamRunTargetIds } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowDownstreamRunTargets'
-import { applyFlowEditorWorkflowRichMediaPanelDraftPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRichMediaPanel'
-import { resolveFlowEditorWorkflowNodeByIdAcrossGraphs } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
-import { updateFlowEditorWorkflowOutputForKnownNodeIds } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
+import { resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
+import { applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
+import { resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import { updateStoryboardWidgetWorkflowOutputForKnownNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildAnnotationSpecCandidateFromNode } from '@/features/visual-annotation-engine/annotationFlowNode'
 import { buildHeuristicAnnotationResult } from '@/features/visual-annotation-engine/annotationWorker'
@@ -464,11 +464,11 @@ export function testVisualAnnotationRunAllRoutesTypedFrontmatterNodes() {
   if (!plan.orderedNodeIds.includes('typed-annotation-engine') || plan.phaseCounts.annotation !== 1) {
     throw new Error(`expected typed frontmatter annotation node in Run All plan, got ${JSON.stringify(plan)}`)
   }
-  const downstream = resolveFlowEditorWorkflowDownstreamRunTargetIds({ node: annotationNode, graphData })
+  const downstream = resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({ node: annotationNode, graphData })
   if (downstream.join(',') !== 'typed-annotation-panel') {
     throw new Error(`expected typed frontmatter downstream panel routing, got ${downstream.join(',')}`)
   }
-  const resolvedPanel = resolveFlowEditorWorkflowNodeByIdAcrossGraphs({
+  const resolvedPanel = resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs({
     context: {
       graphSemanticKey: 'typed-annotation-test',
       draftGraph: graphData,
@@ -489,7 +489,7 @@ export function testVisualAnnotationRunAllRoutesTypedFrontmatterNodes() {
   })
   if (!resolvedPanel) throw new Error('expected typed frontmatter panel lookup across workflow graphs')
   let committedGraph = graphData as never as { nodes: GraphNode[] }
-  const updatedPanel = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
+  const updatedPanel = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
     panelNodeId: 'typed-annotation-panel',
     patch: { outputSrcDoc: '<figure>annotation</figure>' },
     readLiveDraftGraphData: () => committedGraph as never,
@@ -499,7 +499,7 @@ export function testVisualAnnotationRunAllRoutesTypedFrontmatterNodes() {
   if (updatedPanel?.properties?.outputSrcDoc !== '<figure>annotation</figure>') {
     throw new Error('expected typed frontmatter RichMediaPanel id to accept runtime annotation output')
   }
-  updateFlowEditorWorkflowOutputForKnownNodeIds({
+  updateStoryboardWidgetWorkflowOutputForKnownNodeIds({
     nodeIds: ['typed-annotation-engine'],
     fallbackNode: annotationNode,
     fallbackWritableNodeId: 'typed-annotation-engine',

@@ -4,7 +4,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { analyzeKgcRequest, sanitizeRequestIntent, sanitizeScalar } from './chatKgcRequestProfile'
 import { buildNamedTermSummary, fallbackArtifact } from './chatHistoryWorkspace.kgc.fallbackSections'
 import type { ChatResponseStructuredSurface } from './chatResponseStructuredContent'
@@ -51,8 +51,7 @@ const escapeHtml = (value: unknown): string => String(value || '').replace(/[&<>
   return '&#39;'
 })
 
-export const resolveFallbackCanvas2dRenderer = (profile: ReturnType<typeof analyzeKgcRequest>): string =>
-  profile.signals.strybldr || profile.signals.storytree ? 'storyboard' : 'flowEditor'
+export const resolveFallbackCanvas2dRenderer = (_profile: ReturnType<typeof analyzeKgcRequest>): string => 'storyboard'
 
 export const shouldMaterializeHeadlessResponseSurface = (profile: ReturnType<typeof analyzeKgcRequest>): boolean =>
   profile.signals.headlessStructured ||

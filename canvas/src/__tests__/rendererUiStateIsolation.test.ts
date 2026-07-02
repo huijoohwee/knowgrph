@@ -46,11 +46,11 @@ export function testRendererUiStateIsolationKeepsOpenWidgetsPerRenderer() {
   }
 }
 
-export function testRendererUiStateIsolationFlowEditorDoesNotInheritWidgetsFromSourceRenderer() {
+export function testRendererUiStateIsolationStoryboardDoesNotInheritWidgetsFromSourceRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setGraphData({
     type: 'Graph',
-    context: 'test-flow-editor-seed',
+    context: 'test-storyboard-seed',
     nodes: [
       { id: 'a', type: 'Node', label: 'a', properties: {}, x: 0, y: 0, vx: 0, vy: 0 },
       { id: 'b', type: 'Node', label: 'b', properties: {}, x: 1, y: 0, vx: 0, vy: 0 },
@@ -59,17 +59,17 @@ export function testRendererUiStateIsolationFlowEditorDoesNotInheritWidgetsFromS
   } as never)
   useGraphStore.getState().setCanvas2dRenderer('d3')
   useGraphStore.getState().setOpenWidgetNodeIds(['a'])
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
-  const afterFlowEditor = useGraphStore.getState()
-  const seeded = afterFlowEditor.openWidgetNodeIds || []
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
+  const afterStoryboard = useGraphStore.getState()
+  const seeded = afterStoryboard.openWidgetNodeIds || []
   if (seeded.length !== 0) {
-    throw new Error(`expected flowEditor widgets to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
+    throw new Error(`expected Storyboard widgets to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
   }
 }
 
 export function testRendererUiStateIsolationPreservesOpenWidgetAppendOrder() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setGraphData({
     type: 'Graph',
     context: 'test-open-widget-order',
@@ -87,12 +87,12 @@ export function testRendererUiStateIsolationPreservesOpenWidgetAppendOrder() {
   }
 }
 
-export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlowEditorRenderer() {
+export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideStoryboardRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setGraphData({
     type: 'Graph',
-    context: 'test-flow-editor-no-override',
+    context: 'test-storyboard-no-override',
     nodes: [
       { id: 'a', type: 'Node', label: 'a', properties: {}, x: 0, y: 0, vx: 0, vy: 0 },
     ],
@@ -100,8 +100,8 @@ export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlo
     metadata: { kind: 'frontmatter-flow' },
   } as never)
   const state = useGraphStore.getState()
-  if (state.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected flowEditor renderer to remain active, got ${String(state.canvas2dRenderer)}`)
+  if (state.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected storyboard renderer to remain active, got ${String(state.canvas2dRenderer)}`)
   }
 }
 
@@ -117,7 +117,7 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
       },
     },
   })
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
     throw new Error('expected non-D3 baseline edge type to start at bezier')
   }
@@ -131,67 +131,67 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
   }
 }
 
-export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitRendererMode() {
-  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
-  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
-  const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+export function testRendererUiStateIsolationStoryboardWidgetRootsExposeExplicitSurfaceMode() {
+  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx')
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts')
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayEdges.ts')
+  const storyboardWidgetSurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
-  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const richMediaSurfaceStatePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
   const editorViewText = readFileSync(editorViewPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
+  const storyboardWidgetSurfaceText = readFileSync(storyboardWidgetSurfacePath, 'utf8')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const flowCanvasRuntimeText = readFileSync(flowCanvasRuntimePath, 'utf8')
-  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
-  if (!editorViewText.includes('data-kg-flow-editor-mode="1"')) {
-    throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor mode')
+  const richMediaSurfaceStateText = readFileSync(richMediaSurfaceStatePath, 'utf8')
+  if (!editorViewText.includes('data-kg-storyboard-widget-mode="1"')) {
+    throw new Error('expected Storyboard Widget aside roots to expose explicit Storyboard Widget mode')
   }
-  if (panelText.includes('data-kg-flow-editor-mode="1"') || panelText.includes('data-kg-widget={String(node.id || \'\')}')) {
-    throw new Error('expected Flow Editor floating panels to avoid masquerading as canvas overlay roots')
+  if (panelText.includes('data-kg-storyboard-widget-mode="1"') || panelText.includes('data-kg-widget={String(node.id || \'\')}')) {
+    throw new Error('expected Storyboard Widget floating panels to avoid masquerading as canvas overlay roots')
   }
-  if (!editorViewText.includes('data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}')) {
-    throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor surface identity')
+  if (!editorViewText.includes('data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId || undefined}')) {
+    throw new Error('expected Storyboard Widget aside roots to expose explicit Storyboard Widget surface identity')
   }
-  if (!flowEditorSurfaceText.includes('data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}')) {
-    throw new Error('expected Flow Editor surface root to expose explicit surface identity')
+  if (!storyboardWidgetSurfaceText.includes('data-kg-storyboard-widget-surface-root={props.storyboardWidgetSurfaceId}')) {
+    throw new Error('expected Storyboard Widget surface root to expose explicit surface identity')
   }
-  if (!richMediaPanelText.includes('const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true')) {
-    throw new Error('expected RichMediaPanel Flow Editor overlay identity to preserve parent-provided Flow Editor interaction mode')
+  if (!richMediaSurfaceStateText.includes('const storyboardWidgetOverlayProxyMode = props.storyboardWidgetInteractionMode === true')) {
+    throw new Error('expected RichMediaPanel Storyboard Widget overlay identity to preserve parent-provided Storyboard Widget interaction mode')
   }
-  if (!richMediaPanelText.includes('const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode')) {
-    throw new Error('expected RichMediaPanel Flow Editor overlay identity to include frontmatter document mode for renderer-scoped Rich Media edges')
+  if (!richMediaSurfaceStateText.includes('const storyboardWidgetInteractionMode = storyboardWidgetOverlayProxyMode || storyboardWidgetFrontmatterDocumentMode')) {
+    throw new Error('expected RichMediaPanel Storyboard Widget overlay identity to include frontmatter document mode for renderer-scoped Rich Media edges')
   }
-  if (!richMediaPanelText.includes('data-kg-flow-editor-mode={flowEditorInteractionMode ? \'1\' : undefined}')) {
-    throw new Error('expected RichMediaPanel to expose Flow Editor mode whenever it participates in Flow Editor overlay edge discovery')
+  if (!richMediaSurfaceStateText.includes("'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined")) {
+    throw new Error('expected RichMediaPanel to expose Storyboard Widget mode whenever it participates in Storyboard Widget overlay edge discovery')
   }
-  if (!flowCanvasText.includes('flowEditorSurfaceId,')) {
-    throw new Error('expected FlowCanvas to thread Flow Editor surface identity into runtime children')
+  if (!flowCanvasText.includes('storyboardWidgetSurfaceId,')) {
+    throw new Error('expected FlowCanvas to thread Storyboard Widget surface identity into runtime children')
   }
-  if (!flowCanvasRuntimeText.includes('flowEditorSurfaceId: args.flowEditorSurfaceId')) {
-    throw new Error('expected FlowCanvas runtime to forward the active Flow Editor surface identity into interaction binding')
+  if (!flowCanvasRuntimeText.includes('storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId')) {
+    throw new Error('expected FlowCanvas runtime to forward the active Storyboard Widget surface identity into interaction binding')
   }
-  if (!collisionText.includes('queryFlowEditorOverlayRootsForSurface')) {
-    throw new Error('expected Flow Editor collision queries to be bounded by the active surface root')
+  if (!collisionText.includes('queryStoryboardWidgetOverlayRootsForSurface')) {
+    throw new Error('expected Storyboard Widget collision queries to be bounded by the active surface root')
   }
-  if (!collisionText.includes('surfaceId: flowEditorSurfaceId')) {
-    throw new Error('expected Flow Editor collision queries to pass active surface identity into the shared overlay query helper')
+  if (!collisionText.includes('surfaceId: storyboardWidgetSurfaceId')) {
+    throw new Error('expected Storyboard Widget collision queries to pass active surface identity into the shared overlay query helper')
   }
-  if (!collisionText.includes('queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
-    throw new Error('expected Flow Editor collision queries to stay scoped to the active surface identity')
+  if (!collisionText.includes('queryActiveSurfaceOverlays(STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR)')) {
+    throw new Error('expected Storyboard Widget collision queries to stay scoped to the active surface identity')
   }
-  if (!overlayEdgesText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
-    throw new Error('expected Flow Editor overlay edge queries to be bounded by the active surface root')
+  if (!overlayEdgesText.includes('STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR')) {
+    throw new Error('expected Storyboard Widget overlay edge queries to be bounded by the active surface root')
   }
   if (!overlayEdgesText.includes('const queryRoot: ParentNode = typeof document !== \'undefined\' ? document : root')) {
-    throw new Error('expected Flow Editor overlay edge queries to account for portal-mounted overlay roots')
+    throw new Error('expected Storyboard Widget overlay edge queries to account for portal-mounted overlay roots')
   }
-  if (!overlayEdgesText.includes('readFlowEditorOverlaySurfaceId(el) !== surfaceId')) {
-    throw new Error('expected Flow Editor overlay edge queries to exclude overlays from other surfaces')
+  if (!overlayEdgesText.includes('readStoryboardWidgetOverlaySurfaceId(el) !== surfaceId')) {
+    throw new Error('expected Storyboard Widget overlay edge queries to exclude overlays from other surfaces')
   }
 }
 

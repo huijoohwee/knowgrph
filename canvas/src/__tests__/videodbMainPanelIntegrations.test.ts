@@ -86,7 +86,7 @@ for (const requiredText of [
   "stream_url: ''",
   "download_url: ''",
   "publish_packet_path: ''",
-  '2D Renderer: Flow Editor',
+  '2D Renderer: Storyboard',
   '2D Renderer: Storyboard',
   '2D Renderer: Storyboard',
   'strybldr_storyboard:',

@@ -133,7 +133,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   const allSectionsCollapsed = Object.values(collapsedBySection).every(Boolean);
 
   // 7. Navigation handlers
-  const handleOpenFlowEditorManagerTab = React.useCallback(() => {
+  const handleOpenStoryboardWidgetManagerTab = React.useCallback(() => {
     try {
       emitMainPanelOpen({ tab: 'workflowManager' });
     } catch {
@@ -163,7 +163,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
     expandAll,
     handleToggleSection,
     allSectionsCollapsed,
-    handleOpenFlowEditorManagerTab,
+    handleOpenStoryboardWidgetManagerTab,
     handleOpenSettingsTab,
   };
 }

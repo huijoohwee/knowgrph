@@ -5,7 +5,7 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   const interactionPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'InteractionModeSelect.tsx')
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasGraphStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
-  const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const storyboardWidgetPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
   const graphRootPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'GraphCanvasRootImpl.tsx')
   const designPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas.tsx')
   const designFrameDragPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useFrameDragController.ts')
@@ -20,7 +20,7 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   const interactionText = readFileSync(interactionPath, 'utf8')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const flowCanvasGraphStateText = readFileSync(flowCanvasGraphStatePath, 'utf8')
-  const flowEditorText = readFileSync(flowEditorPath, 'utf8')
+  const storyboardWidgetText = readFileSync(storyboardWidgetPath, 'utf8')
   const graphRootText = readFileSync(graphRootPath, 'utf8')
   const designText = readFileSync(designPath, 'utf8')
   const designFrameDragText = readFileSync(designFrameDragPath, 'utf8')
@@ -41,8 +41,8 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   if (!flowCanvasGraphStateText.includes("const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true")) {
     throw new Error('expected Flow renderer to block drag mutations while View Lock is ON')
   }
-  if (!flowEditorText.includes("const canEdit = active && !documentStructureBaselineLock")) {
-    throw new Error('expected Flow Editor to disable edit mode while View Lock is ON')
+  if (!storyboardWidgetText.includes("const canEdit = active && !documentStructureBaselineLock")) {
+    throw new Error('expected Storyboard Widget to disable edit mode while View Lock is ON')
   }
   if (!graphRootText.includes("allowNodeDrag: documentStructureBaselineLock !== true && schema?.behavior?.allowNodeDrag !== false")) {
     throw new Error('expected D3/Flowchart drag binding to honor View Lock state')
@@ -60,7 +60,7 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   }
   const coupledFrontmatterGuard = /frontmatterModeEnabled:\s*[^,\n]*documentStructureBaselineLock/
   if (coupledFrontmatterGuard.test(flowCanvasText)) throw new Error('unexpected View Lock coupling in Flow renderer frontmatter view derivation')
-  if (coupledFrontmatterGuard.test(flowEditorText)) throw new Error('unexpected View Lock coupling in Flow Editor frontmatter view derivation')
+  if (coupledFrontmatterGuard.test(storyboardWidgetText)) throw new Error('unexpected View Lock coupling in Storyboard Widget frontmatter view derivation')
   if (coupledFrontmatterGuard.test(designText)) throw new Error('unexpected View Lock coupling in Design renderer frontmatter view derivation')
   if (coupledFrontmatterGuard.test(minimapText)) throw new Error('unexpected View Lock coupling in Minimap frontmatter layout derivation')
   if (coupledFrontmatterGuard.test(threeLayoutText)) throw new Error('unexpected View Lock coupling in 3D layout frontmatter derivation')

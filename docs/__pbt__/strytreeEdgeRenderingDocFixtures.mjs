@@ -26,7 +26,7 @@ export const PRD_TAD_PATH = path.join(KNOWGRPH_ROOT, 'docs', 'documents', 'knowg
 export const DEMO_PATH = path.join(GITHUB_ROOT, 'huijoohwee', 'docs', 'knowgrph-agentic-canvas-os-demo.md')
 
 // The renderer-agnostic 2D renderer set (design glossary `rendererAgnostic`).
-export const RENDERER_SET = ['flowEditor', 'Storyboard', 'Strybldr']
+export const RENDERER_SET = ['storyboard']
 
 export const readDoc = (p) => readFileSync(p, 'utf8')
 

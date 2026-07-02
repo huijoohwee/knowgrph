@@ -54,7 +54,7 @@ LLM-ready structured JSON and materialised on the canvas graph.
 The feature runs entirely in the browser (zero server-side inference cost, zero egress, zero
 API key required for core annotation). It surfaces as an MCP tool
 (`knowgrph.annotate.image` and `knowgrph.annotate.video_frame`) so agents can invoke it
-programmatically, and as a Flow Editor node type
+programmatically, and as a Storyboard Widget node type
 (`FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID`) so users can wire it into compute pipelines.
 
 All outputs are embeddings-friendly: the structured JSON schema is designed to be passed
@@ -110,7 +110,7 @@ deferred to a post-hackathon phase.
 - **LLM_Ready_Payload**: The flattened JSON representation of an Annotation_Result suitable
   for direct injection into an LLM prompt or vector-store chunk. Contains only the `tasks`
   map, `assetUrl`, `modelId`, and `schemaVersion`.
-- **Annotation_Flow_Node**: The Flow Editor node type registered under
+- **Annotation_Flow_Node**: The Storyboard Widget node type registered under
   `FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID`. Follows the same pattern as
   `FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID`.
 - **MCP_Annotate_Image_Tool**: The local MCP tool registered as `knowgrph.annotate.image`.
@@ -367,29 +367,29 @@ from outside the browser canvas.
 
 ---
 
-### Requirement 7: Flow Editor Node Registration
+### Requirement 7: Storyboard Widget Node Registration
 
-**User Story:** As a Flow Editor user, I want a Visual Annotation Engine node type so that
+**User Story:** As a Storyboard Widget user, I want a Visual Annotation Engine node type so that
 I can wire image assets into annotation jobs directly on the canvas.
 
 #### Acceptance Criteria
 
 1. THE Annotation_Flow_Node SHALL be registered under a constant
    `FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID` with value `'AnnotationEngine'` exported from
-   `canvas/src/lib/config.flow-editor.ts`, following the PascalCase node-type pattern of
+   `canvas/src/lib/config.storyboard-widget.ts`, following the PascalCase node-type pattern of
    `FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID`.
 2. THE registration SHALL export `FLOW_ANNOTATION_ENGINE_FORM_ID` with value
    `'annotationEngine'` (camelCase), `FLOW_ANNOTATION_ENGINE_WIDGET_TYPE_ID` with value
    `'default'`, and `FLOW_ANNOTATION_ENGINE_NODE_LABEL` with value `"Annotation Engine"`.
 3. IF a node's `type` property equals `FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID`, THEN the
-   Flow Editor widget-kind resolver SHALL return `"annotation"`.
+   Storyboard Widget widget-kind resolver SHALL return `"annotation"`.
 4. THE Annotation_Flow_Node schema SHALL expose properties readable by `readNodeProperty`:
    `asset_url` (string), `asset_type` (string), `tasks` (string — canonical format is
    comma-separated task names; a JSON array string is also accepted and parsed at runtime),
    `model_hint` (string), and `frame_timestamp_ms` (integer ≥ 0); all optional in the
    node schema with defaults resolved at runtime from operator config.
 5. THE Annotation_Flow_Node SHALL NOT declare a property key already present on
-   `FlowEditorSmartNodeProperties` in `config.flow-editor.ts`; violations SHALL be caught
+   `StoryboardWidgetSmartNodeProperties` in `config.storyboard-widget.ts`; violations SHALL be caught
    as TypeScript compile-time errors via type intersection or discriminated union checks.
 
 

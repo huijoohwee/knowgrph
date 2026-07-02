@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PerspectiveCamera, type WebGLRenderer } from 'three'
 
-import { ensureDefaultWidgetRegistryEntries } from '@/hooks/store/flowEditorManagerSlice'
+import { ensureDefaultWidgetRegistryEntries } from '@/hooks/store/storyboardWidgetManagerSlice'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
-import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { defaultSchema } from '@/lib/graph/schema'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -118,7 +118,7 @@ export function testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix() {
     ['2D:Flowchart:radial:keyword', { renderMediaAsNodes: true, canvasRenderMode: '2d', canvas2dRenderer: 'flowchart', frontmatterModeEnabled: false, documentSemanticMode: 'keyword' }],
     ['2D:FlowCanvas:block:document-structure', { renderMediaAsNodes: true, canvasRenderMode: '2d', canvas2dRenderer: 'flow', frontmatterModeEnabled: false, documentSemanticMode: 'document' }],
     ['2D:Design:block:multi-dimensional-table', { renderMediaAsNodes: true, canvasRenderMode: '2d', canvas2dRenderer: 'design', frontmatterModeEnabled: false, documentSemanticMode: 'document' }],
-    ['2D:FlowEditor:frontmatter-forced-display', { renderMediaAsNodes: false, canvasRenderMode: '2d', canvas2dRenderer: 'flowEditor', frontmatterModeEnabled: true, documentSemanticMode: 'document' }],
+    ['2D:StoryboardWidget:frontmatter-forced-display', { renderMediaAsNodes: false, canvasRenderMode: '2d', canvas2dRenderer: 'storyboard', frontmatterModeEnabled: true, documentSemanticMode: 'document' }],
     ['Surface:3D:display-control', { renderMediaAsNodes: true, canvasRenderMode: '3d', canvas3dMode: '3d', canvas2dRenderer: 'd3', frontmatterModeEnabled: false, documentSemanticMode: 'document' }],
     ['Surface:XR:display-control', { renderMediaAsNodes: true, canvasRenderMode: '3d', canvas3dMode: 'xr', canvas2dRenderer: 'd3', frontmatterModeEnabled: false, documentSemanticMode: 'document' }],
     ['Surface:Voxel:display-control', { renderMediaAsNodes: true, canvasRenderMode: '3d', canvas3dMode: 'voxel', canvas2dRenderer: 'd3', frontmatterModeEnabled: false, documentSemanticMode: 'document' }],
@@ -171,7 +171,7 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
   if (!three.includes('connectedValuesByNodeId: richMediaConnectedValuesByNodeId')) {
     throw new Error('expected 3D/XR/Voxel overlays to pass connected Rich Media values into the shared overlay pool')
   }
-  if (!three.includes('panelChrome="flowEditor"') || !three.includes('overlayId={n.id}')) {
+  if (!three.includes('panelChrome="storyboardWidget"') || !three.includes('overlayId={n.id}')) {
     throw new Error('expected 3D/XR/Voxel Rich Media overlays to reuse the shared 2D panel chrome and overlay identity')
   }
   for (const snippet of ['readCanvasAspectRatioWidthToHeight', 'strybldrStoryboardCardAspectMode', 'directMediaZoomContentSize']) {

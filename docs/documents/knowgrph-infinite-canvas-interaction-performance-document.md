@@ -28,7 +28,7 @@ It is strictly code-backed: it documents the current behavior and forbids duplic
     - Zoom Modes: Pin View, Fit to Screen, Zoom to Selection, animation durations (`zoomDurationFitMs/zoomDurationSelectionMs`).
     - Wheel: wheel behavior (pan/zoom/preset), ctrl/meta boost multiplier, viewport controls preset (`viewportControlsPreset=map|design`).
     - Speeds: schema zoom speed/pan speed and global interaction/pan speed multipliers.
-    - Flow: Flow wheel zoom speed and increment multipliers, Flow wheel smoothing range, Flow Editor selection-on-drag and overlay wheel proxy flags.
+    - Flow: Flow wheel zoom speed and increment multipliers, Flow wheel smoothing range, Storyboard Widget selection-on-drag and overlay wheel proxy flags.
   - Viewport fields are read-only; the user edits the underlying settings in the Render and Settings panels. Interaction uses these fields as the canonical 2D viewport scope map and must not introduce separate mutable copies.
 - **Interaction**
   - `Select/Drag` vs `Pan` (mode is stored in the host state and respected by both zoom/pan and D3 drag).
@@ -73,7 +73,7 @@ It is strictly code-backed: it documents the current behavior and forbids duplic
 | Zoom Modes | Pin View, Fit to Screen, Zoom to Selection, durations | `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`, `zoomDurationFitMs`, `zoomDurationSelectionMs` | `viewPinned`, `fitToScreenMode`, `zoomToSelectionMode`, `zoomDurationFitMs`, `zoomDurationSelectionMs` in `settings.jsonld` | Interaction shows the effective zoom mode state; editing happens via Canvas Zoom Modes settings/Render panels. |
 | Wheel | Wheel behavior, Ctrl/Meta boost, Viewport preset | `viewportControlsPreset`, `wheelZoomCtrlMetaBoostMultiplier` | `viewportControlsPreset`, `wheelZoomCtrlMetaBoostMultiplier` in `settings.jsonld` | Viewport resolves behavior via `readWheelBehavior`; must stay in sync with Viewport Controls presets and wheel zoom settings. |
 | Speeds | Zoom speed, Pan speed, Interaction/pan multipliers | `zoomSpeed` (schema), `panSpeed` (schema), `canvasInteractionSpeedMultiplier`, `canvasPanSpeedMultiplier` | `canvasInteractionSpeedMultiplier`, `canvasPanSpeedMultiplier` in `settings.jsonld`; zoom/pan speed fields in schema layout/perf | Separates schema-based speeds from global UI multipliers; Interaction surfaces the combined effect in a read-only way. |
-| Flow | Flow wheel speed/increment, smoothing min/max, Flow selection/overlay flags | `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`, `flowEditorSelectionOnDrag`, `flowEditorOverlayWheelProxyEnabled` | Corresponding Flow-related properties in `settings-flow.jsonld` and `settings.jsonld` | Ensures Flow viewport tuning is discoverable from Canvas Interaction; AgenticRAG uses these properties to reason about Flow behavior. |
+| Flow | Flow wheel speed/increment, smoothing min/max, Flow selection/overlay flags | `flowWheelZoomSpeedMultiplier`, `flowWheelZoomIncrementMultiplier`, `flowWheelZoomSmoothMinDurationMs`, `flowWheelZoomSmoothMaxDurationMs`, `storyboardWidgetSelectionOnDrag`, `storyboardWidgetOverlayWheelProxyEnabled` | Corresponding Flow-related properties in `settings-flow.jsonld` and `settings.jsonld` | Ensures Flow viewport tuning is discoverable from Canvas Interaction; AgenticRAG uses these properties to reason about Flow behavior. |
 
 ## Performance Safeguards
 

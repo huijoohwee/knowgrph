@@ -44,7 +44,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
     expandAll,
     handleToggleSection,
     allSectionsCollapsed,
-    handleOpenFlowEditorManagerTab,
+    handleOpenStoryboardWidgetManagerTab,
     handleOpenSettingsTab,
   } = useHelpViewLogic({ searchQuery });
   const [helpDevTextByKey, setHelpDevTextByKey] = React.useState<Record<string, MainPanelHelpDevText>>({});
@@ -95,7 +95,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
           shortcuts={filteredShortcuts}
           onCopyAllShortcuts={applyShortcutsCopy}
           onLaunchSpotlight={launch}
-          onOpenFlowEditorManagerTab={handleOpenFlowEditorManagerTab}
+          onOpenStoryboardWidgetManagerTab={handleOpenStoryboardWidgetManagerTab}
           onOpenSettingsTab={handleOpenSettingsTab}
         />
         {(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV && (

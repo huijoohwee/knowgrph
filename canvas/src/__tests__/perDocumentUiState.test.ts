@@ -86,7 +86,7 @@ export function testPerDocumentUiStateSkipsInitializationWorkspaceDocs() {
     storage,
     documentKey: key,
     documentRef: '/README.md',
-    state: { canvasRenderMode: '2d', canvas2dRenderer: 'flowEditor', selectedNodeId: 'seed-node' },
+    state: { canvasRenderMode: '2d', canvas2dRenderer: 'storyboard', selectedNodeId: 'seed-node' },
   })
 
   const restored = readPerDocumentUiState({ storage, documentKey: key, documentRef: '/README.md' })

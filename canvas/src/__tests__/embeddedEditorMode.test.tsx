@@ -8,9 +8,9 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect'
-import WorkflowManagerInspectorPanel from '@/features/flow-editor-manager/WorkflowManagerInspectorPanel'
+import WorkflowManagerInspectorPanel from '@/features/storyboard-widget-manager/WorkflowManagerInspectorPanel'
 import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
-import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
+import { STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -225,14 +225,14 @@ export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
   }
 }
 
-export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted() {
+export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenStoryboardWidgetNotMounted() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   let root: ReturnType<typeof createRoot> | null = null
   try {
     store.setWorkspaceViewMode('editor')
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.selectNode(null)
     store.selectEdge(null)
     store.selectGroup(null)
@@ -254,8 +254,8 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
       if (inspector) break
     }
 
-    const portalSlot = dom.window.document.getElementById(FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID)
-    if (portalSlot) throw new Error('expected Flow Editor inspector portal slot to be absent in editor workspace')
+    const portalSlot = dom.window.document.getElementById(STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID)
+    if (portalSlot) throw new Error('expected Storyboard Widget inspector portal slot to be absent in editor workspace')
 
     if (!inspector) throw new Error('expected selection inspector to render in editor workspace')
   } finally {

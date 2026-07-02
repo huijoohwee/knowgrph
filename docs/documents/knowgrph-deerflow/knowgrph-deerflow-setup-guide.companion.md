@@ -38,8 +38,8 @@ node --import tsx src/__tests__/mainPanelIntegrations.test.ts
 # Video demo renderer isolation (fixture-driven)
 node --import tsx src/__tests__/workspaceImportVideoDemoRendererIsolation.test.tsx
 
-# Flow Editor registry DeerFlow seed
-node --import tsx src/__tests__/flowEditorManagerRegistry.test.ts
+# Storyboard Widget registry DeerFlow seed
+node --import tsx src/__tests__/storyboardWidgetManagerRegistry.test.ts
 
 # Rich media runtime dispatch
 node --import tsx src/__tests__/flowWidgetOutputRichMediaReuse.test.ts
@@ -141,8 +141,8 @@ PROD MODE (Cloudflare Pages + Tunnel):
 | `canvas/src/lib/chatEndpoint.ts` | Provider constants, endpoint URLs, normalization, proxy header builder |
 | `canvas/src/features/panels/views/deerflowApiDocs.ts` | DeerFlow SSOT integration rows |
 | `canvas/src/features/panels/views/useSettingsView.ts` | Integrations tab composition with DeerFlow area |
-| `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Provider-family inference and widget normalization |
-| `canvas/src/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions.ts` | Runtime dispatch for text/image/video generation |
+| `canvas/src/features/storyboard-widget-manager/registryTemplates.ts` | Provider-family inference and widget normalization |
+| `canvas/src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowActions.ts` | Runtime dispatch for text/image/video generation |
 | `canvas/src/features/chat/richMediaRun.ts` | Rich media request builder and BytePlus adapters |
 | `canvas/src/features/chat/byteplusRunGeneration.ts` | Provider execution functions |
 | `canvas/src/hooks/store/uiSliceChat.ts` | Auth mode state, auto-switching, API key sanitization |

@@ -1,10 +1,10 @@
 # Knowgrph Computing Data Flows: Import → Render Pipeline (End-to-End)
 
 **Context**: Computing data flows demo workflow
-**Intent**: Document the end-to-end import path and the Flow Editor rendering contract without file/content hardcoding.
-**Directive**: Reuse SSOT parsing + Flow rendering + panel semantics; keep Flow Editor behavior consistent with D3/Flow surfaces and AgenticRAG schema directives.
+**Intent**: Document the end-to-end import path and the Storyboard Widget presentation contract without file/content hardcoding.
+**Directive**: Reuse SSOT parsing, Flow rendering, and panel semantics; keep Storyboard behavior consistent with D3/Flow surfaces and AgenticRAG schema directives.
 
-- Directive: Frontmatter `flow:` imports must centralize `direction`, `edgeType`, and `computed` settings in GraphData metadata so parse, Flow render, and Flow Editor runtime consume one SSOT contract without duplicated branching.
+- Directive: Frontmatter `flow:` imports must centralize `direction`, `edgeType`, and `computed` settings in GraphData metadata so parse, Flow render, and Storyboard Widget runtime consume one SSOT contract without duplicated branching.
 
 ---
 
@@ -12,16 +12,16 @@
 
 - **Toolbar → Editor workspace button**
 - Import a local Markdown or JSON graph bundle selected by the user.
-- Switch: **Canvas → 2D Renderer → Flow Editor**
+- Switch: **Canvas → 2D Renderer → Storyboard → Display Controls → Widget**
 
 Expected result:
 
 - A JSON bundle may be a `kg:flow:widgetBundle` (kind/version guarded) that carries:
-  - a Flow Editor widget registry snapshot (`registry[]`)
+  - a shared widget registry snapshot (`registry[]`)
   - a workflow graph payload (`graph`)
 - A runnable Markdown document carries its `flow:` graph in the opening YAML frontmatter block with the same port-bound edge semantics.
-- Flow Editor renders the workflow graph using the native Flow renderer.
-- Flow Editor widgets can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
+- Storyboard Widget renders the workflow graph through the shared native Flow runtime.
+- Storyboard widgets can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
 
 ## Markdown Frontmatter And Body Contract
 
@@ -32,11 +32,11 @@ Expected result:
 
 ## Long-Horizon SuperAgent Template Boundary
 
-The publish-side computing-flow template may include `superagent_harness_template` metadata to describe a Knowgrph-native long-horizon harness envelope. That metadata is documentation and run-planning context only; it must not create a second parser, renderer, provider dispatcher, graph apply stack, or Flow Editor widget registry owner.
+The publish-side computing-flow template may include `superagent_harness_template` metadata to describe a Knowgrph-native long-horizon harness envelope. That metadata is documentation and run-planning context only; it must not create a second parser, renderer, provider dispatcher, graph apply stack, or Storyboard Widget registry owner.
 
-The external [bytedance/deer-flow](https://github.com/bytedance/deer-flow) reference is allowed only as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandbox/workspace execution, and bounded minutes-to-hours task management. Knowgrph must keep implementation ownership in `knowgrph_parser`, local MCP contracts, shared markdown/frontmatter parsing, GraphData, Flow Editor, and Rich Media Panel owners.
+The external [bytedance/deer-flow](https://github.com/bytedance/deer-flow) reference is allowed only as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandbox/workspace execution, and bounded minutes-to-hours task management. Knowgrph must keep implementation ownership in `knowgrph_parser`, local MCP contracts, shared markdown/frontmatter parsing, GraphData, Storyboard Widget, and Rich Media Panel owners.
 
-Rich-media outputs from the harness stay ordinary Flow Editor fields:
+Rich-media outputs from the harness stay ordinary Storyboard Widget fields:
 
 - Text output binds to `output`.
 - Image output binds to `imageUrl`.
@@ -45,7 +45,7 @@ Rich-media outputs from the harness stay ordinary Flow Editor fields:
 - Completed Text Widget and Video Transcriber runs persist final Markdown text as one sibling workspace artifact through the shared text-run artifact helper. Completed Image Generation and Video Generation runs persist the generated binary plus one editable Markdown manifest through the shared rich-media artifact helper. Text artifacts and media manifests register in Source Files passively without graph recomposition.
 
 The Dev-source swarm prediction baseline follows the same rule. `SwarmPrediction`
-is a Flow Editor widget node, not a renderer fork: seed signals, optional agent
+is a Storyboard widget node, not a renderer fork: seed signals, optional agent
 population JSON, and optional intervention JSON enter through declared schema
 paths; the deterministic bounded engine emits `output`, `outputSrcDoc`,
 `imageUrl`, `eventLogJson`, and `metricsJson`; Rich Media Panel consumes those
@@ -58,7 +58,7 @@ fields through the existing connected-value and media-state owners.
 - Import must treat the demo as a project-agnostic bundle:
   - kind: `kg:flow:widgetBundle`
   - version: `1`
-- Import writes registry entries into `GraphData.metadata['flow:widgetRegistry']` so the UI can render Flow Editor widget fields/ports immediately after commit.
+- Import writes registry entries into `GraphData.metadata['flow:widgetRegistry']` so the UI can render Storyboard Widget fields/ports immediately after commit.
 
 Key implementation:
 
@@ -74,7 +74,7 @@ Key implementation:
   - [loader.ts](../../canvas/src/features/parsers/loader.ts)
   - [frontmatterFlowImportMode.ts](../../canvas/src/features/parsers/frontmatterFlowImportMode.ts)
   - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
-- When imported GraphData is detected as `frontmatter-flow`, import/source-compose roots must auto-apply a strict runnable mode contract: `canvasRenderMode=2d`, `canvas2dRenderer=flowEditor`, `documentSemanticMode=document`, `frontmatterModeEnabled=true`, and `multiDimTableModeEnabled=false`, without file-name hardcoding.
+- When imported GraphData is detected as `frontmatter-flow`, import/source-compose roots must auto-apply a strict runnable mode contract: `canvasRenderMode=2d`, `canvas2dRenderer=storyboard`, `documentSemanticMode=document`, `frontmatterModeEnabled=true`, and `multiDimTableModeEnabled=false`, without file-name hardcoding.
 - Frontmatter-flow metadata projection must preserve top-level authored sections (`Tier B` scalar keys, `runtime`, `pipeline`, `mermaid`, `flow`) in `metadata.frontmatterMeta`; when YAML fallback misses nested blocks, parser fallback should recover those sections from raw frontmatter boundaries upstream.
 - MainPanel Workflow Manager should provide section-level controls for `Tier B`, `runtime`, `pipeline`, `mermaid`, and `flow` with default visibility ON, where OFF hides only the manager view while runtime graph execution remains active in background.
 - Workflow section configuration edits from MainPanel should patch only `metadata.frontmatterMeta` via one shared helper path and must not introduce renderer-local forks or file-specific coupling.
@@ -103,11 +103,11 @@ Key implementation:
 
 ---
 
-## Render (Flow Editor Contract)
+## Render (Storyboard Widget Contract)
 
 ### Edges
 
-- Flow Editor must reuse the native Flow renderer for edges (routing + styling) so edge appearance matches 2D Flow.
+- Storyboard Widget must reuse the native Flow runtime for edges (routing + styling) so edge appearance matches 2D Flow.
 - Port-bound edges are expressed structurally via:
   - `edge.properties['flow:sourcePortKey']`
   - `edge.properties['flow:targetPortKey']`
@@ -118,8 +118,8 @@ Key implementation:
   - input/output ports use `portKey`, `direction`, and `schemaPath`
   - registry `schemaMappings[]` can reduce/transform connected input groups into derived node properties
   - node `properties['flow:compute']` may emit output values when `frontmatterFlowSettings.computed=true`
-- `computeFlowConnectedValuesBySchemaPath()` is the shared runtime owner for propagation. Flow Editor panels receive connected values from that helper and must not recompute graph data locally.
-- Frontmatter `{key,type,value}` wrappers and widget registry fields resolve through the same normalized schema-path helper. When a declared field row and a functional port share the same normalized schema path, Flow Editor renders one inline-editable KTV row with the port handle on that row and suppresses the duplicate read-only port row.
+- `computeFlowConnectedValuesBySchemaPath()` is the shared runtime owner for propagation. Storyboard Widget panels receive connected values from that helper and must not recompute graph data locally.
+- Frontmatter `{key,type,value}` wrappers and widget registry fields resolve through the same normalized schema-path helper. When a declared field row and a functional port share the same normalized schema path, Storyboard Widget renders one inline-editable KTV row with the port handle on that row and suppresses the duplicate read-only port row.
 - The semantic port key is the authored `key` / `portKey`; `handles.source` and `handles.target` are declaration sites only. Runtime edges, connected-value lookup, accessible port names, and row ids must not remap those semantic keys to `handles.source`, `handles.target`, or UI-only aliases.
 - Multi-handle rows must preserve one structural edge key per semantic port while deriving DOM/control identity from row role + schema path + occurrence. Repeated visible labels or repeated displayed port values must not collapse focus, labels, or click targets.
 - Branching is value-driven: `null` / `undefined` output values are stop signals and must not be forwarded into downstream connected values.
@@ -130,29 +130,29 @@ Key implementation:
 - The same typed Mermaid diagram source is resolved for Flowchart/GitGraph/Gantt/Timeline/Architecture/Event Model BottomPanel previews through `mermaidDiagramCode.ts` and `MermaidDiagramPanelView.tsx`; Canvas View Display Controls open those BottomPanel tabs by writing `bottomSurfaceTab` / `bottomSurfaceCollapsed`, and panel rendering must reuse the shared Mermaid SVG renderer instead of creating downstream diagram-specific render branches.
 - Swarm prediction nodes are ordinary flow endpoints. They must use the canonical `SwarmPrediction` type and plain schema paths (`properties.seedSignalsJson`, `properties.agentPopulationJson`, `properties.interventionsJson`, `properties.output`, `properties.outputSrcDoc`, `properties.imageUrl`, `properties.eventLogJson`, `properties.metricsJson`) instead of introducing a simulator-specific graph, renderer, or port alias stack.
 - Generated response text fields (`output`, `result`, `response`, `transcript`, `outputText`, `output_text`) project into the shared editable Card/Storyboard Output row. Audio media (`audioUrl`, `audio`, `audio_url`, inferred audio resources, or `<audio>` tags) renders through the same `getNodeMediaSpec()` -> `CardMediaPreview` -> Rich Media Panel / overlay / HTML export owners.
-- MCP-style chat `response.structuredContent`, literal MCP `result.structuredContent`, and structured `result.content[]` text-part records normalize upstream from fallback text, literal MCP results, or accepted KGC frontmatter into Flow Editor widget nodes plus document-scoped widget registry entries when `widgets[]` declares canonical widget form/type metadata, and into Rich Media Panel flow endpoints otherwise; literal MCP results that already extract to a renderable structured surface finalize through the submit validation owner without KGC retry or synthetic KGC text. Plain scalar records, exact typed `{key,type,value}` envelopes, and `properties[]` KTV rows converge before projection. Declared widget records may preserve safe `flow:compute` data so `computeFlowConnectedValuesBySchemaPath()` can derive output ports from incoming handle values after workspace apply, and the shared Flow Editor workflow run path writes those computed output schema paths locally before any provider TextGeneration branch. Inline edits of projected card/panel outputs reuse the shared card patch/updateNode path and keep flattened output fields plus any native `properties` mirror aligned before frontmatter writeback. Accepted KGC documents with `widget_bundle.graph.nodes_ref` append those response node ids there so Flow Editor opens them through the existing overlay SSOT.
-- MCP-style chat structured-content `edges[]` preserve authored record-to-record or delivery graph relationships by resolving structured-content aliases to canonical node ids and carrying source/target handle keys into frontmatter-flow edges; those same handles are the dataflow path used by shared connected-value recomputation and Flow Editor run-all planning.
-- Text/transcript widget output persistence is owned by `writeTextWidgetRunOutputArtifact()` plus `applyWorkspaceImportToCanvas({ applyToGraph: false })`. Image/video widget output persistence is owned by `writeRichMediaWidgetRunOutputArtifact()`, which keeps the binary artifact path and registers an editable Markdown manifest in Source Files. Flow Editor and Rich Media Panel patches carry the resulting workspace `outputPath` / `outputManifestPath`; they must not create renderer-local workspace writers or graph-apply aliases.
-- Flow Editor templates must prefer plain YAML for normal authoring. The normalized `{key,type,value}` envelope is valid only for validation fixtures that intentionally prove parser fidelity, inline KTV editing, and semantic port preservation.
+- MCP-style chat `response.structuredContent`, literal MCP `result.structuredContent`, and structured `result.content[]` text-part records normalize upstream from fallback text, literal MCP results, or accepted KGC frontmatter into Storyboard Widget nodes plus document-scoped widget registry entries when `widgets[]` declares canonical widget form/type metadata, and into Rich Media Panel flow endpoints otherwise; literal MCP results that already extract to a renderable structured surface finalize through the submit validation owner without KGC retry or synthetic KGC text. Plain scalar records, exact typed `{key,type,value}` envelopes, and `properties[]` KTV rows converge before projection. Declared widget records may preserve safe `flow:compute` data so `computeFlowConnectedValuesBySchemaPath()` can derive output ports from incoming handle values after workspace apply, and the shared Storyboard Widget workflow run path writes those computed output schema paths locally before any provider TextGeneration branch. Inline edits of projected card/panel outputs reuse the shared card patch/updateNode path and keep flattened output fields plus any native `properties` mirror aligned before frontmatter writeback. Accepted KGC documents with `widget_bundle.graph.nodes_ref` append those response node ids there so Storyboard Widget opens them through the existing overlay SSOT.
+- MCP-style chat structured-content `edges[]` preserve authored record-to-record or delivery graph relationships by resolving structured-content aliases to canonical node ids and carrying source/target handle keys into frontmatter-flow edges; those same handles are the dataflow path used by shared connected-value recomputation and Storyboard Widget run-all planning.
+- Text/transcript widget output persistence is owned by `writeTextWidgetRunOutputArtifact()` plus `applyWorkspaceImportToCanvas({ applyToGraph: false })`. Image/video widget output persistence is owned by `writeRichMediaWidgetRunOutputArtifact()`, which keeps the binary artifact path and registers an editable Markdown manifest in Source Files. Storyboard Widget and Rich Media Panel patches carry the resulting workspace `outputPath` / `outputManifestPath`; they must not create renderer-local workspace writers or graph-apply aliases.
+- Storyboard Widget templates must prefer plain YAML for normal authoring. The normalized `{key,type,value}` envelope is valid only for validation fixtures that intentionally prove parser fidelity, inline KTV editing, and semantic port preservation.
 
-### Flow Editor widgets
+### Storyboard widgets
 
-- Multiple Flow Editor widgets may be visible at once.
+- Multiple Storyboard widgets may be visible at once.
 - Detached overlays must:
   - have deterministic default placement (grid/stack)
   - persist detached positions per node id
   - avoid DOM id collisions by scoping form control ids per node
 - Pinned overlays must remain node-anchored while header drag applies a shared anchor offset across all pinned overlays.
-- Frontmatter envelope field rows that represent authored `{key,type,value}` payloads must stay editable through the same widget-field mutation helper used by registry fields. The Flow Editor must not treat generic `Value` rows as read-only simply because their display label repeats across nodes.
+- Frontmatter envelope field rows that represent authored `{key,type,value}` payloads must stay editable through the same widget-field mutation helper used by registry fields. The Storyboard Widget must not treat generic `Value` rows as read-only simply because their display label repeats across nodes.
 - Port handle buttons and read-only port-value rows must expose unique accessible names when multiple rows share the same visible port key; the uniqueness suffix belongs to the UI identity only and must not rewrite edge `flow:sourcePortKey` / `flow:targetPortKey` values.
 - For published validation fixtures such as `knowgrph-video-demo.md` and `knowgrph-token-economics-model-demo.md`, a driver like `agent_token_take_rate` must render as exactly one editable KTV row with the output handle attached to that row when the field and port resolve to the same schema path.
 
-Flow Editor + overlay wiring:
+Storyboard Widget + overlay wiring:
 
-- [FlowEditorCanvas.tsx](../../canvas/src/components/FlowEditorCanvas.tsx)
-- [NodeOverlayEditor.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditor.tsx)
-- [NodeOverlayEditorForm.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx)
-- [NodeOverlayEditorRegistrySection.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditorRegistrySection.tsx)
+- [StoryboardWidgetCanvas.tsx](../../canvas/src/components/StoryboardWidgetCanvas.tsx)
+- [FlowWidgetOverlay.tsx](../../canvas/src/components/StoryboardWidget/FlowWidgetOverlay.tsx)
+- [WidgetEditorForm.tsx](../../canvas/src/components/StoryboardWidget/WidgetEditorForm.tsx)
+- [WidgetEditorRegistrySection.tsx](../../canvas/src/components/StoryboardWidget/WidgetEditorRegistrySection.tsx)
 
 ---
 
@@ -164,11 +164,11 @@ Flow Editor + overlay wiring:
   - registry entries (bundle or GraphData metadata)
   - schema-config toggles
 - Validation inputs may be supplied from outside the repo to prove the same pipeline on published/mirrored documents, but tests must not hardcode those paths or backfill empty external files.
-- Current focused evidence should include the widget duplicate-value/port-row regression, token-economics Flow Editor fixture checks, schema-field port checks, `flowDataflowConnectedValues` computing-flow coverage, and `flowComputeInline` coverage.
+- Current focused evidence should include the widget duplicate-value/port-row regression, token-economics Storyboard Widget fixture checks, schema-field port checks, `flowDataflowConnectedValues` computing-flow coverage, and `flowComputeInline` coverage.
 
 ---
 
-## Validation Matrix (Flow Editor Computing Flow)
+## Validation Matrix (Storyboard Widget Computing Flow)
 
 | Layer | Required proof | Failure to block |
 |---|---|---|
@@ -177,32 +177,32 @@ Flow Editor + overlay wiring:
 | Port contract | Authored `key` / `portKey`, `sourceHandle`, `targetHandle`, `flow:sourcePortKey`, and `flow:targetPortKey` survive without alias remaps. | Rewriting semantic ports to `handles.source`, `handles.target`, row labels, or demo ids. |
 | Computing | `computeFlowConnectedValuesBySchemaPath()` propagates values and respects null stop signals through the shared graph/registry readers. | Renderer-local recomputation, unbounded iteration, or GraphData mutation during compute. |
 | KTV editing | Matching field + port schema paths render as one editable row with row-attached handle. | Duplicate read-only rows, unwritable `Value`, or focus collisions from repeated labels. |
-| Rendering | Flow Editor mounts `data-kg-flow-editor-surface-root`; Rich Media Panel previews resolve through shared panel/media state. | Panel-local preview branches, stale `srcDoc`, missing SVG/image output, or edge drift after scroll/zoom. |
-| Harness metadata | `superagent_harness_template` parses as frontmatter metadata while graph counts and Flow Editor renderer ownership remain stable. | Treating harness metadata as a second parser, renderer, provider, or graph apply stack. |
+| Rendering | Storyboard Widget mounts `data-kg-storyboard-widget-surface-root`; Rich Media Panel previews resolve through shared panel/media state. | Panel-local preview branches, stale `srcDoc`, missing SVG/image output, or edge drift after scroll/zoom. |
+| Harness metadata | `superagent_harness_template` parses as frontmatter metadata while graph counts and Storyboard renderer ownership remain stable. | Treating harness metadata as a second parser, renderer, provider, or graph apply stack. |
 | Swarm prediction | `SwarmPrediction` runs stay deterministic, bounded, replayable, and rich-media-compatible through ordinary widget registry schema paths. | Provider calls, renderer-local recomputation, unbounded ticks, or copied external-project surface tokens. |
 | Browser | Local docs-mirror smoke selects the publish doc and samples stable DOM contracts. | Settled-only proof that ignores mid-load blank/seepage states. |
 
 Focused test families:
 
 - `markdown.frontmatterFlowGraph.*` for frontmatter/body flow parsing, typed handles, implicit semantic ports, and warning behavior.
-- `baseline.flowEditor.frontmatterFlow.*` for renderer isolation, widget overlay identity, edge anchoring, and contract rows.
+- `baseline.storyboardWidget.frontmatterFlow.*` for renderer isolation, widget overlay identity, edge anchoring, and contract rows.
 - `flow.compute.inline.*` for safe inline compute readers and neutral compute context.
 - `flow.dataflow.connectedValues.*` for bounded propagation, transforms, null-stop branching, long DAGs, and runtime validation hardcode guards.
-- `swarmPredictionEngine.*` for deterministic replay, run bounds, Flow Editor widget outputs, shared semantic keys, and the no-copy external-inspiration boundary.
+- `swarmPredictionEngine.*` for deterministic replay, run bounds, Storyboard Widget outputs, shared semantic keys, and the no-copy external-inspiration boundary.
 - Publish-demo E2E tests should resolve the file from `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs` through the docs mirror path, but they must not backfill or rewrite that external file when it is absent.
-- Publish-demo syntax guards should reject body-side `## KGC Reading Layer`, line-start `@node:`, line-start `@edge:`, and body `flow:` mirrors for frontmatter-driven Flow Editor documents.
+- Publish-demo syntax guards should reject body-side `## KGC Reading Layer`, line-start `@node:`, line-start `@edge:`, and body `flow:` mirrors for frontmatter-driven Storyboard Widget documents.
 
 ---
 
 ## Canonical Template Contract
 
-Normal runnable templates must keep these keys at the top of YAML frontmatter. Simple Flow Editor seeds use `kgMultiDimTableModeEnabled: false`; computing-flow templates that intentionally expose Workflow Manager / Multi-dimensional Table companion views use `kgMultiDimTableModeEnabled: true` plus `kgWorkflowManagerModeEnabled: true`.
+Normal runnable templates must keep these keys at the top of YAML frontmatter. Simple Storyboard Widget seeds use `kgMultiDimTableModeEnabled: false`; computing-flow templates that intentionally expose Workflow Manager / Multi-dimensional Table companion views use `kgMultiDimTableModeEnabled: true` plus `kgWorkflowManagerModeEnabled: true`.
 
 ```yaml
 schema: "kgc-computing-flow/v1"
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: true
@@ -217,8 +217,8 @@ Template `flow:` blocks should include:
 - Node `handles` declaring target/source membership and matching `"flow:portTypes"` entries for typed connection validation.
 - Input widgets should expose query, context, audience, format, constraints, evidence, and tone as separate typed `{key,type,value}` fields when a reusable template needs recomputable response granularity.
 - Edges with explicit `sourceHandle` and `targetHandle` when a concrete field endpoint exists.
-- Declared Flow Editor widget nodes with document-scoped registry entries for interactive generated outputs, and Rich Media Panel endpoint nodes for neutral rendered outputs instead of sidecar preview instructions.
+- Declared Storyboard Widget nodes with document-scoped registry entries for interactive generated outputs, and Rich Media Panel endpoint nodes for neutral rendered outputs instead of sidecar preview instructions.
 - Optional `superagent_harness_template` metadata for long-horizon harness planning; it is not graph authoring data.
 - If `superagent_harness_template` is present, it must name native Knowgrph owners and the no-copy DeerFlow inspiration boundary.
 
-The publish-side reusable template is `huijoohwee/docs/knowgrph-flow-editor-computing-flow-template.md`; it is intentionally generic and should remain project-agnostic.
+The publish-side reusable template is `huijoohwee/docs/knowgrph-storyboard-widget-computing-flow-template.md`; it is intentionally generic and should remain project-agnostic.

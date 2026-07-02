@@ -9,12 +9,12 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
-import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { getCachedFlowEditorWorkflowRunPlan } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
-import { buildFlowEditorInlineComputeOutputPatch } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
+} from '@/lib/config.storyboard-widget'
+import { resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import { buildStoryboardWidgetInlineComputeOutputPatch } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import {
   buildGraphNodeCanonicalTextPatch,
@@ -256,13 +256,13 @@ export async function testChatResponseStructuredContentFinalizesWorkspaceAndAppl
       throw new Error(`Expected shared dataflow compute to react to upstream value changes, got: ${String(recomputedOutput)}`)
     }
 
-    const runPlan = getCachedFlowEditorWorkflowRunPlan({
+    const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({
       graphData,
       graphRevision: readGraphDataRevision(graphData),
       preferCurrentGraphDataRefs: true,
     })
     if (!runPlan?.orderedNodeIds.includes('mcp-response-compute-widget')) {
-      throw new Error(`Expected inline compute widget to participate in Flow Editor run-all plan, got: ${JSON.stringify(runPlan)}`)
+      throw new Error(`Expected inline compute widget to participate in Storyboard Widget run-all plan, got: ${JSON.stringify(runPlan)}`)
     }
 
     const overlayIds = new Set(deriveFrontmatterFlowOverlayNodeIds(graphData))
@@ -487,7 +487,7 @@ export async function testChatResponseLiteralMcpResultFinalizesWorkspaceAndAppli
       registry: editedRegistry,
       targetNodeIds: new Set(['mcp-response-literal-runner']),
     }).get('mcp-response-literal-runner')
-    const inlineComputePatch = buildFlowEditorInlineComputeOutputPatch({
+    const inlineComputePatch = buildStoryboardWidgetInlineComputeOutputPatch({
       node: runner,
       registryEntry,
       connectedValuesBySchemaPath: inlineRunnerValues,
@@ -514,13 +514,13 @@ export async function testChatResponseLiteralMcpResultFinalizesWorkspaceAndAppli
       throw new Error(`Expected inline compute runner writeback to persist output in active KGC frontmatter, got: ${runnerFrontmatter}`)
     }
 
-    const runPlan = getCachedFlowEditorWorkflowRunPlan({
+    const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({
       graphData: runnerWritebackState.graphData || editedGraphData || graphData,
       graphRevision: readGraphDataRevision(runnerWritebackState.graphData || editedGraphData || graphData),
       preferCurrentGraphDataRefs: true,
     })
     if (!runPlan?.orderedNodeIds.includes('mcp-response-literal-runner')) {
-      throw new Error(`Expected literal MCP runner to participate in Flow Editor run-all plan, got: ${JSON.stringify(runPlan)}`)
+      throw new Error(`Expected literal MCP runner to participate in Storyboard Widget run-all plan, got: ${JSON.stringify(runPlan)}`)
     }
 
     const overlayIds = new Set(deriveFrontmatterFlowOverlayNodeIds(graphData))

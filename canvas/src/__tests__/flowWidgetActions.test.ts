@@ -5,9 +5,9 @@ import {
   enableHandlesForAllInputsInSchema,
   isHandlesForAllInputsEnabled,
   isLoopNode,
-} from '@/lib/flowEditor/flowEditorActions'
+} from '@/lib/storyboardWidget/storyboardWidgetActions'
 
-export const testFlowEditorEnableHandlesForAllInputsIsIdempotent = () => {
+export const testStoryboardWidgetEnableHandlesForAllInputsIsIdempotent = () => {
   const base = { ...defaultSchema, behavior: { ...defaultSchema.behavior, portHandles: { ...defaultSchema.behavior.portHandles } } }
   if (isHandlesForAllInputsEnabled(base)) throw new Error('precondition failed: handles should start disabled')
   const first = enableHandlesForAllInputsInSchema(base)
@@ -18,7 +18,7 @@ export const testFlowEditorEnableHandlesForAllInputsIsIdempotent = () => {
   if (second.schema !== first.schema) throw new Error('expected idempotent enable to return same schema reference')
 }
 
-export const testFlowEditorConvertToLoopSetsTypeAndKind = () => {
+export const testStoryboardWidgetConvertToLoopSetsTypeAndKind = () => {
   const graphData: GraphData = {
     type: 'graph',
     nodes: [{ id: 'n1', label: 'A', type: 'Node', properties: {} }],

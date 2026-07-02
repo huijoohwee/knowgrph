@@ -253,7 +253,7 @@ class SuperAgentHarnessTests(unittest.TestCase):
             self.assertTrue(os.path.exists(workspace_path))
             with open(workspace_path, "r", encoding="utf-8") as handle:
                 workspace_text = handle.read()
-            self.assertIn('kgCanvas2dRenderer: "flowEditor"', workspace_text)
+            self.assertIn('kgCanvas2dRenderer: "storyboard"', workspace_text)
             self.assertIn("kgSuperAgentLayout:", workspace_text)
             self.assertIn("kgSuperAgentCapabilities:", workspace_text)
             self.assertIn("kgSuperAgentTaskLevels:", workspace_text)

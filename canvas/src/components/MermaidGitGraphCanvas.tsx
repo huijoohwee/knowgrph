@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useSvgSurfaceZoomRuntime } from '@/components/GraphCanvas/hooks/useSvgSurfaceZoomRuntime'
-import { useFlowEditorDiagramSelectionBridge } from '@/features/gitgraph/useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from '@/features/gitgraph/useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from '@/features/gitgraph/useMermaidGitGraphDocument'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
@@ -135,7 +135,7 @@ export default function MermaidGitGraphCanvas({ active = true }: MermaidGitGraph
   const [state, setState] = React.useState<RenderState>({ svg: '', error: null })
   const { code, gitGraphModel, graphData, graphDataRevision, themeMode } = useMermaidGitGraphDocument()
   const gitGraphDiagramModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gitgraph'), [code])
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: gitGraphDiagramModel,
     kind: 'gitgraph',

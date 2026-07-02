@@ -40,7 +40,7 @@ export function testFlowCanvasWheelGestureUsesSubscribedInteractionSnapshot() {
   }
 }
 
-export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewportCommits() {
+export async function testInfiniteCanvasViewportControllerDefersStoryboardWidgetViewportCommits() {
   const [{ createInfiniteCanvasViewportController }, d3] = await Promise.all([
     import('@/lib/canvas/infinite-canvas-engine'),
     import('d3'),
@@ -125,7 +125,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
       preventDefault: () => { prevented.value += 1 },
     } as unknown as WheelEvent)
 
-    if (readCommitCount() !== 0) throw new Error(`expected wheel pan to defer Flow Editor viewport commit, got ${readCommitCount()}`)
+    if (readCommitCount() !== 0) throw new Error(`expected wheel pan to defer Storyboard Widget viewport commit, got ${readCommitCount()}`)
     if (readInteractionFrameCount() !== 1) throw new Error(`expected wheel pan to keep drawing live transform, got ${readInteractionFrameCount()}`)
     if (transform.x === 0 && transform.y === 0) throw new Error('expected wheel pan to update live transform before commit')
     if (prevented.value !== 1) throw new Error('expected wheel pan to prevent default browser scrolling')
@@ -158,7 +158,7 @@ export async function testInfiniteCanvasViewportControllerDefersFlowEditorViewpo
     if (readCommitCount() !== 0) throw new Error(`expected destroy-path wheel pan commit to defer before teardown, got ${readCommitCount()}`)
     if (timers.size !== 1) throw new Error(`expected destroy-path wheel pan to have one pending deferred commit, got ${timers.size}`)
     destroyingController.destroy()
-    if (readCommitCount() !== 1) throw new Error(`expected controller destroy to flush pending Flow Editor viewport commit, got ${readCommitCount()}`)
+    if (readCommitCount() !== 1) throw new Error(`expected controller destroy to flush pending Storyboard Widget viewport commit, got ${readCommitCount()}`)
     if (timers.size > 0) throw new Error(`expected controller destroy to clear pending deferred commit timer, got ${timers.size}`)
 
     transform = d3.zoomIdentity
@@ -282,16 +282,16 @@ export function testInfiniteCanvasPointerMoveReusesDragSessionTuning() {
   }
 }
 
-export function testFlowEditorZoomRequestDefersCommitsUntilSettled() {
+export function testStoryboardWidgetZoomRequestDefersCommitsUntilSettled() {
   const interactionRuntimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx'), 'utf8')
   const nativeZoomText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts'), 'utf8')
   const zoomApplyBlock = sliceBetween(interactionRuntimeText, 'applyZoomRequestNative({', '    })')
   if (!zoomApplyBlock) throw new Error('expected FlowCanvas interaction runtime to apply native zoom requests')
-  if (!zoomApplyBlock.includes("if (!isFlowEditor) requestCommit()")) {
-    throw new Error('expected Flow Editor zoom request frames to draw without committing every animation frame')
+  if (!zoomApplyBlock.includes("if (!storyboardWidgetMode) requestCommit()")) {
+    throw new Error('expected Storyboard Widget zoom request frames to draw without committing every animation frame')
   }
   if (!zoomApplyBlock.includes('onCommit: requestCommit')) {
-    throw new Error('expected Flow Editor zoom request to commit once through the native settled callback')
+    throw new Error('expected Storyboard Widget zoom request to commit once through the native settled callback')
   }
   if (!nativeZoomText.includes('onCommit?: () => void')) {
     throw new Error('expected native zoom request API to expose a settled commit callback')
@@ -308,7 +308,7 @@ export function testFlowEditorZoomRequestDefersCommitsUntilSettled() {
   }
 }
 
-export async function testFlowEditorZoomRequestAnimationCommitsOnceAtSettle() {
+export async function testStoryboardWidgetZoomRequestAnimationCommitsOnceAtSettle() {
   const [{ applyZoomRequestNative }, { useGraphStore }, { defaultSchema }, d3] = await Promise.all([
     import('@/components/FlowCanvas/applyZoomRequestNative'),
     import('@/hooks/useGraphStore'),
@@ -320,7 +320,7 @@ export async function testFlowEditorZoomRequestAnimationCommitsOnceAtSettle() {
   useGraphStore.setState({
     schema: defaultSchema,
     canvasRenderMode: '2d',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     graphDataRevision: 1,
     zoomDurationFitMs: 120,
     viewportFitReferenceWidth: 800,
@@ -375,7 +375,7 @@ export async function testFlowEditorZoomRequestAnimationCommitsOnceAtSettle() {
       },
     })
 
-    if (readCommits() !== 0) throw new Error(`expected Flow Editor zoom request to avoid synchronous commit before RAF frames, got ${readCommits()}`)
+    if (readCommits() !== 0) throw new Error(`expected Storyboard Widget zoom request to avoid synchronous commit before RAF frames, got ${readCommits()}`)
     if (rafQueue.length !== 1) throw new Error(`expected one queued zoom animation frame, got ${rafQueue.length}`)
 
     rafQueue.shift()?.(performance.now() + 20)
@@ -385,7 +385,7 @@ export async function testFlowEditorZoomRequestAnimationCommitsOnceAtSettle() {
 
     rafQueue.shift()?.(performance.now() + 240)
     if (readFrames() < 2) throw new Error(`expected final zoom animation frame to draw, got ${readFrames()}`)
-    if (readCommits() !== 1) throw new Error(`expected Flow Editor zoom request to commit once after animation settles, got ${readCommits()}`)
+    if (readCommits() !== 1) throw new Error(`expected Storyboard Widget zoom request to commit once after animation settles, got ${readCommits()}`)
     if (useGraphStore.getState().zoomRequest !== null) throw new Error('expected native zoom request to clear the consumed zoom request')
   } finally {
     if (originalRequestAnimationFrame) {

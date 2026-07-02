@@ -1,10 +1,10 @@
-import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
   FLOW_SWARM_PREDICTION_FORM_ID,
   FLOW_SWARM_PREDICTION_NODE_LABEL,
   FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
   FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { runSwarmPredictionEngine } from '@/features/swarm-prediction/swarmPredictionEngine'
 
 const readString = (value: unknown): string => String(value || '').trim()

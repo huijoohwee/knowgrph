@@ -16,7 +16,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import type {

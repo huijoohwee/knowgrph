@@ -1,5 +1,5 @@
 ---
-title: Knowgrph Canvas Demos · Flow Editor (2D) + D3 Editor Mode
+title: Knowgrph Canvas Demos · Storyboard Widget (2D) + D3 Editor Mode
 graphId: md:markdown-slide-demo
 theme: academic
 background: /cover.svg
@@ -144,7 +144,7 @@ nodes:
     pos: { x: 1000, y: 80 }
     params:
       template: |
-        {{title}} — rendered from a Flow Editor graph.
+        {{title}} — rendered from a Storyboard Widget graph.
         {{script}}
     properties:
       'doc:anchorId': "node-caption"
@@ -168,7 +168,7 @@ nodes:
     category: output
     pos: { x: 1320, y: 80 }
     params:
-      filename: "md-slide-demo-flow-editor"
+      filename: "md-slide-demo-storyboard-widget"
       format: mp4
       resolution: "1920x1080"
       fps: 30
@@ -212,7 +212,7 @@ socket_types:
   FILE: { color: "#FDFEFE", accepts: [FILE] }
 ---
 
-# Flow Editor (2D) + D3 Canvas · Demo
+# Storyboard Widget (2D) + D3 Canvas · Demo
 
 This deck includes a **frontmatter-flow graph** (see the YAML block at the top of this file) to demo:
 
@@ -226,16 +226,16 @@ It also includes a separate **2D (D3) editor-mode** section for generic graph ed
 Hover term: <abbr title="The 2D graph renderer built with D3 + SVG">D3 Canvas</abbr>
 
 > [!info] What this demo covers
-> - **Flow Editor (2D)**: node quick editors + port handles + groups/clusters
+> - **Storyboard Widget (2D)**: node quick editors + port handles + groups/clusters
 > - **2D → D3 → Editor**: interactive graph editing on the canvas
 > - **Schema-driven visuals** + per-node overrides (shapes, grouping)
 
 ---
 
-## Flow Editor Quick Start (2 minutes)
+## Storyboard Widget Quick Start (2 minutes)
 
 - Open this markdown file in Knowgrph
-- Switch to **Canvas → 2D → Flow Editor**
+- Switch to **Canvas → 2D → Storyboard Widget**
 - Select **NODE_KEYFRAME** or **NODE_VIDEO**, then open the node quick editor and tweak:
   - `model` (`generate_image` / `generate_video`)
   - `prompt`, `aspect_ratio`, `duration`, `resolution`
@@ -476,15 +476,15 @@ Mermaid 语法本身除了绘制顺序外并不定义 z 轴层级；要在 Canva
 
 ---
 
-## Computing Data Flows (Flow Editor + Node Quick Editor)
-## 计算数据流（Flow Editor + Node Quick Editor）
+## Computing Data Flows (Storyboard Widget + Node Quick Editor)
+## 计算数据流（Storyboard Widget + Node Quick Editor）
 
-**Goal / 目标**: demonstrate **connected input values** and **computed outputs** inside the Flow Editor, using the Node Quick Editor registry (no external Flow libraries).
+**Goal / 目标**: demonstrate **connected input values** and **computed outputs** inside the Storyboard Widget, using the Node Quick Editor registry (no external Flow libraries).
 
 ### Demo steps / 演示步骤
 
 - Import the JSON below via **Toolbar → Import → JSON**.
-- The app auto-switches to **Canvas → 2D → Flow Editor** (because the imported graph contains `flow:nodeQuickEditorRegistry`).
+- The app auto-switches to **Canvas → 2D → Storyboard Widget** (because the imported graph contains `flow:nodeQuickEditorRegistry`).
 - Click the `ColorPreview` node and open the Node Quick Editor.
 - Observe per-field **Connected:** hints for `r/g/b`, plus computed `color` and `textColor`.
 - Use **Apply** (per-field) or **Apply All** (empty fields) to materialize computed values into `node.properties`.

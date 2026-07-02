@@ -129,7 +129,7 @@ const AGNES_API_DOC_ROWS: ReadonlyArray<AgnesDocRow> = [
     options: AGNES_OUTPUT_CONTRACT_OPTIONS,
     responsibility: 'Pins Agnes to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.',
     notes: 'Do not emit prose wrappers, legacy aliases, duplicate grouping keys, or provider-specific canvas directives.',
-    searchHints: ['markdown', 'yaml frontmatter', 'workspace', 'source files', 'flow editor', 'storyboard', 'animatic'],
+    searchHints: ['markdown', 'yaml frontmatter', 'workspace', 'source files', 'storyboard widget', 'storyboard', 'animatic'],
     tooltipDefaultValue: 'frontmatter_kgc_markdown',
   },
 ]

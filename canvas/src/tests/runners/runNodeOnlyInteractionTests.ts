@@ -204,21 +204,21 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     await execTest(results, 'ui.richMediaPanel.editorMode.disablesContentPointerEvents', modRichMediaEditorDrag.testRichMediaPanelEditorModeDisablesInteractiveContentForDragging)
     await execTest(results, 'ui.richMediaPanel.d3Overlay.wheelForwardsBeforeScrollableBody', modRichMediaEditorDrag.testD3RichMediaOverlayForwardsWheelBeforeScrollableBody)
 
-    const modRichMediaOpenWidgetExclusion = await import('../../__tests__/flowEditorRichMediaPanelOpenWidgetExclusionRegression.test')
+    const modRichMediaOpenWidgetExclusion = await import('../../__tests__/storyboardWidgetRichMediaPanelOpenWidgetExclusionRegression.test')
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.openWidgetEligibility.includesPanels',
-      modRichMediaOpenWidgetExclusion.testFlowEditorOpenWidgetEligibilityIncludesRichMediaPanels,
+      'ui.storyboardWidget.richMediaPanel.openWidgetEligibility.includesPanels',
+      modRichMediaOpenWidgetExclusion.testStoryboardWidgetOpenWidgetEligibilityIncludesRichMediaPanels,
     )
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.overlayIds.keepExplicitPanels',
+      'ui.storyboardWidget.richMediaPanel.overlayIds.keepExplicitPanels',
       modRichMediaOpenWidgetExclusion.testDeriveOpenWidgetOverlayNodeIdsKeepsRichMediaPanelsWhenExplicitlyOpened,
     )
     await execTest(
       results,
-      'ui.flowEditor.richMediaPanel.graphState.noStoreGraphFallback',
-      modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForFlowEditorWhenOverrideIsEmpty,
+      'ui.storyboardWidget.richMediaPanel.graphState.noStoreGraphFallback',
+      modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForStoryboardWidgetWhenOverrideIsEmpty,
     )
 
     const modGdtDrag = await import('../../__tests__/graphDataTableDragUsesSharedPointerDragRegression.test')

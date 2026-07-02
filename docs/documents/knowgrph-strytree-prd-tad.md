@@ -34,7 +34,7 @@ constraints:
   - "no hosted database dependency outside the Cloudflare topology"
   - "no alternate app hosting path outside Dev -> Prod -> Cloudflare"
   - "story edge rendering must bind to kgSharedRendererContract@shared-renderer-contract/v1 and buildScopedGraphSemanticKey; no local/downstream/hardcoded edge logic"
-  - "story edge projection must be renderer-agnostic across flowEditor | Storyboard | Strybldr; no per-renderer edge path, hardcode, or fork"
+  - "story edge projection must use the canonical Storyboard renderer through kgSharedRendererContract; no per-renderer edge path, hardcode, or fork"
 tags:
   - "strytree"
   - "storytree"
@@ -54,7 +54,7 @@ related:
   - "docs/documents/knowgrph-agentic-commerce-prd-tad.md"
   - "docs/documents/knowgrph-mainpanel-commerce-prd-tad.md"
 kgCanvas2dRendererCapability:
-  supportedRenderers: ["flowEditor", "Storyboard", "Strybldr"]
+  supportedRenderers: ["storyboard"]
   selectionModel: "projected-data"          # renderers project this set; they do not branch on it
   edgeProjectionInvariance: "identical-across-supportedRenderers"
 kgSharedRendererContract:
@@ -886,7 +886,7 @@ CREATE TABLE strytree_audit_events (
 
 **Renderer-agnostic rule.** The same shared `kgSharedRendererContract@shared-renderer-contract/v1` + `buildScopedGraphSemanticKey` (edge identity) + `socket_types` (edge/socket typing) + the `flow` port/handle model (`flow.edgeType`, `flow.direction`, per-node `handles`, `flow:portTypes`) drives edge projection regardless of the active 2D renderer. Any renderer-specific edge code path, per-renderer hardcode, or per-renderer fork of edge logic is forbidden; the supported renderer set is projected data, never a branch target.
 
-**Cross-document unification rule.** Strytree `parent_node_id`-derived edges and the demo flow nodes/handles resolve to the SAME shared edge projection across `flowEditor | Storyboard | Strybldr`. Switching the active renderer among these three MUST produce no recompute, no re-render, no duplicate, and no stale edge state — the same logical edge projects identically for every supported renderer.
+**Cross-document unification rule.** Strytree `parent_node_id`-derived edges and the demo flow nodes/handles resolve to the SAME shared edge projection through the canonical `storyboard` renderer. Switching Card/Widget presentation MUST produce no recompute, duplicate, or stale edge state; the same logical edge projects identically through the shared renderer contract.
 
 ## C5. Access Control Contract
 

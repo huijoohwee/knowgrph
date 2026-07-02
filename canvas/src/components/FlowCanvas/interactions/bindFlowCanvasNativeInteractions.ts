@@ -78,10 +78,10 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
   const touchPointsById = new Map<number, { sx: number; sy: number }>()
   const edgeScroll = createEdgeScrollController()
 
-  const readEffectiveSelectMode = (st: ReturnType<typeof useGraphStore.getState>, isFlowEditor: boolean): 'single' | 'multi' | 'lasso' => {
+  const readEffectiveSelectMode = (st: ReturnType<typeof useGraphStore.getState>, storyboardWidgetMode: boolean): 'single' | 'multi' | 'lasso' => {
     const raw = st.schema?.behavior?.selectMode
     const base: 'single' | 'multi' | 'lasso' = raw === 'lasso' ? 'lasso' : raw === 'multi' ? 'multi' : 'single'
-    if (!isFlowEditor) return base
+    if (!storyboardWidgetMode) return base
     return base === 'lasso' ? 'lasso' : 'multi'
   }
 

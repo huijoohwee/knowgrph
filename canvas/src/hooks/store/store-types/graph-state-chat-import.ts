@@ -9,7 +9,7 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
@@ -57,7 +57,7 @@ export type FloatingPanelView =
   | 'chat'
   | 'geo'
   | 'renderer'
-  | 'flowEditor'
+  | 'storyboardWidget'
   | 'flowchart'
   | 'gitGraph'
   | 'gantt'
@@ -81,8 +81,8 @@ export type TimelineTransportStateUpdate = {
 export interface GraphStateChatImport {
   flowchartDataSource: 'api' | 'fixture' | 'workspace';
   setFlowchartDataSource: (v: 'api' | 'fixture' | 'workspace') => void;
-  flowEditorSelectedPortRowKey: string;
-  setFlowEditorSelectedPortRowKey: (rowKey: string | null) => void;
+  storyboardWidgetSelectedPortRowKey: string;
+  setStoryboardWidgetSelectedPortRowKey: (rowKey: string | null) => void;
   flowchartApiRunId: string;
   setFlowchartApiRunId: (v: string) => void;
   flowchartPollIntervalSec: number;

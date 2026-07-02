@@ -49,7 +49,7 @@
   - confirms storyboard fallback media fields are recognized by the shared Rich Media panel SSOT
 - Focused regression: `mediaLightboxRichMediaPanel.test.tsx`
   - confirms storyboard lightbox image and video paths both mount the shared `RichMediaPanel`
-  - confirms shared Flow Editor panel chrome is preserved in the opened lightbox surface
+  - confirms shared Storyboard Widget panel chrome is preserved in the opened lightbox surface
 - Focused behavior regression: `testCardInlineTextEditorAtCommandInsertsUploadedMedia`
   - still inserts uploaded media through the shared inline-command path
   - still commits a browser-openable tokenized media URL, now derived at interaction time

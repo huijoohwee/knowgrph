@@ -15,7 +15,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
 ) {
   const {
     active,
-    flowEditorSurfaceId,
+    storyboardWidgetSurfaceId,
     allowMutations,
     schema,
     runtimeRef,
@@ -30,9 +30,9 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     graphDataForZoomRequests,
     viewportW,
     viewportH,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
   } = props
-  void flowEditorReservedW
+  void storyboardWidgetReservedW
 
   const {
     selectedNodeId,
@@ -190,7 +190,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     if (!runtime) {
       try {
         const st = useGraphStore.getState()
-        if (canvas2dRenderer === 'flowEditor' && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {
+        if (canvas2dRenderer === 'storyboard' && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {
           st.setFlowWidgetWorldPosByNodeId({})
         }
         st.clearZoomRequest()
@@ -199,14 +199,14 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       }
       return
     }
-    const isFlowEditor = canvas2dRenderer === 'flowEditor'
-    if (isFlowEditor && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
+    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
+    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
     const widthEffective = viewportW
     applyZoomRequestNative({
       zoomRequest,
       runtime,
       graphData: graphDataForZoomRequests,
-      flowEditorSurfaceId,
+      storyboardWidgetSurfaceId,
       width: widthEffective,
       height: viewportH,
       selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
@@ -215,7 +215,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
       onFrame: () => {
         scheduleFlowDraw({ force: true })
-        if (!isFlowEditor) requestCommit()
+        if (!storyboardWidgetMode) requestCommit()
         handleInteractionFrame()
       },
       onCommit: requestCommit,
@@ -223,8 +223,8 @@ export default React.memo(function FlowCanvasInteractionRuntime(
   }, [
     active,
     canvas2dRenderer,
-    flowEditorReservedW,
-    flowEditorSurfaceId,
+    storyboardWidgetReservedW,
+    storyboardWidgetSurfaceId,
     graphDataForZoomRequests,
     handleInteractionFrame,
     requestCommit,

@@ -4,7 +4,7 @@ import {
   getCanvas2dRendererLabel,
   getCanvas2dSurfaceId,
   resolveCanvas2dRendererId,
-  sharesFlowEditorFrontmatterSyntax,
+  supportsStoryboardFlowFrontmatterSyntax,
 } from '@/lib/config.render'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
@@ -31,7 +31,7 @@ export const testMarkdownFrontmatterReusesSharedPlainObjectGuard = () => {
 export const testMarkdownFrontmatterParsesCanvasWorkspacePreset = () => {
   const preset = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasSurfaceMode: "2d"
-kgCanvas2dRenderer: flowEditor
+kgCanvas2dRenderer: storyboard
 kgFrontmatterModeEnabled: true
 kgDocumentSemanticMode: keyword
 ---`)
@@ -39,25 +39,25 @@ kgDocumentSemanticMode: keyword
   if (preset.canvasSurfaceMode !== '2d') {
     throw new Error(`expected 2d surface mode, got ${String(preset.canvasSurfaceMode)}`)
   }
-  if (preset.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected flowEditor 2d renderer, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected Storyboard 2D renderer, got ${String(preset.canvas2dRenderer)}`)
   }
   if (preset.frontmatterModeEnabled !== true || preset.documentSemanticMode !== 'keyword') {
     throw new Error(`expected boolean frontmatter preset flags to persist, got ${JSON.stringify(preset)}`)
   }
 }
 
-export const testMarkdownFrontmatterNormalizesCanvasRenderModeTokens = () => {
+export const testMarkdownFrontmatterNormalizesCanonicalCanvasRendererTokens = () => {
   const preset = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasRenderMode: "Surface 2D"
-kgCanvas2dRenderer: "Flow Editor"
+kgCanvas2dRenderer: "Storyboard"
 ---`)
   if (!preset) throw new Error('expected canvas render mode token preset to parse')
   if (preset.canvasRenderMode !== '2d') {
     throw new Error(`expected Surface 2D token to normalize to 2d, got ${String(preset.canvasRenderMode)}`)
   }
-  if (preset.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected Flow Editor token to normalize to flowEditor, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected Storyboard token to normalize to storyboard, got ${String(preset.canvas2dRenderer)}`)
   }
 }
 
@@ -77,11 +77,8 @@ kgCanvasRenderMode: "XR Mode"
   }
 }
 
-export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxOwner = () => {
+export const testCanvas2dRendererNormalizationUsesStoryboardFlowSyntaxOwner = () => {
   const legacyTimelineRendererAlias = ['Timeline', 'Animation'].join(' ')
-  if (resolveCanvas2dRendererId('Flow Editor') !== 'flowEditor') {
-    throw new Error('expected shared renderer normalizer to resolve Flow Editor display token upstream')
-  }
   if (resolveCanvas2dRendererId('Animatic') !== 'animatic') {
     throw new Error('expected shared renderer normalizer to resolve Animatic upstream')
   }
@@ -94,30 +91,30 @@ export const testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxO
   if (getCanvas2dRendererLabel('animatic') !== 'Animatic' || getCanvas2dSurfaceId('animatic') !== 'animatic') {
     throw new Error('expected Animatic renderer id to resolve to the dedicated animatic surface')
   }
-  if (!sharesFlowEditorFrontmatterSyntax('flowEditor')) {
-    throw new Error('expected Flow Editor to remain on the shared flow-frontmatter syntax owner')
+  if (!supportsStoryboardFlowFrontmatterSyntax('storyboard')) {
+    throw new Error('expected Storyboard to own the shared flow-frontmatter syntax')
   }
   if (resolveCanvas2dRendererId(legacyTimelineRendererAlias) !== undefined) {
     throw new Error('expected legacy timeline renderer alias to be removed instead of remapped')
   }
-  if (sharesFlowEditorFrontmatterSyntax('animatic')) {
-    throw new Error('expected old Animatic renderer id to stop sharing Flow Editor frontmatter syntax after adapting to Gantt-timeline')
+  if (supportsStoryboardFlowFrontmatterSyntax('animatic')) {
+    throw new Error('expected Animatic to stay outside Storyboard flow-frontmatter syntax after adapting to Gantt-timeline')
   }
-  if (sharesFlowEditorFrontmatterSyntax('d3')) {
-    throw new Error('expected non-flow renderers to stay outside the shared Flow Editor frontmatter syntax owner')
+  if (supportsStoryboardFlowFrontmatterSyntax('d3')) {
+    throw new Error('expected non-flow renderers to stay outside the shared Storyboard flow-frontmatter syntax owner')
   }
 }
 
 export const testMarkdownFrontmatterCachesPresetByFrontmatterBlock = () => {
   const presetA = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: flowEditor
+kgCanvas2dRenderer: storyboard
 ---
 
 # A`)
   const presetB = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: flowEditor
+kgCanvas2dRenderer: storyboard
 ---
 
 # B`)

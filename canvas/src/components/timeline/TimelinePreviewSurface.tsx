@@ -120,7 +120,7 @@ export function TimelinePreviewSurface(args: TimelinePreviewSurfaceProps) {
         videoPoster={videoPoster}
         onMediaElement={args.item.kind === 'video' || args.item.kind === 'audio' ? handleVideoElement : undefined}
         onVideoElement={args.item.kind === 'video' ? handleVideoElement : undefined}
-        panelChrome="flowEditor"
+        panelChrome="storyboardWidget"
         scrollOwner="media"
         panel={panelState}
         style={{ height: '100%', visibility: playbackGap ? 'hidden' : undefined }}

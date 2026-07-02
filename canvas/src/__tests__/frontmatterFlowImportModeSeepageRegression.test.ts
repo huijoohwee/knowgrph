@@ -19,19 +19,19 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const FLOW_EDITOR_VALIDATION_BASENAME = 'flow-editor-validation.md'
-const FLOW_EDITOR_VALIDATION_WORKSPACE_PATH = `/${FLOW_EDITOR_VALIDATION_BASENAME}`
+const STORYBOARD_WIDGET_VALIDATION_BASENAME = 'storyboard-widget-validation.md'
+const STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH = `/${STORYBOARD_WIDGET_VALIDATION_BASENAME}`
 const GEOSPATIAL_VALIDATION_BASENAME = 'geospatial-validation.md'
 const GEOSPATIAL_VALIDATION_WORKSPACE_PATH = `/${GEOSPATIAL_VALIDATION_BASENAME}`
 
-const createFlowEditorPresetMarkdown = (args: { title?: string; includeFlowGraph?: boolean } = {}): string => {
-  const title = args.title || 'Flow Editor Validation'
+const createStoryboardPresetMarkdown = (args: { title?: string; includeFlowGraph?: boolean } = {}): string => {
+  const title = args.title || 'Storyboard Widget Validation'
   const lines = [
     '---',
     `title: ${JSON.stringify(title)}`,
     'kgCanvasSurfaceMode: "2d"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'kgDocumentStructureBaselineLock: false',
@@ -55,7 +55,7 @@ const createGeospatialPresetMarkdown = (): string => [
   'title: "Geospatial Validation"',
   'kgCanvasSurfaceMode: "geospatial"',
   'kgCanvasRenderMode: "2d"',
-  'kgCanvas2dRenderer: "flowEditor"',
+  'kgCanvas2dRenderer: "storyboard"',
   'kgDocumentSemanticMode: "document"',
   'kgFrontmatterModeEnabled: true',
   'kgDocumentStructureBaselineLock: false',
@@ -70,7 +70,7 @@ const createGeospatialPresetMarkdown = (): string => [
   '# Geospatial Validation',
 ].join('\n')
 
-export function testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer() {
+export function testFrontmatterFlowImportModeUsesStoryboardRendererDefault() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
@@ -87,8 +87,8 @@ export function testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer() {
   } as never)
 
   const st = useGraphStore.getState()
-  if (st.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected import mode to prefer flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected import mode to prefer storyboard renderer, got ${String(st.canvas2dRenderer)}`)
   }
   if (changed !== true) {
     throw new Error('expected import mode to report changed when renderer switched')
@@ -99,7 +99,7 @@ export function testFrontmatterFlowImportModePreservesExplicitRendererPreset() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('document')
   useGraphStore.getState().setFrontmatterModeEnabled(true)
 
@@ -124,7 +124,7 @@ export function testFrontmatterFlowImportModePreservesExplicitRendererPreset() {
     throw new Error('expected frontmatter-flow import mode to handle explicit renderer presets')
   }
   if (st.canvas2dRenderer !== 'design') {
-    throw new Error(`expected explicit Source Files/YAML renderer preset to win over flowEditor default, got ${String(st.canvas2dRenderer)}`)
+    throw new Error(`expected explicit Source Files/YAML renderer preset to win over Storyboard default, got ${String(st.canvas2dRenderer)}`)
   }
 }
 
@@ -132,7 +132,7 @@ export function testFrontmatterFlowImportModePreservesNormalizedGraphRendererPre
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('document')
   useGraphStore.getState().setFrontmatterModeEnabled(true)
 
@@ -174,7 +174,7 @@ export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAlig
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('document')
   useGraphStore.getState().setFrontmatterModeEnabled(true)
   useGraphStore.getState().setMultiDimTableModeEnabled(false)
@@ -192,7 +192,7 @@ export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAlig
   }
 }
 
-export function testFrontmatterFlowImportModeFlowEditorPresetDisablesConflictingTableMode() {
+export function testFrontmatterFlowImportModeStoryboardPresetDisablesConflictingTableMode() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
@@ -211,7 +211,7 @@ export function testFrontmatterFlowImportModeFlowEditorPresetDisablesConflicting
     preset: {
       canvasSurfaceMode: '2d',
       canvasRenderMode: '2d',
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       documentSemanticMode: 'document',
       frontmatterModeEnabled: true,
       multiDimTableModeEnabled: true,
@@ -220,19 +220,19 @@ export function testFrontmatterFlowImportModeFlowEditorPresetDisablesConflicting
 
   const st = useGraphStore.getState()
   if (handled !== true) {
-    throw new Error('expected frontmatter-flow import mode to handle Flow Editor presets with conflicting table mode')
+    throw new Error('expected frontmatter-flow import mode to handle Storyboard presets with conflicting table mode')
   }
-  if (st.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected Flow Editor preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected Storyboard preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
   }
   if (st.documentSemanticMode !== 'document') {
-    throw new Error(`expected Flow Editor preset to keep document mode, got ${String(st.documentSemanticMode)}`)
+    throw new Error(`expected Storyboard preset to keep document mode, got ${String(st.documentSemanticMode)}`)
   }
   if (st.frontmatterModeEnabled !== true) {
-    throw new Error('expected Flow Editor preset to keep frontmatter mode enabled')
+    throw new Error('expected Storyboard preset to keep frontmatter mode enabled')
   }
   if (st.multiDimTableModeEnabled !== false) {
-    throw new Error('expected Flow Editor preset to disable conflicting multi-dimensional table mode')
+    throw new Error('expected Storyboard preset to disable conflicting multi-dimensional table mode')
   }
 }
 
@@ -310,7 +310,7 @@ export function testWorkspaceImportModesPreferFrontmatterFlowLandingContract() {
 
   const st = useGraphStore.getState()
   if (st.canvasRenderMode !== '2d') throw new Error(`expected 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'storyboard') throw new Error(`expected storyboard renderer, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled for frontmatter-flow import landing')
   if (st.multiDimTableModeEnabled !== false) throw new Error('expected multidim table disabled for frontmatter-flow import landing')
@@ -332,7 +332,7 @@ export function testWorkspaceImportModesPreferFrontmatterOnlyDocLandingContract(
 
   const st = useGraphStore.getState()
   if (st.canvasRenderMode !== '2d') throw new Error(`expected frontmatter-only import to force 2d render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected frontmatter-only import to prefer flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'storyboard') throw new Error(`expected frontmatter-only import to prefer storyboard renderer, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'document') throw new Error(`expected frontmatter-only import to force document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected frontmatter-only import to enable frontmatter mode')
   if (st.multiDimTableModeEnabled !== false) throw new Error('expected frontmatter-only import to disable multidim table mode')
@@ -342,7 +342,7 @@ export function testWorkspaceImportModesHonorExplicitMarkdownFrontmatterPreset()
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(true)
   useGraphStore.getState().setCanvasRenderMode('3d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('keyword')
   useGraphStore.getState().setFrontmatterModeEnabled(false)
 
@@ -378,7 +378,7 @@ export function testWorkspaceImportModesNormalizeCanonicalRendererTokensAndExpli
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(true)
   useGraphStore.getState().setCanvasRenderMode('3d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('document')
   useGraphStore.getState().setFrontmatterModeEnabled(true)
   useGraphStore.getState().setMultiDimTableModeEnabled(false)
@@ -415,7 +415,7 @@ export function testWorkspaceImportModesNormalizeCanonicalRendererTokensAndExpli
   if (st.documentStructureBaselineLock !== false) throw new Error('expected explicit preset to unlock baseline lock')
 }
 
-export function testWorkspaceImportModesFlowEditorPresetDisablesConflictingTableMode() {
+export function testWorkspaceImportModesStoryboardPresetDisablesConflictingTableMode() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
@@ -426,33 +426,33 @@ export function testWorkspaceImportModesFlowEditorPresetDisablesConflictingTable
 
   const rawText = [
     '---',
-    'title: "Flow Editor Table Conflict"',
+    'title: "Storyboard Table Conflict"',
     'kgCanvasSurfaceMode: "2d"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'kgMultiDimTableModeEnabled: true',
     'kgDocumentStructureBaselineLock: false',
     '---',
     '',
-    '# Flow Editor Table Conflict',
+    '# Storyboard Table Conflict',
   ].join('\n')
 
   const preset = resolveCanvasFrontmatterPreset({ rawText })
-  if (!preset) throw new Error('expected Flow Editor preset to resolve')
-  if (preset.canvas2dRenderer !== 'flowEditor') throw new Error(`expected Flow Editor preset, got ${String(preset.canvas2dRenderer)}`)
+  if (!preset) throw new Error('expected Storyboard preset to resolve')
+  if (preset.canvas2dRenderer !== 'storyboard') throw new Error(`expected Storyboard preset, got ${String(preset.canvas2dRenderer)}`)
   if (preset.multiDimTableModeEnabled !== true) throw new Error('expected source preset to preserve explicit multi-dimensional table flag')
 
   applyInteractiveImportModes({ rawText })
 
   const st = useGraphStore.getState()
-  if (st.canvasRenderMode !== '2d') throw new Error(`expected Flow Editor preset to force 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected Flow Editor preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
-  if (st.documentSemanticMode !== 'document') throw new Error(`expected Flow Editor preset to keep document semantic mode, got ${String(st.documentSemanticMode)}`)
-  if (st.frontmatterModeEnabled !== true) throw new Error('expected Flow Editor preset to keep frontmatter mode enabled')
-  if (st.multiDimTableModeEnabled !== false) throw new Error('expected Flow Editor preset to disable conflicting multi-dimensional table mode')
-  if (st.documentStructureBaselineLock !== false) throw new Error('expected Flow Editor preset to unlock baseline lock')
+  if (st.canvasRenderMode !== '2d') throw new Error(`expected Storyboard preset to force 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
+  if (st.canvas2dRenderer !== 'storyboard') throw new Error(`expected Storyboard preset to avoid D3 table-mode demotion, got ${String(st.canvas2dRenderer)}`)
+  if (st.documentSemanticMode !== 'document') throw new Error(`expected Storyboard preset to keep document semantic mode, got ${String(st.documentSemanticMode)}`)
+  if (st.frontmatterModeEnabled !== true) throw new Error('expected Storyboard preset to keep frontmatter mode enabled')
+  if (st.multiDimTableModeEnabled !== false) throw new Error('expected Storyboard preset to disable conflicting multi-dimensional table mode')
+  if (st.documentStructureBaselineLock !== false) throw new Error('expected Storyboard preset to unlock baseline lock')
 }
 
 export function testWorkspaceImportModesUseCanonicalFlowRendererForFrontmatterOnlyLanding() {
@@ -501,7 +501,7 @@ export function testCanvasFrontmatterPresetDisablesGeospatialOverlayFor2dDocumen
       '---',
       'title: "Knowgrph"',
       'kgCanvasRenderMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       'kgDocumentStructureBaselineLock: false',
@@ -536,7 +536,7 @@ export function testCanvasFrontmatterPresetEnablesGeospatialSurfaceMode() {
       '---',
       'title: "GrabMaps Surface Preset"',
       'kgCanvasSurfaceMode: "geospatial"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       'kgMultiDimTableModeEnabled: false',
@@ -560,7 +560,7 @@ export function testCanvasFrontmatterPresetEnablesGeospatialSurfaceMode() {
       throw new Error(`expected geospatial surface preset to enable geospatial overlay, got ${String(next)}`)
     }
     if (st.canvasRenderMode !== '2d') throw new Error(`expected geospatial surface preset to normalize render mode to 2d, got ${String(st.canvasRenderMode)}`)
-    if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected geospatial surface preset to preserve flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+    if (st.canvas2dRenderer !== 'storyboard') throw new Error(`expected geospatial surface preset to preserve storyboard renderer, got ${String(st.canvas2dRenderer)}`)
     if (st.documentSemanticMode !== 'document') throw new Error(`expected geospatial surface preset to apply document semantic mode, got ${String(st.documentSemanticMode)}`)
     if (st.frontmatterModeEnabled !== true) throw new Error('expected geospatial surface preset to enable frontmatter mode')
     if (st.multiDimTableModeEnabled !== false) throw new Error('expected geospatial surface preset to disable multi-dimensional table mode')
@@ -625,10 +625,10 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
   useGraphStore.getState().setFrontmatterModeEnabled(false)
   useGraphStore.getState().setMultiDimTableModeEnabled(true)
 
-  const text = createFlowEditorPresetMarkdown()
+  const text = createStoryboardPresetMarkdown()
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
+    name: STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -637,7 +637,7 @@ export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatt
 
   const st = useGraphStore.getState()
   if (st.canvasRenderMode !== '2d') throw new Error(`expected active doc switch to preserve 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected active doc switch to reapply flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'storyboard') throw new Error(`expected active doc switch to reapply storyboard renderer, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'document') throw new Error(`expected active doc switch to reapply document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected active doc switch to re-enable frontmatter mode')
   if (st.documentStructureBaselineLock !== false) throw new Error('expected active doc switch to reapply unlocked baseline setting')
@@ -723,17 +723,17 @@ export async function testGraphStoreRuntimeExplicitFrontmatterPresetBeatsSavedUi
   }
 }
 
-export function testPerDocumentUiRestoreKeepsAlreadyAlignedFlowEditorPreset() {
+export function testPerDocumentUiRestoreKeepsAlreadyAlignedStoryboardPreset() {
   useGraphStore.getState().resetAll()
-  const name = '/notes/aligned-flow-editor.md'
-  const text = createFlowEditorPresetMarkdown({ title: 'Aligned Flow Editor' })
+  const name = '/notes/aligned-storyboard-widget.md'
+  const text = createStoryboardPresetMarkdown({ title: 'Aligned Storyboard Widget' })
   useGraphStore.getState().setMarkdownDocument(name, text, {
     autoEnableFrontmatter: false,
     applyViewPreset: true,
   })
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
   useGraphStore.getState().setDocumentSemanticMode('document')
   useGraphStore.getState().setFrontmatterModeEnabled(true)
   useGraphStore.getState().setMultiDimTableModeEnabled(false)
@@ -747,17 +747,17 @@ export function testPerDocumentUiRestoreKeepsAlreadyAlignedFlowEditorPreset() {
   })
 
   const next = useGraphStore.getState()
-  if (next.canvas2dRenderer !== 'flowEditor') {
-    throw new Error(`expected aligned Flow Editor preset to block saved D3 restore, got ${String(next.canvas2dRenderer)}`)
+  if (next.canvas2dRenderer !== 'storyboard') {
+    throw new Error(`expected aligned Storyboard preset to block saved D3 restore, got ${String(next.canvas2dRenderer)}`)
   }
   if (next.documentSemanticMode !== 'document') {
-    throw new Error(`expected aligned Flow Editor preset to keep document semantic mode, got ${String(next.documentSemanticMode)}`)
+    throw new Error(`expected aligned Storyboard preset to keep document semantic mode, got ${String(next.documentSemanticMode)}`)
   }
   if (next.frontmatterModeEnabled !== true) {
-    throw new Error('expected aligned Flow Editor preset to keep frontmatter mode enabled')
+    throw new Error('expected aligned Storyboard preset to keep frontmatter mode enabled')
   }
   if (next.multiDimTableModeEnabled !== false) {
-    throw new Error('expected aligned Flow Editor preset to keep multi-dimensional table mode disabled')
+    throw new Error('expected aligned Storyboard preset to keep multi-dimensional table mode disabled')
   }
 }
 
@@ -798,10 +798,10 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
     if (before.frontmatterModeEnabled !== true) throw new Error('expected README setup to enable frontmatter mode')
   }
 
-  const text = createFlowEditorPresetMarkdown()
+  const text = createStoryboardPresetMarkdown()
 
   const ok = await useGraphStore.getState().setActiveMarkdownDocument({
-    name: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
+    name: STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH,
     text,
     normalizeMermaidMmd: false,
     autoEnableFrontmatter: false,
@@ -810,7 +810,7 @@ export async function testActiveMarkdownDocumentSwitchCanSkipExplicitFrontmatter
   if (ok !== true) throw new Error('expected passive active markdown document switch to complete')
 
   const st = useGraphStore.getState()
-  if (st.markdownDocumentName !== FLOW_EDITOR_VALIDATION_WORKSPACE_PATH) {
+  if (st.markdownDocumentName !== STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH) {
     throw new Error(`expected passive active doc switch to update markdown document name, got ${String(st.markdownDocumentName)}`)
   }
   if (st.markdownDocumentText !== text) {
@@ -1119,7 +1119,7 @@ export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() 
   if (!bootstrapText.includes('ensureSessionTabId()')) {
     throw new Error('expected GraphStoreBootstrapRuntime to keep session tab bootstrap ownership after the split')
   }
-  if (!bootstrapText.includes('applyCanvasSliceStorageMigrations()') || !bootstrapText.includes('applyFlowEditorManagerDefaultRegistrySeed()')) {
+  if (!bootstrapText.includes('applyCanvasSliceStorageMigrations()') || !bootstrapText.includes('applyStoryboardWidgetManagerDefaultRegistrySeed()')) {
     throw new Error('expected GraphStoreBootstrapRuntime to keep one-shot storage and registry migrations after the split')
   }
   if (!debugRuntimeText.includes("kg:debug:markdownEmptyTrace")) {
@@ -1297,17 +1297,17 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
       '',
       '# Document Validation',
     ].join('\n')
-    const flowEditorText = createFlowEditorPresetMarkdown({ includeFlowGraph: true })
+    const storyboardWidgetText = createStoryboardPresetMarkdown({ includeFlowGraph: true })
     const geospatialText = createGeospatialPresetMarkdown()
     const workspaceFs = createMemoryWorkspaceFs({
       initialEntries: [
         { path: '/README.md', parentPath: '/', kind: 'file', name: 'README.md', text: readmeText, updatedAtMs: 1 },
         {
-          path: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
+          path: STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH,
           parentPath: '/',
           kind: 'file',
-          name: FLOW_EDITOR_VALIDATION_BASENAME,
-          text: flowEditorText,
+          name: STORYBOARD_WIDGET_VALIDATION_BASENAME,
+          text: storyboardWidgetText,
           updatedAtMs: 2,
         },
         {
@@ -1323,19 +1323,19 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     const workspaceEntries = await workspaceFs.listEntries()
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: FLOW_EDITOR_VALIDATION_WORKSPACE_PATH,
+      activePathOverride: STORYBOARD_WIDGET_VALIDATION_WORKSPACE_PATH,
       fs: workspaceFs,
       workspaceEntries,
       sourcesByPath: {},
       applyToGraph: true,
     })
 
-    const afterFlowEditor = useGraphStore.getState()
-    if (afterFlowEditor.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected Flow Editor initialization materialization to preserve flowEditor landing, got ${String(afterFlowEditor.canvas2dRenderer)}`)
+    const afterStoryboard = useGraphStore.getState()
+    if (afterStoryboard.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected Storyboard initialization materialization to preserve Storyboard landing, got ${String(afterStoryboard.canvas2dRenderer)}`)
     }
-    if ((afterFlowEditor.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
-      throw new Error('expected Flow Editor initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
+    if ((afterStoryboard.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
+      throw new Error('expected Storyboard initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
     }
 
     await materializeActiveWorkspaceEntryIntoSourceFiles({
@@ -1363,8 +1363,8 @@ export async function testInitializationWorkspaceMaterializationPreservesCanonic
     })
 
     const afterGeospatial = useGraphStore.getState()
-    if (afterGeospatial.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected geospatial initialization materialization to preserve flowEditor landing, got ${String(afterGeospatial.canvas2dRenderer)}`)
+    if (afterGeospatial.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected geospatial initialization materialization to preserve Storyboard landing, got ${String(afterGeospatial.canvas2dRenderer)}`)
     }
     if (afterGeospatial.canvasRenderMode !== '2d') {
       throw new Error(`expected geospatial initialization materialization to preserve 2d surface mode, got ${String(afterGeospatial.canvasRenderMode)}`)

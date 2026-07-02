@@ -50,7 +50,7 @@ const readEffectiveZoomState = (value: ZoomStateLike | null) => {
 export const inspectLocal2dZoomViewport = (args: Local2dZoomViewportInspectionArgs) => {
   const documentName = normalizeString(args.markdownDocumentName)
   const canvasRenderMode = normalizeString(args.canvasRenderMode) || '2d'
-  const canvas2dRenderer = normalizeString(args.canvas2dRenderer) || 'flowEditor'
+  const canvas2dRenderer = normalizeString(args.canvas2dRenderer) || 'storyboard'
   const viewPinned = args.viewPinned === true
   const fitToScreenMode = args.fitToScreenMode === true
   const zoomToSelectionMode = args.zoomToSelectionMode === true

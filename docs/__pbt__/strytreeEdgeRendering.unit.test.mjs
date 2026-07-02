@@ -17,7 +17,7 @@
 //  - Part A prototype edge rows (Edge existence / Edge shape) are marked
 //    "(historical prototype only)".
 //  - Demo doc carries kgCanvas2dRendererCapability.supportedRenderers ==
-//    ["flowEditor","Storyboard","Strybldr"] and rendererAgnosticEdges.
+//    ["storyboard"] and rendererAgnosticEdges.
 //
 // Validates: Requirements 2.1, 2.3, 2.4, 2.5, 2.7, 2.8
 // =============================================================================
@@ -130,11 +130,11 @@ test('unit: Part A "Edge shape" Bezier row marked "(historical prototype only)"'
 // ---------------------------------------------------------------------------
 // Demo doc renderer-agnostic capability (Req 2.8).
 // ---------------------------------------------------------------------------
-test('unit: demo doc carries kgCanvas2dRendererCapability.supportedRenderers == ["flowEditor","Storyboard","Strybldr"]', () => {
+test('unit: demo doc carries kgCanvas2dRendererCapability.supportedRenderers == ["storyboard"]', () => {
   const cap = topLevelBlock(demoFm, 'kgCanvas2dRendererCapability')
   assert.notEqual(cap, null, 'demo doc must carry kgCanvas2dRendererCapability')
-  assert.ok(/supportedRenderers:\s*\["flowEditor",\s*"Storyboard",\s*"Strybldr"\]/.test(cap),
-    'supportedRenderers must equal ["flowEditor","Storyboard","Strybldr"]')
+  assert.ok(/supportedRenderers:\s*\["storyboard"\]/.test(cap),
+    'supportedRenderers must equal ["storyboard"]')
   // Every renderer in the agreed set is declared as projected data.
   for (const r of RENDERER_SET) {
     assert.ok(cap.includes(`"${r}"`), `supportedRenderers must declare "${r}"`)

@@ -75,7 +75,7 @@ index:
           W_PANEL["Rich Media Panel"]:::product
         end
         subgraph S3B["Canvas Layers"]
-          L_FLOW["Flow Editor Canvas"]:::product
+          L_FLOW["Storyboard Widget Canvas"]:::product
           L_2D["2D Graph Canvas (D3)"]:::product
           L_3D["3D Canvas (Three.js)"]:::product
           L_GEO["Geospatial (MapLibre)"]:::product
@@ -106,7 +106,7 @@ index:
       %% ── SECTION 5 · ARCHITECTURE ─────────────────────────────
       subgraph S5["⑥ Architecture"]
         subgraph S5A["Frontend (React + Vite + TS)"]
-          A_FC["Flow Editor Canvas"]:::product
+          A_FC["Storyboard Widget Canvas"]:::product
           A_MC["Markdown Workspace"]:::product
           A_RMP["Rich Media Panel"]:::product
         end
@@ -269,7 +269,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph Frontend ["Canvas App (React + Vite + TS)"]
-    FC[Flow Editor Canvas]
+    FC[Storyboard Widget Canvas]
     GC[Graph Canvas]
     MC[Markdown Workspace]
     RMP[Rich Media Panel]
@@ -311,7 +311,7 @@ flowchart LR
   subgraph REUSE
     DER --> R2D[2D Renderer — D3 SVG]
     DER --> R3D[3D Renderer — Three.js]
-    DER --> RFLOW[Flow Editor]
+    DER --> RFLOW[Storyboard Widget]
     R2D & R3D & RFLOW --> EXP[Exporters]
   end
 ```
@@ -395,7 +395,7 @@ Principle: cost and quality fully predictable with explicit, user-visible parame
 **Now (shipping)**
 - Markdown-to-widget orchestration via frontmatter flow parser
 - BytePlus OpenArk integration (chat, image, video)
-- Flow Editor Canvas with widget registry, port handles, typed envelopes
+- Storyboard Widget Canvas with widget registry, port handles, typed envelopes
 - Stripe paywall and subscription gating
 
 **Next**

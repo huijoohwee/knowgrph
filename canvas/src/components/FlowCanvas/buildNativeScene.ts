@@ -18,7 +18,7 @@ import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { buildBestGroupInfoByNodeId, compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'

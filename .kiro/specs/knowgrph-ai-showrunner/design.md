@@ -41,7 +41,7 @@ than replacing them.
 The design is **harness-first**: every agent call is dry-runnable, every state transition is
 durable, and every token spend is attributable. All new components are provider-neutral,
 renderer-agnostic, and integrated through existing contracts (MCP, KGC, Source Files, memory
-layer, semantic key, flow editor).
+layer, semantic key, storyboard widget).
 
 ### Design Principles
 
@@ -93,7 +93,7 @@ graph TD
     STRYTREE["canvas/src/features/strybldr/strytreeWorkflow.ts\nBranching graph + forkcompare"]
     CHAT_KGC["canvas/src/features/chat/chatKgcCanvasApply.ts\nLLM output → canvas"]
     RICH_MEDIA["canvas/src/features/chat/richMediaRun.ts\nAudio/TTS output path"]
-    FLOW_EDITOR["canvas/src/features/flow-editor-manager/\nkgc-computing-flow/v1 registry"]
+    FLOW_EDITOR["canvas/src/features/storyboard-widget-manager/\nkgc-computing-flow/v1 registry"]
     TOKEN_BUDGET["canvas/src/features/token-budget/\nApproval gate + budget meter"]
     VDEOXPLN["canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs\nSkill registry"]
     RESEARCH["canvas/src/features/research-agent/researchThesisContract.ts\nResearch compiler"]
@@ -153,7 +153,7 @@ graph TD
 | `narrativeGameEngine.ts` | Choice_Graph runtime API extending Strytree forkcompare |
 | `writersRoomSession.ts` | brainstormer → drafter → critic → revisor revision loop |
 | `scriptSchema.ts` | Parse / print `Script` ↔ `knowgrph-script/v1` Markdown |
-| `showrunnerFlowNode.ts` | Flow Editor node registration (input/output ports + widget entry) |
+| `showrunnerFlowNode.ts` | Storyboard Widget node registration (input/output ports + widget entry) |
 | `showrunnerVdeoxpln.ts` | Vdeoxpln registry entry for AI Showrunner skill |
 | `showrunnerMcpTools.ts` | MCP tool definitions, registered via `buildKnowgrphLocalMcpToolDefinitions()` |
 | `showrunnerDryRun.ts` | Dry-run harness: deterministic mock provider, paidCallCount=0 |
@@ -180,7 +180,7 @@ The names are then added to `KNOWGRPH_LOCAL_MCP_TOOL_NAMES` in
 `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` — no new keys invented,
 appended to the existing frozen object following the `memoryAdd`, `memorySearch` pattern.
 
-### Flow Editor Node Registration
+### Storyboard Widget Node Registration
 
 The `showrunner` node type is registered in `canvas/src/features/ai-showrunner/showrunnerFlowNode.ts`
 as a `WidgetRegistryEntry` following the `SwarmPrediction` and `TextGeneration` node patterns:
@@ -521,7 +521,7 @@ contract are unchanged.
 ### Token Budget / Approval Gate — `canvas/src/features/token-budget/`
 
 The orchestrator emits `BUDGET_GATE` lifecycle events consumed by the existing approval-gate
-and budget-meter primitives. The Flow Editor approval widget surfaces these gates. No second
+and budget-meter primitives. The Storyboard Widget approval widget surfaces these gates. No second
 approval UX is created.
 
 ### MCP Local Tool Surface — `mcp/local-tool-contract.js`
@@ -532,7 +532,7 @@ six tools follow the `withLocalMcpDescriptorDefaults()` pattern. The MCP server 
 ### Vdeoxpln Registry — `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
 
 A single new `RAW_VDEOXPLN` entry `knowgrph-ai-showrunner` is appended. Its `tools.local`
-array lists the six showrunner MCP tool names. The canvas Flow Editor node is referenced in
+array lists the six showrunner MCP tool names. The canvas Storyboard Widget node is referenced in
 `owners`. The `vdeoxpln:check` validation suite picks it up automatically.
 
 ### Research Compiler — `canvas/src/features/research-agent/researchThesisContract.ts`
@@ -540,11 +540,11 @@ array lists the six showrunner MCP tool names. The canvas Flow Editor node is re
 The `podcastPipeline` researcher role invokes the existing `research.scout` contract from the
 SuperAgent harness to produce the research pack. No new research contract is created.
 
-### Flow Editor — `canvas/src/features/flow-editor-manager/`
+### Storyboard Widget — `canvas/src/features/storyboard-widget-manager/`
 
 The `showrunner` node type is registered as a `WidgetRegistryEntry` in `showrunnerFlowNode.ts`.
 It follows the same `nodeTypeId` / port pattern as `SwarmPrediction` and `TextGeneration` nodes.
-The registration is exported and imported by the Flow Editor manager's registry loader.
+The registration is exported and imported by the Storyboard Widget manager's registry loader.
 
 
 ## State Machine — Pipeline_Run Lifecycle
@@ -566,7 +566,7 @@ stateDiagram-v2
   note right of awaiting_review
     Approval gate event surfaced via
     existing token-budget approval-gate
-    primitive in Flow Editor
+    primitive in Storyboard Widget
   end note
 
   note right of failed
@@ -702,7 +702,7 @@ sequenceDiagram
   Orch->>SF: persist choice-graph.md (updated)
   SF-->>Orch: ok
 
-  Note over Orch,SF: Strytree and flowEditor renderers\npick up the updated choice-graph.md\nwithout a showrunner-specific renderer
+  Note over Orch,SF: Strytree and Storyboard projections\npick up the updated choice-graph.md\nwithout a showrunner-specific renderer
 ```
 
 ### Writers' Room Session
@@ -793,7 +793,7 @@ The `CostLogEntry` records `estimated: true`. No provider-specific cost formula 
 
 The orchestrator emits a `BUDGET_GATE` lifecycle event via `pipelineRunLifecycle.ts` when
 `token_budget_remaining < estimated_tokens_for_next_turn`. The existing approval-gate primitive
-in `canvas/src/features/token-budget/` surfaces this as an approval widget in the Flow Editor.
+in `canvas/src/features/token-budget/` surfaces this as an approval widget in the Storyboard Widget.
 The orchestrator only resumes on `APPROVE`.
 
 

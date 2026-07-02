@@ -3,16 +3,16 @@ import * as d3 from 'd3'
 
 import {
   cancelFlowZoomRequestAnim,
-  collectFlowEditorOverlayBounds,
-  resolveFlowEditorVisibleViewport,
+  collectStoryboardWidgetOverlayBounds,
+  resolveStoryboardWidgetVisibleViewport,
 } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { __flowCanvasDebug, resetFlowCanvasDebugStatus, syncFlowCanvasDebugToast } from '@/components/FlowCanvas/flowCanvasDebug'
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
-import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
+import { fitStoryboardWidgetPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readStoryboardWidgetPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import {
   createFlowNativeRuntime,
@@ -28,17 +28,17 @@ import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { buildFlowCanvasNativeSceneKey } from '@/components/FlowCanvas/flowCanvasNativeSceneKey'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
-import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
-import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
 import {
@@ -49,16 +49,17 @@ import {
   buildWorkspaceVisibleViewportFitRecoveryKey,
   computeWorkspaceOverlayVisibleViewportFitTransform,
   deriveFlowOverlayCollectiveViewportState,
-  FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
+  STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
+import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 
 export function useFlowCanvasRuntime(args: {
   active: boolean
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   allowNodeDragOverride?: boolean
   collisionDuringDrag: boolean
   viewportControlsPreset: ViewportControlsPreset
-  flowEditorSelectionOnDrag: boolean
+  storyboardWidgetSelectionOnDrag: boolean
   canvas2dRenderer: string
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>
   runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>
@@ -99,7 +100,7 @@ export function useFlowCanvasRuntime(args: {
   forbidCircleNodes: boolean
   graphDataForZoom: any
   graphDataForZoomRequests: any
-  flowEditorReservedW: number
+  storyboardWidgetReservedW: number
   openWidgetNodeIds: string[]
   flowWidgetPinnedByNodeId: Record<string, boolean>
   flowWidgetWorldPosByNodeId: Record<string, { x: number; y: number }>
@@ -117,7 +118,7 @@ export function useFlowCanvasRuntime(args: {
     allowNodeDragOverride,
     collisionDuringDrag,
     viewportControlsPreset,
-    flowEditorSelectionOnDrag,
+    storyboardWidgetSelectionOnDrag,
     canvas2dRenderer,
     canvasRef,
     runtimeRef,
@@ -157,7 +158,7 @@ export function useFlowCanvasRuntime(args: {
     forbidCircleNodes,
     graphDataForZoom,
     graphDataForZoomRequests,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     openWidgetNodeIds,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -170,7 +171,7 @@ export function useFlowCanvasRuntime(args: {
     zoomToSelectionMode,
     viewPinned,
   } = args
-  void flowEditorReservedW
+  void storyboardWidgetReservedW
   const frontmatterFlowInitialFitFillRatio = useGraphStore(s => s.frontmatterFlowInitialFitFillRatio)
   const frontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScalePhone)
   const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
@@ -178,6 +179,7 @@ export function useFlowCanvasRuntime(args: {
   const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
   const viewportFitReferenceWidth = useGraphStore(s => s.viewportFitReferenceWidth)
   const viewportFitReferenceHeight = useGraphStore(s => s.viewportFitReferenceHeight)
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
     phone: frontmatterFlowOverlayFitProxyScalePhone,
@@ -213,7 +215,7 @@ export function useFlowCanvasRuntime(args: {
   const isFiniteZoomTransform = (t: d3.ZoomTransform | null | undefined): t is d3.ZoomTransform =>
     !!t && Number.isFinite(t.k) && Number.isFinite(t.x) && Number.isFinite(t.y)
   const resolveVisibleFlowViewportWidth = React.useCallback(() => {
-    if (String(canvas2dRenderer || '') !== 'flowEditor') {
+    if (String(canvas2dRenderer || '') !== 'storyboard') {
       return {
         left: 0,
         top: 0,
@@ -225,8 +227,8 @@ export function useFlowCanvasRuntime(args: {
         centerY: viewportH / 2,
       }
     }
-    const surfaceViewport = resolveFlowEditorVisibleViewport({
-      flowEditorSurfaceId: args.flowEditorSurfaceId,
+    const surfaceViewport = resolveStoryboardWidgetVisibleViewport({
+      storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
       viewportW,
       viewportH,
     })
@@ -240,7 +242,7 @@ export function useFlowCanvasRuntime(args: {
       centerX: Math.max(0, Math.min(viewportW, surfaceViewport.centerX)),
       centerY: Math.max(0, Math.min(viewportH, surfaceViewport.centerY)),
     }
-  }, [args.flowEditorSurfaceId, canvas2dRenderer, viewportH, viewportW])
+  }, [args.storyboardWidgetSurfaceId, canvas2dRenderer, viewportH, viewportW])
   const remapTransformToVisibleViewport = React.useCallback(
     (
       t: { k: number; x: number; y: number },
@@ -389,13 +391,13 @@ export function useFlowCanvasRuntime(args: {
     if (workspaceVisibleViewportFitRecoveryKeyRef.current === recoveryKey) return false
     workspaceVisibleViewportFitRecoveryKeyRef.current = recoveryKey
     const current = runtime.transform || d3.zoomIdentity
-    const [schemaMinK, schemaMaxK] = schema ? readZoomScaleExtent(schema) : [0.000001, FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE]
+    const [schemaMinK, schemaMaxK] = schema ? readZoomScaleExtent(schema) : [0.000001, STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE]
     const nextTransform = computeWorkspaceOverlayVisibleViewportFitTransform({
       current,
       overlayBounds,
       visibleViewport,
       scaleExtent: [schemaMinK, schemaMaxK],
-      maxVisualScale: FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
+      maxVisualScale: STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
     })
     if (!nextTransform) return false
     const next = d3.zoomIdentity.translate(nextTransform.x, nextTransform.y).scale(nextTransform.k)
@@ -412,7 +414,7 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (String(canvas2dRenderer || '') !== 'storyboard') return
     const open = workspaceEditorOverlayOpen === true
     const prev = workspaceOverlayOpenPrevRef.current
     if (open && !prev) {
@@ -437,7 +439,7 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportStableTicksRef.current = 0
       workspaceDeferredDrawPendingRef.current = false
       workspaceVisibleViewportFitRecoveryKeyRef.current = null
-      // Keep the initialized Flow Editor transform through close. Reopen owns the
+      // Keep the initialized Storyboard Widget transform through close. Reopen owns the
       // fresh-fit reset; closing must not trigger a canvas-side refit.
       resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
@@ -447,7 +449,7 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (String(canvas2dRenderer || '') !== 'storyboard') return
     if (workspaceEditorOverlayOpen !== true) return
     const prev = workspaceOverlayZoomViewKeyRef.current
     if (prev != null && prev !== zoomViewKey) {
@@ -494,7 +496,7 @@ export function useFlowCanvasRuntime(args: {
     return userInteractionAfterWorkspaceOpen
   }, [lastPointerInCanvasRef, lastUserInteractionAtMsRef, workspaceEditorOverlayOpen])
   const shouldDeferWorkspaceOpenDraw = React.useCallback((): boolean => {
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return false
+    if (String(canvas2dRenderer || '') !== 'storyboard') return false
     if (workspaceEditorOverlayOpen !== true) return false
     const visibleViewport = resolveVisibleFlowViewportWidth()
     if (isWorkspaceVisibleViewportSettled(visibleViewport)) {
@@ -515,13 +517,13 @@ export function useFlowCanvasRuntime(args: {
     workspaceEditorOverlayOpen,
   ])
   const shouldSuppressWorkspacePreInitDraw = React.useCallback((): boolean => {
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return false
+    if (String(canvas2dRenderer || '') !== 'storyboard') return false
     if (workspaceEditorOverlayOpen !== true) return false
     if (lastInitTransformZoomViewKeyRef.current === zoomViewKey) return false
     const hasRenderableGraphNodes =
       Array.isArray(graphDataForZoomRequests?.nodes)
       && graphDataForZoomRequests.nodes.length > 0
-    const frontmatterDocumentModeRequested = isFlowEditorFrontmatterDocumentModeRequested({
+    const frontmatterDocumentModeRequested = isStoryboardWidgetFrontmatterDocumentModeRequested({
       canvas2dRenderer,
       frontmatterModeEnabled,
       documentSemanticMode,
@@ -544,7 +546,7 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (String(canvas2dRenderer || '') !== 'storyboard') return
     if (workspaceEditorOverlayOpen !== true) return
     if (!workspaceDeferredDrawPendingRef.current) return
     if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return
@@ -576,15 +578,15 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (String(canvas2dRenderer || '') !== 'storyboard') return
     if (workspaceEditorOverlayOpen !== true) return
     if (typeof window === 'undefined') return
     const onInteractionFrame = () => {
       setWorkspaceOverlayInteractionFrameTick(prev => (prev + 1) % 1000000)
     }
-    window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame)
+    window.addEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT, onInteractionFrame)
     return () => {
-      window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame)
+      window.removeEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT, onInteractionFrame)
     }
   }, [active, canvas2dRenderer, workspaceEditorOverlayOpen])
 
@@ -600,7 +602,7 @@ export function useFlowCanvasRuntime(args: {
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime) return
-    if (canvas2dRenderer !== 'flowEditor') {
+    if (canvas2dRenderer !== 'storyboard') {
       setFlowAutoMinScale(runtime, null)
       return
     }
@@ -620,7 +622,7 @@ export function useFlowCanvasRuntime(args: {
       frontmatterFlowInitialFitFillRatio,
     })
     const visibleViewport = resolveVisibleFlowViewportWidth()
-    const fit = fitFlowEditorPinnedWidgets({
+    const fit = fitStoryboardWidgetPinnedWidgets({
       nodes,
       fitW: Math.max(1, visibleViewport.width),
       viewportH: Math.max(1, visibleViewport.height),
@@ -628,10 +630,11 @@ export function useFlowCanvasRuntime(args: {
       openWidgetNodeIds,
       pinnedById: flowWidgetPinnedByNodeId || {},
       worldPosById: fitWorldPosById,
-      portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
+      portExtraPadScreenPx: readStoryboardWidgetPortExtraPadScreenPx(schema),
       graphData: graphDataForZoomRequests,
       fitOpts: opts,
       frontmatterOverlayFitProxyScales,
+      readOverlayPanelSize: node => readStoryboardCardSize2d(node, strybldrStoryboardCardAspectMode),
     })
     setFlowAutoMinScale(runtime, typeof fit?.k === 'number' && fit.k > 0 ? fit.k : null)
   }, [
@@ -639,7 +642,7 @@ export function useFlowCanvasRuntime(args: {
     canvas2dRenderer,
     documentSemanticMode,
     documentStructureBaselineLock,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     fitWorldPosById,
@@ -652,6 +655,7 @@ export function useFlowCanvasRuntime(args: {
     runtimeRef,
     resolveVisibleFlowViewportWidth,
     schema,
+    strybldrStoryboardCardAspectMode,
     viewportH,
     viewportW,
   ])
@@ -725,8 +729,8 @@ export function useFlowCanvasRuntime(args: {
   }, [zoomViewKey])
 
   React.useEffect(() => {
-    const isFlowEditorActive = active && String(canvas2dRenderer || '') === 'flowEditor'
-    syncFlowCanvasDebugToast({ enabled: isFlowEditorActive })
+    const storyboardWidgetActive = active && String(canvas2dRenderer || '') === 'storyboard'
+    syncFlowCanvasDebugToast({ enabled: storyboardWidgetActive })
   }, [active, canvas2dRenderer])
 
   React.useEffect(() => {
@@ -734,19 +738,19 @@ export function useFlowCanvasRuntime(args: {
     const runtime = runtimeRef.current
     const graphDataForFit = graphDataForZoomRequests || graphDataForZoom || sceneGraphData || null
     if (!runtime || !graphDataForFit) return
-    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
     if (documentSemanticMode === 'keyword') {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
       if (meta?.pending === true) return
     }
-    const flowEditorLayoutSignature = isFlowEditor ? buildOverlayTopologyLayoutSignature(graphDataForFit) : ''
-    const initKey = isFlowEditor ? `flowEditor:${flowEditorLayoutSignature}` : zoomViewKey
+    const storyboardWidgetLayoutSignature = storyboardWidgetMode ? buildOverlayTopologyLayoutSignature(graphDataForFit) : ''
+    const initKey = storyboardWidgetMode ? `storyboardWidget:${storyboardWidgetLayoutSignature}` : zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const current = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = current.k !== 1 || current.x !== 0 || current.y !== 0
     if (hasWorkspaceCanvasUserInteractionAfterOpen()) workspaceOverlayUserControlledRef.current = true
     if (
-      isFlowEditor
+      storyboardWidgetMode
       && workspaceEditorOverlayOpen === true
       && hasNonIdentityTransform
       && (alreadyInitializedForKey || workspaceOverlayUserControlledRef.current)
@@ -767,7 +771,7 @@ export function useFlowCanvasRuntime(args: {
     ) return
 
     const state = useGraphStore.getState()
-    if (isFlowEditor && isWorkspaceGraphMutationBlocked(state)) return
+    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return
     const zoomState = pickZoomStateForView({
       zoomViewKey,
       zoomStateByKey: state.zoomStateByKey,
@@ -782,14 +786,14 @@ export function useFlowCanvasRuntime(args: {
       nextViewportW: viewportW,
       nextViewportH: viewportH,
     })
-    const lateFlowEditorInitAfterSceneBuild =
-      isFlowEditor &&
+    const lateStoryboardWidgetInitAfterSceneBuild =
+      storyboardWidgetMode &&
       !alreadyInitializedForKey &&
       !hasNonIdentityTransform &&
       initial == null &&
       lastBuiltGraphKeyRef.current.length > 0
-    if (lateFlowEditorInitAfterSceneBuild) {
-      // The scene can build before the Flow Editor zoom key is initialized.
+    if (lateStoryboardWidgetInitAfterSceneBuild) {
+      // The scene can build before the Storyboard Widget zoom key is initialized.
       // Continue into fit so the first visible frame does not stay frozen at identity.
       void lastBuiltGraphKeyRef
     }
@@ -803,7 +807,7 @@ export function useFlowCanvasRuntime(args: {
       enableDocumentStructureBounds: false,
     })
     const nodesForFit = Array.isArray(graphDataForFit?.nodes) ? graphDataForFit.nodes : []
-    if (isFlowEditor && nodesForFit.length === 0) return
+    if (storyboardWidgetMode && nodesForFit.length === 0) return
     const visibleViewportFit = resolveVisibleFlowViewportWidth()
     if (!isWorkspaceVisibleViewportSettled(visibleViewportFit)) {
       if (workspaceEditorOverlayOpen === true) {
@@ -827,8 +831,8 @@ export function useFlowCanvasRuntime(args: {
     const canUseFrontmatterCollectiveInitFit =
       String(initFitGraphMeta.kind || '').trim() === 'frontmatter-flow'
       || initFitGraphContext === 'frontmatter-flow'
-    const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []
-    const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0
+    const collectiveOverlayFitIds = storyboardWidgetMode ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []
+    const hasCollectiveFlowWidgets = storyboardWidgetMode && collectiveOverlayFitIds.length > 0
     const canUseCollectiveInitFit = hasCollectiveFlowWidgets || canUseFrontmatterCollectiveInitFit
     const hasUsableCollectiveWidgetWorldPos = hasCollectiveFlowWidgets && collectiveOverlayFitIds.some(rawId => {
       const id = String(rawId || '').trim()
@@ -846,7 +850,7 @@ export function useFlowCanvasRuntime(args: {
           }, { ...(flowWidgetPinnedByNodeId || {}) })
         : (flowWidgetPinnedByNodeId || {})
     const useD3StyleInitFit =
-      isFlowEditor
+      storyboardWidgetMode
       && workspaceEditorOverlayOpen === true
       && (
         !canUseCollectiveInitFit
@@ -856,11 +860,11 @@ export function useFlowCanvasRuntime(args: {
           && !hasUsableCollectiveWidgetWorldPos
         )
       )
-    const fit = isFlowEditor
+    const fit = storyboardWidgetMode
       ? (
         useD3StyleInitFit
           ? fitAllTransform(nodesForFit, fitW, fitH, { ...opts, graphData: graphDataForFit || undefined })
-          : fitFlowEditorPinnedWidgets({
+          : fitStoryboardWidgetPinnedWidgets({
               nodes: nodesForFit,
               fitW,
               viewportH: fitH,
@@ -868,14 +872,15 @@ export function useFlowCanvasRuntime(args: {
               openWidgetNodeIds,
               pinnedById: effectivePinnedByIdForInitFit,
               worldPosById: fitWorldPosById,
-              portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(state.schema),
+              portExtraPadScreenPx: readStoryboardWidgetPortExtraPadScreenPx(state.schema),
               graphData: graphDataForFit,
               fitOpts: opts,
               frontmatterOverlayFitProxyScales,
+              readOverlayPanelSize: node => readStoryboardCardSize2d(node, strybldrStoryboardCardAspectMode),
             })
       )
       : fitAllTransform(nodesForFit, fitW, fitH, { ...opts, graphData: graphDataForFit || undefined })
-    const fitSeed = isFlowEditor
+    const fitSeed = storyboardWidgetMode
       ? {
           k: fit.k,
           x: fit.x + (useD3StyleInitFit ? 0 : visibleViewportFit.left),
@@ -884,7 +889,7 @@ export function useFlowCanvasRuntime(args: {
       : fit
     const isReusableFlowTransform = (t: d3.ZoomTransform | null | undefined): boolean => {
       if (!isFiniteZoomTransform(t)) return false
-      if (isFlowEditor) return true
+      if (storyboardWidgetMode) return true
       return isFlowTransformShowingGraph(
         { k: t.k, x: t.x, y: t.y },
         {
@@ -896,8 +901,8 @@ export function useFlowCanvasRuntime(args: {
         },
       )
     }
-    if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return
-    if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
+    if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return
+    if (!storyboardWidgetMode && alreadyInitializedForKey && hasNonIdentityTransform) return
     const preserveCurrentTransform =
       !fitToScreenMode &&
       !zoomToSelectionMode &&
@@ -926,7 +931,7 @@ export function useFlowCanvasRuntime(args: {
     documentSemanticMode,
     documentStructureBaselineLock,
     fitToScreenMode,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     flowConfigEffective.node.heightPx,
     flowConfigEffective.node.widthPx,
     flowWidgetPinnedByNodeId,
@@ -934,6 +939,7 @@ export function useFlowCanvasRuntime(args: {
     viewportFitReferenceHeight,
     viewportFitReferenceWidth,
     frontmatterModeEnabled,
+    strybldrStoryboardCardAspectMode,
     graphDataForZoom,
     graphDataForZoomRequests,
     graphDataRevision,
@@ -962,18 +968,18 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    if (String(canvas2dRenderer || '') !== 'flowEditor') return
+    if (String(canvas2dRenderer || '') !== 'storyboard') return
     const overlayOpen = workspaceEditorOverlayOpen === true
     const runtime = runtimeRef.current
     const scene = runtime?.scene
     if (!runtime) return
 
-    const surfaceViewport = resolveFlowEditorVisibleViewport({
-      flowEditorSurfaceId: args.flowEditorSurfaceId,
+    const surfaceViewport = resolveStoryboardWidgetVisibleViewport({
+      storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
       viewportW,
       viewportH,
     })
-    const overlayBounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
+    const overlayBounds = collectStoryboardWidgetOverlayBounds(String(args.storyboardWidgetSurfaceId || ''))
     const overlayCollectiveState = deriveFlowOverlayCollectiveViewportState({
       bounds: overlayBounds,
       visibleViewport: surfaceViewport,
@@ -1090,7 +1096,7 @@ export function useFlowCanvasRuntime(args: {
     if (workspaceEditorOverlayOpen && collectiveVisible && (collectiveBalanced || collectiveCentered)) workspaceOverlayStabilizedRef.current = true
   }, [
     active,
-    args.flowEditorSurfaceId,
+    args.storyboardWidgetSurfaceId,
     buildDrawArgs,
     canvas2dRenderer,
     documentSemanticMode,
@@ -1198,11 +1204,11 @@ export function useFlowCanvasRuntime(args: {
     if (!runtime || !canvasEl) return
     return bindFlowCanvasNativeInteractions({
       active,
-      flowEditorSurfaceId: args.flowEditorSurfaceId,
+      storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
       canvasEl,
       runtime,
       viewportControlsPreset,
-      selectionOnDrag: canvas2dRenderer === 'flowEditor' && flowEditorSelectionOnDrag === true,
+      selectionOnDrag: canvas2dRenderer === 'storyboard' && storyboardWidgetSelectionOnDrag === true,
       allowNodeDragOverride,
       collisionDuringDrag: computeCollisionDuringDrag({
         collisionDuringDrag: collisionDuringDrag === true,
@@ -1229,9 +1235,9 @@ export function useFlowCanvasRuntime(args: {
     buildDrawArgs,
     canvas2dRenderer,
     canvasRef,
-    args.flowEditorSurfaceId,
+    args.storyboardWidgetSurfaceId,
     collisionDuringDrag,
-    flowEditorSelectionOnDrag,
+    storyboardWidgetSelectionOnDrag,
     handleInteractionFrame,
     requestCommit,
     requestSetSelectionBox,

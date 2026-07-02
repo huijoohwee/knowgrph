@@ -5,7 +5,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 
 export function buildActive2dZoomViewKey(args: {
@@ -30,10 +30,10 @@ export function buildActive2dZoomViewKey(args: {
   const documentSemanticMode = String(args.documentSemanticMode || '')
   const frontmatterModeEnabled = args.frontmatterModeEnabled === true
   const multiDimTableModeEnabled = args.multiDimTableModeEnabled === true
-  const flowEditorStandalone = isFlowEditorCanvas2dRenderer(canvas2dRenderer as any)
+  const storyboardStandalone = isStoryboardCanvas2dRenderer(canvas2dRenderer as any)
   const graphKind = String(((graphData?.metadata || {}) as Record<string, unknown>).kind || '').trim()
 
-  const effectiveFrontmatter = flowEditorStandalone
+  const effectiveFrontmatter = storyboardStandalone
     ? graphKind === 'frontmatter-flow'
     : computeEffectiveFrontmatterMode({
         frontmatterModeEnabled,
@@ -53,7 +53,7 @@ export function buildActive2dZoomViewKey(args: {
     multiDimTableModeEnabled,
     documentSemanticMode,
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
-    flowEditorStandalone,
+    storyboardStandalone,
   }).documentSemanticModeKey
 
   const base = buildZoomViewKey({

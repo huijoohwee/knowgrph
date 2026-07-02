@@ -9,7 +9,7 @@
 
 ## Document Purpose
 
-**Context**: DeerFlow integration spans MainPanel settings, Flow Editor templates, rich-media runtime dispatch, gateway artifact handling, and workspace URL import.
+**Context**: DeerFlow integration spans MainPanel settings, Storyboard Widget templates, rich-media runtime dispatch, gateway artifact handling, and workspace URL import.
 
 **Intent**: Keep all DeerFlow behavior rooted in shared owners and prevent provider-specific UI forks, renderer branches, local path hardcoding, or stale unshipped-mode contract claims.
 
@@ -24,9 +24,9 @@
 | Contract ID | Name | Producer | Consumer | Status |
 |---|---|---|---|---|
 | DFI-C001 | Settings Row Contract | `deerflowApiDocs.ts` | MainPanel Settings | Shipped |
-| DFI-C002 | Anchor Link Contract | `getDeerFlowApiRowAnchorId()` | Flow Editor links, MainPanel search | Shipped |
-| DFI-C003 | Provider Normalization Contract | `chatEndpoint.ts` | chat, Flow Editor, rich-media runtime | Shipped |
-| DFI-C004 | Text Widget Registry Contract | `registryTemplates.ts` | Flow Editor Manager | Shipped |
+| DFI-C002 | Anchor Link Contract | `getDeerFlowApiRowAnchorId()` | Storyboard Widget links, MainPanel search | Shipped |
+| DFI-C003 | Provider Normalization Contract | `chatEndpoint.ts` | chat, Storyboard Widget, rich-media runtime | Shipped |
+| DFI-C004 | Text Widget Registry Contract | `registryTemplates.ts` | Storyboard Widget Manager | Shipped |
 | DFI-C005 | Rich-Media Dispatch Contract | `richMediaRun.ts` | image/video generation nodes | Shipped |
 | DFI-C006 | Gateway Run Adapter Contract | `deerflowRunGeneration.ts` | DeerFlow `/api/runs/stream` | Shipped |
 | DFI-C007 | URL Import Manifest Contract | `deerflowUrlImport.ts` | Source Files workspace | Shipped |
@@ -53,7 +53,7 @@ type DeerFlowAnchorId = `deerflow-api-row-${string}`;
 
 Rules:
 - Anchor ids are produced by `getDeerFlowApiRowAnchorId(rowKey)`.
-- Flow Editor links resolve row keys through `mapOpenAiRowKeyToDeerFlowRowKey()`.
+- Storyboard Widget links resolve row keys through `mapOpenAiRowKeyToDeerFlowRowKey()`.
 - Links must target MainPanel Integrations, not a DeerFlow-only panel.
 
 ## DFI-C003: Provider Normalization Contract
@@ -120,7 +120,7 @@ type DeerFlowInspirationUse = "conceptual-reference-only";
 Rules:
 - Use DeerFlow only to inform neutral primitives such as message gateway, memory, tools, skills, subagents, sandboxed workspace artifacts, and long-horizon run boundaries.
 - Implement Knowgrph harness behavior in `knowgrph_parser` and local MCP owners before documenting it as shipped.
-- Keep Flow Editor, Rich Media Panel, KGC apply, Source Files, and chat owners provider-neutral.
+- Keep Storyboard Widget, Rich Media Panel, KGC apply, Source Files, and chat owners provider-neutral.
 
 ---
 
@@ -191,7 +191,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Flow as Flow Editor
+    participant Flow as Storyboard Widget
     participant Runtime as richMediaRun.ts
     participant Adapter as deerflowRunGeneration.ts
     participant Gateway as DeerFlow Gateway

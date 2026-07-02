@@ -53,5 +53,5 @@ export const GRAPH_DATA_LS_PERSIST_MAX_EDGES = 35_000
 export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';
-export * from './config.flow-editor';
+export * from './config.storyboard-widget';
 export * from './config.viewport-controls';

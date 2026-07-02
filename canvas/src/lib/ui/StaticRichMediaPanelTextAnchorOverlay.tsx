@@ -61,7 +61,7 @@ export function StaticRichMediaPanelTextAnchorOverlay(props: {
           title={props.title}
           url=""
           kind="iframe"
-          panelChrome="flowEditor"
+          panelChrome="storyboardWidget"
           interactive={false}
           panel={panel}
           style={panelStyle}

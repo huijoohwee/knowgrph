@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import {
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
@@ -12,11 +12,11 @@ import {
   FLOW_SWARM_PREDICTION_FORM_ID,
   FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
   FLOW_SWARM_PREDICTION_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/swarmPredictionWidget'
 
 export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
-  const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowDataflow.ts')
   const text = readFileSync(filePath, 'utf8')
   if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
     throw new Error('expected flow dataflow to reuse the shared node properties reader upstream')

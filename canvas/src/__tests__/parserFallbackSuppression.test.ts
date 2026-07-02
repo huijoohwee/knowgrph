@@ -87,7 +87,7 @@ export async function testBestMatchPrefersMarkdownForStructuredGeoMarkdownOnFirs
     const text = [
       '---',
       'kgCanvasSurfaceMode: "geospatial"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       '---',
       '',
       '| Name | Coordinates (`lat, lng`) |',

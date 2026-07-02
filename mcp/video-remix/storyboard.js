@@ -34,7 +34,7 @@ function buildStoryboardMarkdown({ runId, referenceUrl, brief, shots }) {
     "---",
     'kgSchema: "kgc-computing-flow/v1"',
     'kgCanvasSurfaceMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     `title: "Video Remix Storyboard - ${runId}"`,
     `referenceUrl: "${referenceUrl}"`,
     "flow:",

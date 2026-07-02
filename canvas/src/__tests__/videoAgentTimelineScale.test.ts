@@ -121,7 +121,7 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
   }
   for (const token of [
     'shouldRetainVideoSequenceFloatingPanelView',
-    "new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])",
+    "new Set(['timeline', 'flowchart', 'gantt', 'storyboardWidget'])",
     '!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)',
     'videoSequenceModel?.enabled',
     '!timelineCode && ganttCode',

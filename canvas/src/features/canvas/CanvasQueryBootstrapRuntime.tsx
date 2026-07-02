@@ -1,6 +1,6 @@
 import React from 'react'
 import { emitMainPanelOpen, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
-import { QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_URL, QUERY_PARAM_WORKSPACE_COMMAND } from '@/lib/routing/queryParams'
+import { QUERY_PARAM_DEV_STORYBOARD_WIDGET_GEOMETRY, QUERY_PARAM_OPEN_MAIN_PANEL, QUERY_PARAM_SHARE, QUERY_PARAM_SHARE_TEXT, QUERY_PARAM_SHARE_TITLE, QUERY_PARAM_SHARE_URL, QUERY_PARAM_WORKSPACE_COMMAND } from '@/lib/routing/queryParams'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyGraphDataCanonicalBootstrap } from '@/features/parsers/applyGraphDataCanonicalBootstrap'
 import {
@@ -10,7 +10,7 @@ import {
 import type { FeishuBaseSourceImportCommand } from '@/features/source-files/feishuBaseSourceImportCommand'
 import type { FeishuBaseSourceImportRequest } from '@/features/source-files/feishuBaseSourceImportContract'
 
-const buildDevFlowEditorGeometryGraph = () => ({
+const buildDevStoryboardWidgetGeometryGraph = () => ({
   type: 'Graph' as const,
   nodes: [
     { id: 'dev-widget-1', label: 'Dev Widget 1', type: 'Anchor', x: 0, y: 0, properties: {} },
@@ -22,14 +22,14 @@ const buildDevFlowEditorGeometryGraph = () => ({
       x: 0,
       y: 0,
       properties: {
-        imageUrl: 'https://example.com/dev-flow-editor-geometry.png',
+        imageUrl: 'https://example.com/dev-storyboard-widget-geometry.png',
         'visual:width': 240,
         'visual:height': 180,
       },
     },
   ],
   edges: [],
-  metadata: { kind: 'test', source: 'devFlowEditorGeometry' },
+  metadata: { kind: 'test', source: 'devStoryboardWidgetGeometry' },
 })
 
 type WorkspaceCommandQueryPayload = {
@@ -118,7 +118,7 @@ export function CanvasQueryBootstrapRuntime(props: {
 }) {
   const { search } = props
   const openedMainPanelFromQueryRef = React.useRef(false)
-  const appliedDevFlowEditorGeometryRef = React.useRef(false)
+  const appliedDevStoryboardWidgetGeometryRef = React.useRef(false)
   const handledWorkspaceCommandRef = React.useRef('')
   const handledLarkHandoffRef = React.useRef('')
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
@@ -203,22 +203,22 @@ export function CanvasQueryBootstrapRuntime(props: {
   }, [search])
 
   React.useEffect(() => {
-    if (appliedDevFlowEditorGeometryRef.current) return
+    if (appliedDevStoryboardWidgetGeometryRef.current) return
     const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
     if (!anyImportMeta.env?.DEV) return
     const raw = String(search || '')
     if (!raw) return
     const params = new URLSearchParams(raw)
-    if (!String(params.get(QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY) || '').trim()) return
-    appliedDevFlowEditorGeometryRef.current = true
+    if (!String(params.get(QUERY_PARAM_DEV_STORYBOARD_WIDGET_GEOMETRY) || '').trim()) return
+    appliedDevStoryboardWidgetGeometryRef.current = true
     try {
-      applyGraphDataCanonicalBootstrap({ graphData: buildDevFlowEditorGeometryGraph() })
+      applyGraphDataCanonicalBootstrap({ graphData: buildDevStoryboardWidgetGeometryGraph() })
       setOpenWidgetNodeIds(['dev-widget-1', 'dev-widget-2'])
     } catch {
       void 0
     }
     try {
-      params.delete(QUERY_PARAM_DEV_FLOW_EDITOR_GEOMETRY)
+      params.delete(QUERY_PARAM_DEV_STORYBOARD_WIDGET_GEOMETRY)
       const next = params.toString()
       const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
       window.history.replaceState(null, '', nextUrl)

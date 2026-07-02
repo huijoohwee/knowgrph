@@ -307,7 +307,7 @@ This keeps the system **token-free** for core ranking and produces explainable o
 
 ### 6.1 Where the widget lives
 
-Recommended: add as a **MainPanel → Maps tab section** (because it is inherently geospatial) and/or a Flow Editor widget node (for repeatable workflows).
+Recommended: add as a **MainPanel → Maps tab section** (because it is inherently geospatial) and/or a Storyboard Widget node (for repeatable workflows).
 
 MVP placement:
 

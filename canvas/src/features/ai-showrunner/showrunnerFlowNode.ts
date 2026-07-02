@@ -1,4 +1,4 @@
-import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { createShowrunnerOrchestrator } from './showrunnerOrchestrator'
 
 export const FLOW_SHOWRUNNER_NODE_TYPE_ID = 'showrunner' as const

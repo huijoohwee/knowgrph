@@ -1,6 +1,6 @@
-# knowgrph - Flow Editor Run All Sequence Reference (Runtime SSOT)
+# knowgrph - Storyboard Widget Run All Sequence Reference (Runtime SSOT)
 
-App SSOT entrypoint: `canvas/src/lib/flowEditor/runAllSequenceSsot.ts`
+App SSOT entrypoint: `canvas/src/lib/storyboardWidget/runAllSequenceSsot.ts`
 Generated file: `docs/documents/knowgrph-flow-run-all-reference.md`.
 
 Validation fixture: pass an operator-owned Markdown file explicitly; do not default to sibling sandbox demo paths.
@@ -18,7 +18,7 @@ Run-order policy:
 - Prioritize scene images that feed video reference edges before other scene images.
 
 Computing-flow policy:
-- Run All reads connected widget inputs through the shared Flow Editor computing-flow helpers, not through renderer-local DOM state.
+- Run All reads connected widget inputs through the shared Storyboard Widget computing-flow helpers, not through renderer-local DOM state.
 - Each phase consumes and emits values by semantic port key and normalized schema path; duplicate visible labels must not collapse ports, fields, or connected values.
 - Empty `null` / `undefined` branch outputs are stop signals and must not be forwarded to downstream phases.
-- Generated widget outputs write into existing graph nodes only. Run All must not rewrite Flow Editor layout, rich-media panel frames, or edge topology while computing.
+- Generated widget outputs write into existing graph nodes only. Run All must not rewrite Storyboard Widget layout, rich-media panel frames, or edge topology while computing.

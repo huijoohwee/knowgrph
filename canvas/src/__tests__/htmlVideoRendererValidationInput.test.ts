@@ -12,7 +12,7 @@ import {
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { VIDEO_AGENT_REFERENCE_BOUNDARY } from '@/features/video-agent'
 import {

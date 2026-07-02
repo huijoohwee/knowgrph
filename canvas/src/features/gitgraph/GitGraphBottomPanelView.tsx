@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
-import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from './useMermaidGitGraphDocument'
 import { parseMermaidDiagramCodeModel } from '@/lib/mermaid/mermaidDiagramCode'
 import {
@@ -31,7 +31,7 @@ export function GitGraphBottomPanelView({
       setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey,
     })),
   )
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: model,
     kind: 'gitgraph',

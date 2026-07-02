@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { isUnsafeFlowComputeSource, readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { isUnsafeFlowComputeSource, readFlowComputeSource, runFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 
 const GITHUB_ROOT = path.resolve(process.cwd(), '..', '..')
 const DEMO_DOC_PATH = path.join(GITHUB_ROOT, 'huijoohwee', 'docs', 'knowgrph-agentic-canvas-os-demo.md')
@@ -44,7 +44,7 @@ const assertIncludes = (label: string, value: unknown, expected: string): void =
 export function testAgenticCanvasOsDemoRunsMarketToArtifactPipeline() {
   const markdown = readDemoMarkdown()
   const parsed = tryParseMarkdownFrontmatterFlowGraph(path.basename(DEMO_DOC_PATH), markdown)
-  if (!parsed) throw new Error('Expected agentic canvas OS demo to parse as a frontmatter Flow Editor graph')
+  if (!parsed) throw new Error('Expected agentic canvas OS demo to parse as a frontmatter Storyboard Widget graph')
 
   const nodes = parsed.graphData.nodes || []
   const edges = parsed.graphData.edges || []

@@ -1,4 +1,4 @@
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec, listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 
 export function testRichMediaPanelOverlayStateRecognizesGenericStoryboardMediaFields() {
@@ -34,6 +34,6 @@ export function testRichMediaPanelOverlayStateRecognizesGenericStoryboardMediaFi
     poolMax: 24,
   })
   if (storyboardOverlays.length !== 1 || storyboardOverlays[0]?.id !== genericStoryboardVideoNode.id) {
-    throw new Error(`expected Storyboard shared FlowEditor surface to render dropped Rich Media Panel overlays, got ${JSON.stringify(storyboardOverlays)}`)
+    throw new Error(`expected Storyboard shared StoryboardWidget surface to render dropped Rich Media Panel overlays, got ${JSON.stringify(storyboardOverlays)}`)
   }
 }

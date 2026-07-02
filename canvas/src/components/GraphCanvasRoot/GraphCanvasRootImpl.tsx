@@ -66,7 +66,7 @@ import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/me
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
-import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { isStoryboardWidgetSurfaceRenderer } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 const EMPTY_STRING_ARRAY: string[] = []
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null)
@@ -856,7 +856,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [richMedia])
 
   React.useEffect(() => {
-    if (isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)) return
+    if (isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)) return
     const preserveStoryboardOverlaySelection =
       canvas2dRenderer === 'storyboard'
       && Array.isArray(openWidgetNodeIds)

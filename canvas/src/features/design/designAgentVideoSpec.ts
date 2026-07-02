@@ -1,5 +1,5 @@
 import { HTML_VIDEO_ENGINE_IDS, type RenderSpec } from '@/features/html-video-renderer'
-import { FLOW_HTML_VIDEO_RENDERER_NODE_LABEL, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_HTML_VIDEO_RENDERER_NODE_LABEL, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { summarizeDesignTokens, type DesignTokenSummary } from './designTokenSummary'

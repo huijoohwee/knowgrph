@@ -67,7 +67,7 @@ The `## 📐 Layout Structure` section contains a single ` ```ascii` block.
   - optional light-weight edges between frames derived from DOM parent links, gated by graph size and depth to stay bounded.
 - Text and rich-media previews (headings/CTAs vs deep body copy, media placeholders for IMG/VIDEO/IFRAME/SVG/…) are driven by DOM signals but controlled by schema metadata, not by URL or site.
 - Presentation knobs are exposed as schema-only settings under `renderer:designWireframe` and surfaced via the Floating Panel "Design wireframe" section; the UI does not introduce new behavior beyond these metadata fields.
-- Webpage wireframe mode reuses the infinite canvas 2D viewport model (D3/Flow/Design/Flow Editor):
+- Webpage wireframe mode reuses the infinite canvas 2D viewport model (D3/Flow/Design/Storyboard Widget):
   - Collective fit/center is derived from the `webpageLayout` graph bounds (including frame dimensions) and cached by a shared schema-layout fingerprint.
   - Zoom view keys are per-renderer but share the same schema/layout fingerprint helper so switching D3↔Flow↔Design keeps layout SSOT while maintaining per-renderer zoom.
   - Design never falls back to the legacy non-webpage “frame grid” layout when a `webpageLayout` snapshot exists; when no snapshot is ready yet, Design shows a single placeholder frame (loading/error/idle) instead of a grid or empty canvas.

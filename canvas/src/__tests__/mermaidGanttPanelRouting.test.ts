@@ -304,12 +304,12 @@ export function testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload()
     'gantt',
   )
   if (!ganttCode.includes('URL to MP4 Agent Demo') || !ganttCode.includes('section Composition render')) {
-    throw new Error('expected parsed Flow Editor graph data_json timelineTracks to resolve as Gantt code')
+    throw new Error('expected parsed Storyboard Widget graph data_json timelineTracks to resolve as Gantt code')
   }
   const model = parseMermaidDiagramCodeModel(ganttCode, 'gantt')
   const rows = model.rows.filter(row => row.kind === 'task')
   if (rows.length !== 5 || !rows.some(row => row.label === 'Animate HTML')) {
-    throw new Error(`expected neutral Flow Editor timeline payload to expose five Gantt task rows, got ${JSON.stringify(rows)}`)
+    throw new Error(`expected neutral Storyboard Widget timeline payload to expose five Gantt task rows, got ${JSON.stringify(rows)}`)
   }
 }
 

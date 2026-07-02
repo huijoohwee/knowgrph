@@ -74,7 +74,7 @@ export function applyImportedJsonToStore(args: {
   fallbackFenceLang?: 'json' | 'jsonld'
   sourceUrl: string | null
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'>
-  preferFlowEditor?: boolean
+  preferStoryboardWidget?: boolean
   applyToGraph?: boolean
 }): void {
   const name = String(args.name || '').trim()
@@ -83,7 +83,7 @@ export function applyImportedJsonToStore(args: {
   if (!name) return
 
   const state = useGraphStore.getState()
-  const applyWorkspaceTarget = () => applyJsonImportWorkspaceTarget({ preferFlowEditor: args.preferFlowEditor === true })
+  const applyWorkspaceTarget = () => applyJsonImportWorkspaceTarget({ preferStoryboardWidget: args.preferStoryboardWidget === true })
   const applyToGraph = args.applyToGraph !== false
   if (!trimmed) {
     void state

@@ -1,5 +1,5 @@
 import { UI_COPY } from '@/lib/config'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.storyboard-widget'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { normalizeImportName, promptForUrl } from './ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
@@ -60,7 +60,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           text: String(res.input.text || ''),
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
           sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
-          preferFlowEditor: hasWidgetRegistry,
+          preferStoryboardWidget: hasWidgetRegistry,
           applyToGraph: false,
         })
       },

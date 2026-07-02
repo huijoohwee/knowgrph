@@ -24,8 +24,8 @@ import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridCon
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
-import { resolveFlowEditorFocusedEdgeIds } from '@/lib/flowEditor/flowEditorPortRows'
-import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { resolveStoryboardWidgetFocusedEdgeIds } from '@/lib/storyboardWidget/storyboardWidgetPortRows'
+import { isStoryboardWidgetSurfaceRenderer } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 export { pickGraphDataForFlowRenderer }
@@ -44,7 +44,7 @@ export default function FlowCanvas({
   hideNodeIds,
   hidePortHandleNodeIds,
   excludeRichMediaOverlayNodeIds,
-  flowEditorSurfaceId,
+  storyboardWidgetSurfaceId,
   forbidCircleNodes = false,
 }: FlowCanvasProps) {
   const containerRef = React.useRef<HTMLElement>(null)
@@ -65,9 +65,9 @@ export default function FlowCanvas({
     hideNodeIds: undefined,
     hidePortHandleNodeIds: undefined,
     grid: null,
-    flowEditorWidgetOpenNodeIds: undefined,
-    flowEditorWidgetPinnedByNodeId: undefined,
-    flowEditorWidgetWorldPosByNodeId: undefined,
+    storyboardWidgetOpenNodeIds: undefined,
+    storyboardWidgetPinnedByNodeId: undefined,
+    storyboardWidgetWorldPosByNodeId: undefined,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -104,7 +104,7 @@ export default function FlowCanvas({
     canvas2dRenderer,
     infiniteCanvasInteractionMode,
     viewportControlsPreset,
-    flowEditorSelectionOnDrag,
+    storyboardWidgetSelectionOnDrag,
     setLayoutPositionsForMode,
     graphDataRevision: baseGraphDataRevision,
     viewPinned,
@@ -137,8 +137,8 @@ export default function FlowCanvas({
     graphDataRevision,
     allowMutations,
     effectiveFrontmatter,
-    flowEditorFrontmatterInteractionMode,
-    flowEditorOverlayInteractionMode,
+    storyboardWidgetFrontmatterInteractionMode,
+    storyboardWidgetOverlayInteractionMode,
     filteredGraphDataForRenderer,
     sceneGraphData,
     panelOnlyNodeIdSet,
@@ -178,7 +178,7 @@ export default function FlowCanvas({
     seededFallbackPositions,
     graphDataForZoom,
     graphDataForZoomRequests,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
   } = useFlowCanvasLayoutState({
     active,
     resolvedThemeMode,
@@ -208,13 +208,13 @@ export default function FlowCanvas({
   })
   const initKey = zoomViewKey
   const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
-  const isFlowEditor = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
-  const flowEditorTransformGuardSnippet = () => {
-    if (isFlowEditor && alreadyInitializedForKey) return
+  const storyboardWidgetMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)
+  const storyboardWidgetTransformGuardSnippet = () => {
+    if (storyboardWidgetMode && alreadyInitializedForKey) return
   }
-  void flowEditorTransformGuardSnippet
+  void storyboardWidgetTransformGuardSnippet
   const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
-  const flowEditorSelectedPortRowKey = useGraphStore(s => s.flowEditorSelectedPortRowKey || '')
+  const storyboardWidgetSelectedPortRowKey = useGraphStore(s => s.storyboardWidgetSelectedPortRowKey || '')
   const workspacePreInitDeferredDrawRef = React.useRef(false)
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
@@ -249,9 +249,9 @@ export default function FlowCanvas({
 
   const handleInteractionFrame = React.useCallback(() => {
     lastUserInteractionAtMsRef.current = Date.now()
-    if (isFlowEditor) mediaOverlayInteractionFrameSchedulerRef.current?.()
+    if (storyboardWidgetMode) mediaOverlayInteractionFrameSchedulerRef.current?.()
     onInteractionFrame?.()
-  }, [isFlowEditor, onInteractionFrame])
+  }, [storyboardWidgetMode, onInteractionFrame])
   const registerMediaOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
     mediaOverlayInteractionFrameSchedulerRef.current = scheduler
   }, [])
@@ -259,12 +259,12 @@ export default function FlowCanvas({
 
   const drawRafRef = React.useRef<number | null>(null)
   const shouldSuppressWorkspacePreInitCanvasDraw = React.useCallback((): boolean => {
-    if (!isFlowEditor) return false
+    if (!storyboardWidgetMode) return false
     if (workspaceEditorOverlayOpen !== true) return false
     const interactedRecently = Date.now() - lastUserInteractionAtMsRef.current <= WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS
     if (interactedRecently) return false
     return lastInitTransformZoomViewKeyRef.current !== zoomViewKey
-  }, [isFlowEditor, workspaceEditorOverlayOpen, zoomViewKey])
+  }, [storyboardWidgetMode, workspaceEditorOverlayOpen, zoomViewKey])
   const scheduleFlowDraw = React.useCallback((opts?: { force?: boolean }) => {
     const force = opts?.force === true
     if (!force && shouldSuppressWorkspacePreInitCanvasDraw()) {
@@ -336,14 +336,14 @@ export default function FlowCanvas({
   React.useEffect(() => {
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
     drawArgsRef.current.grid = readCanvasGridRenderConfigFromSchema(schema)
-    if (canvas2dRenderer === 'flowEditor') {
-      drawArgsRef.current.flowEditorWidgetOpenNodeIds = openWidgetNodeIds || []
-      drawArgsRef.current.flowEditorWidgetPinnedByNodeId = flowWidgetPinnedByNodeId || {}
-      drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = flowWidgetWorldPosByNodeId || {}
+    if (canvas2dRenderer === 'storyboard') {
+      drawArgsRef.current.storyboardWidgetOpenNodeIds = openWidgetNodeIds || []
+      drawArgsRef.current.storyboardWidgetPinnedByNodeId = flowWidgetPinnedByNodeId || {}
+      drawArgsRef.current.storyboardWidgetWorldPosByNodeId = flowWidgetWorldPosByNodeId || {}
     } else {
-      drawArgsRef.current.flowEditorWidgetOpenNodeIds = undefined
-      drawArgsRef.current.flowEditorWidgetPinnedByNodeId = undefined
-      drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = undefined
+      drawArgsRef.current.storyboardWidgetOpenNodeIds = undefined
+      drawArgsRef.current.storyboardWidgetPinnedByNodeId = undefined
+      drawArgsRef.current.storyboardWidgetWorldPosByNodeId = undefined
     }
     updateOverlayHiddenDrawArgs()
   }, [
@@ -355,22 +355,22 @@ export default function FlowCanvas({
     updateOverlayHiddenDrawArgs,
   ])
 
-  const flowEditorFocusedEdges = React.useMemo(
-    () => resolveFlowEditorFocusedEdgeIds(
+  const storyboardWidgetFocusedEdges = React.useMemo(
+    () => resolveStoryboardWidgetFocusedEdgeIds(
       sceneGraphData,
-      canvas2dRenderer === 'flowEditor' ? flowEditorSelectedPortRowKey : '',
+      canvas2dRenderer === 'storyboard' ? storyboardWidgetSelectedPortRowKey : '',
     ),
-    [canvas2dRenderer, flowEditorSelectedPortRowKey, sceneGraphData],
+    [canvas2dRenderer, storyboardWidgetSelectedPortRowKey, sceneGraphData],
   )
 
   React.useEffect(() => {
-    drawArgsRef.current.edgeFocusActive = flowEditorFocusedEdges.active
-    drawArgsRef.current.focusedEdgeIds = flowEditorFocusedEdges.edgeIds
+    drawArgsRef.current.edgeFocusActive = storyboardWidgetFocusedEdges.active
+    drawArgsRef.current.focusedEdgeIds = storyboardWidgetFocusedEdges.edgeIds
     scheduleFlowDraw()
-  }, [flowEditorFocusedEdges, scheduleFlowDraw])
+  }, [storyboardWidgetFocusedEdges, scheduleFlowDraw])
 
   const suppressAutoZoomModes = active
-    && canvas2dRenderer === 'flowEditor'
+    && canvas2dRenderer === 'storyboard'
     && frontmatterModeEnabled
     && documentSemanticMode === 'document'
 
@@ -392,7 +392,7 @@ export default function FlowCanvas({
     runtimeRef,
     graphDataForZoomRef: collisionGraphDataRef,
     schemaRef: collisionSchemaRef,
-    disableRelaxOnCommit: canvas2dRenderer === 'flowEditor',
+    disableRelaxOnCommit: canvas2dRenderer === 'storyboard',
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -402,16 +402,16 @@ export default function FlowCanvas({
     positionsDirtySinceCommitRef,
     lastCommittedPositionsRef,
     buildDrawArgs,
-    allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'flowEditor',
+    allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'storyboard',
   })
 
   useFlowCanvasRuntime({
     active,
-    flowEditorSurfaceId,
+    storyboardWidgetSurfaceId,
     allowNodeDragOverride,
     collisionDuringDrag,
     viewportControlsPreset,
-    flowEditorSelectionOnDrag,
+    storyboardWidgetSelectionOnDrag,
     canvas2dRenderer,
     canvasRef,
     runtimeRef,
@@ -452,7 +452,7 @@ export default function FlowCanvas({
     forbidCircleNodes,
     graphDataForZoom,
     graphDataForZoomRequests,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     openWidgetNodeIds,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -470,7 +470,7 @@ export default function FlowCanvas({
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
       <FlowCanvasInteractionRuntime
         active={active}
-        flowEditorSurfaceId={flowEditorSurfaceId}
+        storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
         allowMutations={allowMutations}
         schema={schema}
         runtimeRef={runtimeRef}
@@ -485,7 +485,7 @@ export default function FlowCanvas({
         graphDataForZoomRequests={graphDataForZoomRequests}
         viewportW={viewportW}
         viewportH={viewportH}
-        flowEditorReservedW={flowEditorReservedW}
+        storyboardWidgetReservedW={storyboardWidgetReservedW}
       />
       <canvas
         ref={canvasRef}
@@ -513,16 +513,16 @@ export default function FlowCanvas({
         frontmatterModeEnabled={frontmatterModeEnabled}
         documentSemanticMode={documentSemanticMode}
         // Keep the FlowCanvas mount aligned with the overlay resize contract:
-        // resizable={flowEditorOverlayInteractionMode && isSelected}
-        flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}
-        flowEditorFrontmatterInteractionMode={flowEditorFrontmatterInteractionMode}
+        // resizable={storyboardWidgetOverlayInteractionMode && isSelected}
+        storyboardWidgetOverlayInteractionMode={storyboardWidgetOverlayInteractionMode}
+        storyboardWidgetFrontmatterInteractionMode={storyboardWidgetFrontmatterInteractionMode}
         mediaPanelDensity={mediaPanelDensity}
         renderMediaAsNodes={renderMediaAsNodes}
         infiniteCanvasInteractionMode={infiniteCanvasInteractionMode}
         viewportW={viewportW}
         viewportH={viewportH}
         overlaySizing={overlaySizing}
-        flowEditorSurfaceId={flowEditorSurfaceId}
+        storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
         onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
         registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
       />

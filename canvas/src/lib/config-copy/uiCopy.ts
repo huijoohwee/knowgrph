@@ -20,10 +20,9 @@ const CANVAS_VIEW_RENDERER_GANTT_TITLE = '2D Renderer: Gantt-timeline'
 const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
 const CANVAS_VIEW_RENDERER_ANIMATIC_TITLE = '2D Renderer: Gantt-timeline'
 const CANVAS_VIEW_RENDERER_STORYBOARD_TITLE = '2D Renderer: Storyboard'
-const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
 const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
-  '2D Renderer: switch between D3, Dashboard, Flowchart, Multi-dimensional Table, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, Design, and Flow Editor.'
+  '2D Renderer: switch between D3, Dashboard, Flowchart, Multi-dimensional Table, GitGraph, Gantt-timeline, Flow Canvas, Storyboard, and Design.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -54,7 +53,7 @@ export const UI_COPY = {
   flowWidgetHideFields: 'Hide fields in widget',
   flowWidgetShowFields: 'Show fields in widget',
   flowWidgetRichMediaPanelView: 'Switch to Rich Media Panel (Connect media to render) in the shared widget shell.',
-  flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV rows with port handles in the shared widget layout.',
+  flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows with port handles in the shared widget shell.',
   flowWidgetChangeName: 'Change node label',
   flowWidgetDuplicate: 'Duplicate',
   flowWidgetClearOutput: 'Reset',
@@ -78,13 +77,13 @@ export const UI_COPY = {
   flowWidgetParamsInvalidJson: 'Invalid JSON.',
   flowWidgetConnectedValueLabel: 'Connected value',
   flowWidgetConnectedValuePrefix: 'Connected: ',
-  flowEditorNoDraftGraphToast: 'No draft graph loaded.',
-  flowEditorYamlFrontmatterRequiredToast:
-    'Flow Editor in Frontmatter Mode requires Markdown files (*.md) to include YAML frontmatter (--- ... ---) at the top.',
-  flowEditorNodeNotFoundToast: (nodeId: string) => `Node not found: ${nodeId}`,
-  flowEditorRunExportedToast: 'Exported Widget bundle.',
-  flowEditorRunFailedToast: 'Run failed.',
-  flowEditorExportBundleButton: 'Export bundle',
+  storyboardWidgetNoDraftGraphToast: 'No draft graph loaded.',
+  storyboardWidgetYamlFrontmatterRequiredToast:
+    'Storyboard Widget in Frontmatter Mode requires Markdown files (*.md) to include YAML frontmatter (--- ... ---) at the top.',
+  storyboardWidgetNodeNotFoundToast: (nodeId: string) => `Node not found: ${nodeId}`,
+  storyboardWidgetRunExportedToast: 'Exported Widget bundle.',
+  storyboardWidgetRunFailedToast: 'Run failed.',
+  storyboardWidgetExportBundleButton: 'Export bundle',
   shiftDragToConnect: 'Shift-drag to connect',
   propsPanelOpenInFloatingPanel: 'Open in Floating Panel',
   propsPanelOpenInNodesTab: 'Open in Nodes Tab',
@@ -110,15 +109,15 @@ export const UI_COPY = {
   searchNodesPlaceholder: 'Search nodes…',
   searchEdgesPlaceholder: 'Search edges…',
   searchHistoryPlaceholder: 'Search history…',
-  searchFlowEditorManagerRegistryPlaceholder: 'Search mappings…',
-  flowEditorManagerHeaderTooltip: 'Manage Widget mappings and neutral specifications while reusing the current official AI chat profile.',
-  flowEditorManagerImportRegistryTooltip: 'Import Widget bundle (.json)',
-  flowEditorManagerExportRegistryTooltip: 'Export selected mapping as JSON',
-  flowEditorManagerExportRegistrySelectToExportTooltip: 'Export all mappings as JSON',
-  flowEditorManagerAddFromWidgetTooltip: 'Create a registry mapping from the currently open Widget',
-  flowEditorManagerRegisterGenerateVideoTooltip: 'Register the selected node as a Video Widget and create a matching mapping',
-  flowEditorManagerRegisterSelectedNodeTypeTooltip: 'Register a mapping for the selected node type and enable it',
-  flowEditorManagerApplySelectedMappingToNodeTooltip: 'Apply the selected mapping to the selected node (updates node type and widget selectors)',
+  searchStoryboardWidgetManagerRegistryPlaceholder: 'Search mappings…',
+  storyboardWidgetManagerHeaderTooltip: 'Manage Widget mappings and neutral specifications while reusing the current official AI chat profile.',
+  storyboardWidgetManagerImportRegistryTooltip: 'Import Widget bundle (.json)',
+  storyboardWidgetManagerExportRegistryTooltip: 'Export selected mapping as JSON',
+  storyboardWidgetManagerExportRegistrySelectToExportTooltip: 'Export all mappings as JSON',
+  storyboardWidgetManagerAddFromWidgetTooltip: 'Create a registry mapping from the currently open Widget',
+  storyboardWidgetManagerRegisterGenerateVideoTooltip: 'Register the selected node as a Video Widget and create a matching mapping',
+  storyboardWidgetManagerRegisterSelectedNodeTypeTooltip: 'Register a mapping for the selected node type and enable it',
+  storyboardWidgetManagerApplySelectedMappingToNodeTooltip: 'Apply the selected mapping to the selected node (updates node type and widget selectors)',
   noFields: 'No fields',
   noFieldsMatch: 'No fields match.',
   graphDataTableNoFilters: 'No filters.',
@@ -224,7 +223,6 @@ export const UI_COPY = {
   canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
   canvasViewRendererAnimaticTitle: CANVAS_VIEW_RENDERER_ANIMATIC_TITLE,
   canvasViewRendererStoryboardTitle: CANVAS_VIEW_RENDERER_STORYBOARD_TITLE,
-  canvasViewRendererFlowEditorTitle: CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE,
   canvasViewRendererDesignTitle: CANVAS_VIEW_RENDERER_DESIGN_TITLE,
   canvasViewRendererToggleTooltip: CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP,
   documentModeTitle: 'Document Mode',

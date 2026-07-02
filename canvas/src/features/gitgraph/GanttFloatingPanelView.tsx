@@ -1,12 +1,12 @@
 import React from 'react'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
-import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useGanttFloatingPanelSelectionTransportSync } from './useGanttFloatingPanelSelectionTransportSync'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 
 export function GanttFloatingPanelView() {
   const { code, ganttModel, graphData, themeMode } = useMermaidGanttDocument()
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: ganttModel,
     kind: 'gantt',

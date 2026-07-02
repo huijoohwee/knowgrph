@@ -8,7 +8,7 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
   api.setDocumentSemanticMode('keyword')
   api.setFrontmatterModeEnabled(true)
   api.setCanvasRenderMode('3d')
-  api.setCanvas2dRenderer('flowEditor')
+  api.setCanvas2dRenderer('storyboard')
   api.setViewPinned(true)
   api.setFitToScreenMode(false)
   api.setZoomToSelectionMode(true)

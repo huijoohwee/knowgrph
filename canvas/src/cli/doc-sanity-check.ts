@@ -142,7 +142,7 @@ function checkComputeIntegrity(): string {
   return `Compute integrity: OK (${entries.filter(e => e.isFile() && e.name.endsWith('.md')).length} docs checked)`
 }
 
-function checkRunnableFlowEditorDemoCompliance(): string {
+function checkRunnableStoryboardDemoCompliance(): string {
   // Resolve from the repo root (two levels up from canvas/src/cli)
   const canvasRoot = path.resolve(process.cwd())
   const repoRoot = path.resolve(canvasRoot, '..')
@@ -173,8 +173,8 @@ function checkRunnableFlowEditorDemoCompliance(): string {
     const fullPath = path.join(docsDir, entry.name)
     const content = fs.readFileSync(fullPath, 'utf8')
 
-    // Only enforce on flowEditor docs
-    if (!/kgCanvas2dRenderer:\s*["']?flowEditor["']?/m.test(content)) continue
+    // Only enforce on Storyboard workflow docs.
+    if (!/kgCanvas2dRenderer:\s*["']?storyboard["']?/m.test(content)) continue
 
     for (const { check, display } of REQUIRED_KEYS) {
       if (!check(content)) {
@@ -219,7 +219,7 @@ function checkRunnableFlowEditorDemoCompliance(): string {
     )
   }
 
-  return 'Runnable demo compliance: OK (all flowEditor *-demo.md files pass)'
+  return 'Runnable demo compliance: OK (all Storyboard *-demo.md files pass)'
 }
 
 function checkDocsMaintainability(): string {
@@ -379,7 +379,7 @@ function main() {
   lines.push(checkAgenticRagSchemaFilesTable())
   lines.push(checkDocsMaintainability())
   lines.push(checkComputeIntegrity())
-  lines.push(checkRunnableFlowEditorDemoCompliance())
+  lines.push(checkRunnableStoryboardDemoCompliance())
   process.stdout.write(`${lines.join('\n')}\n`)
 }
 

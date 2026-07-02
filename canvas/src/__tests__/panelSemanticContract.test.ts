@@ -455,7 +455,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const toolbarToolMenuPath = path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const designFloatingPanelPath = path.resolve(root, 'src', 'features', 'design', 'DesignFloatingPanelView.tsx')
   const floatingPropsPanelPath = path.resolve(root, 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx')
-  const flowEditorInspectorTabsPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorInspectorTabs.tsx')
+  const storyboardWidgetInspectorTabsPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetInspectorTabs.tsx')
   const collaborationViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'CollaborationView.tsx')
   const floatingPanelChatSectionsPath = path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx')
   const grabMapsDiscoveryWidgetSectionPath = path.resolve(root, 'src', 'features', 'toolbar', 'GrabMapsDiscoveryWidgetSection.tsx')
@@ -464,11 +464,11 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const designDomTreePanelPath = path.resolve(root, 'src', 'features', 'design', 'DesignDomTreePanel.tsx')
   const designLayersPanelPath = path.resolve(root, 'src', 'features', 'design', 'DesignLayersPanel.tsx')
   const designDomInspectPanelPath = path.resolve(root, 'src', 'features', 'design', 'DesignDomInspectPanel.tsx')
-  const mainPanelFlowEditorManagerHeaderPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelFlowEditorManagerHeader.tsx')
-  const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
-  const flowEditorSpecificationTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorSpecificationTab.tsx')
-  const flowEditorMappingTabLayoutPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingTabLayout.tsx')
-  const nodeOverlayEditorSchemaTablePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorSchemaTable.tsx')
+  const mainPanelStoryboardWidgetManagerHeaderPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelStoryboardWidgetManagerHeader.tsx')
+  const storyboardWidgetGraphTabPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetGraphTab.tsx')
+  const storyboardWidgetSpecificationTabPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetSpecificationTab.tsx')
+  const storyboardWidgetMappingTabLayoutPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetMappingTabLayout.tsx')
+  const widgetEditorSchemaTablePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorSchemaTable.tsx')
   const historyViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'HistoryView.tsx')
   const searchPanelPath = path.resolve(root, 'src', 'components', 'SearchPanel.tsx')
   const launchDropdownPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
@@ -488,12 +488,12 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const dataViewTablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
   const kanbanCardPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')
   const dateCellEditorPath = path.resolve(root, 'src', 'features', 'graph-data-table', 'ui', 'fast-grid', 'DateCellEditor.tsx')
-  const flowMappingRowsTablePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowMappingRowsTable.tsx')
-  const widgetRegistryTablePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistryTable.tsx')
-  const widgetRegistryFieldsEditorPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistryFieldsEditor.tsx')
-  const widgetRegistryPortsEditorPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistryPortsEditor.tsx')
-  const widgetRegistrySchemaMappingsEditorPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'WidgetRegistrySchemaMappingsEditor.tsx')
-  const flowEditorMappingSettingsPanelPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingSettingsPanel.tsx')
+  const flowMappingRowsTablePath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'FlowMappingRowsTable.tsx')
+  const widgetRegistryTablePath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistryTable.tsx')
+  const widgetRegistryFieldsEditorPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistryFieldsEditor.tsx')
+  const widgetRegistryPortsEditorPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistryPortsEditor.tsx')
+  const widgetRegistrySchemaMappingsEditorPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistrySchemaMappingsEditor.tsx')
+  const storyboardWidgetMappingSettingsPanelPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetMappingSettingsPanel.tsx')
   const markdownSelectionToolbarPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownSelectionToolbar.tsx')
   const expandCollapseAllButtonPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'ExpandCollapseAllButton.tsx')
   const fileTreePath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownFileTree.tsx')
@@ -592,13 +592,13 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     readUtf8(toolbarToolMenuPath),
     readUtf8(designFloatingPanelPath),
   ]
-  const flowEditorSpecificationTab = readUtf8(flowEditorSpecificationTabPath)
+  const storyboardWidgetSpecificationTab = readUtf8(storyboardWidgetSpecificationTabPath)
   const slimToolbarDropdowns = [
-    readUtf8(mainPanelFlowEditorManagerHeaderPath),
-    flowEditorSpecificationTab,
+    readUtf8(mainPanelStoryboardWidgetManagerHeaderPath),
+    storyboardWidgetSpecificationTab,
   ]
   const tinyToolbarDropdown = readUtf8(historyViewPath)
-  const flowEditorInspectorTabs = readUtf8(flowEditorInspectorTabsPath)
+  const storyboardWidgetInspectorTabs = readUtf8(storyboardWidgetInspectorTabsPath)
   if (
     narrowToolbarDropdowns.some(text => !text.includes('UI_RESPONSIVE_NARROW_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     narrowToolbarDropdowns.some(text => text.includes('menuWidthClass="w-56"')) ||
@@ -606,8 +606,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     slimToolbarDropdowns.some(text => text.includes('menuWidthClass="w-44"')) ||
     (tinyToolbarDropdown.includes('ToolbarDropdownSelect') && !tinyToolbarDropdown.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME')) ||
     tinyToolbarDropdown.includes('menuWidthClass="w-40"') ||
-    !flowEditorInspectorTabs.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
-    flowEditorInspectorTabs.includes('menuWidthClass="w-40"')
+    !storyboardWidgetInspectorTabs.includes('UI_RESPONSIVE_TINY_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME') ||
+    storyboardWidgetInspectorTabs.includes('menuWidthClass="w-40"')
   ) {
     throw new Error('Expected narrow, slim, and tiny toolbar dropdowns to reuse shared width owners')
   }
@@ -615,7 +615,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const floatingPanelChatSections = readUtf8(floatingPanelChatSectionsPath)
   const grabMapsDiscoveryWidgetSection = readUtf8(grabMapsDiscoveryWidgetSectionPath)
   const grabMapsDiscoverySettingsGrid = readUtf8(grabMapsDiscoverySettingsGridPath)
-  const nodeOverlayEditorSchemaTable = readUtf8(nodeOverlayEditorSchemaTablePath)
+  const widgetEditorSchemaTable = readUtf8(widgetEditorSchemaTablePath)
   if (
     !collaborationView.includes('UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME') ||
     collaborationView.includes('min-w-[14rem]')
@@ -643,11 +643,11 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected panel text actions to reuse the shared responsive action button owner')
   }
   if (
-    !nodeOverlayEditorSchemaTable.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') ||
+    !widgetEditorSchemaTable.includes('UI_RESPONSIVE_PANEL_TABLE_FIELD_INPUT_CLASSNAME') ||
     !responsiveCss.includes('.kg-responsive-panel-table-field-input') ||
     !responsiveCss.includes('--kg-responsive-panel-table-field-input-height') ||
     !responsiveCss.includes('--kg-responsive-panel-table-field-input-padding-inline') ||
-    nodeOverlayEditorSchemaTable.includes('w-full h-8 rounded-md px-2')
+    widgetEditorSchemaTable.includes('w-full h-8 rounded-md px-2')
   ) {
     throw new Error('Expected panel table fields to reuse the shared responsive input owner')
   }
@@ -877,7 +877,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     readUtf8(widgetRegistryFieldsEditorPath),
     readUtf8(widgetRegistryPortsEditorPath),
     readUtf8(widgetRegistrySchemaMappingsEditorPath),
-    readUtf8(flowEditorMappingSettingsPanelPath),
+    readUtf8(storyboardWidgetMappingSettingsPanelPath),
   ]
   if (!kanbanCard.includes('kg-click-expand-menu-children') || kanbanCard.includes('-translate-x-full')) {
     throw new Error('Expected kanban card child menus to expand inline without offscreen side placement')
@@ -911,17 +911,17 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   if (smallIconActionSurfaces.some(text => !text.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME')) || smallIconActionSurfaces.some(text => text.includes('inline-flex items-center justify-center w-7 h-7') || text.includes('h-7 w-7'))) {
     throw new Error('Expected compact icon action surfaces to use the shared small icon action owner')
   }
-  const flowEditorGraphTab = readUtf8(flowEditorGraphTabPath)
-  const flowEditorMappingTabLayout = readUtf8(flowEditorMappingTabLayoutPath)
+  const storyboardWidgetGraphTab = readUtf8(storyboardWidgetGraphTabPath)
+  const storyboardWidgetMappingTabLayout = readUtf8(storyboardWidgetMappingTabLayoutPath)
   const flowManagerPanelHeaderTexts = [
-    flowEditorGraphTab,
-    flowEditorMappingTabLayout,
-    flowEditorSpecificationTab,
+    storyboardWidgetGraphTab,
+    storyboardWidgetMappingTabLayout,
+    storyboardWidgetSpecificationTab,
   ]
   const flowManagerPanelBodyTexts = [
-    flowEditorGraphTab,
-    flowEditorMappingTabLayout,
-    flowEditorSpecificationTab,
+    storyboardWidgetGraphTab,
+    storyboardWidgetMappingTabLayout,
+    storyboardWidgetSpecificationTab,
   ]
   if (
     !responsiveElementClasses.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME') ||
@@ -1022,30 +1022,30 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     !widgetRegistryTable.includes('UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_CELL_CLASSNAME') ||
     !widgetRegistryTable.includes('UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_TABLE_EMPTY_CELL_CLASSNAME') ||
     flowManagerPanelHeaderTexts.some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_CLASSNAME')) ||
-    !flowEditorGraphTab.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME') ||
+    !storyboardWidgetGraphTab.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_HEADER_ROW_CLASSNAME') ||
     flowManagerPanelBodyTexts.some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_BODY_CLASSNAME')) ||
-    !flowEditorMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
-    !flowEditorSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
+    !storyboardWidgetSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_TOOLBAR_ROW_CLASSNAME') ||
     flowManagerFormEditorTexts[3].includes('sticky bottom-0 py-2 border-t flex items-center justify-between gap-2') ||
-    !flowEditorMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
-    !flowEditorSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
+    !storyboardWidgetSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_MENU_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_HEADER_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_SECTION_GRID_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_ACTION_GROUP_CLASSNAME') ||
-    !flowEditorMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
+    !storyboardWidgetMappingTabLayout.includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
     !flowManagerFormEditorTexts[0].includes('UI_RESPONSIVE_FLOW_MANAGER_INLINE_CONTROL_CLASSNAME') ||
-    !flowEditorSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME') ||
+    !storyboardWidgetSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_TEXT_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_STATUS_ALERT_CLASSNAME') ||
     !flowManagerFormEditorTexts[3].includes('UI_RESPONSIVE_FLOW_MANAGER_FOOTER_ROW_CLASSNAME') ||
-    !flowEditorGraphTab.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME') ||
+    !storyboardWidgetGraphTab.includes('UI_RESPONSIVE_FLOW_MANAGER_PANEL_FRAME_CLASSNAME') ||
     flowManagerFormEditorTexts.some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME')) ||
     flowManagerFormEditorTexts.slice(0, 3).some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_CLASSNAME')) ||
     flowManagerFormEditorTexts.slice(0, 3).some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_HEADER_CLASSNAME')) ||
     flowManagerFormEditorTexts.slice(0, 3).some(text => !text.includes('UI_RESPONSIVE_FLOW_MANAGER_REGISTRY_ITEM_GRID_CLASSNAME')) ||
-    !flowEditorSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME') ||
+    !storyboardWidgetSpecificationTab.includes('UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME') ||
     flowMappingRowsTable.includes('w-full h-7 px-2') ||
     flowManagerFormEditorTexts.some(text => text.includes('mt-1 w-full rounded border px-2 py-1')) ||
     flowManagerFormEditorTexts.some(text => text.includes("UI_RESPONSIVE_FLOW_MANAGER_FORM_FIELD_CLASSNAME, 'rounded border'")) ||
@@ -1053,28 +1053,28 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     flowManagerFormEditorTexts.slice(0, 3).some(text => text.includes('flex items-center justify-between gap-2')) ||
     flowManagerFormEditorTexts.slice(0, 2).some(text => text.includes('grid grid-cols-1 sm:grid-cols-4 gap-2')) ||
     flowManagerFormEditorTexts[2].includes('grid grid-cols-1 sm:grid-cols-2 gap-2') ||
-    flowEditorSpecificationTab.includes('mt-2 ${UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME} rounded-md border px-2 py-1') ||
+    storyboardWidgetSpecificationTab.includes('mt-2 ${UI_RESPONSIVE_FLOW_MANAGER_SPEC_EDITOR_CLASSNAME} rounded-md border px-2 py-1') ||
     flowManagerPanelHeaderTexts.some(text => text.includes('px-3 py-2 border-b')) ||
-    flowEditorGraphTab.includes('flex items-center justify-between gap-3') ||
+    storyboardWidgetGraphTab.includes('flex items-center justify-between gap-3') ||
     flowManagerPanelBodyTexts.some(text => text.includes('p-3 min-h-0 h-full overflow-hidden')) ||
     flowManagerPanelBodyTexts.some(text => text.includes('h-full min-h-0 p-3')) ||
     flowManagerPanelBodyTexts.some(text => text.includes('overflow-auto p-3')) ||
     flowManagerPanelBodyTexts.some(text => text.includes('overflow-hidden p-3')) ||
-    flowEditorMappingTabLayout.includes('flex flex-wrap items-center justify-between gap-2') ||
-    flowEditorSpecificationTab.includes('flex flex-wrap items-center justify-between gap-2') ||
-    flowEditorMappingTabLayout.includes('m-0 p-0 list-none flex flex-wrap items-center gap-1') ||
-    flowEditorSpecificationTab.includes('m-0 p-0 list-none flex items-center gap-1') ||
+    storyboardWidgetMappingTabLayout.includes('flex flex-wrap items-center justify-between gap-2') ||
+    storyboardWidgetSpecificationTab.includes('flex flex-wrap items-center justify-between gap-2') ||
+    storyboardWidgetMappingTabLayout.includes('m-0 p-0 list-none flex flex-wrap items-center gap-1') ||
+    storyboardWidgetSpecificationTab.includes('m-0 p-0 list-none flex items-center gap-1') ||
     flowManagerFormEditorTexts[3].includes('m-0 p-0 list-none flex items-center gap-1') ||
     flowManagerFormEditorTexts[3].includes('flex items-center justify-between gap-2') ||
     flowManagerFormEditorTexts[3].includes('grid grid-cols-1 sm:grid-cols-3 gap-2') ||
     flowManagerFormEditorTexts[3].includes('className="flex items-center gap-2"') ||
-    flowEditorMappingTabLayout.includes('inline-flex items-center gap-2') ||
+    storyboardWidgetMappingTabLayout.includes('inline-flex items-center gap-2') ||
     flowManagerFormEditorTexts[3].includes('inline-flex items-center gap-2') ||
     flowManagerFormEditorTexts[0].includes('inline-flex items-center gap-2') ||
-    flowEditorSpecificationTab.includes('px-3 pt-2') ||
+    storyboardWidgetSpecificationTab.includes('px-3 pt-2') ||
     flowManagerFormEditorTexts[3].includes('rounded border px-2 py-2') ||
     flowManagerFormEditorTexts[3].includes('sticky bottom-0 py-2 border-t') ||
-    flowEditorGraphTab.includes('rounded border p-2') ||
+    storyboardWidgetGraphTab.includes('rounded border p-2') ||
     flowMappingRowsTable.includes('text-left px-2 py-2 text-xs font-semibold') ||
     flowMappingRowsTable.includes('text-right px-2 py-2 text-xs font-semibold') ||
     flowMappingRowsTable.includes('px-2 py-1 align-top border-t') ||
@@ -1374,7 +1374,7 @@ export const testMainPanelLazyLoadsInactiveHeavyTabs = () => {
     throw new Error('Expected MainPanel to lazy-load DashboardView')
   }
   if (text.includes("const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))")) {
-    throw new Error('Expected MainPanel to avoid legacy WorkflowSection lazy loading after consolidation into FlowEditorManager')
+    throw new Error('Expected MainPanel to avoid legacy WorkflowSection lazy loading after consolidation into StoryboardWidgetManager')
   }
 }
 
@@ -1433,7 +1433,7 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
 
 export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => {
   const root = process.cwd()
-  const filePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const filePath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetGraphTab.tsx')
   const text = readUtf8(filePath)
   const removedWorkspaceSymbol = ['GraphTable', 'Workspace'].join('')
   if (!text.includes("from '@/features/workspace-table/workspaceTablePreferencesStore'")) {
@@ -1820,10 +1820,10 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
 
 export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = () => {
   const root = process.cwd()
-  const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const storyboardWidgetGraphTabPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetGraphTab.tsx')
   const graphFieldsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
   const graphFieldsCommandsPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'graph-fields', 'graphFieldsEntryCommands.ts')
-  const graphTabText = readUtf8(flowEditorGraphTabPath)
+  const graphTabText = readUtf8(storyboardWidgetGraphTabPath)
   const graphFieldsText = readUtf8(graphFieldsViewPath)
   const graphFieldsCommandsText = readUtf8(graphFieldsCommandsPath)
 
@@ -1938,9 +1938,9 @@ export const testGraphEditorToolRailResponsiveGlyphsStayShared = () => {
 
 export const testWorkflowManagerNonWorkflowListsReuseGraphFieldsRightPane = () => {
   const root = process.cwd()
-  const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const storyboardWidgetGraphTabPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetGraphTab.tsx')
   const graphFieldsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
-  const graphTabText = readUtf8(flowEditorGraphTabPath)
+  const graphTabText = readUtf8(storyboardWidgetGraphTabPath)
   const graphFieldsText = readUtf8(graphFieldsViewPath)
   if (!graphTabText.includes('aria-label="Graph Fields and Field Settings"')) {
     throw new Error('Expected non-workflow Workflow Manager surface to include embedded Graph Fields right pane')

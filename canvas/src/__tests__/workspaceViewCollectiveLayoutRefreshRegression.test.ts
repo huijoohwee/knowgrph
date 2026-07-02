@@ -1,60 +1,60 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRefresh() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts'); const text = readFileSync(p, 'utf8')
-  const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'); const surfaceText = readFileSync(surfacePath, 'utf8')
+export function testWorkspaceViewUpdateSchedulesStoryboardWidgetCollectiveCollisionRefresh() {
+  const p = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts'); const text = readFileSync(p, 'utf8')
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx'); const surfaceText = readFileSync(surfacePath, 'utf8')
   if (text.includes('workspaceViewSig')) {
-    throw new Error('expected Flow Editor collective collision key to avoid workspace view signature coupling')
+    throw new Error('expected Storyboard Widget collective collision key to avoid workspace view signature coupling')
   }
   if (text.includes('workspaceCanvasPaneOpen === true ? 1 : 0')) {
-    throw new Error('expected Flow Editor collective collision refresh to avoid workspace pane open state coupling')
+    throw new Error('expected Storyboard Widget collective collision refresh to avoid workspace pane open state coupling')
   }
   if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
-    throw new Error('expected Flow Editor collective collision to track workspace overlay open state without key coupling')
+    throw new Error('expected Storyboard Widget collective collision to track workspace overlay open state without key coupling')
   }
   if (!surfaceText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor collective collision to reuse the shared workspace/indexing mutation guard')
+    throw new Error('expected Storyboard Widget collective collision to reuse the shared workspace/indexing mutation guard')
   }
   if (!surfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
-    throw new Error('expected Flow Editor collective collision to derive Workspace/Indexing mutation state via the shared guard')
+    throw new Error('expected Storyboard Widget collective collision to derive Workspace/Indexing mutation state via the shared guard')
   }
   if (!text.includes('if (workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected workspace overlay open state to block persisted Flow Editor widget position mutation')
+    throw new Error('expected workspace overlay open state to block persisted Storyboard Widget position mutation')
   }
   const mutationGuardIndex = text.indexOf('if (workspaceOverlayOpenRef.current) return')
   const writebackIndex = text.indexOf('st.setFlowWidgetPosByNodeId(nextPos)')
   if (mutationGuardIndex < 0 || writebackIndex < 0 || mutationGuardIndex > writebackIndex) {
-    throw new Error('expected workspace overlay mutation guard before Flow Editor position writeback')
+    throw new Error('expected workspace overlay mutation guard before Storyboard Widget position writeback')
   }
   if (!text.includes('const unsubOpenWidgets = useGraphStore.subscribe(')) {
-    throw new Error('expected Flow Editor collective collision to subscribe to open widget ids')
+    throw new Error('expected Storyboard Widget collective collision to subscribe to open widget ids')
   }
   if (!text.includes('s.openWidgetNodeIds')) {
-    throw new Error('expected Flow Editor collective collision refresh subscription to use openWidgetNodeIds')
+    throw new Error('expected Storyboard Widget collective collision refresh subscription to use openWidgetNodeIds')
   }
-  const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'FlowWidgetOverlay.tsx')
-  const editorInnerPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx')
-  const editorPlacementPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts')
-  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx')
-  const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
+  const editorPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'FlowWidgetOverlay.tsx')
+  const editorInnerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
+  const editorPlacementPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const editorViewPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx')
+  const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'flowWidgetOverlayShared.ts')
   const editorWrapperText = readFileSync(editorPath, 'utf8')
   const editorText = [
     editorWrapperText,
-    editorWrapperText.includes("from '@/components/FlowEditor/NodeOverlayEditorInner'") ? readFileSync(editorInnerPath, 'utf8') : '',
+    editorWrapperText.includes("from '@/components/StoryboardWidget/WidgetEditorInner'") ? readFileSync(editorInnerPath, 'utf8') : '',
     readFileSync(editorPlacementPath, 'utf8'),
     readFileSync(editorViewPath, 'utf8'),
     readFileSync(editorSharedPath, 'utf8'),
   ].join('\n')
   if (!editorText.includes("import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected direct Flow Editor widget persistence to reuse the shared workspace/indexing mutation guard')
+    throw new Error('expected direct Storyboard Widget persistence to reuse the shared workspace/indexing mutation guard')
   }
   if (!editorText.includes('resolveFlowWidgetStateGraphKey')) {
-    throw new Error('expected direct Flow Editor widget persistence to reuse shared graph semantic key helper for workspace-blocked in-memory updates')
+    throw new Error('expected direct Storyboard Widget persistence to reuse shared graph semantic key helper for workspace-blocked in-memory updates')
   }
   if (!editorText.includes('if (isWorkspaceGraphMutationBlocked(state)) {')) {
-    throw new Error('expected direct Flow Editor widget persistence to branch workspace-blocked updates through an explicit in-memory path')
+    throw new Error('expected direct Storyboard Widget persistence to branch workspace-blocked updates through an explicit in-memory path')
   }
-  if (!editorText.includes('resolveFlowEditorWidgetSurfacePointerPolicy')) {
+  if (!editorText.includes('resolveStoryboardWidgetSurfacePointerPolicy')) {
     throw new Error('expected FlowWidgetOverlay to reuse the shared widget surface pointer policy')
   }
   if (!editorText.includes('data-kg-canvas-wheel-ignore={pointerPolicy.canvasWheelIgnore}')) {
@@ -79,32 +79,32 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (editorText.includes('interactionPassthrough')) {
     throw new Error('expected FlowWidgetOverlay to remove stale workspace passthrough pointer disabling')
   }
-  const overlaySharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const overlaySharedPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx')
   const overlaySharedText = readFileSync(overlaySharedPath, 'utf8')
   if (overlaySharedText.includes('interactionPassthrough')) {
-    throw new Error('expected FlowEditorWidgetOverlay shared wrapper to stop threading stale interaction passthrough into FlowWidgetOverlay')
+    throw new Error('expected StoryboardWidgetOverlay shared wrapper to stop threading stale interaction passthrough into FlowWidgetOverlay')
   }
   if (!editorText.includes('useGraphStore.setState(prev => {')) {
-    throw new Error('expected direct Flow Editor widget persistence to update in-memory widget positions while workspace mutation is blocked')
+    throw new Error('expected direct Storyboard Widget persistence to update in-memory widget positions while workspace mutation is blocked')
   }
   if (!editorText.includes('flowWidgetPosByNodeIdByGraphMetaKey')) {
-    throw new Error('expected direct Flow Editor screen-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
+    throw new Error('expected direct Storyboard Widget screen-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
   }
   if (!editorText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey')) {
-    throw new Error('expected direct Flow Editor world-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
+    throw new Error('expected direct Storyboard Widget world-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
   }
   if (!editorText.includes('state.setFlowWidgetPosByNodeId(next)')) {
-    throw new Error('expected direct Flow Editor screen-position persistence path to remain available when workspace mutation is not blocked')
+    throw new Error('expected direct Storyboard Widget screen-position persistence path to remain available when workspace mutation is not blocked')
   }
   if (!editorText.includes('setFlowWidgetWorldPosByNodeId(next)')) {
-    throw new Error('expected direct Flow Editor world-position persistence path to remain available when workspace mutation is not blocked')
+    throw new Error('expected direct Storyboard Widget world-position persistence path to remain available when workspace mutation is not blocked')
   }
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const flowCanvasInteractionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
   const flowCanvasInteractionRuntimeText = readFileSync(flowCanvasInteractionRuntimePath, 'utf8')
-  if (!flowCanvasText.includes('allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === \'flowEditor\'')) {
-    throw new Error('expected FlowCanvas commit path to allow Flow Editor layout commits while workspace view is open')
+  if (!flowCanvasText.includes('allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === \'storyboard\'')) {
+    throw new Error('expected FlowCanvas commit path to allow Storyboard Widget layout commits while workspace view is open')
   }
   if (!flowCanvasText.includes('const WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS = 1200')) {
     throw new Error('expected FlowCanvas pre-init draw suppression to include a bounded user-interaction bypass window for zoom/minimap responsiveness')
@@ -121,22 +121,22 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected FlowCanvas interaction runtime zoom callback to force draw flush so toolbar/minimap zoom remains responsive during pre-init suppression')
   }
   if (!flowCanvasText.includes('width={canvasPixelW}') || !flowCanvasText.includes('height={canvasPixelH}')) {
-    throw new Error('expected FlowCanvas to bind backing-store dimensions to viewport*dpr so first frame is sharp in workspace-open Flow Editor')
+    throw new Error('expected FlowCanvas to bind backing-store dimensions to viewport*dpr so first frame is sharp in workspace-open Storyboard Widget')
   }
   const flowCommitPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowRequestCommit.ts')
   const flowCommitText = readFileSync(flowCommitPath, 'utf8')
   if (!flowCommitText.includes('const allowLayoutCommit = !args.workspaceMutationBlocked || args.allowLayoutCommitWhenWorkspaceBlocked === true')
     || !flowCommitText.includes('shouldCommitFlowLayoutPositions({')) {
-    throw new Error('expected FlowCanvas requestCommit to decouple workspace mutation guard from Flow Editor collective interaction commits')
+    throw new Error('expected FlowCanvas requestCommit to decouple workspace mutation guard from Storyboard Widget collective interaction commits')
   }
   if (!flowCommitText.includes('commitZoomTransformToStore({')) {
     throw new Error('expected FlowCanvas requestCommit to keep viewport zoom-state commit active during workspace-open interaction')
   }
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeScene.ts')
   const runtimeText = readFileSync(runtimePath, 'utf8')
-  const runtimeSeedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRuntimeSeedPositions.ts')
+  const runtimeSeedPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRuntimeSeedPositions.ts')
   const runtimeSeedText = readFileSync(runtimeSeedPath, 'utf8')
-  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
   const worldSeedGuardIndex = runtimeText.indexOf('if (workspaceMutationBlockedForSeed) {')
   const worldSeedKeyWriteIndex = runtimeText.indexOf('seededPinnedWidgetWorldPosKeyRef.current = seedKey', worldSeedGuardIndex)
@@ -153,7 +153,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (runtimeText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch') || runtimeSeedText.includes('buildWorkspaceBlockedFlowWidgetSeedPatch')) {
     throw new Error('expected pinned widget auto-seed to remove the stale workspace-blocked in-memory mutation branch')
   }
-  if (!runtimeText.includes('syncFlowWidgetScreenAuthorityPosition({') || !runtimeSeedText.includes('shouldUseFlowEditorWidgetFloatingScreenAuthority({')) {
+  if (!runtimeText.includes('syncFlowWidgetScreenAuthorityPosition({') || !runtimeSeedText.includes('shouldUseStoryboardWidgetFloatingScreenAuthority({')) {
     throw new Error('expected pinned widget auto-seed to sync screen-authority positions with centered world seeds through the shared authority helper')
   }
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
@@ -182,8 +182,8 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`')) {
     throw new Error('expected pinned widget auto-seed layout signature to include shared visible viewport geometry without Editor Workspace pane authority')
   }
-  if (!runtimeText.includes('args.flowEditorSurfaceId,')) {
-    throw new Error('expected Flow Editor runtime scene dependencies to react to surface-scoped visible viewport changes')
+  if (!runtimeText.includes('args.storyboardWidgetSurfaceId,')) {
+    throw new Error('expected Storyboard Widget runtime scene dependencies to react to surface-scoped visible viewport changes')
   }
   if (!runtimeText.includes('const shouldUseNeutralSeedZoom =')
     || !runtimeText.includes('runtimeSceneNodeCount <= 0')
@@ -216,29 +216,29 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('if (seededPinnedWidgetWorldPosKeyRef.current === seedKey && !forceSceneEmptyReseed) {')) {
     throw new Error('expected pinned widget auto-seed key guard to allow forced scene-empty reseed despite matching seed key')
   }
-  if (!runtimeText.includes("const FLOW_EDITOR_RUNTIME_SCENE_TRACE_KEY = '__flowEditorRuntimeSceneDebug'")) {
-    throw new Error('expected runtime source instrumentation to expose deterministic transform-authority trace entries for Flow Editor overlay drift diagnostics')
+  if (!runtimeText.includes("const STORYBOARD_WIDGET_RUNTIME_SCENE_TRACE_KEY = '__storyboardWidgetRuntimeSceneDebug'")) {
+    throw new Error('expected runtime source instrumentation to expose deterministic transform-authority trace entries for Storyboard Widget overlay drift diagnostics')
   }
   if (!runtimeText.includes('const lastUsableZoomTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)')) {
     throw new Error('expected runtime transform authority to persist last usable transform so empty-scene recomposition does not flash widgets offscreen')
   }
   if (!runtimeText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
-    throw new Error('expected Flow Editor runtime scene to subscribe to shared workspace mutation guard for open/close transition resets')
+    throw new Error('expected Storyboard Widget runtime scene to subscribe to shared workspace mutation guard for open/close transition resets')
   }
   if (!runtimeText.includes('const workspaceMutationBlockedPrevRef = React.useRef<boolean>(workspaceMutationBlocked)')) {
-    throw new Error('expected Flow Editor runtime scene to track workspace mutation transition edges for reopen reset logic')
+    throw new Error('expected Storyboard Widget runtime scene to track workspace mutation transition edges for reopen reset logic')
   }
   if (!runtimeText.includes('if (workspaceMutationBlocked !== true || prev === true) return')) {
-    throw new Error('expected Flow Editor runtime scene to run transition reset only on workspace reopen edges')
+    throw new Error('expected Storyboard Widget runtime scene to run transition reset only on workspace reopen edges')
   }
   if (!['const shouldPreserveWorkspaceReopenAuthorities = React.useCallback(() => {', 'if (shouldPreserveWorkspaceReopenAuthorities()) {', "reason: 'workspace-reopen-preserving-current-authorities'"].every(fragment => runtimeText.includes(fragment))) {
-    throw new Error('expected Flow Editor runtime scene to preserve visible current widget authorities across workspace reopen instead of reseeding stable layouts')
+    throw new Error('expected Storyboard Widget runtime scene to preserve visible current widget authorities across workspace reopen instead of reseeding stable layouts')
   }
   if (!runtimeText.includes("lastUsableZoomTransformRef.current = null")) {
-    throw new Error('expected Flow Editor runtime scene to clear stale last-usable transform only when workspace reopen authorities are no longer visible')
+    throw new Error('expected Storyboard Widget runtime scene to clear stale last-usable transform only when workspace reopen authorities are no longer visible')
   }
   if (!runtimeText.includes("seededPinnedWidgetWorldPosKeyRef.current = ''") || !runtimeText.includes("lastAutoSeedLayoutSignatureRef.current = ''")) {
-    throw new Error('expected Flow Editor runtime scene to clear transient auto-seed keys only for stale workspace reopen authorities')
+    throw new Error('expected Storyboard Widget runtime scene to clear transient auto-seed keys only for stale workspace reopen authorities')
   }
   if (!runtimeText.includes("reason: 'scene-empty-using-last-usable-transform'")) {
     throw new Error('expected runtime trace to report scene-empty fallback that reuses last usable transform instead of dropping overlays')
@@ -247,10 +247,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     || !runtimeText.includes("reason: 'scene-empty-using-live-runtime-transform'")
     || !runtimeText.includes('&& !workspaceMutationBlocked')
     || !runtimeText.includes('interactionInProgress || hasViewportOffset(liveRuntimeTransform) || !hasViewportOffset(persistedTransform)')) {
-    throw new Error('expected empty-scene overlay-only Flow Editor interactions to read the live runtime transform only outside workspace-mutation windows')
+    throw new Error('expected empty-scene overlay-only Storyboard Widget interactions to read the live runtime transform only outside workspace-mutation windows')
   }
   if (!runtimeText.includes("reason: 'scene-empty-workspace-blocked-rejecting-live-runtime-transform'")) {
-    throw new Error('expected workspace-blocked empty-scene frames to reject live runtime transforms before they can replay FlowCanvas layout movement into Flow Editor')
+    throw new Error('expected workspace-blocked empty-scene frames to reject live runtime transforms before they can replay FlowCanvas layout movement into Storyboard Widget')
   }
   if (!runtimeText.includes("reason: 'scene-empty-using-persisted-transform'")) {
     throw new Error('expected runtime transform authority to fallback to persisted effective zoom before neutral identity during transient empty-scene frames')
@@ -258,7 +258,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!runtimeText.includes('lastUsableZoomTransformRef.current = next')) {
     throw new Error('expected runtime transform authority to refresh last usable transform from visible live transform frames')
   }
-  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts')
   const collisionText = readFileSync(collisionPath, 'utf8')
   if (!collisionText.includes("|| { k: 1, x: 0, y: 0 }")) {
     throw new Error('expected overlay collision node obstacle projection to avoid null transform fallthrough by using numeric identity fallback')
@@ -285,53 +285,53 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected pinned widget auto-seed overlap detection to avoid skipping frontmatter pinned widgets when world positions exist')
   }
 
-  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRenderState.ts')
   const renderStateText = readFileSync(renderStatePath, 'utf8')
   const graphStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const graphStateText = readFileSync(graphStatePath, 'utf8')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
-  const overlaySurfaceVisibilityPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceVisibility.ts'); const flowEditorSurfaceVisibilityText = readFileSync(overlaySurfaceVisibilityPath, 'utf8')
-  const runtimeCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const overlaySurfaceVisibilityPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceVisibility.ts'); const storyboardWidgetSurfaceVisibilityText = readFileSync(overlaySurfaceVisibilityPath, 'utf8')
+  const runtimeCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
   const runtimeCanvasText = readFileSync(runtimeCanvasPath, 'utf8')
-  if (!runtimeCanvasText.includes('workspaceMutationBlocked,') || !runtimeCanvasText.includes('useFlowEditorRenderState({')) {
-    throw new Error('expected Flow Editor canvas runtime to pass shared workspace mutation-blocked state into render graph stabilization path')
+  if (!runtimeCanvasText.includes('workspaceMutationBlocked,') || !runtimeCanvasText.includes('useStoryboardWidgetRenderState({')) {
+    throw new Error('expected Storyboard Widget canvas runtime to pass shared workspace mutation-blocked state into render graph stabilization path')
   }
   if (!runtimeCanvasText.includes('workspaceMutationBlocked,')) {
-    throw new Error('expected Flow Editor render state hook invocation to include workspace mutation-blocked input')
+    throw new Error('expected Storyboard Widget render state hook invocation to include workspace mutation-blocked input')
   }
   if (!renderStateText.includes('workspaceMutationBlocked: boolean')) {
-    throw new Error('expected Flow Editor render state to accept shared workspace mutation-blocked state for transient render graph stability')
+    throw new Error('expected Storyboard Widget render state to accept shared workspace mutation-blocked state for transient render graph stability')
   }
   if (!renderStateText.includes('const shouldPreserveStableDuringWorkspaceMutation =')) {
-    throw new Error('expected Flow Editor render state to centralize workspace-mutation transient empty-graph preservation guard')
+    throw new Error('expected Storyboard Widget render state to centralize workspace-mutation transient empty-graph preservation guard')
   }
   if (!renderStateText.includes('if (shouldPreserveStableDuringWorkspaceMutation && prev?.documentKey === args.activeDocumentKey) return prev')) {
-    throw new Error('expected Flow Editor render state stable graph cache writes to avoid replacing stable graph with transient empty graph during workspace mutation windows')
+    throw new Error('expected Storyboard Widget render state stable graph cache writes to avoid replacing stable graph with transient empty graph during workspace mutation windows')
   }
   if (!renderStateText.includes('const preserveStableGraphDuringWorkspaceMutation =')) {
-    throw new Error('expected Flow Editor render state graph selection to prefer stable graph during workspace-mutation transient empty-graph frames')
+    throw new Error('expected Storyboard Widget render state graph selection to prefer stable graph during workspace-mutation transient empty-graph frames')
   }
   if (!renderStateText.includes('if (preserveStableGraphDuringWorkspaceMutation) return stableGraph')) {
-    throw new Error('expected Flow Editor render state graph selection to keep overlays mounted without close/reopen when workspace mutation emits empty render graph frames')
+    throw new Error('expected Storyboard Widget render state graph selection to keep overlays mounted without close/reopen when workspace mutation emits empty render graph frames')
   }
   if (!renderStateText.includes('const preserveStableGraphAcrossFlowViewClose =')) {
-    throw new Error('expected Flow Editor render state to name the stable graph reuse contract for workspace close explicitly')
+    throw new Error('expected Storyboard Widget render state to name the stable graph reuse contract for workspace close explicitly')
   }
   if (!graphStateText.includes('const allowMutations = allowNodeDragOverride !== false')) {
-    throw new Error('expected FlowCanvas graph state to keep interaction mutation pathways enabled in Workspace-open Flow Editor mode')
+    throw new Error('expected FlowCanvas graph state to keep interaction mutation pathways enabled in Workspace-open Storyboard Widget mode')
   }
   if (graphStateText.includes('allowNodeDragOverride !== false && documentStructureBaselineLock !== true')) {
     throw new Error('expected FlowCanvas interaction mutation gate to avoid baseline-lock coupling that freezes workspace-open drag/pan/zoom')
   }
-  if (!flowEditorSurfaceVisibilityText.includes("if (frontmatterOverlayVisualIsolation.kind === 'frontmatter-flow') {")) {
-    throw new Error('expected Flow Editor overlay-only mode to branch on frontmatter-flow before workspace mutation fallback')
+  if (!storyboardWidgetSurfaceVisibilityText.includes("if (frontmatterOverlayVisualIsolation.kind === 'frontmatter-flow') {")) {
+    throw new Error('expected Storyboard Widget overlay-only mode to branch on frontmatter-flow before workspace mutation fallback')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('FlowCanvas') || !flowEditorSurfaceVisibilityText.includes('partitioned before FlowCanvas')) {
+  if (!storyboardWidgetSurfaceVisibilityText.includes('FlowCanvas') || !storyboardWidgetSurfaceVisibilityText.includes('partitioned before FlowCanvas')) {
     throw new Error('expected frontmatter-flow overlay-only guard to document upstream renderer partitioning before FlowCanvas receives the graph')
   }
   if (overlaySurfaceText.includes('preferCanvasCollectiveInteraction')) {
-    throw new Error('expected Flow Editor overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
+    throw new Error('expected Storyboard Widget overlay surface to avoid base FlowCanvas collective fallback authority that can cause renderer seepage/interference')
   }
   const nativePolicyFlowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const nativePolicyFlowCanvasText = readFileSync(nativePolicyFlowCanvasPath, 'utf8')
@@ -349,47 +349,47 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (nativeRuntimeText.includes('if (!renderEdges && !renderGroups && !renderNodes) return')) {
     throw new Error('expected native FlowCanvas draws to avoid returning through an all-primitives-off suppression branch')
   }
-  const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const overlayCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
   const overlayCanvasSurfaceText = readFileSync(overlayCanvasSurfacePath, 'utf8')
   if (overlayCanvasSurfaceText.includes('nativeSurfaceMode')) {
-    throw new Error('expected Flow Editor canvas surface to avoid native surface suppression mode plumbing')
+    throw new Error('expected Storyboard Widget canvas surface to avoid native surface suppression mode plumbing')
   }
   if (overlayCanvasSurfaceText.includes('renderNodes=') || overlayCanvasSurfaceText.includes('renderEdges=') || overlayCanvasSurfaceText.includes('renderGroups=')) {
-    throw new Error('expected Flow Editor canvas surface to avoid owning FlowCanvas native node/edge visibility')
+    throw new Error('expected Storyboard Widget canvas surface to avoid owning FlowCanvas native node/edge visibility')
   }
   if (overlayCanvasSurfaceText.includes('hideNodeIds=')) {
-    throw new Error('expected Flow Editor canvas surface to forbid hideNodeIds masking and keep FlowCanvas visibility neutral')
+    throw new Error('expected Storyboard Widget canvas surface to forbid hideNodeIds masking and keep FlowCanvas visibility neutral')
   }
   if (overlayCanvasSurfaceText.includes('hidePortHandleNodeIds=')) {
-    throw new Error('expected Flow Editor canvas surface to forbid hidePortHandleNodeIds masking and keep FlowCanvas interaction contracts upstream')
+    throw new Error('expected Storyboard Widget canvas surface to forbid hidePortHandleNodeIds masking and keep FlowCanvas interaction contracts upstream')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
-    throw new Error('expected Flow Editor overlay surface to derive the Flow Editor-owned visual node set upstream')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
+    throw new Error('expected Storyboard Widget overlay surface to derive the Storyboard Widget-owned visual node set upstream')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
-    throw new Error('expected Flow Editor overlay surface to neutralize seepage via upstream filtered graph exclusions instead of FlowCanvas hide props')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
+    throw new Error('expected Storyboard Widget overlay surface to neutralize seepage via upstream filtered graph exclusions instead of FlowCanvas hide props')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('return filterGraphByExcludedNodeIds({')) {
-    throw new Error('expected Flow Editor overlay surface to centralize overlay/base isolation in shared graph exclusion helper')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('return filterGraphByExcludedNodeIds({')) {
+    throw new Error('expected Storyboard Widget overlay surface to centralize overlay/base isolation in shared graph exclusion helper')
   }
-  const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const flowEditorCanvasRuntimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
+  const storyboardWidgetCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
+  const storyboardWidgetCanvasRuntimeText = readFileSync(storyboardWidgetCanvasRuntimePath, 'utf8')
   if (
-    flowEditorCanvasRuntimeText.includes('flowCanvasNativeSurfaceMode')
-    || flowEditorCanvasRuntimeText.includes('resolveFlowCanvasNativeSurfaceMode')
-    || flowEditorCanvasRuntimeText.includes('overlayOwnsScene')
-    || flowEditorCanvasRuntimeText.includes('nativeSurfaceMode=')
+    storyboardWidgetCanvasRuntimeText.includes('flowCanvasNativeSurfaceMode')
+    || storyboardWidgetCanvasRuntimeText.includes('resolveFlowCanvasNativeSurfaceMode')
+    || storyboardWidgetCanvasRuntimeText.includes('overlayOwnsScene')
+    || storyboardWidgetCanvasRuntimeText.includes('nativeSurfaceMode=')
   ) {
-    throw new Error('expected Flow Editor runtime to avoid native FlowCanvas suppression mode plumbing')
+    throw new Error('expected Storyboard Widget runtime to avoid native FlowCanvas suppression mode plumbing')
   }
-  if (!flowEditorCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
-    throw new Error('expected Flow Editor runtime to pass the upstream-filtered graph override into FlowCanvas')
+  if (!storyboardWidgetCanvasRuntimeText.includes('renderGraphDataOverride={flowCanvasGraphDataOverride}')) {
+    throw new Error('expected Storyboard Widget runtime to pass the upstream-filtered graph override into FlowCanvas')
   }
   if (!renderStateText.includes('prev.topologyLayoutSignature === nextTopologyLayoutSignature')) {
-    throw new Error('expected Flow Editor render state to preserve the stable overlay graph only when semantic overlay topology still matches')
+    throw new Error('expected Storyboard Widget render state to preserve the stable overlay graph only when semantic overlay topology still matches')
   }
   if (!renderStateText.includes('if (preserveStableGraphAcrossFlowViewClose) return stableGraph')) {
-    throw new Error('expected Flow Editor render state to reuse the last stable overlay graph during workspace close when topology is unchanged')
+    throw new Error('expected Storyboard Widget render state to reuse the last stable overlay graph during workspace close when topology is unchanged')
   }
   const graphDataSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataCommitActions.ts')
   const graphDataSliceText = readFileSync(graphDataSlicePath, 'utf8')
@@ -432,28 +432,28 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
     throw new Error('expected root Flow widget world-position setter to reject Workspace/Indexing mutation writes')
   }
   if (!overlayEdgesText.includes('isWorkspaceEditorOverlayOpen') || !overlayEdgesText.includes('isWorkspaceGraphMutationBlocked')) {
-    throw new Error('expected Flow Editor overlay edge scheduler to use the actual workspace overlay state instead of the expiring mutation guard')
+    throw new Error('expected Storyboard Widget overlay edge scheduler to use the actual workspace overlay state instead of the expiring mutation guard')
   }
   if (!overlayEdgesText.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
-    throw new Error('expected Flow Editor overlay edge scheduler to keep workspace overlay-open state as a latest-value guard')
+    throw new Error('expected Storyboard Widget overlay edge scheduler to keep workspace overlay-open state as a latest-value guard')
   }
   if (!overlayEdgesText.includes('args.overlayEdgesEnabledRef.current = true')) {
-    throw new Error('expected Flow Editor overlay edge SVG reattach to re-enable edge scheduling after Workspace remounts the overlay layer')
+    throw new Error('expected Storyboard Widget overlay edge SVG reattach to re-enable edge scheduling after Workspace remounts the overlay layer')
   }
   if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) scheduleOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay open initialization to redraw stable edge geometry instead of only cancelling queued recomputation')
   }
-  if (!overlayEdgesText.includes("const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
-    throw new Error('expected Flow Editor overlay edges to mark a canonical DOM edge identity for frozen-workspace reuse')
+  if (!overlayEdgesText.includes("const STORYBOARD_WIDGET_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
+    throw new Error('expected Storyboard Widget overlay edges to mark a canonical DOM edge identity for frozen-workspace reuse')
   }
   if (!overlayEdgesText.includes('const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()')) {
-    throw new Error('expected Flow Editor overlay edges to cache the last stable edge render by surface id')
+    throw new Error('expected Storyboard Widget overlay edges to cache the last stable edge render by surface id')
   }
   if (!overlayEdgesText.includes('const cacheFrozenOverlayEdgePaths = React.useCallback(() => {')) {
-    throw new Error('expected Flow Editor overlay edges to snapshot the last stable edge DOM before workspace-open freezes')
+    throw new Error('expected Storyboard Widget overlay edges to snapshot the last stable edge DOM before workspace-open freezes')
   }
   if (!overlayEdgesText.includes('const restoreFrozenOverlayEdgePaths = React.useCallback((svg: SVGSVGElement | null): number => {')) {
-    throw new Error('expected Flow Editor overlay edges to restore frozen edge DOM while workspace-open recomputation is blocked')
+    throw new Error('expected Storyboard Widget overlay edges to restore frozen edge DOM while workspace-open recomputation is blocked')
   }
   if (!overlayEdgesText.includes('if (wasOpen) {') || !overlayEdgesText.includes('scheduleOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay close transition to reschedule overlay edge recomputation')
@@ -461,23 +461,23 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const edgeScheduleGuardIndex = overlayEdgesText.indexOf('const workspaceOverlayOpen = workspaceOverlayOpenRef.current')
   const edgePathWriteIndex = overlayEdgesText.indexOf("if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)")
   if (edgeScheduleGuardIndex < 0 || edgePathWriteIndex < 0 || edgeScheduleGuardIndex > edgePathWriteIndex) {
-    throw new Error('expected Flow Editor overlay edge DOM writes to remain driven by the workspace-open guard and stable graph branch')
+    throw new Error('expected Storyboard Widget overlay edge DOM writes to remain driven by the workspace-open guard and stable graph branch')
   }
   if (text.includes('workspaceViewLayoutRefreshNonce')) {
-    throw new Error('expected Flow Editor collective collision signature to avoid workspace layout refresh nonce coupling')
+    throw new Error('expected Storyboard Widget collective collision signature to avoid workspace layout refresh nonce coupling')
   }
 }
 
 export function testWorkspaceViewUpdatePreservesFrozenOverlayEdgesWhileIndexingToastIsVisible() {
-  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayEdges.ts')
   const text = readFileSync(overlayEdgesPath, 'utf8')
-  if (!text.includes("const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
+  if (!text.includes("const STORYBOARD_WIDGET_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
     throw new Error('expected overlay edge freeze preservation to use a canonical DOM edge identity')
   }
   if (!text.includes('const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()')) {
     throw new Error('expected overlay edge freeze preservation to cache stable paths per surface')
   }
-  if (!text.includes('const existingDomPaths = Array.from(svg.querySelectorAll(`path[${FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR}]`))')) {
+  if (!text.includes('const existingDomPaths = Array.from(svg.querySelectorAll(`path[${STORYBOARD_WIDGET_OVERLAY_EDGE_ID_ATTR}]`))')) {
     throw new Error('expected overlay edge restoration to rehydrate from already-mounted DOM paths before snapshot replay')
   }
   if (!text.includes('overlayEdgePathByIdRef.current.clear()')) {
@@ -486,7 +486,7 @@ export function testWorkspaceViewUpdatePreservesFrozenOverlayEdgesWhileIndexingT
   if (!text.includes("const snapshots = surfaceId ? frozenOverlayEdgePathsBySurfaceId.get(surfaceId) || [] : []")) {
     throw new Error('expected overlay edge restoration to fall back to the last stable per-surface snapshot')
   }
-  if (!text.includes("pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)")) {
+  if (!text.includes("pathEl.setAttribute(STORYBOARD_WIDGET_OVERLAY_EDGE_ID_ATTR, edgeId)")) {
     throw new Error('expected overlay edge writes to stamp canonical DOM edge ids onto live paths')
   }
   const workspaceStableGeometryIndex = text.indexOf("pushOverlayEdgeTrace('schedule-workspace-open-live-geometry', {")
@@ -529,21 +529,21 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('mediaLayoutItemIdsKey')) {
     throw new Error('expected FlowCanvas media overlay layout scheduling to track media overlay item ids')
   }
-  if (!text.includes('flowEditorFrontmatterDocumentModeRequested')) {
+  if (!text.includes('storyboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlay loop dependencies to include frontmatter document mode')
   }
-  if (!text.includes('const flowEditorSurfaceInteractionMode =')
-    || !text.includes('|| flowEditorFrontmatterInteractionMode')
-    || !text.includes('|| flowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected FlowCanvas media overlays to derive active Flow Editor surface mode from overlay and frontmatter interaction modes')
+  if (!text.includes('const storyboardWidgetSurfaceInteractionMode =')
+    || !text.includes('|| storyboardWidgetFrontmatterInteractionMode')
+    || !text.includes('|| storyboardWidgetFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas media overlays to derive active Storyboard Widget surface mode from overlay and frontmatter interaction modes')
   }
-  if (!text.includes('const flowEditorOverlaySurfaceId = flowEditorSurfaceInteractionMode ? flowEditorSurfaceId :')) {
-    throw new Error('expected FlowCanvas media overlays to forward the active surface id in frontmatter Flow Editor mode')
+  if (!text.includes('const storyboardWidgetOverlaySurfaceId = storyboardWidgetSurfaceInteractionMode ? storyboardWidgetSurfaceId :')) {
+    throw new Error('expected FlowCanvas media overlays to forward the active surface id in frontmatter Storyboard Widget mode')
   }
-  if (!text.includes('flowEditorInteractionMode={flowEditorSurfaceInteractionMode}')) {
-    throw new Error('expected Rich Media Panels to receive the unified Flow Editor interaction surface mode')
+  if (!text.includes('storyboardWidgetInteractionMode={storyboardWidgetSurfaceInteractionMode}')) {
+    throw new Error('expected Rich Media Panels to receive the unified Storyboard Widget interaction surface mode')
   }
-  if (!text.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested')) {
+  if (!text.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !storyboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected frontmatter media overlay refresh to derive a workspace-open passive-layout exception from frontmatter document mode')
   }
   const flowZoomCommitWriteIndex = commitText.indexOf('commitZoomTransformToStore({')
@@ -558,8 +558,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (flowLayoutCommitGuardIndex < 0 || flowZoomCommitWriteIndex > flowLayoutCommitGuardIndex) {
     throw new Error('expected Flow request commit to gate layout persistence separately from zoom persistence while Workspace/Indexing mutation guard is active')
   }
-  if (!runtimeText.includes('const lateFlowEditorInitAfterSceneBuild =')) {
-    throw new Error('expected Flow runtime to name the late Flow Editor init guard explicitly')
+  if (!runtimeText.includes('const lateStoryboardWidgetInitAfterSceneBuild =')) {
+    throw new Error('expected Flow runtime to name the late Storyboard Widget init guard explicitly')
   }
   if (!runtimeTextIncludesAll('const initialW = Math.max(1, Math.floor(viewportW * dpr))', 'const initialH = Math.max(1, Math.floor(viewportH * dpr))')) {
     throw new Error('expected Flow runtime to prime canvas backing-store size before first draw for workspace-open sharpness')
@@ -568,7 +568,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime late init guard to detect scene builds that raced ahead of zoom-key initialization')
   }
   if (!runtimeText.includes('Continue into fit so the first visible frame does not stay frozen at identity.')) {
-    throw new Error('expected Flow runtime late init guard to continue into fit instead of freezing Flow Editor at identity')
+    throw new Error('expected Flow runtime late init guard to continue into fit instead of freezing Storyboard Widget at identity')
   }
   if (runtimeText.includes('const graphKey = `${graphDataRevision}:')) {
     throw new Error('expected Flow runtime scene rebuild key to avoid raw graphDataRevision churn')
@@ -586,12 +586,12 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime zoom seeding to centralize current transform preservation checks')
   }
   if (!runtimeText.includes('const isReusableFlowTransform = (t: d3.ZoomTransform | null | undefined): boolean => {')
-    || !runtimeText.includes('if (isFlowEditor) return true')
+    || !runtimeText.includes('if (storyboardWidgetMode) return true')
     || !runtimeText.includes('return isFlowTransformShowingGraph(')) {
-    throw new Error('expected Flow Editor zoom seeding to accept finite offscreen transforms while keeping viewport visibility guards scoped to non-infinite renderers')
+    throw new Error('expected Storyboard Widget zoom seeding to accept finite offscreen transforms while keeping viewport visibility guards scoped to non-infinite renderers')
   }
   if (!runtimeTextIncludesAll('const initialTransform = initial ? d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k) : null', 'const initialTransformUsable = isReusableFlowTransform(initialTransform)')) {
-    throw new Error('expected Flow runtime zoom seeding to preserve finite initial transforms in Flow Editor infinite-canvas mode')
+    throw new Error('expected Flow runtime zoom seeding to preserve finite initial transforms in Storyboard Widget infinite-canvas mode')
   }
   if (!runtimeText.includes('const shouldUseInitialTransform = workspaceEditorOverlayOpen !== true && initialTransformUsable && !!initialTransform')) {
     throw new Error('expected Flow runtime to disable stale stored initial transform reuse while Workspace overlay is open')
@@ -599,8 +599,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('const seed = shouldUseInitialTransform', '? (initialTransform as d3.ZoomTransform)')) {
     throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
   }
-  if (!runtimeText.includes('if (isFlowEditor && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return')) {
-    throw new Error('expected Flow runtime initialization to preserve already-initialized non-workspace Flow Editor transforms after workspace close')
+  if (!runtimeText.includes('if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return')) {
+    throw new Error('expected Flow runtime initialization to preserve already-initialized non-workspace Storyboard Widget transforms after workspace close')
   }
   if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen !== true', 'Date.now() - lastUserInteractionAtMsRef.current < 500')) {
     throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
@@ -608,17 +608,17 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('alreadyInitializedForKey', 'workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'Workspace-open recovery owns stale/offscreen correction from live overlay') && !runtimeTextIncludesAll('workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'return')) {
     throw new Error('expected Flow runtime workspace-open init-fit guard to preserve existing non-identity transforms')
   }
-  if (!runtimeTextIncludesAll('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []', 'const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')) {
-    throw new Error('expected Flow runtime init fit strategy to detect collective Flow Editor widget overlays before selecting centered-fit mode')
+  if (!runtimeTextIncludesAll('const collectiveOverlayFitIds = storyboardWidgetMode ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []', 'const hasCollectiveFlowWidgets = storyboardWidgetMode && collectiveOverlayFitIds.length > 0')) {
+    throw new Error('expected Flow runtime init fit strategy to detect collective Storyboard Widget overlays before selecting centered-fit mode')
   }
   if (!runtimeTextIncludesAll('const canUseFrontmatterCollectiveInitFit =', "String(initFitGraphMeta.kind || '').trim() === 'frontmatter-flow'", "initFitGraphContext === 'frontmatter-flow'", 'const canUseCollectiveInitFit = hasCollectiveFlowWidgets || canUseFrontmatterCollectiveInitFit', '!canUseCollectiveInitFit', '!canUseFrontmatterCollectiveInitFit', '&& hasCollectiveFlowWidgets', '&& !hasUsableCollectiveWidgetWorldPos')) {
     throw new Error('expected Flow runtime settled init fit to keep frontmatter-flow on the collective overlay fit path even before explicit open widget ids are populated')
   }
   if (!runtimeText.includes('x: fit.x + (useD3StyleInitFit ? 0 : visibleViewportFit.left),')) {
-    throw new Error('expected Flow Editor fit seed to avoid x viewport offset when Workspace overlay D3-style init fit is active')
+    throw new Error('expected Storyboard Widget fit seed to avoid x viewport offset when Workspace overlay D3-style init fit is active')
   }
   if (!runtimeText.includes('y: fit.y + (useD3StyleInitFit ? 0 : visibleViewportFit.top),')) {
-    throw new Error('expected Flow Editor fit seed to avoid y viewport offset when Workspace overlay D3-style init fit is active')
+    throw new Error('expected Storyboard Widget fit seed to avoid y viewport offset when Workspace overlay D3-style init fit is active')
   }
   if (!runtimeText.includes('const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
     throw new Error('expected Flow runtime to subscribe to shared Workspace overlay-open SSOT for deterministic open/close recovery passes')
@@ -638,8 +638,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('y: t.y - visibleViewport.top,')) {
     throw new Error('expected Flow runtime transform normalization to offset y by visible viewport top before visibility checks')
   }
-  if (!runtimeText.includes("import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'")) {
-    throw new Error('expected Flow runtime infinite-canvas preservation to reuse shared Flow Editor interaction-frame event contract')
+  if (!runtimeText.includes("import { STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT } from '@/lib/canvas/storyboard-widget-overlay-proxy'")) {
+    throw new Error('expected Flow runtime infinite-canvas preservation to reuse shared Storyboard Widget interaction-frame event contract')
   }
   if (!runtimeText.includes("import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'")) {
     throw new Error('expected Flow runtime infinite-canvas preservation to reuse shared balanced-spread strip/cluster detectors')
@@ -647,8 +647,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const [workspaceOverlayInteractionFrameTick, setWorkspaceOverlayInteractionFrameTick] = React.useState(0)')) {
     throw new Error('expected Flow runtime infinite-canvas preservation to track interaction-frame ticks while Workspace overlay is open')
   }
-  if (!runtimeText.includes('window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame)')) {
-    throw new Error('expected Flow runtime infinite-canvas preservation to subscribe to live Flow Editor interaction frames')
+  if (!runtimeText.includes('window.addEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT, onInteractionFrame)')) {
+    throw new Error('expected Flow runtime infinite-canvas preservation to subscribe to live Storyboard Widget interaction frames')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen !== true &&')) {
     throw new Error('expected Flow runtime init preserve-current-transform guard to disable stale transform reuse while Workspace overlay is open')
@@ -738,9 +738,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('workspace-open-preinit-draw-suppressed')) {
     throw new Error('expected Flow runtime workspace-open draw paths to suppress pre-init scene draws until the current zoom view key transform is initialized')
   }
-  if (!runtimeText.includes('const frontmatterDocumentModeRequested = isFlowEditorFrontmatterDocumentModeRequested({')
+  if (!runtimeText.includes('const frontmatterDocumentModeRequested = isStoryboardWidgetFrontmatterDocumentModeRequested({')
     || !runtimeText.includes('if (hasRenderableGraphNodes && !frontmatterDocumentModeRequested) return false')) {
-    throw new Error('expected Flow runtime workspace-open pre-init draw suppression to keep Flow Editor frontmatter document mode off the generic renderable-graph early-draw path')
+    throw new Error('expected Flow runtime workspace-open pre-init draw suppression to keep Storyboard Widget frontmatter document mode off the generic renderable-graph early-draw path')
   }
   if (!runtimeText.includes('if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return')) {
     throw new Error('expected Flow runtime workspace-open deferred draw flush to wait for current zoom view key init transform readiness')
@@ -760,10 +760,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
     throw new Error('expected Flow runtime workspace reopen edge to reset only stale zoom-key memoization while preserving the current initialized transform')
   }
-  if (!runtimeTextIncludesAll('if (!open) {', 'Keep the initialized Flow Editor transform through close') || runtimeText.includes('Drop init/recovery memoization on close')) {
+  if (!runtimeTextIncludesAll('if (!open) {', 'Keep the initialized Storyboard Widget transform through close') || runtimeText.includes('Drop init/recovery memoization on close')) {
     throw new Error('expected Flow runtime workspace close edge to preserve initialized transform authority until the next reopen owns the reset')
   }
-  if (runtimeText.includes('const currentTransformUsable =') || runtimeText.includes('const initOverlayCollectiveState = isFlowEditor')) {
+  if (runtimeText.includes('const currentTransformUsable =') || runtimeText.includes('const initOverlayCollectiveState = storyboardWidgetMode')) {
     throw new Error('expected Flow runtime init guard to stop rejecting current transforms because the overlay collective is offscreen')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && hasNonIdentityTransform')) {
@@ -778,8 +778,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)')) {
     throw new Error('expected Flow runtime workspace-open preserve-current guards to require full live overlay collective coverage before stabilizing a centered frontmatter landing')
   }
-  if (!runtimeText.includes('const collectiveOverlayFitIds = isFlowEditor ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []')
-    || !runtimeText.includes('const hasCollectiveFlowWidgets = isFlowEditor && collectiveOverlayFitIds.length > 0')
+  if (!runtimeText.includes('const collectiveOverlayFitIds = storyboardWidgetMode ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []')
+    || !runtimeText.includes('const hasCollectiveFlowWidgets = storyboardWidgetMode && collectiveOverlayFitIds.length > 0')
     || runtimeText.includes('const recoveryCollectiveOverlayFitIds = deriveExpectedOverlayCollectiveIds(recoveryGraphData)')) {
     throw new Error('expected Flow runtime workspace-open init fits to use canonical frontmatter collective ids and remove automatic recovery fits')
   }
@@ -886,14 +886,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)')) {
     throw new Error('expected FlowCanvas media overlays to restart passive layout only on semantic workspace overlay open/close transitions')
   }
-  if (!text.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !flowEditorFrontmatterDocumentModeRequested')) {
+  if (!text.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !storyboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlays to derive a frontmatter-aware passive layout exception while workspace overlay is open')
   }
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
     throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
   }
-  if (!text.includes('const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)') || !text.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
-    throw new Error('expected Rich Media overlay drag/pan interactions to use the shared Flow Editor surface/Flow Canvas gate')
+  if (!text.includes('const storyboardWidgetSurfaceRendererMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)') || !text.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Rich Media overlay drag/pan interactions to use the shared Storyboard Widget surface/Flow Canvas gate')
   }
   if (!text.includes('resolveFlowCanvasMediaOverlayInteractionPolicy')) {
     throw new Error('expected Rich Media overlay interactions to reuse the shared FlowCanvas interaction policy')
@@ -910,8 +910,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const overlayPanelPointerEventsClass = mediaOverlayInteractionPolicy.panelPointerEventsClassName')) {
     throw new Error('expected Rich Media overlays to centralize pointer-event policy without workspace-open pointer suppression')
   }
-  if (!text.includes('className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`') || !text.includes('data-kg-rich-media-flow-editor-overlay-shell="1"')) {
-    throw new Error('expected Rich Media overlays to keep the shared pointer policy at the flow-editor overlay shell')
+  if (!text.includes('className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`') || !text.includes('data-kg-rich-media-storyboard-widget-overlay-shell="1"')) {
+    throw new Error('expected Rich Media overlays to keep the shared pointer policy at the storyboard-widget overlay shell')
   }
   if (!text.includes('onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')) {
     throw new Error('expected Rich Media overlay wheel capture to follow the shared interaction policy')
@@ -949,26 +949,28 @@ export function testWorkspaceViewSelectRefreshesCollectiveLayoutWithoutCloseReop
 }
 
 export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutateBalancedLayoutContracts() {
-  const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
-  const flowEditorText = readFileSync(flowEditorPath, 'utf8')
-  if (!flowEditorText.includes('const canDeferUntilMeasuredCollectiveLayout =')) {
-    throw new Error('expected Flow Editor collective layout to defer rebalance until the full measured collective is ready')
+  const storyboardWidgetPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts')
+  const storyboardWidgetText = readFileSync(storyboardWidgetPath, 'utf8')
+  if (!storyboardWidgetText.includes('const canDeferUntilMeasuredCollectiveLayout =')) {
+    throw new Error('expected Storyboard Widget collective layout to defer rebalance until the full measured collective is ready')
   }
-  if (!flowEditorText.includes('overlayMeasurementWarmupStartedAtMsRef')) {
-    throw new Error('expected Flow Editor collective layout to keep an explicit init-warmup guard against partial overlay measurements')
+  if (!storyboardWidgetText.includes('overlayMeasurementWarmupStartedAtMsRef')) {
+    throw new Error('expected Storyboard Widget collective layout to keep an explicit init-warmup guard against partial overlay measurements')
   }
-  if (flowEditorText.includes('workspaceViewSig') || flowEditorText.includes('workspaceViewLayoutRefreshNonce')) {
-    throw new Error('expected Flow Editor collective layout to stay decoupled from workspace view refresh signatures')
+  if (storyboardWidgetText.includes('workspaceViewSig') || storyboardWidgetText.includes('workspaceViewLayoutRefreshNonce')) {
+    throw new Error('expected Storyboard Widget collective layout to stay decoupled from workspace view refresh signatures')
   }
-  if (!flowEditorText.includes('flowEditorSurfaceId,')) {
-    throw new Error('expected Flow Editor collective layout runtime to key collision resolution off the active overlay surface identity')
+  if (!storyboardWidgetText.includes('storyboardWidgetSurfaceId,')) {
+    throw new Error('expected Storyboard Widget collective layout runtime to key collision resolution off the active overlay surface identity')
   }
-  if (!flowEditorText.includes('}, [draftGraphDataRef, queryActiveSurfaceOverlays, renderGraphDataOverride, runtimeActive])')) {
-    throw new Error('expected Flow Editor collective layout subscriptions to rebind through the active overlay surface query')
+  if (!storyboardWidgetText.includes('}, [draftGraphDataRef, queryActiveSurfaceOverlays, renderGraphDataOverride, runtimeActive])')) {
+    throw new Error('expected Storyboard Widget collective layout subscriptions to rebind through the active overlay surface query')
   }
 
-  const flowEditorCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
-  const flowEditorCanvasSurfaceText = readFileSync(flowEditorCanvasSurfacePath, 'utf8')
+  const storyboardWidgetCanvasSurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const storyboardWidgetCanvasSurfaceText = readFileSync(storyboardWidgetCanvasSurfacePath, 'utf8')
+  const storyboardSharedSurfacePanPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardSharedSurfacePan.ts')
+  const storyboardSharedSurfacePanText = readFileSync(storyboardSharedSurfacePanPath, 'utf8')
   const flowCanvasPointerDownPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'pointerDown.ts')
   const flowCanvasPointerDownText = readFileSync(flowCanvasPointerDownPath, 'utf8')
   const flowCanvasPointerMovePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'pointerMove.ts')
@@ -979,61 +981,64 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   const flowCanvasListenersText = readFileSync(flowCanvasListenersPath, 'utf8')
   const flowCanvasWheelPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
   const flowCanvasWheelText = readFileSync(flowCanvasWheelPath, 'utf8')
-  if (!flowEditorCanvasSurfaceText.includes('readFlowEditorScreenAuthorityPanSnapshot')
-    || !flowEditorCanvasSurfaceText.includes('applyFlowEditorScreenAuthorityPanSnapshot')) {
-    throw new Error('expected Flow Editor canvas surface to own frontmatter screen-authority collective pan through the shared helper')
+  if (!storyboardWidgetCanvasSurfaceText.includes('useStoryboardSharedSurfacePan({')) {
+    throw new Error('expected Storyboard Widget canvas surface to reuse the shared Card/Widget pan owner')
   }
-  if (!flowEditorCanvasSurfaceText.includes('const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(state)')) {
-    throw new Error('expected Flow Editor canvas surface collective pan to activate through the shared Flow Editor screen-authority predicate')
+  if (!storyboardSharedSurfacePanText.includes('readStoryboardWidgetScreenAuthorityPanSnapshot')
+    || !storyboardSharedSurfacePanText.includes('applyStoryboardWidgetScreenAuthorityPanSnapshot')) {
+    throw new Error('expected shared Storyboard Card/Widget pan owner to use the screen-authority collective pan helpers')
   }
-  if (!flowCanvasPointerTypesText.includes('useFlowEditorScreenAuthorityPan?: boolean')) {
-    throw new Error('expected native Flow Editor canvas pan sessions to carry a captured screen-authority predicate result')
+  if (!storyboardSharedSurfacePanText.includes('const storyboardWidgetOverlayInteractionMode = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(state)')) {
+    throw new Error('expected shared Storyboard Card/Widget pan owner to activate through the shared Storyboard Widget screen-authority predicate')
+  }
+  if (!flowCanvasPointerTypesText.includes('useStoryboardWidgetScreenAuthorityPan?: boolean')) {
+    throw new Error('expected native Storyboard Widget canvas pan sessions to carry a captured screen-authority predicate result')
   }
   if (!flowCanvasPointerDownText.includes('const createPanDrag = (): Extract<NonNullable<FlowCanvasDrag>, { type: \'pan\' }> => {')
-    || !flowCanvasPointerDownText.includes('shouldUseFlowEditorScreenAuthorityCollectivePan(storeStateAtDown)')
-    || !flowCanvasPointerDownText.includes('readFlowEditorScreenAuthorityPanSnapshot({')) {
-    throw new Error('expected native Flow Editor canvas pan to capture the shared collective screen-authority snapshot at pointerdown')
+    || !flowCanvasPointerDownText.includes('shouldUseStoryboardWidgetScreenAuthorityCollectivePan(storeStateAtDown)')
+    || !flowCanvasPointerDownText.includes('readStoryboardWidgetScreenAuthorityPanSnapshot({')) {
+    throw new Error('expected native Storyboard Widget canvas pan to capture the shared collective screen-authority snapshot at pointerdown')
   }
-  if (!flowCanvasPointerMoveText.includes('drag.useFlowEditorScreenAuthorityPan === true')
-    || flowCanvasPointerMoveText.includes('shouldUseFlowEditorScreenAuthorityCollectivePan(state)')
+  if (!flowCanvasPointerMoveText.includes('drag.useStoryboardWidgetScreenAuthorityPan === true')
+    || flowCanvasPointerMoveText.includes('shouldUseStoryboardWidgetScreenAuthorityCollectivePan(state)')
     || flowCanvasPointerMoveText.includes('useGraphStore.getState()')) {
-    throw new Error('expected native Flow Editor canvas pan pointermove to apply the captured screen-authority session without rereading store mode')
+    throw new Error('expected native Storyboard Widget canvas pan pointermove to apply the captured screen-authority session without rereading store mode')
   }
-  if (!flowCanvasListenersText.includes('isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer) && shouldUseFlowEditorScreenAuthorityCollectivePan(st)')
-    || !flowCanvasListenersText.includes('readFlowEditorScreenAuthorityPanSnapshot({')
-    || !flowCanvasListenersText.includes('useFlowEditorScreenAuthorityPan: pending.useFlowEditorScreenAuthorityPan')
-    || flowCanvasListenersText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
-    throw new Error('expected overlay proxy pan to reuse the shared Flow Editor screen-authority predicate and capture the snapshot at pan start')
+  if (!flowCanvasListenersText.includes('isStoryboardWidgetSurfaceRenderer(st.canvas2dRenderer) && shouldUseStoryboardWidgetScreenAuthorityCollectivePan(st)')
+    || !flowCanvasListenersText.includes('readStoryboardWidgetScreenAuthorityPanSnapshot({')
+    || !flowCanvasListenersText.includes('useStoryboardWidgetScreenAuthorityPan: pending.useStoryboardWidgetScreenAuthorityPan')
+    || flowCanvasListenersText.includes('isStoryboardWidgetFrontmatterDocumentModeRequested')) {
+    throw new Error('expected overlay proxy pan to reuse the shared Storyboard Widget screen-authority predicate and capture the snapshot at pan start')
   }
-  if (!flowCanvasWheelText.includes('const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)')
-    || !flowCanvasWheelText.includes('if (!flowEditorOverlayInteractionMode) return')) {
-    throw new Error('expected Flow Editor overlay wheel and gesture proxying to reuse the shared collective screen-authority predicate')
+  if (!flowCanvasWheelText.includes('const storyboardWidgetOverlayInteractionMode = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(st)')
+    || !flowCanvasWheelText.includes('if (!storyboardWidgetOverlayInteractionMode) return')) {
+    throw new Error('expected Storyboard Widget overlay wheel and gesture proxying to reuse the shared collective screen-authority predicate')
   }
-  if (!flowEditorCanvasSurfaceText.includes("window.addEventListener('pointerdown', onPointerDown")
-    || !flowEditorCanvasSurfaceText.includes("window.addEventListener('mousedown', onPointerDown")
-    || !flowEditorCanvasSurfaceText.includes("window.addEventListener('mousemove', onPointerMove")
-    || !flowEditorCanvasSurfaceText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')
-    || !flowEditorCanvasSurfaceText.includes('FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR')) {
-    throw new Error('expected Flow Editor canvas surface to install guarded overlay-body pointer/mouse listeners for collective pan')
+  if (!storyboardSharedSurfacePanText.includes("window.addEventListener('pointerdown', onPointerDown")
+    || !storyboardSharedSurfacePanText.includes("window.addEventListener('mousedown', onPointerDown")
+    || !storyboardSharedSurfacePanText.includes("window.addEventListener('mousemove', onPointerMove")
+    || !storyboardSharedSurfacePanText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')
+    || !storyboardSharedSurfacePanText.includes('STORYBOARD_WIDGET_OVERLAY_INTERACTIVE_SELECTOR')) {
+    throw new Error('expected shared Storyboard Card/Widget pan owner to install guarded overlay-body pointer/mouse listeners for collective pan')
   }
-  if (flowEditorCanvasSurfaceText.includes('!target || !surfaceRoot.contains(target)')) {
-    throw new Error('expected Flow Editor collective pan to accept portaled overlay roots by surface id instead of surface DOM ancestry')
+  if (storyboardSharedSurfacePanText.includes('!target || !surfaceRoot.contains(target)')) {
+    throw new Error('expected Storyboard Widget collective pan to accept portaled overlay roots by surface id instead of surface DOM ancestry')
   }
-  const nodeOverlayPlacementText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayPlacementRuntime.ts'), 'utf8')
-  if (!nodeOverlayPlacementText.includes('FLOW_EDITOR_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT')
-    || nodeOverlayPlacementText.includes('if (!active || !floatingUsesScreenAuthority || !nodeId')) {
-    throw new Error('expected Flow Editor overlay placement runtime to apply collective pan events for rich-media and widget overlays, not floating-only widgets')
+  const widgetPlacementText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts'), 'utf8')
+  if (!widgetPlacementText.includes('STORYBOARD_WIDGET_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT')
+    || widgetPlacementText.includes('if (!active || !floatingUsesScreenAuthority || !nodeId')) {
+    throw new Error('expected Storyboard Widget overlay placement runtime to apply collective pan events for rich-media and widget overlays, not floating-only widgets')
   }
-  const screenAuthorityPanText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'screenAuthorityCollectivePan.ts'), 'utf8')
+  const screenAuthorityPanText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'screenAuthorityCollectivePan.ts'), 'utf8')
   if (!screenAuthorityPanText.includes('applyScreenAuthorityPanDomPositions')
-    || !screenAuthorityPanText.includes('queryFlowEditorOverlayRootsForSurface')
+    || !screenAuthorityPanText.includes('queryStoryboardWidgetOverlayRootsForSurface')
     || !screenAuthorityPanText.includes('el.style.transform = `matrix(')) {
     throw new Error('expected shared screen-authority pan helper to apply surface-scoped DOM transforms for rich-media roots as well as store persistence')
   }
-  if (!screenAuthorityPanText.includes('export function shouldUseFlowEditorScreenAuthorityCollectivePan')
-    || !screenAuthorityPanText.includes('isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')
-    || !screenAuthorityPanText.includes('isFlowEditorFrontmatterDocumentModeRequested({')) {
-    throw new Error('expected shared screen-authority pan helper to include shared Flow Editor surfaces and frontmatter Flow Editor in one predicate')
+  if (!screenAuthorityPanText.includes('export function shouldUseStoryboardWidgetScreenAuthorityCollectivePan')
+    || !screenAuthorityPanText.includes('isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)')
+    || !screenAuthorityPanText.includes('isStoryboardWidgetFrontmatterDocumentModeRequested({')) {
+    throw new Error('expected shared screen-authority pan helper to include shared Storyboard Widget surfaces and frontmatter Storyboard Widget in one predicate')
   }
 
   const mediaLoopPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
@@ -1045,97 +1050,97 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     throw new Error('expected Rich Media collective layout loop to keep an explicit center warmup guard')
   }
 
-  const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
-  if (!flowEditorSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
-    throw new Error('expected Flow Editor overlay surface to subscribe to shared workspace mutation state for transient visibility hold')
+  const storyboardWidgetSurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
+  const storyboardWidgetSurfaceText = readFileSync(storyboardWidgetSurfacePath, 'utf8')
+  if (!storyboardWidgetSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
+    throw new Error('expected Storyboard Widget overlay surface to subscribe to shared workspace mutation state for transient visibility hold')
   }
-  if (!flowEditorSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
-    throw new Error('expected Flow Editor overlay ids to reuse last stable ids when flowEditorViewActive is transiently false during workspace mutation windows')
+  if (!storyboardWidgetSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
+    throw new Error('expected Storyboard Widget overlay ids to reuse last stable ids when storyboardWidgetViewActive is transiently false during workspace mutation windows')
   }
-  if (!flowEditorSurfaceText.includes('const overlayVisibilityActive = React.useMemo(() => {')) {
-    throw new Error('expected Flow Editor overlay surface to derive one shared overlay visibility authority for active and workspace-passthrough frames')
+  if (!storyboardWidgetSurfaceText.includes('const overlayVisibilityActive = React.useMemo(() => {')) {
+    throw new Error('expected Storyboard Widget overlay surface to derive one shared overlay visibility authority for active and workspace-passthrough frames')
   }
-  if (!flowEditorSurfaceText.includes('return flowEditorViewActive || (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
-    throw new Error('expected Flow Editor overlay visibility authority to keep overlays active during workspace-open frames')
+  if (!storyboardWidgetSurfaceText.includes('return storyboardWidgetViewActive || (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
+    throw new Error('expected Storyboard Widget overlay visibility authority to keep overlays active during workspace-open frames')
   }
-  if (!flowEditorSurfaceText.includes('return buildOverlayEditorElements({') || !flowEditorSurfaceText.includes('overlayVisibilityActive,')) {
-    throw new Error('expected Flow Editor widget overlays to render from the shared overlay visibility authority during workspace-open frames')
+  if (!storyboardWidgetSurfaceText.includes('return buildOverlayEditorElements({') || !storyboardWidgetSurfaceText.includes('overlayVisibilityActive,')) {
+    throw new Error('expected Storyboard Widget overlays to render from the shared overlay visibility authority during workspace-open frames')
   }
-  if (!flowEditorSurfaceText.includes('const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
-    throw new Error('expected Flow Editor overlay surface to derive overlay visibility from the actual workspace overlay state')
+  if (!storyboardWidgetSurfaceText.includes('const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))')) {
+    throw new Error('expected Storyboard Widget overlay surface to derive overlay visibility from the actual workspace overlay state')
   }
-  if (flowEditorSurfaceText.includes('workspaceInteractionPassthrough')) {
-    throw new Error('expected Flow Editor overlay surface to remove stale interaction passthrough wiring')
+  if (storyboardWidgetSurfaceText.includes('workspaceInteractionPassthrough')) {
+    throw new Error('expected Storyboard Widget overlay surface to remove stale interaction passthrough wiring')
   }
-  if (!flowEditorSurfaceText.includes('|| (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
-    throw new Error('expected Flow Editor overlay surface hasOverlayEditors guard to keep overlay layers mounted during workspace-open frames')
+  if (!storyboardWidgetSurfaceText.includes('|| (workspaceOverlayOpen && overlayEditorNodeIds.length > 0)')) {
+    throw new Error('expected Storyboard Widget overlay surface hasOverlayEditors guard to keep overlay layers mounted during workspace-open frames')
   }
-  const flowEditorSurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx'); const flowEditorSurfaceElementsText = readFileSync(flowEditorSurfaceElementsPath, 'utf8')
-  if (!flowEditorSurfaceElementsText.includes('if (!args.overlayVisibilityActive) return []')) {
-    throw new Error('expected Flow Editor overlay surface to keep widget overlay elements mounted from the shared visibility authority')
+  const storyboardWidgetSurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceElements.tsx'); const storyboardWidgetSurfaceElementsText = readFileSync(storyboardWidgetSurfaceElementsPath, 'utf8')
+  if (!storyboardWidgetSurfaceElementsText.includes('if (!args.overlayVisibilityActive) return []')) {
+    throw new Error('expected Storyboard Widget overlay surface to keep widget overlay elements mounted from the shared visibility authority')
   }
   if (
-    !flowEditorSurfaceText.includes('return overlayVisibilityActive && (') ||
-    !flowEditorSurfaceText.includes('renderGraphPlacementContext?.isFrontmatterFlow === true') ||
-    !flowEditorSurfaceText.includes('|| isFrontmatterFlowGraph(frontmatterOverlayAuthorityGraphData)')
+    !storyboardWidgetSurfaceText.includes('return overlayVisibilityActive && (') ||
+    !storyboardWidgetSurfaceText.includes('renderGraphPlacementContext?.isFrontmatterFlow === true') ||
+    !storyboardWidgetSurfaceText.includes('|| isFrontmatterFlowGraph(frontmatterOverlayAuthorityGraphData)')
   ) {
     throw new Error('expected frontmatter rich-media coverage to stay active while workspace visibility keeps overlays visible')
   }
-  const flowEditorSurfaceVisibilityPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceVisibility.ts'); const flowEditorSurfaceVisibilityText = readFileSync(flowEditorSurfaceVisibilityPath, 'utf8')
-  if (!flowEditorSurfaceVisibilityText.includes('const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))')) {
+  const storyboardWidgetSurfaceVisibilityPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceVisibility.ts'); const storyboardWidgetSurfaceVisibilityText = readFileSync(storyboardWidgetSurfaceVisibilityPath, 'utf8')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('const baseActive = overlayVisibilityActive && (hasOverlayEditors || Boolean(geospatialWidgetPanelMode))')) {
     throw new Error('expected overlay-only authority to reuse the shared overlay visibility guard during workspace passthrough')
   }
-  if (!flowEditorSurfaceElementsText.includes("import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'")) {
-    throw new Error('expected Flow Editor overlay surface node resolution to reuse shared canonical node-id helper')
+  if (!storyboardWidgetSurfaceElementsText.includes("import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected Storyboard Widget overlay surface node resolution to reuse shared canonical node-id helper')
   }
-  if (!flowEditorSurfaceText.includes('const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)')) {
-    throw new Error('expected Flow Editor overlay surface to cache the last stable non-empty render graph for transient workspace recomposition windows')
+  if (!storyboardWidgetSurfaceText.includes('const lastStableRenderGraphDataOverrideRef = React.useRef<GraphData | null>(renderGraphDataOverride)')) {
+    throw new Error('expected Storyboard Widget overlay surface to cache the last stable non-empty render graph for transient workspace recomposition windows')
   }
   if (
-    !flowEditorSurfaceText.includes('if (!renderGraphDataOverride || nodeCount <= 0) return')
-    || !flowEditorSurfaceText.includes('lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride')
+    !storyboardWidgetSurfaceText.includes('if (!renderGraphDataOverride || nodeCount <= 0) return')
+    || !storyboardWidgetSurfaceText.includes('lastStableRenderGraphDataOverrideRef.current = renderGraphDataOverride')
   ) {
-    throw new Error('expected Flow Editor overlay surface to refresh last stable render graph cache only from non-empty graph frames')
+    throw new Error('expected Storyboard Widget overlay surface to refresh last stable render graph cache only from non-empty graph frames')
   }
-  if (!flowEditorSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
-    throw new Error('expected Flow Editor overlay id selection to derive workspace mutation-blocked state via shared guard')
+  if (!storyboardWidgetSurfaceText.includes('const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))')) {
+    throw new Error('expected Storyboard Widget overlay id selection to derive workspace mutation-blocked state via shared guard')
   }
-  if (!flowEditorSurfaceText.includes('if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable')) {
+  if (!storyboardWidgetSurfaceText.includes('if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable')) {
     throw new Error('expected frontmatter overlay ids to reuse last stable ids during workspace mutation or transient empty-node frames to prevent flash-missing')
   }
-  if (!flowEditorSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
+  if (!storyboardWidgetSurfaceText.includes('if (workspaceMutationBlocked && lastStable.length > 0) return lastStable')) {
     throw new Error('expected frontmatter graph-available fallback to reuse last stable overlay ids while workspace mutation is blocked')
   }
-  if (!flowEditorSurfaceText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor overlay surface initialization to reuse the shared workspace/indexing mutation guard')
+  if (!storyboardWidgetSurfaceText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Storyboard Widget overlay surface initialization to reuse the shared workspace/indexing mutation guard')
   }
-  if (!flowEditorSurfaceText.includes('if (isWorkspaceGraphMutationBlocked(st)) return')) {
-    throw new Error('expected Flow Editor overlay surface pin seeding to skip while Workspace/Indexing overlay is open')
+  if (!storyboardWidgetSurfaceText.includes('if (isWorkspaceGraphMutationBlocked(st)) return')) {
+    throw new Error('expected Storyboard Widget overlay surface pin seeding to skip while Workspace/Indexing overlay is open')
   }
-  if (!flowEditorSurfaceText.includes('const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision')) {
-    throw new Error('expected Flow Editor overlay connected-values cache to use the active draft/render graph revision')
+  if (!storyboardWidgetSurfaceText.includes('const connectedValuesGraphRevision = args.storyboardWidgetViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision')) {
+    throw new Error('expected Storyboard Widget overlay connected-values cache to use the active draft/render graph revision')
   }
-  if (!flowEditorSurfaceText.includes('const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>(\'\')')) {
-    throw new Error('expected Flow Editor overlay id stability to track the semantic graph key of last stable frontmatter overlay ids')
+  if (!storyboardWidgetSurfaceText.includes('const lastStableOverlayEditorNodeIdsGraphKeyRef = React.useRef<string>(\'\')')) {
+    throw new Error('expected Storyboard Widget overlay id stability to track the semantic graph key of last stable frontmatter overlay ids')
   }
-  if (!flowEditorSurfaceText.includes('const sameGraphAsLastStable = lastStableOverlayEditorNodeIdsGraphKeyRef.current === renderGraphSemanticKey')) {
+  if (!storyboardWidgetSurfaceText.includes('const sameGraphAsLastStable = lastStableOverlayEditorNodeIdsGraphKeyRef.current === renderGraphSemanticKey')) {
     throw new Error('expected frontmatter overlay id fallback to only reuse last stable ids when semantic graph key remains unchanged')
   }
-  if (!flowEditorSurfaceText.includes('if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable')) {
+  if (!storyboardWidgetSurfaceText.includes('if (lastStable.length > 0 && (sameGraphAsLastStable || workspaceMutationBlocked || nodes.length === 0)) return lastStable')) {
     throw new Error('expected frontmatter overlay id fallback to avoid transient empty-id unmount flicker without cross-graph stale reuse')
   }
-  if (!flowEditorSurfaceElementsText.includes('const canonicalMatch = resolveGraphNodeByCanonicalId(args.renderGraphDataOverride, id)')) {
-    throw new Error('expected Flow Editor overlay node resolver to recover transient composed/canonical id mismatches without close-reopen')
+  if (!storyboardWidgetSurfaceElementsText.includes('const canonicalMatch = resolveGraphNodeByCanonicalId(args.renderGraphDataOverride, id)')) {
+    throw new Error('expected Storyboard Widget overlay node resolver to recover transient composed/canonical id mismatches without close-reopen')
   }
-  if (!flowEditorSurfaceElementsText.includes('const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)')) {
-    throw new Error('expected Flow Editor overlay node resolver to reuse last stable render graph canonical lookup during transient live-graph gaps')
+  if (!storyboardWidgetSurfaceElementsText.includes('const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)')) {
+    throw new Error('expected Storyboard Widget overlay node resolver to reuse last stable render graph canonical lookup during transient live-graph gaps')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
-    throw new Error('expected Flow Editor frontmatter graph exclusion to derive owned visual nodes before FlowCanvas rendering')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('const frontmatterFlowOwnedNodeIds =')) {
+    throw new Error('expected Storyboard Widget frontmatter graph exclusion to derive owned visual nodes before FlowCanvas rendering')
   }
-  if (!flowEditorSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
-    throw new Error('expected Flow Editor frontmatter graph exclusion to use upstream graph partitioning instead of coverage-gated suppression')
+  if (!storyboardWidgetSurfaceVisibilityText.includes('excludedNodeIds: frontmatterFlowOwnedNodeIds')) {
+    throw new Error('expected Storyboard Widget frontmatter graph exclusion to use upstream graph partitioning instead of coverage-gated suppression')
   }
 
   const flowCanvasMediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
@@ -1182,37 +1187,37 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   const uiModeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSliceModeActions.ts')
   const uiModeActionsText = readFileSync(uiModeActionsPath, 'utf8')
   if (
-    !uiModeActionsText.includes("nextEnabled && state.canvasRenderMode === '2d' && state.canvas2dRenderer !== 'flowEditor'") ||
-    !uiModeActionsText.includes("nextEnabled && nextCanvasRenderMode === '2d' && nextCanvas2dRenderer !== 'flowEditor'")
+    !uiModeActionsText.includes("nextEnabled && state.canvasRenderMode === '2d' && state.canvas2dRenderer !== 'storyboard'") ||
+    !uiModeActionsText.includes("nextEnabled && nextCanvasRenderMode === '2d' && nextCanvas2dRenderer !== 'storyboard'")
   ) {
-    throw new Error('expected workspace mode actions to avoid emitting fit-to-view zoom requests when Flow Editor is the active 2D renderer')
+    throw new Error('expected workspace mode actions to avoid emitting fit-to-view zoom requests when Storyboard is the active 2D renderer')
   }
 
-  const anchorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSurfaceAnchors.ts')
+  const anchorPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetSurfaceAnchors.ts')
   const anchorText = readFileSync(anchorPath, 'utf8')
   if (!anchorText.includes("import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'") || !anchorText.includes('return resolveCanvasViewportMeasureElement(args.rootRef.current)')) {
-    throw new Error('expected Flow Editor surface anchors to resolve canvas window offset from the canonical canvas viewport root')
+    throw new Error('expected Storyboard Widget surface anchors to resolve canvas window offset from the canonical canvas viewport root')
   }
   if (!anchorText.includes('const resolveCanonicalCanvasWindowOffset = React.useCallback((fallbackRect?: Pick<DOMRect, \'left\' | \'top\'> | null) => {')) {
-    throw new Error('expected Flow Editor surface anchors to centralize canonical canvas window offset resolution in a shared helper')
+    throw new Error('expected Storyboard Widget surface anchors to centralize canonical canvas window offset resolution in a shared helper')
   }
   if (!anchorText.includes('const anchorRect = anchorEl?.getBoundingClientRect() || fallbackRect || null')) {
-    throw new Error('expected Flow Editor surface anchors to prefer canonical viewport-root rects over transient inner-surface rects')
+    throw new Error('expected Storyboard Widget surface anchors to prefer canonical viewport-root rects over transient inner-surface rects')
   }
   if (!anchorText.includes('const { left, top } = resolveCanonicalCanvasWindowOffset()')) {
-    throw new Error('expected Flow Editor surface anchors to measure window offset through the shared canonical anchor-offset resolver')
+    throw new Error('expected Storyboard Widget surface anchors to measure window offset through the shared canonical anchor-offset resolver')
   }
   if (!anchorText.includes('const { left, top } = resolveCanonicalCanvasWindowOffset(rect)')) {
-    throw new Error('expected Flow Editor surface anchor writes to normalize caller-provided rects through the canonical viewport-root offset helper')
+    throw new Error('expected Storyboard Widget surface anchor writes to normalize caller-provided rects through the canonical viewport-root offset helper')
   }
   if (anchorText.includes('const left = Number.isFinite(args.containerLeft) ? args.containerLeft : 0')) {
-    throw new Error('expected Flow Editor surface anchors to avoid overriding canonical window offset from transient containerLeft coordinates')
+    throw new Error('expected Storyboard Widget surface anchors to avoid overriding canonical window offset from transient containerLeft coordinates')
   }
   if (anchorText.includes('const top = Number.isFinite(args.containerTop) ? args.containerTop : 0')) {
-    throw new Error('expected Flow Editor surface anchors to avoid overriding canonical window offset from transient containerTop coordinates')
+    throw new Error('expected Storyboard Widget surface anchors to avoid overriding canonical window offset from transient containerTop coordinates')
   }
   if (anchorText.includes('const el = args.rootRef.current')) {
-    throw new Error('expected Flow Editor surface anchors to avoid measuring raw rootRef coordinates directly during workspace toggles')
+    throw new Error('expected Storyboard Widget surface anchors to avoid measuring raw rootRef coordinates directly during workspace toggles')
   }
 }
 
@@ -1287,78 +1292,78 @@ export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
   }
 }
 
-export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
+export function testStoryboardWidgetOverlayFitNormalizesSurfaceWindowOffset() {
   const zoomPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
   const text = readFileSync(zoomPath, 'utf8')
-  const recenterPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'flowEditorOverlayRecenter.ts'); const recenterText = readFileSync(recenterPath, 'utf8')
+  const recenterPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'storyboardWidgetOverlayRecenter.ts'); const recenterText = readFileSync(recenterPath, 'utf8')
   if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor zoom fit path to reuse shared Workspace overlay-open SSOT helper')
+    throw new Error('expected Storyboard Widget zoom fit path to reuse shared Workspace overlay-open SSOT helper')
   }
   if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(state)')) {
-    throw new Error('expected Flow Editor zoom fit path to derive overlay-open state from shared workspace SSOT before fit/recenter')
+    throw new Error('expected Storyboard Widget zoom fit path to derive overlay-open state from shared workspace SSOT before fit/recenter')
   }
   if (!recenterText.includes('readCanvasOverlayNodeId,') || !recenterText.includes('const nodeId = readCanvasOverlayNodeId(roots[j])')) {
-    throw new Error('expected Flow Editor fit recentering to reuse shared overlay node-id resolution when translating world positions')
+    throw new Error('expected Storyboard Widget fit recentering to reuse shared overlay node-id resolution when translating world positions')
   }
-  if (!text.includes('function resolveFlowEditorVisibleViewport(args: {')) {
-    throw new Error('expected Flow Editor zoom fit to centralize visible viewport resolution')
+  if (!text.includes('function resolveStoryboardWidgetVisibleViewport(args: {')) {
+    throw new Error('expected Storyboard Widget zoom fit to centralize visible viewport resolution')
   }
   if (text.includes('WORKSPACE_LEFT_PANE_SELECTOR') || text.includes('document.querySelectorAll(\'[data-kg-workspace-left-pane="1"]\')')) {
-    throw new Error('expected Flow Editor visible viewport to ignore Editor Workspace overlay panes instead of treating them as layout authority')
+    throw new Error('expected Storyboard Widget visible viewport to ignore Editor Workspace overlay panes instead of treating them as layout authority')
   }
   if (text.includes('visibleLeft =') || text.includes('left: visibleLeft')) {
-    throw new Error('expected Flow Editor visible viewport to keep the canvas surface left edge instead of shifting to a workspace-pane strip')
+    throw new Error('expected Storyboard Widget visible viewport to keep the canvas surface left edge instead of shifting to a workspace-pane strip')
   }
-  if (!text.includes('Editor Workspace is an overlay, not a Flow Editor layout constraint.')) {
-    throw new Error('expected Flow Editor visible viewport source to document that Editor Workspace panes are overlays, not layout constraints')
+  if (!text.includes('Editor Workspace is an overlay, not a Storyboard Widget layout constraint.')) {
+    throw new Error('expected Storyboard Widget visible viewport source to document that Editor Workspace panes are overlays, not layout constraints')
   }
   if (!text.includes('const surfaceRect = surfaceRoot?.getBoundingClientRect() || null')) {
-    throw new Error('expected Flow Editor overlay fit bounds to resolve the active surface root window rect')
+    throw new Error('expected Storyboard Widget overlay fit bounds to resolve the active surface root window rect')
   }
   if (!text.includes('const surfaceOffsetLeft = Number.isFinite(surfaceRect?.left) ? Number(surfaceRect?.left) : 0')) {
-    throw new Error('expected Flow Editor overlay fit bounds to normalize horizontal screen coordinates by active surface offset')
+    throw new Error('expected Storyboard Widget overlay fit bounds to normalize horizontal screen coordinates by active surface offset')
   }
   if (!text.includes('const surfaceOffsetTop = Number.isFinite(surfaceRect?.top) ? Number(surfaceRect?.top) : 0')) {
-    throw new Error('expected Flow Editor overlay fit bounds to normalize vertical screen coordinates by active surface offset')
+    throw new Error('expected Storyboard Widget overlay fit bounds to normalize vertical screen coordinates by active surface offset')
   }
   if (!text.includes('left,\n    top,\n    right,\n    bottom,') || !text.includes('centerX: (left + right) / 2')) {
-    throw new Error('expected Flow Editor visible viewport resolution to return the full active surface rect')
+    throw new Error('expected Storyboard Widget visible viewport resolution to return the full active surface rect')
   }
   if (!text.includes('left: entry.rect.left - surfaceOffsetLeft')) {
-    throw new Error('expected Flow Editor overlay fit bounds to store left edge in active surface-local coordinates')
+    throw new Error('expected Storyboard Widget overlay fit bounds to store left edge in active surface-local coordinates')
   }
   if (!text.includes('top: entry.rect.top - surfaceOffsetTop')) {
-    throw new Error('expected Flow Editor overlay fit bounds to store top edge in active surface-local coordinates')
+    throw new Error('expected Storyboard Widget overlay fit bounds to store top edge in active surface-local coordinates')
   }
   if (!text.includes('pushEntries(SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR)')) {
-    throw new Error('expected Flow Editor overlay fit bounds to include semantic Storyboard fixed-card overlay roots')
+    throw new Error('expected Storyboard Widget overlay fit bounds to include semantic Storyboard fixed-card overlay roots')
   }
   if (!text.includes('const fitW = Math.max(1, visibleViewport.width - pad * 2)')) {
-    throw new Error('expected Flow Editor zoom fit to clamp collective bounds to the shared visible viewport width')
+    throw new Error('expected Storyboard Widget zoom fit to clamp collective bounds to the shared visible viewport width')
   }
-  if (!text.includes("const isFlowEditorCollectiveOutRequest =")
+  if (!text.includes("const isStoryboardWidgetCollectiveOutRequest =")
     || !text.includes("&& args.zoomRequest.type === 'out'")
-    || !text.includes('const flowEditorCollectiveOutResolved =')
+    || !text.includes('const storyboardWidgetCollectiveOutResolved =')
     || !text.includes('const wantsCollectiveFloor =')
-    || !text.includes('nextTransform: flowEditorCollectiveFitReference.nextTransform')) {
-    throw new Error('expected Flow Editor zoom-out to reuse the collective frontmatter fit reference when generic zoom-out would otherwise snap to the old graph-only floor')
+    || !text.includes('nextTransform: storyboardWidgetCollectiveFitReference.nextTransform')) {
+    throw new Error('expected Storyboard Widget zoom-out to reuse the collective frontmatter fit reference when generic zoom-out would otherwise snap to the old graph-only floor')
   }
-  if (!text.includes('const canUseFlowEditorOverlayFitResolved =')
+  if (!text.includes('const canUseStoryboardWidgetOverlayFitResolved =')
     || !text.includes('|| fitHasCollectiveOverlayFit')
-    || !text.includes('const flowEditorOverlayFitResolved = canUseFlowEditorOverlayFitResolved')) {
-    throw new Error('expected Flow Editor zoom fit to keep the overlay-bounds fit branch available for workspace-open frontmatter collective fits')
+    || !text.includes('const storyboardWidgetOverlayFitResolved = canUseStoryboardWidgetOverlayFitResolved')) {
+    throw new Error('expected Storyboard Widget zoom fit to keep the overlay-bounds fit branch available for workspace-open frontmatter collective fits')
   }
-  if (!text.includes('const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest')) {
-    throw new Error('expected Flow Editor zoom fit/reset to force immediate (non-animated) application while Workspace overlay is open')
+  if (!text.includes('const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isStoryboardWidgetFitLikeRequest')) {
+    throw new Error('expected Storyboard Widget zoom fit/reset to force immediate (non-animated) application while Workspace overlay is open')
   }
   if (!text.includes('const durationMs = forceImmediateWorkspaceOverlayFit')) {
-    throw new Error('expected Flow Editor zoom duration to be forced to zero for Workspace overlay fit/reset requests')
+    throw new Error('expected Storyboard Widget zoom duration to be forced to zero for Workspace overlay fit/reset requests')
   }
-  if (!text.includes('const shouldRecenterFlowEditorCollectiveAfterFit =')
+  if (!text.includes('const shouldRecenterStoryboardWidgetCollectiveAfterFit =')
     || !text.includes('|| fitHasCollectiveOverlayFit')
-    || !text.includes('if (shouldRecenterFlowEditorCollectiveAfterFit) {')
-    || !text.includes('recenterVisibleFlowEditorOverlayCentroid({')) {
-    throw new Error('expected Flow Editor zoom fit/reset to keep post-fit collective recentering active for workspace-open frontmatter collective fits')
+    || !text.includes('if (shouldRecenterStoryboardWidgetCollectiveAfterFit) {')
+    || !text.includes('recenterVisibleStoryboardWidgetOverlayCentroid({')) {
+    throw new Error('expected Storyboard Widget zoom fit/reset to keep post-fit collective recentering active for workspace-open frontmatter collective fits')
   }
   if (!text.includes('const fitHasCollectiveOverlayFit =')
     || !text.includes("resolveCanvas2dRendererId(state.canvas2dRenderer) === 'storyboard'")
@@ -1366,48 +1371,48 @@ export function testFlowEditorOverlayFitNormalizesSurfaceWindowOffset() {
     || !text.includes("fitGraphContext === 'frontmatter-flow'")
     || !text.includes('const useWorkspaceOverlayGraphFallbackFit =')
     || !text.includes('&& !fitHasCollectiveOverlayFit')) {
-    throw new Error('expected Flow Editor zoom graph-fit branch to keep frontmatter-flow on the collective overlay fit path instead of forcing workspace-overlay graph-only fallback')
+    throw new Error('expected Storyboard Widget zoom graph-fit branch to keep frontmatter-flow on the collective overlay fit path instead of forcing workspace-overlay graph-only fallback')
   }
   if (!text.includes('? fitAllTransform(')) {
-    throw new Error('expected Flow Editor zoom graph-fit branch to fallback to D3 fitAllTransform while Workspace overlay is open')
+    throw new Error('expected Storyboard Widget zoom graph-fit branch to fallback to D3 fitAllTransform while Workspace overlay is open')
   }
   if (!text.includes('Math.max(1, visibleViewport.width),')) {
-    throw new Error('expected Flow Editor zoom graph-fit fallback to clamp width to visible viewport bounds while Workspace overlay is open')
+    throw new Error('expected Storyboard Widget zoom graph-fit fallback to clamp width to visible viewport bounds while Workspace overlay is open')
   }
   if (!text.includes('Math.max(1, visibleViewport.height),')) {
-    throw new Error('expected Flow Editor zoom graph-fit fallback to clamp height to visible viewport bounds while Workspace overlay is open')
+    throw new Error('expected Storyboard Widget zoom graph-fit fallback to clamp height to visible viewport bounds while Workspace overlay is open')
   }
   if (!text.includes('const targetX = visibleViewport.centerX - (centerX - base.x) * appliedScale')) {
-    throw new Error('expected Flow Editor zoom fit to center collective overlays inside the visible viewport center')
+    throw new Error('expected Storyboard Widget zoom fit to center collective overlays inside the visible viewport center')
   }
-  if (!text.includes('recenterVisibleFlowEditorOverlayCentroid({') || !text.includes('graphData: args.graphData,')) {
-    throw new Error('expected Flow Editor fit recentering to shift widget world positions alongside viewport transform updates')
+  if (!text.includes('recenterVisibleStoryboardWidgetOverlayCentroid({') || !text.includes('graphData: args.graphData,')) {
+    throw new Error('expected Storyboard Widget fit recentering to shift widget world positions alongside viewport transform updates')
   }
-  if (!text.includes('if (shouldRecenterFlowEditorCollectiveAfterFit) {')) {
-    throw new Error('expected Flow Editor fit recentering to stay enabled for workspace-open frontmatter collective fits')
+  if (!text.includes('if (shouldRecenterStoryboardWidgetCollectiveAfterFit) {')) {
+    throw new Error('expected Storyboard Widget fit recentering to stay enabled for workspace-open frontmatter collective fits')
   }
   if (!recenterText.includes('st.setFlowWidgetWorldPosByNodeId(nextWorld)')) {
-    throw new Error('expected Flow Editor fit recentering to persist translated world positions through the shared widget world-position setter')
+    throw new Error('expected Storyboard Widget fit recentering to persist translated world positions through the shared widget world-position setter')
   }
   if (!recenterText.includes('st.setFlowWidgetPosByNodeId(nextScreen)')) {
-    throw new Error('expected Flow Editor fit recentering to persist translated screen positions through the shared widget screen-position setter')
+    throw new Error('expected Storyboard Widget fit recentering to persist translated screen positions through the shared widget screen-position setter')
   }
   if (text.includes('left: entry.rect.left,')) {
-    throw new Error('expected Flow Editor overlay fit bounds to avoid raw window-space left coordinates')
+    throw new Error('expected Storyboard Widget overlay fit bounds to avoid raw window-space left coordinates')
   }
   const fitHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'fitPinnedWidgets.ts')
   const fitHelperText = readFileSync(fitHelperPath, 'utf8')
   if (!fitHelperText.includes('const isFrontmatterOverlayFit =')) {
-    throw new Error('expected Flow Editor pinned-widget fit helper to detect frontmatter-flow fit mode explicitly')
+    throw new Error('expected Storyboard Widget pinned-widget fit helper to detect frontmatter-flow fit mode explicitly')
   }
   if (!fitHelperText.includes('const openIds = isFrontmatterOverlayFit')) {
-    throw new Error('expected Flow Editor frontmatter-flow fit path to source open ids from the canonical frontmatter overlay set before fitting')
+    throw new Error('expected Storyboard Widget frontmatter-flow fit path to source open ids from the canonical frontmatter overlay set before fitting')
   }
   if (fitHelperText.includes('if (isFrontmatterOverlayFit) {\n    // Frontmatter nodes already encode the shared collective proxy layout.\n    // Reuse graph fit as the upstream basis and let later overlay-bounds refinement sharpen it.\n    return fitAllTransform(nodes, args.fitW, args.viewportH')) {
-    throw new Error('expected Flow Editor frontmatter-flow fit path to avoid hard graph-only fit fallback when overlay collective ids are available')
+    throw new Error('expected Storyboard Widget frontmatter-flow fit path to avoid hard graph-only fit fallback when overlay collective ids are available')
   }
   if (!fitHelperText.includes('let kGuess = isFrontmatterOverlayFit ? neutralFrontmatterFitZoom : kBase')) {
-    throw new Error('expected Flow Editor frontmatter-flow fit path to bootstrap proxy fitting from a neutral zoom instead of a tiny graph-only baseline')
+    throw new Error('expected Storyboard Widget frontmatter-flow fit path to bootstrap proxy fitting from a neutral zoom instead of a tiny graph-only baseline')
   }
   if (!fitHelperText.includes('const worldById = args.worldPosById || {}')) {
     throw new Error('expected non-frontmatter pinned-widget fit path to continue using persisted world positions')

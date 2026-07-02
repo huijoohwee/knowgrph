@@ -67,7 +67,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.chat',
   'floatingPanel.geo',
   'floatingPanel.renderer',
-  'floatingPanel.flowEditor',
+  'floatingPanel.storyboardWidget',
   'floatingPanel.flowchart',
   'floatingPanel.gitGraph',
   'floatingPanel.gantt',
@@ -360,9 +360,9 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Renderer',
     Icon: MonitorPlay,
   },
-  'floatingPanel.flowEditor': {
+  'floatingPanel.storyboardWidget': {
     category: 'FloatingPanel surface',
-    label: 'Flow Editor',
+    label: 'Storyboard Widget',
     Icon: Braces,
   },
   'floatingPanel.flowchart': {
@@ -530,7 +530,7 @@ export type FloatingPanelTypeIconView =
   | 'chat'
   | 'geo'
   | 'renderer'
-  | 'flowEditor'
+  | 'storyboardWidget'
   | 'flowchart'
   | 'gitGraph'
   | 'gantt'
@@ -550,7 +550,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   chat: 'floatingPanel.chat',
   geo: 'floatingPanel.geo',
   renderer: 'floatingPanel.renderer',
-  flowEditor: 'floatingPanel.flowEditor',
+  storyboardWidget: 'floatingPanel.storyboardWidget',
   flowchart: 'floatingPanel.flowchart',
   gitGraph: 'floatingPanel.gitGraph',
   gantt: 'floatingPanel.gantt',

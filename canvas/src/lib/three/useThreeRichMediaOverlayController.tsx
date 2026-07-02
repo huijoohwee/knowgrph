@@ -13,8 +13,8 @@ import {
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
 import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.storyboard-widget'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
@@ -507,7 +507,7 @@ export function useThreeRichMediaOverlayController(args: {
           srcDoc={n.srcDoc}
           openUrl={n.openUrl}
           kind={n.kind}
-          panelChrome="flowEditor"
+          panelChrome="storyboardWidget"
           widgetToolbarActive={true}
           headerPinned={readPanelPinned(n.id)}
           headerMinimized={(getPanelSizeForId(n.id)?.w || 9999) <= 260}

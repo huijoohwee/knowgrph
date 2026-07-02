@@ -5,7 +5,7 @@ doc_type: prd-tad
 version: 0.1.0
 status: dev-source-implemented-no-deploy
 updated: 2026-06-04
-tags: [swarm-intelligence, prediction-engine, flow-editor, computing-flow, rich-media, prd, tad]
+tags: [swarm-intelligence, prediction-engine, storyboard-widget, computing-flow, rich-media, prd, tad]
 ---
 
 # Knowgrph Swarm Prediction Engine PRD/TAD
@@ -34,21 +34,21 @@ phrasing, assets, prompts, fixtures, or repository-specific naming into the app.
 |---|---|---|
 | Deterministic simulation engine | `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts` | `swarmPredictionEngine.test.ts` proves stable replay from the same seed, bounded ticks/agents/signals/interventions, unique event ids, world states, metrics, and rich-media outputs. |
 | Rich media report rendering | `canvas/src/features/swarm-prediction/swarmPredictionRender.ts` | The same focused test verifies text output, inline SVG chart HTML, and `data:image/svg+xml` chart output. |
-| Flow Editor widget contract | `canvas/src/features/swarm-prediction/swarmPredictionWidget.ts` plus `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Canonical registry draft exposes schema paths for seed JSON, agent JSON, interventions JSON, output text, `outputSrcDoc`, image chart, event log, and metrics. |
-| Flow Editor run action | `canvas/src/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowActions.ts` | `SwarmPrediction` run action reads shared connected values, calls the offline widget runner, and writes output fields back through the central workflow output owner. |
+| Storyboard Widget contract | `canvas/src/features/swarm-prediction/swarmPredictionWidget.ts` plus `canvas/src/features/storyboard-widget-manager/registryTemplates.ts` | Canonical registry draft exposes schema paths for seed JSON, agent JSON, interventions JSON, output text, `outputSrcDoc`, image chart, event log, and metrics. |
+| Storyboard Widget run action | `canvas/src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowActions.ts` | `SwarmPrediction` run action reads shared connected values, calls the offline widget runner, and writes output fields back through the central workflow output owner. |
 | Shared identity | `canvas/src/lib/graph/semanticKey.ts` | Engine ids are derived through `buildScopedGraphSemanticKey()` instead of feature-local hash literals. |
-| Flow Editor constants | `canvas/src/lib/config.flow-editor.ts` | `SwarmPrediction` has one canonical node type, label, form id, and widget type id. |
+| Storyboard Widget constants | `canvas/src/lib/config.storyboard-widget.ts` | `SwarmPrediction` has one canonical node type, label, form id, and widget type id. |
 
 ## Product Contract
 
 ### User Flow
 
-1. User creates or imports a Flow Editor computing-flow document.
+1. User creates or imports a Storyboard Widget computing-flow document.
 2. User adds a `SwarmPrediction` node from the widget registry.
 3. User supplies seed signals as JSON, and optionally supplies agent population
    and intervention JSON.
 4. User runs the node or a headless harness using the same properties.
-5. Flow Editor shows text output, a chart image, and an HTML chart/report panel
+5. Storyboard Widget shows text output, a chart image, and an HTML chart/report panel
    through ordinary Rich Media Panel schema paths.
 
 ### Data Flow
@@ -59,7 +59,7 @@ scenarioTitle + seedSignalsJson + agentPopulationJson + interventionsJson
   -> schema_version: knowgrph-swarm-prediction/v1
   -> agents[] + world_states[] + events[] + metrics
   -> properties.output + properties.outputSrcDoc + properties.imageUrl
-  -> Rich Media Panel / Flow Editor connected-value rendering
+  -> Rich Media Panel / Storyboard Widget connected-value rendering
 ```
 
 The engine is offline and deterministic. It does not call a provider, mutate the
@@ -68,7 +68,7 @@ mutation remains a separate review/apply concern.
 
 ### Markdown Artifact Boundary
 
-SwarmPrediction demos and templates are frontmatter-first Flow Editor documents. Renderer presets, `socket_types`, workflow sections, node fields, output fields, and edges belong in the opening YAML frontmatter block. Body Markdown can explain the scenario, metrics, validation, and inspection steps, but it must not define a second simulator graph, body `flow:` mirror, `## KGC Reading Layer`, or line-start `@node:` / `@edge:` layer.
+SwarmPrediction demos and templates are frontmatter-first Storyboard Widget documents. Renderer presets, `socket_types`, workflow sections, node fields, output fields, and edges belong in the opening YAML frontmatter block. Body Markdown can explain the scenario, metrics, validation, and inspection steps, but it must not define a second simulator graph, body `flow:` mirror, `## KGC Reading Layer`, or line-start `@node:` / `@edge:` layer.
 
 When a normalized fixture needs concise machine-readable node summaries, store them on the owning frontmatter node as `kgc:readingSummary`. Keep event logs, metrics, text, image, and chart outputs as normal node properties.
 
@@ -89,14 +89,14 @@ When a normalized fixture needs concise machine-readable node summaries, store t
 - No code, prompt text, asset, fixture, or structural copy from MiroFish.
 - No provider-specific renderer branch.
 - No file-name, repo-name, URL, or published-domain hardcoding.
-- No downstream alias/remap stack for Flow Editor schema paths.
+- No downstream alias/remap stack for Storyboard Widget schema paths.
 - No renderer-local recomputation; outputs are normal node properties and the
   existing connected-value/Rich Media Panel owners consume them.
 - No infinite loops; max ticks, agents, signals, interventions, memory, and
   convergence are bounded before execution.
 - No graph mutation during prediction; event logs and reports are outputs only.
 
-## Flow Editor Template Shape
+## Storyboard Widget Template Shape
 
 ```yaml
 flow:
@@ -144,7 +144,7 @@ Pass criteria:
 - same seed and scenario replay the same event log and metrics
 - caps prevent unbounded runs
 - widget registry exposes rich-media-compatible output ports
-- Flow Editor run action uses shared connected values and the offline widget
+- Storyboard Widget run action uses shared connected values and the offline widget
   runner
 - source code reuses shared semantic-key helper and contains no copied MiroFish
   surface tokens

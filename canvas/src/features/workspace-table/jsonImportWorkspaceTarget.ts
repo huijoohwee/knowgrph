@@ -25,11 +25,11 @@ export const readJsonImportWorkspaceTarget = (): JsonImportWorkspaceTarget =>
 export const writeJsonImportWorkspaceTarget = (next: JsonImportWorkspaceTarget): JsonImportWorkspaceTarget =>
   lsSetJson<JsonImportWorkspaceTarget>(LS_KEYS.jsonImportWorkspaceTarget, next)
 
-export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boolean }) {
+export function applyJsonImportWorkspaceTarget(args?: { preferStoryboardWidget?: boolean }) {
   const store = useGraphStore.getState()
-  if (args?.preferFlowEditor === true) {
+  if (args?.preferStoryboardWidget === true) {
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.setWorkspaceViewMode('canvas')
     return
   }

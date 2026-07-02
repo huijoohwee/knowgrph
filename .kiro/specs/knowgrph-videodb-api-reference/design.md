@@ -24,7 +24,7 @@ H1 Header Block
   ├── SSOT upstream link
   ├── App SSOT entrypoint
   ├── CLI generator (planned)
-  ├── Scope declaration (MainPanel Integrations, FlowEditor Manager, NodeOverlayEditor)
+  ├── Scope declaration (MainPanel Integrations, StoryboardWidget Manager, NodeOverlayEditor)
   └── Table columns legend
 
 Integration Overlay Section
@@ -56,7 +56,7 @@ Runnable Dev Demo
       ├── demo_status marks Dev/runtime-slot scope
       ├── deployed_api_claim: false
       ├── flow nodes reference the API table keys and local knowgrph handoff keys
-      ├── kgRendererCompatibility declares Flow Editor, Storyboard, and Strybldr
+      ├── kgRendererCompatibility declares Storyboard and Strybldr
       ├── flow.nodes carry neutral Storyboard aliases
       ├── fenced json strybldr-storyboard payload validates Strybldr direct-open projection
       ├── runtime values blank by default
@@ -238,5 +238,5 @@ The runnable demo is validated as a Dev-only artifact:
 - Endpoint templates include `{id}` placeholders rather than concrete IDs
 - `api_key`, `collection_id`, `generation_job_id`, `video_id`, `index_job_id`, `stream_url`, `download_url`, and `publish_packet_path` are blank by default
 - No generated prefixes such as `job-upload-`, `job-index-`, `job-generation-`, hardcoded stream hosts, or default collection IDs are present
-- Renderer compatibility includes `2D Renderer: Flow Editor`, `2D Renderer: Storyboard`, and `2D Renderer: Strybldr`
+- Renderer compatibility includes `2D Renderer: Storyboard` and `2D Renderer: Strybldr`
 - The `json strybldr-storyboard` payload parses and contains the same knowgrph-native workflow beats

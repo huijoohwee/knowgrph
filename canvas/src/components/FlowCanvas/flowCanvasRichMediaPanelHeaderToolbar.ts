@@ -7,8 +7,8 @@ import {
   readFlowWidgetPinnedInCanvas,
   shouldSkipFlowWidgetPinClickAfterPointerActivation,
   toggleFlowWidgetPinnedById,
-} from '@/lib/flowEditor/flowWidgetPinnedState'
-import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+} from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import type { GraphNode } from '@/lib/graph/types'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
@@ -44,6 +44,7 @@ export function buildFlowCanvasHeaderPinProps(args: {
   flowWidgetPinnedByNodeId: Record<string, boolean> | null | undefined
   flowWidgetStateGraphKey: string | null | undefined
   nodeId: string
+  onPinnedChange?: (pinned: boolean) => void
   stopEvent: (event: React.SyntheticEvent) => void
 }): FlowCanvasHeaderPinProps {
   const nodeId = String(args.nodeId || '').trim()
@@ -57,7 +58,9 @@ export function buildFlowCanvasHeaderPinProps(args: {
       globalByNodeId: st.flowWidgetPinnedByNodeId,
     })
     const nextPinnedById = toggleFlowWidgetPinnedById(currentPinnedById, nodeId)
-    if (nextPinnedById) st.setFlowWidgetPinnedByNodeIdForGraph(args.flowWidgetStateGraphKey, nextPinnedById)
+    if (!nextPinnedById) return
+    st.setFlowWidgetPinnedByNodeIdForGraph(args.flowWidgetStateGraphKey, nextPinnedById)
+    args.onPinnedChange?.(readFlowWidgetPinnedInCanvas(nextPinnedById, nodeId))
   }
   const togglePinned = (event: React.MouseEvent) => {
     args.stopEvent(event)
@@ -120,6 +123,10 @@ export function buildFlowCanvasRichMediaPanelHeaderToolbar(args: {
     flowWidgetPinnedByNodeId: args.flowWidgetPinnedByNodeId,
     flowWidgetStateGraphKey: args.flowWidgetStateGraphKey,
     nodeId,
+    onPinnedChange: () => {
+      args.scheduleLayout()
+      args.requestCommit()
+    },
     stopEvent: args.stopEvent,
   })
   const togglePinned = pinProps.onHeaderTogglePinned

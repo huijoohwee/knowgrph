@@ -11,7 +11,7 @@ as a conceptual reference for long-horizon harness primitives: message gateway,
 tools, skills, memory, subagents, sandboxed workspaces, and minutes-to-hours
 runs. That reference is inspiration only. Knowgrph must not copy Deer Flow code,
 clone its architecture, add provider-specific renderer branches, or introduce
-downstream alias stacks that bypass the existing Source Files, Flow Editor, MCP,
+downstream alias stacks that bypass the existing Source Files, Storyboard Widget, MCP,
 chat, rich-media, and KGC owners.
 
 This document describes the Codex-compatible harness implemented by:

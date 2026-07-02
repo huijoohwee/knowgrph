@@ -3,8 +3,8 @@ import { hashText } from '@/features/parsers/hash'
 import { parseMarkdownBlocks } from '@/lib/markdown'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+} from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/storyboard-widget-manager/registryTemplates'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const

@@ -1,9 +1,9 @@
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
-import { appendFlowEditorAuthoredEdge, appendFlowEditorDraftNode, resolveFlowEditorEdgeAuthoringNodeId } from '@/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions'
-import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
-import { buildStoryboardElementRegistryDraft } from '@/features/flow-editor-manager/storyboardElementRegistryDraft'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { appendStoryboardWidgetAuthoredEdge, appendStoryboardWidgetDraftNode, resolveStoryboardWidgetEdgeAuthoringNodeId } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions'
+import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
+import { buildStoryboardElementRegistryDraft } from '@/features/storyboard-widget-manager/storyboardElementRegistryDraft'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/richMediaSsot'
 import { resolveMediaPointerReleaseClientPoint } from '@/lib/ui/mediaDragPayload'
 import {
@@ -13,7 +13,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import type { GraphData } from '@/lib/graph/types'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -131,11 +131,11 @@ export function testStoryboardCardPortEdgeProjectsImageOutputIntoRichMediaPanel(
 }
 
 export function testStoryboardPropsPanelEdgeRequestUsesSharedOverlayAuthoring() {
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
-  const requestBridge = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useStoryboardEdgeCreationRequest.ts'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
+  const requestBridge = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardEdgeCreationRequest.ts'), 'utf8')
   const nativeEdgeEffect = readFileSync(resolve(process.cwd(), 'src/components/GraphCanvas/hooks/useEdgeCreationEffect.ts'), 'utf8')
   if (!surface.includes('useStoryboardEdgeCreationRequest({') || !requestBridge.includes('state.edgeCreationRequest') || !requestBridge.includes('beginEdge(sourceId, null)')) {
-    throw new Error('expected Storyboard to consume Props Panel edge requests through shared Flow Editor authoring')
+    throw new Error('expected Storyboard to consume Props Panel edge requests through shared Storyboard Widget authoring')
   }
   if (!nativeEdgeEffect.includes("edgeCreationRequest.type === 'create' && isStoryboardCanvas2dRenderer(state.canvas2dRenderer)")) {
     throw new Error('expected native GraphCanvas edge authoring to defer Storyboard requests to the overlay owner')
@@ -148,25 +148,25 @@ export function testStoryboardPortDragResolvesWorkspaceQualifiedMediaNodeId() {
     nodes: [{ id: 'media-node', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label: 'Media', properties: {} }],
     edges: [],
   }
-  const resolved = resolveFlowEditorEdgeAuthoringNodeId(graphData, 'workspace:document::media-node')
+  const resolved = resolveStoryboardWidgetEdgeAuthoringNodeId(graphData, 'workspace:document::media-node')
   if (resolved !== 'media-node') {
     throw new Error(`expected workspace-qualified overlay endpoint to resolve to media-node, got ${String(resolved)}`)
   }
 }
 
 export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
-  const proxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/flow-editor-overlay-proxy.ts'), 'utf8')
-  const cards = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const proxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
+  const cards = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
   const media = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
-  const runtime = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas.runtime.tsx'), 'utf8')
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
-  if (!proxy.includes('SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR') || !proxy.includes('`[data-node-id][${FLOW_EDITOR_OVERLAY_SURFACE_ATTR}]`')) {
-    throw new Error('expected semantic node overlays to reuse the shared Flow Editor edge surface contract')
+  const runtime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
+  if (!proxy.includes('SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR') || !proxy.includes('`[data-node-id][${STORYBOARD_WIDGET_OVERLAY_SURFACE_ATTR}]`')) {
+    throw new Error('expected semantic widgets to reuse the shared Storyboard Widget edge surface contract')
   }
-  if (!cards.includes('data-node-id={card.id}') || !cards.includes('data-kg-flow-editor-surface={flowEditorSurfaceId}')) {
+  if (!cards.includes('data-node-id={card.id}') || !cards.includes('data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId}')) {
     throw new Error('expected Storyboard cards to register with the shared overlay-edge surface')
   }
-  if (!media.includes('data-node-id={node.id}') || !media.includes('data-kg-flow-editor-surface={flowEditorOverlaySurfaceId || undefined}')) {
+  if (!media.includes('data-node-id={node.id}') || !media.includes('data-kg-storyboard-widget-surface={storyboardWidgetOverlaySurfaceId || undefined}')) {
     throw new Error('expected Rich Media panels to register with the shared overlay-edge surface')
   }
   if (!runtime.includes('overlayOnlyActive || hasOverlayEditors || storyboardCardsMode')) {
@@ -180,7 +180,7 @@ export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
   }
 }
 
-export function testStoryboardCrossSurfaceEdgeUsesFlowEditorDraftAuthority() {
+export function testStoryboardCrossSurfaceEdgeUsesStoryboardWidgetDraftAuthority() {
   const graphData: GraphData = {
     type: 'Graph',
     nodes: [
@@ -199,9 +199,9 @@ export function testStoryboardCrossSurfaceEdgeUsesFlowEditorDraftAuthority() {
     to: { nodeId: 'card', portKey: 'mediaUrl' },
   })
   if (authored.kind !== 'create') throw new Error(`expected cross-surface edge creation, got ${authored.kind}`)
-  const next = appendFlowEditorAuthoredEdge(graphData, authored.edge)
+  const next = appendStoryboardWidgetAuthoredEdge(graphData, authored.edge)
   if (next.edges.length !== 1 || next.edges[0]?.source !== 'workspace:media::panel' || next.edges[0]?.target !== 'card') {
-    throw new Error(`expected Flow Editor draft to retain cross-surface endpoints, got ${JSON.stringify(next.edges)}`)
+    throw new Error(`expected Storyboard Widget draft to retain cross-surface endpoints, got ${JSON.stringify(next.edges)}`)
   }
 }
 
@@ -220,7 +220,7 @@ export function testStoryboardPortEdgeKeepsPendingRichMediaPanelInDraft() {
     label: 'Dropped media',
     properties: { imageUrl: buildTestImageDataUri('pending-media') },
   }
-  const draftWithPanel = appendFlowEditorDraftNode(baseGraphData, pendingPanel, { revisionFloor: 4 })
+  const draftWithPanel = appendStoryboardWidgetDraftNode(baseGraphData, pendingPanel, { revisionFloor: 4 })
   const authored = finalizeEdgeAuthoring({
     mode: 'create',
     data: draftWithPanel,
@@ -231,7 +231,7 @@ export function testStoryboardPortEdgeKeepsPendingRichMediaPanelInDraft() {
     to: { nodeId: 'card', portKey: 'mediaUrl' },
   })
   if (authored.kind !== 'create') throw new Error(`expected pending Rich Media edge creation, got ${authored.kind}`)
-  const nextDraft = appendFlowEditorAuthoredEdge(draftWithPanel, authored.edge, { revisionFloor: 5 })
+  const nextDraft = appendStoryboardWidgetAuthoredEdge(draftWithPanel, authored.edge, { revisionFloor: 5 })
   const nodeIds = new Set((nextDraft.nodes || []).map(node => String(node.id || '')))
   if (!nodeIds.has('pending-media-panel') || !nodeIds.has('card')) {
     throw new Error(`expected draft to retain pending Rich Media panel and target card, got ${JSON.stringify([...nodeIds])}`)
@@ -246,17 +246,17 @@ export function testStoryboardPortEdgeKeepsPendingRichMediaPanelInDraft() {
 }
 
 export function testStoryboardPortEdgeSelectsAuthoredEdgeAfterCreate() {
-  const actions = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions.ts'), 'utf8')
+  const actions = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts'), 'utf8')
   const edgeActions = readFileSync(resolve(process.cwd(), 'src/hooks/store/graph-data-slice/graphDataEdgeActions.ts'), 'utf8')
   if (!actions.includes("import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'")) {
-    throw new Error('expected Storyboard/Flow Editor port edge authoring to reuse the shared auto-zoom disable helper')
+    throw new Error('expected Storyboard/Storyboard Widget port edge authoring to reuse the shared auto-zoom disable helper')
   }
   const createBranch = actions.slice(actions.indexOf("if (result.kind === 'create')"))
   if (!createBranch.includes('disableAutoZoomModesForUserGesture(useGraphStore.getState())')) {
     throw new Error('expected authored Storyboard edge creation to suppress auto-zoom side effects before selecting the new edge')
   }
   if (!createBranch.includes("args.selectEdge(String(result.edge.id || ''))") || !createBranch.includes('args.selectNode(null)')) {
-    throw new Error('expected Storyboard/Flow Editor port edge creation to select the authored edge so it remains visible after pending preview clears')
+    throw new Error('expected Storyboard/Storyboard Widget port edge creation to select the authored edge so it remains visible after pending preview clears')
   }
   if (createBranch.indexOf('disableAutoZoomModesForUserGesture(useGraphStore.getState())') > createBranch.indexOf("args.selectEdge(String(result.edge.id || ''))")) {
     throw new Error('expected authored edge creation to disable auto-zoom before selecting the new edge')
@@ -271,18 +271,21 @@ export function testStoryboardPortEdgeSelectsAuthoredEdgeAfterCreate() {
 
 export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles() {
   const mediaOverlays = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
-  const overlayHandles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/FlowEditorOverlayPortHandles.tsx'), 'utf8')
-  const nodeHandles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorPortHandles.tsx'), 'utf8')
-  const overlayEdges = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlayEdges.ts'), 'utf8')
-  const runtime = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas.runtime.tsx'), 'utf8')
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
-  if (!mediaOverlays.includes("selectionSource: 'canvas'") || !mediaOverlays.includes('selectedNodeIds: [id]')) {
-    throw new Error('expected Rich Media overlay selection to update global selected node state for shared port handles')
+  const headerToolbar = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar.ts'), 'utf8')
+  const overlayHandles = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles.tsx'), 'utf8')
+  const nodeHandles = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorPortHandles.tsx'), 'utf8')
+  const overlayEdges = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlayEdges.ts'), 'utf8')
+  const runtime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
+  if (!headerToolbar.includes("selectionSource: 'canvas'") || !headerToolbar.includes('selectedNodeIds: [nodeId]')) {
+    throw new Error('expected Rich Media overlay selection owner to update global selected node state for shared port handles')
   }
-  if (!mediaOverlays.includes('onPointerDownCapture={() => { const id = String(node.id ||')) {
+  if (!mediaOverlays.includes('onPointerDownCapture={event => {')
+    || !mediaOverlays.includes('const id = String(node.id ||')
+    || !mediaOverlays.includes('richMediaPanelHeaderToolbar.activate()')) {
     throw new Error('expected Rich Media overlay pointer selection to feed the shared port-handle owner')
   }
-  if (!mediaOverlays.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))')) {
+  if (!headerToolbar.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(nodeId) ? prev : [...prev, nodeId]))')) {
     throw new Error('expected Rich Media overlay reselection on Storyboard to reopen the panel in shared open-widget state')
   }
   if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)')) {
@@ -380,14 +383,14 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
 }
 
 export function testStoryboardRichMediaDropCentersPanelOnPointer() {
-  const dropBridge = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts'), 'utf8')
-  const graphActions = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorGraphActions.ts'), 'utf8')
-  const runtime = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas.runtime.tsx'), 'utf8')
-  const pendingOverlayGraph = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph.ts'), 'utf8')
-  const runtimeScene = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeScene.ts'), 'utf8')
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
-  const cardOverlay = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
-  const cardOwnership = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/storyboardCardOwnership2d.ts'), 'utf8')
+  const dropBridge = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts'), 'utf8')
+  const graphActions = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts'), 'utf8')
+  const runtime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const pendingOverlayGraph = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetPendingOverlayGraph.ts'), 'utf8')
+  const runtimeScene = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRuntimeScene.ts'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
+  const cardOverlay = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const cardOwnership = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOwnership2d.ts'), 'utf8')
   const mediaOverlay = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   const mediaOverlayPool = readFileSync(resolve(process.cwd(), 'src/lib/render/mediaOverlayPool.ts'), 'utf8')
   if (!dropBridge.includes("from '@/lib/render/richMediaPanelDefaults'")) {
@@ -420,12 +423,12 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
     ['draft node actions', graphActions],
     ['runtime pending overlay merge', pendingOverlayGraph],
   ] as const) {
-    if (!text.includes('addFlowEditorNodeIdVariants') && !text.includes('addFlowEditorUsedNodeIdVariants')) {
+    if (!text.includes('addStoryboardWidgetNodeIdVariants') && !text.includes('addStoryboardWidgetUsedNodeIdVariants')) {
       throw new Error(`expected ${label} to reserve workspace-qualified ids and canonical suffixes before creating or merging dropped Rich Media Panels`)
     }
   }
-  if (!runtime.includes("from '@/components/FlowEditorCanvas/runtime/flowEditorPendingOverlayGraph'")) {
-    throw new Error('expected FlowEditorCanvas runtime to delegate pending overlay graph merging to the focused helper')
+  if (!runtime.includes("from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetPendingOverlayGraph'")) {
+    throw new Error('expected StoryboardWidgetCanvas runtime to delegate pending overlay graph merging to the focused helper')
   }
   if (!runtime.includes('resolvePendingOverlayGraphDataBase({')
     || !pendingOverlayGraph.includes('export function resolvePendingOverlayGraphDataBase(args:')
@@ -447,16 +450,16 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
     || !runtime.includes('pendingOverlayNode || pendingOverlayStillSelectedOrOpen(pendingId)')) {
     throw new Error('expected pending Rich Media overlays to clear stranded residue only after the panel is no longer selected or open in shared widget state')
   }
-  const overlaySurface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlaySurface.tsx'), 'utf8')
+  const overlaySurface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlaySurface.tsx'), 'utf8')
   if (!overlaySurface.includes('selectedNodeId: overlayDraftNode?.id || pendingOverlayNode?.id || pendingOverlayNodeIdRef.current || null')) {
     throw new Error('expected pending Storyboard Rich Media panels to keep shared port handles after pan or zoom clears selection state')
   }
-  const overlayElements = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements.tsx'), 'utf8')
+  const overlayElements = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceElements.tsx'), 'utf8')
   const pendingResolveIndex = overlayElements.indexOf('if (pending && pending === id) return args.pendingOverlayNode')
   if (pendingResolveIndex < 0 || pendingResolveIndex > overlayElements.indexOf('const found = args.renderGraphNodeById.get(id) || null')) {
     throw new Error('expected pending Rich Media overlay nodes to render before stable frontmatter graph fallbacks can drop authored coordinates')
   }
-  const renderState = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorRenderState.ts'), 'utf8')
+  const renderState = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRenderState.ts'), 'utf8')
   const stableRenderEffectStart = renderState.indexOf('React.useLayoutEffect(() => {', renderState.indexOf('const [stableRenderGraphOverride'))
   const stableRenderEffectEnd = renderState.indexOf('const renderGraphDataOverride', stableRenderEffectStart)
   const stableRenderEffect = renderState.slice(stableRenderEffectStart, stableRenderEffectEnd)
@@ -469,8 +472,8 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!cardOwnership.includes("String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
     throw new Error('expected Rich Media Panels to remain FlowCanvas-owned beside fixed Storyboard cards')
   }
-  if (!mediaOverlay.includes('const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')
-    || !mediaOverlay.includes('const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')) {
+  if (!mediaOverlay.includes('const richMediaInfiniteCanvasMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')
+    || !mediaOverlay.includes('const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === \'flowCanvas\'')) {
     throw new Error('expected Storyboard Rich Media Panels to use manual canvas placement and drag authority, not balanced viewport layout')
   }
   const mediaOverlayWorldPoint = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint.ts'), 'utf8')
@@ -489,7 +492,7 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (surface.includes('http://127.0.0.1:7777') || surface.includes('storyboard-media-panel-loop') || surface.includes('[DEBUG]')) {
     throw new Error('forbid hardcoded Storyboard surface debug endpoints and debug traces in the shared media drop owner')
   }
-  const overlayPlacementRuntime = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/useNodeOverlayPlacementRuntime.ts'), 'utf8')
+  const overlayPlacementRuntime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/useWidgetPlacementRuntime.ts'), 'utf8')
   if (!overlayPlacementRuntime.includes('const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)')
     || !overlayPlacementRuntime.includes('&& !hasAuthoritativeNodeWorldPos')
     || !overlayPlacementRuntime.includes('hasAuthoritativeNodeWorldPos')
@@ -508,10 +511,10 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
       throw new Error(`expected ${label} to reuse shared fixed-card ownership before hiding or rendering nodes`)
     }
   }
-  if (!pendingOverlayGraph.includes('for (const node of nodes) addFlowEditorNodeIdVariants(existingIds, node?.id)')) {
+  if (!pendingOverlayGraph.includes('for (const node of nodes) addStoryboardWidgetNodeIdVariants(existingIds, node?.id)')) {
     throw new Error('expected pending Rich Media overlay merge to dedupe against existing workspace-qualified node ids')
   }
-  if (!dropBridge.includes('for (const rid of args.reservedNodeIdsRef.current) addFlowEditorUsedNodeIdVariants(used, rid)')) {
+  if (!dropBridge.includes('for (const rid of args.reservedNodeIdsRef.current) addStoryboardWidgetUsedNodeIdVariants(used, rid)')) {
     throw new Error('expected dropped Rich Media Panel id reservation to include reserved canonical suffixes')
   }
   if (dropBridge.includes('findRichMediaPanelNodeIdBySourceKey')
@@ -546,20 +549,20 @@ export function testMediaPointerReleaseUsesActualCursorPoint() {
   if (nativeDragRelease.clientX !== 720 || nativeDragRelease.clientY !== 640) {
     throw new Error('expected native dragend to retain the last valid dragover point')
   }
-  const bridge = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts'), 'utf8')
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
+  const bridge = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
   if (!bridge.includes('const release = resolveMediaDragEventReleaseClientPoint(ev)') || !bridge.includes('release.clientX, release.clientY, rect')) {
     throw new Error('expected shared widget drop bridge to convert native media drops from the resolved cursor release point')
   }
   if (!surface.includes('const release = resolveMediaDragEventReleaseClientPoint(ev.nativeEvent)') || !surface.includes('release.clientX, release.clientY')) {
-    throw new Error('expected Flow Editor surface media drops to convert native drops from the resolved cursor release point')
+    throw new Error('expected Storyboard Widget surface media drops to convert native drops from the resolved cursor release point')
   }
 }
 
 export function testStoryboardPortHandleActivationForbidsTimingBasedDuplicateEdges() {
-  const handles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorPortHandles.tsx'), 'utf8')
-  const dragSource = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/flowPortHandlePointerDrag.ts'), 'utf8')
-  const overlayHandles = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/FlowEditorOverlayPortHandles.tsx'), 'utf8')
+  const handles = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorPortHandles.tsx'), 'utf8')
+  const dragSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/flowPortHandlePointerDrag.ts'), 'utf8')
+  const overlayHandles = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles.tsx'), 'utf8')
   if (!handles.includes('const suppressNextPointerClickRef = React.useRef(false)')) {
     throw new Error('expected port handles to track pointer activation explicitly')
   }

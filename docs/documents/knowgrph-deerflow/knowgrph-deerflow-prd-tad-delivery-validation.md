@@ -9,7 +9,7 @@
 
 ## Document Purpose
 
-**Context**: DeerFlow delivery now has an implemented local-gateway baseline across MainPanel settings, Flow Editor text widgets, rich-media generation, URL import, and setup documentation.
+**Context**: DeerFlow delivery now has an implemented local-gateway baseline across MainPanel settings, Storyboard Widget text widgets, rich-media generation, URL import, and setup documentation.
 
 **Intent**: Keep validation tied to source owners and focused tests so stale planning language cannot drift back into implementation-owned docs.
 
@@ -24,7 +24,7 @@
 ```mermaid
 flowchart LR
     P1[MainPanel rows] --> P2[Provider normalization]
-    P2 --> P3[Flow Editor registry]
+    P2 --> P3[Storyboard Widget registry]
     P2 --> P4[Rich-media dispatch]
     P4 --> P5[DeerFlow /api/runs/stream]
     P5 --> P6[Shared artifact persistence]
@@ -37,8 +37,8 @@ flowchart LR
 |---|---|---|---|
 | DFD-001 | MainPanel rows | `deerflowApiDocs.ts` | `DEERFLOW_API_REQUEST_DOC_ENTRIES` |
 | DFD-002 | Provider normalization | `chatEndpoint.ts` | `CHAT_PROVIDER_DEERFLOW`, `CHAT_DEERFLOW_ENDPOINT_URL` |
-| DFD-003 | Flow Editor text widget helpers | `registryTemplates.ts` | DeerFlow provider-family fields and links |
-| DFD-003A | Flow Editor seeded registry entry | `flowEditorManagerRegistryPersistence.ts` | `textGeneration.deerflow` |
+| DFD-003 | Storyboard Widget text widget helpers | `registryTemplates.ts` | DeerFlow provider-family fields and links |
+| DFD-003A | Storyboard Widget seeded registry entry | `storyboardWidgetManagerRegistryPersistence.ts` | `textGeneration.deerflow` |
 | DFD-004 | Image/video dispatch | `richMediaRun.ts` | `generateRunImageWithDeerFlow()`, `generateRunVideoWithDeerFlow()` |
 | DFD-005 | Gateway adapter | `deerflowRunGeneration.ts` | `/api/runs/stream`, `parseSseEvents()` |
 | DFD-006 | URL import | `deerflowUrlImport.ts` | `/api/runs/wait`, manifest-to-workspace write |
@@ -51,7 +51,7 @@ flowchart LR
 |---|---|---|---|
 | DFV-001 | Docs guard | PRD/TAD names implemented gateway owners | `deerflowPrdTadDocs.test.ts` |
 | DFV-002 | MainPanel | DeerFlow rows visible and searchable | `mainPanelIntegrations.test.tsx` |
-| DFV-003 | Registry | DeerFlow text widget seeded and linked | `flowEditorManagerRegistry.test.ts` |
+| DFV-003 | Registry | DeerFlow text widget seeded and linked | `storyboardWidgetManagerRegistry.test.ts` |
 | DFV-004 | Runtime | DeerFlow image/video dispatch uses shared rich-media runtime | `byteplusRunGeneration.test.ts`, `flowWidgetOutputRichMediaReuse.test.ts` |
 | DFV-005 | Import | DeerFlow URL import uses manifest and Source Files | `deerflowUrlImport.ts` contract plus import tests |
 | DFV-006 | Hygiene | No stale proposed mode docs return | `hygiene:check` plus docs guard |
@@ -62,7 +62,7 @@ flowchart LR
 |---|---|
 | DeerFlow MainPanel discovery | `DEERFLOW_API_REQUEST_DOC_ENTRIES` exists and docs name `deerflowApiDocs.ts` as the shipped row owner |
 | Provider normalization | `CHAT_PROVIDER_DEERFLOW` and `CHAT_DEERFLOW_ENDPOINT_URL` exist in `chatEndpoint.ts` |
-| Flow Editor registry | `textGeneration.deerflow` exists and maps to DeerFlow anchors |
+| Storyboard Widget registry | `textGeneration.deerflow` exists and maps to DeerFlow anchors |
 | Rich-media generation | `richMediaRun.ts` dispatches image/video through DeerFlow functions after provider normalization |
 | Gateway run adapter | `deerflowRunGeneration.ts` derives `/api/runs/stream` and returns `GeneratedBinaryAsset` |
 | URL import | `deerflowUrlImport.ts` derives `/api/runs/wait` and writes sanitized files through workspace FS |
@@ -74,7 +74,7 @@ flowchart LR
 ```bash
 npm --prefix canvas run test:ci:unit -- "deerflow.prdTad"
 npm --prefix canvas run test:ci:unit -- "mainPanelIntegrations"
-npm --prefix canvas run test:ci:unit -- "flowEditorManagerRegistry"
+npm --prefix canvas run test:ci:unit -- "storyboardWidgetManagerRegistry"
 npm run hygiene:check
 npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false
 ```

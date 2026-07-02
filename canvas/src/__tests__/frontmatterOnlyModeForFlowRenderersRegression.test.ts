@@ -6,7 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isFrontmatterOnlyCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import type { GraphData } from '@/lib/graph/types'
 
-export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() {
+export function testFlowCanvasRemainsFrontmatterOnlyButStoryboardIsStandalone() {
   const modeSelectPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'DocumentModeSelect.tsx')
   const uiSettingsModeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSliceModeActions.ts')
   const canvasSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'canvasSlice.ts')
@@ -22,14 +22,11 @@ export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() 
   if (!isFrontmatterOnlyCanvas2dRenderer('flow')) {
     throw new Error('expected Flow Canvas to remain the frontmatter-only renderer')
   }
-  if (isFrontmatterOnlyCanvas2dRenderer('flowEditor')) {
-    throw new Error('expected Flow Editor to stay standalone instead of inheriting Flow Canvas frontmatter-only policy')
-  }
   if (!isFrontmatterOnlyPolicyActive({ canvasRenderMode: '2d', canvas2dRenderer: 'flow' })) {
     throw new Error('expected Flow Canvas to activate frontmatter-only policy')
   }
-  if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: '2d', canvas2dRenderer: 'flowEditor' })) {
-    throw new Error('expected Flow Editor to reject Flow Canvas frontmatter-only policy seepage')
+  if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: '2d', canvas2dRenderer: 'storyboard' })) {
+    throw new Error('expected Storyboard to reject Flow Canvas frontmatter-only policy seepage')
   }
   if (!renderConfigText.includes('isFrontmatterOnlyCanvas2dRenderer')) {
     throw new Error('expected shared renderer helper to identify frontmatter-only renderers')
@@ -57,25 +54,25 @@ export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() 
   }
 }
 
-export function testFlowEditorStandaloneIgnoresDocumentModeAndYamlCoupling() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const flowEditorCanvasText = readFileSync(flowEditorCanvasPath, 'utf8')
+export function testStoryboardStandaloneIgnoresDocumentModeAndYamlCoupling() {
+  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const storyboardWidgetCanvasText = readFileSync(storyboardWidgetCanvasPath, 'utf8')
 
-  if (!flowEditorCanvasText.includes('const flowEditorViewActive = active')) {
-    throw new Error('expected FlowEditor view activation to stay standalone and renderer-scoped')
+  if (!storyboardWidgetCanvasText.includes('const storyboardWidgetViewActive = active')) {
+    throw new Error('expected Storyboard view activation to stay standalone and renderer-scoped')
   }
-  if (!flowEditorCanvasText.includes('const canEdit = active && !documentStructureBaselineLock')) {
-    throw new Error('expected FlowEditor editability to be gated only by active state and View Lock')
+  if (!storyboardWidgetCanvasText.includes('const canEdit = active && !documentStructureBaselineLock')) {
+    throw new Error('expected Storyboard editability to be gated only by active state and View Lock')
   }
-  if (flowEditorCanvasText.includes('extractYamlFrontmatterBlock')) {
-    throw new Error('expected FlowEditor standalone path to avoid markdown YAML-frontmatter coupling')
+  if (storyboardWidgetCanvasText.includes('extractYamlFrontmatterBlock')) {
+    throw new Error('expected Storyboard standalone path to avoid markdown YAML-frontmatter coupling')
   }
-  if (flowEditorCanvasText.includes('flowEditorYamlFrontmatterRequiredToast')) {
-    throw new Error('expected FlowEditor standalone path to avoid frontmatter requirement toasts')
+  if (storyboardWidgetCanvasText.includes('storyboardWidgetYamlFrontmatterRequiredToast')) {
+    throw new Error('expected Storyboard standalone path to avoid frontmatter requirement toasts')
   }
 }
 
-export function testFlowCanvasSkipsComposedSourceMutationButFlowEditorAppliesIt() {
+export function testFlowCanvasSkipsComposedSourceMutationButStoryboardAppliesIt() {
   const previous = useGraphStore.getState()
   const previousGraphData = previous.graphData
   const previousCanvasRenderMode = previous.canvasRenderMode
@@ -111,11 +108,11 @@ export function testFlowCanvasSkipsComposedSourceMutationButFlowEditorAppliesIt(
       throw new Error('expected Flow Canvas frontmatter-only policy to skip composed source graph mutation')
     }
 
-    useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+    useGraphStore.getState().setCanvas2dRenderer('storyboard')
     applyComposedGraphFromSourceFiles()
-    const flowEditorGraph = useGraphStore.getState().graphData
-    if (!flowEditorGraph?.nodes?.some(node => node.id === 'source-a::node-a')) {
-      throw new Error('expected Flow Editor to apply composed source graph without inheriting Flow Canvas policy')
+    const storyboardGraph = useGraphStore.getState().graphData
+    if (!storyboardGraph?.nodes?.some(node => node.id === 'source-a::node-a')) {
+      throw new Error('expected Storyboard to apply composed source graph without inheriting Flow Canvas policy')
     }
   } finally {
     useGraphStore.setState({
@@ -127,10 +124,10 @@ export function testFlowCanvasSkipsComposedSourceMutationButFlowEditorAppliesIt(
   }
 }
 
-export function testCanvasViewRendererSwitchToFlowEditorDoesNotForceDocumentModes() {
+export function testCanvasViewRendererSwitchToStoryboardDisablesTableWithoutSemanticModeMutation() {
   const calls: string[] = []
   const params = {
-    id: 'renderer:flowEditor' as const,
+    id: 'renderer:storyboard' as const,
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => calls.push('geospatial'),
@@ -160,11 +157,14 @@ export function testCanvasViewRendererSwitchToFlowEditorDoesNotForceDocumentMode
 
   applyCanvasViewSelection(params)
 
-  if (!calls.includes('renderer:flowEditor')) {
-    throw new Error(`expected renderer switch to Flow Editor, got ${calls.join(',')}`)
+  if (!calls.includes('renderer:storyboard')) {
+    throw new Error(`expected renderer switch to Storyboard, got ${calls.join(',')}`)
   }
-  if (calls.some(call => call.startsWith('document:') || call.startsWith('frontmatter:') || call.startsWith('table:'))) {
-    throw new Error(`expected Flow Editor switch to avoid Flow Canvas document-mode mutations, got ${calls.join(',')}`)
+  if (!calls.includes('table:false')) {
+    throw new Error(`expected Storyboard switch to disable Multi-dimensional Table mode, got ${calls.join(',')}`)
+  }
+  if (calls.some(call => call.startsWith('document:') || call.startsWith('frontmatter:'))) {
+    throw new Error(`expected Storyboard switch to preserve semantic and frontmatter modes, got ${calls.join(',')}`)
   }
 }
 

@@ -829,16 +829,16 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   viewportControlsPreset: {
     area: 'Canvas Interaction (Viewport Controls)',
     responsibility: 'Pointer/wheel gesture preset (map vs design)',
-    notes: 'Used by Flow and FlowEditor renderers to decide pan drag and wheel zoom behavior.',
+    notes: 'Used by Flow and Storyboard renderers to decide pan drag and wheel zoom behavior.',
   },
-  flowEditorSelectionOnDrag: {
-    area: 'Canvas Interaction (Flow Editor)',
-    responsibility: 'Enable selection box on drag in Flow Editor renderer',
+  storyboardWidgetSelectionOnDrag: {
+    area: 'Canvas Interaction (Storyboard Widget)',
+    responsibility: 'Enable selection box on drag in Storyboard renderer',
     notes: 'When enabled with viewportControlsPreset=design, left-drag creates a selection box. When disabled, selection box uses Shift-drag like other modes.',
   },
-  flowEditorOverlayWheelProxyEnabled: {
-    area: 'Canvas Interaction (Flow Editor)',
-    responsibility: 'Enable wheel zoom/pan proxy when pointer is over Flow Editor fly-out overlays',
+  storyboardWidgetOverlayWheelProxyEnabled: {
+    area: 'Canvas Interaction (Storyboard Widget)',
+    responsibility: 'Enable wheel zoom/pan proxy when pointer is over Storyboard Widget fly-out overlays',
     notes: 'When enabled, wheel gestures over Widget overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.',
   },
   viewPinned: {
@@ -869,12 +869,12 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   wheelZoomCtrlMetaBoostMultiplier: {
     area: 'Canvas Interaction (Wheel Zoom)',
     responsibility: 'Ctrl/Meta wheel zoom boost multiplier (trackpad pinch)',
-    notes: 'clamps to [1,400]. Used by D3, Flow, and FlowEditor 2D renderers.',
+    notes: 'clamps to [1,400]. Used by D3, Flow, and Storyboard 2D renderer.',
   },
   flowWheelZoomSpeedMultiplier: {
     area: 'Canvas Interaction (Flow Zoom)',
     responsibility: 'Wheel zoom speed multiplier for Flow renderer',
-    notes: 'clamps to [0.25,2.5]. Used by D3, Flow, and FlowEditor 2D renderers.',
+    notes: 'clamps to [0.25,2.5]. Used by D3, Flow, and Storyboard 2D renderer.',
   },
   flowWheelZoomIncrementMultiplier: {
     area: 'Canvas Interaction (Flow Zoom)',

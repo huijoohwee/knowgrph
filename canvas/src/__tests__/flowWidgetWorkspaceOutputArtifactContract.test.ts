@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export function testFlowEditorTextRunsPersistWorkspaceOutputArtifacts() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts'), 'utf8')
+export function testStoryboardWidgetTextRunsPersistWorkspaceOutputArtifacts() {
+  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts'), 'utf8')
   const richMediaRunText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts'), 'utf8')
 
   if (!richMediaRunText.includes('export const writeTextWidgetRunOutputArtifact = async (args: {')) {
@@ -12,15 +12,15 @@ export function testFlowEditorTextRunsPersistWorkspaceOutputArtifacts() {
     throw new Error('expected shared text widget artifact writer to persist Workspace FS text and passively register Source Files')
   }
   if (!workflowActionsText.includes('writeTextWidgetRunOutputArtifact({')) {
-    throw new Error('expected Flow Editor text/transcript run finalizers to land generated output in the Editor Workspace')
+    throw new Error('expected Storyboard Widget text/transcript run finalizers to land generated output in the Editor Workspace')
   }
   if (!workflowActionsText.includes('outputPath: panelArgs.outputPath') || !workflowActionsText.includes("model: 'youtube', outputPath })") || !workflowActionsText.includes('publishTextRunOutput(result, false, outputPath)')) {
-    throw new Error('expected Flow Editor text run patches to carry the shared workspace output path into widgets and Rich Media Panels')
+    throw new Error('expected Storyboard Widget text run patches to carry the shared workspace output path into widgets and Rich Media Panels')
   }
 }
 
-export function testFlowEditorRichMediaRunsPersistWorkspaceManifests() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts'), 'utf8')
+export function testStoryboardWidgetRichMediaRunsPersistWorkspaceManifests() {
+  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts'), 'utf8')
   const richMediaRunText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts'), 'utf8')
 
   if (!richMediaRunText.includes('export const writeRichMediaWidgetRunOutputArtifact = async (args: {')) {
@@ -33,6 +33,6 @@ export function testFlowEditorRichMediaRunsPersistWorkspaceManifests() {
     throw new Error('expected generated rich-media manifest to register in Source Files without graph recomposition')
   }
   if (!workflowActionsText.includes('outputManifestPath: richMediaResult.outputManifestPath')) {
-    throw new Error('expected Flow Editor image/video run patches to carry the shared workspace manifest path')
+    throw new Error('expected Storyboard Widget image/video run patches to carry the shared workspace manifest path')
   }
 }

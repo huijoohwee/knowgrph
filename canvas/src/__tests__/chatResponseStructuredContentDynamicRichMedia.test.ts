@@ -11,8 +11,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+} from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { GLTF_ASSET_MIME_TYPE, parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
@@ -189,7 +189,7 @@ export async function testChatResponseStructuredContentProjectsRendererPresetsTo
       resetWorkspaceFsForTests()
       useGraphStore.getState().clearGraphData()
       useGraphStore.getState().setCanvasRenderMode('2d')
-      useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+      useGraphStore.getState().setCanvas2dRenderer('storyboard')
 
       const assistantText = [
         '```yaml',

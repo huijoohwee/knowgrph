@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
+import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -67,7 +67,7 @@ export async function testFlowWidgetBeatByBeatTitleUsesTemplateHeading() {
     if (!text.includes('beat_01')) throw new Error(`expected header title to include beat_01, got ${text}`)
     if (!text.includes('{{timeline.beats.beat_01.label}}')) throw new Error(`expected header title to include template label, got ${text}`)
     if (!text.includes('NODE_CLIP_01')) throw new Error(`expected header title to include NODE_CLIP_01, got ${text}`)
-    if (!text.includes('NODE_OVERLAY_01')) throw new Error(`expected header title to include NODE_OVERLAY_01, got ${text}`)
+    if (!text.includes('WIDGET_01')) throw new Error(`expected header title to include WIDGET_01, got ${text}`)
   } finally {
     try {
       root?.unmount()

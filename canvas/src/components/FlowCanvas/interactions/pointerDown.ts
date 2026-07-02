@@ -14,11 +14,11 @@ import { lockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
-import { readFlowEditorElementSurfaceId } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { readStoryboardWidgetElementSurfaceId } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import {
-  readFlowEditorScreenAuthorityPanSnapshot,
-  shouldUseFlowEditorScreenAuthorityCollectivePan,
-} from '@/lib/flowEditor/screenAuthorityCollectivePan'
+  readStoryboardWidgetScreenAuthorityPanSnapshot,
+  shouldUseStoryboardWidgetScreenAuthorityCollectivePan,
+} from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import { readFlowPanInteractionSpeed, readFlowPinchZoomSessionSettings } from '@/components/FlowCanvas/interactions/dragSession'
 import {
   isPanDragButton,
@@ -45,7 +45,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
 
     const presetRaw = ctx.getPreset()
     const storeStateAtDown = useGraphStore.getState()
-    const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
+    const storyboardWidgetMode = String(storeStateAtDown.canvas2dRenderer || '') === 'storyboard'
     const dragSnapGrid = readSnapGridConfigFromSchema(storeStateAtDown.schema)
     const panInteractionSpeed = readFlowPanInteractionSpeed(storeStateAtDown)
     const edgeScrollEnabled = storeStateAtDown.viewPinned !== true
@@ -104,7 +104,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
 
     const createPanDrag = (): Extract<NonNullable<FlowCanvasDrag>, { type: 'pan' }> => {
       const startTransform = runtime.transform || d3.zoomIdentity
-      const useFlowEditorScreenAuthorityPan = shouldUseFlowEditorScreenAuthorityCollectivePan(storeStateAtDown)
+      const useStoryboardWidgetScreenAuthorityPan = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(storeStateAtDown)
       return {
         type: 'pan',
         startSx: sx,
@@ -113,10 +113,10 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         startTy: startTransform.y,
         interactionSpeed: panInteractionSpeed,
         pointerId,
-        useFlowEditorScreenAuthorityPan,
-        flowEditorScreenAuthorityPan: useFlowEditorScreenAuthorityPan
-          ? readFlowEditorScreenAuthorityPanSnapshot({
-            flowEditorSurfaceId: ctx.args.flowEditorSurfaceId || readFlowEditorElementSurfaceId(canvasEl),
+        useStoryboardWidgetScreenAuthorityPan,
+        storyboardWidgetScreenAuthorityPan: useStoryboardWidgetScreenAuthorityPan
+          ? readStoryboardWidgetScreenAuthorityPanSnapshot({
+            storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId || readStoryboardWidgetElementSurfaceId(canvasEl),
             transform: startTransform,
           })
           : null,
@@ -156,7 +156,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       const state = storeStateAtDown
       state.setSelectionSource('canvas')
       state.selectEdge(null)
-      const mode = ctx.readEffectiveSelectMode(state, isFlowEditor)
+      const mode = ctx.readEffectiveSelectMode(state, storyboardWidgetMode)
       const wantsToggle = (mode === 'multi' || mode === 'lasso') && (e.shiftKey === true || e.metaKey === true || e.ctrlKey === true)
       const selectedAtDownRaw = Array.isArray(state.selectedNodeIds) ? state.selectedNodeIds : []
       const selectedAtDown = selectedAtDownRaw.map(v => String(v || '').trim()).filter(Boolean)
@@ -250,7 +250,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       const allowDrag = typeof ctx.args.allowNodeDragOverride === 'boolean' ? ctx.args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false
 
       if (
-        isFlowEditor &&
+        storyboardWidgetMode &&
         allowPan === true &&
         selectionDrag !== true &&
         spacePanHeld !== true &&
@@ -402,12 +402,12 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
 
     {
       const state = storeStateAtDown
-      const selectMode = ctx.readEffectiveSelectMode(state, isFlowEditor)
-      const allowLasso = selectMode === 'lasso' || (isFlowEditor && selectMode === 'multi' && e.shiftKey === true)
+      const selectMode = ctx.readEffectiveSelectMode(state, storyboardWidgetMode)
+      const allowLasso = selectMode === 'lasso' || (storyboardWidgetMode && selectMode === 'multi' && e.shiftKey === true)
       const wantLasso =
         allowLasso &&
         e.pointerType !== 'touch' &&
-        ((selectionDrag && (!isFlowEditor || e.shiftKey === true)) || (isFlowEditor && e.shiftKey === true && selectionDrag !== true))
+        ((selectionDrag && (!storyboardWidgetMode || e.shiftKey === true)) || (storyboardWidgetMode && e.shiftKey === true && selectionDrag !== true))
       if (wantLasso) {
         state.setSelectionSource('canvas')
         state.selectEdge(null)

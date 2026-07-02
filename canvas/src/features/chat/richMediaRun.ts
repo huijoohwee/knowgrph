@@ -1,14 +1,14 @@
 import { getObjectPath } from '@/lib/data/objectPath'
 import type { GraphNode } from '@/lib/graph/types'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import {
   FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+} from '@/lib/config.storyboard-widget'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { downloadBlob, saveBlobWithPicker } from '@/lib/graph/save'
 import type { GeneratedBinaryAsset, RunGenerationConfig } from './byteplusRunGeneration'
 import { CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_GEMINI, normalizeChatProviderId } from '@/lib/chatEndpoint'

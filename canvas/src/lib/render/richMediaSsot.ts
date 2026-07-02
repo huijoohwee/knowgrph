@@ -1,11 +1,11 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-} from '@/lib/flowEditor/richMediaPanelConfig'
+} from '@/lib/storyboardWidget/richMediaPanelConfig'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import {
   type RichMediaPanelTab,
@@ -23,7 +23,7 @@ import {
 } from '@/lib/render/richMediaPanelNode'
 import type { CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 import { normalizeCanvas3dMode } from '@/lib/canvas/canvas3dMode'
-import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 export { buildRichMediaPanelOverlayState, buildStaticRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 export type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 export { getRichMediaPanelNodeLabel, isRichMediaPanelNode, resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaPanelNode'
@@ -107,8 +107,8 @@ export function isRichMediaPanelDisplayEnabled(args: unknown): boolean {
   if (normalized.renderMediaAsNodes === true) return true
   const surfaceMode = resolveRichMediaSurfaceMode(normalized)
   if (surfaceMode !== '2d') return false
-  if (isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(normalized.canvas2dRenderer))) return true
-  return isFlowEditorFrontmatterDocumentModeRequested({
+  if (isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(normalized.canvas2dRenderer))) return true
+  return isStoryboardWidgetFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(normalized.canvas2dRenderer || ''),
     frontmatterModeEnabled: normalized.frontmatterModeEnabled === true,
     documentSemanticMode: String(normalized.documentSemanticMode || ''),

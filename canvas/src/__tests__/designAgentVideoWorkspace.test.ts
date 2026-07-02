@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildDesignAgentVideoArtifact, DESIGN_AGENT_VIDEO_SCHEMA } from '@/features/design/designAgentVideoSpec'
 import { HTML_VIDEO_ENGINE_IDS } from '@/features/html-video-renderer'
-import { FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { GraphData } from '@/lib/graph/types'
 
 const sampleDesignGraph = (): GraphData => ({

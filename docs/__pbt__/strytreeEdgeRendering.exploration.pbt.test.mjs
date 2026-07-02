@@ -9,7 +9,7 @@
 //        AND usesSharedSemanticKeyHelper(X)         // buildScopedGraphSemanticKey
 //        AND derivesEdgesFrom(X, "parent_node_id")  // Strytree, at source/upstream
 //        AND projectsViewStateOnly(X)               // renderers project, never own/recompute
-//        AND rendererAgnostic(X)                     // identical for flowEditor|Storyboard|Strybldr
+//        AND rendererAgnostic(X)                     // canonical Storyboard projection
 //        AND forbidsNonNeutralMechanisms(X)         // no hardcode/legacy/alias/patch/re-render/stale
 //
 // Both fix targets are DOCUMENTS, so this is a deterministic document-contract
@@ -82,7 +82,7 @@ const demoRendererAgnosticCapabilityPresent = () =>
   topLevelBlock(demoFm, 'kgCanvas2dRendererCapability') !== null &&
   demoFm.includes('rendererAgnosticEdges')
 
-// (e) Both docs state identical projection across {flowEditor, Storyboard, Strybldr}.
+// (e) Both docs bind projection to the canonical Storyboard renderer.
 const statesIdenticalProjection = (fm) => {
   const cap = topLevelBlock(fm, 'kgCanvas2dRendererCapability')
   if (!cap) return false
@@ -167,7 +167,7 @@ test('Property 1 (d): demo doc declares kgCanvas2dRendererCapability + rendererA
 // ---------------------------------------------------------------------------
 // Test Case (e): cross-renderer projection invariance stated in both docs.
 // ---------------------------------------------------------------------------
-test('Property 1 (e): both docs state identical projection across {flowEditor, Storyboard, Strybldr}', () => {
+test('Property 1 (e): both docs bind projection to the canonical Storyboard renderer', () => {
   assert.ok(statesIdenticalProjection(prdFm), 'PRD/TAD must declare identical projection across the renderer set')
   assert.ok(statesIdenticalProjection(demoFm), 'demo doc must declare identical projection across the renderer set')
 })
@@ -183,7 +183,7 @@ test('Property 1 (f): Part A Bezier / edge-existence rows marked "(historical pr
 // Property 1 (full predicate set): FOR ALL edge-rendering concerns X where the
 // bug condition held on the unfixed docs, the finetuned documents bind X to the
 // shared, renderer-agnostic contract. Sampled across every concern (a-f) plus
-// the rendererAgnostic predicate across all three renderers.
+  // the rendererAgnostic predicate across the canonical renderer set.
 // ---------------------------------------------------------------------------
 test('Property 1: every edge-rendering concern is bound to the shared, renderer-agnostic contract', () => {
   fc.assert(

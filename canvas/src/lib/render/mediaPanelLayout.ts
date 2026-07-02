@@ -277,7 +277,7 @@ function resolvePanelBoxDisplay(el: HTMLElement, display: 'block' | 'none' | 'fl
   if (display === 'none') return 'none'
   if (display === 'flex') return 'flex'
   if (
-    el.getAttribute('data-kg-rich-media-flow-editor-chrome') === '1'
+    el.getAttribute('data-kg-rich-media-storyboard-widget-chrome') === '1'
     && el.getAttribute('data-kg-rich-media-panel') === '1'
   ) {
     return 'flex'

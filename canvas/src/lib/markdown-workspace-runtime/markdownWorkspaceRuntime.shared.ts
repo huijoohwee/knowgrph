@@ -9,7 +9,7 @@ import {
 import { resolveWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { WorkspaceRefreshSnapshot } from '@/features/markdown-workspace/useWorkspaceFileActions/types'
 
 export type FolderModeContract = 'sitemap' | 'user-journey'

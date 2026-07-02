@@ -8,7 +8,7 @@ import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import type { SnapGridConfig } from '@/lib/canvas/gridSnap'
-import type { FlowEditorScreenAuthorityPanSnapshot } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import type { StoryboardWidgetScreenAuthorityPanSnapshot } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 
 export type FlowCanvasDrag =
   | null
@@ -20,8 +20,8 @@ export type FlowCanvasDrag =
       startTy: number
       interactionSpeed: number
       pointerId: number
-      useFlowEditorScreenAuthorityPan?: boolean
-      flowEditorScreenAuthorityPan?: FlowEditorScreenAuthorityPanSnapshot | null
+      useStoryboardWidgetScreenAuthorityPan?: boolean
+      storyboardWidgetScreenAuthorityPan?: StoryboardWidgetScreenAuthorityPanSnapshot | null
     }
   | {
       type: 'pinch'
@@ -94,7 +94,7 @@ export type FlowCanvasDrag =
 
 export type BindFlowCanvasNativeInteractionsArgs = {
   active: boolean
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   canvasEl: HTMLCanvasElement
   runtime: FlowNativeRuntime
   viewportControlsPreset: ViewportControlsPreset

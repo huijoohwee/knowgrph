@@ -14,7 +14,7 @@ export const testZoomViewKeyIsIsolatedAcross2dRenderers = () => {
 
   const d3Key = buildZoomViewKey({ ...base, canvas2dRenderer: 'd3' })
   const flowKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'flow' })
-  const editorKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'flowEditor' })
+  const editorKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'storyboard' })
   const designKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'design' })
   const gitGraphKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'gitGraph' })
 

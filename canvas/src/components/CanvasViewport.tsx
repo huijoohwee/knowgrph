@@ -11,7 +11,7 @@ import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
-import { getCanvas2dSurfaceId, isFlowEditorCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
+import { getCanvas2dSurfaceId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -38,8 +38,8 @@ const MermaidGitGraphCanvasLazy = React.lazy(() => import('@/components/MermaidG
 const MermaidGanttCanvasLazy = React.lazy(() => import('@/components/MermaidGanttCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const AnimaticCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/AnimaticCanvas'), { retries: 2, retryDelayMs: 50 }))
-const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }))
-const FlowEditorWidgetDropBridgeLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorWidgetDropBridge'), { retries: 2, retryDelayMs: 50 }))
+const StoryboardWidgetCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardWidgetCanvas'), { retries: 2, retryDelayMs: 50 }))
+const StoryboardWidgetDropBridgeLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardWidgetDropBridge'), { retries: 2, retryDelayMs: 50 }))
 const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportMarkdownMetricsDevOverlay').then(mod => ({ default: mod.CanvasViewportMarkdownMetricsDevOverlay })),
 )
@@ -95,15 +95,15 @@ export function CanvasViewport(props: CanvasViewportProps) {
     [explorerActivePath, markdownDocumentName, sourceFiles],
   )
   const rawActive2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
-  const workspaceFrontmatterFlowEditorSurfaceActive = workspaceEditorOverlayOpen === true
-    && isFlowEditorCanvas2dRenderer(canvas2dRenderer)
+  const workspaceStoryboardSurfaceActive = workspaceEditorOverlayOpen === true
+    && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && canvasRenderMode === '2d'
     && (
       isFrontmatterFlowGraph(activeGraphData)
       || isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData)
     )
-  const active2dSurface = workspaceFrontmatterFlowEditorSurfaceActive ? 'flowEditor' : rawActive2dSurface
-  const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterFlowEditorSurfaceActive
+  const active2dSurface = workspaceStoryboardSurfaceActive ? 'storyboard' : rawActive2dSurface
+  const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive
   const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema, timelineEnabled, bottomSurfaceCollapsed, bottomSurfaceTab } = useGraphStore(
@@ -142,7 +142,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     schema,
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
-  const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'flowEditor')
+  const geospatialOverlayOwnsViewport = geospatialModeEnabled && !(workspaceEditorOverlayOpen && active2dSurface === 'storyboard')
   const strybldrTimelineBottomPanelVisible = canvas2dRenderer === 'storyboard'
     && (
       isStrybldrStoryboardGraphData(activeGraphData)
@@ -214,14 +214,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <section className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
               {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
             </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'flowEditor' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flowEditor'}>
-              {active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null}
-              {active2dSurface === 'flowEditor' && floatingPanelOpen && floatingPanelView === 'view' ? (
-                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="flow-editor.md" />
-              ) : null}
-            </section>
             <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
-              {active2dSurface === 'storyboard' ? <FlowEditorCanvasLazy active flowEditorSurfaceId="storyboard" storyboardCardsMode /> : null}
+              {active2dSurface === 'storyboard' ? <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId="storyboard" storyboardCardsMode /> : null}
               {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
                 <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
               ) : null}
@@ -234,9 +228,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </section>
         ) : null}
 
-        {!documentSwitchBlocksCanvas && geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
+        {!documentSwitchBlocksCanvas && geospatialModeEnabled && active2dSurface === 'storyboard' ? (
           <section className="absolute inset-0 z-[30] pointer-events-none" aria-hidden="true">
-            <FlowEditorWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
+            <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
           </section>
         ) : null}
 
@@ -245,7 +239,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
             graphData={safeGraphData}
-            flowEditorWidgetPanelsActive={geospatialModeEnabled && active2dSurface === 'flowEditor'}
+            storyboardWidgetPanelsActive={geospatialModeEnabled && active2dSurface === 'storyboard'}
           />
         ) : null}
 

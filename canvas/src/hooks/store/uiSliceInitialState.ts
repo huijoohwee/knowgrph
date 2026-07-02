@@ -94,7 +94,7 @@ export const createUiInitialState = (
           || view === 'chat'
           || view === 'geo'
           || view === 'renderer'
-          || view === 'flowEditor' || view === 'flowchart'
+          || view === 'storyboardWidget' || view === 'flowchart'
           || view === 'gitGraph'
           || view === 'gantt'
           || view === 'timeline'
@@ -179,12 +179,12 @@ export const createUiInitialState = (
         return next as Partial<GraphState>
       }),
 
-    flowEditorSelectedPortRowKey: '',
-    setFlowEditorSelectedPortRowKey: (rowKey: string | null) =>
+    storyboardWidgetSelectedPortRowKey: '',
+    setStoryboardWidgetSelectedPortRowKey: (rowKey: string | null) =>
       set(state => {
         const next = String(rowKey || '').trim()
-        if (state.flowEditorSelectedPortRowKey === next) return {}
-        return { flowEditorSelectedPortRowKey: next } as Partial<GraphState>
+        if (state.storyboardWidgetSelectedPortRowKey === next) return {}
+        return { storyboardWidgetSelectedPortRowKey: next } as Partial<GraphState>
       }),
 
     gitGraphSelectedCommandLineIndex: null,

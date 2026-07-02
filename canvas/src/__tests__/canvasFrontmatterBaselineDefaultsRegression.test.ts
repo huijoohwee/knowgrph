@@ -7,7 +7,7 @@ function readOptionalEnvFixture(envName: string): string {
   return readFileSync(resolve(process.cwd(), relPath), 'utf8')
 }
 
-export function testCanvasBaselineDefaultsUseFlowEditorAndBlockLayout() {
+export function testCanvasBaselineDefaultsUseStoryboardAndBlockLayout() {
   const configRenderPath = resolve(process.cwd(), 'src', 'lib', 'config.render.ts')
   const schemaPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'schema.ts')
   const importDefaultsPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
@@ -18,8 +18,8 @@ export function testCanvasBaselineDefaultsUseFlowEditorAndBlockLayout() {
   const importDefaultsText = readFileSync(importDefaultsPath, 'utf8')
   const graphStoreText = readFileSync(graphStorePath, 'utf8')
 
-  if (!configRenderText.includes("export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'")) {
-    throw new Error('expected default 2d renderer baseline to be flowEditor')
+  if (!configRenderText.includes("export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'storyboard'")) {
+    throw new Error('expected default 2d renderer baseline to be Storyboard')
   }
   if (!schemaText.includes("layout: {\n    mode: 'block'")) {
     throw new Error('expected schema baseline layout mode to default to block')
@@ -126,8 +126,8 @@ export function testCanvasWorkspaceFrontmatterPresetKeysAreDocumentedInSourceAnd
   if (demoText && !demoText.includes('kgCanvasSurfaceMode: "2d"')) {
     throw new Error('expected rich-media demo fixture to declare 2d surface mode explicitly in frontmatter')
   }
-  if (demoText && !demoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
-    throw new Error('expected rich-media demo fixture to declare flowEditor preload in frontmatter')
+  if (demoText && !demoText.includes('kgCanvas2dRenderer: "storyboard"')) {
+    throw new Error('expected rich-media demo fixture to declare storyboardWidget preload in frontmatter')
   }
   if (seededVideoDemoText && !seededVideoDemoText.includes('kgCanvasSurfaceMode: "2d"')) {
     throw new Error('expected seeded video demo fixture to declare 2d surface mode explicitly in frontmatter')

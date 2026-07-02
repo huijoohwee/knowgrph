@@ -1,4 +1,4 @@
-import { convertNodeToLoopInGraphData } from '@/lib/flowEditor/flowEditorActions'
+import { convertNodeToLoopInGraphData } from '@/lib/storyboardWidget/storyboardWidgetActions'
 import type { GraphData } from '@/lib/graph/types'
 
 export type StoryboardConvertLoopActionResult =

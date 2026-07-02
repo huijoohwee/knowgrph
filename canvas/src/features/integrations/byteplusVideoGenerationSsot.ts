@@ -1,8 +1,8 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryField } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
-  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
-} from '@/lib/config.flow-editor'
+  STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
+} from '@/lib/config.storyboard-widget'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 
 export type BytePlusVideoApiDocRow = {
@@ -148,7 +148,7 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     keyDescription: 'Model selector -> pick the BytePlus video engine -> decide which Seedance capability family executes the generation task.',
     valueDescription: `Default: ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}; Curated higher-tier models expand multimodal coverage and audio support; pinning one model narrows drift across Integrations, Workflow Manager, and widget runs.`,
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > model`,
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions', 'WidgetRegistryEntry'],
     functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus', 'buildBytePlusVideoGenerationFields'],
     valueKey: 'byteplusVideoModel',
@@ -271,7 +271,7 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     keyDescription: 'Reference-image kind selector -> choose whether the reference image is provided as base64 or as a URL -> keep image_url encoding explicit across Integrations and widget overrides.',
     valueDescription: 'Default: base64; base64 expands offline/local asset embedding; url expands remote asset linking via the download proxy pipeline.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > content.image_url.url`,
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx'],
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/StoryboardWidget/WidgetEditorForm.tsx'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
     functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
     valueKey: 'byteplusVideoImageUrlUrl',
@@ -328,7 +328,7 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     keyDescription: 'Scene brief -> describe the target motion, style, and narrative -> steer BytePlus toward the requested video outcome when content_json is not overriding the payload.',
     valueDescription: 'Default: empty; Richer prompt detail expands scene control; shorter prompts narrow specification and leave more to model inference.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > content.text`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     className: ['RunVideoGenerationOptions', 'WidgetRegistryEntry'],
     functionName: ['generateRunVideoWithBytePlus', 'buildBytePlusVideoGenerationFields'],
     responsibility: 'Carries the prompt text used by the default content-array builder.',
@@ -392,7 +392,7 @@ export function buildBytePlusVideoGenerationFields(): WidgetRegistryField[] {
       schemaPath: 'properties.model',
       required: true,
       label: 'Model',
-      options: buildFieldOptionLabels(FLOW_EDITOR_VIDEO_MODEL_OPTIONS),
+      options: buildFieldOptionLabels(STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS),
     },
     {
       fieldKey: 'prompt',

@@ -98,7 +98,7 @@ export function StaticRichMediaPanelPreview(props: {
           url={url}
           openUrl={url}
           kind={kind}
-          panelChrome="flowEditor"
+          panelChrome="storyboardWidget"
           interactive={interactive}
           panel={panel}
           forwardWheelTo={forwardWheelTo}

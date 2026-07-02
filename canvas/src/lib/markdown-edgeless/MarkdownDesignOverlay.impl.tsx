@@ -552,7 +552,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               title={b.title}
               url=""
               kind="iframe"
-              panelChrome="flowEditor"
+              panelChrome="storyboardWidget"
               interactive={allowEmbeddedContentInteraction}
               resizable={true}
               onResizeStart={({ pointerId }) => beginBlockResize(b.id, pointerId)}

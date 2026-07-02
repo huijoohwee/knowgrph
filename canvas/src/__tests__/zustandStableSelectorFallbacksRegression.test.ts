@@ -16,7 +16,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/components/FlowEditorCanvas.runtime.tsx',
+    path: 'src/components/StoryboardWidgetCanvas.runtime.tsx',
     forbiddenSnippets: [
       'Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []',
       's.flowWidgetPinnedByNodeId || {}',
@@ -24,7 +24,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/components/FlowEditorCanvas/runtime/useFlowEditorRuntimeStoreState.ts',
+    path: 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRuntimeStoreState.ts',
     forbiddenSnippets: [
       'flowWidgetPinnedByNodeId: stripFrontmatterAutoManagedWidgetPinnedStates({',
     ],
@@ -37,7 +37,7 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/components/FlowEditor/NodeOverlayEditorInner.tsx',
+    path: 'src/components/StoryboardWidget/WidgetEditorInner.tsx',
     forbiddenSnippets: [
       'openWidgetNodeIds: s.openWidgetNodeIds || []',
     ],

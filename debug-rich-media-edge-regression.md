@@ -36,7 +36,7 @@
 | E | The edge remains in graph data but the overlay renderer suppresses it when the panel re-registers on the shared overlay surface. | Med | Med | Inconclusive: empty filtered-edge logs occurred only before any edges existed. |
 
 ## Smoke-Route Evidence
-- `useFlowEditorRuntimeScene.ts:1327`: whole-frontmatter collective reseed logged during drop initialization with `pendingIds=["n1"]` and `fullFrontmatterCollectiveIds=["existing-rich-media","n1","storyboard-card-alpha","storyboard-card-beta"]`.
+- `useStoryboardWidgetRuntimeScene.ts:1327`: whole-frontmatter collective reseed logged during drop initialization with `pendingIds=["n1"]` and `fullFrontmatterCollectiveIds=["existing-rich-media","n1","storyboard-card-alpha","storyboard-card-beta"]`.
 - `verify_storyboard_rich_media_drop_browser_smoke.py:267`: selected dropped panel `n1` had box `{x:851.5,y:120.5,width:324,height:468}` and open state `openWidgetNodeIds=["n1"]`, `selectedNodeId="n1"`.
 - `verify_storyboard_rich_media_drop_browser_smoke.py:273`: created edge `e1` remained present after retention with the same panel box.
 - `verify_storyboard_rich_media_drop_browser_smoke.py:283`: reopened panel kept the same box and retained edge `e1`.
@@ -54,13 +54,13 @@
 - `test:live:storyboard-media-panel-retention:browser`: exits `0` against the canonical real-route verifier.
 
 ## Source Fixes
-- `useFlowEditorOverlayEdges.ts`: confirmed code-level preview bug:
+- `useStoryboardWidgetOverlayEdges.ts`: confirmed code-level preview bug:
   - pending edge preview rendering sat below the `edges.length === 0` early-return path, so Card ↔ Rich Media edge-in-progress could be non-visible whenever no committed overlay edges existed yet.
   - transient empty filtered-edge windows could clear committed overlay paths before the next retry frame.
-- `useFlowEditorOverlayEdges.ts`: stable-graph fallback is now restricted to true same-revision metadata-less handoff frames so stale overlay edges do not survive source reapply.
+- `useStoryboardWidgetOverlayEdges.ts`: stable-graph fallback is now restricted to true same-revision metadata-less handoff frames so stale overlay edges do not survive source reapply.
 - `FlowCanvasMediaOverlays.tsx`: confirmed code-level size fallback bug:
   - `mediaOverlayPanelLastKnownWorldSizeRef` could reuse a stale cached size by bare node id when current node props existed but lacked authored `visual:width`/`visual:height`, allowing reused ids like `n1` to inherit old panel dimensions.
-- `useFlowEditorGraphActions.ts`: auto-zoom-on-edge-selection is disabled for user gesture edge create/select paths so edge creation no longer zooms the Rich Media panel unexpectedly.
+- `useStoryboardWidgetGraphActions.ts`: auto-zoom-on-edge-selection is disabled for user gesture edge create/select paths so edge creation no longer zooms the Rich Media panel unexpectedly.
 
 ## Verification Conclusion
 - Smoke-route contract is stable for drop -> edge create -> retention -> reopen.

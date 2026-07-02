@@ -1,11 +1,11 @@
 // =============================================================================
 // Property-based check — knowgrph-strytree-edge-rendering bugfix, Task 4.3
 // (design "Property-Based Tests" > rendererAgnostic bullet + "Preservation
-// Checking": the rendererAgnostic predicate exercised across ALL three
-// renderers, not assumed).
+// Checking": the rendererAgnostic predicate exercised across the canonical
+// renderer set, not assumed).
 //
 //   rendererAgnostic(X) ⇔
-//     projectsIdenticallyFor(X, {flowEditor, Storyboard, Strybldr})
+//     projectsIdenticallyFor(X, {Storyboard})
 //       AND NOT hasRendererSpecificEdgePath(X)
 //       AND NOT hasPerRendererHardcode(X)
 //       AND NOT forksEdgeLogicPerRenderer(X)
@@ -19,7 +19,7 @@
 // honored.
 //
 // Asserts, for the FIXED fix-target documents:
-//  - EVERY renderer in {flowEditor, Storyboard, Strybldr} is declared as
+//  - EVERY renderer in {Storyboard} is declared as
 //    projected data in BOTH docs' kgCanvas2dRendererCapability.supportedRenderers.
 //  - BOTH docs forbid renderer-specific-edge-path / per-renderer-hardcode /
 //    per-renderer fork (PRD/TAD edgeContractForbid + Part C "Edge Rendering
@@ -28,7 +28,7 @@
 //    "identical-across-supportedRenderers".
 //
 // fast-check >= 100 runs over the renderer set + deterministic enumeration of
-// all three members.
+// every canonical member.
 //
 // Validates: Requirements 2.8, 2.9, 2.10, 3.8
 // =============================================================================
@@ -111,8 +111,8 @@ const rendererAgnosticFor = (renderer) =>
 // Deterministic enumeration: EVERY member of the renderer set is projected
 // identically in BOTH documents (projection invariance for every member).
 // ---------------------------------------------------------------------------
-test('rendererAgnostic: every member of {flowEditor, Storyboard, Strybldr} is declared projected data in BOTH docs', () => {
-  assert.equal(RENDERER_SET.length, 3, 'renderer set must be exactly the three supported 2D renderers')
+test('rendererAgnostic: Storyboard is declared projected data in BOTH docs', () => {
+  assert.deepEqual(RENDERER_SET, ['storyboard'], 'renderer set must contain only the canonical Storyboard renderer')
   for (const renderer of RENDERER_SET) {
     assert.ok(
       declaredAsProjectedData(prdCapability, renderer),
@@ -163,7 +163,7 @@ test('rendererAgnostic: projection invariance holds for every member of the rend
     { numRuns: RUNS },
   )
 
-  // Belt-and-suspenders: assert the predicate for all three members explicitly,
+  // Assert the predicate for every canonical member explicitly,
   // so the guarantee is enumeration, not merely sampling.
   for (const renderer of RENDERER_SET) {
     assert.ok(rendererAgnosticFor(renderer), `edge projection is not renderer-agnostic for ${renderer}`)

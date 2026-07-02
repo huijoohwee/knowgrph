@@ -12,7 +12,7 @@ import { createSchemaSlice, readSchemaFromStorage } from '@/hooks/store/schemaSl
 import { createUiSettingsSlice } from '@/hooks/store/uiSettingsSlice';
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
 import { createUiLogSlice } from '@/hooks/store/uiLogSlice'
-import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSlice'
+import { createStoryboardWidgetManagerSlice } from '@/hooks/store/storyboardWidgetManagerSlice'
 import { createDesignRendererSlice } from '@/hooks/store/designRendererSlice'
 import { createDesignHistorySlice } from '@/hooks/store/designHistorySlice'
 import { createDesignSystemSlice } from '@/hooks/store/designSystemSlice'
@@ -255,7 +255,7 @@ export const useGraphStore = create<GraphState>()(
   ...createUiToastSlice(set),
   ...createUiLogSlice(set),
   ...createDesignSystemSlice(set, get),
-  ...createFlowEditorManagerSlice(set, get),
+  ...createStoryboardWidgetManagerSlice(set, get),
   ...createDesignRendererSlice(set, get),
   ...createDesignHistorySlice(set, get),
   ...createSourceFilesSlice(set, get, api),

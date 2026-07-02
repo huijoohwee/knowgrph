@@ -17,7 +17,7 @@ Knowgrph's implemented DeerFlow baseline is a local-gateway integration. UI surf
 ```mermaid
 flowchart LR
     A[MainPanel Integrations] --> B[deerflowApiDocs.ts]
-    C[Flow Editor Registry] --> D[registryTemplates.ts + registry persistence]
+    C[Storyboard Widget Registry] --> D[registryTemplates.ts + registry persistence]
     B --> E[chatEndpoint.ts]
     D --> E
     E --> F[richMediaRun.ts]
@@ -36,8 +36,8 @@ flowchart LR
 | TAD-DF-C001 | DeerFlow settings rows | Build `deerflowApi.*` settings rows from OpenAI-compatible row semantics | `canvas/src/features/panels/views/deerflowApiDocs.ts` | Shipped |
 | TAD-DF-C002 | Settings renderer | Search, filter, and render DeerFlow rows in MainPanel Integrations | `canvas/src/features/panels/views/useSettingsView.ts` | Shipped |
 | TAD-DF-C003 | Provider SSOT | Define `CHAT_PROVIDER_DEERFLOW`, default endpoint, provider labels, proxy headers, and endpoint resolution | `canvas/src/lib/chatEndpoint.ts` | Shipped |
-| TAD-DF-C004 | Registry templates | Build DeerFlow text widget fields and deep links | `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Shipped |
-| TAD-DF-C004A | Registry persistence seed | Seed `textGeneration.deerflow` default widget entries | `canvas/src/hooks/store/flowEditorManagerRegistryPersistence.ts` | Shipped |
+| TAD-DF-C004 | Registry templates | Build DeerFlow text widget fields and deep links | `canvas/src/features/storyboard-widget-manager/registryTemplates.ts` | Shipped |
+| TAD-DF-C004A | Registry persistence seed | Seed `textGeneration.deerflow` default widget entries | `canvas/src/hooks/store/storyboardWidgetManagerRegistryPersistence.ts` | Shipped |
 | TAD-DF-C005 | Rich-media dispatcher | Select DeerFlow image/video generation by normalized provider | `canvas/src/features/chat/richMediaRun.ts` | Shipped |
 | TAD-DF-C006 | Gateway adapter | Derive `/api/runs/stream`, parse SSE/JSON, fetch artifacts, return `GeneratedBinaryAsset` | `canvas/src/features/chat/deerflowRunGeneration.ts` | Shipped |
 | TAD-DF-C007 | URL import adapter | Derive `/api/runs/wait`, parse manifest output, write workspace files | `canvas/src/features/markdown-workspace/workspaceImport/deerflowUrlImport.ts` | Shipped |
@@ -54,7 +54,7 @@ flowchart LR
 | Anchor | `getDeerFlowApiRowAnchorId()` | row key | stable `deerflow-api-row-*` id |
 | Render | `useSettingsView.ts` | virtual settings entries | searchable MainPanel rows |
 
-### Flow Editor Text Widget
+### Storyboard Widget Text Widget
 
 | Stage | Owner | Input | Output |
 |---|---|---|---|

@@ -17,8 +17,8 @@ import { deriveRankdir, buildGraphMetaKeyIgnoringPending } from '@/components/Fl
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
-import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
+import { fitStoryboardWidgetPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readStoryboardWidgetPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
 import { placeFlowFallbackSeedPositions } from '@/components/FlowCanvas/seedFallbackPositions'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
@@ -26,6 +26,7 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 
 type UseFlowCanvasLayoutStateArgs = {
   active: boolean
@@ -110,6 +111,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
   const frontmatterFlowOverlayFitProxyScaleLaptop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleLaptop)
   const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
+  const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
     phone: frontmatterFlowOverlayFitProxyScalePhone,
     tablet: frontmatterFlowOverlayFitProxyScaleTablet,
@@ -283,7 +285,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     graphDataRevision,
     layoutMode,
     layoutVariant,
-    flowEditorMode: canvas2dRenderer === 'flowEditor',
+    storyboardWidgetMode: canvas2dRenderer === 'storyboard',
     documentSemanticMode: String(documentSemanticMode || 'document'),
     effectiveFrontmatter,
     layoutViewKey,
@@ -357,9 +359,9 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   }, [computedPositions, sceneGraphData, seededFallbackPositions])
 
   const nodesForFlowTransformGuard = React.useMemo(() => {
-    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
     const base = (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom.nodes : []) as GraphNode[]
-    if (!isFlowEditor) return base
+    if (!storyboardWidgetMode) return base
     const positions = computedPositions || seededFallbackPositions
     if (!positions) return base
     return base
@@ -372,7 +374,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   }, [canvas2dRenderer, computedPositions, graphDataForZoom, seededFallbackPositions])
 
   const nodesForFlowZoom = React.useMemo(() => {
-    const base = canvas2dRenderer === 'flowEditor'
+    const base = canvas2dRenderer === 'storyboard'
       ? nodesForFlowTransformGuard
       : ((Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom.nodes : []) as GraphNode[])
     return coerceNodesForFit({
@@ -426,11 +428,11 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   ])
 
   const nodesForFlowZoomCollective = React.useMemo(() => {
-    const flowEditorFrontmatterDocumentMode =
-      canvas2dRenderer === 'flowEditor'
+    const storyboardWidgetFrontmatterDocumentMode =
+      canvas2dRenderer === 'storyboard'
       && frontmatterModeEnabled === true
       && documentSemanticMode === 'document'
-    if (flowEditorFrontmatterDocumentMode) return nodesForFlowZoom
+    if (storyboardWidgetFrontmatterDocumentMode) return nodesForFlowZoom
     if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0 || mediaNodes.length === 0) return nodesForFlowZoom
     const nodeById = nodesForFlowZoomLookup?.nodeById || new Map<string, GraphNode>()
     const extras: GraphNode[] = []
@@ -461,8 +463,8 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     nodesForFlowZoom,
   ])
 
-  const flowEditorReservedW = React.useMemo(() => {
-    if (canvas2dRenderer !== 'flowEditor') return 0
+  const storyboardWidgetReservedW = React.useMemo(() => {
+    if (canvas2dRenderer !== 'storyboard') return 0
     const effectiveViewportW = Math.max(1, Math.min(viewportW, MEDIA_PANEL_LAYOUT_FRAME_16X9.width))
     const effectiveViewportH = Math.max(1, Math.min(viewportH, MEDIA_PANEL_LAYOUT_FRAME_16X9.height))
     let unpinnedCount = 0
@@ -494,10 +496,10 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   }, [graphDataForZoom, nodesForFlowZoomCollective])
 
   const buildInitialTransform = React.useCallback((runtimeTransform: { k: number; x: number; y: number }, graphData: GraphData | null) => {
-    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
     const nodesForFit = nodesForFlowZoomCollective
     const nodesForGuard = nodesForFlowTransformGuard
-    if (isFlowEditor && nodesForGuard.length === 0) return null
+    if (storyboardWidgetMode && nodesForGuard.length === 0) return null
     const schemaNow = useGraphStore.getState().schema
     const opts = buildFlowFitOptions({
       schema: schemaNow,
@@ -510,9 +512,9 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       frontmatterFlowInitialFitFillRatio,
     })
     const fitW = Math.max(1, viewportW)
-    const fit = isFlowEditor
+    const fit = storyboardWidgetMode
       ? (() => {
-          return fitFlowEditorPinnedWidgets({
+          return fitStoryboardWidgetPinnedWidgets({
             nodes: nodesForFit,
             fitW,
             viewportH,
@@ -520,15 +522,16 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
             openWidgetNodeIds,
             pinnedById: flowWidgetPinnedByNodeId || {},
             worldPosById: flowWidgetWorldPosByNodeId || {},
-            portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schemaNow),
+            portExtraPadScreenPx: readStoryboardWidgetPortExtraPadScreenPx(schemaNow),
             graphData,
             fitOpts: opts,
             frontmatterOverlayFitProxyScales,
+            readOverlayPanelSize: node => readStoryboardCardSize2d(node, strybldrStoryboardCardAspectMode),
           })
         })()
       : fitAllTransform(nodesForFit, fitW, viewportH, { ...opts, graphData: graphData || undefined })
     const candidate = fit
-    if (isFlowEditor) return candidate
+    if (storyboardWidgetMode) return candidate
     const ok = isFlowTransformShowingGraph(
       { k: candidate.k, x: candidate.x, y: candidate.y },
       {
@@ -546,9 +549,10 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     documentStructureBaselineLock,
     flowConfigEffective.node.heightPx,
     flowConfigEffective.node.widthPx,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
+    strybldrStoryboardCardAspectMode,
     frontmatterModeEnabled,
     frontmatterFlowInitialFitFillRatio,
     frontmatterOverlayFitProxyScales,
@@ -574,7 +578,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     graphDataForZoom,
     nodesForFlowZoom,
     graphDataForZoomRequests,
-    flowEditorReservedW,
+    storyboardWidgetReservedW,
     buildInitialTransform,
   }
 }

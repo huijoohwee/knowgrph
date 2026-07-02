@@ -146,7 +146,7 @@ Markdown Source
 
 - Document version snapshots remain owned by `documentVersioning.ts`; entries may carry optional collaborator metadata without requiring a collaboration backend.
 - Document-version graph rendering is owned by `DocumentVersionGitGraphPanel`; BottomPanel placement is owned by `StrybldrTimelineBottomPanel`.
-- Document-version Version Graph reuses the same `InteractiveMermaidDiagram` SVG row-key selection path as Mermaid GitGraph and Gantt: version ids are row keys, rendered commit dots/labels are chart targets, unmatched SVG parts dim through the shared SVG runtime, and no proxy version-node overlay is rendered.
+- Document-version Version Graph reuses the same `InteractiveMermaidDiagram` SVG row-key selection path as Mermaid GitGraph and Gantt: version ids are row keys, rendered commit dots/labels are chart targets, unmatched SVG parts dim through the shared SVG runtime, and no proxy version-widget is rendered.
 - Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in Version Graph view immediately after `[ ] Markdown` and does not render an inline document notice.
 - The bottom Timeline panel exposes Timeline, Version Graph, Flowchart, GitGraph, Architecture, EventModeling, and Gantt as separate controls. The GitGraph control is reserved for typed `mermaid_gitgraph` diagram source.
 - MainPanel History stays limited to Chat, History, and Log; it does not render a Docs tab, document-version list, Monaco diff review, or duplicate GitGraph timeline.
@@ -220,7 +220,7 @@ flow:
       label: {key: label, type: string, value: "Root"}
 ```
 
-Combined `flow_diagrams` block for Flow Editor / Storyboard diagram surfaces:
+Combined `flow_diagrams` block for Storyboard Card/Widget diagram surfaces:
 
 ```yaml
 flow_diagrams:

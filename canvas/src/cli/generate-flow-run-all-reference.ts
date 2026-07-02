@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { FLOW_RUN_ALL_PHASES } from '@/lib/flowEditor/runAllSequenceSsot'
+import { FLOW_RUN_ALL_PHASES } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import { TEST_VALIDATION_WORKSPACE_SEED_REL_PATH } from '@/features/workspace-fs/workspaceFs'
 
 function escapeMarkdownCell(value: unknown): string {
@@ -14,9 +14,9 @@ function escapeMarkdownCell(value: unknown): string {
 
 function buildMarkdown(): string {
   const lines: string[] = []
-  lines.push('# knowgrph - Flow Editor Run All Sequence Reference (Runtime SSOT)')
+  lines.push('# knowgrph - Storyboard Widget Run All Sequence Reference (Runtime SSOT)')
   lines.push('')
-  lines.push('App SSOT entrypoint: `canvas/src/lib/flowEditor/runAllSequenceSsot.ts`')
+  lines.push('App SSOT entrypoint: `canvas/src/lib/storyboardWidget/runAllSequenceSsot.ts`')
   lines.push('Generated file: `docs/documents/knowgrph-flow-run-all-reference.md`.')
   lines.push('')
   lines.push(`Validation script target: \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`)

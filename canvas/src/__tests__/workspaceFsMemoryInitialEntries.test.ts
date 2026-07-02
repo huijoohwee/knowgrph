@@ -79,6 +79,6 @@ export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async (
   const videoDemoText = await fs.readFileText(TEST_VALIDATION_WORKSPACE_SEED_PATH)
   const geospatialText = await fs.readFileText(GEOSPATIAL_WORKSPACE_SEED_PATH)
   if (!String(readmeText || '').includes('kgCanvas2dRenderer: "d3"')) throw new Error('Expected stale README initialization content to refresh from current seed source')
-  if (!String(videoDemoText || '').includes('kgCanvas2dRenderer: "flowEditor"')) throw new Error('Expected stale video demo initialization content to refresh from current seed source')
+  if (!String(videoDemoText || '').includes('kgCanvas2dRenderer: "storyboard"')) throw new Error('Expected stale video demo initialization content to refresh from current seed source')
   if (!String(geospatialText || '').includes('kgCanvasSurfaceMode: "geospatial"')) throw new Error('Expected stale geospatial initialization content to refresh from current seed source')
 }

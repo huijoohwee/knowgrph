@@ -57,7 +57,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const rendererGraphTopologySummaryText = readFileSync(resolve(root, 'features', 'toolbar', 'ui', 'RendererGraphTopologySummary.tsx'), 'utf8')
   const threeControlsText = readFileSync(resolve(root, 'features', 'three', 'Controls.tsx'), 'utf8')
   const minimapText = readFileSync(resolve(root, 'features', 'minimap', 'Minimap.tsx'), 'utf8')
-  const minimapFlowEditorOverlayProjectionText = readFileSync(resolve(root, 'features', 'minimap', 'flowEditorOverlayProjection.ts'), 'utf8')
+  const minimapStoryboardWidgetOverlayProjectionText = readFileSync(resolve(root, 'features', 'minimap', 'storyboardWidgetOverlayProjection.ts'), 'utf8')
   const canvasSyncRuntimeText = readFileSync(resolve(root, 'features', 'canvas', 'CanvasSyncRuntime.tsx'), 'utf8')
   const canvasPreviewSyncInboundText = readFileSync(resolve(root, 'features', 'canvas', 'canvasPreviewSyncInbound.ts'), 'utf8')
   const toolbarToolMenuText = readFileSync(resolve(root, 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
@@ -86,8 +86,8 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!renderConfigText.includes('export const getCanvas2dRendererMenuDescription') || !renderConfigText.includes('export const getCanvas2dRendererMenuBadges')) {
     throw new Error('expected shared 2D renderer menu UX metadata helpers in config.render')
   }
-  if (!renderConfigText.includes('export const isFlowEditorCanvas2dRenderer')) {
-    throw new Error('expected shared Flow Editor renderer helper in config.render')
+  if (!renderConfigText.includes('export const isStoryboardCanvas2dRenderer')) {
+    throw new Error('expected shared Storyboard renderer helper in config.render')
   }
   if (renderConfigText.includes('aliases:') || renderConfigText.includes('CANVAS_2D_RENDERER_ID_BY_ALIAS')) {
     throw new Error('expected shared renderer config to resolve canonical normalized tokens without alias lists')
@@ -351,7 +351,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     !timelinePreviewSurfaceModelText.includes("args.intent === 'monitor' || args.intent === 'timeline'") ||
     !timelinePreviewSurfaceText.includes('<RichMediaPanel') ||
     !timelinePreviewSurfaceText.includes('buildStaticRichMediaPanelOverlayState') ||
-    !timelinePreviewSurfaceText.includes('panelChrome="flowEditor"') ||
+    !timelinePreviewSurfaceText.includes('panelChrome="storyboardWidget"') ||
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-rich-media-panel="1"') ||
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-item-active') ||
     !timelinePreviewSurfaceText.includes('data-kg-media-canvas-item-dimmed') ||
@@ -510,8 +510,8 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!canvasViewportText.includes('supportsCanvas2dMinimap(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport minimap gating to use the shared helper')
   }
-  if (!canvasViewportText.includes("const FlowEditorCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowEditorCanvas')")) {
-    throw new Error('expected CanvasViewport to lazy-load the FlowEditorCanvas startup surface through the shared retry import path')
+  if (!canvasViewportText.includes("const StoryboardWidgetCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/StoryboardWidgetCanvas')")) {
+    throw new Error('expected CanvasViewport to lazy-load the StoryboardWidgetCanvas startup surface through the shared retry import path')
   }
   if (!rendererSelectText.includes('isD3Like2dRenderer(state.canvas2dRenderer)')) {
     throw new Error('expected Canvas2dRendererSelect to reuse the shared D3-like helper')
@@ -550,19 +550,19 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
     throw new Error('expected Three controls bridge to reuse the shared D3-like helper')
   }
   if (
-    !minimapText.includes('buildMinimapFlowEditorOverlaySubset({') ||
-    !minimapFlowEditorOverlayProjectionText.includes('isFlowEditorCanvas2dRenderer(args.canvas2dRenderer)')
+    !minimapText.includes('buildMinimapStoryboardWidgetOverlaySubset({') ||
+    !minimapStoryboardWidgetOverlayProjectionText.includes('isStoryboardCanvas2dRenderer(args.canvas2dRenderer)')
   ) {
-    throw new Error('expected minimap overlay subset logic to reuse the shared Flow Editor helper')
+    throw new Error('expected minimap overlay subset logic to reuse the shared Storyboard Widget helper')
   }
   if (!canvasSyncRuntimeText.includes('applyCanvasPreviewSyncPayload')) {
     throw new Error('expected CanvasSyncRuntime to delegate inbound preview-sync payload handling to the shared owner')
   }
-  if (!canvasPreviewSyncInboundText.includes('isFlowEditorCanvas2dRenderer(store.canvas2dRenderer)')) {
-    throw new Error('expected preview-sync inbound renderer lock to reuse the shared Flow Editor helper')
+  if (!canvasPreviewSyncInboundText.includes('isStoryboardCanvas2dRenderer(store.canvas2dRenderer)')) {
+    throw new Error('expected preview-sync inbound renderer lock to reuse the shared Storyboard Widget helper')
   }
-  if (toolbarToolMenuText.includes('isFlowEditorCanvas2dRenderer')) {
-    throw new Error('expected floating toolbar owner to avoid stale unused Flow Editor helper references')
+  if (toolbarToolMenuText.includes('isStoryboardCanvas2dRenderer')) {
+    throw new Error('expected floating toolbar owner to avoid stale unused Storyboard Widget helper references')
   }
   if (!uiCopyText.includes('2D Renderer: Flow Canvas')) {
     throw new Error('expected Flow renderer to be labeled as 2D Renderer: Flow Canvas')

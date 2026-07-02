@@ -53,7 +53,7 @@ export async function testUseMarkdownSourceFilesSelectionCentralizesSourcePanelS
           text: [
             '---',
             'kgCanvasSurfaceMode: 2d',
-            'kgCanvas2dRenderer: flowEditor',
+            'kgCanvas2dRenderer: storyboard',
             'kgDocumentSemanticMode: document',
             'kgFrontmatterModeEnabled: true',
             '---',

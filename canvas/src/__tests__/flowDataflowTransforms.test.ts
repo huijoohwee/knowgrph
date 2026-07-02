@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
+import { applyFlowDataflowTransform } from '@/lib/storyboardWidget/flowDataflowTransforms'
 
 export const testFlowDataflowTransformsReusesSharedPlainObjectGuard = () => {
-  const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflowTransforms.ts')
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowDataflowTransforms.ts')
   const text = readFileSync(filePath, 'utf8')
   if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
     throw new Error('expected flow dataflow transforms to reuse the shared plain-object guard upstream')

@@ -46,7 +46,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const mainPanelHelpIconLibrary = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelHelpIconLibrary.tsx'))
   const mainPanelSectionHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelSectionHeader.tsx'))
   const mainPanelGraphFieldsHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelGraphFieldsHeader.tsx'))
-  const mainPanelFlowEditorManagerHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelFlowEditorManagerHeader.tsx'))
+  const mainPanelStoryboardWidgetManagerHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelStoryboardWidgetManagerHeader.tsx'))
   const schemaSummary = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'SchemaSummary.tsx'))
   const dashboardHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelDashboardHeader.tsx'))
   const helpHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelHelpHeader.tsx'))
@@ -56,7 +56,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const agenticRagNodeInspectorSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'AgenticRagNodeInspectorSection.tsx'))
   const orchestratorTraversalSequenceSection = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'OrchestratorTraversalSequenceSection.tsx'))
   const commandCatalogPanel = readUtf8(path.resolve(root, 'src', 'features', 'command-menu', 'CommandMenuCatalogPanel.tsx'))
-  const flowEditorFloatingPanelView = readUtf8(path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorFloatingPanelView.tsx'))
+  const storyboardWidgetFloatingPanelView = readUtf8(path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetFloatingPanelView.tsx'))
   const canvasEditableKeyTypeValueRow = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'CanvasEditableKeyTypeValueRow.tsx'))
   const canvasKeyTypeValueCompatibility = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueCompatibility.ts'))
   const canvasKeyTypeValueHeader = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'canvasKeyTypeValueHeader.tsx'))
@@ -504,7 +504,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     !collaborationView.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
     !helpSections.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
     !commandCatalogPanel.includes("from 'grph-shared/react/keyTypeValueLayout'") ||
-    !flowEditorFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueLayout'")
+    !storyboardWidgetFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueLayout'")
   ) {
     throw new Error('Expected high-fanout KTV header/stack consumers to import the shared KTV React layout owner')
   }
@@ -553,7 +553,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['Settings chat assist', settingsChatAssist],
     ['Source File Management settings', sourceFileManagementSettingsRows],
     ['Help KTV layout', helpKtvLayout],
-    ['Flow Editor manager header', mainPanelFlowEditorManagerHeader],
+    ['Storyboard Widget manager header', mainPanelStoryboardWidgetManagerHeader],
     ['Schema summary', schemaSummary],
     ['Floating chat sections', floatingPanelChatSections],
   ] as const) {
@@ -569,7 +569,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['Settings chat assist', settingsChatAssist],
     ['Source File Management settings', sourceFileManagementSettingsRows],
     ['Help KTV layout', helpKtvLayout],
-    ['Flow Editor manager header', mainPanelFlowEditorManagerHeader],
+    ['Storyboard Widget manager header', mainPanelStoryboardWidgetManagerHeader],
     ['Schema summary', schemaSummary],
     ['Floating chat sections', floatingPanelChatSections],
   ] as const) {
@@ -1287,12 +1287,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected command-menu catalog rows to import the shared static KTV row owner and root static-row prop helper directly')
   }
   if (
-    !flowEditorFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueRow'") ||
-    !flowEditorFloatingPanelView.includes('KeyTypeValueStaticRow') ||
-    !flowEditorFloatingPanelView.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
-    !flowEditorFloatingPanelView.includes('useCanvasKeyTypeValueStaticRowProps')
+    !storyboardWidgetFloatingPanelView.includes("from 'grph-shared/react/keyTypeValueRow'") ||
+    !storyboardWidgetFloatingPanelView.includes('KeyTypeValueStaticRow') ||
+    !storyboardWidgetFloatingPanelView.includes("from '@/features/panels/ui/canvasKeyTypeValueRuntime'") ||
+    !storyboardWidgetFloatingPanelView.includes('useCanvasKeyTypeValueStaticRowProps')
   ) {
-    throw new Error('Expected Flow Editor floating-panel rows to import the shared static KTV row owner and root static-row prop helper directly')
+    throw new Error('Expected Storyboard Widget floating-panel rows to import the shared static KTV row owner and root static-row prop helper directly')
   }
   if (
     !settingsEntryRow.includes("from 'grph-shared/react/keyTypeValueRow'") ||

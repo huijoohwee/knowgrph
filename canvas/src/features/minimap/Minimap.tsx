@@ -41,7 +41,7 @@ import {
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
-import { buildMinimapFlowEditorOverlayNodeById, buildMinimapFlowEditorOverlaySubset } from '@/features/minimap/flowEditorOverlayProjection'
+import { buildMinimapStoryboardWidgetOverlayNodeById, buildMinimapStoryboardWidgetOverlaySubset } from '@/features/minimap/storyboardWidgetOverlayProjection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
 import { resolveContextualZoomDetail } from '@/lib/zoom/viewport'
@@ -238,16 +238,16 @@ function Minimap() {
   ]);
   const edges = React.useMemo(() => (Array.isArray(sceneGraphData?.edges) ? (sceneGraphData!.edges as GraphEdge[]) : []), [sceneGraphData]);
 
-  const flowEditorOverlayNodeById = React.useMemo(() => {
-    return buildMinimapFlowEditorOverlayNodeById({ canvas2dRenderer, nodes })
+  const storyboardWidgetOverlayNodeById = React.useMemo(() => {
+    return buildMinimapStoryboardWidgetOverlayNodeById({ canvas2dRenderer, nodes })
   }, [canvas2dRenderer, nodes])
 
-  const flowEditorOverlaySubset = React.useMemo(() => {
-    return buildMinimapFlowEditorOverlaySubset({
+  const storyboardWidgetOverlaySubset = React.useMemo(() => {
+    return buildMinimapStoryboardWidgetOverlaySubset({
       canvas2dRenderer,
       canvasDims,
       edges,
-      flowEditorOverlayNodeById,
+      storyboardWidgetOverlayNodeById,
       flowWidgetPinnedByNodeId,
       flowWidgetPosByNodeId,
       flowWidgetWorldPosByNodeId,
@@ -260,7 +260,7 @@ function Minimap() {
     canvasDims.h,
     canvasDims.w,
     edges,
-    flowEditorOverlayNodeById,
+    storyboardWidgetOverlayNodeById,
     flowWidgetPinnedByNodeId,
     flowWidgetPosByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -269,28 +269,28 @@ function Minimap() {
     zoomState,
   ])
 
-  const hasFlowEditorOverlaySubset = flowEditorOverlaySubset != null
+  const hasStoryboardWidgetOverlaySubset = storyboardWidgetOverlaySubset != null
   const baseGraphBounds = React.useMemo(
     () => (
-      hasFlowEditorOverlaySubset
+      hasStoryboardWidgetOverlaySubset
         ? computeGraphBounds(nodes, MINIMAP_GRAPH_PAD_DEFAULT)
         : (preview?.bounds ?? computeGraphBounds(nodes, MINIMAP_GRAPH_PAD_DEFAULT))
     ),
-    [hasFlowEditorOverlaySubset, nodes, preview?.bounds],
+    [hasStoryboardWidgetOverlaySubset, nodes, preview?.bounds],
   )
-  const flowEditorOverlayBounds = React.useMemo(
-    () => (flowEditorOverlaySubset ? computeGraphBounds(flowEditorOverlaySubset.nodes, MINIMAP_GRAPH_PAD_DEFAULT) : null),
-    [flowEditorOverlaySubset],
+  const storyboardWidgetOverlayBounds = React.useMemo(
+    () => (storyboardWidgetOverlaySubset ? computeGraphBounds(storyboardWidgetOverlaySubset.nodes, MINIMAP_GRAPH_PAD_DEFAULT) : null),
+    [storyboardWidgetOverlaySubset],
   )
   const graphBounds = React.useMemo(() => {
-    if (!flowEditorOverlayBounds) return baseGraphBounds
+    if (!storyboardWidgetOverlayBounds) return baseGraphBounds
     return unionMinimapBoundsWithRect(baseGraphBounds, {
-      x: flowEditorOverlayBounds.minX,
-      y: flowEditorOverlayBounds.minY,
-      w: flowEditorOverlayBounds.width,
-      h: flowEditorOverlayBounds.height,
+      x: storyboardWidgetOverlayBounds.minX,
+      y: storyboardWidgetOverlayBounds.minY,
+      w: storyboardWidgetOverlayBounds.width,
+      h: storyboardWidgetOverlayBounds.height,
     })
-  }, [baseGraphBounds, flowEditorOverlayBounds])
+  }, [baseGraphBounds, storyboardWidgetOverlayBounds])
   const viewRectWorld = React.useMemo(() => {
     const z = zoomState || { k: 1, x: 0, y: 0 };
     return computeMinimapViewportWorldRect(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, z.x, z.y);
@@ -304,7 +304,7 @@ function Minimap() {
   }, [bounds.height, bounds.width, miniH, miniW]);
 
   const canUsePreview = React.useMemo(() => {
-    if (flowEditorOverlaySubset) return false
+    if (storyboardWidgetOverlaySubset) return false
     if (usesDerivedSceneGraph) return false
     if (graphData !== rawGraphData) return false
     if (infiniteCanvasInteractionMode === 'interactive') return false
@@ -317,7 +317,7 @@ function Minimap() {
       && Math.abs(b.maxX - bounds.maxX) < 1e-6
       && Math.abs(b.maxY - bounds.maxY) < 1e-6
     );
-  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, canvas2dRenderer, flowEditorOverlaySubset, graphData, infiniteCanvasInteractionMode, preview?.bounds, rawGraphData, usesDerivedSceneGraph]);
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, canvas2dRenderer, storyboardWidgetOverlaySubset, graphData, infiniteCanvasInteractionMode, preview?.bounds, rawGraphData, usesDerivedSceneGraph]);
 
   const EDGE_LIMIT = MINIMAP_EDGE_LIMIT_DEFAULT;
   const edgesPathD = React.useMemo(() => {
@@ -330,15 +330,15 @@ function Minimap() {
   }, [canUsePreview, nodes, bounds, sx, preview?.nodesPath, graphId]);
 
   const overlayEdgesPathD = React.useMemo(() => {
-    const overlay = flowEditorOverlaySubset
+    const overlay = storyboardWidgetOverlaySubset
     if (!overlay) return ''
     return overlay.edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(overlay.nodes, overlay.edges, bounds, sx, `qe:${graphId ?? ''}`)
-  }, [bounds, flowEditorOverlaySubset, graphId, sx])
+  }, [bounds, storyboardWidgetOverlaySubset, graphId, sx])
   const overlayNodesPathD = React.useMemo(() => {
-    const overlay = flowEditorOverlaySubset
+    const overlay = storyboardWidgetOverlaySubset
     if (!overlay) return ''
     return buildNodesPathD(overlay.nodes, bounds, sx, MINIMAP_OVERLAY_NODE_SIZE_DEFAULT, `qe:${graphId ?? ''}`)
-  }, [bounds, flowEditorOverlaySubset, graphId, sx])
+  }, [bounds, storyboardWidgetOverlaySubset, graphId, sx])
 
   const highlight: Highlight = React.useMemo(() => {
     if (!selectedNodeId && !selectedEdgeId) return { selNodes: [], nbrNodes: [], selEdges: [] };

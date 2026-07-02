@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import {
   buildCanonicalWidgetRegistryDraft,
   getWidgetRegistryEntryLabel,
-} from '@/features/flow-editor-manager/registryTemplates'
+} from '@/features/storyboard-widget-manager/registryTemplates'
 import {
   CreativeStateStore,
   ShowrunnerMessageBus,

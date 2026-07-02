@@ -2,7 +2,7 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
-import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import {
   resolveRichMediaPlayableUrl,
   resolveRichMediaPanelSelectedTab,
@@ -42,7 +42,7 @@ export type RichMediaPanelMediaState = {
   directVideoFallbackSrcDoc: string
   directVideoUsesInlinePreview: boolean
   effectiveInlineSrcDoc: string
-  flowEditorFrontmatterDocumentModeFromStore: boolean
+  storyboardWidgetFrontmatterDocumentModeFromStore: boolean
   graphData: unknown
   graphDataRevision: number
   handleDirectMediaElement: (element: HTMLMediaElement | null) => void
@@ -55,7 +55,7 @@ export type RichMediaPanelMediaState = {
   inlineSrcDocFrameRef: React.RefObject<HTMLIFrameElement | null>
   inlineSrcDocRequestsPanelScroll: boolean
   inlineSrcDocUsesViewportSize: boolean
-  isFlowEditorRenderer: boolean
+  isStoryboardRenderer: boolean
   kind: RichMediaKind
   markdownDocumentName: string
   mediaSrc: string
@@ -94,7 +94,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   const directMediaElementRef = React.useRef<HTMLMediaElement | null>(null)
   const [directMediaElement, setDirectMediaElement] = React.useState<HTMLMediaElement | null>(null)
   const title = String(props.title || '').trim() || 'Media node'
-  const panelChrome = props.panelChrome === 'flowEditor' ? 'flowEditor' : 'none'
+  const panelChrome = props.panelChrome === 'storyboardWidget' ? 'storyboardWidget' : 'none'
   const headerControlsActive = props.widgetToolbarActive !== false
   const declaredScrollOwner = props.scrollOwner === 'panel' ? 'panel' : 'media'
   const kind: RichMediaKind =
@@ -258,11 +258,11 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   }, [proxiedUrl])
   const hideUntilReady = props.hideUntilReady === true
   const {
-    flowEditorFrontmatterDocumentModeFromStore,
+    storyboardWidgetFrontmatterDocumentModeFromStore,
     graphData,
     graphDataRevision,
     infiniteCanvasInteractionMode,
-    isFlowEditorRenderer,
+    isStoryboardRenderer,
     markdownDocumentName,
     richMediaPanelMode,
     timelineTransportDocumentKey,
@@ -275,7 +275,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     workspaceViewMode,
   } = useGraphStore(
     useShallow(store => ({
-      flowEditorFrontmatterDocumentModeFromStore: isFlowEditorFrontmatterDocumentModeRequested({
+      storyboardWidgetFrontmatterDocumentModeFromStore: isStoryboardWidgetFrontmatterDocumentModeRequested({
         canvas2dRenderer: String(store.canvas2dRenderer || ''),
         frontmatterModeEnabled: store.frontmatterModeEnabled === true,
         documentSemanticMode: String(store.documentSemanticMode || ''),
@@ -283,7 +283,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
       graphData: store.graphData,
       graphDataRevision: store.graphDataRevision || 0,
       infiniteCanvasInteractionMode: store.infiniteCanvasInteractionMode,
-      isFlowEditorRenderer: String(store.canvas2dRenderer || '') === 'flowEditor',
+      isStoryboardRenderer: String(store.canvas2dRenderer || '') === 'storyboard',
       markdownDocumentName: store.markdownDocumentName || '',
       richMediaPanelMode: store.richMediaPanelMode,
       timelineTransportDocumentKey: store.timelineTransportDocumentKey || '',
@@ -496,7 +496,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     directVideoFallbackSrcDoc,
     directVideoUsesInlinePreview,
     effectiveInlineSrcDoc,
-    flowEditorFrontmatterDocumentModeFromStore,
+    storyboardWidgetFrontmatterDocumentModeFromStore,
     graphData,
     graphDataRevision,
     handleDirectMediaElement,
@@ -509,7 +509,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     inlineSrcDocFrameRef,
     inlineSrcDocRequestsPanelScroll,
     inlineSrcDocUsesViewportSize,
-    isFlowEditorRenderer,
+    isStoryboardRenderer,
     kind,
     markdownDocumentName,
     mediaSrc,

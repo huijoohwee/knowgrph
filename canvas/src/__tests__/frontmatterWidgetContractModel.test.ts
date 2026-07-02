@@ -1,7 +1,7 @@
 import {
   buildFrontmatterWidgetContractModel,
   buildFrontmatterWidgetContractRowSpecs,
-} from '@/features/flow-editor-manager/frontmatterWidgetContract'
+} from '@/features/storyboard-widget-manager/frontmatterWidgetContract'
 import { FRONTMATTER_FLOW_HANDLES_VALUE_KEY, FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 
 export const testBuildFrontmatterWidgetContractModelUnionsFrontmatterConnectedRegistryAndTypedHandles = () => {

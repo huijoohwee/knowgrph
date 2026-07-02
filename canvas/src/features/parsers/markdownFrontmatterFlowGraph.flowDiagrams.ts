@@ -2,7 +2,7 @@ import { hashText } from '@/features/parsers/hash'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 
 const FLOW_DIAGRAMS_KEY = 'flow_diagrams'
 const FLOW_DIAGRAM_SOCKET_TYPE = 'flow_diagram_html'

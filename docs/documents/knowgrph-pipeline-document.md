@@ -48,7 +48,7 @@
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
 - For arbitrary JSON ingest, render only explicit graph entities (`nodes`/`edges`); forbid synthetic placeholder/fallback graph construction when entities are absent.
 - Keep the computing-flow sample and its pipeline docs aligned as the canonical ingest→parse→render fixture/docs pair; oversized docs may split into companion files, but the original filename remains the sub-600 canonical index with continuation links.
-- Long-horizon SuperAgent harness metadata is upstream orchestration context only: it may plan research, code, and create slices, but parser, GraphData, Flow Editor, and Rich Media Panel ownership must remain on the shared ingest→parse→render pipeline.
+- Long-horizon SuperAgent harness metadata is upstream orchestration context only: it may plan research, code, and create slices, but parser, GraphData, Storyboard Widget, and Rich Media Panel ownership must remain on the shared ingest→parse→render pipeline.
 - DeerFlow may inform harness concepts or act as an optional provider gateway; do not copy DeerFlow code, architecture, prompts, skills, memory layout, or create DeerFlow-specific parser/render/apply branches.
 - Embedded Markdown GeoJSON must extract requests through one shared helper, then reuse the same graph-load and geospatial auto-enable contract as file imports.
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
@@ -75,8 +75,8 @@
 | Flowchart source neutrality | Normalize API, fixture, and workspace Flowchart payloads through one source-meta contract and shared edge roles. | Forbid filename-gated workspace JSON detection, sample fallback content, or `/api/graph`-specific styling assumptions in the 2D Flowchart path. |
 | Flowchart fixture route | Serve `/__flowchart_fixture` from sibling `hackamap-flowchart-fixture.json` files, with `KNOWGRPH_FLOWCHART_FIXTURE_PATH` as the explicit override. | Keep canvas, sibling content/project trees, and local overrides aligned on one fixture basename without stale legacy route aliases. |
 | Flowchart workspace source identity | Use neutral workspace source/context ids and inline parse hints in shared workspace JSON fallback parsing. | Prevent residual fake `.json` names or `workspace-json` tokens from leaking file-specific assumptions into the Flowchart workspace path. |
-| 2D renderer family neutrality | Centralize D3-like, surface-mount, and minimap decisions in shared renderer helpers; keep workspace JSON fallback parsing generic and workspace flowchart payloads source-tagged. | Reduce branch duplication across D3/Flowchart/Flow Canvas/Design/Flow Editor and avoid file-specific fallback cues in the shared 2D pipeline. |
-| Adjacent 2D helper neutrality | Reuse shared renderer-id and family helpers in persistence, store bootstrap/setters, minimap/editor gating, and D3 scene/schema activation. | Prevent stale inline allowlists and repeated D3/Flowchart or Flow Editor checks in adjacent surfaces after host-level cleanup. |
+| 2D renderer family neutrality | Centralize D3-like, surface-mount, and minimap decisions in shared renderer helpers; keep workspace JSON fallback parsing generic and workspace flowchart payloads source-tagged. | Reduce branch duplication across D3/Flowchart/Flow Canvas/Design/Storyboard and avoid file-specific fallback cues in the shared 2D pipeline. |
+| Adjacent 2D helper neutrality | Reuse shared renderer-id and family helpers in persistence, store bootstrap/setters, minimap/editor gating, and D3 scene/schema activation. | Prevent stale inline allowlists and repeated D3/Flowchart or Storyboard Widget checks in adjacent surfaces after host-level cleanup. |
 
 ### Markdown Workspace Import Stability
 
@@ -84,7 +84,7 @@
 - Import actions must be order-safe: late async completions must not steal focus from the current document.
 - Source-file ingest must dedupe same-text pending parses and keep latest-text hash verification before state writeback.
 - Workspace initialization seeds must load source text from `huijoohwee/docs`, materialize the canonical 3-file family at workspace root (`/README.md`, `/knowgrph-video-demo.md`, `/knowgrph-maps-grabmap-multim-demo.md`), and keep those root-level workspace paths as the activation/source-file ids.
-- Initialization-file frontmatter remains the Canvas View SSOT: `README.md` selects D3 + Frontmatter Mode, `knowgrph-video-demo.md` selects Flow Editor + Frontmatter Mode, and `knowgrph-maps-grabmap-multim-demo.md` selects Geospatial Mode.
+- Initialization-file frontmatter remains the Canvas View SSOT: `README.md` selects D3 + Frontmatter Mode, `knowgrph-video-demo.md` selects Storyboard Widget + Frontmatter Mode, and `knowgrph-maps-grabmap-multim-demo.md` selects Geospatial Mode.
 - Exact UI imports must promote the first imported preset document to the active explorer/document authority before composed source-file replay, so stale previously selected docs cannot overwrite the imported file's frontmatter-selected renderer or surface mode.
 - Post-parse layout autosuggest and other metadata helpers must not override explicit initialization-file frontmatter renderer or surface choices.
 
@@ -124,7 +124,7 @@ When changing shared packages that are wired via `file:` links (for example `sin
 - `Canvas` snapshots `selectedNodeId/selectedNodeIds` back into gympgrph → `applyHostSnapshot` updates gympgrph store
 - `GeospatialOverlay` reacts to `selectedNodeId/selectedNodeIds` → `map.setFilter(GRAPH_SELECTED_LAYER_ID, ...)` highlights the selected node layer
 
-#### Journey 3: Import Widget Bundle → Open Flow Editor → See Port-bound Edges
+#### Journey 3: Import Widget Bundle → Open Storyboard Widget → See Port-bound Edges
 
 - Toolbar import action reads local JSON and routes through the shared parser loader:
   - [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
@@ -133,11 +133,11 @@ When changing shared packages that are wired via `file:` links (for example `sin
 - JSON adapter detects `kg:flow:widgetBundle` (kind/version) and writes registry entries to `GraphData.metadata['flow:widgetRegistry']`:
   - [widgetImport.ts](../../canvas/src/lib/graph/io/widgetImport.ts)
   - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
-- Store commit applies registry metadata into the Flow Editor Manager snapshot and enables immediate Flow Editor widget rendering:
+- Store commit applies registry metadata into the Storyboard Widget Manager snapshot and enables immediate Storyboard Widget rendering:
   - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
   - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
-- Flow Editor renders the graph using the native Flow renderer (edges are rendered by the same 2D Flow edge path; no overlay-only edge renderer):
-  - [FlowEditorCanvas.tsx](../../canvas/src/components/FlowEditorCanvas.tsx)
+- Storyboard Widget renders the graph using the shared native Flow runtime (edges use the same 2D Flow edge path; no overlay-only edge renderer):
+  - [StoryboardWidgetCanvas.tsx](../../canvas/src/components/StoryboardWidgetCanvas.tsx)
   - [FlowCanvas.tsx](../../canvas/src/components/FlowCanvas.tsx)
 
 ### Import

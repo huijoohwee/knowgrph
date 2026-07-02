@@ -1,4 +1,4 @@
-import { resolveEffectiveTextGenerationWidgetProperties } from '@/features/flow-editor-manager/registryTemplates'
+import { resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 
 export async function testTextWidgetAuthModePrefersGlobalByokOverLocalServerManaged() {
   const props = resolveEffectiveTextGenerationWidgetProperties({

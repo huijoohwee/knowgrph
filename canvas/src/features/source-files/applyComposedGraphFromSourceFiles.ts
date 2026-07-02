@@ -191,11 +191,11 @@ function applyComposedSourceImportModes(
   }
 }
 
-function requestWorkspaceOpenFlowEditorFit(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
+function requestWorkspaceOpenStoryboardWidgetFit(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
   if (!isFrontmatterFlowGraph(graphData)) return
   const st = useGraphStore.getState()
   if (!isWorkspaceEditorOverlayOpen(st)) return
-  if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'flowEditor') return
+  if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'storyboard') return
   st.requestZoom('fit', { intent: 'fitToView' })
 }
 
@@ -361,10 +361,10 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
 
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
-    requestWorkspaceOpenFlowEditorFit(graphData)
+    requestWorkspaceOpenStoryboardWidgetFit(graphData)
     return
   }
   store.setGraphData(graphData)
   applyComposedSourceImportModes(graphData, sourceFilesForComposition)
-  requestWorkspaceOpenFlowEditorFit(graphData)
+  requestWorkspaceOpenStoryboardWidgetFit(graphData)
 }

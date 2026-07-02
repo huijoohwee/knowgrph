@@ -9,10 +9,10 @@ export function testFloatingPanelScrollBodiesUseSharedResponsiveOwner() {
   const consumerPaths = [
     'src/features/chat/FloatingPanelChat.tsx',
     'src/lib/toolbar/ToolbarToolMenu.impl.tsx',
-    'src/components/FlowEditor/NodeOverlayEditorForm.tsx',
+    'src/components/StoryboardWidget/WidgetEditorForm.tsx',
     'src/features/panels/ui/MainPanelSettingsPanelShell.tsx',
     'src/features/design/DesignFloatingPanelView.tsx',
-    'src/features/flow-editor-manager/FlowEditorMappingSettingsPanel.tsx',
+    'src/features/storyboard-widget-manager/StoryboardWidgetMappingSettingsPanel.tsx',
     'src/features/strybldr/StrybldrFloatingPanelView.tsx',
     'src/features/panels/views/graph-fields/GraphFieldsListPanelBody.tsx',
     'src/features/panels/views/graph-fields/FieldSamplesPanel.tsx',

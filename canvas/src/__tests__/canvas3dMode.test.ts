@@ -136,7 +136,7 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   const calls: string[] = []
   const selected = applyCanvasSurfaceModeSelection({
     mode: '3d',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     documentSemanticMode: 'document',
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: false,
@@ -156,7 +156,7 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   }
 
   const radialDisabled = getCanvasSurfaceModeDisabledCopy({
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     documentSemanticMode: 'document',
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: false,
@@ -169,9 +169,9 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   }
 }
 
-export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
-  const flowEditorState = {
-    canvas2dRenderer: 'flowEditor',
+export function testStoryboardWidgetLayoutMenuRequestsBalancedRebalance() {
+  const storyboardState = {
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',
@@ -187,37 +187,37 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     frontmatterOnlyAllowed: false,
     isD3Like2dLayoutToggle: false,
   } satisfies CanvasViewModelState
-  const flowEditorOptions = buildCanvasViewOptions(flowEditorState, getCanvasViewRendererOptions())
-  const flowEditorLayout = flowEditorOptions.find(option => option.id === 'layout:menu')
-  const flowEditorLayoutIds = (flowEditorLayout?.children || []).map(option => option.id)
-  if (!flowEditorLayoutIds.includes('layout:flowEditorRebalance')) {
-    throw new Error(`Expected Flow Editor Layout menu to expose a rebalance action, got ${flowEditorLayoutIds.join(',')}`)
+  const storyboardOptions = buildCanvasViewOptions(storyboardState, getCanvasViewRendererOptions())
+  const storyboardLayout = storyboardOptions.find(option => option.id === 'layout:menu')
+  const storyboardLayoutIds = (storyboardLayout?.children || []).map(option => option.id)
+  if (!storyboardLayoutIds.includes('layout:storyboardWidgetRebalance')) {
+    throw new Error(`Expected Storyboard Layout menu to expose a Widget rebalance action, got ${storyboardLayoutIds.join(',')}`)
   }
-  if (flowEditorLayoutIds.includes('layout:block') || flowEditorLayoutIds.includes('layout:radial')) {
-    throw new Error('Expected Flow Editor Layout menu to avoid D3/Flowchart layout mode mutations')
+  if (storyboardLayoutIds.includes('layout:block') || storyboardLayoutIds.includes('layout:radial')) {
+    throw new Error('Expected Storyboard Layout menu to avoid D3/Flowchart layout mode mutations')
   }
 
   const d3Options = buildCanvasViewOptions(
     {
-      ...flowEditorState,
+      ...storyboardState,
       canvas2dRenderer: 'd3',
       isD3Like2dLayoutToggle: true,
     },
     getCanvasViewRendererOptions(),
   )
   const d3LayoutIds = (d3Options.find(option => option.id === 'layout:menu')?.children || []).map(option => option.id)
-  if (d3LayoutIds.includes('layout:flowEditorRebalance')) {
-    throw new Error('Expected the Flow Editor rebalance action to stay out of non-Flow-Editor renderer menus')
+  if (d3LayoutIds.includes('layout:storyboardWidgetRebalance')) {
+    throw new Error('Expected the Storyboard Widget rebalance action to stay out of other renderer menus')
   }
 
   let rebalanceRequests = 0
   let schemaWrites = 0
   applyCanvasViewSelection({
-    id: 'layout:flowEditorRebalance',
+    id: 'layout:storyboardWidgetRebalance',
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => {},
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: '3d',
     canvasRenderMode: '2d',
     documentSemanticMode: 'document',
@@ -236,14 +236,14 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
-    requestFlowEditorLayoutRebalance: () => { rebalanceRequests += 1 },
+    requestStoryboardWidgetLayoutRebalance: () => { rebalanceRequests += 1 },
   })
   if (rebalanceRequests !== 1 || schemaWrites !== 0) {
-    throw new Error(`Expected Flow Editor layout action to request one rebalance and avoid schema writes, got ${JSON.stringify({ rebalanceRequests, schemaWrites })}`)
+    throw new Error(`Expected Storyboard Widget layout action to request one rebalance and avoid schema writes, got ${JSON.stringify({ rebalanceRequests, schemaWrites })}`)
   }
 
   applyCanvasViewSelection({
-    id: 'layout:flowEditorRebalance',
+    id: 'layout:storyboardWidgetRebalance',
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => {},
@@ -266,10 +266,10 @@ export function testFlowEditorLayoutMenuRequestsBalancedRebalance() {
     setDocumentSemanticMode: () => {},
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
-    requestFlowEditorLayoutRebalance: () => { rebalanceRequests += 1 },
+    requestStoryboardWidgetLayoutRebalance: () => { rebalanceRequests += 1 },
   })
   if (rebalanceRequests !== 1) {
-    throw new Error('Expected Flow Editor rebalance action to be ignored outside the Flow Editor renderer')
+    throw new Error('Expected Storyboard Widget rebalance action to be ignored outside the Storyboard renderer')
   }
 }
 
@@ -610,7 +610,7 @@ export function testCanvasViewRendererOptionsStaySelectableAcrossInactiveVoxelSt
   const rendererMenu = options.find(option => option.id === 'renderer:menu')
   if (!rendererMenu?.children?.length) throw new Error('Expected renderer menu children')
   const disabled = new Map(rendererMenu.children.map(option => [option.id, option.disabled === true]))
-  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:gantt', 'renderer:storyboard', 'renderer:flowEditor', 'renderer:d3', 'renderer:dashboard', 'renderer:gallery', 'renderer:design']
+  const requiredSelectable: CanvasViewOptionId[] = ['renderer:flowchart', 'renderer:flow', 'renderer:gantt', 'renderer:storyboard', 'renderer:storyboard', 'renderer:d3', 'renderer:dashboard', 'renderer:gallery', 'renderer:design']
   for (const id of requiredSelectable) {
     if (disabled.get(id)) {
       throw new Error(`Expected ${id} to stay selectable for a 2D renderer choice even when inactive canvas3dMode is voxel`)
@@ -885,13 +885,13 @@ export function testCanvasViewRendererSelectionActivates2dSurface() {
   let rendererCalls = 0
 
   applyCanvasViewSelection({
-    id: 'renderer:flowEditor',
+    id: 'renderer:storyboard',
     ensureBaselineUnlocked: () => true,
     geospatialEnabled: false,
     onOpenGeospatialMode: () => {
       throw new Error('Expected 2D renderer selection to avoid opening Geospatial Mode')
     },
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     canvas3dMode: 'voxel',
     canvasRenderMode: '3d',
     documentSemanticMode: 'document',

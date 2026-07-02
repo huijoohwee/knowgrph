@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
+import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'

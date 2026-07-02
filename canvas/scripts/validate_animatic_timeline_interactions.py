@@ -39,7 +39,7 @@ flow:
       label: Hook Clip
       params:
         beat_ref: beat_01
-    - id: NODE_OVERLAY_01
+    - id: WIDGET_01
       type: Overlay
       label: Hook Overlay
       params:
@@ -415,7 +415,7 @@ flow:
       label: Hook Audio
       params:
         beat_ref: beat_01
-    - id: NODE_OVERLAY_01
+    - id: WIDGET_01
       type: Overlay
       label: Hook Overlay
       params:

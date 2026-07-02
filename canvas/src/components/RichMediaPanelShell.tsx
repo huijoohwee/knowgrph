@@ -1,5 +1,5 @@
 import type React from 'react'
-import { FlowEditorPanelChromeHeader } from '@/components/FlowEditor/FlowEditorPanelChrome'
+import { StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
 import { RichMediaPanelResizeHandle } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
@@ -16,7 +16,7 @@ export function RichMediaPanelShell(args: {
       className={model.rootClassName}
       style={{
         ...model.rootStyle,
-        ...(model.showFlowEditorChrome
+        ...(model.showStoryboardWidgetChrome
           ? { display: 'flex', flexDirection: 'column' }
           : model.bodySurfaceStyle),
       }}
@@ -29,9 +29,9 @@ export function RichMediaPanelShell(args: {
       onContextMenuCapture={props.onContextMenuCapture}
       {...model.rootAttributes}
     >
-      {model.showFlowEditorChrome ? (
+      {model.showStoryboardWidgetChrome ? (
         <>
-          <FlowEditorPanelChromeHeader
+          <StoryboardWidgetPanelChromeHeader
             active={model.headerControlsActive}
             title={model.title}
             minimized={props.headerMinimized === true}
@@ -52,7 +52,7 @@ export function RichMediaPanelShell(args: {
           <section
             className="kg-mediaCardBody relative min-h-0 overflow-hidden"
             data-kg-widget-body="1"
-            data-kg-rich-media-flow-editor-body="1"
+            data-kg-rich-media-storyboard-widget-body="1"
             style={model.chromeBodySurfaceStyle}
           >
             {children}

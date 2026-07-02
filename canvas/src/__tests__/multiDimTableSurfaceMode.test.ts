@@ -90,7 +90,7 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
     'date: "2026-06-13"',
     `${nestedKey}:`,
     `  - "${nestedPrefix}: Storyboard"`,
-    `  - "${nestedPrefix}: Flow Editor"`,
+    `  - "${nestedPrefix}: Storyboard Widget"`,
     'surfaces:',
     '  - "2D Renderer: Storyboard"',
     '  - "2D Renderer: Multi-dimensional Table"',
@@ -122,7 +122,7 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
   if (!table.includes('| L0 | L1 | L2 | L3 | L4 | Key | Type | Value | Summary | Output | Action | Reference Pack | Source Value | Level | Content | Line | Indent |') || !table.includes('| date |  |  |  |  | date | scalar | 2026-06-13 |  |  |  |  | 2026-06-13 | L0 | date: "2026-06-13" | 4 | 0 |')) {
     throw new Error(`expected structured source metadata table to expose frontmatter as key/value rows, got:\n${table}`)
   }
-  if (!table.includes(`| ${nestedKey} |  |  |  |  | ${nestedKey} | map |  |  |  |  |  |  | L0 | ${nestedKey}: | 5 | 0 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard |  |  |  |  | ${nestedPrefix}: Storyboard | L1 | - "${nestedPrefix}: Storyboard" | 6 | 2 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Flow Editor |  |  |  |  | ${nestedPrefix}: Flow Editor | L1 | - "${nestedPrefix}: Flow Editor" | 7 | 2 |`)) {
+  if (!table.includes(`| ${nestedKey} |  |  |  |  | ${nestedKey} | map |  |  |  |  |  |  | L0 | ${nestedKey}: | 5 | 0 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard |  |  |  |  | ${nestedPrefix}: Storyboard | L1 | - "${nestedPrefix}: Storyboard" | 6 | 2 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard Widget |  |  |  |  | ${nestedPrefix}: Storyboard Widget | L1 | - "${nestedPrefix}: Storyboard Widget" | 7 | 2 |`)) {
     throw new Error(`expected structured source metadata table to expose nested YAML list values as hierarchy rows, got:\n${table}`)
   }
   if (!table.includes('| surfaces |  |  |  |  | surfaces | map |  |  |  |  |  |  | L0 | surfaces: | 8 | 0 |') || !table.includes('| surfaces | 2D Renderer |  |  |  | 2D Renderer | list | Storyboard |  |  |  |  | 2D Renderer: Storyboard | L1 | - "2D Renderer: Storyboard" | 9 | 2 |')) {

@@ -2,7 +2,7 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
 import { layoutRectSetCentroidWithinViewport } from '@/lib/canvas/graph-elements/centroid'
 
-export const FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE = 24
+export const STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE = 24
 
 export type FlowOverlayBounds = {
   minX: number
@@ -153,7 +153,7 @@ export function buildWorkspaceVisibleViewportFitRecoveryKey(args: {
     `width=${roundViewportPart(args.overlayBounds.width ?? 0)}`,
     `height=${roundViewportPart(args.overlayBounds.height ?? 0)}`,
   ].join('|')
-  return buildScopedGraphSemanticKey('flow-editor-workspace-visible-viewport-fit', {
+  return buildScopedGraphSemanticKey('storyboard-widget-workspace-visible-viewport-fit', {
     graphSemanticKey: [
       String(args.zoomViewKey || '').trim(),
       `left=${roundViewportPart(args.visibleViewport.left)}`,
@@ -177,7 +177,7 @@ export function computeWorkspaceOverlayVisibleViewportFitTransform(args: {
   if (!Number.isFinite(overlayBounds.width) || !Number.isFinite(overlayBounds.height)) return null
   const maxVisualScale = Number.isFinite(args.maxVisualScale)
     ? Math.max(0.000001, Number(args.maxVisualScale))
-    : FLOW_EDITOR_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE
+    : STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE
   const scaleExtent = args.scaleExtent || [0.000001, maxVisualScale]
   const minK = Math.min(scaleExtent[0], 0.000001)
   const maxK = Math.max(minK, Math.min(scaleExtent[1], maxVisualScale))

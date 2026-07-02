@@ -7,9 +7,9 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
-import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
+} from '@/lib/config.storyboard-widget'
+import { resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
 
 export function testChatResponseStructuredContentProjectsToRenderableFlowNodes() {
   const assistantText = [
@@ -166,7 +166,7 @@ export function testChatResponseStructuredContentAcceptsLiteralMcpToolResultEnve
     || runner.properties.prompt !== 'Produce a neutral response artifact.'
     || typeof runner.properties['flow:compute'] !== 'string'
   ) {
-    throw new Error(`Expected literal MCP result widget to preserve declared Flow Editor widget data, got: ${JSON.stringify(runner)}`)
+    throw new Error(`Expected literal MCP result widget to preserve declared Storyboard Widget data, got: ${JSON.stringify(runner)}`)
   }
   if (!video || video.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID || video.targetHandle !== 'videoUrl' || video.properties.videoUrl !== 'https://example.com/mcp-video.mp4') {
     throw new Error(`Expected literal MCP result video to become a Rich Media Panel endpoint, got: ${JSON.stringify(video)}`)
@@ -300,7 +300,7 @@ export function testChatResponseStructuredContentProjectsFromAcceptedKgcFrontmat
   }
   const overlayIds = new Set(deriveFrontmatterFlowOverlayNodeIds(parsed.graphData))
   if (!overlayIds.has('mcp-response-accepted-card') || !overlayIds.has('mcp-response-accepted-video')) {
-    throw new Error(`Expected Flow Editor overlay ids to include accepted structured response widgets, got: ${Array.from(overlayIds).join(', ')}`)
+    throw new Error(`Expected Storyboard Widget overlay ids to include accepted structured response widgets, got: ${Array.from(overlayIds).join(', ')}`)
   }
 
   const renormalized = normalizeKgcAssistantBodyForStorage({

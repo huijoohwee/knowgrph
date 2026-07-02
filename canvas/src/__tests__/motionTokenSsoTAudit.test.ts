@@ -32,7 +32,7 @@ export function testKnowgrphMotionRuntimeUsesNativeWaapiWithoutMotionDependency(
   }
 }
 
-export function testKnowgrphMotionTokensAndFlowEditorIntegration() {
+export function testKnowgrphMotionTokensAndStoryboardWidgetIntegration() {
   const indexCssText = readFileSync(resolve(process.cwd(), 'src', 'index.css'), 'utf8')
   for (const required of [
     '--kg-motion-duration-enter',
@@ -46,20 +46,20 @@ export function testKnowgrphMotionTokensAndFlowEditorIntegration() {
     if (!indexCssText.includes(required)) throw new Error(`expected motion tokens to include ${required}`)
   }
 
-  const overlayInnerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'), 'utf8')
+  const overlayInnerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx'), 'utf8')
   for (const required of [
     "runKnowgrphMotion(placement.asideRef.current, 'flow-widget-enter'",
     "runKnowgrphMotion(placement.asideRef.current, 'flow-widget-emphasis'",
     'controller.abort()',
   ]) {
-    if (!overlayInnerText.includes(required)) throw new Error(`expected Flow Editor widget motion integration to include ${required}`)
+    if (!overlayInnerText.includes(required)) throw new Error(`expected Storyboard Widget motion integration to include ${required}`)
   }
 
-  const overlayViewText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'), 'utf8')
+  const overlayViewText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'), 'utf8')
   for (const required of [
     'toolbarMotionRef',
     "runKnowgrphMotion(toolbarMotionRef.current, 'overlay-toolbar-enter'",
   ]) {
-    if (!overlayViewText.includes(required)) throw new Error(`expected Flow Editor toolbar motion integration to include ${required}`)
+    if (!overlayViewText.includes(required)) throw new Error(`expected Storyboard Widget toolbar motion integration to include ${required}`)
   }
 }

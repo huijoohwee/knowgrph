@@ -241,7 +241,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.workspaceTable.csvRefresh.delimitedDataViewOwners","@/__tests__/workspaceTableModeSharedUtils.test","testWorkspaceCsvRefreshReusesDelimitedTextDataViewOwners"],
   ["ui.workspaceTable.graphToggle.floatingPanelCanvasBridge","@/__tests__/workspaceTableModeSharedUtils.test","testWorkspaceDataViewGraphToggleBridgesFloatingPanelToCanvasMode"],
   ["ui.workflowManager.graph.multiDimTableSurface","@/__tests__/panelSemanticContract.test","testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView"],
-  ["markdown.frontmatter.normalizesCanvas2dRendererTokens","@/__tests__/markdownFrontmatterSharedGuard.test","testCanvas2dRendererNormalizationSharesAnimaticAndFlowEditorSyntaxOwner"],
+  ["markdown.frontmatter.normalizesCanvas2dRendererTokens","@/__tests__/markdownFrontmatterSharedGuard.test","testCanvas2dRendererNormalizationUsesStoryboardFlowSyntaxOwner"],
   ["pdf.viewer.ssot.usesMarkdownPreview","@/__tests__/pdfDocumentViewerSsot.test","testPdfDocumentViewerUsesMarkdownPreviewSsot"],
   ["ui.canvas.gallery.shared2dRenderer","@/__tests__/galleryCanvasConsolidation.test","testGalleryCanvasIsShared2dRenderer"],
   ["ui.canvas.gallery.reusesPreviewAndGrid","@/__tests__/galleryCanvasConsolidation.test","testGalleryCanvasReusesMarkdownPreviewAndGridOverlay"],

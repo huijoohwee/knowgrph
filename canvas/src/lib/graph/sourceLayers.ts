@@ -1,5 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
-import { readWidgetRegistryMetadataEntries, writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
+import { readWidgetRegistryMetadataEntries, writeWidgetRegistryMetadata } from '@/lib/config.storyboard-widget'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'

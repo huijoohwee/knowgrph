@@ -2,11 +2,10 @@
 // Integration check — knowgrph-strytree-edge-rendering bugfix, Task 4.5
 // (design "Integration Tests" > renderer-switch flow invariance).
 //
-//   Assert that switching the DECLARED active 2D renderer among the three
-//   supported values {flowEditor, Storyboard, Strybldr} changes:
+//   Assert that applying the canonical Storyboard renderer changes:
 //     - NO edge projection  — the edge-projection contract surfaces
 //       (kgSharedRendererContract, socket_types, flow, kgCanvas2dRendererCapability,
-//        rendererAgnosticEdges) remain byte-identical across all three renderers,
+//        rendererAgnosticEdges) remain byte-identical,
 //        proving edge projection does NOT branch on the active renderer; and
 //     - NO non-edge content — every non-edge demo concern remains identical
 //       across the switch (integration-level complement to the preservation
@@ -112,11 +111,11 @@ test('renderer-switch: edge-projection surfaces + non-edge concerns resolved (an
 })
 
 // ---------------------------------------------------------------------------
-// The simulated switch must be REAL: each renderer value actually lands in the
+// The simulated projection must be REAL: the canonical renderer value lands in
 // frontmatter (so identical-surface assertions are not passing on a no-op).
 // ---------------------------------------------------------------------------
-test('renderer-switch: withActiveRenderer actually rewrites the active 2D renderer for each member', () => {
-  assert.equal(RENDERER_SET.length, 3, 'renderer set must be exactly the three supported 2D renderers')
+test('renderer-switch: withActiveRenderer applies the canonical Storyboard renderer', () => {
+  assert.deepEqual(RENDERER_SET, ['storyboard'], 'renderer set must contain only the canonical Storyboard renderer')
   for (const renderer of RENDERER_SET) {
     const switched = withActiveRenderer(demoText, renderer)
     assert.ok(
@@ -131,7 +130,7 @@ test('renderer-switch: withActiveRenderer actually rewrites the active 2D render
 // byte-identical for EVERY renderer in the supported set (edge projection does
 // not branch on the active renderer).
 // ---------------------------------------------------------------------------
-test('renderer-switch: edge-projection surfaces are identical across {flowEditor, Storyboard, Strybldr}', () => {
+test('renderer-switch: edge-projection surfaces remain identical for Storyboard', () => {
   for (const renderer of RENDERER_SET) {
     const switched = withActiveRenderer(demoText, renderer)
     const surfaces = captureEdgeProjectionSurfaces(switched)
@@ -150,7 +149,7 @@ test('renderer-switch: edge-projection surfaces are identical across {flowEditor
 // EVERY renderer in the supported set (integration-level complement to the
 // preservation suite's renderer-switch invariance).
 // ---------------------------------------------------------------------------
-test('renderer-switch: non-edge demo content is identical across {flowEditor, Storyboard, Strybldr}', () => {
+test('renderer-switch: non-edge demo content remains identical for Storyboard', () => {
   for (const renderer of RENDERER_SET) {
     const switched = withActiveRenderer(demoText, renderer)
     const concerns = captureDemoConcerns(switched)

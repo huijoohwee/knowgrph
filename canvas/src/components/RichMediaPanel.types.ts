@@ -49,7 +49,7 @@ export type RichMediaPanelProps = {
   resizeHandlePlacement?: 'root' | 'external'
   scrollOwner?: 'media' | 'panel'
   onInlineContentSize?: (size: { width: number; height: number }) => void
-  panelChrome?: 'none' | 'flowEditor'
+  panelChrome?: 'none' | 'storyboardWidget'
   onMediaElement?: (element: HTMLMediaElement | null) => void
   onVideoElement?: (element: HTMLVideoElement | null) => void
   panel?: {
@@ -65,9 +65,9 @@ export type RichMediaPanelProps = {
     isLoading?: boolean
     loadingLabel?: string
   }
-  flowEditorInteractionMode?: boolean
-  flowEditorFrontmatterDocumentMode?: boolean
-  flowEditorSurfaceId?: string
+  storyboardWidgetInteractionMode?: boolean
+  storyboardWidgetFrontmatterDocumentMode?: boolean
+  storyboardWidgetSurfaceId?: string
   onPanelChange?: (next: {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean

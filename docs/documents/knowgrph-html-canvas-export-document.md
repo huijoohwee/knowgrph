@@ -3,7 +3,7 @@
 ## 1. Product Overview
 
 - Goal: enable one-click export of the current Canvas workspace to a standalone HTML file that looks and feels identical to the in-app graph workspace.
-- Scope: export uses the same renderer matrix (2D D3/Flow/Design/Flow Editor, 3D) and Rich Media/frontmatter behavior as Canvas, with correct centering on an infinite canvas and mobile-friendly viewing.
+- Scope: export uses the same renderer matrix (2D D3/Flow/Design/Storyboard, 3D) and Rich Media/frontmatter behavior as Canvas, with correct centering on an infinite canvas and mobile-friendly viewing.
 - Output: a self-contained HTML document (no required backend) that renders the graph on a `<canvas>` (or SVG snapshot) with the same nodes, edges, labels, groups, and Rich Media overlays as the workspace at export time.
 
 ## 2. Core Features

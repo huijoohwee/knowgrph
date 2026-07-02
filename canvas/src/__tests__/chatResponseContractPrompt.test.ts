@@ -92,7 +92,7 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
 
   const requiredSnippets = [
     'markdown syntax guidelines',
-    'Flow Editor (2D), Multi-dimensional Table, and Kanban',
+    'Storyboard Widget (2D), Multi-dimensional Table, and Kanban',
     '@edge:src:handle→tgt:handle',
     'ONE fenced yaml block with',
     'root key response:',
@@ -1640,7 +1640,7 @@ export function testValidateChatMarkdownRejectsCanvasPresetOnlyFallback() {
     'kgFrontmatterModeEnabled: true',
     'kgDocumentSemanticMode: "document"',
     'kgCanvasSurfaceMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     '---',
     '# Thin fallback',
     '## Note',
@@ -1862,7 +1862,7 @@ export function testResolveChatKnowgrphAttemptRetriesUsingRecoveredStructuredCan
     'kgFrontmatterModeEnabled: true',
     'kgDocumentSemanticMode: "document"',
     'kgCanvasSurfaceMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     '---',
     '# Thin fallback',
     '## Note',

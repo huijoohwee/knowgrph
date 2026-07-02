@@ -27,7 +27,7 @@ const modMermaidFrontmatterContextLayout = () => import('@/__tests__/mermaidFron
 const modGraphragTextPipeline = () => import('@/__tests__/graphragTextPipeline.test')
 const modAieBookGraphRagTextPipeline = () => import('@/__tests__/aieBookGraphRagTextPipeline.test')
 const modWidgetBundleImport = () => import('@/__tests__/widgetBundleImport.test')
-const modFlowEditorManagerAddFromWidget = () => import('@/__tests__/flowEditorManagerAddFromWidget.test')
+const modStoryboardWidgetManagerAddFromWidget = () => import('@/__tests__/storyboardWidgetManagerAddFromWidget.test')
 const modKgcSemanticGraph = () => import('@/__tests__/kgcSemanticGraph.test')
 
 export const runParserTests = async (results: TestResult[]) => {
@@ -188,12 +188,12 @@ export const runParserTests = async (results: TestResult[]) => {
     await mod.testWidgetComfyUiImportBuildsGraphAndRegistry()
   })
   await execTest(results, 'parser.widget.managerAddFromWidgetBuildsDraft', async () => {
-    const mod = await modFlowEditorManagerAddFromWidget()
-    await mod.testFlowEditorManagerBuildDraftFromSmartFields()
+    const mod = await modStoryboardWidgetManagerAddFromWidget()
+    await mod.testStoryboardWidgetManagerBuildDraftFromSmartFields()
   })
   await execTest(results, 'parser.widget.managerGenerateVideoDraftUsesSsotTypeId', async () => {
-    const mod = await modFlowEditorManagerAddFromWidget()
-    await mod.testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId()
+    const mod = await modStoryboardWidgetManagerAddFromWidget()
+    await mod.testStoryboardWidgetManagerBuildGenerateVideoDraftUsesSsotTypeId()
   })
   await execTest(results, 'parser.kgcSemantic.typedSigilsNoLegacyRemap', async () => {
     const mod = await modKgcSemanticGraph()

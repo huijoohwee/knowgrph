@@ -3,14 +3,14 @@ import React from 'react'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { computeEffectiveFrontmatterMode, isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { computeEffectiveFrontmatterMode, isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import {
   buildCanonicalNodeIdSet,
   buildCanonicalNodeLookup,
   getCanonicalNodeLookupValue,
 } from '@/lib/graph/canonicalNodeIds'
 import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import {
   buildRichMediaPanelOverlayExcludeNodeIdSet,
@@ -19,8 +19,8 @@ import {
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
-import { isFlowEditorSharedSurfaceRenderer } from '@/lib/flowEditor/screenAuthorityCollectivePan'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { isStoryboardWidgetSurfaceRenderer } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashScopedStringArraySignature, normalizeStringArrayForSignature } from '@/lib/hash/signature'
@@ -107,12 +107,12 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       graphData: renderGraphData,
     })
   }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
-  const flowEditorFrontmatterInteractionMode = isFlowEditorFrontmatterDocumentModeRequested({
+  const storyboardWidgetFrontmatterInteractionMode = isStoryboardWidgetFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(canvas2dRenderer || ''),
     frontmatterModeEnabled: frontmatterModeEnabled === true,
     documentSemanticMode: String(documentSemanticMode || ''),
   })
-  const flowEditorOverlayInteractionMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)
+  const storyboardWidgetOverlayInteractionMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)
 
   const clonedGraphData = React.useMemo(() => {
     if (!renderGraphData) return null
@@ -239,9 +239,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       .filter(Boolean)
   }, [sceneGraphCanonicalNodeById, selectedNodeId, selectedNodeIdsSnapshot])
 
-  const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
-    if (!flowEditorOverlayInteractionMode) return undefined
-    const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'
+  const storyboardWidgetRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
+    if (!storyboardWidgetOverlayInteractionMode) return undefined
+    const excludeAllRichMediaPanelNodes = !storyboardWidgetFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'
     const candidateRawIds = [
       ...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot),
       ...excludeRichMediaOverlayNodeIdsSnapshot,
@@ -262,8 +262,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   }, [
     canvas2dRenderer,
     excludeRichMediaOverlayNodeIdsSnapshot,
-    flowEditorFrontmatterInteractionMode,
-    flowEditorOverlayInteractionMode,
+    storyboardWidgetFrontmatterInteractionMode,
+    storyboardWidgetOverlayInteractionMode,
     openWidgetNodeIdsSnapshot,
     sceneGraphCanonicalNodeById,
     sceneGraphData,
@@ -274,7 +274,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   const stickyOverlayOrderRef = React.useRef<string[]>([])
   const useStickyOverlayPool =
     canvas2dRenderer === 'storyboard'
-    || (!flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode)
+    || (!storyboardWidgetOverlayInteractionMode && !storyboardWidgetFrontmatterInteractionMode)
 
   const mediaNodes = React.useMemo(() => {
     const nodes = mediaRenderNodes
@@ -288,7 +288,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       documentSemanticMode,
       nodes,
       poolMax,
-      excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
+      excludeNodeIdSet: storyboardWidgetRichMediaPanelOverlayExcludeNodeIdSet,
       connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
       nodeById: sceneGraphNodeById || undefined,
     })
@@ -351,7 +351,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     }
     return out
   }, [
-    flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
+    storyboardWidgetRichMediaPanelOverlayExcludeNodeIdSet,
     mediaRenderConnectedValuesByNodeId,
     mediaRenderNodes,
     renderMediaAsNodes,
@@ -406,8 +406,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     renderGraphData,
     allowMutations,
     effectiveFrontmatter,
-    flowEditorFrontmatterInteractionMode,
-    flowEditorOverlayInteractionMode,
+    storyboardWidgetFrontmatterInteractionMode,
+    storyboardWidgetOverlayInteractionMode,
     filteredGraphDataForRenderer,
     sceneGraphData,
     panelOnlyNodeIdSet,

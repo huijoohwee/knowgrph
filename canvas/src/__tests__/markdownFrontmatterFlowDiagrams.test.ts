@@ -7,8 +7,8 @@ import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+} from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 const readRegistry = (graphData: GraphData): never[] => (
@@ -25,7 +25,7 @@ export function testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels(
   const md = [
     '---',
     'title: "Neutral flow diagram demo"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'flow_diagrams:',
     '  key: flow_diagrams',
     '  type: object',

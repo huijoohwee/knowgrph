@@ -413,8 +413,8 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `viewportControlsPreset` | string | store | `kg:ui:viewport:controlsPreset` | `ui.workspace` |
 | `infiniteCanvasInteractionMode` | string | store | `kg:ui:canvas:interactionMode` | `ui.workspace` |
 | `canvasWorkspaceSyncMode` | string | store | `kg:ui:canvas:workspaceSyncMode` | `ui.workspace` |
-| `flowEditorSelectionOnDrag` | boolean | store | `kg:ui:flowEditor:selectionOnDrag` | `ui.workspace` |
-| `flowEditorOverlayWheelProxyEnabled` | boolean | store | `kg:ui:flowEditor:overlayWheelProxyEnabled` | `ui.workspace` |
+| `storyboardWidgetSelectionOnDrag` | boolean | store | `kg:ui:storyboardWidget:selectionOnDrag` | `ui.workspace` |
+| `storyboardWidgetOverlayWheelProxyEnabled` | boolean | store | `kg:ui:storyboardWidget:overlayWheelProxyEnabled` | `ui.workspace` |
 | `viewPinned` | boolean | store |  |  |
 | `fitToScreenMode` | boolean | store |  |  |
 | `zoomToSelectionMode` | boolean | store |  |  |

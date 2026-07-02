@@ -108,9 +108,9 @@
 
 **Rendering Pattern**: React-based canvas with SVG/HTML rendering, using Zustand selectors to minimize re-renders on graph mutations.
 
-**Flow Editor deferred draw**: When a workspace overlay opens (e.g., Editor Workspace), the Flow Editor canvas defers its next native draw until the overlay transition settles. This prevents a visible blank flash caused by a zero-dimension viewport during the overlay animation. The deferred draw reuses the same `fitAllTransform` SSOT and preserves centroid-centered layouts.
+**Storyboard Widget deferred draw**: When a workspace overlay opens (e.g., Editor Workspace), the Storyboard Widget canvas defers its next native draw until the overlay transition settles. This prevents a visible blank flash caused by a zero-dimension viewport during the overlay animation. The deferred draw reuses the same `fitAllTransform` SSOT and preserves centroid-centered layouts.
 
-**Flow Editor viewport settle retry**: After workspace-open overlay transitions, the Flow canvas retries centroid-centered fit if the initial viewport settle produces an offscreen or degenerate transform. See `knowgrph-flow-editor-pan-zoom-overlay-failsafe-document.md`.
+**Storyboard Widget viewport settle retry**: After workspace-open overlay transitions, the Flow canvas retries centroid-centered fit if the initial viewport settle produces an offscreen or degenerate transform. See `knowgrph-storyboard-widget-pan-zoom-overlay-failsafe-document.md`.
 
 **Configuration Schema (core sections)**:
 

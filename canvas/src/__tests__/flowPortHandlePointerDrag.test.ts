@@ -11,7 +11,7 @@ import {
   type FlowPortHandleCancelDetail,
   type FlowPortHandleFinalizeDetail,
   type FlowPortHandlePreviewDetail,
-} from '@/components/FlowEditor/flowPortHandlePointerDrag'
+} from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 
 export async function testFlowPortHandlePointerDragCompletesOnSemanticInputHandle() {
   const dom = new JSDOM('<!doctype html><html><body></body></html>')

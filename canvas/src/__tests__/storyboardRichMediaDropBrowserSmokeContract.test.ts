@@ -67,7 +67,7 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
     'expected dropped {source_kind} kind only',
     'expected dropped {source_kind} node id to be retained',
     'expected {source_kind} drop to preserve existing authored nodes',
-    "data-kg-flow-editor-surface-root=\"storyboard\"",
+    "data-kg-storyboard-widget-surface-root=\"storyboard\"",
   ]) {
     if (!verifierSource.includes(snippet)) {
       throw new Error(`expected storyboard browser verifier to assert the real drag surface contract: ${snippet}`)

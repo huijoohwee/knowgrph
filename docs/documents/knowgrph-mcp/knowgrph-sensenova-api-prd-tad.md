@@ -29,7 +29,7 @@ constraints:
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 kgDocumentStructureBaselineLock: false
 traceability:
   prd: "PRD-SENSENOVA-API"

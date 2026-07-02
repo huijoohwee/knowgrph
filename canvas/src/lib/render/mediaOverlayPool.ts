@@ -3,7 +3,7 @@ import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { coerceMarkdownParenUrl } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -13,9 +13,9 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  getFlowEditorSmartWidgetLabel,
-} from '@/lib/config.flow-editor'
-import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
+  getStoryboardWidgetSmartWidgetLabel,
+} from '@/lib/config.storyboard-widget'
+import { getTextGenerationWidgetLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
@@ -137,13 +137,13 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
     })
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-    return getFlowEditorSmartWidgetLabel({
+    return getStoryboardWidgetSmartWidgetLabel({
       mode: 'image',
       model: properties.model,
     })
   }
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-    return getFlowEditorSmartWidgetLabel({
+    return getStoryboardWidgetSmartWidgetLabel({
       mode: 'video',
       model: properties.model,
     })

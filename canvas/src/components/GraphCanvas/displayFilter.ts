@@ -1,5 +1,5 @@
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 import { readGraphActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'

@@ -1,5 +1,5 @@
-import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 export function testResolveWidgetRegistryEntryPrefersRicherMatchingEntry() {
   const registry: WidgetRegistryEntry[] = [

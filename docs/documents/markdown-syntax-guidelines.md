@@ -18,7 +18,7 @@ Provide a strict, renderer-safe Markdown contract for {{product}} Chat output th
 - The markdown body itself must carry the real answer content; do not rely on a `{{solution_md}}` shell as the body.
 - Annotation sigils use inline code only: `#HEX:text`, `bg#HEX:text`, or `#HEX|bg#HEX:text` where HEX is exactly 6 uppercase digits.
 - Prefer frontmatter `flow:` YAML for flow graphs; keep schema stable and parseable.
-- Keep one opening YAML frontmatter block as the machine SSOT. Body Markdown is the human projection and must not contain a second metadata block, body `flow:` mirror, `## KGC Reading Layer`, or line-start `@node:` / `@edge:` declarations for Flow Editor topology.
+- Keep one opening YAML frontmatter block as the machine SSOT. Body Markdown is the human projection and must not contain a second metadata block, body `flow:` mirror, `## KGC Reading Layer`, or line-start `@node:` / `@edge:` declarations for Storyboard Widget topology.
 - Canonical authored Markdown and reusable templates must keep `flow:` in plain YAML scalars, arrays, and objects.
 - Normalized `{key, type, value}` wrappers are reserved for E2E ingestion/parsing/rendering fixtures after parsing; do not mix them into ordinary authored docs or templates.
 - In normalized fixtures, reusable KGC-readable node summaries belong on the owning frontmatter node record, commonly as `kgc:readingSummary`.

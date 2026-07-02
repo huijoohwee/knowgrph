@@ -3,7 +3,7 @@ import { projectVideoAgentFrameAnalysisSrcDoc } from '@/features/video-agent/vid
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { coerceMediaUrl } from '@/lib/url'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { isSafeIframeUrl, normalizeIframeUrl, resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'

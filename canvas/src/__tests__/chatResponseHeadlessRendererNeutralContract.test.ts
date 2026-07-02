@@ -7,7 +7,7 @@ export function testChatResponseContractPromptRequiresHeadlessRendererNeutralOut
     'headless and renderer-neutral',
     'portable frontmatter plus Markdown data',
     'text, image, audio, video, card, widget, and edge semantics as data',
-    'Editor Workspace, Flow Editor, Storyboard, Strybldr, Rich Media Panels, Cards, and Edges',
+    'Editor Workspace, Storyboard, Strybldr, Rich Media Panels, Cards, and Edges',
     'inline-edit through shared owners',
     'response.structuredContent.frontmatter',
     'metadata projection never becomes a graph backfill channel',

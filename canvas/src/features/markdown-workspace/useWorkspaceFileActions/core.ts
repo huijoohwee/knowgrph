@@ -7,7 +7,7 @@ import {
   workspaceDocumentKey,
 } from '@/features/workspace-fs/path'
 import { UI_COPY } from '@/lib/config'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.storyboard-widget'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
@@ -254,12 +254,12 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         }
         const schema = store.schema
         if (schema) {
-          const { enableHandlesForAllInputsInSchema } = (await import('@/lib/flowEditor/flowEditorActions')) as typeof import('@/lib/flowEditor/flowEditorActions')
+          const { enableHandlesForAllInputsInSchema } = (await import('@/lib/storyboardWidget/storyboardWidgetActions')) as typeof import('@/lib/storyboardWidget/storyboardWidgetActions')
           const res = enableHandlesForAllInputsInSchema(schema)
           if (res.changed) store.setSchema(res.schema)
         }
         store.setCanvasRenderMode('2d')
-        store.setCanvas2dRenderer('flowEditor')
+        store.setCanvas2dRenderer('storyboard')
         void setGeospatialModeEnabled(false).catch(() => void 0)
         store.setWorkspaceViewMode('canvas')
         return

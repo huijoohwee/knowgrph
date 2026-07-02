@@ -6,10 +6,10 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 
-import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
-import { normalizeWidgetFieldSchemaPath } from '@/features/flow-editor-manager/widgetFieldMutation'
-import { FLOW_WIDGET_FORM_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { WidgetEditorForm } from '@/components/StoryboardWidget/WidgetEditorForm'
+import { normalizeWidgetFieldSchemaPath } from '@/features/storyboard-widget-manager/widgetFieldMutation'
+import { FLOW_WIDGET_FORM_ID_KEY, resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
   FRONTMATTER_FLOW_HANDLES_VALUE_KEY,
   FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,
@@ -20,8 +20,8 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { defaultSchema } from '@/lib/graph/schema'
 import { readRecordPathValue } from '@/lib/graph/nodeProperties'
 import { resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec } from '@/lib/render/richMediaSsot'
 
 const TOKEN_ECONOMICS_FIXTURE_BASENAME = 'knowgrph-token-economics-model-demo.md'
@@ -177,7 +177,7 @@ async function renderParsedTokenEconomicsNode(graphData: GraphData, nodeId?: str
   const patched: Array<Record<string, unknown>> = []
   await act(async () => {
     root.render(
-      React.createElement(NodeOverlayEditorForm, {
+      React.createElement(WidgetEditorForm, {
         active: true,
         node,
         graphMetaKind: 'frontmatter-flow',

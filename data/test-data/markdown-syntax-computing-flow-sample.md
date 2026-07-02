@@ -43,7 +43,7 @@ edges:
   - @edge:n-route:winners       → n-gallery:winners
   - @edge:n-route:review        → n-flagged:review
 
-# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────
+# ── STORYBOARD WIDGET (interactive + computable) ───────────────────────────────────
 #
 # Computing flows contract:
 #   input   nodes → static authored data; no upstream; source handles only

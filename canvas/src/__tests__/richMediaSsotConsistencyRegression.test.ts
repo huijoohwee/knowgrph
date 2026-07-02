@@ -16,7 +16,7 @@ import {
   resolveToggledRichMediaAspectSize,
 } from '@/lib/render/richMediaSsot'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 
 export function testRichMediaSsotConsistencyRegression() {
   if (readRichMediaDisplayMode(false) !== 'circle-only') {
@@ -28,12 +28,12 @@ export function testRichMediaSsotConsistencyRegression() {
   if (
     readRichMediaDisplayMode({
       renderMediaAsNodes: false,
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       frontmatterModeEnabled: true,
       documentSemanticMode: 'document',
     }) !== 'panel-only'
   ) {
-    throw new Error('expected frontmatter Flow Editor document mode to force Rich Media display mode to panel-only')
+    throw new Error('expected frontmatter Storyboard Widget document mode to force Rich Media display mode to panel-only')
   }
   if (resolveRichMediaSurfaceMode({ renderMediaAsNodes: false, canvasRenderMode: '3d', canvas3dMode: 'xr' }) !== 'xr') {
     throw new Error('expected Rich Media surface resolver to preserve XR surface mode')
@@ -102,12 +102,12 @@ export function testRichMediaSsotConsistencyRegression() {
       nodeInteractive: true,
       renderMediaAsNodes: false,
       infiniteCanvasInteractionMode: 'static',
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       frontmatterModeEnabled: true,
       documentSemanticMode: 'document',
     }) !== true
   ) {
-    throw new Error('expected frontmatter Flow Editor document mode to preserve Rich Media overlay interaction without the manual toggle')
+    throw new Error('expected frontmatter Storyboard Widget document mode to preserve Rich Media overlay interaction without the manual toggle')
   }
   const previousWindow = (globalThis as { window?: unknown }).window
   ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5173' } }
@@ -205,14 +205,14 @@ export function testRichMediaSsotConsistencyRegression() {
   if (
     listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes: false,
-      canvas2dRenderer: 'flowEditor',
+      canvas2dRenderer: 'storyboard',
       frontmatterModeEnabled: true,
       documentSemanticMode: 'document',
       nodes: [imageNode],
       poolMax: 24,
     }).length !== 1
   ) {
-    throw new Error('expected frontmatter Flow Editor document mode to enable the Rich Media overlay pool without the manual toggle')
+    throw new Error('expected frontmatter Storyboard Widget document mode to enable the Rich Media overlay pool without the manual toggle')
   }
   const geospatialMenu = buildCanvasViewOptions(
     {
@@ -245,11 +245,11 @@ export function testRichMediaSsotConsistencyRegression() {
   const flowCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx'), 'utf8')
   const flowCanvasGraphStateText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'), 'utf8')
   const flowCanvasMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
-  const flowEditorCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx'), 'utf8')
-  const flowEditorFormText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
-  const flowEditorPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
-  const flowEditorCanvasSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx'), 'utf8')
-  const flowEditorOverlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'), 'utf8')
+  const storyboardWidgetCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const storyboardWidgetFormText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx'), 'utf8')
+  const storyboardWidgetPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx'), 'utf8')
+  const storyboardWidgetCanvasSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx'), 'utf8')
+  const storyboardWidgetOverlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx'), 'utf8')
   const d3HookText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts'), 'utf8')
   const d3LayerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'), 'utf8')
   const graphCanvasSceneText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'scene.ts'), 'utf8')
@@ -297,8 +297,8 @@ export function testRichMediaSsotConsistencyRegression() {
   ) {
     throw new Error('expected FlowCanvas runtime modules to reuse upstream Rich Media SSOT helpers for overlay enablement, writeback, and interactivity')
   }
-  if (!flowCanvasGraphStateText.includes('const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {')) {
-    throw new Error('expected FlowCanvas to derive a Flow Editor Rich Media overlay exclusion set before mounting overlay panels')
+  if (!flowCanvasGraphStateText.includes('const storyboardWidgetRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {')) {
+    throw new Error('expected FlowCanvas to derive a Storyboard Widget Rich Media overlay exclusion set before mounting overlay panels')
   }
   if (!flowCanvasGraphStateText.includes("cacheScope: 'flow-canvas-scene-graph'") || !flowCanvasGraphStateText.includes('getCachedGraphLookup({')) {
     throw new Error('expected FlowCanvas graph state to reuse the shared scene-graph lookup helper instead of rebuilding local node maps for Rich Media overlay decisions')
@@ -309,14 +309,14 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!panelFrameText.includes('PANEL_FRAME_EMBEDDED_SURFACE_STYLE') || !panelFrameText.includes("boxShadow: 'none'")) {
     throw new Error('expected panelFrame to own embedded Rich Media full-surface styling')
   }
-  for (const surfaceText of [flowEditorFormText, flowEditorPanelText, markdownDesignOverlayText, previewPanelText]) {
+  for (const surfaceText of [storyboardWidgetFormText, storyboardWidgetPanelText, markdownDesignOverlayText, previewPanelText]) {
     if (surfaceText.includes("style={{ width: '100%', height: '100%', boxShadow: 'none' }}")) throw new Error('expected embedded Rich Media surfaces to reuse PANEL_FRAME_EMBEDDED_SURFACE_STYLE')
   }
   if (!flowCanvasGraphStateText.includes('excludeRichMediaOverlayNodeIds?: string[]')) {
-    throw new Error('expected FlowCanvas to accept explicit Rich Media overlay exclusion ids from Flow Editor')
+    throw new Error('expected FlowCanvas to accept explicit Rich Media overlay exclusion ids from Storyboard Widget')
   }
-  if (!flowCanvasGraphStateText.includes('excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet')) {
-    throw new Error('expected FlowCanvas overlay pool to exclude Flow Editor Rich Media panel nodes from duplicate overlay panels')
+  if (!flowCanvasGraphStateText.includes('excludeNodeIdSet: storyboardWidgetRichMediaPanelOverlayExcludeNodeIdSet')) {
+    throw new Error('expected FlowCanvas overlay pool to exclude Storyboard Widget Rich Media panel nodes from duplicate overlay panels')
   }
   if (!flowCanvasGraphStateText.includes('computeRichMediaOverlayConnectedValuesByNodeId({')) {
     throw new Error('expected FlowCanvas graph state to reuse the upstream Rich Media connected-value derivation helper')
@@ -331,28 +331,28 @@ export function testRichMediaSsotConsistencyRegression() {
     throw new Error('expected FlowCanvas duplicate exclusion ids to be keyed by a semantic signature instead of raw array identity')
   }
   if (!flowCanvasGraphStateText.includes('...excludeRichMediaOverlayNodeIdsSnapshot,')) {
-    throw new Error('expected FlowCanvas duplicate exclusion to include Flow Editor overlay node ids via the normalized semantic snapshot')
+    throw new Error('expected FlowCanvas duplicate exclusion to include Storyboard Widget overlay node ids via the normalized semantic snapshot')
   }
-  if (!flowCanvasGraphStateText.includes('const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode')) {
-    throw new Error('expected FlowCanvas Flow Editor exclusion to relax blanket Rich Media panel suppression in frontmatter document mode')
+  if (!flowCanvasGraphStateText.includes('const excludeAllRichMediaPanelNodes = !storyboardWidgetFrontmatterInteractionMode')) {
+    throw new Error('expected FlowCanvas Storyboard Widget exclusion to relax blanket Rich Media panel suppression in frontmatter document mode')
   }
   if (!flowCanvasGraphStateText.includes('excludeAllRichMediaPanelNodes,')) {
-    throw new Error('expected FlowCanvas Flow Editor exclusion to pass blanket panel suppression through the shared Rich Media exclusion helper')
+    throw new Error('expected FlowCanvas Storyboard Widget exclusion to pass blanket panel suppression through the shared Rich Media exclusion helper')
   }
-  if (!flowEditorCanvasText.includes('flowCanvasGraphDataOverride')) {
-    throw new Error('expected FlowEditorCanvas runtime to pass an upstream-filtered graph override into FlowCanvas to prevent overlay seepage')
+  if (!storyboardWidgetCanvasText.includes('flowCanvasGraphDataOverride')) {
+    throw new Error('expected StoryboardWidgetCanvas runtime to pass an upstream-filtered graph override into FlowCanvas to prevent overlay seepage')
   }
-  if (!flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}')) {
+  if (!storyboardWidgetCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}')) {
     throw new Error('expected Storyboard fixed-card mode to suppress duplicate FlowCanvas Rich Media overlay panels via shared exclusion ids')
   }
-  if (!flowEditorOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
-    throw new Error('expected FlowEditor overlay surface to reuse the upstream Rich Media connected-value target helper')
+  if (!storyboardWidgetOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
+    throw new Error('expected StoryboardWidget overlay surface to reuse the upstream Rich Media connected-value target helper')
   }
-  if (!flowCanvasGraphStateText.includes("canvas2dRenderer === 'storyboard'\n    || (!flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode)")) {
-    throw new Error('expected FlowCanvas Rich Media overlay pool to stay stable in Storyboard and disable sticky carryover in other Flow Editor/frontmatter collective modes')
+  if (!flowCanvasGraphStateText.includes("canvas2dRenderer === 'storyboard'\n    || (!storyboardWidgetOverlayInteractionMode && !storyboardWidgetFrontmatterInteractionMode)")) {
+    throw new Error('expected FlowCanvas Rich Media overlay pool to stay stable in Storyboard and disable sticky carryover in other Storyboard Widget/frontmatter collective modes')
   }
   if (!flowCanvasGraphStateText.includes('if (!useStickyOverlayPool) {')) {
-    throw new Error('expected FlowCanvas Rich Media overlay pool to follow the live suggested overlay set directly in Flow Editor/frontmatter collective modes')
+    throw new Error('expected FlowCanvas Rich Media overlay pool to follow the live suggested overlay set directly in Storyboard Widget/frontmatter collective modes')
   }
   if (!d3HookText.includes('listDisplayRichMediaOverlayNodes')) {
     throw new Error('expected D3 rich media overlay hook to reuse upstream Rich Media overlay enablement SSOT')

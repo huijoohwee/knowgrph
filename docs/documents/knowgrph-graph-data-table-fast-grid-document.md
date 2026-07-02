@@ -68,7 +68,7 @@
 
 ## Widget Parity
 
-- The Record Inspector must render the same Flow Editor widget panel as Flow Editor for any node id in the shared open list.
+- The Record Inspector must render the same Storyboard Widget panel as Storyboard Widget for any node id in the shared open list.
 - The open list remains SSOT in graph view state; the table must not keep a local open-state fork.
 - The live Record Inspector owner is a neutral graph-inspector surface; it must not be routed back through legacy `graph-table` workspace naming just because it still consumes shared graph-table persistence/helpers.
 - The live Record Inspector responsive chrome must also stay neutral: inspector-specific class names, detail-grid constants, and stylesheet imports belong to `graph-inspector`, not `graph-table`.

@@ -104,7 +104,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Workspace',
   'Source File Management',
   'Markdown',
-  'Flow Editor',
+  'Storyboard Widget',
   'Canvas',
   'Rendering',
   'Performance',

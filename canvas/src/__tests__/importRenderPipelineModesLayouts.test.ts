@@ -16,11 +16,11 @@ import { fibSphere } from '@/features/three/positions'
 import { computePositions3d } from '@/features/three/positions'
 import { projectPositionsToSphereShell } from '@/features/three/sphereConstraint'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults } from '@/components/FlowCanvas/handles'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { togglePortHandlesEnabledInSchema, shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
@@ -341,7 +341,7 @@ export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async
   if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas computing-flow sample')
 }
 
-export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = async () => {
+export const testImportRenderPipelineKnowgrphVideoDemoStoryboardWidgetDocumentModes = async () => {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setCanvasRenderMode('3d')
   useGraphStore.getState().setCanvas2dRenderer('d3')
@@ -359,7 +359,7 @@ export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = 
   }
   const store = useGraphStore.getState()
   if (store.canvasRenderMode !== '2d') throw new Error(`expected 2d render mode, got ${String(store.canvasRenderMode)}`)
-  if (store.canvas2dRenderer !== 'flowEditor') throw new Error(`expected flowEditor renderer, got ${String(store.canvas2dRenderer)}`)
+  if (store.canvas2dRenderer !== 'storyboard') throw new Error(`expected storyboard renderer, got ${String(store.canvas2dRenderer)}`)
   if (store.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(store.documentSemanticMode)}`)
   if (store.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled')
   if (store.multiDimTableModeEnabled !== false) throw new Error('expected multi-dimensional table mode disabled')
@@ -392,15 +392,15 @@ export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = 
   const richMediaPanelNodeIds = new Set(richMediaPanelNodes.map(node => String(node.id || '').trim()).filter(Boolean))
   const overlayEditorRichMediaIds = overlayEditorNodeIds.filter(id => richMediaPanelNodeIds.has(id))
   if (overlayEditorRichMediaIds.length !== richMediaPanelNodeIds.size) {
-    throw new Error(`expected flow editor widget overlays to include all rich media panel nodes, got ${overlayEditorRichMediaIds.join(', ')}`)
+    throw new Error(`expected storyboard widget overlays to include all rich media panel nodes, got ${overlayEditorRichMediaIds.join(', ')}`)
   }
   const targetNodeIds = new Set(richMediaPanelNodes.map(node => String(node.id || '').trim()).filter(Boolean))
   const connectedValuesA = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
   const connectedValuesB = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
   if (connectedValuesA !== connectedValuesB) throw new Error('expected connected widget value cache reuse for video demo Rich Media Panels')
-  const flowEditorRichMediaOverlays = listDisplayRichMediaOverlayNodes({
+  const storyboardWidgetRichMediaOverlays = listDisplayRichMediaOverlayNodes({
     renderMediaAsNodes: false,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: true,
     documentSemanticMode: 'document',
     nodes,
@@ -408,7 +408,7 @@ export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = 
     excludeNodeIdSet: new Set(overlayEditorNodeIds),
     connectedValuesByNodeId: connectedValuesA,
   })
-  const leakedWidgetOwnedIds = flowEditorRichMediaOverlays
+  const leakedWidgetOwnedIds = storyboardWidgetRichMediaOverlays
     .map(node => String(node.id || '').trim())
     .filter(id => richMediaPanelNodeIds.has(id))
   if (leakedWidgetOwnedIds.length > 0) {
@@ -496,7 +496,7 @@ export const testImportRenderPipelineKnowgrphVideoDemoSeededVisualPayloads = asy
   const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
   const overlays = listDisplayRichMediaOverlayNodes({
     renderMediaAsNodes: false,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: true,
     documentSemanticMode: 'document',
     nodes,
@@ -516,7 +516,7 @@ export const testImportRenderPipelineKnowgrphVideoDemoSeededVisualPayloads = asy
   }
 }
 
-export const testImportRenderPipelineKgcPipelinePrdTadAutoAppliesFlowEditorDocumentModes = async () => {
+export const testImportRenderPipelineKgcPipelinePrdTadAutoAppliesStoryboardWidgetDocumentModes = async () => {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setCanvasRenderMode('3d')
   useGraphStore.getState().setCanvas2dRenderer('d3')
@@ -534,7 +534,7 @@ export const testImportRenderPipelineKgcPipelinePrdTadAutoAppliesFlowEditorDocum
   }
   const store = useGraphStore.getState()
   if (store.canvasRenderMode !== '2d') throw new Error(`expected 2d render mode, got ${String(store.canvasRenderMode)}`)
-  if (store.canvas2dRenderer !== 'flowEditor') throw new Error(`expected flowEditor renderer, got ${String(store.canvas2dRenderer)}`)
+  if (store.canvas2dRenderer !== 'storyboard') throw new Error(`expected storyboard renderer, got ${String(store.canvas2dRenderer)}`)
   if (store.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(store.documentSemanticMode)}`)
   if (store.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled')
   if (store.multiDimTableModeEnabled !== false) throw new Error('expected multi-dimensional table mode disabled')
@@ -620,19 +620,19 @@ export const testImportRenderPipelineRadialLayoutForces2d = () => {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('3d')
-  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
-  const flowEditorSchema = useGraphStore.getState().schema
+  useGraphStore.getState().setCanvas2dRenderer('storyboard')
+  const storyboardSchema = useGraphStore.getState().schema
   useGraphStore.getState().setSchema({
-    ...flowEditorSchema,
-    layout: { ...(flowEditorSchema.layout || {}), mode: 'radial' as const },
+    ...storyboardSchema,
+    layout: { ...(storyboardSchema.layout || {}), mode: 'radial' as const },
   })
-  const flowEditorMode = useGraphStore.getState().canvasRenderMode
-  if (flowEditorMode !== '2d') {
-    throw new Error(`expected radial layout to keep Flow Editor on the 2d canvas surface, got ${String(flowEditorMode)}`)
+  const storyboardMode = useGraphStore.getState().canvasRenderMode
+  if (storyboardMode !== '2d') {
+    throw new Error(`expected radial layout to keep Storyboard on the 2D canvas surface, got ${String(storyboardMode)}`)
   }
-  const flowEditorRenderer = useGraphStore.getState().canvas2dRenderer
-  if (flowEditorRenderer !== 'flowEditor') {
-    throw new Error(`expected radial layout to preserve Flow Editor renderer, got ${String(flowEditorRenderer)}`)
+  const storyboardRenderer = useGraphStore.getState().canvas2dRenderer
+  if (storyboardRenderer !== 'storyboard') {
+    throw new Error(`expected radial layout to preserve Storyboard renderer, got ${String(storyboardRenderer)}`)
   }
 }
 

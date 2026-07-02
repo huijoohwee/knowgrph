@@ -2,7 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
-import { isFlowEditorCanvas2dRenderer, isFrontmatterOnlyPolicyActive, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer, isFrontmatterOnlyPolicyActive, resolveCanvas2dRendererId } from '@/lib/config.render'
 import { normalizeCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
@@ -97,7 +97,7 @@ function enableGeospatialForDocumentPreset(): void {
   }
 }
 
-const VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS = new Set(['timeline', 'flowchart', 'gantt', 'flowEditor'])
+const VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS = new Set(['timeline', 'flowchart', 'gantt', 'storyboardWidget'])
 
 function shouldRetainVideoSequenceFloatingPanelView(value: unknown): boolean {
   return VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS.has(String(value || '').trim())
@@ -195,8 +195,8 @@ export function applyCanvasFrontmatterPreset(args: {
   const canvas2dRenderer = videoSequenceTimelineEnabled && (!requestedCanvas2dRenderer || requestedCanvas2dRenderer === 'gantt')
     ? 'media'
     : requestedCanvas2dRenderer
-  const flowEditorLandingRequested =
-    isFlowEditorCanvas2dRenderer(canvas2dRenderer) &&
+  const storyboardWidgetLandingRequested =
+    isStoryboardCanvas2dRenderer(canvas2dRenderer) &&
     (surfacePreset.canvasRenderMode ?? store.canvasRenderMode) === '2d'
   const frontmatterOnlyPolicyActive = isFrontmatterOnlyPolicyActive({
     canvasRenderMode: surfacePreset.canvasRenderMode ?? store.canvasRenderMode,
@@ -304,7 +304,7 @@ export function applyCanvasFrontmatterPreset(args: {
   const frontmatterModeEnabled = frontmatterOnlyPolicyActive
     ? true
     : (preset?.frontmatterModeEnabled ?? args.defaultFrontmatterModeEnabled)
-  const multiDimTableModeEnabled = frontmatterOnlyPolicyActive || flowEditorLandingRequested || args.disableMultiDimTableMode === true
+  const multiDimTableModeEnabled = frontmatterOnlyPolicyActive || storyboardWidgetLandingRequested || args.disableMultiDimTableMode === true
     ? false
     : (preset?.multiDimTableModeEnabled ?? args.defaultMultiDimTableModeEnabled)
 

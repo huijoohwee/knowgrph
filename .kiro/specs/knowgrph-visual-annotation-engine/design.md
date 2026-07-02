@@ -27,7 +27,7 @@ as a canvas graph node through the existing `writeRichMediaWidgetRunOutputArtifa
 - SSOT isolation — `annotationEngineSsot.ts` owns all type contracts, task IDs, model IDs; no
   ML-library imports leak out of it
 - Reuse over rebuild — `writeRichMediaWidgetRunOutputArtifact`, `buildScopedGraphSemanticKey`,
-  `buildKnowgrphLocalMcpToolDefinitions`, and Flow Editor node patterns all reused unchanged
+  `buildKnowgrphLocalMcpToolDefinitions`, and Storyboard Widget node patterns all reused unchanged
 - LLM-ready output first — `toLlmReadyPayload` and `toMarkdownSummary` are the primary
   consumer-facing deliverables; canvas rendering is secondary
 - FOSS-first — Transformers.js (Apache 2.0) + Florence-2-base (MIT); zero paid API dependency
@@ -61,9 +61,9 @@ worker and artifact path with a `frame_extraction_failed / not_implemented` erro
 | `annotationWorker.ts` | Web Worker: loads Transformers.js pipeline, runs inference off main thread | Worker |
 | `annotationOrchestrator.ts` | Main-thread orchestrator: validates spec, manages worker lifecycle, builds annotationId, calls artifact pipeline | Orchestration |
 | `annotationSerializers.ts` | Pure functions: `toLlmReadyPayload`, `toMarkdownSummary` | Serialisation |
-| `annotationFlowNode.ts` | Flow Editor node run handler | Surface |
+| `annotationFlowNode.ts` | Storyboard Widget node run handler | Surface |
 | `annotationMcpTools.ts` | MCP tool handlers for `knowgrph.annotate.image` and `knowgrph.annotate.video_frame` | Surface |
-| `canvas/src/lib/config.flow-editor.ts` | Adds `FLOW_ANNOTATION_ENGINE_*` constants (additive) | Config |
+| `canvas/src/lib/config.storyboard-widget.ts` | Adds `FLOW_ANNOTATION_ENGINE_*` constants (additive) | Config |
 | `canvas/src/features/chat/richMediaRun.ts` | `writeRichMediaWidgetRunOutputArtifact` (existing, no changes) | Shared |
 | `canvas/src/lib/graph/semanticKey.ts` | `buildScopedGraphSemanticKey` (existing, no changes) | Shared |
 | `mcp/local-tool-contract.js` | Registers both annotation tools (additive) | MCP |
@@ -74,7 +74,7 @@ worker and artifact path with a `frame_extraction_failed / not_implemented` erro
 ```mermaid
 flowchart TD
     subgraph Callers["Callers"]
-        A1[Canvas User / Flow Editor]
+        A1[Canvas User / Storyboard Widget]
         A2[MCP Client / Coding Agent]
     end
 
@@ -162,7 +162,7 @@ flowchart LR
         S4["Annotation_Spec, Annotation_Result types"]
     end
 
-    subgraph Config["config.flow-editor.ts (additive)"]
+    subgraph Config["config.storyboard-widget.ts (additive)"]
         CF1["FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID\n= 'AnnotationEngine'"]
         CF2["FLOW_ANNOTATION_ENGINE_FORM_ID\n= 'annotationEngine'"]
         CF3["FLOW_ANNOTATION_ENGINE_WIDGET_TYPE_ID\n= 'default'"]
@@ -422,7 +422,7 @@ export function toLlmReadyPayload(result: AnnotationResult): LlmReadyPayload
 export function toMarkdownSummary(result: AnnotationResult): string
 ```
 
-### `annotationFlowNode.ts` — Flow Editor Node Handler
+### `annotationFlowNode.ts` — Storyboard Widget Node Handler
 
 ```typescript
 // canvas/src/features/visual-annotation-engine/annotationFlowNode.ts
@@ -434,7 +434,7 @@ import { runAnnotationJob } from './annotationOrchestrator'
 import { createAnnotationWorkerHandle } from './annotationOrchestrator'
 
 /**
- * Flow Editor node run handler for AnnotationEngine nodes.
+ * Storyboard Widget node run handler for AnnotationEngine nodes.
  * Reads node properties via readNodeProperty:
  *   asset_url (string), asset_type (string), tasks (comma-separated string | JSON array string),
  *   model_hint (string), frame_timestamp_ms (integer ≥ 0).
@@ -483,9 +483,9 @@ export type McpAnnotationOutput = {
 }
 ```
 
-### Flow Editor Node Registration (additive changes to existing files)
+### Storyboard Widget Node Registration (additive changes to existing files)
 
-**`canvas/src/lib/config.flow-editor.ts`** — new constants alongside existing node type constants:
+**`canvas/src/lib/config.storyboard-widget.ts`** — new constants alongside existing node type constants:
 
 ```typescript
 // Additive — no existing constants modified
@@ -499,7 +499,7 @@ export const FLOW_ANNOTATION_ENGINE_FORM_ID        = 'annotationEngine' as const
 
 ```typescript
 // Additive case — no structural change to the function
-import { FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 // Inside resolveRichMediaWidgetKind:
 if (typeId === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID) return 'annotation'
 ```
@@ -672,7 +672,7 @@ function buildAnnotationId(assetUrl: string, tasks: readonly string[], modelId: 
     "canvas/src/features/visual-annotation-engine/annotationMcpTools.ts",
     "canvas/src/features/chat/richMediaRun.ts",
     "canvas/src/lib/graph/semanticKey.ts",
-    "canvas/src/lib/config.flow-editor.ts",
+    "canvas/src/lib/config.storyboard-widget.ts",
     "mcp/local-tool-contract.js",
     "canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs",
   ],
@@ -884,7 +884,7 @@ than 2–3 fixed examples. Property-based testing applies directly to these func
 Integration tests cover the Web Worker lifecycle, model weight caching (IndexedDB/Cache API),
 backend selection (WebGPU vs WASM), request queuing, and canvas node materialisation.
 
-Smoke tests cover SSOT module structure, Flow Editor constant registration, MCP tool wiring,
+Smoke tests cover SSOT module structure, Storyboard Widget constant registration, MCP tool wiring,
 and vdeoxpln registry validation.
 
 ### Property-Based Testing (Vitest + fast-check)
@@ -930,8 +930,8 @@ Tag format: `// Feature: knowgrph-visual-annotation-engine, Property N: <propert
 
 - `annotationEngineSsot.ts`: zero ML imports; `Object.isFrozen(ANNOTATION_TASK_IDS)`;
   `Object.isFrozen(ANNOTATION_MODEL_IDS)`; `Object.keys(ANNOTATION_TASK_IDS)` has 6 entries
-- `config.flow-editor.ts`: all 4 `FLOW_ANNOTATION_ENGINE_*` constants exported and non-empty;
-  no collision with `FlowEditorSmartNodeProperties` keys
+- `config.storyboard-widget.ts`: all 4 `FLOW_ANNOTATION_ENGINE_*` constants exported and non-empty;
+  no collision with `StoryboardWidgetSmartNodeProperties` keys
 - `mcp/local-tool-contract.js`: `buildKnowgrphLocalMcpToolDefinitions()` result contains
   `knowgrph.annotate.image` and `knowgrph.annotate.video_frame`
 - `knowgrphVdeoxplnContract.mjs`: `validateKnowgrphVdeoxplnRegistry()` returns `{ ok: true, errors: [] }`

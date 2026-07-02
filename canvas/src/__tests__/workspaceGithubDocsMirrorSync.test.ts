@@ -248,7 +248,7 @@ export async function testWorkspaceActiveDocumentFallsBackToDocsMirrorWhenPersis
     const targetPath = '/docs/knowgrph-token-economics-model-demo.md'
     const remoteText = [
       '---',
-      'title: "Knowgrph Token Economics Model Demo - Flow Editor Cost Driver Ports"',
+      'title: "Knowgrph Token Economics Model Demo - Storyboard Widget Cost Driver Ports"',
       '---',
       '',
       '# Knowgrph Token Economics Model Demo',

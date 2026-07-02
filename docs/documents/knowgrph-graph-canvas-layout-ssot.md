@@ -6,7 +6,7 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 
 | Concern | SSOT Module | Notes |
 |---|---|---|
-| Schema layout-engine fingerprint (2D) | `canvas/src/lib/canvas/schema-layout-engine-json.ts` | Canonical schema→layout-engine JSON used by both zoom-view keys and layout-view keys. Must include `schema.layout.flow` to avoid D3/Flow/Design/Flow Editor drift. |
+| Schema layout-engine fingerprint (2D) | `canvas/src/lib/canvas/schema-layout-engine-json.ts` | Canonical schema→layout-engine JSON used by both zoom-view keys and layout-view keys. Must include `schema.layout.flow` to avoid D3/Flow/Design/Storyboard Widget drift. |
 | Layout defaults (force/fit/collision/groups/flow) | `canvas/src/lib/graph/layoutDefaults.ts` | Canonical numeric defaults + safe readers (including Flow layout knobs). Any fallback logic must live here (not spread across schema/editor/simulation). |
 | Node extents (render + labels) | `canvas/src/components/GraphCanvas/layout/overlap.ts` | `getNodeAabbHalfExtentsWithLabel` is the canonical AABB used by collision + group bounds (schema-aware cache to avoid stale extents). |
 | Collision knobs (node + group) | `canvas/src/components/GraphCanvas/layout/collisionConfig.ts` | `readCollisionConfig` is the only knob reader; schema-driven and shared across Force/Radial. |
@@ -23,7 +23,7 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 | Relax step runner | `canvas/src/lib/graph/collision/relaxRunner.ts` | Shared alpha schedule + integrate/damping loop used by both Graph and Flow collision relaxation passes. |
 | Group bounds rendering | `canvas/src/components/GraphCanvas/layers/groups.ts` | Group boxes use label-aware AABBs so outlines don’t clip labels; forbid ad-hoc sizing. |
 | 2D layer order ranks | `canvas/src/lib/canvas/layerOrder2d.ts` | Canonical 2D layer ranks (nodes/edges/groups/labels/handles) reused by both SVG z-order and native canvas draw order. |
-| Edge convex/concave path tuning | `canvas/src/lib/graph/edgeTypes.ts` | `readEdgePathCurveOptions` + `buildEdgePathD`/`traceEdgePathOnCanvas` are SSOT for convex/concave bezier/smoothstep shaping from `visual:curve*` + radar flow defaults across D3/Flow/Design/Flow Editor. |
+| Edge convex/concave path tuning | `canvas/src/lib/graph/edgeTypes.ts` | `readEdgePathCurveOptions` + `buildEdgePathD`/`traceEdgePathOnCanvas` are SSOT for convex/concave bezier/smoothstep shaping from `visual:curve*` + radar flow defaults across D3/Flow/Design/Storyboard Widget. |
 | Render Z-order (SVG) | `canvas/src/components/GraphCanvas/zOrder.ts` | `applyGraphCanvasZOrder` applies the shared 2D ranks to SVG layer DOM order. |
 | Update timing | `canvas/src/components/GraphCanvas/scene.ts` | Group outlines update via `beforeRenderFrameRef` so they track simulation without influencing it. |
 

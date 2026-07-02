@@ -10,7 +10,7 @@ export type ZoomStateLike = {
   viewportH?: number
 }
 
-const RENDERER_PRIORITY = ['flowEditor', 'flow', 'd3', 'design']
+const RENDERER_PRIORITY = ['storyboard', 'flow', 'd3', 'design']
 
 export function canSeedZoomStateAcross2dRenderers(args: {
   targetRenderer: string | null | undefined

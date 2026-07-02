@@ -38,7 +38,7 @@ export function testAnimaticTimelineModelUsesMarkdownFrontmatterTimingAndGraphBe
         properties: {},
       },
       {
-        id: 'NODE_OVERLAY_01',
+        id: 'WIDGET_01',
         label: 'Hook Overlay',
         type: 'Overlay',
         properties: {},
@@ -191,7 +191,7 @@ export function testAnimaticTimelineModelFallsBackToOrdinalBeatSequenceWithoutFr
         properties: {},
       },
       {
-        id: 'NODE_OVERLAY_01',
+        id: 'WIDGET_01',
         label: 'First Beat Overlay',
         type: 'Overlay',
         properties: {},
@@ -768,7 +768,7 @@ flow:
       label: Hook
       params:
         beat_ref: beat_01
-    - id: NODE_OVERLAY_01
+    - id: WIDGET_01
       type: Overlay
       label: CTA Overlay
       params:

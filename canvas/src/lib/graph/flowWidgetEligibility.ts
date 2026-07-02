@@ -7,7 +7,7 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { readNodeProperties, unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'

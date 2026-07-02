@@ -1,17 +1,17 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/storyboard-widget-manager/registryTemplates'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
+} from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import type { RegistryEntry, RegistryPort } from '@/features/parsers/markdownFrontmatterFlowGraph.connections'
 import {
   FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,

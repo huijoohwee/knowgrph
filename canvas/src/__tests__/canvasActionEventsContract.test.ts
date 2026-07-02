@@ -85,7 +85,7 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
 export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   const utilsText = readUtf8('src/features/canvas/utils.ts')
   const floatingPropsText = readUtf8('src/lib/toolbar/useFloatingPropsPanelModel.impl.ts')
-  const actionsToolbarText = readUtf8('src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx')
+  const actionsToolbarText = readUtf8('src/components/StoryboardWidget/WidgetEditorActionsToolbar.tsx')
   const launcherText = readUtf8('src/features/toolbar/ToolbarMenuLauncher.tsx')
   const floatingBridgeText = readUtf8('src/features/toolbar/floatingPanelBridge.ts')
   const markdownDataViewBlockText = readUtf8('src/features/markdown/ui/MarkdownDataViewBlock.tsx')
@@ -115,7 +115,7 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
     throw new Error('expected floating props panel model to keep using shared canvas action emitters')
   }
   if (!actionsToolbarText.includes('emitFloatingPanelOpen({ tab: \'node\', open: true })')) {
-    throw new Error('expected node overlay actions toolbar to keep using the shared floating panel emitter')
+    throw new Error('expected widget actions toolbar to keep using the shared floating panel emitter')
   }
   if (!utilsText.includes('requestFloatingPanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
     throw new Error('expected canvas emitters to call the shared floating panel bridge before dispatching passive events')

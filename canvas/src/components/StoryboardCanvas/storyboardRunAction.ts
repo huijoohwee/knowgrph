@@ -27,7 +27,7 @@ export function buildStoryboardRunUnavailableToast(args: {
   return {
     id: `storyboard-run-${String(args.cardId || '').trim()}`,
     kind: 'neutral',
-    message: 'Run is available in Flow Editor for runnable graph-backed nodes.',
+    message: 'Run is available in Storyboard Widget for runnable graph-backed nodes.',
     ttlMs: 2600,
   }
 }

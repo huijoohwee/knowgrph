@@ -23,7 +23,7 @@ import { emitFloatingPanelOpen, emitMediaLibraryOpenTop } from '@/features/canva
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { normalizeGraphData } from '@/lib/graph/normalize'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
 import {
   DATA_VIEW_CHIP_ROW_CLASSNAME,
   DataViewTagChip,
@@ -60,11 +60,12 @@ import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/story
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
 import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
+import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, resolveMediaDragEventReleaseClientPoint, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
 import { isKanbanMoveNoOp, buildKanbanDropOutcomeText } from '@/features/markdown/ui/kanban/kanbanMoveOutcomes'
@@ -75,8 +76,8 @@ import { KanbanNewRecordDividerRow } from '@/features/markdown/ui/kanban/KanbanN
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMediaLoadingSkeleton, CardMediaPreview } from '@/lib/cards/CardMediaPreview'
-import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
+import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
@@ -115,9 +116,10 @@ import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, collectGraphKeywordTermStats } from '
 import { WorkspaceDataViewNewRecordButton } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton'
 import { UI_COPY } from '@/lib/config'
 import { createUniqueId } from '@/lib/ids'
-import { createFlowEditorWorkflowNodeRunner, resolveFlowEditorBaseGraphKind } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunAction'
-import { openWorkflowManagerMappingForNode } from '@/features/flow-editor-manager/openWorkflowManagerMappingForNode'
+import { createStoryboardWidgetWorkflowNodeRunner, resolveStoryboardWidgetBaseGraphKind } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
+import { openWorkflowManagerMappingForNode } from '@/features/storyboard-widget-manager/openWorkflowManagerMappingForNode'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import {
@@ -130,8 +132,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+} from '@/lib/config.storyboard-widget'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 const isStoryboardDisplayReference = (
   reference: StoryboardCardReference,
 ): reference is StoryboardCardReference & { kind: StoryboardDisplayMedia['kind'] } =>
@@ -289,6 +291,8 @@ function readStoryboardCanvasPanelSize(props: Record<string, unknown>): { width:
 
 function StoryboardCanvasRichMediaPanelNode(props: {
   active: boolean
+  flowWidgetPinnedByNodeId: Record<string, boolean>
+  flowWidgetStateGraphKey: string | null
   node: GraphNode
   selected: boolean
   selectNode: (id: string) => void
@@ -304,11 +308,22 @@ function StoryboardCanvasRichMediaPanelNode(props: {
   const y = readStoryboardNumber(node.y) ?? 0
   const size = readStoryboardCanvasPanelSize(nodeProps)
   const handleSelect = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>) => {
+    if (isInteractiveEventTarget(event.target)) return
     event.stopPropagation()
     if (!nodeId) return
     props.setSelectionSource('canvas')
     props.selectNode(nodeId)
   }, [nodeId, props])
+  const stopPanelHeaderEvent = React.useCallback((event: React.SyntheticEvent) => {
+    event.stopPropagation()
+  }, [])
+  const headerPinProps = React.useMemo(() => buildFlowCanvasHeaderPinProps({
+    enabled: true,
+    flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
+    flowWidgetStateGraphKey: props.flowWidgetStateGraphKey,
+    nodeId,
+    stopEvent: stopPanelHeaderEvent,
+  }), [nodeId, props.flowWidgetPinnedByNodeId, props.flowWidgetStateGraphKey, stopPanelHeaderEvent])
   const handlePanelChange = React.useCallback((next: {
     activeTab: 'auto' | 'text' | 'image' | 'video' | 'audio' | 'poi'
     freezeConnectedOutput: boolean
@@ -333,7 +348,9 @@ function StoryboardCanvasRichMediaPanelNode(props: {
       }}
       data-kg-storyboard-canvas-rich-media-panel="1"
       data-kg-storyboard-canvas-rich-media-panel-id={nodeId}
+      data-kg-storyboard-canvas-rich-media-panel-pinned={headerPinProps.headerPinned === true ? '1' : '0'}
       data-kg-storyboard-canvas-rich-media-panel-selected={props.selected ? '1' : undefined}
+      data-kg-storyboard-widget-surface="storyboard"
       onPointerDownCapture={handleSelect}
       onMouseDownCapture={handleSelect}
     >
@@ -346,9 +363,11 @@ function StoryboardCanvasRichMediaPanelNode(props: {
         kind={preview.kind || 'iframe'}
         interactive={preview.interactive !== false}
         panel={panel}
-        panelChrome="flowEditor"
+        panelChrome="storyboardWidget"
         frameMode="surface"
         scrollOwner="panel"
+        storyboardWidgetSurfaceId="storyboard"
+        {...headerPinProps}
         widgetToolbarActive={props.active}
         onPanelChange={handlePanelChange}
         style={{
@@ -529,10 +548,12 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { storeGraphData, graphRevision, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass, strybldrStoryboardCardAspectMode, strybldrStoryboardBoardLayoutMode } = useGraphStore(
+  const { storeGraphData, graphRevision, flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass, strybldrStoryboardCardAspectMode, strybldrStoryboardBoardLayoutMode } = useGraphStore(
     useShallow(s => ({
       storeGraphData: (s.graphData as GraphData | null) || null,
       graphRevision: s.graphDataRevision || 0,
+      flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId || {},
+      flowWidgetPinnedByNodeIdByGraphMetaKey: s.flowWidgetPinnedByNodeIdByGraphMetaKey || {},
       selectedNodeId: String(s.selectedNodeId || '').trim(),
       selectNode: s.selectNode,
       updateNode: s.updateNode,
@@ -568,6 +589,12 @@ export default function StoryboardCanvas({
   const [storytreeFilter, setStorytreeFilter] = React.useState<string>('all')
   const widgetRegistry = React.useMemo(() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry }), [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
   const board = React.useMemo(() => buildStoryboardBoardModel({ graphData, graphRevision, widgetRegistry }), [graphData, graphRevision, widgetRegistry])
+  const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData }), [graphData])
+  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
+    graphMetaKey: flowWidgetStateGraphKey,
+    keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
+    globalByNodeId: flowWidgetPinnedByNodeId,
+  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
   const storyboardZoom = useStoryboardInfiniteZoom({
     active,
     graphData,
@@ -581,7 +608,7 @@ export default function StoryboardCanvas({
     storyboardRunGraphRef.current = storeGraphData || graphData || null
   }, [graphData, storeGraphData])
   const storyboardRunBaseGraphKind = React.useMemo(
-    () => resolveFlowEditorBaseGraphKind(storeGraphData || graphData || null),
+    () => resolveStoryboardWidgetBaseGraphKind(storeGraphData || graphData || null),
     [graphData, storeGraphData],
   )
   const commitStoryboardMarkdownMutation = React.useCallback((args: {
@@ -713,7 +740,7 @@ export default function StoryboardCanvas({
     storeGraphData,
     updateOpenWidgetNodeIds,
   ])
-  const runStoryboardWorkflowNode = React.useMemo(() => createFlowEditorWorkflowNodeRunner({
+  const runStoryboardWorkflowNode = React.useMemo(() => createStoryboardWidgetWorkflowNodeRunner({
     baseGraphKind: storyboardRunBaseGraphKind,
     baseGraphData: storeGraphData || graphData || null,
     readDraftGraphData: () => storyboardRunGraphRef.current || storeGraphData || graphData || null,
@@ -1744,7 +1771,7 @@ export default function StoryboardCanvas({
     }
     const handleCanvasPointerDragDrop = (event: Event) => {
       const detail = (event as CustomEvent<Partial<MediaPointerDragDropDetail>>).detail || null
-      if (document.querySelector('[data-kg-flow-editor-surface-root="storyboard"]')) return
+      if (document.querySelector('[data-kg-storyboard-widget-surface-root="storyboard"]')) return
       const payload = isMediaPointerDragDropClaimed(detail as MediaPointerDragDropDetail | null | undefined) ? null : detail?.payload
       const clientX = Number(detail?.clientX)
       const clientY = Number(detail?.clientY)
@@ -1922,6 +1949,8 @@ export default function StoryboardCanvas({
                 <StoryboardCanvasRichMediaPanelNode
                   key={nodeId || String(node.label || '')}
                   active={active}
+                  flowWidgetPinnedByNodeId={effectiveFlowWidgetPinnedByNodeId}
+                  flowWidgetStateGraphKey={flowWidgetStateGraphKey}
                   node={node}
                   selected={isCanonicalNodeIdEqual(selectedNodeId, nodeId)}
                   selectNode={selectNode}
@@ -2175,7 +2204,7 @@ export default function StoryboardCanvas({
                           style={isStorytreeBranch ? { paddingLeft: `${Math.min(storytreeDepth, 5) * 14}px` } : undefined}
                         >
                           {selected ? (
-                            <NodeOverlayEditorActionsToolbar
+                            <WidgetEditorActionsToolbar
                               visible
                               {...toolbarProps}
                               {...toolbarActionBindings}

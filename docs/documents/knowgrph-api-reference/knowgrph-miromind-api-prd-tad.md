@@ -102,7 +102,7 @@ Needs clear guidance on the difference between MainPanel `Integrations` provider
 | Run | Opens FloatingPanel Chat and submits request | `FloatingPanelChat` | Existing submit coordinator composes prompts, transport, streaming, validation, finalize |
 | Persist | Receives `chatKnowgrph` output | Workspace Editor | One canonical `kgc_*.md` document is written/followed |
 | Apply | Applies saved markdown/frontmatter | Canvas | Shared `setActiveMarkdownDocument()` path applies frontmatter and graph |
-| Explore | Switches canvas view mode / 2D renderer | Toolbar / Canvas | D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, Flow Editor all remain projections of the same graph |
+| Explore | Switches canvas view mode / 2D renderer | Toolbar / Canvas | D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, and Design all remain projections of the same graph |
 
 ## 7. Epics, Stories, Acceptance Criteria
 
@@ -166,7 +166,7 @@ Acceptance criteria:
 
 **Story MM-E5-S1 - Canvas and renderer contracts remain provider-neutral**
 
-> As a renderer maintainer, I want MiroMind provenance to stay upstream in prompts/metadata, so that Flow Editor, Storyboard, Animatic, Design, Flow Canvas, Flowchart, and D3 Graph stay neutral projections of shared graph state.
+> As a renderer maintainer, I want MiroMind provenance to stay upstream in prompts/metadata, so that Storyboard, Animatic, Design, Flow Canvas, Flowchart, and D3 Graph stay neutral projections of shared graph state.
 
 Acceptance criteria:
 
@@ -240,8 +240,8 @@ Explicitly excluded now:
 | Validation / recovery | `chatMarkdownValidation.ts` + KGC retry helpers | canonical KGC markdown candidate |
 | Finalize / persist | `useFinalizeAssistantSuccess.ts` | saved `kgc_*.md` workspace document |
 | Canvas apply | `chatKgcCanvasApply.ts` -> `applyWorkspaceImportToCanvas()` -> `setActiveMarkdownDocument()` | Source Files materialization + frontmatter preset apply + markdown-to-graph apply |
-| Flow Editor text/transcript run | `useFlowEditorWorkflowActions.ts` -> `writeTextWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | passive sibling workspace Markdown artifact plus shared widget/Rich Media Panel `outputPath` |
-| Flow Editor image/video run | `useFlowEditorWorkflowActions.ts` -> `writeRichMediaWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | generated binary sibling artifact, R2-backed storage route when runtime sync is enabled, passive editable Markdown manifest, and shared widget/Rich Media Panel `outputPath` / `outputManifestPath` |
+| Storyboard Widget text/transcript run | `useStoryboardWidgetWorkflowActions.ts` -> `writeTextWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | passive sibling workspace Markdown artifact plus shared widget/Rich Media Panel `outputPath` |
+| Storyboard Widget image/video run | `useStoryboardWidgetWorkflowActions.ts` -> `writeRichMediaWidgetRunOutputArtifact()` -> `applyWorkspaceImportToCanvas({ applyToGraph: false })` | generated binary sibling artifact, R2-backed storage route when runtime sync is enabled, passive editable Markdown manifest, and shared widget/Rich Media Panel `outputPath` / `outputManifestPath` |
 | View/render | toolbar view state + renderer/frontmatter owners | provider-neutral canvas projections |
 
 ## 13. Owner Map
@@ -349,8 +349,8 @@ Required invariants:
 - No wrapper prose before or after the document.
 - One saved canonical `kgc_*.md` document remains the artifact that Workspace and Canvas follow.
 - Graph-application payload equals the saved markdown document, not a derived provider payload.
-- The saved document lands in Source Files before active-document apply so Flow Editor, Storyboard, Rich Media Panels, Cards, Widgets, and Edges read the same renderer-neutral data.
-- Flow Editor text/transcript widget runs that have an active workspace document persist one sibling Markdown artifact and register it in Source Files passively. Flow Editor image/video widget runs persist the binary artifact, store bytes through the R2-backed storage route when runtime sync is enabled, create one editable Markdown manifest, and register that manifest in Source Files passively; provider output must not bypass the shared widget or Rich Media Panel patch owners.
+- The saved document lands in Source Files before active-document apply so Storyboard Card/Widget, Rich Media Panels, and Edges read the same renderer-neutral data.
+- Storyboard Widget text/transcript widget runs that have an active workspace document persist one sibling Markdown artifact and register it in Source Files passively. Storyboard Widget image/video widget runs persist the binary artifact, store bytes through the R2-backed storage route when runtime sync is enabled, create one editable Markdown manifest, and register that manifest in Source Files passively; provider output must not bypass the shared widget or Rich Media Panel patch owners.
 
 ### 17.2 Provenance handling
 
@@ -378,7 +378,7 @@ It must not introduce:
 | Canvas preset apply | same preset fields drive surface mode, render mode, and 2D renderer |
 | Graph apply | same workspace import and markdown-to-graph path runs through Source Files and active markdown document actions |
 | Widget run artifacts | same workspace artifact writers and passive Source Files registration path persist completed text/transcript outputs plus image/video manifests |
-| Renderer behavior | D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, Flow Editor remain view projections only |
+| Renderer behavior | D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, and Design remain view projections only |
 
 ## 19. MainPanel MCP Alignment
 
@@ -469,7 +469,7 @@ Guardrails:
 - Keep `chatKnowgrph` output as one frontmatter-first KGC markdown document.
 - Keep the saved workspace markdown document as the only graph-application payload.
 - Keep frontmatter/canvas preset parsing unchanged and provider-neutral.
-- Keep renderer/view-mode behavior unchanged across D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, Design, and Flow Editor.
+- Keep renderer/view-mode behavior unchanged across D3 Graph, Flowchart, Flow Canvas, Animatic, Storyboard, and Design.
 - Run `npm --prefix canvas run test:smoke:miromind:source` for the focused source-owned gate covering the rendered MainPanel path and server-managed key contract without live Pages dependencies.
 - Run `npm run miromind:readiness:check` for the non-deploy gate covering that source smoke, Pages secret listing, and live no-BYOK proxy smoke.
 - Forbid direct LLM-output -> graph mutation bypasses.

@@ -1,8 +1,8 @@
 import type { GraphNode } from '@/lib/graph/types'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { setObjectPath } from '@/lib/data/objectPath'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/flowEditor/widgetAutoRender'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/storyboardWidget/widgetAutoRender'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 
 const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([

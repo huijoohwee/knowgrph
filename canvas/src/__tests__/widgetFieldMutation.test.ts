@@ -2,7 +2,7 @@ import {
   applyWidgetFieldValueUpdate,
   coerceWidgetFieldValue,
   normalizeWidgetFieldSchemaPath,
-} from '@/features/flow-editor-manager/widgetFieldMutation'
+} from '@/features/storyboard-widget-manager/widgetFieldMutation'
 
 export function testNormalizeWidgetFieldSchemaPathAndApplyWidgetFieldValueUpdate() {
   if (normalizeWidgetFieldSchemaPath('prompt', 'fallback') !== 'properties.prompt') {

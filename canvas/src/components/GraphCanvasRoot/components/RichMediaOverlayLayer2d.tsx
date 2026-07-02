@@ -1,7 +1,7 @@
 import React, { type RefObject, type SyntheticEvent } from 'react'
 import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
-import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/FlowEditor/richMediaOverlayToolbarProps'
+import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
+import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/StoryboardWidget/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
@@ -11,9 +11,13 @@ import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { readFlowWidgetPinnedInCanvas } from '@/lib/flowEditor/flowWidgetPinnedState'
-import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
+import { readFlowWidgetPinnedInCanvas } from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
+import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { lsSetBool } from '@/lib/persistence'
+import { LS_KEYS } from '@/lib/config'
 type RichMediaResizeState = {
   id: string
   pointerId: number
@@ -85,6 +89,9 @@ export function RichMediaOverlayLayer2d(props: {
   const updateNode = useGraphStore(s => s.updateNode)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
+  const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
+  const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
+  const storyboardFixedBoardLayoutEnabled = storyboardBoardLayoutMode === 'fixed'
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
   const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData }), [graphData])
   const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
@@ -224,26 +231,30 @@ export function RichMediaOverlayLayer2d(props: {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
         const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
         const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, n.id)
+        const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({
+          fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled,
+          pinnedInCanvas: richMediaPanelPinned,
+        })
+        const richMediaPanelMoveEnabled = richMediaPanelPinAllowsMovement
+        const richMediaPanelOverlayPanEnabled = richMediaPanelPinAllowsMovement
         const headerPinProps = buildFlowCanvasHeaderPinProps({
           enabled: true,
           flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
           flowWidgetStateGraphKey,
           nodeId: n.id,
+          onPinnedChange: () => requestMediaOverlaySchedule?.(),
           stopEvent,
         })
-        const baseProperties = readGraphNodePropertiesFromStore(n.id)
-        const patchProperties = (patch: Record<string, unknown>) => updateNode(n.id, { properties: { ...baseProperties, ...patch } } as Partial<GraphNode>)
         const changePanel = (next: import('@/lib/render/richMediaSsot').RichMediaPanelChange) => commitRichMediaPanelChange({
           nodeId: n.id,
           next,
           updateNode: (id, patch) => updateNode(id, patch as Partial<GraphNode>),
         })
         const toolbarControlProps = buildSharedRichMediaOverlayControlProps({
-          properties: baseProperties,
-          panel: n.panel,
-          openUrl: n.openUrl,
-          onPatchProperties: patchProperties,
-          onPanelChange: changePanel,
+          onSwitchToKtvRows: () => {
+            lsSetBool(LS_KEYS.flowWidgetRichMediaKtvRows, true)
+            openPanelInSidepane(n.id)
+          },
         })
         return (
           <section
@@ -254,7 +265,7 @@ export function RichMediaOverlayLayer2d(props: {
             data-kg-rich-media-overlay-shell-id={n.id}
             data-kg-rich-media-overlay-pinned={richMediaPanelPinned ? '1' : '0'}
           >
-            <NodeOverlayEditorActionsToolbar
+            <WidgetEditorActionsToolbar
               visible={selected}
               {...buildSharedRichMediaOverlayToolbarProps()}
               {...toolbarControlProps}
@@ -274,7 +285,7 @@ export function RichMediaOverlayLayer2d(props: {
               srcDoc={n.srcDoc}
               openUrl={n.openUrl}
               kind={kind}
-              panelChrome="flowEditor"
+              panelChrome="storyboardWidget"
               {...headerPinProps}
               interactive={resolveRichMediaPanelInteractive({
                 nodeInteractive: n.interactive,
@@ -290,21 +301,21 @@ export function RichMediaOverlayLayer2d(props: {
               shouldForwardPointerDown={() => !allowEmbeddedMediaInteraction}
               shouldStartHeaderDrag={() => {
                 if (isSpacePanHeld()) return false
-                return true
+                return richMediaPanelMoveEnabled
               }}
-              onOverlayPanStart={({ pointerId, clientX, clientY, buttons }) => {
+              onOverlayPanStart={richMediaPanelOverlayPanEnabled ? ({ pointerId, clientX, clientY, buttons }) => {
                 if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
                 selectPanel(n.id)
                 onOverlayPanStart({ pointerId, clientX, clientY })
-              }}
-              onOverlayPan={({ pointerId, clientX, clientY, dx, dy }) => onOverlayPan({ pointerId, clientX, clientY, dx, dy })}
-              onOverlayPanEnd={({ pointerId }) => onOverlayPanEnd({ pointerId })}
-              onHeaderDragStart={({ clientX, clientY }) => {
+              } : undefined}
+              onOverlayPan={richMediaPanelOverlayPanEnabled ? ({ pointerId, clientX, clientY, dx, dy }) => onOverlayPan({ pointerId, clientX, clientY, dx, dy }) : undefined}
+              onOverlayPanEnd={richMediaPanelOverlayPanEnabled ? ({ pointerId }) => onOverlayPanEnd({ pointerId }) : undefined}
+              onHeaderDragStart={richMediaPanelMoveEnabled ? ({ clientX, clientY }) => {
                 selectPanel(n.id)
                 onHeaderDragStart({ id: n.id, clientX, clientY })
-              }}
-              onHeaderDrag={({ clientX, clientY, dx, dy }) => onHeaderDrag({ clientX, clientY, dx, dy })}
-              onHeaderDragEnd={() => onHeaderDragEnd()}
+              } : undefined}
+              onHeaderDrag={richMediaPanelMoveEnabled ? ({ clientX, clientY, dx, dy }) => onHeaderDrag({ clientX, clientY, dx, dy }) : undefined}
+              onHeaderDragEnd={richMediaPanelMoveEnabled ? () => onHeaderDragEnd() : undefined}
               resizable={true}
               onResizeStart={({ pointerId }) => beginResize(n.id, pointerId)}
               onResize={({ pointerId, dx, dy }) => moveResize(n.id, { pointerId, dx, dy })}

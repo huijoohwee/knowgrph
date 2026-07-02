@@ -46,7 +46,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 function assert(condition: unknown, message: string): asserts condition {
@@ -159,7 +159,7 @@ export async function testStrybldrConsolidatedDemoRoutesPanelsAndStoryboardRende
   const graph = parsed.graphData
   assert(graph, 'expected parsed Strybldr graph')
   assert((graph.nodes || []).length > 0, 'expected Strybldr graph nodes for 2D renderers')
-  assert((graph.edges || []).length > 0, 'expected Strybldr graph edges for Flow Editor projection')
+  assert((graph.edges || []).length > 0, 'expected Strybldr graph edges for Storyboard Widget projection')
   const metadata = (graph.metadata || {}) as Record<string, unknown>
   assert(String(metadata.kind || '') === 'strybldr-storyboard', `expected Strybldr graph kind to remain strybldr-storyboard, got ${String(metadata.kind || '')}`)
   assert(String(metadata.kgCanvas2dRenderer || '') === 'storyboard', 'expected Strybldr graph to advertise Storyboard renderer intent')
@@ -747,8 +747,6 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(isStoryboardCanvas2dRenderer('storyboard'), 'expected shared Storyboard renderer helper to include Storyboard mode')
   assert(supportsToolbarRunAll('storyboard'), 'expected Storyboard to reuse Toolbar Run All dispatch')
   assert(getToolbarRunAllFloatingPanelTab('storyboard') === 'strybldr', 'expected Storyboard Run All to mount its Strybldr workflow consumer')
-  assert(getToolbarRunAllFloatingPanelTab('flowEditor') === null, 'expected Flow Editor Run All to keep its always-mounted canvas runtime consumer')
-  assert(supportsToolbarRunAll('flowEditor'), 'expected Flow Editor to keep Toolbar Run All dispatch')
   assert(!renderConfigText.includes("'strybldr',"), 'expected renderer registry to remove the Strybldr renderer id')
   assert(!renderConfigText.includes("registryLabel: 'Strybldr'"), 'expected renderer registry to remove the Strybldr renderer menu entry')
   assert(canvasViewportText.includes('StrybldrTimelineBottomPanelLazy'), 'expected Strybldr timeline to mount as the CanvasViewport bottom panel')

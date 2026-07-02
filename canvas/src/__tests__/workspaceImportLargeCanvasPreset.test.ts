@@ -14,7 +14,7 @@ export async function testWorkspaceImportLargeCanvasPresetHeaderAppliesWithoutFu
     const store = useGraphStore.getState()
     store.resetAll()
     store.setCanvasRenderMode('3d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.setDocumentSemanticMode('keyword')
     store.setFrontmatterModeEnabled(true)
     store.setMultiDimTableModeEnabled(true)

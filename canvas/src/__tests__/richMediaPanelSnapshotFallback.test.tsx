@@ -207,7 +207,7 @@ export async function testRichMediaPanelBodyPanStartsWithoutSelectionGate() {
         title: 'Pan body',
         url: '',
         kind: 'iframe',
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         interactive: false,
         onOverlayPanStart: () => overlayEvents.push('start'),
         onOverlayPan: ({ dx, dy }) => overlayEvents.push(`move:${dx}:${dy}`),
@@ -218,8 +218,8 @@ export async function testRichMediaPanelBodyPanStartsWithoutSelectionGate() {
       }),
     { window: dom.window, frames: 8 })
 
-    const body = container.querySelector('[data-kg-rich-media-flow-editor-body="1"]') as HTMLElement | null
-    if (!body) throw new Error('expected shared Flow Editor rich-media body surface')
+    const body = container.querySelector('[data-kg-rich-media-storyboard-widget-body="1"]') as HTMLElement | null
+    if (!body) throw new Error('expected shared Storyboard Widget rich-media body surface')
 
     await act(async () => {
       dispatchPanelPointerEvent(body, dom.window, 'pointerdown', { pointerId: 21, clientX: 100, clientY: 100, buttons: 1 })
@@ -258,7 +258,7 @@ export async function testRichMediaPanelHeaderDragIsScopedToChromeHeader() {
         title: 'Drag header',
         url: '',
         kind: 'iframe',
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         interactive: false,
         onOverlayPanStart: () => overlayEvents.push('start'),
         onOverlayPan: () => overlayEvents.push('move'),
@@ -269,8 +269,8 @@ export async function testRichMediaPanelHeaderDragIsScopedToChromeHeader() {
       }),
     { window: dom.window, frames: 8 })
 
-    const header = container.querySelector('[data-kg-rich-media-flow-editor-header="1"]') as HTMLElement | null
-    if (!header) throw new Error('expected shared Flow Editor rich-media header surface')
+    const header = container.querySelector('[data-kg-rich-media-storyboard-widget-header="1"]') as HTMLElement | null
+    if (!header) throw new Error('expected shared Storyboard Widget rich-media header surface')
 
     await act(async () => {
       dispatchPanelPointerEvent(header, dom.window, 'pointerdown', { pointerId: 22, clientX: 40, clientY: 40, buttons: 1 })
@@ -308,7 +308,7 @@ export async function testRichMediaPanelPlayableMediaDoesNotStartOverlayPan() {
         title: 'Playable media',
         url: 'https://example.com/generated.mp4',
         kind: 'video',
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         interactive: true,
         onOverlayPanStart: () => overlayEvents.push('start'),
         onOverlayPan: () => overlayEvents.push('move'),
@@ -419,10 +419,10 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
-  const flowEditorFormText = readSource('components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
-  const flowEditorPanelText = readSource('components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const flowEditorPanelChromeText = readSource('components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
-  const flowEditorPanelChromeClassNameText = readSource('components', 'FlowEditor', 'flowEditorPanelChromeClassName.ts')
+  const storyboardWidgetFormText = readSource('components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const storyboardWidgetPanelText = readSource('components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
+  const storyboardWidgetPanelChromeText = readSource('components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
+  const storyboardWidgetPanelChromeClassNameText = readSource('components', 'StoryboardWidget', 'storyboardWidgetPanelChromeClassName.ts')
   const flowCanvasOverlayText = readSource('components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const graphCanvasOverlayText = readSource('components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
   const graphHoverTooltipText = readSource('components', 'GraphHoverTooltip.tsx')
@@ -504,38 +504,38 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     throw new Error('expected RichMediaPanel to reuse the shared card media utility owner')
   }
   if (
-    !flowEditorPanelChromeText.includes('export function FlowEditorPanelChromeHeader')
-    || !flowEditorPanelChromeClassNameText.includes('export const getFlowEditorPanelChromeClassName')
-    || !flowEditorPanelChromeText.includes('data-kg-rich-media-flow-editor-header')
-    || !flowEditorPanelText.includes("from '@/components/FlowEditor/FlowEditorPanelChrome'")
-    || !flowEditorPanelText.includes("from '@/components/FlowEditor/flowEditorPanelChromeClassName'")
-    || !flowEditorPanelText.includes('<FlowEditorPanelChromeHeader')
+    !storyboardWidgetPanelChromeText.includes('export function StoryboardWidgetPanelChromeHeader')
+    || !storyboardWidgetPanelChromeClassNameText.includes('export const getStoryboardWidgetPanelChromeClassName')
+    || !storyboardWidgetPanelChromeText.includes('data-kg-rich-media-storyboard-widget-header')
+    || !storyboardWidgetPanelText.includes("from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'")
+    || !storyboardWidgetPanelText.includes("from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'")
+    || !storyboardWidgetPanelText.includes('<StoryboardWidgetPanelChromeHeader')
   ) {
-    throw new Error('expected Flow Editor panel chrome to be the reusable 2D panel UI owner')
+    throw new Error('expected Storyboard Widget panel chrome to be the reusable 2D panel UI owner')
   }
   if (
-    !flowEditorFormText.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
-    || !flowEditorFormText.includes('onCommit={setCompactPreviewText}')
-    || !flowEditorFormText.includes('markdownPreview="auto"')
-    || flowEditorFormText.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')
+    !storyboardWidgetFormText.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
+    || !storyboardWidgetFormText.includes('onCommit={setCompactPreviewText}')
+    || !storyboardWidgetFormText.includes('markdownPreview="auto"')
+    || storyboardWidgetFormText.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')
   ) {
     throw new Error('expected Widget compact text preview to reuse the shared Storyboard Card inline editor')
   }
   if (
-    !flowEditorPanelText.includes('const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange')
-    || !flowEditorPanelText.includes('onPanelChange={handleRichMediaPanelChange}')
+    !storyboardWidgetPanelText.includes('const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange')
+    || !storyboardWidgetPanelText.includes('onPanelChange={handleRichMediaPanelChange}')
   ) {
     throw new Error('expected RichMediaPanel widget body to pass the shared panel change owner into the reusable RichMediaPanel')
   }
   if (
-    !richMediaPanelText.includes("from '@/components/FlowEditor/FlowEditorPanelChrome'")
-    || !richMediaPanelText.includes("panelChrome?: 'none' | 'flowEditor'")
-    || !richMediaPanelText.includes('<FlowEditorPanelChromeHeader')
-    || !richMediaPanelText.includes('data-kg-rich-media-flow-editor-body="1"')
+    !richMediaPanelText.includes("from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'")
+    || !richMediaPanelText.includes("panelChrome?: 'none' | 'storyboardWidget'")
+    || !richMediaPanelText.includes('<StoryboardWidgetPanelChromeHeader')
+    || !richMediaPanelText.includes('data-kg-rich-media-storyboard-widget-body="1"')
     || richMediaPanelText.includes('data-kg-rich-media-card-header')
     || richMediaPanelText.includes('PANEL_FRAME_HEADER_STYLE')
   ) {
-    throw new Error('expected RichMediaPanel optional chrome to reuse the Flow Editor panel UI around the shared Card media body')
+    throw new Error('expected RichMediaPanel optional chrome to reuse the Storyboard Widget panel UI around the shared Card media body')
   }
   if (!renderConfigText.includes("flowchart: {\n    surfaceId: 'd3'") || !renderConfigText.includes("d3: {\n    surfaceId: 'd3'")) {
     throw new Error('expected D3 Graph and Flowchart renderers to share the D3 canvas surface')
@@ -543,9 +543,9 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (
     !canvasViewportText.includes("const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'")
     || !canvasViewportText.includes('<SharedGraphCanvasLazy active />')
-    || !canvasViewportText.includes('active2dSurface === \'storyboard\' ? <FlowEditorCanvasLazy active flowEditorSurfaceId="storyboard" storyboardCardsMode /> : null')
+    || !canvasViewportText.includes('active2dSurface === \'storyboard\' ? <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId="storyboard" storyboardCardsMode /> : null')
   ) {
-    throw new Error('expected Storyboard to mount the Flow Editor canvas surface while D3 Graph stays graph-only')
+    throw new Error('expected Storyboard to mount the Storyboard Widget canvas surface while D3 Graph stays graph-only')
   }
   if (!storyboardCanvasText.includes("from '@/lib/cards/CardMediaPreview'") || !storyboardCanvasText.includes('CardMediaPreview')) {
     throw new Error('expected Storyboard cards to reuse the shared card media surface')
@@ -556,25 +556,25 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (!storyboardCanvasText.includes('markdownPreview="auto"')) {
     throw new Error('expected Storyboard card text fields to enable shared card markdown rendering for structured syntax')
   }
-  if (!flowEditorFormText.includes("import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'")) {
-    throw new Error('expected Flow Editor compact media previews to import the shared card media surface')
+  if (!storyboardWidgetFormText.includes("import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'")) {
+    throw new Error('expected Storyboard Widget compact media previews to import the shared card media surface')
   }
   if (
-    !flowEditorFormText.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
-    || !flowEditorFormText.includes('markdownPreview="auto"')
-    || !flowEditorFormText.includes('onCommit={setCompactPreviewText}')
-    || flowEditorFormText.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')
+    !storyboardWidgetFormText.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
+    || !storyboardWidgetFormText.includes('markdownPreview="auto"')
+    || !storyboardWidgetFormText.includes('onCommit={setCompactPreviewText}')
+    || storyboardWidgetFormText.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')
   ) {
-    throw new Error('expected Flow Editor compact text previews to reuse shared Card inline editing and markdown rendering for structured syntax')
+    throw new Error('expected Storyboard Widget compact text previews to reuse shared Card inline editing and markdown rendering for structured syntax')
   }
-  if (!flowEditorFormText.includes('kind={compactPreviewView.kind}') || flowEditorFormText.includes('<img') || flowEditorFormText.includes('<video')) {
-    throw new Error('expected Flow Editor compact image/video previews to route through the shared card media surface')
+  if (!storyboardWidgetFormText.includes('kind={compactPreviewView.kind}') || storyboardWidgetFormText.includes('<img') || storyboardWidgetFormText.includes('<video')) {
+    throw new Error('expected Storyboard Widget compact image/video previews to route through the shared card media surface')
   }
-  if (!flowCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !flowCanvasOverlayText.includes('panelChrome="flowEditor"')) {
-    throw new Error('expected Flow Canvas rich media overlays to reuse Flow Editor RichMediaPanel chrome')
+  if (!flowCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !flowCanvasOverlayText.includes('panelChrome="storyboardWidget"')) {
+    throw new Error('expected Flow Canvas rich media overlays to reuse Storyboard Widget RichMediaPanel chrome')
   }
-  if (!graphCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !graphCanvasOverlayText.includes('panelChrome="flowEditor"')) {
-    throw new Error('expected D3 graph and Flowchart rich media overlays to reuse Flow Editor RichMediaPanel chrome')
+  if (!graphCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !graphCanvasOverlayText.includes('panelChrome="storyboardWidget"')) {
+    throw new Error('expected D3 graph and Flowchart rich media overlays to reuse Storyboard Widget RichMediaPanel chrome')
   }
   if (!graphHoverTooltipText.includes("import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'") || graphHoverTooltipText.includes('<img')) {
     throw new Error('expected D3 graph hover thumbnails to reuse the shared card media surface')
@@ -589,18 +589,18 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   }
   if (
     !staticPreviewText.includes("import RichMediaPanel from '@/components/RichMediaPanel'")
-    || !staticPreviewText.includes('panelChrome="flowEditor"')
+    || !staticPreviewText.includes('panelChrome="storyboardWidget"')
     || staticPreviewText.includes('const titleWidth')
   ) {
-    throw new Error('expected static renderer previews to delegate all rich-media Flow Editor chrome to RichMediaPanel')
+    throw new Error('expected static renderer previews to delegate all rich-media Storyboard Widget chrome to RichMediaPanel')
   }
   if (
     !designFrameText.includes('<StaticRichMediaPanelPreview')
     || !designWireframeText.includes('<StaticRichMediaPanelPreview')
-    || !designMediaOverlayText.includes('panelChrome="flowEditor"')
-    || !markdownDesignOverlayText.includes('panelChrome="flowEditor"')
+    || !designMediaOverlayText.includes('panelChrome="storyboardWidget"')
+    || !markdownDesignOverlayText.includes('panelChrome="storyboardWidget"')
   ) {
-    throw new Error('expected Design renderer previews and overlays to reuse Flow Editor RichMediaPanel chrome')
+    throw new Error('expected Design renderer previews and overlays to reuse Storyboard Widget RichMediaPanel chrome')
   }
   if (
     !markdownDesignOverlayText.includes("from '@/lib/cards/cardMarkdownPreviewUtils'")
@@ -973,7 +973,7 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
     resetRichMediaPanelTestStoreState()
     try {
       state.setCanvasRenderMode('2d')
-      state.setCanvas2dRenderer('flowEditor')
+      state.setCanvas2dRenderer('storyboard')
     } catch {
       void 0
     }
@@ -1045,7 +1045,7 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
   }
 }
 
-export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
+export async function testRichMediaPanelStoryboardWidgetChromeWrapsSharedCardBody() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     resetRichMediaPanelTestStoreState()
@@ -1057,11 +1057,11 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
 
     await mountReactRoot(root,
       React.createElement(RichMediaPanel, {
-        title: 'Rich Media Panel - Flow Editor Chrome',
+        title: 'Rich Media Panel - Storyboard Widget Chrome',
         url: '',
         kind: 'iframe',
         interactive: false,
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         style: {
           display: 'block',
           width: 226,
@@ -1080,7 +1080,7 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
             '> Shared card quote',
             '',
             '```ts',
-            'const flowEditorChrome = true',
+            'const storyboardWidgetChrome = true',
             '```',
             '',
             '![preview](https://example.com/preview.png)',
@@ -1091,25 +1091,25 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
 
     const panel = container.querySelector('[data-kg-rich-media-panel="1"]')
     if (!panel) throw new Error('expected RichMediaPanel root')
-    if (panel.getAttribute('data-kg-rich-media-flow-editor-chrome') !== '1') {
-      throw new Error('expected RichMediaPanel root to expose Flow Editor chrome marker')
+    if (panel.getAttribute('data-kg-rich-media-storyboard-widget-chrome') !== '1') {
+      throw new Error('expected RichMediaPanel root to expose Storyboard Widget chrome marker')
     }
     const panelEl = panel as HTMLElement
     if (panelEl.style.display !== 'flex' || panelEl.style.flexDirection !== 'column') {
-      throw new Error(`expected Flow Editor chrome root to preserve shared flex frame after overlay styles, got display=${panelEl.style.display} flexDirection=${panelEl.style.flexDirection}`)
+      throw new Error(`expected Storyboard Widget chrome root to preserve shared flex frame after overlay styles, got display=${panelEl.style.display} flexDirection=${panelEl.style.flexDirection}`)
     }
-    const header = panel.querySelector('[data-kg-rich-media-flow-editor-header="1"]')
-    if (!header) throw new Error('expected shared RichMediaPanel Flow Editor chrome header')
-    if (!/Rich Media Panel - Flow Editor Chrome/.test(header.textContent || '')) {
-      throw new Error(`expected Flow Editor chrome header to render the panel title, html=${container.innerHTML}`)
+    const header = panel.querySelector('[data-kg-rich-media-storyboard-widget-header="1"]')
+    if (!header) throw new Error('expected shared RichMediaPanel Storyboard Widget chrome header')
+    if (!/Rich Media Panel - Storyboard Widget Chrome/.test(header.textContent || '')) {
+      throw new Error(`expected Storyboard Widget chrome header to render the panel title, html=${container.innerHTML}`)
     }
     if (header.querySelectorAll('button').length < 3) {
-      throw new Error(`expected Flow Editor chrome header to render the shared Flow widget action buttons, html=${container.innerHTML}`)
+      throw new Error(`expected Storyboard Widget chrome header to render the shared Flow widget action buttons, html=${container.innerHTML}`)
     }
-    const body = panel.querySelector('[data-kg-rich-media-flow-editor-body="1"]')
-    if (!body) throw new Error('expected shared RichMediaPanel Flow Editor chrome body')
+    const body = panel.querySelector('[data-kg-rich-media-storyboard-widget-body="1"]')
+    if (!body) throw new Error('expected shared RichMediaPanel Storyboard Widget chrome body')
     if (!body.querySelector('[data-kg-card-markdown-preview="1"]')) {
-      throw new Error('expected Flow Editor chrome body to reuse shared CardMarkdownPreview')
+      throw new Error('expected Storyboard Widget chrome body to reuse shared CardMarkdownPreview')
     }
     await act(async () => {
       for (let attempt = 0; attempt < 8 && !body.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]'); attempt += 1) {
@@ -1118,10 +1118,10 @@ export async function testRichMediaPanelFlowEditorChromeWrapsSharedCardBody() {
       }
     })
     if (!body.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]')) {
-      throw new Error(`expected markdown image inside Flow Editor chrome body to reuse shared CardMediaPreview, html=${container.innerHTML}`)
+      throw new Error(`expected markdown image inside Storyboard Widget chrome body to reuse shared CardMediaPreview, html=${container.innerHTML}`)
     }
     if (container.querySelector('[aria-label="Markdown sidebar"]')) {
-      throw new Error('expected Flow Editor chrome body to avoid document markdown sidebar chrome')
+      throw new Error('expected Storyboard Widget chrome body to avoid document markdown sidebar chrome')
     }
 
     await unmountReactRoot(root, { window: dom.window })

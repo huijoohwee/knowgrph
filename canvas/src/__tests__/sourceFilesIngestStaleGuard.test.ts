@@ -999,7 +999,7 @@ export function testPassiveSameTextSourceSyncDoesNotDisableActiveFrontmatterSwit
     '---',
     'kgCanvasSurfaceMode: "2d"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     '---',
@@ -1262,7 +1262,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
     throw new Error('expected workspace import focus to reuse the shared workspace text-state sync helper')
   }
   if (!coreText.includes('readWidgetRegistryMetadataEntries(graphData?.metadata).length > 0')) {
-    throw new Error('expected workspace file actions core to reuse the shared widget-registry metadata reader before switching into Flow Editor import mode')
+    throw new Error('expected workspace file actions core to reuse the shared widget-registry metadata reader before switching into Storyboard Widget import mode')
   }
   if (coreText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
     throw new Error('expected workspace file actions core to stop parsing the widget registry metadata key inline')

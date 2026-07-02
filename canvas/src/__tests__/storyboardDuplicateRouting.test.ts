@@ -14,7 +14,7 @@ import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/
 import { commitStoryboardMarkdownDuplicate, runStoryboardMarkdownDuplicateAction } from '@/components/StoryboardCanvas/storyboardMarkdownDuplicate'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { runStoryboardStrybldrDuplicateAction } from '@/components/StoryboardCanvas/storyboardStrybldrDuplicate'
-import { WIDGET_ACTIONS_TOOLBAR_OFFSET_PX } from '@/components/FlowEditor/flowWidgetOverlayShared'
+import { WIDGET_ACTIONS_TOOLBAR_OFFSET_PX } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { findDuplicatedMarkdownNodeId } from '@/components/StoryboardCanvas/storyboardDuplicateSelection'
@@ -742,7 +742,7 @@ export function testStoryboardRunActionBuildsCanonicalUnavailableToast() {
   if (toast.id !== 'storyboard-run-card-run' || toast.kind !== 'neutral' || toast.ttlMs !== 2600) {
     throw new Error(`expected storyboard run action to build the canonical unavailable toast, got ${JSON.stringify(toast)}`)
   }
-  if (toast.message !== 'Run is available in Flow Editor for runnable graph-backed nodes.') {
+  if (toast.message !== 'Run is available in Storyboard Widget for runnable graph-backed nodes.') {
     throw new Error(`expected storyboard run action to preserve the canonical unavailable message, got ${toast.message}`)
   }
 }
@@ -813,7 +813,7 @@ export function testStoryboardRunActionRoutesStrybldrCardsToStrybldrPanel() {
     throw new Error(`expected Strybldr storyboard card Run to start through the Strybldr panel branch, got ${JSON.stringify(result)}`)
   }
   if (calls.join(',') !== 'open-strybldr') {
-    throw new Error(`expected Strybldr card Run to avoid sidepane and Flow Editor runner, got ${JSON.stringify(calls)}`)
+    throw new Error(`expected Strybldr card Run to avoid sidepane and Storyboard Widget runner, got ${JSON.stringify(calls)}`)
   }
 }
 
@@ -933,10 +933,10 @@ export function testStoryboardToolbarPropsBuildSharedToolbarConfig() {
     primaryReferenceUrl: 'https://example.com/reference',
   })
   if (props.ariaLabel !== 'Storyboard card actions' || props.navClassName !== 'absolute left-1/2 z-10') {
-    throw new Error(`expected storyboard toolbar props to reuse the Flow Editor widget bubble-toolbar anchor, got ${JSON.stringify(props)}`)
+    throw new Error(`expected storyboard toolbar props to reuse the Storyboard Widget bubble-toolbar anchor, got ${JSON.stringify(props)}`)
   }
   if (props.navStyle?.pointerEvents !== 'auto' || props.navStyle?.transform !== 'translateX(-50%)' || props.navStyle?.top !== -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX || props.iconSizeClass !== 'h-3.5 w-3.5' || props.iconStrokeWidth !== 1.8) {
-    throw new Error(`expected storyboard toolbar props to preserve the shared Flow Editor widget nav/icon configuration, got ${JSON.stringify(props)}`)
+    throw new Error(`expected storyboard toolbar props to preserve the shared Storyboard Widget nav/icon configuration, got ${JSON.stringify(props)}`)
   }
   if (!props.active || props.enableHandlesDisabled !== true || props.convertToLoopDisabled !== false || props.duplicateDisabled !== false) {
     throw new Error(`expected storyboard toolbar props to preserve active/disabled state, got ${JSON.stringify(props)}`)

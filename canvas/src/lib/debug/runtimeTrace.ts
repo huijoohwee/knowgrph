@@ -1,9 +1,9 @@
 import {
-  isFlowEditorQeTraceEnabled,
-  pushFlowEditorQeTrace,
-  type FlowEditorQeTraceEntry,
-  type FlowEditorQeTraceWindow,
-} from '@/lib/flowEditor/flowEditorQeTrace'
+  isStoryboardWidgetQeTraceEnabled,
+  pushStoryboardWidgetQeTrace,
+  type StoryboardWidgetQeTraceEntry,
+  type StoryboardWidgetQeTraceWindow,
+} from '@/lib/storyboardWidget/storyboardWidgetQeTrace'
 
 export const RUNTIME_TRACE_LS_KEY = 'kg:debug:runtimeTrace'
 export const RUNTIME_TRACE_QUERY_PARAM_KEYS = [
@@ -11,11 +11,11 @@ export const RUNTIME_TRACE_QUERY_PARAM_KEYS = [
   'kgDebugTrace',
 ] as const
 
-export type RuntimeTraceEntry = FlowEditorQeTraceEntry & {
+export type RuntimeTraceEntry = StoryboardWidgetQeTraceEntry & {
   scope: string
 }
 
-export type RuntimeTraceWindow = FlowEditorQeTraceWindow & {
+export type RuntimeTraceWindow = StoryboardWidgetQeTraceWindow & {
   __KG_RUNTIME_TRACE__?: RuntimeTraceEntry[]
 }
 
@@ -26,7 +26,7 @@ function isTruthyTraceToggle(raw: string | null | undefined): boolean {
 
 export function isRuntimeTraceEnabled(win: Window | null | undefined): win is RuntimeTraceWindow {
   if (!win) return false
-  if (isFlowEditorQeTraceEnabled(win)) return true
+  if (isStoryboardWidgetQeTraceEnabled(win)) return true
   try {
     const search = String(win.location?.search || '').trim()
     if (search) {
@@ -60,7 +60,7 @@ export function pushRuntimeTrace(
   buffer.push(nextEntry)
   if (buffer.length > maxEntries) buffer.splice(0, buffer.length - maxEntries)
   target.__KG_RUNTIME_TRACE__ = buffer
-  pushFlowEditorQeTrace(target, nextEntry)
+  pushStoryboardWidgetQeTrace(target, nextEntry)
 }
 
 export function reportRuntimeTrace(entry: RuntimeTraceEntry): void {

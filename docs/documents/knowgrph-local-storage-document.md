@@ -74,14 +74,14 @@
   - `LS_KEYS.zoomDurationFitMs`
   - `LS_KEYS.zoomDurationSelectionMs`
 
-- Wheel / trackpad pinch zoom tuning (shared across D3, Flow, Flow Editor):
+- Wheel / trackpad pinch zoom tuning (shared across D3, Flow, Storyboard Widget):
   - `LS_KEYS.wheelZoomCtrlMetaBoostMultiplier`
   - `LS_KEYS.flowWheelZoomSpeedMultiplier`
   - `LS_KEYS.flowWheelZoomIncrementMultiplier`
   - `LS_KEYS.flowWheelZoomSmoothMinDurationMs`
   - `LS_KEYS.flowWheelZoomSmoothMaxDurationMs`
 
-- Interaction speed multipliers (shared across D3, Flow, Flow Editor):
+- Interaction speed multipliers (shared across D3, Flow, Storyboard Widget):
   - `LS_KEYS.canvasInteractionSpeedMultiplier` (unified drag/pan/zoom speed)
   - `LS_KEYS.canvasPanSpeedMultiplier` (pan/drag-only speed)
 
@@ -131,9 +131,9 @@
 
 ---
 
-## Flow Editor Widgets
+## Storyboard Widget Widgets
 
-- Flow Editor widget overlay state:
+- Storyboard Widget overlay state:
   - `LS_KEYS.flowWidgetPinnedByNodeId` (per-node pinned-to-node state; pinned anchors to node and disables drag, unpinned detaches and enables drag)
   - `LS_KEYS.flowWidgetPinnedSemanticsVersion` (migration/version marker for pinned widget semantics)
   - `LS_KEYS.flowWidgetMinimized`
@@ -143,7 +143,7 @@
   - `LS_KEYS.flowWidgetPinnedByGraphMetaKey`
   - `LS_KEYS.flowWidgetPosByGraphMetaKey`
   - `LS_KEYS.flowWidgetWorldPosByGraphMetaKey`
-  - `LS_KEYS.flowEditorManagerWidgetRegistry`
+  - `LS_KEYS.storyboardWidgetManagerWidgetRegistry`
 
 ---
 

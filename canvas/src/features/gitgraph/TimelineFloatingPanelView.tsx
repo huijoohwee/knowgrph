@@ -10,7 +10,7 @@ import {
   type MermaidDiagramPanelRowFilter,
   type MermaidDiagramPanelRowTreeResolver,
 } from './MermaidDiagramPanelView'
-import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useGanttFloatingPanelSelectionTransportSync } from './useGanttFloatingPanelSelectionTransportSync'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 import { useMermaidTimelineDocument } from './useMermaidTimelineDocument'
@@ -182,12 +182,12 @@ export function TimelineFloatingPanelView() {
     surface: 'floating-timeline',
   }), [ganttCode, ganttModel.rows.length, mediaReaderSummary.metadataReadRatio, timelineCode, timelineModel.rows.length])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: timelineModel,
     kind: 'timeline',
   })
-  const { handleDiagramSelectedRowKeyChange: handleGanttDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange: handleGanttDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData: ganttGraphData,
     diagramModel: ganttModel,
     kind: 'gantt',

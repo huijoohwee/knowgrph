@@ -30,12 +30,12 @@
 - Border nodes (topology-derived input/output) render handles on border-facing sides (Input: left/top, Output: right/bottom, direction-aware).
 - Edge endpoints respect the same role/direction rules so the visible handle placement matches the rendered attachment point.
 - Flow edges may optionally bind to explicit port ids via `edge.properties['flow:sourcePortKey'|'flow:targetPortKey']` (for schema-field ports, values are `field:<id>`). When present, Flow scene-building uses these port ids for endpoint attachment.
-- Nodes may define stable schema-field ports via `node.properties['schema:fields']` so Flow/FlowEditor can render per-field port markers even before any edges exist.
+- Nodes may define stable schema-field ports via `node.properties['schema:fields']` so Flow/StoryboardWidget can render per-field port markers even before any edges exist.
 - When schema-field ports are used, edge validation also checks that referenced field ids exist on each node and (when both sides provide `type`) denies incompatible `type` pairs.
 - UI surfaces may render a label override for port-bound edges via `edge.properties['flow:displayLabel']` (fallback remains `edge.label`).
 - Edge creation uses the same port metadata: dragging from a port dot writes `flow:sourcePortKey` / `flow:targetPortKey`, while non-port edges omit those keys and fall back to `edge.id`.
-- When the Flow Editor widget is open, its port dots are the edge-creation surface for the selected node (native Flow handles are suppressed).
-- Flow Editor KTV rows use normalized schema paths to merge matching functional ports into the editable field row. This prevents a duplicated non-inline row for the same semantic key while preserving the authored `key` / `portKey` used by edges and computing-flow propagation.
+- When the Storyboard Widget is open, its port dots are the edge-creation surface for the selected node (native Flow handles are suppressed).
+- Storyboard Widget KTV rows use normalized schema paths to merge matching functional ports into the editable field row. This prevents a duplicated non-inline row for the same semantic key while preserving the authored `key` / `portKey` used by edges and computing-flow propagation.
 - `handles.source` and `handles.target` define which semantic keys are available on each side; they are not port ids themselves and must not appear as replacement handle names in rendered rows or edge metadata.
 - Toggling port handles updates rendering only and preserves node positions.
 - Group bounds account for port handle extents so handle markers do not protrude beyond their containing group.

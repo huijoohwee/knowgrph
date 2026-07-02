@@ -22,7 +22,7 @@ export const DEFAULT_OVERLAY_POINTER_TARGET_SELECTORS: OverlayPointerTargetSelec
   scrollSurface: '[data-kg-media-scroll-surface="1"]',
   interactiveControl: 'textarea,input,select,button,a,[contenteditable="true"]',
   playableMedia: '[data-kg-card-media-interactive="1"],iframe,video,audio',
-  header: '[data-kg-rich-media-flow-editor-header="1"]',
+  header: '[data-kg-rich-media-storyboard-widget-header="1"]',
   selectableSurface: '[data-kg-rich-media-selectable-surface="1"]',
 }
 

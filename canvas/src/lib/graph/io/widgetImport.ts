@@ -11,8 +11,8 @@ import {
   FLOW_WIDGET_BUNDLE_VERSION,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   writeWidgetRegistryMetadata,
-} from '@/lib/config.flow-editor'
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+} from '@/lib/config.storyboard-widget'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/storyboard-widget-manager/registryTemplates'
 
 type RegistryFieldLike = {
   fieldKey: string

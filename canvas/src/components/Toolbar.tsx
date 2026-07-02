@@ -18,7 +18,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { emitFloatingPanelOpen, emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
-import { setRunAllLayoutMutationLock } from '@/components/FlowEditorCanvas/runtime/useFlowEditorWorkflowRunAll'
+import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import {
@@ -44,14 +44,14 @@ const TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS = 520
 
 const emitToolbarRunAll = () => emitWorkflowRunAll({ source: 'toolbar' })
 const emitToolbarResetAll = () => emitWorkflowResetAll({ source: 'toolbar' })
-const shouldPrimeFlowEditorRunAllLayoutLock = (args: {
+const shouldPrimeStoryboardWidgetRunAllLayoutLock = (args: {
   canRunAll: boolean
   canvas2dRenderer: unknown
   runAllFloatingPanelTab: unknown
 }): boolean => {
-  return args.canRunAll && args.canvas2dRenderer === 'flowEditor' && !args.runAllFloatingPanelTab
+  return args.canRunAll && args.canvas2dRenderer === 'storyboard' && !args.runAllFloatingPanelTab
 }
-const primeFlowEditorRunAllLayoutLockFromToolbar = (): void => {
+const primeStoryboardWidgetRunAllLayoutLockFromToolbar = (): void => {
   const graphStore = useGraphStore.getState()
   disableAutoZoomModesForUserGesture(graphStore)
   setRunAllLayoutMutationLock(true)
@@ -96,7 +96,7 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const searchPanelRef = useRef<HTMLElement>(null);
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
-  const canResetAll = canvas2dRenderer === 'flowEditor'
+  const canResetAll = canvas2dRenderer === 'storyboard'
   const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
   const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && runAllFloatingPanelTab === 'strybldr')
   const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
@@ -299,20 +299,20 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
       </IconButton>
       <IconButton
         className="App-toolbar__btn"
-        title={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
-        tooltipContent={canRunAll ? 'Run all' : 'Run all (Flow Editor or Strybldr only)'}
+        title={canRunAll ? 'Run all' : 'Run all (Storyboard Widget or Strybldr only)'}
+        tooltipContent={canRunAll ? 'Run all' : 'Run all (Storyboard Widget or Strybldr only)'}
         onPointerDownCapture={() => {
-          if (shouldPrimeFlowEditorRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
-            primeFlowEditorRunAllLayoutLockFromToolbar()
+          if (shouldPrimeStoryboardWidgetRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
+            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
           }
         }}
         onClick={() => {
           if (!canRunAll) {
-            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor or Strybldr to run all.', ttlMs: 2200 })
+            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Storyboard Widget or Strybldr to run all.', ttlMs: 2200 })
             return
           }
-          if (shouldPrimeFlowEditorRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
-            primeFlowEditorRunAllLayoutLockFromToolbar()
+          if (shouldPrimeStoryboardWidgetRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
+            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
           }
           if (runAllFloatingPanelTab) {
             const graphStore = useGraphStore.getState()
@@ -336,11 +336,11 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
       </IconButton>
       <IconButton
         className="App-toolbar__btn"
-        title={canResetAll ? 'Reset all' : 'Reset all (Flow Editor only)'}
-        tooltipContent={canResetAll ? 'Reset all' : 'Reset all (Flow Editor only)'}
+        title={canResetAll ? 'Reset all' : 'Reset all (Storyboard Widget only)'}
+        tooltipContent={canResetAll ? 'Reset all' : 'Reset all (Storyboard Widget only)'}
         onClick={() => {
           if (!canResetAll) {
-            pushUiToast({ id: 'toolbar-reset-all-disabled', kind: 'neutral', message: 'Open Flow Editor to reset workflow outputs.', ttlMs: 2200 })
+            pushUiToast({ id: 'toolbar-reset-all-disabled', kind: 'neutral', message: 'Open Storyboard Widget to reset workflow outputs.', ttlMs: 2200 })
             return
           }
           emitToolbarResetAll()

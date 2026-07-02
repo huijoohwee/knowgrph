@@ -9,9 +9,9 @@ import {
   type GraphDataTableColumnVisibilityByKey,
 } from '@/features/graph-data-table/graphDataTable'
 import { readCanvasWorkspaceFrontmatterPresetFromMeta } from '@/lib/markdown/frontmatter'
-import { readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/flowEditorManagerSlice'
+import { readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/storyboardWidgetManagerSlice'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
@@ -228,7 +228,7 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
     if (
       typeof setCanvas2dRenderer === 'function'
       && !shouldPreserveExplicitRenderer
-      && !isFlowEditorCanvas2dRenderer(currentRenderer)
+      && !isStoryboardCanvas2dRenderer(currentRenderer)
     ) {
       setCanvas2dRenderer('flowchart')
     }

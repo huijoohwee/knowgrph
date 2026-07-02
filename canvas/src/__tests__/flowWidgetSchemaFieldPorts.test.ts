@@ -2,10 +2,10 @@ import { JSDOM } from 'jsdom'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 import { defaultSchema } from '@/lib/graph/schema'
-import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
+import { WidgetEditorForm } from '@/components/StoryboardWidget/WidgetEditorForm'
 import {
   FRONTMATTER_FLOW_HANDLES_VALUE_KEY,
   FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,
@@ -16,15 +16,15 @@ import {
   buildWidgetDraftFromSmartFields,
   getWidgetRegistryEntryLabel,
   listVisibleWidgetRegistryPortsForPropsEditor,
-} from '@/features/flow-editor-manager/registryTemplates'
-import { normalizeWidgetFieldSchemaPath } from '@/features/flow-editor-manager/widgetFieldMutation'
+} from '@/features/storyboard-widget-manager/registryTemplates'
+import { normalizeWidgetFieldSchemaPath } from '@/features/storyboard-widget-manager/widgetFieldMutation'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/richMediaPanelRegistryDraft'
+} from '@/lib/config.storyboard-widget'
+import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
 
 type DomGlobalSnapshot = Partial<Pick<
   typeof globalThis,
@@ -85,7 +85,7 @@ async function renderFrontmatterBuiltInWidget(args: {
   dom.window.document.body.appendChild(host)
   const root = createRoot(host)
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: args.nodeId,
@@ -186,7 +186,7 @@ export const testFlowWidgetSchemaFieldPortsRenderRowHandles = async () => {
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node,
       schema,
@@ -221,7 +221,7 @@ export const testFrontmatterEnvelopeHandlesUsePerPortNamesAndEditableTypedValues
   try {
     await act(async () => {
       root.render(
-        React.createElement(NodeOverlayEditorForm, {
+        React.createElement(WidgetEditorForm, {
           active: true,
           node: {
             id: 'p-text-script',
@@ -364,7 +364,7 @@ export const testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows = async (
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'text:byteplus',
@@ -545,7 +545,7 @@ export const testFlowWidgetHideFieldsRendersTextOutputPreviewAndKeepsPortRows = 
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'text:compact',
@@ -606,7 +606,7 @@ export const testFlowWidgetHideFieldsRendersImageOutputPreview = async () => {
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'image:compact',
@@ -658,7 +658,7 @@ export const testFlowWidgetHideFieldsRendersVideoOutputPreview = async () => {
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'video:compact',
@@ -707,7 +707,7 @@ export const testFlowWidgetHideFieldsRendersConnectedImagePreviewFromGenericOutp
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'rich-media:compact:image-from-output',
@@ -760,7 +760,7 @@ export const testFlowWidgetHideFieldsRendersConnectedVideoPreviewFromGenericOutp
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'rich-media:compact:video-from-output',
@@ -813,7 +813,7 @@ export const testRichMediaPanelDefaultViewReusesSharedViewerSsot = async () => {
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'rich-media:viewer-default',
@@ -878,7 +878,7 @@ export const testRichMediaPanelKtvRowsReuseSharedWidgetKvTableSsot = async () =>
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'rich-media:ktv-rows',
@@ -937,7 +937,7 @@ export const testRichMediaPanelPoiViewReusesSharedIframeSurface = async () => {
   const root = createRoot(host)
 
   root.render(
-    React.createElement(NodeOverlayEditorForm, {
+    React.createElement(WidgetEditorForm, {
       active: true,
       node: {
         id: 'rich-media:poi-view',

@@ -9,7 +9,7 @@ export type DocumentViewModeArgs = {
   multiDimTableModeEnabled: boolean
   documentSemanticMode: string
   documentStructureBaselineLock: boolean
-  flowEditorStandalone?: boolean
+  storyboardStandalone?: boolean
 }
 
 export function readDocumentViewModeContext(args: DocumentViewModeArgs): {
@@ -20,7 +20,7 @@ export function readDocumentViewModeContext(args: DocumentViewModeArgs): {
   forceDocumentStructureGroups: boolean
 } {
   const activeDocumentViewMode = (() => {
-    if (args.flowEditorStandalone === true) return 'documentStructure'
+    if (args.storyboardStandalone === true) return 'documentStructure'
     if (args.documentStructureBaselineLock === true) return 'documentStructure'
     const semanticMode = String(args.documentSemanticMode || '').trim().toLowerCase() === 'keyword' ? 'keyword' : 'document'
     if (semanticMode === 'keyword') return 'keyword'
@@ -29,7 +29,7 @@ export function readDocumentViewModeContext(args: DocumentViewModeArgs): {
     return 'documentStructure'
   })()
   const documentSemanticModeKey = (() => {
-    if (args.flowEditorStandalone === true) return 'flowEditor'
+    if (args.storyboardStandalone === true) return 'storyboard'
     if (activeDocumentViewMode === 'keyword') return 'keyword'
     if (activeDocumentViewMode === 'multiDimTable') return 'document:mdtbl'
     return 'document'

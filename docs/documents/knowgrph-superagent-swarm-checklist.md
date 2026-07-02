@@ -13,7 +13,7 @@ The baseline is long-horizon and Deer Flow-inspired only at the conceptual
 primitive level: message gateway, tools, skills, memory, subagents, sandboxed
 workspace artifacts, and minutes-to-hours runs. It must not copy Deer Flow code,
 clone Deer Flow architecture, create a provider-specific renderer branch, or
-add downstream alias stacks around Source Files, MCP, Flow Editor, KGC, or
+add downstream alias stacks around Source Files, MCP, Storyboard Widget, KGC, or
 Rich Media Panel owners.
 
 The current state meets the local SuperAgent harness threshold for repo-owned
@@ -27,7 +27,7 @@ creation. The declared task-depth levels are `quick_triage`, `bounded_compile`,
 coordination style, while the task capabilities remain `research`, `code`, and
 `create`. The repo also now contains a Dev-source Level 3 swarm prediction
 baseline through `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts`
-and its Flow Editor widget registry contract. These local capabilities do not
+and its Storyboard Widget registry contract. These local capabilities do not
 claim a deployed public mutating SuperAgent or swarm service.
 
 This document is a **repo-level** checklist to distinguish:
@@ -202,7 +202,7 @@ For each claimed capability, capture:
 Based on current repo state:
 
 - `knowgrph` remains strong in KG/GraphRAG ingestion, parsing, Source Files,
-  Flow Editor rendering, and visualization.
+  Storyboard Widget rendering, and visualization.
 - `knowgrph` now meets the local SuperAgent harness baseline:
   - CLI entrypoints: `python3 -m knowgrph_parser superagent`,
     `python3 -m knowgrph_parser run-goal`, `npm run goal:run`, and
@@ -221,7 +221,7 @@ Based on current repo state:
 - `knowgrph` now has a Dev-source Level 3 swarm prediction baseline:
   - simulation engine: `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts`
   - report/chart rendering: `canvas/src/features/swarm-prediction/swarmPredictionRender.ts`
-  - Flow Editor widget contract: `canvas/src/features/swarm-prediction/swarmPredictionWidget.ts`
+  - Storyboard Widget contract: `canvas/src/features/swarm-prediction/swarmPredictionWidget.ts`
   - validation: `canvas/src/__tests__/swarmPredictionEngine.test.ts`
   - PRD/TAD: `docs/documents/knowgrph-swarm-prediction-engine-prd-tad.md`
 

@@ -109,7 +109,7 @@ re-implemented:
 | Swarm prediction engine | `canvas/src/features/swarm-prediction/swarmPredictionEngine.ts` | Implemented (dev) |
 | FloatingPanel Chat → KGC → Canvas pipeline | `canvas/src/features/chat/` | Implemented |
 | MCP local tool surface | `mcp/server.js`, `mcp/local-tool-contract.js` | Implemented |
-| Flow Editor computing-flow (kgc-computing-flow/v1) | `canvas/src/features/flow-editor-manager/` | Implemented |
+| Storyboard Widget computing-flow (kgc-computing-flow/v1) | `canvas/src/features/storyboard-widget-manager/` | Implemented |
 | Rich Media Panel (text/image/video/audio) | `canvas/src/features/chat/richMediaRun.ts` | Implemented |
 | DeerFlow gateway (SSE, image, video) | `canvas/src/features/chat/deerflowRunGeneration.ts` | Implemented |
 | VideoDB (upload/index/search/stream/AI gen) | `canvas/src/features/integrations/videodbSsot.ts` (planned) | Integration contract |
@@ -316,7 +316,7 @@ contextually coherent story continuations at runtime without recomputing the ful
    `showrunner/runs/<run_id>/choice-graph.md` on each branch commit using the existing
    storage sync owner.
 8. THE Narrative_Game_Engine SHALL be renderer-agnostic: the Choice_Graph renders through
-   the existing Strytree and flowEditor renderer contracts without a Narrative_Game_Engine-
+   the existing Strytree and Storyboard projection contracts without a Narrative_Game_Engine-
    specific renderer branch.
 
 
@@ -455,7 +455,7 @@ can optimize the most expensive steps and stay within budget across multi-agent 
    record `estimated: true` in the cost_log entry.
 
 
-### Requirement 11: Canvas Integration and Flow Editor Surface
+### Requirement 11: Canvas Integration and Storyboard Widget Surface
 
 **User Story:** As a solo dev operator, I want to view and manage showrunner runs from
 the existing knowgrph canvas so that the AI Showrunner is a first-class feature of the
@@ -463,20 +463,20 @@ editor workspace, not a separate CLI-only tool.
 
 #### Acceptance Criteria
 
-1. THE AI_Showrunner SHALL expose a `showrunner` Flow Editor node type in the existing
+1. THE AI_Showrunner SHALL expose a `showrunner` Storyboard Widget node type in the existing
    `kgc-computing-flow/v1` registry, following the `SwarmPrediction` and `TextGeneration`
    node registration patterns.
-2. WHEN a `showrunner` node runs in the Flow Editor, THE AI_Showrunner SHALL start or resume
+2. WHEN a `showrunner` node runs in the Storyboard Widget, THE AI_Showrunner SHALL start or resume
    a Pipeline_Run and write outputs — research pack, script, draft, choice graph — as
    connected node properties through the existing connected-value/Rich_Media_Panel owner.
-3. THE showrunner Flow Editor node SHALL expose input ports for `brief_path` and
+3. THE showrunner Storyboard Widget node SHALL expose input ports for `brief_path` and
    `run_id` and output ports for `run_status`, `latest_artifact_path`, and
    `token_spend_summary`.
 4. WHEN a Pipeline_Run emits a review gate, THE AI_Showrunner SHALL surface an approval
-   widget in the Flow Editor using the existing approval-gate and budget-meter primitives;
+   widget in the Storyboard Widget using the existing approval-gate and budget-meter primitives;
    no second approval UX shall be created.
 5. THE showrunner canvas surface SHALL render the Choice_Graph, script draft, and revision
-   history through the existing Strytree, Strybldr, and flowEditor renderers respectively;
+   history through the existing Strytree, Strybldr, and Storyboard projections respectively;
    no new renderer shall be introduced for showrunner outputs.
 6. THE AI_Showrunner SHALL register its canvas node in the vdeoxpln agent-skill registry
    following the `knowgrph-memory-layer` pattern in `knowgrphVdeoxplnContract.mjs`.
@@ -567,4 +567,3 @@ and without deploying to Prod or Cloudflare.
 7. THE AI_Showrunner SHALL operate fully in Dev without any Prod or Cloudflare deployment;
    no capability SHALL be gated on a deployed Cloudflare resource until the operator
    explicitly requests deployment.
-

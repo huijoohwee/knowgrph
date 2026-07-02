@@ -20,7 +20,7 @@ interface HelpSectionsProps {
   shortcuts: string[];
   onCopyAllShortcuts: () => void;
   onLaunchSpotlight: () => void;
-  onOpenFlowEditorManagerTab: () => void;
+  onOpenStoryboardWidgetManagerTab: () => void;
   onOpenSettingsTab: () => void;
 }
 
@@ -31,7 +31,7 @@ export function HelpSections({
   shortcuts,
   onCopyAllShortcuts,
   onLaunchSpotlight,
-  onOpenFlowEditorManagerTab,
+  onOpenStoryboardWidgetManagerTab,
   onOpenSettingsTab,
 }: HelpSectionsProps) {
   return (
@@ -66,7 +66,7 @@ export function HelpSections({
         <HelpWorkflowLinksSection
           collapsed={collapsedBySection.workflowLinks}
           onToggle={next => onToggleSection('workflowLinks', next)}
-          onOpenFlowEditorManagerTab={onOpenFlowEditorManagerTab}
+          onOpenStoryboardWidgetManagerTab={onOpenStoryboardWidgetManagerTab}
         />
         <HelpIconsSection
           collapsed={collapsedBySection.icons}

@@ -29,7 +29,7 @@ export const testDocumentStructureBaselineLockGuardsModeSwitches = () => {
   }
 
   const beforeRenderer = useGraphStore.getState().canvas2dRenderer
-  const requested = beforeRenderer === 'flowEditor' ? 'd3' : 'flowEditor'
+  const requested = beforeRenderer === 'storyboard' ? 'd3' : 'storyboard'
   api.setCanvas2dRenderer(requested)
   if (useGraphStore.getState().canvas2dRenderer !== beforeRenderer) {
     throw new Error('expected 2d renderer switch to be blocked under baseline lock')

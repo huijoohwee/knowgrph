@@ -1,5 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 export type StoryboardUpdateKvEntryActionResult = {
   sourceNodeId: string | null

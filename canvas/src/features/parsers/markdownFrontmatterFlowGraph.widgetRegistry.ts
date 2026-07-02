@@ -1,4 +1,4 @@
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.storyboard-widget'
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   !!value && typeof value === 'object' && !Array.isArray(value)

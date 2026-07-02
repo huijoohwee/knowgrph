@@ -1,7 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 
 export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 'poi'
 

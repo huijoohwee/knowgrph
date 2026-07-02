@@ -1,5 +1,5 @@
 import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { GraphData } from '@/lib/graph/types'
 
 export const testGraphDataForDisplayFiltersNodesAndEdgesTogether = () => {

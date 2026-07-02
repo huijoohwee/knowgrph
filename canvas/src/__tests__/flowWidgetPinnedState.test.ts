@@ -5,7 +5,7 @@ import {
   setFlowWidgetPinnedById,
   shouldSkipFlowWidgetPinClickAfterPointerActivation,
   toggleFlowWidgetPinnedById,
-} from '@/lib/flowEditor/flowWidgetPinnedState'
+} from '@/lib/storyboardWidget/flowWidgetPinnedState'
 
 export function testFlowWidgetPinnedStateHelpersCentralizeDefaultPinnedSemantics() {
   if (readFlowWidgetPinnedInCanvas({}, 'n1') !== true) throw new Error('expected missing pin entries to default to pinned')

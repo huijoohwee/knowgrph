@@ -1,4 +1,4 @@
-import { isCanvas2dRendererId, isFlowCanvas2dRenderer, isFlowEditorCanvas2dRenderer, sharesFlowEditorFrontmatterSyntax } from '@/lib/config.render'
+import { isCanvas2dRendererId, isFlowCanvas2dRenderer, isStoryboardCanvas2dRenderer, supportsStoryboardFlowFrontmatterSyntax } from '@/lib/config.render'
 
 const cleanRenderer = (value: unknown): string => String(value || '').trim()
 
@@ -11,13 +11,13 @@ export function canSeedCanvasStateAcross2dRenderers(args: {
   if (!target || !source || target === source) return true
   if (!isCanvas2dRendererId(target) || !isCanvas2dRendererId(source)) return true
   if (
-    (isFlowCanvas2dRenderer(target) && isFlowEditorCanvas2dRenderer(source))
-    || (isFlowEditorCanvas2dRenderer(target) && isFlowCanvas2dRenderer(source))
+    (isFlowCanvas2dRenderer(target) && isStoryboardCanvas2dRenderer(source))
+    || (isStoryboardCanvas2dRenderer(target) && isFlowCanvas2dRenderer(source))
   ) {
     return false
   }
   if (!isFlowCanvas2dRenderer(target) || !isFlowCanvas2dRenderer(source)) return true
-  return sharesFlowEditorFrontmatterSyntax(target) === sharesFlowEditorFrontmatterSyntax(source)
+  return supportsStoryboardFlowFrontmatterSyntax(target) === supportsStoryboardFlowFrontmatterSyntax(source)
 }
 
 export function read2dRendererFromLayoutCacheSeedKey(args: {

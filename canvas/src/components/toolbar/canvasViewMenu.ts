@@ -2,7 +2,7 @@ import { Box, ChartGantt, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
-  CANVAS_2D_RENDERER_ORDER,
+  CANVAS_2D_RENDERER_MENU_ORDER,
   getCanvas2dRendererMenuBadges,
   getCanvas2dRendererMenuDescription,
   getCanvas2dRendererMenuLabel,
@@ -36,6 +36,12 @@ import {
   readCanvasBoardLayoutDisplayControlActive,
   readCanvasBoardLayoutDisplayControlTitle,
 } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
+import {
+  CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
+  CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
+  readCanvasStoryboardDisplayControlActive,
+  readCanvasStoryboardDisplayControlTitle,
+} from '@/lib/canvas/canvasStoryboardDisplayControls'
 import {
   getCanvasSurfaceModeDisabledCopy,
   getCanvasSurfaceModeSpec,
@@ -74,7 +80,6 @@ const CANVAS_VIEW_RENDERER_OPTION_ICON: Record<Canvas2dRendererId, CanvasViewRen
   animatic: MonitorPlay,
   storyboard: PanelsTopLeft,
   design: Palette,
-  flowEditor: Pencil,
 }
 
 const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
@@ -90,7 +95,6 @@ const CANVAS_VIEW_RENDERER_OPTION_TITLE: Record<Canvas2dRendererId, string> = {
   animatic: UI_COPY.canvasViewRendererAnimaticTitle,
   storyboard: UI_COPY.canvasViewRendererStoryboardTitle,
   design: UI_COPY.canvasViewRendererDesignTitle,
-  flowEditor: UI_COPY.canvasViewRendererFlowEditorTitle,
 }
 
 const CANVAS_VIEW_SURFACE_MODE_ICON: Record<CanvasSurfaceModeId, CanvasViewOption['Icon']> = {
@@ -102,7 +106,7 @@ const CANVAS_VIEW_SURFACE_MODE_ICON: Record<CanvasSurfaceModeId, CanvasViewOptio
 }
 
 export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] =>
-  CANVAS_2D_RENDERER_ORDER.map(id => ({
+  CANVAS_2D_RENDERER_MENU_ORDER.map(id => ({
     id,
     title: CANVAS_VIEW_RENDERER_OPTION_TITLE[id],
     Icon: CANVAS_VIEW_RENDERER_OPTION_ICON[id],
@@ -173,10 +177,10 @@ export const buildCanvasViewOptions = (
         : nodeShapeMode === 'hex'
           ? 'Node Shape: Hex'
           : 'Node Shape: Circle'
-  const flowEditorLayoutChildren: readonly CanvasViewOption[] = [
+  const storyboardWidgetLayoutChildren: readonly CanvasViewOption[] = [
     {
-      id: 'layout:flowEditorRebalance',
-      title: 'Re-balance Flow Editor layout',
+      id: 'layout:storyboardWidgetRebalance',
+      title: 'Re-balance Storyboard Widget layout',
       label: 'Re-balance',
       Icon: Columns2,
       disabled: state.geospatialEnabled,
@@ -261,7 +265,7 @@ export const buildCanvasViewOptions = (
       label: 'Layout',
       Icon: Columns2,
       dividerBefore: true,
-      children: state.canvas2dRenderer === 'flowEditor' ? flowEditorLayoutChildren : d3LikeLayoutChildren,
+      children: state.canvas2dRenderer === 'storyboard' ? storyboardWidgetLayoutChildren : d3LikeLayoutChildren,
     },
     {
       id: 'document:menu',
@@ -421,6 +425,26 @@ export const buildCanvasViewOptions = (
           Icon: LayoutPanelTop,
           description: CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_DESCRIPTION,
           isActive: readCanvasBoardLayoutDisplayControlActive(state.boardLayoutMode),
+        },
+        {
+          id: CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
+          title: readCanvasStoryboardDisplayControlTitle('card'),
+          label: 'Card',
+          Icon: PanelsTopLeft,
+          description: 'Storyboard card presentation',
+          isActive: readCanvasStoryboardDisplayControlActive(state.canvas2dRenderer, state.storyboardDisplayMode, 'card'),
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+        },
+        {
+          id: CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
+          title: readCanvasStoryboardDisplayControlTitle('widget'),
+          label: 'Widget',
+          Icon: Pencil,
+          description: 'Storyboard widget presentation',
+          isActive: readCanvasStoryboardDisplayControlActive(state.canvas2dRenderer, state.storyboardDisplayMode, 'widget'),
+          disabled: state.geospatialEnabled,
+          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },
         {
           id: 'control:timeline',

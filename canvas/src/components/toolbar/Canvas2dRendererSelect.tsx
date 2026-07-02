@@ -54,10 +54,12 @@ export function Canvas2dRendererSelect({
       setAspectRatioMode: s.setStrybldrStoryboardCardAspectMode,
       boardLayoutMode: s.strybldrStoryboardBoardLayoutMode,
       setBoardLayoutMode: s.setStrybldrStoryboardBoardLayoutMode,
+      storyboardDisplayMode: s.strybldrStoryboardDisplayMode,
+      setStoryboardDisplayMode: s.setStrybldrStoryboardDisplayMode,
       setDocumentSemanticMode: s.setDocumentSemanticMode,
       setFrontmatterModeEnabled: s.setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
-      requestFlowEditorLayoutRebalance: s.requestFlowEditorLayoutRebalance,
+      requestStoryboardWidgetLayoutRebalance: s.requestStoryboardWidgetLayoutRebalance,
       layoutMode: s.schema?.layout?.mode,
       schema: s.schema,
     })),
@@ -84,6 +86,7 @@ export function Canvas2dRendererSelect({
         minimapCollapsed,
         aspectRatioMode: state.aspectRatioMode,
         boardLayoutMode: state.boardLayoutMode,
+        storyboardDisplayMode: state.storyboardDisplayMode,
         geospatialEnabled,
         layoutMode: state.layoutMode,
         schema: state.schema,
@@ -108,6 +111,7 @@ export function Canvas2dRendererSelect({
       state.bottomSurfaceTab,
       state.aspectRatioMode,
       state.boardLayoutMode,
+      state.storyboardDisplayMode,
       state.schema,
     ],
   )
@@ -155,10 +159,12 @@ export function Canvas2dRendererSelect({
           setAspectRatioMode: state.setAspectRatioMode,
           boardLayoutMode: state.boardLayoutMode,
           setBoardLayoutMode: state.setBoardLayoutMode,
+          storyboardDisplayMode: state.storyboardDisplayMode,
+          setStoryboardDisplayMode: state.setStoryboardDisplayMode,
           setDocumentSemanticMode: state.setDocumentSemanticMode,
           setFrontmatterModeEnabled: state.setFrontmatterModeEnabled,
           setMultiDimTableModeEnabled: state.setMultiDimTableModeEnabled,
-          requestFlowEditorLayoutRebalance: state.requestFlowEditorLayoutRebalance,
+          requestStoryboardWidgetLayoutRebalance: state.requestStoryboardWidgetLayoutRebalance,
         })
       }
       renderButtonContent={() => <Eye className={iconSizeClass} strokeWidth={iconStrokeWidth} />}

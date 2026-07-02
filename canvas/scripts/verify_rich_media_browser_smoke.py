@@ -98,8 +98,8 @@ def main() -> None:
 
             expect(page.locator('[data-kg-smoke-panel="audio"] audio')).to_have_count(1)
 
-            flow_header = page.locator('[data-kg-smoke-panel="flow-editor"] [data-kg-rich-media-flow-editor-header="1"]').first
-            resize_handle = page.locator('[data-kg-smoke-panel="flow-editor"] [data-kg-rich-media-resize-handle="1"]').first
+            flow_header = page.locator('[data-kg-smoke-panel="storyboard-widget"] [data-kg-rich-media-storyboard-widget-header="1"]').first
+            resize_handle = page.locator('[data-kg-smoke-panel="storyboard-widget"] [data-kg-rich-media-resize-handle="1"]').first
             expect(flow_header).to_be_visible()
             expect(resize_handle).to_be_visible()
             expect(page.locator('[data-kg-smoke-flow-size="1"]')).to_contain_text("320x220")

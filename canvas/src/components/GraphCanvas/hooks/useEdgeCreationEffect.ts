@@ -30,7 +30,7 @@ export function useEdgeCreationEffect({
         const state = useGraphStore.getState()
         const graphData = state.graphData as GraphData | null
         if (!edgeCreationRequest || !graphData) return
-        // Storyboard cards and rich-media panels use the shared Flow Editor
+        // Storyboard cards and rich-media panels use the shared Storyboard Widget
         // overlay authoring state so their semantic port handles remain the
         // source and target owners for the entire interaction.
         if (edgeCreationRequest.type === 'create' && isStoryboardCanvas2dRenderer(state.canvas2dRenderer)) return

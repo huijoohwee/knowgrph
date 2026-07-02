@@ -164,7 +164,7 @@ export function testSchemaUpdateCarriesZoomStateAcrossLayoutKey() {
   }
 }
 
-export function testFlowEditorZoomKeyIgnoresDocumentModeCoupling() {
+export function testStoryboardWidgetZoomKeyIgnoresDocumentModeCoupling() {
   const graphData: GraphData = {
     type: 'Graph',
     context: 'test',
@@ -175,7 +175,7 @@ export function testFlowEditorZoomKeyIgnoresDocumentModeCoupling() {
 
   const base = {
     canvasRenderMode: '2d' as const,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     schema: { ...defaultSchema },
     graphData,
     documentStructureBaselineLock: false,
@@ -203,8 +203,8 @@ export function testFlowEditorZoomKeyIgnoresDocumentModeCoupling() {
     multiDimTableModeEnabled: true,
   })
 
-  if (!documentKey || !keywordKey || !tableKey) throw new Error('expected Flow Editor zoom keys')
+  if (!documentKey || !keywordKey || !tableKey) throw new Error('expected Storyboard Widget zoom keys')
   if (documentKey !== keywordKey || documentKey !== tableKey) {
-    throw new Error('expected Flow Editor zoom key to stay stable across document/keyword/table mode toggles')
+    throw new Error('expected Storyboard Widget zoom key to stay stable across document/keyword/table mode toggles')
   }
 }

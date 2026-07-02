@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -21,9 +21,9 @@ import {
   clearActiveFlowWidgetPointerDragSession,
   markFlowWidgetPointerDragNativeStart,
   setFlowWidgetDragDataTransfer,
-} from '@/lib/flowEditor/widgetDrag'
+} from '@/lib/storyboardWidget/widgetDrag'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
-import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { uiToolbarColumnMenuListClassName } from '@/features/toolbar/ui/toolbarStyles'

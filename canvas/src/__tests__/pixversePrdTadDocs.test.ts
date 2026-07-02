@@ -23,7 +23,7 @@ export function testPixVersePrdTadUsesImplementedBaselineOwners(): void {
     'MainPanel Integrations and chat-readiness UX now include PixVerse-aware provider affordances through existing settings owners.',
     '`canvas/src/features/panels/views/pixverseMcpApiDocs.ts` | Shipped',
     '`canvas/src/features/panels/views/pixverseVideoGenerationApiDocs.ts` | Shipped',
-    'Flow Editor, Storyboard, and Animatic consume shared graph/media fields only.',
+    'Storyboard and Animatic consume shared graph/media fields only.',
   ]
   for (const token of requiredDocTokens) {
     if (!doc.includes(token)) {

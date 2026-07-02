@@ -1,4 +1,4 @@
-import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
+import { computeDefaultWidgetFloatingPos } from '@/components/StoryboardWidget/widgetLayout'
 
 export function testWidgetDefaultFloatingPosDependsOnViewport() {
   const small = computeDefaultWidgetFloatingPos({ stackIndex: 0, viewportW: 1, viewportH: 1 })

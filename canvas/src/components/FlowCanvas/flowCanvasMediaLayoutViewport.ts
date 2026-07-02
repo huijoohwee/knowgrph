@@ -1,19 +1,19 @@
-import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
+import { resolveStoryboardWidgetVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
 import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 import type { MediaOverlayLayoutViewport } from '@/lib/render/mediaOverlayLayoutLoop2d'
 
 type FlowCanvasMediaLayoutViewportArgs = {
   canvas2dRenderer: string
-  flowEditorSurfaceId?: string | null
+  storyboardWidgetSurfaceId?: string | null
   viewportW: number
   viewportH: number
 }
 
 export function resolveFlowCanvasMediaLayoutViewport(args: FlowCanvasMediaLayoutViewportArgs): Required<MediaOverlayLayoutViewport> {
-  if (args.canvas2dRenderer === 'flowEditor') {
-    const visibleViewport = resolveFlowEditorVisibleViewport({
-      flowEditorSurfaceId: args.flowEditorSurfaceId || undefined,
+  if (args.canvas2dRenderer === 'storyboard') {
+    const visibleViewport = resolveStoryboardWidgetVisibleViewport({
+      storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId || undefined,
       viewportW: args.viewportW,
       viewportH: args.viewportH,
     })

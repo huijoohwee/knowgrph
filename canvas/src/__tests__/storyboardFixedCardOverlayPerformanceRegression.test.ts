@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testStoryboardFixedCardOverlaySkipsNoopTransformWrites() {
-  const text = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const text = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
   for (const snippet of [
     "willChange: 'transform'",
     'lastAppliedBoxByCardIdRef',
@@ -19,18 +19,20 @@ export function testStoryboardFixedCardOverlaySkipsNoopTransformWrites() {
 }
 
 export function testStoryboardCardOverlayRestoresFlexInteractions() {
-  const overlay = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
-  const helper = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
+  const overlay = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const helper = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
   const richMediaDrag = readFileSync(resolve(process.cwd(), 'src/components/RichMediaPanelOverlayDrag.ts'), 'utf8')
   const richMediaResize = readFileSync(resolve(process.cwd(), 'src/components/RichMediaPanelResizeHandle.tsx'), 'utf8')
   const richMediaSurface = readFileSync(resolve(process.cwd(), 'src/components/useRichMediaPanelSurfaceState.ts'), 'utf8')
-  const overlayProxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/flow-editor-overlay-proxy.ts'), 'utf8')
+  const overlayProxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const pinToggleButton = readFileSync(resolve(process.cwd(), 'src/components/PinToggleIconButton.tsx'), 'utf8')
-  const placements = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/storyboardCardPlacements2d.ts'), 'utf8')
-  const flowEditorChrome = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/FlowEditorPanelChrome.tsx'), 'utf8')
+  const placements = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardPlacements2d.ts'), 'utf8')
+  const storyboardWidgetChrome = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetPanelChrome.tsx'), 'utf8')
+  const storyboardWidgetView = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorView.tsx'), 'utf8')
+  const mediaOverlays = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   const headerActions = readFileSync(resolve(process.cwd(), 'src/features/panels/ui/HeaderActions.tsx'), 'utf8')
   const hoverTooltip = readFileSync(resolve(process.cwd(), 'src/components/GraphHoverTooltip.tsx'), 'utf8')
-  const surface = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx'), 'utf8')
+  const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
   const listeners = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/interactions/listeners.ts'), 'utf8')
   const canvasViewMenu = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
   const canvasGridControls = readFileSync(resolve(process.cwd(), 'src/lib/canvas/canvasGridDisplayControls.ts'), 'utf8')
@@ -45,7 +47,8 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     'dragWorldOverrideByCardIdRef.current.get(card.id) || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || referencePlacement : referencePlacement || readStoryboardCardCenter2d(node))',
     'getWheelForwardTarget={() => props.rootRef.current?.querySelector',
     'const overlayPanOwnerCanvas =',
-    'overlayBodyViewportPan && flowEditorOverlayInteractionMode && !overlayPanOwnerCanvas',
+    'shouldUseCanvasOverlayBodyPan({ target: resolved.targetEl, overlayRoot: resolved.overlayRoot })',
+    'overlayBodyViewportPan && storyboardWidgetOverlayInteractionMode && !overlayPanOwnerCanvas',
   ]) {
     if (![overlay, surface, listeners].some(text => text.includes(snippet))) throw new Error(`expected Storyboard card flex interactions snippet: ${snippet}`)
   }
@@ -60,7 +63,24 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     if (!richMediaResize.includes(snippet) || !helper.includes(snippet)) throw new Error(`expected Storyboard resize to reuse Rich Media owner: ${snippet}`)
   }
   if (!richMediaSurface.includes('installRichMediaOverlayWheelForwarding(element, {')) {
-    throw new Error('expected Flow Editor Rich Media panels to reuse shared Rich Media wheel forwarding owner')
+    throw new Error('expected Storyboard Widget Rich Media panels to reuse shared Rich Media wheel forwarding owner')
+  }
+  if (!storyboardWidgetView.includes('data-kg-overlay-pan-owner="canvas"')) {
+    throw new Error('expected Storyboard Widget roots to reuse the Card canvas collective-pan owner contract')
+  }
+  for (const snippet of [
+    'export const STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR',
+    'export function shouldUseCanvasOverlayBodyPan',
+    'isCanvasOverlayPanOwnedByCanvas(args.overlayRoot)',
+  ]) {
+    if (!overlayProxy.includes(snippet)) throw new Error(`expected shared Widget/Rich Media body-pan helper to preserve collective drag: ${snippet}`)
+  }
+  if (!mediaOverlays.includes('const richMediaBodyPanOwnedByCollective = storyboardSharedSurfaceRendererMode')
+    || !mediaOverlays.includes('richMediaPanelPinAllowsMovement && !richMediaBodyPanOwnedByCollective')) {
+    throw new Error('expected Storyboard Rich Media body drag to reuse collective canvas pan while retaining local header drag')
+  }
+  if (!richMediaSurface.includes('|| storyboardWidgetInteractionMode')) {
+    throw new Error('expected Storyboard Rich Media panels to advertise canvas collective-pan ownership independent of pin UI state')
   }
   for (const snippet of ['CANVAS_GRID_DISPLAY_CONTROL_ID', 'SNAP_GRID_DISPLAY_CONTROL_ID', 'readCanvasGridDisplayControlActive', 'readSnapGridDisplayControlActive']) {
     if (!canvasViewMenu.includes(snippet) || !canvasGridControls.includes(snippet)) throw new Error(`expected Canvas View Grid/Snap controls to stay shared: ${snippet}`)
@@ -78,7 +98,9 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     'keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey',
     'cardMoveEnabled: boolean',
     'if (cardMoveEnabled) onHeaderPointerDown(event, node)',
-    'cardMoveEnabled={!fixedLayoutEnabled || headerPinProps.headerPinned === false}',
+    'isFlowWidgetHeaderDragAllowedByPin({',
+    'fixedLayoutEnabled,',
+    'pinnedInCanvas: headerPinProps.headerPinned === true',
     'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
     'buildFixedStoryboardCardReferencePlacements2d',
     'const fixedCardReferencePlacements = React.useMemo(',
@@ -98,14 +120,15 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   ]) {
     if (!overlay.includes(snippet)) throw new Error(`expected Storyboard card header pin/unpin to reuse shared Rich Media header pin controls: ${snippet}`)
   }
-  for (const snippet of ['readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)', "storyboardBoardLayoutMode === 'fixed'", 'if (!storyboardCardsActive) return null', 'return applyFixedStoryboardCardPlacementsToGraphData2d({']) {
+  for (const snippet of ['readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)', "storyboardBoardLayoutMode === 'fixed'", 'if (!storyboardSharedSurfaceActive) return null', 'return applyFixedStoryboardCardPlacementsToGraphData2d({']) {
     if (!overlay.includes(snippet) && !surface.includes(snippet)) throw new Error(`expected Storyboard card/Rich Media surface to reuse shared Board Fixed mode: ${snippet}`)
   }
   for (const snippet of [
-    "from '@/lib/flowEditor/flowWidgetPinnedState'",
+    "from '@/lib/storyboardWidget/flowWidgetPinnedState'",
     'flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null',
     'includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)',
-    'const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, schema })',
+    'const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, readPlacementSize, schema })',
+    'readPlacementSize?: ReadStoryboardPlacementSize',
     'if (!placement) return node',
     'export const buildFixedStoryboardCardReferencePlacements2d',
     'includeUnpinned: true',
@@ -115,12 +138,12 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   if (overlay.includes('input,textarea,select,button,[role="button"]')) {
     throw new Error('expected Storyboard header drag guard to avoid blocking inline display editors by role')
   }
-  if (!overlayProxy.includes('export const FLOW_EDITOR_OVERLAY_MODE_SELECTOR = \'[data-kg-flow-editor-mode="1"]\'') || !overlayProxy.includes('export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`')) {
-    throw new Error('expected Flow Editor overlay proxy to keep widget roots scoped to Flow Editor widgets')
+  if (!overlayProxy.includes('export const STORYBOARD_WIDGET_OVERLAY_MODE_SELECTOR = \'[data-kg-storyboard-widget-mode="1"]\'') || !overlayProxy.includes('export const STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${STORYBOARD_WIDGET_OVERLAY_MODE_SELECTOR}`')) {
+    throw new Error('expected Storyboard Widget overlay proxy to keep widget roots scoped to Storyboard widgets')
   }
-  for (const snippet of ['data-kg-widget={card.id}', 'data-kg-flow-editor-mode="1"', 'data-kg-widget-pinned=']) {
+  for (const snippet of ['data-kg-widget={card.id}', 'data-kg-storyboard-widget-mode="1"', 'data-kg-widget-pinned=']) {
     if (overlay.includes(snippet)) {
-      throw new Error(`expected fixed Storyboard cards to stay out of Flow Editor collective widget scans: ${snippet}`)
+      throw new Error(`expected fixed Storyboard cards to stay out of Storyboard Widget collective widget scans: ${snippet}`)
     }
   }
   for (const snippet of ['selectionDisabled', 'toolMode === \'addEdge\'']) {
@@ -129,7 +152,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     }
   }
   for (const snippet of ['<PinToggleIconButton', "title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}", 'activeIconClassName={UI_THEME_TOKENS.icon.active}']) {
-    if (!flowEditorChrome.includes(snippet)) throw new Error(`expected Flow Editor chrome to reuse shared pin toggle button: ${snippet}`)
+    if (!storyboardWidgetChrome.includes(snippet)) throw new Error(`expected Storyboard Widget chrome to reuse shared pin toggle button: ${snippet}`)
   }
   for (const snippet of ['<PinToggleIconButton', 'title={pinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}', 'ariaPressed={!!pinned}']) {
     if (!headerActions.includes(snippet)) throw new Error(`expected floating panel header actions to reuse shared pin toggle button: ${snippet}`)

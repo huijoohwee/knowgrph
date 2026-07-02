@@ -144,7 +144,7 @@ const GOOGLE_CLOUD_API_DOC_ROWS: ReadonlyArray<GoogleCloudDocRow> = [
     options: GOOGLE_CLOUD_OUTPUT_CONTRACT_OPTIONS,
     responsibility: 'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.',
     notes: 'Do not emit prose wrappers, legacy aliases, duplicate grouping keys, or provider-specific canvas directives.',
-    searchHints: ['markdown', 'yaml frontmatter', 'workspace', 'source files', 'flow editor', 'storyboard', 'animatic'],
+    searchHints: ['markdown', 'yaml frontmatter', 'workspace', 'source files', 'storyboard widget', 'storyboard', 'animatic'],
     tooltipDefaultValue: 'frontmatter_kgc_markdown',
   },
 ]

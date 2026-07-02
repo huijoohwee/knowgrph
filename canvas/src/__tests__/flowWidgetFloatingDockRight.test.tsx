@@ -1,9 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
+import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -311,7 +311,7 @@ export async function testFlowWidgetUnpinnedInteractionFrameRefreshesLiveTransfo
     if (tx0 == null) throw new Error(`expected matrix() transform, got ${String(panel.style.transform || '')}`)
 
     liveTransform = { k: 1, x: 180, y: 0 }
-    dom.window.dispatchEvent(new dom.window.Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+    dom.window.dispatchEvent(new dom.window.Event(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT))
 
     await sleep(0)
     await tick()

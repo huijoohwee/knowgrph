@@ -5,14 +5,14 @@ import { lsRemove } from '@/lib/persistence'
 import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersistence'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 import {
   shouldCarryForwardFlowWidgetOverlayStateOnGraphCommit,
   shouldPreserveFrontmatterAutoManagedBalancedCollective,
   stripFrontmatterAutoManagedWidgetPinnedStates,
   stripFrontmatterAutoManagedWidgetWorldPositions,
   stripFrontmatterAutoManagedWidgetScreenPositions,
-} from '@/lib/flowEditor/widgetPlacementAuthority'
+} from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import {
   applyLayoutAutosuggestFromMetadata,
@@ -447,7 +447,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         const mode = get().schema.layout?.mode
         if (mode === 'radial') {
           const curRenderer = get().canvas2dRenderer
-          if (curRenderer !== 'd3' && curRenderer !== 'flowchart' && !isFlowEditorCanvas2dRenderer(curRenderer)) {
+          if (curRenderer !== 'd3' && curRenderer !== 'flowchart' && !isStoryboardCanvas2dRenderer(curRenderer)) {
             const setCanvas2dRenderer = get().setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
           }

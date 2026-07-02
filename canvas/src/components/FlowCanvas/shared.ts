@@ -1,7 +1,7 @@
 import type React from 'react'
 
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -47,7 +47,7 @@ export type FlowCanvasProps = {
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
   excludeRichMediaOverlayNodeIds?: string[]
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   forbidCircleNodes?: boolean
 }
 
@@ -75,7 +75,7 @@ export function resolveFlowCanvasMediaOverlayInteractionPolicy(args: {
 
 export type FlowCanvasInteractionRuntimeProps = {
   active: boolean
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   allowMutations: boolean
   schema: GraphSchema | null
   runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>
@@ -90,7 +90,7 @@ export type FlowCanvasInteractionRuntimeProps = {
   graphDataForZoomRequests: GraphData | null
   viewportW: number
   viewportH: number
-  flowEditorReservedW: number
+  storyboardWidgetReservedW: number
 }
 
 export function clampFinite(v: number, lo: number, hi: number): number {
@@ -104,10 +104,10 @@ export function pickGraphDataForFlowRenderer(args: {
   canvas2dRenderer?: string
 }): GraphData | null {
   if (!args.graphData) return null
-  const flowEditorFrontmatterFlowMode =
-    String(args.canvas2dRenderer || '').trim() === 'flowEditor'
+  const storyboardWidgetFrontmatterFlowMode =
+    String(args.canvas2dRenderer || '').trim() === 'storyboard'
     && isFrontmatterFlowGraph(args.graphData)
-  if (flowEditorFrontmatterFlowMode) {
+  if (storyboardWidgetFrontmatterFlowMode) {
     return filterGraphToFlowWidgetEligible(args.graphData)
   }
   return args.graphData

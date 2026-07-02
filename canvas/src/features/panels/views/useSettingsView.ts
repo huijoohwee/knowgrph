@@ -45,7 +45,7 @@ const INTEGRATION_GEMINI_VIDEO_ASPECT_RATIO_OPTIONS = ['16:9', '9:16'] as const
 const INTEGRATION_GEMINI_VIDEO_RESOLUTION_OPTIONS = ['720p', '1080p', '4k'] as const
 const INTEGRATION_GEMINI_VIDEO_DURATION_OPTIONS = ['4', '6', '8'] as const
 const INTEGRATION_GEMINI_VIDEO_PERSON_GENERATION_OPTIONS = ['allow_all', 'allow_adult', 'dont_allow'] as const
-import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
+import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/storyboard-widget-manager/registryTemplates'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
   BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
@@ -1248,17 +1248,17 @@ export function useSettingsView({
         },
         {
           title: AGNES_API_DOC_AREA,
-          searchIndex: normalizeText('Agnes AI API agnes-2.0-flash shared chat completions sse json chunks floatingpanel chat markdown yaml frontmatter source files flow editor storyboard animatic'),
+          searchIndex: normalizeText('Agnes AI API agnes-2.0-flash shared chat completions sse json chunks floatingpanel chat markdown yaml frontmatter source files storyboard widget storyboard animatic'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === AGNES_API_DOC_AREA,
         },
         {
           title: QWEN_API_DOC_AREA,
-          searchIndex: normalizeText('Qwen API Alibaba Cloud Model Studio DashScope OpenAI-compatible chat completions qwen-plus qwen3-max qwen-flash floatingpanel chat markdown yaml frontmatter source files flow editor'),
+          searchIndex: normalizeText('Qwen API Alibaba Cloud Model Studio DashScope OpenAI-compatible chat completions qwen-plus qwen3-max qwen-flash floatingpanel chat markdown yaml frontmatter source files storyboard widget'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === QWEN_API_DOC_AREA,
         },
         {
           title: GOOGLE_CLOUD_API_DOC_AREA,
-          searchIndex: normalizeText('Google Cloud Vertex AI API GCP Gemini OpenAI-compatible chat completions endpoints openapi google/gemini floatingpanel chat markdown yaml frontmatter source files flow editor'),
+          searchIndex: normalizeText('Google Cloud Vertex AI API GCP Gemini OpenAI-compatible chat completions endpoints openapi google/gemini floatingpanel chat markdown yaml frontmatter source files storyboard widget'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === GOOGLE_CLOUD_API_DOC_AREA,
         },
         {

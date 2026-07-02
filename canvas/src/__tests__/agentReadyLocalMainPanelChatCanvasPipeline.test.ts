@@ -217,7 +217,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
   }
 }
 
-export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryForResearchAgentDemoSuperAgentFlowEditor() {
+export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryForResearchAgentDemoSuperAgentStoryboardWidget() {
   const demoFixture = readResearchAgentDemoFixture()
   const demoText = demoFixture.text
   const parsed = await loadGraphDataFromTextViaParser(demoFixture.basename, demoText, {
@@ -339,7 +339,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
         superAgentRuntimeSurfacesReady?: unknown
         superAgentRuntimeSurfaceNodesReady?: unknown
         superAgentSubagentNodesReady?: unknown
-        flowEditorRendererReady?: unknown
+        storyboardRendererReady?: unknown
         superAgentDemoReady?: unknown
       }
       entrySurfaces?: { mcp?: { active?: unknown; ready?: unknown } }
@@ -367,7 +367,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
       inspection.readiness.superAgentRuntimeSurfacesReady !== true ||
       inspection.readiness.superAgentRuntimeSurfaceNodesReady !== true ||
       inspection.readiness.superAgentSubagentNodesReady !== true ||
-      inspection.readiness.flowEditorRendererReady !== true ||
+      inspection.readiness.storyboardRendererReady !== true ||
       inspection.readiness.superAgentDemoReady !== true ||
       inspection.canvasTopology?.canvas2dRenderer !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER ||
       Number(inspection.counts?.flowNodeCount || 0) <= 0 ||
@@ -376,7 +376,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
       Number(inspection.counts.canvasEdgeCount || 0) < Number(inspection.counts.flowConnectionCount || 0) ||
       (Array.isArray(inspection.issues) && inspection.issues.length > 0)
     ) {
-      throw new Error(`expected rendered MainPanel MCP to prove research demo ingestion -> parsing -> Flow Editor SuperAgent rendering, got ${JSON.stringify(inspection)}`)
+      throw new Error(`expected rendered MainPanel MCP to prove research demo ingestion -> parsing -> Storyboard Widget SuperAgent rendering, got ${JSON.stringify(inspection)}`)
     }
 
     const renderedText = container.textContent || ''
@@ -394,7 +394,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedMcpEntryFo
   }
 }
 
-export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoSuperAgentFlowEditor() {
+export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoSuperAgentStoryboardWidget() {
   const demoFixture = readResearchAgentDemoFixture()
   const demoText = demoFixture.text
   const parsed = await loadGraphDataFromTextViaParser(demoFixture.basename, demoText, {
@@ -454,7 +454,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoS
         superAgentRuntimeSurfacesReady?: unknown
         superAgentRuntimeSurfaceNodesReady?: unknown
         superAgentSubagentNodesReady?: unknown
-        flowEditorRendererReady?: unknown
+        storyboardRendererReady?: unknown
         superAgentDemoReady?: unknown
       }
       route?: { activeMainPanelTab?: unknown; integrationOpenTab?: unknown }
@@ -486,7 +486,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoS
       inspection.readiness.superAgentRuntimeSurfacesReady !== true ||
       inspection.readiness.superAgentRuntimeSurfaceNodesReady !== true ||
       inspection.readiness.superAgentSubagentNodesReady !== true ||
-      inspection.readiness.flowEditorRendererReady !== true ||
+      inspection.readiness.storyboardRendererReady !== true ||
       inspection.readiness.superAgentDemoReady !== true ||
       inspection.canvasTopology?.canvas2dRenderer !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER ||
       Number(inspection.counts?.flowNodeCount || 0) <= 0 ||
@@ -495,7 +495,7 @@ export async function testLocalMainPanelChatCanvasPipelineUsesResearchAgentDemoS
       Number(inspection.counts.canvasEdgeCount || 0) < Number(inspection.counts.flowConnectionCount || 0) ||
       (Array.isArray(inspection.issues) && inspection.issues.length > 0)
     ) {
-      throw new Error(`expected research-agent demo to prove MainPanel ${activeTab} -> ingestion -> parsing -> Flow Editor SuperAgent rendering, got ${JSON.stringify(inspection)}`)
+      throw new Error(`expected research-agent demo to prove MainPanel ${activeTab} -> ingestion -> parsing -> Storyboard Widget SuperAgent rendering, got ${JSON.stringify(inspection)}`)
     }
 
     const requiredEntryTabs = new Set(Array.isArray(inspection.superAgentPipeline?.requiredEntryTabs) ? inspection.superAgentPipeline.requiredEntryTabs.map(String) : [])

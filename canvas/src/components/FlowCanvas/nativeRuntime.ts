@@ -1230,9 +1230,9 @@ export type FlowNativeDrawArgs = {
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
   grid?: { enabled: boolean; size: number; sizeX?: number; sizeY?: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
-  flowEditorWidgetOpenNodeIds?: string[]
-  flowEditorWidgetPinnedByNodeId?: Record<string, boolean>
-  flowEditorWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+  storyboardWidgetOpenNodeIds?: string[]
+  storyboardWidgetPinnedByNodeId?: Record<string, boolean>
+  storyboardWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
 }
 
 const drawGroupResizeHandleOverlay = (rt: FlowNativeRuntime, args: { groupAabbById: Map<string, FlowGroupAabb> | null; selectedGroupId: string; enabled: boolean }) => {
@@ -1380,10 +1380,10 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const selectedGroupId = String(args.selectedGroupId || '').trim()
   const showGroupResizeHandle = args.showGroupResizeHandle === true
   const widgetOverlayAabbByNodeId = (() => {
-    const openIds = Array.isArray(args.flowEditorWidgetOpenNodeIds) ? args.flowEditorWidgetOpenNodeIds : []
+    const openIds = Array.isArray(args.storyboardWidgetOpenNodeIds) ? args.storyboardWidgetOpenNodeIds : []
     if (openIds.length === 0) return null
-    const pinnedByNodeId = args.flowEditorWidgetPinnedByNodeId || {}
-    const worldPosByNodeId = args.flowEditorWidgetWorldPosByNodeId || {}
+    const pinnedByNodeId = args.storyboardWidgetPinnedByNodeId || {}
+    const worldPosByNodeId = args.storyboardWidgetWorldPosByNodeId || {}
     const zoomK = typeof rt.transform?.k === 'number' && Number.isFinite(rt.transform.k) && rt.transform.k > 0 ? rt.transform.k : 1
     const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
     const panelScreen = computeWidgetScaledSize(panelScale)

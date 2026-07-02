@@ -8,7 +8,7 @@ import { applyCanvasFrontmatterPreset } from './canvasFrontmatterPreset'
 import type { CanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 
 const FRONTMATTER_FLOW_CANVAS_RENDER_MODE = '2d' as const
-const FRONTMATTER_FLOW_CANVAS_2D_RENDERER = 'flowEditor' as const
+const FRONTMATTER_FLOW_CANVAS_2D_RENDERER = 'storyboard' as const
 const FRONTMATTER_FLOW_DOCUMENT_MODE = 'document' as const
 
 const syncFrontmatterFlowSchemaEdgeType = (graphData: GraphData): boolean => {

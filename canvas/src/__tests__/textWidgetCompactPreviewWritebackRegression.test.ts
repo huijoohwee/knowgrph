@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
-  const filePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
-  const compactPreviewPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'widgetCompactPreview.ts')
+  const filePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const compactPreviewPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'widgetCompactPreview.ts')
   const text = readFileSync(filePath, 'utf8')
   const compactPreviewText = readFileSync(compactPreviewPath, 'utf8')
 
@@ -14,7 +14,7 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
     throw new Error('expected text widget compact preview writeback to stop trimming live text edits')
   }
   if (!text.includes('const nextProperties = applyWidgetCompactPreviewTextUpdate({')) {
-    throw new Error('expected NodeOverlayEditorForm to delegate compact preview text mutation to the shared helper')
+    throw new Error('expected WidgetEditorForm to delegate compact preview text mutation to the shared helper')
   }
   if (
     !text.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
@@ -28,7 +28,7 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
     throw new Error('expected Widget compact preview to avoid a parallel markdown/read-only branch outside the shared Card inline editor')
   }
   if (!text.includes('return buildWidgetCompactPreviewViewModel({')) {
-    throw new Error('expected NodeOverlayEditorForm to delegate compact preview presentation state to the shared view-model helper')
+    throw new Error('expected WidgetEditorForm to delegate compact preview presentation state to the shared view-model helper')
   }
   if (!compactPreviewText.includes('if (!isEditableWidgetCompactPreviewText(args.preview)) return null')) {
     throw new Error('expected shared compact preview writeback to centralize the text-editability guard')
@@ -37,13 +37,13 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
     throw new Error('expected shared compact preview view-model helper to own preview section labels')
   }
   if (!text.includes('return resolveWidgetCompactPreview({')) {
-    throw new Error('expected NodeOverlayEditorForm to delegate compact preview derivation to the shared helper')
+    throw new Error('expected WidgetEditorForm to delegate compact preview derivation to the shared helper')
   }
   if (!text.includes('const connectedValuesSignature = React.useMemo(')) {
-    throw new Error('expected NodeOverlayEditorForm to derive semantic connected-value signatures before compact preview resolution')
+    throw new Error('expected WidgetEditorForm to derive semantic connected-value signatures before compact preview resolution')
   }
   if (!text.includes('const connectedValuesSnapshotRef = React.useRef<{')) {
-    throw new Error('expected NodeOverlayEditorForm to snapshot connected preview inputs by semantic signature')
+    throw new Error('expected WidgetEditorForm to snapshot connected preview inputs by semantic signature')
   }
   if (!compactPreviewText.includes('const widgetIdentity = resolveWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })')) {
     throw new Error('expected shared compact preview helper to reuse shared widget identity resolution')

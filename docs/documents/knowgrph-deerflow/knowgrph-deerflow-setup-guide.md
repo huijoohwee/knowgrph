@@ -9,7 +9,7 @@
 
 ## Document Purpose
 
-**Context**: DeerFlow is an optional local gateway and conceptual SuperAgent reference. Knowgrph's native long-horizon harness is source-owned in `docs/documents/knowgrph-superagent-harness.md` and `knowgrph_parser/*`; Canvas Flow Editor still consumes provider-neutral graph/media fields through existing widget, chat, and rich-media owners.
+**Context**: DeerFlow is an optional local gateway and conceptual SuperAgent reference. Knowgrph's native long-horizon harness is source-owned in `docs/documents/knowgrph-superagent-harness.md` and `knowgrph_parser/*`; Canvas Storyboard Widget still consumes provider-neutral graph/media fields through existing widget, chat, and rich-media owners.
 **Intent**: Provide a step-by-step guide to go from zero to a working optional DeerFlow provider path on Canvas, covering Dev (local Vite) and opt-in Prod/Cloudflare Tunnel environments without making DeerFlow a required runtime.
 **Copy boundary**: Use DeerFlow only as conceptual inspiration for message gateway, memory, tools, skills, subagents, sandboxed workspace execution, and long-horizon run management. Do not copy DeerFlow code, clone its architecture, or introduce a DeerFlow-only parser, renderer, memory stack, or graph apply path.
 **Directive**: All configuration is declarative and fixture-driven; no hardcoded paths or provider constants in source.
@@ -22,7 +22,7 @@ DeerFlow is a **first-class optional provider**, not a required dependency. Know
 
 | Feature | Without DeerFlow | With DeerFlow |
 |---------|-----------------|---------------|
-| Canvas Flow Editor | Full | Full |
+| Canvas Storyboard Widget | Full | Full |
 | Text generation (OpenAI) | Full (default provider) | Full |
 | Text generation (BytePlus) | Full | Full |
 | Image generation | Full (BytePlus) | Full |
@@ -437,14 +437,14 @@ When you click **Run** on the Text Script Widget (`w-text-script`):
 ### 3.2 User Action
 
 1. Select the `w-text-script` node on the Canvas
-2. Click the **Run** button in the node overlay or toolbar
+2. Click the **Run** button in the widget or toolbar
 3. Wait for the loading state to complete
 4. The Rich Media Panel (`p-text-script`) displays the generated markdown output
 
 ### 3.3 Data Flow
 
 ```
-Canvas Run -> useFlowEditorWorkflowActions.ts
+Canvas Run -> useStoryboardWidgetWorkflowActions.ts
   -> normalizeChatProviderId(store.chatProvider) = 'deerflow'
   -> runEndpointUrl = store.chatEndpointUrl || getChatDefaultEndpointUrlForProvider('deerflow')
   -> buildChatProxyHeaders({ provider: 'deerflow', apiKey: null })  // serverManaged
@@ -501,7 +501,7 @@ When you click **Run** on the Image Widget (`w-img-scene`):
 ### 4.3 Data Flow
 
 ```
-Canvas Run -> useFlowEditorWorkflowActions.ts
+Canvas Run -> useStoryboardWidgetWorkflowActions.ts
   -> resolveRichMediaWidgetKind(node) = 'image'
   -> runRichMediaWidgetGeneration(node, connectedValues, markdownText, config)
   -> buildRichMediaWidgetRunRequest(node, connectedValues, markdownText)
@@ -540,7 +540,7 @@ When you click **Run** on the Video Widget (`w-video-scene`):
 ### 5.3 Data Flow
 
 ```
-Canvas Run -> useFlowEditorWorkflowActions.ts
+Canvas Run -> useStoryboardWidgetWorkflowActions.ts
   -> resolveRichMediaWidgetKind(node) = 'video'
   -> runRichMediaWidgetGeneration(node, connectedValues, markdownText, config)
   -> buildRichMediaWidgetRunRequest(node, connectedValues, markdownText)
@@ -568,7 +568,7 @@ The DAG topology ensures correct execution order: text feeds image, image feeds 
 
 ### 6.2 Multi-Locale Parallel Execution (Optional DeerFlow Gateway)
 
-When an operator opts into DeerFlow gateway support for rich-media generation, parallel locale lanes remain Knowgrph-authored Flow Editor branches and DeerFlow stays provider-side. Native long-horizon coordination belongs to the Knowgrph SuperAgent harness; this setup guide does not make DeerFlow a parser, renderer, memory, or graph-apply owner.
+When an operator opts into DeerFlow gateway support for rich-media generation, parallel locale lanes remain Knowgrph-authored Storyboard Widget branches and DeerFlow stays provider-side. Native long-horizon coordination belongs to the Knowgrph SuperAgent harness; this setup guide does not make DeerFlow a parser, renderer, memory, or graph-apply owner.
 
 ```mermaid
 flowchart TD

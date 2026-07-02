@@ -62,12 +62,12 @@ export function isFrontmatterDocumentModeRequested(args: {
   return semantic === 'document'
 }
 
-export function isFlowEditorFrontmatterDocumentModeRequested(args: {
+export function isStoryboardWidgetFrontmatterDocumentModeRequested(args: {
   canvas2dRenderer: string
   frontmatterModeEnabled: boolean
   documentSemanticMode: string
 }): boolean {
-  if (String(args.canvas2dRenderer || '').trim() !== 'flowEditor') return false
+  if (String(args.canvas2dRenderer || '').trim() !== 'storyboard') return false
   return isFrontmatterDocumentModeRequested({
     frontmatterModeEnabled: args.frontmatterModeEnabled,
     documentSemanticMode: args.documentSemanticMode,

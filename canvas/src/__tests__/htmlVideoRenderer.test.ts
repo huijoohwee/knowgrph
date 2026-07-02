@@ -19,8 +19,8 @@ import {
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_HTML_VIDEO_RENDERER_WIDGET_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
+} from '@/lib/config.storyboard-widget'
+import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { isRichMediaVideoOutputTargetNode, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 
 const validSpec = (): RenderSpec => ({
@@ -221,9 +221,9 @@ export function testHtmlVideoRendererSourceContractsAvoidParallelStorageAndAdapt
   if (!richMediaRunText.includes('manifestMetadata')) {
     throw new Error('expected shared rich media writer to accept manifest metadata')
   }
-  const workflowText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts'), 'utf8')
+  const workflowText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
   if (!workflowText.includes('createHtmlVideoEngineRegistryFromRuntimeConfig()')) {
-    throw new Error('expected Flow Editor runner to read runtime-injected HTML video engines')
+    throw new Error('expected Storyboard Widget runner to read runtime-injected HTML video engines')
   }
 }
 
@@ -342,10 +342,10 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
   if (!mainText.includes('installHtmlVideoBrowserRuntimeAdapters()')) {
     throw new Error('expected browser runtime to install HTML video runtime adapters at app startup')
   }
-  const workflowText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts'), 'utf8')
+  const workflowText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
   for (const required of [
     'publishVideoRunOutputToRichMediaPanel',
-    'resolveFlowEditorWorkflowDownstreamRunTargetIds',
+    'resolveStoryboardWidgetWorkflowDownstreamRunTargetIds',
     "richMediaActiveTab: 'video'",
     "readConnectedHtmlVideoProperty('properties.html', 'html')",
     'createHtmlVideoEngineRegistryFromRuntimeConfig()',
@@ -356,7 +356,7 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
     'stabilizeHtmlVideoPreviewPatchForExistingProps',
     'HTML_VIDEO_PREVIEW_STABILITY_KEYS',
     'lastRunAt: currentProps.lastRunAt',
-    '!areFlowEditorWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)',
+    '!areStoryboardWidgetWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)',
   ]) {
     if (!workflowText.includes(required)) throw new Error(`expected workflow runner to include ${required}`)
   }
@@ -367,7 +367,7 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
   if (htmlVideoRunBranch.includes('setRunLoadingStateForKnownNodeIds({ loading: true')) {
     throw new Error('expected HTML video preview-capable runs to avoid blanking Rich Media Panel with a loading skeleton')
   }
-  const runAllSequenceText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'runAllSequenceSsot.ts'), 'utf8')
+  const runAllSequenceText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'runAllSequenceSsot.ts'), 'utf8')
   for (const required of [
     'FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID',
     "typeId === normalizeText(FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID)) return 'video'",

@@ -30,7 +30,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | `huijoohwee.github.io/template/pitchdeck-prd-tad-template-lite.md` | Minimal reusable template | Keep it frontmatter-first, generic, and parser-safe. |
 | `huijoohwee.github.io/template/pitchdeck-prd-tad-template.md` | Full reusable template | Keep it frontmatter-first, generic, and parser-safe. |
 | Operator-provided validation Markdown | Validation fixture | Pass it explicitly through the local test or CLI contract; do not hardcode sibling sandbox demo paths in repo-owned sources. |
-| `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Widget registry SSOT | Reuse canonical widget fields, ports, and `flow:widgetFormId` values. |
+| `canvas/src/features/storyboard-widget-manager/registryTemplates.ts` | Widget registry SSOT | Reuse canonical widget fields, ports, and `flow:widgetFormId` values. |
 | `canvas/src/features/integrations/*Ssot*.ts` | Integration field SSOT | Reuse canonical integration field keys and row semantics. |
 | `canvas/src/lib/render/richMediaSsot.ts` | Panel behavior SSOT | Reuse canonical Rich Media Panel writeback and tab behavior. |
 | `canvas/src/__tests__/markdownFrontmatterFlowGraphImport.test.ts` | Parser fidelity SSOT | Keep canonical plain-YAML authoring and normalized typed-wrapper fixtures aligned to parser expectations. |
@@ -58,7 +58,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | --- | --- |
 | FloatingPanel Props Panel | Read and write the same canonical `properties.*` keys serialized in template `flow.nodes`. |
 | MainPanel Integrations | Reuse the same field names and row semantics as the widget registry SSOT. |
-| NodeOverlayEditor KTV rows | Render declared canonical fields without local alias keys; normalized typed-wrapper fixtures must map to the same fields. |
+| WidgetEditor KTV rows | Render declared canonical fields without local alias keys; normalized typed-wrapper fixtures must map to the same fields. |
 | Frontmatter parser | Parse the same canonical `flow:widgetFormId` and handles from plain-YAML templates, while also accepting normalized typed-wrapper fixtures in validation paths. |
 | Rich Media renderer | Apply connected values before display filtering or media dedupe. |
 

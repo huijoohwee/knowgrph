@@ -5,7 +5,7 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { toJsonLd } from '@/lib/graph/jsonld/serialize'
 import { parseJsonLd } from '@/lib/graph/jsonld/parse'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
-import { buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
+import { buildFlowRunAllNodeSequence } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,

@@ -1,4 +1,4 @@
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/storyboard-widget-manager/registryTemplates'
 import { buildBytePlusTextGenerationFields } from '@/features/integrations/byteplusChatApiSsot'
 import { buildBytePlusVideoGenerationFields } from '@/features/integrations/byteplusVideoGenerationSsot'
 import {
@@ -7,7 +7,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 
 export const testWidgetRegistryPortsCoverConnectedSchemaPaths = () => {
   const text = buildCanonicalWidgetRegistryDraft({ nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID })

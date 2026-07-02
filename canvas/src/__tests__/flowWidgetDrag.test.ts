@@ -11,7 +11,7 @@ import {
   markFlowWidgetPointerDragNativeStart,
   readActiveFlowWidgetPointerDragSession,
   readFlowWidgetDragPayloadFromDataTransfer,
-} from '@/lib/flowEditor/widgetDrag'
+} from '@/lib/storyboardWidget/widgetDrag'
 
 export function testFlowWidgetDragPayloadRoundTrip() {
   const payload = buildFlowWidgetDragPayload({ registryEntryId: 'qer-123' })

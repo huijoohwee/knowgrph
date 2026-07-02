@@ -14,7 +14,7 @@ import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelM
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { NODE_MEDIA_KINDS, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import {

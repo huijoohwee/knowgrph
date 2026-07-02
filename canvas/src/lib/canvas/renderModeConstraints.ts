@@ -1,6 +1,6 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config.render'
-import { isD3Like2dRenderer, isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isD3Like2dRenderer, isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 
 export const coerceCanvas2dRendererForSchema = (args: {
@@ -14,6 +14,6 @@ export const coerceCanvas2dRendererForSchema = (args: {
       ? 'flowchart'
       : args.requested
   if (layoutMode !== 'radial') return voxelRenderer
-  if (isFlowEditorCanvas2dRenderer(voxelRenderer)) return voxelRenderer
+  if (isStoryboardCanvas2dRenderer(voxelRenderer)) return voxelRenderer
   return isD3Like2dRenderer(voxelRenderer) ? voxelRenderer : 'd3'
 }

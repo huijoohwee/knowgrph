@@ -2,19 +2,19 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { hasRegisteredFlowWidgetCompute } from '@/lib/flowEditor/widgetComputeRegistry'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { hasRegisteredFlowWidgetCompute } from '@/lib/storyboardWidget/widgetComputeRegistry'
 import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import {
   parseMermaidDiagramCodeModel,
   readYamlFrontmatterMermaidDiagramCodes,
   type MermaidStructuredDiagramKind,
 } from '@/lib/mermaid/mermaidDiagramCode'
-import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { isCanvas2dRendererId } from '@/lib/config.render'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 const FLOW_DIAGRAM_SAMPLE_PATHS_ENV = 'FLOW_DIAGRAM_SAMPLE_PATHS'

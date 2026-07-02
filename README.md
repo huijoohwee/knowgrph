@@ -49,7 +49,7 @@ A Knowgrph document's frontmatter flow is the program. Minimal shape:
 ```yaml
 ---
 schema: "kgc-computing-flow/v1"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 socket_types:
   idea_signal:     {color: "#14b8a6", accepts: [idea_signal]}
   artifact_signal: {color: "#8b5cf6", accepts: [artifact_signal]}
@@ -152,14 +152,14 @@ or deploy is requested.
 | Graph Canvas | Visual exploration + execution of the widget flow: nodes, edges, rich-media panels, layouts. |
 | Floating Panel Chat | Agent-native assistant with workspace, selection, and source-aware context. |
 | MainPanel Integrations | Provider, endpoint, model, auth-mode, storage, and runtime configuration. |
-| Flow Editor | Structured widget/graph/media/workflow editing over source-backed Markdown documents. |
+| Storyboard Widget | Structured widget/graph/media/workflow editing over source-backed Markdown documents. |
 | Cloudflare Runtime | Pages, Workers (`McpAgent`), D1, R2, AI Gateway, and server-managed provider secrets. |
 
 ## Repo Layout
 
 | Path | Purpose |
 | --- | --- |
-| `canvas/` | Vite/React app, editor workspace, Source Files, graph canvas, Flow Editor, MainPanel, chat UI, and focused tests. |
+| `canvas/` | Vite/React app, editor workspace, Source Files, graph canvas, Storyboard Widget, MainPanel, chat UI, and focused tests. |
 | `knowgrph_parser/` | Python parser and command-line tooling for markdown, GraphRAG, webpage, video, and workflow artifacts. |
 | `grph-shared/` | Runtime-neutral TypeScript contracts for storage, rich media, markdown, payments, browser helpers, cache, and geometry. |
 | `gympgrph/` | Geospatial package consumed by the canvas app. |

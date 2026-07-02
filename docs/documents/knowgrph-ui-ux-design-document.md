@@ -112,8 +112,8 @@
 | Markdown “Show on/in …” | Right click in Editor/Viewer/Presentation | Open Selection Toolbar at exact pointer position | Must not “fly out”; must not use Monaco default context menu |
 | Markdown apply + toggle | Cmd/Ctrl+Enter in Markdown section | Apply (when in Editor) and toggle Editor↔Viewer | Must be scoped to the markdown workspace root (no global hijack) |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
-| 2D zoom parity | Wheel / trackpad pinch | D3 / Flow / Flow Editor must share one SSOT wheel normalization + sensitivity | Forbid per-renderer ad-hoc wheel scaling or passive wheel handlers that allow page scroll |
-| Flow drag safety | Pointer drag on Flow/Flow Editor | Disable text selection and browser dragstart during canvas interactions | Forbid selection/copy cursors or panel text selection while pointer is captured |
+| 2D zoom parity | Wheel / trackpad pinch | D3 / Flow / Storyboard Widget must share one SSOT wheel normalization + sensitivity | Forbid per-renderer ad-hoc wheel scaling or passive wheel handlers that allow page scroll |
+| Flow drag safety | Pointer drag on Flow/Storyboard Widget | Disable text selection and browser dragstart during canvas interactions | Forbid selection/copy cursors or panel text selection while pointer is captured |
 | Viewport metrics | Toolbar → Status | Open Status Panel that surfaces zoom/pan/selection/renderer metrics | Forbid floating HUD/status duplication; keep one SSOT surface |
 | Toast notification | Store adds toast | Surface transient status/errors | Must not overlap; newest stays at default Y and pushes older downward |
 

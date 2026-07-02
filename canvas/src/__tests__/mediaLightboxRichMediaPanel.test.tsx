@@ -65,8 +65,8 @@ async function assertMediaLightboxUsesRichMediaPanel(args: {
     if (richMediaPanel.getAttribute('data-kg-kind') !== args.kind) {
       throw new Error(`expected lightbox RichMediaPanel kind=${args.kind}, got ${String(richMediaPanel.getAttribute('data-kg-kind') || '')}`)
     }
-    const flowEditorHeader = mediaPanel.querySelector('[data-kg-rich-media-flow-editor-header="1"]')
-    if (!(flowEditorHeader instanceof dom.window.HTMLElement)) {
+    const storyboardWidgetHeader = mediaPanel.querySelector('[data-kg-rich-media-storyboard-widget-header="1"]')
+    if (!(storyboardWidgetHeader instanceof dom.window.HTMLElement)) {
       throw new Error(`expected ${args.kind} lightbox RichMediaPanel to preserve shared panel chrome`)
     }
   } finally {

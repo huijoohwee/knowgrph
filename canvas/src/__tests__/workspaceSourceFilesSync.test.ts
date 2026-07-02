@@ -162,7 +162,7 @@ export async function testWorkspaceSourceFilesSyncForceIncludeReenablesExistingD
         path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
         parentPath: '/',
         name: 'knowgrph-video-demo.md',
-        text: '---\ntitle: Validation\nkgCanvas2dRenderer: "flowEditor"\n---\n',
+        text: '---\ntitle: Validation\nkgCanvas2dRenderer: "storyboard"\n---\n',
         updatedAtMs: 1,
       },
     ],

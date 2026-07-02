@@ -18,6 +18,12 @@ import {
   type CanvasBoardLayoutMode,
   toggleCanvasBoardLayoutMode,
 } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
+import {
+  CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
+  CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
+  readCanvasStoryboardDisplayMode,
+  type CanvasStoryboardDisplayMode,
+} from '@/lib/canvas/canvasStoryboardDisplayControls'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import {
   isFrontmatterOnlyCanvas2dRenderer,
@@ -59,10 +65,12 @@ type CanvasViewActionParams = {
   setAspectRatioMode?: (mode: CanvasAspectRatioMode) => void
   boardLayoutMode?: CanvasBoardLayoutMode
   setBoardLayoutMode?: (mode: CanvasBoardLayoutMode) => void
+  storyboardDisplayMode?: CanvasStoryboardDisplayMode
+  setStoryboardDisplayMode?: (mode: CanvasStoryboardDisplayMode) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
-  requestFlowEditorLayoutRebalance?: () => void
+  requestStoryboardWidgetLayoutRebalance?: () => void
 }
 
 export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
@@ -83,6 +91,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     minimapCollapsed = false,
     aspectRatioMode,
     boardLayoutMode,
+    storyboardDisplayMode,
     schema,
     setCanvas2dRenderer,
     setCanvasRenderMode,
@@ -95,10 +104,11 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setMinimapCollapsed,
     setAspectRatioMode,
     setBoardLayoutMode,
+    setStoryboardDisplayMode,
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
-    requestFlowEditorLayoutRebalance,
+    requestStoryboardWidgetLayoutRebalance,
   } = params
 
   if (!ensureBaselineUnlocked()) return
@@ -138,9 +148,9 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     })
     return
   }
-  if (id === 'layout:flowEditorRebalance') {
-    if (canvasRenderMode !== '2d' || canvas2dRenderer !== 'flowEditor') return
-    requestFlowEditorLayoutRebalance?.()
+  if (id === 'layout:storyboardWidgetRebalance') {
+    if (canvasRenderMode !== '2d' || canvas2dRenderer !== 'storyboard') return
+    requestStoryboardWidgetLayoutRebalance?.()
     return
   }
   if (id === 'document:menu') {
@@ -286,6 +296,15 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID) {
     setBoardLayoutMode?.(toggleCanvasBoardLayoutMode(boardLayoutMode))
+    return
+  }
+  if (id === CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID || id === CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID) {
+    if (geospatialEnabled) return
+    const nextMode = readCanvasStoryboardDisplayMode(id === CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID ? 'widget' : 'card')
+    if (canvasRenderMode !== '2d') setCanvasRenderMode('2d')
+    if (canvas2dRenderer !== 'storyboard') setCanvas2dRenderer('storyboard')
+    if (readCanvasStoryboardDisplayMode(storyboardDisplayMode) !== nextMode) setStoryboardDisplayMode?.(nextMode)
+    if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     return
   }
   if (id === 'control:nodeShape') {

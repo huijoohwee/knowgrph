@@ -1,32 +1,33 @@
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
-import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
+import { fitStoryboardWidgetPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readStoryboardWidgetPortExtraPadScreenPx, resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import {
-  collectCanonicalFlowEditorOverlayRectEntries,
-  FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
-  FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+  collectCanonicalStoryboardWidgetOverlayRectEntries,
+  STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR,
+  STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR,
-  readFlowEditorOverlaySurfaceId,
-} from '@/lib/canvas/flow-editor-overlay-proxy'
+  readStoryboardWidgetOverlaySurfaceId,
+} from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 import { computeTransformScaleAboutViewportFrameCenter, normalizeViewportFrame } from '@/lib/zoom/viewport'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
-import { recenterFlowEditorOverlayWidgetPositions } from '@/components/FlowCanvas/flowEditorOverlayRecenter'
-import { resolveScopedFlowWidgetNodeMap } from '@/lib/flowEditor/widgetStateScope'
+import { recenterStoryboardWidgetOverlayWidgetPositions } from '@/components/FlowCanvas/storyboardWidgetOverlayRecenter'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
-import { isFlowEditorSharedCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
+import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const escapeCssAttrValue = (value: string): string => {
@@ -41,13 +42,13 @@ const escapeCssAttrValue = (value: string): string => {
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
-export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
+export function collectStoryboardWidgetOverlayBounds(activeSurfaceId: string) {
   if (typeof document === 'undefined') return null
   const normalizedSurfaceId = String(activeSurfaceId || '').trim()
   const hasSurfaceId = normalizedSurfaceId.length > 0
   const surfaceRoot = hasSurfaceId
     ? document.querySelector<HTMLElement>(
-      `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(normalizedSurfaceId)}"]`,
+      `[${STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(normalizedSurfaceId)}"]`,
     )
     : null
   const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
@@ -55,13 +56,13 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   const surfaceOffsetTop = Number.isFinite(surfaceRect?.top) ? Number(surfaceRect?.top) : 0
   const merged = new Map<string, { left: number; right: number; top: number; bottom: number; area: number }>()
   const pushEntries = (selector: string) => {
-    // Flow Editor overlays are portal-mounted fixed elements, so surfaceRoot is
+    // Storyboard Widget overlays are portal-mounted fixed elements, so surfaceRoot is
     // only the coordinate origin. Scope membership by surface id instead.
     const queryRoot: ParentNode = document
     const els = Array.from(queryRoot.querySelectorAll(selector))
       .filter((el): el is HTMLElement => el instanceof HTMLElement)
-      .filter(el => !hasSurfaceId || readFlowEditorOverlaySurfaceId(el) === normalizedSurfaceId)
-    const entries = collectCanonicalFlowEditorOverlayRectEntries(els)
+      .filter(el => !hasSurfaceId || readStoryboardWidgetOverlaySurfaceId(el) === normalizedSurfaceId)
+    const entries = collectCanonicalStoryboardWidgetOverlayRectEntries(els)
     for (let i = 0; i < entries.length; i += 1) {
       const entry = entries[i]!
       const area = Math.max(0, entry.rect.width) * Math.max(0, entry.rect.height)
@@ -76,7 +77,7 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
       })
     }
   }
-  pushEntries(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
+  pushEntries(STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR)
   pushEntries(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
   pushEntries(SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR)
   const entries = Array.from(merged.values()).filter(entry =>
@@ -114,17 +115,17 @@ export function collectFlowEditorOverlayBounds(activeSurfaceId: string) {
   }
 }
 
-export function resolveFlowEditorVisibleViewport(args: {
-  flowEditorSurfaceId?: string
+export function resolveStoryboardWidgetVisibleViewport(args: {
+  storyboardWidgetSurfaceId?: string
   viewportW: number
   viewportH: number
 }) {
   const fallback = normalizeViewportFrame({ viewportW: args.viewportW, viewportH: args.viewportH })
   if (typeof document === 'undefined') return fallback
-  const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+  const surfaceId = String(args.storyboardWidgetSurfaceId || '').trim()
   if (!surfaceId) return fallback
   const surfaceRoot = document.querySelector<HTMLElement>(
-    `[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(surfaceId)}"]`,
+    `[${STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR}="${escapeCssAttrValue(surfaceId)}"]`,
   )
   if (!(surfaceRoot instanceof HTMLElement)) return fallback
   const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
@@ -133,7 +134,7 @@ export function resolveFlowEditorVisibleViewport(args: {
   const left = 0
   const right = Math.max(left + 1, Math.min(args.viewportW, Math.floor(Number(surfaceRect?.width) || args.viewportW)))
   const bottom = Math.max(top + 1, Math.min(args.viewportH, Math.floor(Number(surfaceRect?.height) || args.viewportH)))
-  // Editor Workspace is an overlay, not a Flow Editor layout constraint.
+  // Editor Workspace is an overlay, not a Storyboard Widget layout constraint.
   return {
     left,
     top,
@@ -146,22 +147,22 @@ export function resolveFlowEditorVisibleViewport(args: {
   }
 }
 
-export function recenterVisibleFlowEditorOverlayCentroid(args: {
+export function recenterVisibleStoryboardWidgetOverlayCentroid(args: {
   runtime: FlowNativeRuntime
   viewportW: number
   viewportH: number
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   graphData?: GraphData | null
   onFrame?: () => void
   onCommit?: () => void
 }) {
   if (typeof document === 'undefined') return
-  const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  const activeSurfaceId = String(args.storyboardWidgetSurfaceId || '').trim()
   const run = () => {
-    const bounds = collectFlowEditorOverlayBounds(activeSurfaceId)
+    const bounds = collectStoryboardWidgetOverlayBounds(activeSurfaceId)
     if (!bounds) return
-    const visibleViewport = resolveFlowEditorVisibleViewport({
-      flowEditorSurfaceId: activeSurfaceId,
+    const visibleViewport = resolveStoryboardWidgetVisibleViewport({
+      storyboardWidgetSurfaceId: activeSurfaceId,
       viewportW: args.viewportW,
       viewportH: args.viewportH,
     })
@@ -201,7 +202,7 @@ export function recenterVisibleFlowEditorOverlayCentroid(args: {
     if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
     const current = args.runtime.transform || d3.zoomIdentity
     setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
-    recenterFlowEditorOverlayWidgetPositions({
+    recenterStoryboardWidgetOverlayWidgetPositions({
       activeSurfaceId,
       deltaX,
       deltaY,
@@ -232,7 +233,7 @@ export const applyZoomRequestNative = (args: {
   zoomRequest: ZoomRequest
   runtime: FlowNativeRuntime
   graphData: GraphData | null
-  flowEditorSurfaceId?: string
+  storyboardWidgetSurfaceId?: string
   width: number
   height: number
   selectedNodeId: string | null
@@ -271,42 +272,42 @@ export const applyZoomRequestNative = (args: {
     referenceWidth: state.viewportFitReferenceWidth,
     referenceHeight: state.viewportFitReferenceHeight,
   })
-  const visibleViewport = resolveFlowEditorVisibleViewport({
-    flowEditorSurfaceId: args.flowEditorSurfaceId,
+  const visibleViewport = resolveStoryboardWidgetVisibleViewport({
+    storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
     viewportW,
     viewportH,
   })
-  const isFlowEditorFitLikeRequest =
+  const isStoryboardWidgetFitLikeRequest =
     state.canvasRenderMode === '2d'
-    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && (
       args.zoomRequest.type === 'reset'
       || args.zoomRequest.type === 'fit'
     )
-  const isFlowEditorCollectiveOutRequest =
+  const isStoryboardWidgetCollectiveOutRequest =
     state.canvasRenderMode === '2d'
-    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && args.zoomRequest.type === 'out'
-  const isFlowEditorContextualZoomRequest =
+  const isStoryboardWidgetContextualZoomRequest =
     state.canvasRenderMode === '2d'
-    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && (
       args.zoomRequest.type === 'in'
       || args.zoomRequest.type === 'out'
     )
-  const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isFlowEditorFitLikeRequest
-  const hasFlowEditorGraphFitData =
+  const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isStoryboardWidgetFitLikeRequest
+  const hasStoryboardWidgetGraphFitData =
     state.canvasRenderMode === '2d'
-    && isFlowEditorSharedCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0
-  const isFlowEditorGraphFitRequest =
-    isFlowEditorFitLikeRequest
-    && hasFlowEditorGraphFitData
-  const isFlowEditorCollectiveGraphFitReferenceRequest =
-    (isFlowEditorFitLikeRequest || isFlowEditorCollectiveOutRequest)
-    && hasFlowEditorGraphFitData
+  const isStoryboardWidgetGraphFitRequest =
+    isStoryboardWidgetFitLikeRequest
+    && hasStoryboardWidgetGraphFitData
+  const isStoryboardWidgetCollectiveGraphFitReferenceRequest =
+    (isStoryboardWidgetFitLikeRequest || isStoryboardWidgetCollectiveOutRequest)
+    && hasStoryboardWidgetGraphFitData
   const fitGraphMeta = ((args.graphData?.metadata || {}) as Record<string, unknown>)
   const fitGraphContext = String(args.graphData?.context || '').trim()
   const fitHasCollectiveOverlayFit =
@@ -314,21 +315,21 @@ export const applyZoomRequestNative = (args: {
     || resolveCanvas2dRendererId(state.canvas2dRenderer) === 'storyboard'
     || String(fitGraphMeta.kind || '').trim() === 'frontmatter-flow'
     || fitGraphContext === 'frontmatter-flow'
-  const shouldRecenterFlowEditorCollectiveAfterFit =
-    isFlowEditorFitLikeRequest
+  const shouldRecenterStoryboardWidgetCollectiveAfterFit =
+    isStoryboardWidgetFitLikeRequest
     && (
       !workspaceEditorOverlayOpen
       || fitHasCollectiveOverlayFit
     )
-  const canUseFlowEditorOverlayFitResolved =
-    (isFlowEditorFitLikeRequest || isFlowEditorCollectiveOutRequest)
+  const canUseStoryboardWidgetOverlayFitResolved =
+    (isStoryboardWidgetFitLikeRequest || isStoryboardWidgetCollectiveOutRequest)
     && (
       !workspaceEditorOverlayOpen
       || fitHasCollectiveOverlayFit
     )
-  const flowEditorOverlayFitResolved = canUseFlowEditorOverlayFitResolved
+  const storyboardWidgetOverlayFitResolved = canUseStoryboardWidgetOverlayFitResolved
     ? (() => {
-        const bounds = collectFlowEditorOverlayBounds(String(args.flowEditorSurfaceId || ''))
+        const bounds = collectStoryboardWidgetOverlayBounds(String(args.storyboardWidgetSurfaceId || ''))
         if (!bounds) return null
         const pad = 48
         const fitW = Math.max(1, visibleViewport.width - pad * 2)
@@ -360,7 +361,7 @@ export const applyZoomRequestNative = (args: {
         }
       })()
     : null
-  const flowEditorCollectiveGraphFitReference = isFlowEditorCollectiveGraphFitReferenceRequest
+  const storyboardWidgetCollectiveGraphFitReference = isStoryboardWidgetCollectiveGraphFitReferenceRequest
     ? (() => {
         const intent =
           args.zoomRequest.type === 'fit' && args.zoomRequest.intent === 'fitToScreen'
@@ -388,7 +389,7 @@ export const applyZoomRequestNative = (args: {
             )
           : (() => {
               const graphKey = buildGraphMetaKeyIgnoringPending(args.graphData || null)
-              return fitFlowEditorPinnedWidgets({
+              return fitStoryboardWidgetPinnedWidgets({
                 nodes: args.graphData?.nodes || [],
                 fitW: fitReferenceFrame.width,
                 viewportW: fitReferenceFrame.width,
@@ -404,8 +405,9 @@ export const applyZoomRequestNative = (args: {
                   keyedByGraphMetaKey: (state as unknown as { flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>> }).flowWidgetWorldPosByNodeIdByGraphMetaKey,
                   globalByNodeId: (state as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
                 }),
-                portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
+                portExtraPadScreenPx: readStoryboardWidgetPortExtraPadScreenPx(schema),
                 graphData: args.graphData,
+                readOverlayPanelSize: node => readStoryboardCardSize2d(node, state.strybldrStoryboardCardAspectMode),
                 frontmatterOverlayFitProxyScales: {
                   phone: state.frontmatterFlowOverlayFitProxyScalePhone,
                   tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
@@ -451,17 +453,17 @@ export const applyZoomRequestNative = (args: {
     currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
     cacheKeyBase: '2d',
   })
-  const flowEditorCollectiveFitReference =
-    flowEditorOverlayFitResolved
-    || (fitHasCollectiveOverlayFit ? flowEditorCollectiveGraphFitReference : null)
-  const flowEditorCollectiveOutResolved =
-    isFlowEditorCollectiveOutRequest
-    && flowEditorCollectiveFitReference
+  const storyboardWidgetCollectiveFitReference =
+    storyboardWidgetOverlayFitResolved
+    || (fitHasCollectiveOverlayFit ? storyboardWidgetCollectiveGraphFitReference : null)
+  const storyboardWidgetCollectiveOutResolved =
+    isStoryboardWidgetCollectiveOutRequest
+    && storyboardWidgetCollectiveFitReference
     && defaultResolved
     ? (() => {
         const collectiveAutoMinScale = Math.min(
           Number.isFinite(t0.k) ? t0.k : flowMinK,
-          flowEditorCollectiveFitReference.nextTransform.k,
+          storyboardWidgetCollectiveFitReference.nextTransform.k,
         )
         const wantsCollectiveFloor =
           typeof defaultResolved.nextMinScale === 'number'
@@ -469,7 +471,7 @@ export const applyZoomRequestNative = (args: {
           && defaultResolved.nextTransform.k <= defaultResolved.nextMinScale + 1e-9
         if (wantsCollectiveFloor) {
           return {
-            nextTransform: flowEditorCollectiveFitReference.nextTransform,
+            nextTransform: storyboardWidgetCollectiveFitReference.nextTransform,
             durationMs: defaultResolved.durationMs,
             nextMinScale: collectiveAutoMinScale,
           }
@@ -480,21 +482,21 @@ export const applyZoomRequestNative = (args: {
         }
       })()
     : null
-  const flowEditorOutUsesCollectiveFloor =
-    isFlowEditorCollectiveOutRequest
-    && !!flowEditorCollectiveOutResolved
+  const storyboardWidgetOutUsesCollectiveFloor =
+    isStoryboardWidgetCollectiveOutRequest
+    && !!storyboardWidgetCollectiveOutResolved
     && !!defaultResolved
     && typeof defaultResolved.nextMinScale === 'number'
     && Number.isFinite(defaultResolved.nextMinScale)
     && defaultResolved.nextTransform.k <= defaultResolved.nextMinScale + 1e-9
-  const flowEditorContextualZoomBase =
-    isFlowEditorContextualZoomRequest && !flowEditorOutUsesCollectiveFloor
-      ? (flowEditorCollectiveOutResolved || defaultResolved)
+  const storyboardWidgetContextualZoomBase =
+    isStoryboardWidgetContextualZoomRequest && !storyboardWidgetOutUsesCollectiveFloor
+      ? (storyboardWidgetCollectiveOutResolved || defaultResolved)
       : null
-  const flowEditorContextualZoomResolved =
-    flowEditorContextualZoomBase
+  const storyboardWidgetContextualZoomResolved =
+    storyboardWidgetContextualZoomBase
       ? (() => {
-          const nextK = flowEditorContextualZoomBase.nextTransform.k
+          const nextK = storyboardWidgetContextualZoomBase.nextTransform.k
           if (!Number.isFinite(nextK) || nextK <= 0) return null
           const scaled = computeTransformScaleAboutViewportFrameCenter({
             transform: t0,
@@ -502,22 +504,22 @@ export const applyZoomRequestNative = (args: {
             nextK,
           })
           return {
-            ...flowEditorContextualZoomBase,
+            ...storyboardWidgetContextualZoomBase,
             nextTransform: d3.zoomIdentity.translate(scaled.x, scaled.y).scale(scaled.k),
           }
         })()
       : null
-  const shouldRecenterFlowEditorCollectiveAfterZoom =
-    isFlowEditorContextualZoomRequest
+  const shouldRecenterStoryboardWidgetCollectiveAfterZoom =
+    isStoryboardWidgetContextualZoomRequest
     && fitHasCollectiveOverlayFit
-  const resolved = isFlowEditorFitLikeRequest && flowEditorOverlayFitResolved
-    ? flowEditorOverlayFitResolved
-    : isFlowEditorGraphFitRequest
-    ? flowEditorCollectiveGraphFitReference
-    : flowEditorContextualZoomResolved
-    ? flowEditorContextualZoomResolved
-    : flowEditorCollectiveOutResolved
-    ? flowEditorCollectiveOutResolved
+  const resolved = isStoryboardWidgetFitLikeRequest && storyboardWidgetOverlayFitResolved
+    ? storyboardWidgetOverlayFitResolved
+    : isStoryboardWidgetGraphFitRequest
+    ? storyboardWidgetCollectiveGraphFitReference
+    : storyboardWidgetContextualZoomResolved
+    ? storyboardWidgetContextualZoomResolved
+    : storyboardWidgetCollectiveOutResolved
+    ? storyboardWidgetCollectiveOutResolved
     : defaultResolved
   if (!resolved) {
     clear()
@@ -529,25 +531,25 @@ export const applyZoomRequestNative = (args: {
     const combined = prev == null ? nextMinScale : Math.min(prev, nextMinScale)
     setFlowAutoMinScale(args.runtime, combined)
   }
-  const recenterFlowEditorCollectiveAfterTransform = () => {
-    if (shouldRecenterFlowEditorCollectiveAfterFit) {
-      recenterVisibleFlowEditorOverlayCentroid({
+  const recenterStoryboardWidgetCollectiveAfterTransform = () => {
+    if (shouldRecenterStoryboardWidgetCollectiveAfterFit) {
+      recenterVisibleStoryboardWidgetOverlayCentroid({
         runtime: args.runtime,
         viewportW,
         viewportH,
-        flowEditorSurfaceId: args.flowEditorSurfaceId,
+        storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
         graphData: args.graphData,
         onFrame: args.onFrame,
         onCommit: args.onCommit,
       })
       return
     }
-    if (shouldRecenterFlowEditorCollectiveAfterZoom) {
-      recenterVisibleFlowEditorOverlayCentroid({
+    if (shouldRecenterStoryboardWidgetCollectiveAfterZoom) {
+      recenterVisibleStoryboardWidgetOverlayCentroid({
         runtime: args.runtime,
         viewportW,
         viewportH,
-        flowEditorSurfaceId: args.flowEditorSurfaceId,
+        storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
         graphData: args.graphData,
         onFrame: args.onFrame,
         onCommit: args.onCommit,
@@ -563,7 +565,7 @@ export const applyZoomRequestNative = (args: {
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
     args.onCommit?.()
-    recenterFlowEditorCollectiveAfterTransform()
+    recenterStoryboardWidgetCollectiveAfterTransform()
     return
   }
   cancelFlowZoomRequestAnim(args.runtime)
@@ -585,7 +587,7 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
-      recenterFlowEditorCollectiveAfterTransform()
+      recenterStoryboardWidgetCollectiveAfterTransform()
       args.onCommit?.()
       return
     }

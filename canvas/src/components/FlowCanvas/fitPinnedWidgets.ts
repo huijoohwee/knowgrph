@@ -8,7 +8,7 @@ import {
 } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
-import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/flowEditor/frontmatterOverlayNodeIds'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -20,7 +20,10 @@ import {
 
 export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 
-export function fitFlowEditorPinnedWidgets(args: {
+type OverlayPanelSize = { width: number; height: number }
+type ReadOverlayPanelSize = (node: GraphNode) => OverlayPanelSize | null | undefined
+
+export function fitStoryboardWidgetPinnedWidgets(args: {
   nodes: GraphNode[]
   fitW: number
   viewportH: number
@@ -32,6 +35,7 @@ export function fitFlowEditorPinnedWidgets(args: {
   graphData?: GraphData | null
   fitOpts: FitAllTransformOptions
   frontmatterOverlayFitProxyScales?: Partial<FrontmatterOverlayFitProxyScales> | null
+  readOverlayPanelSize?: ReadOverlayPanelSize | null
 }): d3.ZoomTransform {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   if (nodes.length === 0) return d3.zoomIdentity
@@ -95,25 +99,45 @@ export function fitFlowEditorPinnedWidgets(args: {
     ? (args.fitOpts.maxScale as number)
     : Math.max(minScale * 2, 6)
   const worldById = args.worldPosById || {}
+  const readPanelSize = (id: string): OverlayPanelSize => {
+    const node = nodeById.get(id)
+    const resolved = node && typeof args.readOverlayPanelSize === 'function'
+      ? args.readOverlayPanelSize(node)
+      : null
+    const width = typeof resolved?.width === 'number' && Number.isFinite(resolved.width) && resolved.width > 0
+      ? resolved.width
+      : WIDGET_BASE_SIZE.width
+    const height = typeof resolved?.height === 'number' && Number.isFinite(resolved.height) && resolved.height > 0
+      ? resolved.height
+      : WIDGET_BASE_SIZE.height
+    return { width, height }
+  }
   const buildOverlayFitNodes = (kGuess: number) => {
+    let maxPanelBaseWidth: number = WIDGET_BASE_SIZE.width
+    let maxPanelBaseHeight: number = WIDGET_BASE_SIZE.height
+    for (let i = 0; i < pinned.length; i += 1) {
+      const size = readPanelSize(pinned[i]!.id)
+      maxPanelBaseWidth = Math.max(maxPanelBaseWidth, size.width)
+      maxPanelBaseHeight = Math.max(maxPanelBaseHeight, size.height)
+    }
     const panelScale = computeCollectiveFollowPinnedScale({
       zoomK: kGuess,
       extent: { minK: minScale, maxK: maxScale },
       viewportW: args.viewportW,
       viewportH: args.viewportH,
       count: Math.max(1, pinned.length),
-      baseWidth: WIDGET_BASE_SIZE.width,
-      baseHeight: WIDGET_BASE_SIZE.height,
+      baseWidth: maxPanelBaseWidth,
+      baseHeight: maxPanelBaseHeight,
       viewportPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
     })
     const portExtraPadWorld = args.portExtraPadScreenPx / Math.max(1e-6, kGuess)
-    const panelW = (WIDGET_BASE_SIZE.width * panelScale) / Math.max(1e-6, kGuess)
-    const panelH = (WIDGET_BASE_SIZE.height * panelScale) / Math.max(1e-6, kGuess)
+    const maxPanelW = (maxPanelBaseWidth * panelScale) / Math.max(1e-6, kGuess)
+    const maxPanelH = (maxPanelBaseHeight * panelScale) / Math.max(1e-6, kGuess)
     const fitProxyScale = isFrontmatterOverlayFit
       ? readFrontmatterOverlayFitProxyScale(args.viewportW, args.frontmatterOverlayFitProxyScales)
       : 1
-    const panelWFit = panelW * fitProxyScale
-    const panelHFit = panelH * fitProxyScale
+    const maxPanelWFit = maxPanelW * fitProxyScale
+    const maxPanelHFit = maxPanelH * fitProxyScale
     const balancedViewportPreset = resolveFlowLayoutBalancedViewportPreset({
       graphData: args.graphData,
       fallbackPreset: isFrontmatterOverlayFit ? 'widgetFrontmatter' : 'widgetCanvas',
@@ -142,8 +166,8 @@ export function fitFlowEditorPinnedWidgets(args: {
       count: Math.max(1, pinned.length),
       viewportW: args.viewportW,
       viewportH: args.viewportH,
-      cellW: panelWFit + spacingPx,
-      cellH: panelHFit + spacingPx,
+      cellW: maxPanelWFit + spacingPx,
+      cellH: maxPanelHFit + spacingPx,
       gapPx: spacingPx,
       zoomK: kGuess,
       marginLeftPx: margins.left,
@@ -152,7 +176,7 @@ export function fitFlowEditorPinnedWidgets(args: {
       marginBottomPx: margins.bottom,
       snapPx: 1,
     })
-    if (!(panelW > 1e-9) || !(panelH > 1e-9) || !(panelWFit > 1e-9) || !(panelHFit > 1e-9)) {
+    if (!(maxPanelW > 1e-9) || !(maxPanelH > 1e-9) || !(maxPanelWFit > 1e-9) || !(maxPanelHFit > 1e-9)) {
       return {
         extras: [] as GraphNode[],
         fitNodes: nodes,
@@ -165,6 +189,11 @@ export function fitFlowEditorPinnedWidgets(args: {
       const entry = pinned[i]!
       const id = entry.id
       const balancedCell = balanced.cells[Math.min(i, balanced.cells.length - 1)] || null
+      const panelBaseSize = readPanelSize(id)
+      const panelW = (panelBaseSize.width * panelScale) / Math.max(1e-6, kGuess)
+      const panelH = (panelBaseSize.height * panelScale) / Math.max(1e-6, kGuess)
+      const panelWFit = panelW * fitProxyScale
+      const panelHFit = panelH * fitProxyScale
 
       const stored = worldById[id] as { x?: unknown; y?: unknown } | null
       const storedX = typeof stored?.x === 'number' && Number.isFinite(stored.x) ? (stored.x as number) : null

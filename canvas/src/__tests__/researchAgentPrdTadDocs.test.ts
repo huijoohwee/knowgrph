@@ -27,8 +27,8 @@ export function testResearchAgentPrdTadUsesImplementedDevSourceOwners(): void {
     'active_graph_mutated: false',
     'must not be presented as a live `airvio.co` capability',
     'whose node/edge counts match the parsed frontmatter instead of fixture literals',
-    'agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentFlowEditor',
-    'agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentFlowEditor',
+    'agentReady.localMainPanelChatCanvasPipeline.renderedMcpResearchAgentDemoSuperAgentStoryboardWidget',
+    'agentReady.localMainPanelChatCanvasPipeline.researchAgentDemoSuperAgentStoryboardWidget',
   ]
   for (const token of requiredDocTokens) {
     if (!docs.includes(token)) {

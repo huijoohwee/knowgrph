@@ -377,7 +377,7 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     readSource('components', 'RichMediaPanelIframeSurface.tsx'),
     readSource('components', 'useRichMediaPanelMediaState.ts'),
   ].join('\n')
-  const nodeOverlayEditorFormText = readSource('components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const widgetEditorFormText = readSource('components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
   const richMediaTimelineSyncText = readSource('lib', 'render', 'richMediaTimelineSync.ts')
   const ganttPlaybackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
   const ganttTransportPlaybackModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPlaybackModel.ts')
@@ -444,12 +444,12 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     !richMediaPanelText.includes("media.removeEventListener('durationchange', sync)") ||
     !richMediaPanelText.includes('media.currentTime = targetSeconds') ||
     !richMediaPanelText.includes('media.play(') ||
-    !nodeOverlayEditorFormText.includes('compactPreviewMediaElementRef') ||
-    !nodeOverlayEditorFormText.includes('compactPreviewMediaElementHandler') ||
-    !nodeOverlayEditorFormText.includes('syncCompactPreviewMediaToTimeline(media, detail)') ||
-    !nodeOverlayEditorFormText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
-    !nodeOverlayEditorFormText.includes('resolveRichMediaTimelineMediaTargetSeconds') ||
-    !nodeOverlayEditorFormText.includes('onMediaElement={compactPreviewIsPlayableMedia ? compactPreviewMediaElementHandler : undefined}') ||
+    !widgetEditorFormText.includes('compactPreviewMediaElementRef') ||
+    !widgetEditorFormText.includes('compactPreviewMediaElementHandler') ||
+    !widgetEditorFormText.includes('syncCompactPreviewMediaToTimeline(media, detail)') ||
+    !widgetEditorFormText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
+    !widgetEditorFormText.includes('resolveRichMediaTimelineMediaTargetSeconds') ||
+    !widgetEditorFormText.includes('onMediaElement={compactPreviewIsPlayableMedia ? compactPreviewMediaElementHandler : undefined}') ||
     !richMediaTimelineSyncText.includes('resolveRichMediaTimelineDurationUnits') ||
     !richMediaTimelineSyncText.includes('buildMermaidGanttTimelineModel(ganttCode).durationMinutes') ||
     !ganttPlaybackControlsText.includes('resolveGanttTimelinePlaybackStartPosition') ||

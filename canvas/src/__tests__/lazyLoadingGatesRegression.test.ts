@@ -290,17 +290,17 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
 
   const canvasViewportText = readFileSync(resolve(root, 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
-  if (canvasViewportText.includes("import FlowEditorCanvas from '@/components/FlowEditorCanvas'")) {
-    throw new Error('expected CanvasViewport to avoid eagerly importing FlowEditorCanvas on non-flow-editor surfaces')
+  if (canvasViewportText.includes("import StoryboardWidgetCanvas from '@/components/StoryboardWidgetCanvas'")) {
+    throw new Error('expected CanvasViewport to avoid eagerly importing StoryboardWidgetCanvas on non-storyboard-widget surfaces')
   }
-  if (!canvasViewportText.includes('const FlowEditorCanvasLazy = React.lazy')) {
-    throw new Error('expected CanvasViewport to lazy-load FlowEditorCanvas behind the flow-editor surface gate')
+  if (!canvasViewportText.includes('const StoryboardWidgetCanvasLazy = React.lazy')) {
+    throw new Error('expected CanvasViewport to lazy-load StoryboardWidgetCanvas behind the storyboard-widget surface gate')
   }
-  if (!canvasViewportText.includes('const FlowEditorWidgetDropBridgeLazy = React.lazy')) {
-    throw new Error('expected CanvasViewport to lazy-load the hidden geospatial Flow Editor widget-drop bridge separately from the full FlowEditorCanvas runtime')
+  if (!canvasViewportText.includes('const StoryboardWidgetDropBridgeLazy = React.lazy')) {
+    throw new Error('expected CanvasViewport to lazy-load the hidden geospatial Storyboard Widget-drop bridge separately from the full StoryboardWidgetCanvas runtime')
   }
-  if (!canvasViewportText.includes('<FlowEditorWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />')) {
-    throw new Error('expected CanvasViewport geospatial widget-drop path to mount the dedicated bridge component instead of the full FlowEditorCanvas runtime')
+  if (!canvasViewportText.includes('<StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />')) {
+    throw new Error('expected CanvasViewport geospatial widget-drop path to mount the dedicated bridge component instead of the full StoryboardWidgetCanvas runtime')
   }
   if (canvasViewportText.includes("import { PaywallOverlay } from '@/features/payments/PaywallOverlay'")) {
     throw new Error('expected CanvasViewport to avoid eagerly importing PaywallOverlay on every workspace boot')
@@ -380,15 +380,15 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to expose the shared resize-handle binder after the split')
   }
 
-  const flowEditorWidgetDropBridgeText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorWidgetDropBridge.tsx'), 'utf8')
-  if (!flowEditorWidgetDropBridgeText.includes('useFlowEditorWidgetDropBridge({')) {
-    throw new Error('expected FlowEditorWidgetDropBridge to reuse the shared widget-drop bridge hook instead of reimplementing drag wiring')
+  const storyboardWidgetDropBridgeText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidgetDropBridge.tsx'), 'utf8')
+  if (!storyboardWidgetDropBridgeText.includes('useStoryboardWidgetDropBridge({')) {
+    throw new Error('expected StoryboardWidgetDropBridge to reuse the shared widget-drop bridge hook instead of reimplementing drag wiring')
   }
-  if (!flowEditorWidgetDropBridgeText.includes('widgetDropBridgeOnly: true')) {
-    throw new Error('expected FlowEditorWidgetDropBridge to stay bridge-only and avoid the full Flow Editor runtime surface')
+  if (!storyboardWidgetDropBridgeText.includes('widgetDropBridgeOnly: true')) {
+    throw new Error('expected StoryboardWidgetDropBridge to stay bridge-only and avoid the full Storyboard Widget runtime surface')
   }
-  if (!flowEditorWidgetDropBridgeText.includes('buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry })')) {
-    throw new Error('expected FlowEditorWidgetDropBridge to reuse the shared dataflow widget registry composition')
+  if (!storyboardWidgetDropBridgeText.includes('buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry })')) {
+    throw new Error('expected StoryboardWidgetDropBridge to reuse the shared dataflow widget registry composition')
   }
 
   const sourceFilesBootstrapText = readFileSync(resolve(root, 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx'), 'utf8')
@@ -484,8 +484,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/canvasSlice'")) {
     throw new Error('expected GraphStoreBootstrapRuntime to avoid eagerly importing the full canvas slice for one-shot storage migrations')
   }
-  if (graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/flowEditorManagerSlice'")) {
-    throw new Error('expected GraphStoreBootstrapRuntime to avoid eagerly importing the full flow editor manager slice for default registry seeding')
+  if (graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/storyboardWidgetManagerSlice'")) {
+    throw new Error('expected GraphStoreBootstrapRuntime to avoid eagerly importing the full storyboard widget manager slice for default registry seeding')
   }
   if (graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/graphViewSlice'")) {
     throw new Error('expected GraphStoreBootstrapRuntime to avoid eagerly importing the full graph view slice for pinned semantics migration')
@@ -496,8 +496,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/canvasSliceStorageMigrations'")) {
     throw new Error('expected GraphStoreBootstrapRuntime to import canvas storage migrations through the narrow bootstrap helper module')
   }
-  if (!graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/flowEditorManagerRegistryPersistence'")) {
-    throw new Error('expected GraphStoreBootstrapRuntime to import flow editor registry seeding through the narrow registry persistence helper module')
+  if (!graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/storyboardWidgetManagerRegistryPersistence'")) {
+    throw new Error('expected GraphStoreBootstrapRuntime to import storyboard widget registry seeding through the narrow registry persistence helper module')
   }
   if (!graphStoreBootstrapRuntimeText.includes("from '@/hooks/store/graphViewPinnedSemanticsMigration'")) {
     throw new Error('expected GraphStoreBootstrapRuntime to import graph view pinned semantics migration through the narrow bootstrap helper module')
@@ -536,12 +536,12 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     throw new Error('expected canvasSliceStorageMigrations to own the one-shot canvas storage migration apply helper after the bootstrap import slimming pass')
   }
 
-  const flowEditorManagerRegistryPersistenceText = readFileSync(resolve(root, 'src', 'hooks', 'store', 'flowEditorManagerRegistryPersistence.ts'), 'utf8')
-  if (!flowEditorManagerRegistryPersistenceText.includes('export const planFlowEditorManagerDefaultRegistrySeed')) {
-    throw new Error('expected flowEditorManagerRegistryPersistence to own the default widget registry seed plan after the bootstrap import slimming pass')
+  const storyboardWidgetManagerRegistryPersistenceText = readFileSync(resolve(root, 'src', 'hooks', 'store', 'storyboardWidgetManagerRegistryPersistence.ts'), 'utf8')
+  if (!storyboardWidgetManagerRegistryPersistenceText.includes('export const planStoryboardWidgetManagerDefaultRegistrySeed')) {
+    throw new Error('expected storyboardWidgetManagerRegistryPersistence to own the default widget registry seed plan after the bootstrap import slimming pass')
   }
-  if (!flowEditorManagerRegistryPersistenceText.includes('export const applyFlowEditorManagerDefaultRegistrySeed')) {
-    throw new Error('expected flowEditorManagerRegistryPersistence to own the one-shot widget registry seed apply helper after the bootstrap import slimming pass')
+  if (!storyboardWidgetManagerRegistryPersistenceText.includes('export const applyStoryboardWidgetManagerDefaultRegistrySeed')) {
+    throw new Error('expected storyboardWidgetManagerRegistryPersistence to own the one-shot widget registry seed apply helper after the bootstrap import slimming pass')
   }
 
   const graphViewPinnedSemanticsMigrationText = readFileSync(resolve(root, 'src', 'hooks', 'store', 'graphViewPinnedSemanticsMigration.ts'), 'utf8')

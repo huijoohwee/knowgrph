@@ -34,8 +34,8 @@ export function useFitToViewAction() {
   const disabled = false
 
   const handleFitToView = React.useCallback(() => {
-    const flowEditor2dActive = canvas2dRenderer === 'flowEditor'
-    if (flowEditor2dActive) {
+    const storyboard2dActive = canvas2dRenderer === 'storyboard'
+    if (storyboard2dActive) {
       requestZoom('fit', { intent: 'fitToView' })
       return
     }

@@ -124,7 +124,7 @@ Canonical local tool inventory owner:
    - Recommended no-install Dev smoke path: register/select `canvas-2d`; it uses browser canvas capture plus native `MediaRecorder` to produce the browser-supported video container without a system FFmpeg binary or imported muxer
    - The native `headless-browser` adapter is inspired by Hyperframes without copying it: Playwright captures seeked HTML frames and an operator-provided FFmpeg binary encodes MP4
    - Runtime knobs: `KNOWGRPH_HTML_VIDEO_FFMPEG_BIN` (default `ffmpeg`), `KNOWGRPH_HTML_VIDEO_FFMPEG_VIDEO_CODEC` (default `mpeg4` to avoid forcing GPL codecs), and `KNOWGRPH_HTML_VIDEO_MAX_FRAMES` (safety bound)
-   - The browser Flow Editor path writes successful video results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
+   - The browser Storyboard Widget path writes successful video results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
 8. Visual annotation tools
    - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
    - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local

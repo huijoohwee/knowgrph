@@ -3,13 +3,13 @@
 **Document Version**: 1.2.0  
 **Date**: 2026-05-29  
 **Status**: Accepted and implemented baseline  
-**Scope**: MainPanel Integrations, Flow Editor text widgets, rich-media generation, DeerFlow URL import
+**Scope**: MainPanel Integrations, Storyboard Widget text widgets, rich-media generation, DeerFlow URL import
 
 ---
 
 ## Document Purpose
 
-**Context**: Knowgrph ships DeerFlow as a first-class optional local-gateway provider. The implementation is grounded in existing MainPanel settings rows, chat-provider normalization, Flow Editor registry templates, rich-media dispatch, and workspace URL import.
+**Context**: Knowgrph ships DeerFlow as a first-class optional local-gateway provider. The implementation is grounded in existing MainPanel settings rows, chat-provider normalization, Storyboard Widget registry templates, rich-media dispatch, and workspace URL import.
 
 **Intent**: Record the implemented contract so future DeerFlow work extends the canonical owners instead of adding duplicate panels, provider-specific renderer forks, hardcoded local paths, or parallel adapter stacks.
 
@@ -28,8 +28,8 @@
 | MainPanel DeerFlow rows | `canvas/src/features/panels/views/deerflowApiDocs.ts` | Shipped |
 | Settings search and row rendering | `canvas/src/features/panels/views/useSettingsView.ts` | Shipped |
 | Provider identity and default endpoint | `canvas/src/lib/chatEndpoint.ts` | Shipped |
-| Flow Editor DeerFlow text widget helpers | `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Shipped |
-| Flow Editor DeerFlow seeded registry entry | `canvas/src/hooks/store/flowEditorManagerRegistryPersistence.ts` | Shipped |
+| Storyboard Widget DeerFlow text widget helpers | `canvas/src/features/storyboard-widget-manager/registryTemplates.ts` | Shipped |
+| Storyboard Widget DeerFlow seeded registry entry | `canvas/src/hooks/store/storyboardWidgetManagerRegistryPersistence.ts` | Shipped |
 | Image/video runtime dispatch | `canvas/src/features/chat/richMediaRun.ts` | Shipped |
 | DeerFlow rich-media gateway adapter | `canvas/src/features/chat/deerflowRunGeneration.ts` | Shipped |
 | DeerFlow URL import | `canvas/src/features/markdown-workspace/workspaceImport/deerflowUrlImport.ts` | Shipped |
@@ -40,13 +40,13 @@
 
 Workflow builders need DeerFlow to be discoverable and usable without leaving Knowgrph, while the rest of the Canvas keeps the same provider-neutral contracts used by OpenAI, BytePlus, Gemini, PixVerse, and future providers.
 
-The shipped baseline solves this by exposing `deerflowApi.*` rows in MainPanel Integrations, normalizing `deerflow` through the shared chat endpoint helpers, seeding a DeerFlow text widget through Flow Editor registry templates, and routing rich-media generation through the existing `runRichMediaWidgetGeneration()` owner.
+The shipped baseline solves this by exposing `deerflowApi.*` rows in MainPanel Integrations, normalizing `deerflow` through the shared chat endpoint helpers, seeding a DeerFlow text widget through Storyboard Widget registry templates, and routing rich-media generation through the existing `runRichMediaWidgetGeneration()` owner.
 
 ## Personas
 
 | ID | Persona | Job To Be Done | Implemented Surface |
 |---|---|---|---|
-| P1 | Workflow Builder | Configure DeerFlow once and run text/image/video nodes through the Canvas workflow | MainPanel Integrations and Flow Editor |
+| P1 | Workflow Builder | Configure DeerFlow once and run text/image/video nodes through the Canvas workflow | MainPanel Integrations and Storyboard Widget |
 | P2 | Product Integrator | Add provider behavior through reusable rows, links, and dispatcher hooks | `deerflowApiDocs.ts`, `registryTemplates.ts`, `chatEndpoint.ts` |
 | P3 | QA Reviewer | Prove DeerFlow docs match source owners and focused tests | `deerflowPrdTadDocs.test.ts` plus existing DeerFlow runtime tests |
 
@@ -54,10 +54,10 @@ The shipped baseline solves this by exposing `deerflowApi.*` rows in MainPanel I
 
 | Stage | Action | Touchpoint | Implemented Behavior |
 |---|---|---|---|
-| Trigger | User needs DeerFlow-backed text or media generation | MainPanel or Flow Editor | DeerFlow appears as a provider option and searchable settings area |
+| Trigger | User needs DeerFlow-backed text or media generation | MainPanel or Storyboard Widget | DeerFlow appears as a provider option and searchable settings area |
 | Discover | User searches "deerflow" | MainPanel Integrations | Rows come from `DEERFLOW_API_REQUEST_DOC_ENTRIES` |
 | Engage | User verifies provider, endpoint, model, auth, and request fields | Settings rows | Defaults reuse OpenAI-compatible row semantics with `deerflowApi.*` keys |
-| Complete | User runs a DeerFlow-backed node | Flow Editor / rich media runtime | `normalizeChatProviderId()` routes image/video to DeerFlow gateway generation |
+| Complete | User runs a DeerFlow-backed node | Storyboard Widget / rich media runtime | `normalizeChatProviderId()` routes image/video to DeerFlow gateway generation |
 | Return | User imports a URL through DeerFlow | Launch command / URL import | `importWorkspaceUrlViaDeerFlow()` writes returned manifest files into Source Files |
 
 ## User Stories and Acceptance Criteria
@@ -69,11 +69,11 @@ As a workflow builder, I want DeerFlow to be discoverable from MainPanel Integra
 Acceptance:
 - MainPanel exposes a DeerFlow settings area named `DeerFlow Gateway API`.
 - Settings rows use `deerflowApi.*` keys generated by `mapOpenAiRowKeyToDeerFlowRowKey()`.
-- Deep links use `getDeerFlowApiRowAnchorId()` and route through Flow Editor registry templates.
+- Deep links use `getDeerFlowApiRowAnchorId()` and route through Storyboard Widget registry templates.
 
 ### PRD-DF-002: Provider-Normalized Text Widget
 
-As a workflow builder, I want a DeerFlow text widget entry so Flow Editor can route text-generation prompts through DeerFlow without a custom panel.
+As a workflow builder, I want a DeerFlow text widget entry so Storyboard Widget can route text-generation prompts through DeerFlow without a custom panel.
 
 Acceptance:
 - Default widget registry seed includes `textGeneration.deerflow`.
@@ -113,7 +113,7 @@ Acceptance:
 
 - DeerFlow as optional local gateway provider.
 - MainPanel search/discovery and row anchors.
-- Flow Editor text widget registry seed and links.
+- Storyboard Widget text widget registry seed and links.
 - Image/video rich-media generation through the shared dispatcher.
 - URL import through the workspace Source Files path.
 - Dev -> Prod -> Cloudflare setup via the active setup guide.
@@ -149,7 +149,7 @@ Part II: Technical Architecture Documentation continues in [knowgrph-deerflow-pr
 | PRD ID | Requirement Summary | Source Owner | Validation |
 |---|---|---|---|
 | PRD-DF-001 | DeerFlow discoverable in MainPanel | `deerflowApiDocs.ts`, `useSettingsView.ts` | `mainPanelIntegrations.test.tsx`, `deerflowPrdTadDocs.test.ts` |
-| PRD-DF-002 | DeerFlow text widget seeded | `registryTemplates.ts`, `flowEditorManagerRegistryPersistence.ts`, `chatEndpoint.ts` | `flowEditorManagerRegistry.test.ts` |
+| PRD-DF-002 | DeerFlow text widget seeded | `registryTemplates.ts`, `storyboardWidgetManagerRegistryPersistence.ts`, `chatEndpoint.ts` | `storyboardWidgetManagerRegistry.test.ts` |
 | PRD-DF-003 | Unified rich-media runtime | `richMediaRun.ts` | `byteplusRunGeneration.test.ts`, `flowWidgetOutputRichMediaReuse.test.ts` |
 | PRD-DF-004 | Gateway adapter isolated | `deerflowRunGeneration.ts` | `byteplusRunGeneration.test.ts`, `deerflowPrdTadDocs.test.ts` |
 | PRD-DF-005 | URL import writes Source Files | `deerflowUrlImport.ts` | import workflow tests and docs guard |

@@ -34,7 +34,7 @@ export type FlowNativeInteractionsContext = {
   touchPointsById: Map<number, { sx: number; sy: number }>
   edgeScroll: { update: (input: any) => { dx: number; dy: number }; reset: () => void }
   getPreset: () => ViewportControlsPreset
-  readEffectiveSelectMode: (st: any, isFlowEditor: boolean) => FlowEffectiveSelectMode
+  readEffectiveSelectMode: (st: any, storyboardWidgetMode: boolean) => FlowEffectiveSelectMode
   computeScaleExtent: (args: { schema: GraphSchema; currentK: number }) => { minK: number; maxK: number }
   viewportWheelController: { handleWheel: (e: WheelEvent) => boolean; destroy: () => void }
   readViewportInteractionSnapshot: () => FlowViewportInteractionSnapshot

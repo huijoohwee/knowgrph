@@ -1,10 +1,10 @@
-import { buildNodeOverlayOpenExternalAction, type NodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'
+import { buildWidgetOpenExternalAction, type WidgetOpenExternalAction } from '@/components/StoryboardWidget/widgetOpenExternalAction'
 
 export type StoryboardToolbarPresentation = {
   actionVisibility: {
     enableHandles: false
   }
-  openExternalAction: NodeOverlayOpenExternalAction | undefined
+  openExternalAction: WidgetOpenExternalAction | undefined
 }
 
 export function buildStoryboardToolbarPresentation(args: {
@@ -14,7 +14,7 @@ export function buildStoryboardToolbarPresentation(args: {
     actionVisibility: {
       enableHandles: false,
     },
-    openExternalAction: buildNodeOverlayOpenExternalAction({
+    openExternalAction: buildWidgetOpenExternalAction({
       url: args.primaryReferenceUrl,
       label: 'Open ref',
     }),

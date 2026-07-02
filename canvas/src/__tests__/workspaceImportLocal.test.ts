@@ -244,10 +244,10 @@ export async function testWorkspaceImportUrlVideoCreatesSingleRenderableSequence
     const store = useGraphStore.getState()
     store.resetAll()
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.setBottomSurfaceTab('gantt')
     store.setBottomSurfaceCollapsed(true)
-    store.setFloatingPanelView('flowEditor')
+    store.setFloatingPanelView('storyboardWidget')
     store.setFloatingPanelOpen(false)
     await applyWorkspaceImportToCanvas({
       fs,
@@ -334,7 +334,7 @@ export async function testLaunchDropdownImportLocalFilesFallbackAppliesCanvasFro
       '---',
       'title: "Video Demo"',
       'kgCanvasRenderMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       'kgMultiDimTableModeEnabled: false',
@@ -358,8 +358,8 @@ export async function testLaunchDropdownImportLocalFilesFallbackAppliesCanvasFro
     if (next.canvasRenderMode !== '2d') {
       throw new Error(`expected fallback import to keep 2d canvas mode, got ${String(next.canvasRenderMode || '')}`)
     }
-    if (next.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected fallback import to apply Flow Editor renderer, got ${String(next.canvas2dRenderer || '')}`)
+    if (next.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected fallback import to apply Storyboard renderer, got ${String(next.canvas2dRenderer || '')}`)
     }
     if (next.documentSemanticMode !== 'document') {
       throw new Error(`expected fallback import to apply document semantic mode, got ${String(next.documentSemanticMode || '')}`)
@@ -1059,7 +1059,7 @@ export function testWorkspaceImportCanvasFrontmatterDocsOptIntoGraphLanding() {
     '---',
     'title: "Video Demo"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'kgMultiDimTableModeEnabled: false',
@@ -1109,7 +1109,7 @@ export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGr
       '---',
       'title: "Mermaid Canvas Preset"',
       'kgCanvasRenderMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       'kgMultiDimTableModeEnabled: false',
@@ -1127,8 +1127,8 @@ export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGr
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
 
     const next = useGraphStore.getState()
-    if (next.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected workspace import to honor flowEditor preset for parsed non-frontmatter-flow graph, got ${String(next.canvas2dRenderer || '')}`)
+    if (next.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected workspace import to honor Storyboard preset for parsed non-frontmatter-flow graph, got ${String(next.canvas2dRenderer || '')}`)
     }
     if (next.documentSemanticMode !== 'document') {
       throw new Error(`expected workspace import to honor document semantic mode from frontmatter preset, got ${String(next.documentSemanticMode || '')}`)
@@ -1293,8 +1293,8 @@ export async function testActivateFirstImportedWorkspaceFilePreservesImportedFro
     if (next.canvasRenderMode !== '2d') {
       throw new Error(`expected video import to preserve 2d render mode, got ${String(next.canvasRenderMode || '')}`)
     }
-    if (next.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected video import to preserve flowEditor renderer, got ${String(next.canvas2dRenderer || '')}`)
+    if (next.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected video import to preserve storyboard renderer, got ${String(next.canvas2dRenderer || '')}`)
     }
     if (next.documentSemanticMode !== 'document') {
       throw new Error(`expected video import to preserve document mode, got ${String(next.documentSemanticMode || '')}`)

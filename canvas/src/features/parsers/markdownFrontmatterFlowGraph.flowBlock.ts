@@ -4,14 +4,14 @@ import {
   repairFlowInlineEnvelopeBlockScalars,
   repairYamlInlineColonSpacing,
 } from '@/lib/markdown/frontmatterYamlRepair'
-import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { isUnsafeFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+} from '@/lib/config.storyboard-widget'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/storyboard-widget-manager/registryTemplates'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { normalizeFlowSubgraphs } from '@/features/parsers/markdownFrontmatterFlowGraph.subgraphs'
 import { normalizeFlowEnvelopeRecord, unwrapFlowEnvelopeFieldValue } from '@/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope'

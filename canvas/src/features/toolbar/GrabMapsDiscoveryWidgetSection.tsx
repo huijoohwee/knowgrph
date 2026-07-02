@@ -27,9 +27,9 @@ import {
   resolveEffectiveGrabMapsDiscoverySettingsValues,
   writeGrabMapsDiscoverySettingsValues,
   type GrabMapsDiscoverySettingsValues,
-} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+} from '@/features/storyboard-widget-manager/grabMapsDiscoveryWidget'
 import type { GraphNode } from '@/lib/graph/types'
-import { FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID } from '@/features/storyboard-widget-manager/grabMapsDiscoveryWidget'
 import { GrabMapsDiscoverySettingsGrid } from './GrabMapsDiscoverySettingsGrid'
 
 type PlannerOperation = {

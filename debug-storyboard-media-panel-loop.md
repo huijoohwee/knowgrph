@@ -11,7 +11,7 @@
 
 ## Hypotheses
 1. Post-drop selection forcing still oscillates between canonical and composed ids, repeatedly rewriting selection/open state.
-2. Storyboard runtime writes open-widget state into the active renderer bucket, while overlay-collision or shell warmup still listens to the hardcoded `flowEditor` bucket and reschedules churn.
+2. Storyboard runtime writes open-widget state into the active renderer bucket, while overlay-collision or shell warmup still listens to the hardcoded `storyboardWidget` bucket and reschedules churn.
 3. A graph commit or rematerialization path normalizes widget-open state immediately after drop and retriggers overlay/runtime effects without changing the visible shell set.
 4. The created node is valid in graph state but is still parked hidden because overlay layout never stabilizes after the post-drop state loop begins.
 5. Inspector/runtime derived state reacts to draft-graph identity churn after the drop and amplifies the selection loop into React max-depth failure.

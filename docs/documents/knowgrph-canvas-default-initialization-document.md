@@ -46,7 +46,7 @@
   - Workspace-visible initialization files stay root-level for deterministic explorer ordering and stable source-file ids, while their authoritative source text lives under `huijoohwee/docs`.
 - **Frontmatter SSOT**:
   - `README.md` lands on `2d + d3 + Frontmatter Mode`.
-  - `knowgrph-video-demo.md` lands on `2d + Flow Editor + Frontmatter Mode`.
+  - `knowgrph-video-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode`.
   - `knowgrph-maps-grabmap-multim-demo.md` lands on `Geospatial Mode` from frontmatter and keeps document/frontmatter semantics enabled.
 - **Activation precedence**:
   - On workspace bootstrap and exact UI import, the activated initialization file becomes the raw-frontmatter authority before composed source-file replay or metadata/layout helpers run.
@@ -84,7 +84,7 @@
 |-----------------|----------------------------------|---------------------------------------------------------------------------|------------------|-----------------------------------|---------------------|---------------------|----------------|
 | Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles (default off) |
 | Frontmatter     | Enable safe frontmatter focus     | - [ ] Default ON; forbid blank canvas: if no frontmatter Mermaid, fall back to full graph | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default true + filter fallback |
-| Toolbar Modes   | Prefer document workspace at init | - [ ] Default 2D Flow Editor + Frontmatter Mode + unlocked view; forbid panel-local startup drift | config.render.ts + uiSettingsSlice.ts + uiSlice.ts + geospatialSlice.ts | canvas2dRenderer + frontmatterModeEnabled + documentStructureBaselineLock + geospatialModeEnabled | — | boolean/enum | canvas2dRenderer='flowEditor'; frontmatterModeEnabled=true; documentStructureBaselineLock=false; geospatialEnabled=false |
+| Toolbar Modes   | Prefer document workspace at init | - [ ] Default 2D Storyboard Widget + Frontmatter Mode + unlocked view; forbid panel-local startup drift | config.render.ts + uiSettingsSlice.ts + uiSlice.ts + geospatialSlice.ts | canvas2dRenderer + frontmatterModeEnabled + documentStructureBaselineLock + geospatialModeEnabled | — | boolean/enum | canvas2dRenderer='storyboard'; frontmatterModeEnabled=true; documentStructureBaselineLock=false; geospatialEnabled=false |
 | Layer Mode      | Prefer document structure        | - [ ] Default document mode; forbid semantic-first default                | schema.ts        | defaultSchema.layers.mode         | —                   | 'document'          | constant |
 | Port Handles    | Disable by default               | - [ ] Default OFF; forbid implicit border anchoring at init               | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled false       | constant |
 
@@ -119,13 +119,13 @@
   - Must materialize the canonical 3-file initialization family (`README.md`, `knowgrph-video-demo.md`, `knowgrph-maps-grabmap-multim-demo.md`) from `huijoohwee/docs`.
   - Must keep initialization-file content in `huijoohwee/docs` as the bootstrap SSOT while exposing root-level workspace paths for activation and source-file reconciliation.
   - Must default `README.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='d3'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
-  - Must default `knowgrph-video-demo.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='flowEditor'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
+  - Must default `knowgrph-video-demo.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='storyboard'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
   - Must keep geospatial startup opt-in for non-geospatial sessions, while allowing the canonical geospatial initialization file to enable geospatial mode directly from frontmatter.
   - Must keep FloatingPanel closed by default and restore its shared baseline view as `propsPanel` rather than forcing Geo on startup.
   - Must default `View Lock` OFF by initializing `documentStructureBaselineLock` to false in the shared UI slice.
   - Must ensure `graphLayersVisible` is true.
-  - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Flow Editor.
-  - Flow Editor camera init must be keyed per dataset when stable (e.g. `path:*`) and must fall back to a per-graph hash when dataset keys collapse to `rev:*`.
+  - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Storyboard Widget.
+  - Storyboard Widget camera init must be keyed per dataset when stable (e.g. `path:*`) and must fall back to a per-graph hash when dataset keys collapse to `rev:*`.
   - 2D renderer initialization must be idempotent: if a valid stored initial transform is applied, the same init pass must not immediately re-run auto-fit (forbid “double-fit” jumps).
   - Persisted view restoration must be bounds-guarded: do not apply stored transforms until graph bounds can be computed (e.g., at least one finite node position and non-zero node dimensions); prefer fit/identity over a stale offscreen pan.
   - Scene build and fit must ignore invalid geometry: if positions are only partially available, skip nodes without finite positions (and their incident edges) to prevent one-long stray lines and chaotic redraw on first paint.
@@ -216,7 +216,7 @@ canvas/
 | Conflicting Defaults   | Single truth                     | - [ ] Align default values; forbid contradictory defaults across slices   |
 | Hidden Startup Drift   | Predictable init                 | - [ ] Normalize schema on init; forbid dependence on stale persisted state |
 | Layout Mode Leakage    | Correct init layout              | - [ ] Force layout.mode='force'; forbid implicit tree/radial activation   |
-| Renderer Seepage       | Preserve frontmatter landing     | - [ ] Respect initialization-file frontmatter; forbid autosuggest coercing Flow Editor or Geospatial docs back to flowchart or generic 2D defaults |
+| Renderer Seepage       | Preserve frontmatter landing     | - [ ] Respect initialization-file frontmatter; forbid autosuggest coercing Storyboard Widget or Geospatial docs back to flowchart or generic 2D defaults |
 | Domain Bias            | SSOT startup                     | - [ ] Keep document-first startup in shared defaults only; forbid panel-local startup heuristics |
 | Infinite Re-render     | Performance                      | - [ ] Avoid layout sync in render loop; forbid updating store from simulation tick |
 

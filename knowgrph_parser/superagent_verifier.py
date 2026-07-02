@@ -199,7 +199,7 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
                 break
     workspace_text = read_text(workspace_path) if workspace_path and os.path.exists(workspace_path) else ""
     workspace_tokens = [
-        'kgCanvas2dRenderer: "flowEditor"',
+        'kgCanvas2dRenderer: "storyboard"',
         "TextGeneration",
         "SkillSelector",
         "ResearchAgent",

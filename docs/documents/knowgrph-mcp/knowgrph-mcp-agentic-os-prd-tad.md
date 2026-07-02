@@ -12,7 +12,7 @@ frontmatter_contract: "required"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 kgSchema: "kgc-computing-flow/v1"
 traceability:
   prd: "PRD-MCP-AGENTIC-CANVAS-OS"
@@ -21,7 +21,7 @@ traceability:
   feature_surface: "Agentic Canvas OS and cross-repo agent build dashboard"
 runtime_model:
   source_document_kind: "agentic_canvas_os_dashboard"
-  renderer: "frontmatter-flow over Flow Editor"
+  renderer: "frontmatter-flow over Storyboard Widget"
   mutation_policy: "dry-run-first and approval-gated"
   source_of_truth: "Source Files Markdown document plus typed run manifest"
 linked_docs:
@@ -60,7 +60,7 @@ Knowgrph MCP should become the **Agentic Canvas OS** control plane for building,
 
 This is not a new graph runtime, not a replacement for the shipped stdio MCP server, and not a claim that remote mutating MCP is already deployed. Agentic Canvas OS is a thin orchestration and dashboard layer over the existing MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, KGC/frontmatter, and Canvas owners.
 
-The Agentic Canvas OS Dashboard is a **document/runtime model**: one Source Files Markdown document owns the dashboard frontmatter and body, while a typed run manifest owns volatile runtime facts such as tool attempts, approvals, cost logs, and failure transitions. Canvas renders both through the existing frontmatter-flow and Flow Editor path; it must not introduce a dashboard-only graph store, renderer, or mutation bridge.
+The Agentic Canvas OS Dashboard is a **document/runtime model**: one Source Files Markdown document owns the dashboard frontmatter and body, while a typed run manifest owns volatile runtime facts such as tool attempts, approvals, cost logs, and failure transitions. Canvas renders both through the existing frontmatter-flow and Storyboard Widget path; it must not introduce a dashboard-only graph store, renderer, or mutation bridge.
 
 Agentic Canvas OS also supports **Market Radar**, **real-browser evidence**, **market-to-artifact generation**, **Starter Repo**, and **Learning Loop** lanes. The detailed lane contracts live in [knowgrph-mcp-agentic-os-prd-tad.companion.md](knowgrph-mcp-agentic-os-prd-tad.companion.md) so this PRD/TAD remains the compact governing document and all docs stay under the 600-line limit.
 
@@ -171,7 +171,7 @@ The companion is normative for lane payloads, node fields, evidence grades, arti
 | Skill registry | Store reviewed reusable procedures with triggers, validation, and rollback notes | P0 candidate-skill payload shipped with approval required before active use |
 | Identity model | Maintain inspectable user/work preferences, constraints, projects, and recurring goals | P0 explicit-note facet payload shipped with source ids, confidence, review state, and approval gate |
 | Conversation recall index | Search past finalized conversations and run traces for bounded context | P0 bounded advisory recall-card payload shipped; full index remains local-first future work |
-| Canvas dashboard | Render run plan, approvals, artifacts, failures, budgets, and demo pack | reuse Source Files, KGC/frontmatter, Flow Editor, and dashboard renderer paths |
+| Canvas dashboard | Render run plan, approvals, artifacts, failures, budgets, and demo pack | reuse Source Files, KGC/frontmatter, Storyboard Widget, and dashboard renderer paths |
 | Cloud adapter plan | Describe the Cloudflare control plane: Workers McpAgent, Pages UI, D1 manifests, R2 media, and AI Gateway routing | P0 readiness payload shipped; live deploy later. Vercel and AWS are out of scope |
 | Media adapter plan | Describe BytePlus chat/image/video via Cloudflare AI Gateway with persist-on-generate to R2 and replay-without-LLM | P0 readiness payload shipped; paid calls require approval |
 | Payment adapter plan | Describe Stripe checkout/subscription/webhook/payout readiness | P0 readiness payload shipped; human approval required |
@@ -206,7 +206,7 @@ The document is source truth for what Canvas renders. It starts with normal YAML
 ---
 kgSchema: kgc-computing-flow/v1
 kgCanvasSurfaceMode: 2d
-kgCanvas2dRenderer: flowEditor
+kgCanvas2dRenderer: storyboard
 agenticOs:
   runId: strybldr-launch-001
   consumerRepo: strybldr

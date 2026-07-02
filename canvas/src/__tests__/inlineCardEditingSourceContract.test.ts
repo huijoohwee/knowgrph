@@ -9,7 +9,7 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const animatic = readUtf8('../components/AnimaticCanvas.tsx')
   const markdownKanban = readUtf8('../features/markdown/ui/kanban/KanbanCard.tsx')
   const graphKanban = readUtf8('../features/graph-data-table/ui/GraphDataTableKanbanView.tsx')
-  const flowEditorInspector = readUtf8('../components/FlowEditor/FlowEditorInspector.tsx')
+  const storyboardWidgetInspector = readUtf8('../components/StoryboardWidget/StoryboardWidgetInspector.tsx')
   const storyboard = readUtf8('../components/StoryboardCanvas.tsx')
   const sharedCardFields = readUtf8('../lib/cards/graphNodeCardFields.ts')
   const graphStoreSync = readUtf8('../features/graph-inspector/lib/applyRecordCellUpdateToGraphStore.ts')
@@ -105,7 +105,7 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     }
   }
 
-  for (const text of [animatic, markdownKanban, graphKanban, flowEditorInspector, storyboard]) {
+  for (const text of [animatic, markdownKanban, graphKanban, storyboardWidgetInspector, storyboard]) {
     if (!text.includes('CardInlineTextEditor')) {
       throw new Error('expected all card surfaces to reuse the shared inline card editor')
     }
@@ -143,11 +143,11 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     }
   }
 
-  if (!flowEditorInspector.includes('onPatchSelectedNodeProperties')) {
-    throw new Error('expected Flow Editor inspector to commit shared card edits through the selected-node property owner callback')
+  if (!storyboardWidgetInspector.includes('onPatchSelectedNodeProperties')) {
+    throw new Error('expected Storyboard Widget inspector to commit shared card edits through the selected-node property owner callback')
   }
-  if (!flowEditorInspector.includes('editActivation="click"')) {
-    throw new Error('expected Flow Editor Card inspector to allow inline editing through the shared CardInlineTextEditor activation contract')
+  if (!storyboardWidgetInspector.includes('editActivation="click"')) {
+    throw new Error('expected Storyboard Widget Card inspector to allow inline editing through the shared CardInlineTextEditor activation contract')
   }
   for (const snippet of ['beatEditSession', 'handleCommitBeatFieldEdit', 'commitTimelineFrontmatterMeta', 'updateGraphMetadata({', "updateNode(resolvedNodeId, {"]) {
     if (!animatic.includes(snippet)) {

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowEditorCanvas from '@/components/FlowEditorCanvas'
+import StoryboardWidgetCanvas from '@/components/StoryboardWidgetCanvas'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
@@ -14,23 +14,23 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { LS_KEYS, UI_LABELS } from '@/lib/config'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
-import { readFlowEditorScreenAuthorityPanSnapshot } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { readStoryboardWidgetScreenAuthorityPanSnapshot } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, readDocsSsotFixtureText } from '@/tests/lib/docsSsotFixture'
 import { assertFlowWidgetStateScopedToEligibleIds } from '@/tests/lib/flowWidgetStateScopeAssert'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
-type NonFlowEditorRenderer = 'd3' | 'flowchart' | 'flow' | 'design'
+type NonStoryboardRenderer = 'd3' | 'flowchart' | 'flow' | 'design'
 
-const ALL_NON_FLOW_EDITOR_RENDERERS: NonFlowEditorRenderer[] = ['d3', 'flowchart', 'flow', 'design']
-const PRIOR_WIDGET_BY_RENDERER: Record<NonFlowEditorRenderer, string> = {
+const ALL_NON_STORYBOARD_RENDERERS: NonStoryboardRenderer[] = ['d3', 'flowchart', 'flow', 'design']
+const PRIOR_WIDGET_BY_RENDERER: Record<NonStoryboardRenderer, string> = {
   d3: 'prior-d3',
   flowchart: 'prior-flowchart',
   flow: 'prior-flow',
   design: 'prior-design',
 }
 const TEST_RUNTIME_FRAME_MS = 16
-type FlowEditorWidgetTransformEntry = {
+type StoryboardWidgetTransformEntry = {
   id: string
   scale: number
   left: number
@@ -93,8 +93,8 @@ function parseOverlayMatrixTransform(transform: string): { scale: number; left: 
   return { scale, left, top }
 }
 
-function readFlowEditorWidgetTransformEntries(doc: Document): FlowEditorWidgetTransformEntry[] {
-  return Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+function readStoryboardWidgetTransformEntries(doc: Document): StoryboardWidgetTransformEntry[] {
+  return Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
     .map(el => {
       const id = String(el.dataset.kgWidget || '').trim()
       const parsed = parseOverlayMatrixTransform(el.style.transform || '')
@@ -108,21 +108,21 @@ function readFlowEditorWidgetTransformEntries(doc: Document): FlowEditorWidgetTr
           }
         : null
     })
-    .filter((entry): entry is FlowEditorWidgetTransformEntry => !!entry)
+    .filter((entry): entry is StoryboardWidgetTransformEntry => !!entry)
 }
 
-async function waitForFlowEditorWidgetTransformSpread(args: {
+async function waitForStoryboardWidgetTransformSpread(args: {
   doc: Document
   minCount: number
   minUniqueBins: number
   minSpanW: number
   minSpanH: number
   label: string
-}): Promise<FlowEditorWidgetTransformEntry[]> {
+}): Promise<StoryboardWidgetTransformEntry[]> {
   const deadline = Date.now() + 3200
   let lastSnapshot = ''
   while (Date.now() < deadline) {
-    const entries = readFlowEditorWidgetTransformEntries(args.doc)
+    const entries = readStoryboardWidgetTransformEntries(args.doc)
     const ids = new Set(entries.map(entry => entry.id))
     const bins = new Set(entries.map(entry => `${Math.round(entry.left / 20)}:${Math.round(entry.top / 20)}`))
     const minLeft = Math.min(...entries.map(entry => entry.left))
@@ -151,23 +151,23 @@ async function waitForFlowEditorWidgetTransformSpread(args: {
     }
     await new Promise<void>(resolveWait => setTimeout(resolveWait, 16))
   }
-  throw new Error(`expected Flow Editor widget transforms to stay visibly spread for ${args.label}; snapshot=${lastSnapshot}`)
+  throw new Error(`expected Storyboard Widget transforms to stay visibly spread for ${args.label}; snapshot=${lastSnapshot}`)
 }
 
-function findFlowEditorWidgetEntry(entries: FlowEditorWidgetTransformEntry[], id: string): FlowEditorWidgetTransformEntry {
+function findStoryboardWidgetEntry(entries: StoryboardWidgetTransformEntry[], id: string): StoryboardWidgetTransformEntry {
   const entry = entries.find(candidate => candidate.id === id)
-  if (!entry) throw new Error(`expected Flow Editor widget ${id} to remain mounted`)
+  if (!entry) throw new Error(`expected Storyboard Widget ${id} to remain mounted`)
   return entry
 }
 
-function pickFlowEditorWidgetTarget(args: {
-  entries: FlowEditorWidgetTransformEntry[]
+function pickStoryboardWidgetTarget(args: {
+  entries: StoryboardWidgetTransformEntry[]
   richMedia: boolean
   viewport: { width: number; height: number }
-}): FlowEditorWidgetTransformEntry {
+}): StoryboardWidgetTransformEntry {
   const candidates = args.entries.filter(entry => entry.richMedia === args.richMedia)
   if (candidates.length === 0) {
-    throw new Error(`expected Flow Editor runtime to render a ${args.richMedia ? 'rich-media' : 'widget'} target`)
+    throw new Error(`expected Storyboard Widget runtime to render a ${args.richMedia ? 'rich-media' : 'widget'} target`)
   }
   const cx = args.viewport.width / 2
   const cy = args.viewport.height / 2
@@ -180,9 +180,9 @@ function pickFlowEditorWidgetTarget(args: {
     })[0]!
 }
 
-function assertFlowEditorWidgetGeometryStable(args: {
-  before: FlowEditorWidgetTransformEntry
-  after: FlowEditorWidgetTransformEntry
+function assertStoryboardWidgetGeometryStable(args: {
+  before: StoryboardWidgetTransformEntry
+  after: StoryboardWidgetTransformEntry
   label: string
   maxPositionShiftPx?: number
 }) {
@@ -195,7 +195,7 @@ function assertFlowEditorWidgetGeometryStable(args: {
   }
 }
 
-function dispatchFlowEditorPointerEvent(target: EventTarget, win: Window & typeof globalThis, type: string, init: {
+function dispatchStoryboardWidgetPointerEvent(target: EventTarget, win: Window & typeof globalThis, type: string, init: {
   pointerId?: number
   clientX?: number
   clientY?: number
@@ -230,9 +230,9 @@ async function waitForPinToggleGuard() {
 }
 
 function findPinToggleButton(doc: Document, widgetId: string): HTMLButtonElement {
-  const root = Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+  const root = Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
     .find(candidate => String(candidate.dataset.kgWidget || '') === widgetId) || null
-  if (!root) throw new Error(`expected Flow Editor widget ${widgetId} root for pin toggle`)
+  if (!root) throw new Error(`expected Storyboard Widget ${widgetId} root for pin toggle`)
   const button = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(candidate => {
     const title = String(candidate.getAttribute('title') || '').trim()
     const aria = String(candidate.getAttribute('aria-label') || '').trim()
@@ -241,19 +241,19 @@ function findPinToggleButton(doc: Document, widgetId: string): HTMLButtonElement
       || aria === UI_LABELS.pinPanel
       || aria === UI_LABELS.unpinPanel
   })
-  if (!button) throw new Error(`expected Flow Editor widget ${widgetId} to expose a pin toggle button`)
+  if (!button) throw new Error(`expected Storyboard Widget ${widgetId} to expose a pin toggle button`)
   return button
 }
 
 function findWidgetDragHandle(doc: Document, widgetId: string): HTMLElement {
-  const root = Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+  const root = Array.from(doc.querySelectorAll<HTMLElement>('[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
     .find(candidate => String(candidate.dataset.kgWidget || '') === widgetId) || null
   const handle = root?.querySelector<HTMLElement>('[data-kg-flow-node-drag-handle="true"]') || null
-  if (!handle) throw new Error(`expected Flow Editor widget ${widgetId} to expose a drag handle`)
+  if (!handle) throw new Error(`expected Storyboard Widget ${widgetId} to expose a drag handle`)
   return handle
 }
 
-function assertFlowEditorRuntimeStillScoped(args: {
+function assertStoryboardWidgetRuntimeStillScoped(args: {
   doc: Document
   eligibleWidgetIds: string[]
   label: string
@@ -263,24 +263,24 @@ function assertFlowEditorRuntimeStillScoped(args: {
   const graphEdges = Array.isArray(state.graphData?.edges) ? state.graphData.edges : []
   if (graphNodes.length === 0) throw new Error(`expected ${args.label} to keep active graph nodes mounted`)
   if (graphEdges.length === 0) throw new Error(`expected ${args.label} to keep active graph edges mounted`)
-  const entries = readFlowEditorWidgetTransformEntries(args.doc)
+  const entries = readStoryboardWidgetTransformEntries(args.doc)
   const eligible = new Set(args.eligibleWidgetIds)
   const foreignIds = entries.map(entry => entry.id).filter(id => !eligible.has(id))
   if (foreignIds.length > 0) {
-    throw new Error(`expected ${args.label} to keep Flow Editor widgets scoped to graph-owned ids; foreign=${JSON.stringify(foreignIds.slice(0, 8))}`)
+    throw new Error(`expected ${args.label} to keep Storyboard widgets scoped to graph-owned ids; foreign=${JSON.stringify(foreignIds.slice(0, 8))}`)
   }
-  const surfaceRoots = args.doc.querySelectorAll('[data-kg-flow-editor-surface-root]')
-  if (surfaceRoots.length !== 1) throw new Error(`expected ${args.label} to keep one active Flow Editor surface, got ${surfaceRoots.length}`)
+  const surfaceRoots = args.doc.querySelectorAll('[data-kg-storyboard-widget-surface-root]')
+  if (surfaceRoots.length !== 1) throw new Error(`expected ${args.label} to keep one active Storyboard Widget surface, got ${surfaceRoots.length}`)
 }
 
-const mountFlowEditorCanvasRuntime = async (container: HTMLElement): Promise<ReturnType<typeof createRoot>> => {
+const mountStoryboardWidgetCanvasRuntime = async (container: HTMLElement): Promise<ReturnType<typeof createRoot>> => {
   const root = createRoot(container)
-  root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+  root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
   await waitForRuntimeTick()
   return root
 }
 
-const unmountFlowEditorCanvasRuntime = async (root: ReturnType<typeof createRoot> | null): Promise<void> => {
+const unmountStoryboardWidgetCanvasRuntime = async (root: ReturnType<typeof createRoot> | null): Promise<void> => {
   root?.unmount()
   await waitForRuntimeTick()
 }
@@ -289,11 +289,11 @@ const readScopedWidgetIds = (ids: unknown[] | null | undefined): string[] => {
   return Array.isArray(ids) ? ids.map(id => String(id || '').trim()).filter(Boolean) : []
 }
 
-const buildPriorWidgetIdSet = (renderers: NonFlowEditorRenderer[]): Set<string> => {
+const buildPriorWidgetIdSet = (renderers: NonStoryboardRenderer[]): Set<string> => {
   return new Set(renderers.map(renderer => PRIOR_WIDGET_BY_RENDERER[renderer]))
 }
 
-function assertRendererScopedSeeds(renderers: NonFlowEditorRenderer[]) {
+function assertRendererScopedSeeds(renderers: NonStoryboardRenderer[]) {
   const seededByRenderer = useGraphStore.getState().openWidgetNodeIdsByRenderer || {}
   for (const renderer of renderers) {
     const expectedNodeId = PRIOR_WIDGET_BY_RENDERER[renderer]
@@ -307,21 +307,21 @@ function assertRendererScopedSeeds(renderers: NonFlowEditorRenderer[]) {
 function assertNoWidgetSeepage(args: {
   priorWidgetIds: Set<string>
   activeWidgetIds?: unknown[] | null
-  flowEditorWidgetIds?: unknown[] | null
+  storyboardWidgetIds?: unknown[] | null
   context: string
 }) {
   const activeWidgetIds = readScopedWidgetIds(args.activeWidgetIds)
   if (activeWidgetIds.some(id => args.priorWidgetIds.has(id))) {
-    throw new Error(`expected ${args.context} active Flow Editor widget state to reject non-flow-editor seepage, got ${JSON.stringify(activeWidgetIds)}`)
+    throw new Error(`expected ${args.context} active Storyboard Widget state to reject non-storyboard-widget seepage, got ${JSON.stringify(activeWidgetIds)}`)
   }
-  const flowEditorWidgetIds = readScopedWidgetIds(args.flowEditorWidgetIds)
-  if (flowEditorWidgetIds.some(id => args.priorWidgetIds.has(id))) {
-    throw new Error(`expected ${args.context} flowEditor-scoped widget state to stay isolated from d3/flowchart/flow/design, got ${JSON.stringify(flowEditorWidgetIds)}`)
+  const storyboardWidgetIds = readScopedWidgetIds(args.storyboardWidgetIds)
+  if (storyboardWidgetIds.some(id => args.priorWidgetIds.has(id))) {
+    throw new Error(`expected ${args.context} storyboardWidget-scoped widget state to stay isolated from d3/flowchart/flow/design, got ${JSON.stringify(storyboardWidgetIds)}`)
   }
 }
 
 async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
-  seedRenderers?: NonFlowEditorRenderer[]
+  seedRenderers?: NonStoryboardRenderer[]
 }) {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -357,7 +357,7 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
 
     const seedRenderers = Array.isArray(args?.seedRenderers) && args.seedRenderers.length > 0
       ? args.seedRenderers
-      : ALL_NON_FLOW_EDITOR_RENDERERS
+      : ALL_NON_STORYBOARD_RENDERERS
     for (const renderer of seedRenderers) {
       const nodeId = PRIOR_WIDGET_BY_RENDERER[renderer]
       store.setCanvas2dRenderer(renderer)
@@ -385,8 +385,8 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     if (afterImport.canvasRenderMode !== '2d') {
       throw new Error(`expected video import to preserve 2d render mode, got ${String(afterImport.canvasRenderMode || '')}`)
     }
-    if (afterImport.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected video import to land on flowEditor, got ${String(afterImport.canvas2dRenderer || '')}`)
+    if (afterImport.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected video import to land on Storyboard, got ${String(afterImport.canvas2dRenderer || '')}`)
     }
     if (afterImport.documentSemanticMode !== 'document') {
       throw new Error(`expected video import to enable document mode, got ${String(afterImport.documentSemanticMode || '')}`)
@@ -399,29 +399,29 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     assertNoWidgetSeepage({
       priorWidgetIds,
       activeWidgetIds: afterImport.openWidgetNodeIds,
-      flowEditorWidgetIds: (afterImport.openWidgetNodeIdsByRenderer || {}).flowEditor,
+      storyboardWidgetIds: (afterImport.openWidgetNodeIdsByRenderer || {}).storyboard,
       context: 'imported',
     })
     const importedLayoutCache = afterImport.layoutPositionCacheByMode || {}
     const importedLayoutKeys = Object.keys(importedLayoutCache)
     const foreignRendererLayoutKeys = importedLayoutKeys.filter(key => /:2d:(d3|flowchart|flow|design)(:|$)/.test(key))
     if (foreignRendererLayoutKeys.length > 0) {
-      throw new Error(`expected imported Flow Editor landing to avoid seeding foreign 2D renderer layout cache keys, got ${JSON.stringify(foreignRendererLayoutKeys)}`)
+      throw new Error(`expected imported Storyboard landing to avoid seeding foreign 2D renderer layout cache keys, got ${JSON.stringify(foreignRendererLayoutKeys)}`)
     }
 
     const importedNodes = Array.isArray(afterImport.graphData?.nodes) ? afterImport.graphData.nodes : []
     const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(importedNodes as never)).map(id => String(id || '').trim()).filter(Boolean)
     if (eligibleWidgetIds.length === 0) {
-      throw new Error('expected imported knowgrph-video-demo graph to expose Flow Editor widget-eligible nodes')
+      throw new Error('expected imported knowgrph-video-demo graph to expose Storyboard Widget-eligible nodes')
     }
 
     const doc = dom.window.document
     const container = doc.createElement('section')
     container.id = 'runtime-root'
     doc.body.appendChild(container)
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
-    const waitForFlowEditorOverlaySeed = async () => {
+    const waitForStoryboardWidgetOverlaySeed = async () => {
       const deadline = Date.now() + 1500
       while (Date.now() < deadline) {
         const state = useGraphStore.getState() as unknown as {
@@ -430,13 +430,13 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
           openWidgetNodeIdsByRenderer?: Partial<Record<string, string[]>>
           flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
         }
-        if (String(state.canvas2dRenderer || '') !== 'flowEditor') {
-          throw new Error(`expected mounted runtime to stay on flowEditor, got ${String(state.canvas2dRenderer || '')}`)
+        if (String(state.canvas2dRenderer || '') !== 'storyboard') {
+          throw new Error(`expected mounted runtime to stay on Storyboard, got ${String(state.canvas2dRenderer || '')}`)
         }
         assertNoWidgetSeepage({
           priorWidgetIds,
           activeWidgetIds: state.openWidgetNodeIds,
-          flowEditorWidgetIds: state.openWidgetNodeIdsByRenderer?.flowEditor,
+          storyboardWidgetIds: state.openWidgetNodeIdsByRenderer?.storyboard,
           context: 'mounted runtime',
         })
         const worldById = state.flowWidgetWorldPosByNodeId || {}
@@ -447,16 +447,16 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
         if (seededEligibleIds.length > 0) return seededEligibleIds
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 5))
       }
-      throw new Error('expected mounted Flow Editor runtime to seed imported video-demo widget overlay world positions')
+      throw new Error('expected mounted Storyboard Widget runtime to seed imported video-demo widget overlay world positions')
     }
 
-    const seededEligibleIds = await waitForFlowEditorOverlaySeed()
+    const seededEligibleIds = await waitForStoryboardWidgetOverlaySeed()
     if (seededEligibleIds.some(id => priorWidgetIds.has(id))) {
-      throw new Error(`expected seeded Flow Editor overlay ids to belong to imported video-demo widgets only, got ${JSON.stringify(seededEligibleIds)}`)
+      throw new Error(`expected seeded Storyboard Widget overlay ids to belong to imported video-demo widgets only, got ${JSON.stringify(seededEligibleIds)}`)
     }
   } finally {
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -510,7 +510,7 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     store.resetAll()
     store.setDocumentStructureBaselineLock(false)
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.setDocumentSemanticMode('document')
     store.setFrontmatterModeEnabled(true)
 
@@ -528,8 +528,8 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: videoImport.createdPaths, applyToGraph: true })
 
     const afterImport = useGraphStore.getState()
-    if (afterImport.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected video-demo runtime validation to land on flowEditor, got ${String(afterImport.canvas2dRenderer || '')}`)
+    if (afterImport.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected video-demo runtime validation to land on Storyboard, got ${String(afterImport.canvas2dRenderer || '')}`)
     }
     const nodes = Array.isArray(afterImport.graphData?.nodes) ? afterImport.graphData.nodes : []
     const textWidgetId = readFirstNodeIdByType(nodes, 'TextGeneration')
@@ -555,7 +555,7 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
     container.id = 'runtime-root-widget-visibility'
     doc.body.appendChild(container)
 
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     const waitForWidgetUiVisibility = async () => {
       const deadline = Date.now() + 2200
@@ -613,14 +613,14 @@ export async function testVideoDemoRuntimeWidgetUiVisibleInHideFieldsMode() {
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
       }
       throw new Error(
-        `expected knowgrph-video-demo Flow Editor runtime to keep Text/Image/Video widget UI, Rich Media KTV rows, and port handles visible with mounted edge surface + linked edge contracts in hide-fields mode; snapshot=${lastSnapshot}`,
+        `expected knowgrph-video-demo Storyboard Widget runtime to keep Text/Image/Video widget UI, Rich Media KTV rows, and port handles visible with mounted edge surface + linked edge contracts in hide-fields mode; snapshot=${lastSnapshot}`,
       )
     }
 
     await waitForWidgetUiVisibility()
   } finally {
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -646,7 +646,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
         || this.tagName.toLowerCase() === 'canvas'
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
@@ -674,7 +674,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     store.resetAll()
     store.setDocumentStructureBaselineLock(false)
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('flowEditor')
+    store.setCanvas2dRenderer('storyboard')
     store.setDocumentSemanticMode('document')
     store.setFrontmatterModeEnabled(true)
 
@@ -688,8 +688,8 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: videoImport.createdPaths, applyToGraph: true })
 
     const postImport = useGraphStore.getState()
-    if (postImport.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected video-demo collective fit validation to land on flowEditor, got ${String(postImport.canvas2dRenderer || '')}`)
+    if (postImport.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected video-demo collective fit validation to land on Storyboard, got ${String(postImport.canvas2dRenderer || '')}`)
     }
     const graphNodes = Array.isArray(postImport.graphData?.nodes) ? postImport.graphData.nodes : []
     const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(graphNodes as never))
@@ -709,7 +709,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
@@ -809,7 +809,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
       }
       throw new Error(
-        `expected collective Flow Editor widget layout to fit 1920x1080 viewport with centroid centered; snapshot=${lastSnapshot}`,
+        `expected collective Storyboard Widget layout to fit 1920x1080 viewport with centroid centered; snapshot=${lastSnapshot}`,
       )
     }
 
@@ -821,7 +821,7 @@ export async function testVideoDemoRuntimeCollectiveBalancedFit1920x1080Viewport
       void 0
     }
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -847,7 +847,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
         x: 0,
@@ -898,8 +898,8 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
     applyComposedGraphFromSourceFiles()
 
     const postCompose = useGraphStore.getState()
-    if (postCompose.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    if (postCompose.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected source-files video-demo landing to use storyboard renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
     }
     if (postCompose.documentSemanticMode !== 'document') {
       throw new Error(`expected source-files video-demo landing to force document semantic mode, got ${String(postCompose.documentSemanticMode || '')}`)
@@ -926,7 +926,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
@@ -1008,11 +1008,11 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
       }
       throw new Error(
-        `expected source-files Flow Editor collective widget layout to fit 1920x1080 viewport with centroid centered; snapshot=${lastSnapshot}`,
+        `expected source-files Storyboard Widget collective widget layout to fit 1920x1080 viewport with centroid centered; snapshot=${lastSnapshot}`,
       )
     }
 
-    await waitForBalancedFit(); assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: 'expected source-files Flow Editor widget state to stay on graph-owned node ids' })
+    await waitForBalancedFit(); assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: 'expected source-files Storyboard Widget state to stay on graph-owned node ids' })
   } finally {
     try {
       restoreElementRect?.()
@@ -1020,7 +1020,7 @@ export async function testVideoDemoSourceFilesRuntimeCollectiveBalancedFit1920x1
       void 0
     }
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -1046,7 +1046,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoom
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
       if (!shouldForceViewportRect) return originalElementRect.call(this) as DOMRect
       return {
         x: 0,
@@ -1097,8 +1097,8 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoom
     applyComposedGraphFromSourceFiles()
 
     const postCompose = useGraphStore.getState()
-    if (postCompose.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    if (postCompose.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected source-files video-demo landing to use storyboard renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
     }
 
     const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
@@ -1119,19 +1119,19 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoom
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
-    const before = await waitForFlowEditorWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'before-canvas-zoom' })
+    const before = await waitForStoryboardWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'before-canvas-zoom' })
     const beforeById = new Map(before.map(entry => [entry.id, entry]))
     const readWidgetPlacementState = () => {
       const state = useGraphStore.getState()
       return JSON.stringify({ screen: state.flowWidgetPosByNodeId, screenByKey: state.flowWidgetPosByNodeIdByGraphMetaKey, world: state.flowWidgetWorldPosByNodeId, worldByKey: state.flowWidgetWorldPosByNodeIdByGraphMetaKey })
     }
     const beforeWidgetPlacementState = readWidgetPlacementState()
-    const readTransformMetrics = (entries: FlowEditorWidgetTransformEntry[]) => {
+    const readTransformMetrics = (entries: StoryboardWidgetTransformEntry[]) => {
       const centers = entries.map(entry => ({ x: entry.left + (360 * entry.scale) / 2, y: entry.top + (520 * entry.scale) / 2 }))
       const centroid = centers.reduce((acc, center) => ({ x: acc.x + center.x, y: acc.y + center.y }), { x: 0, y: 0 })
       centroid.x /= Math.max(1, centers.length)
@@ -1141,10 +1141,10 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoom
     const beforeMetrics = readTransformMetrics(before)
 
     useGraphStore.getState().requestZoom('in')
-    let after = readFlowEditorWidgetTransformEntries(doc)
+    let after = readStoryboardWidgetTransformEntries(doc)
     for (let i = 0; i < 24; i += 1) {
       await waitForRuntimeTick()
-      after = readFlowEditorWidgetTransformEntries(doc)
+      after = readStoryboardWidgetTransformEntries(doc)
       if (Math.abs(readTransformMetrics(after).scale - beforeMetrics.scale) > 0.001) break
     }
     const changed = after.flatMap(next => {
@@ -1162,11 +1162,11 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityProjectsZoom
       throw new Error(`expected screen-authority zoom layout radius to follow scale direction, before=${JSON.stringify(beforeMetrics)} after=${JSON.stringify(afterMetrics)} changed=${JSON.stringify(changed.slice(0, 8))}`)
     }
     if (readWidgetPlacementState() !== beforeWidgetPlacementState) throw new Error('expected screen-authority zoom projection to avoid mutating stored widget placement state')
-    const afterSpread = await waitForFlowEditorWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'after-canvas-zoom' })
-    assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: `expected screen-authority zoom isolation to keep Flow Editor widget state graph-owned (${afterSpread.length} overlays)` })
+    const afterSpread = await waitForStoryboardWidgetTransformSpread({ doc, minCount: Math.min(eligibleWidgetIds.length, 24), minUniqueBins: Math.min(eligibleWidgetIds.length, 18), minSpanW: targetViewport.width * 0.45, minSpanH: targetViewport.height * 0.35, label: 'after-canvas-zoom' })
+    assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: `expected screen-authority zoom isolation to keep Storyboard Widget state graph-owned (${afterSpread.length} overlays)` })
   } finally {
     try { restoreElementRect?.() } catch { void 0 }
-    try { await unmountFlowEditorCanvasRuntime(root) } catch { void 0 }
+    try { await unmountStoryboardWidgetCanvasRuntime(root) } catch { void 0 }
     restoreRuntimeFrames?.()
     restoreDom()
     restoreWindow()
@@ -1190,7 +1190,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
       if (this.matches('[data-kg-workspace-left-pane="1"]')) {
         return {
           x: 0,
@@ -1254,8 +1254,8 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     applyComposedGraphFromSourceFiles()
 
     const postCompose = useGraphStore.getState()
-    if (postCompose.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    if (postCompose.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected source-files video-demo landing to use storyboard renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
     }
 
     const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
@@ -1279,12 +1279,12 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
 
-    const initial = await waitForFlowEditorWidgetTransformSpread({
+    const initial = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1292,14 +1292,14 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
       minSpanH: targetViewport.height * 0.35,
       label: 'drag-pin-unpin-initial',
     })
-    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'drag-pin-unpin-initial' })
+    assertStoryboardWidgetRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'drag-pin-unpin-initial' })
 
-    const collectiveTarget = pickFlowEditorWidgetTarget({ entries: initial, richMedia: false, viewport: targetViewport })
+    const collectiveTarget = pickStoryboardWidgetTarget({ entries: initial, richMedia: false, viewport: targetViewport })
     const collectiveRoot = findWidgetOverlayById(doc, collectiveTarget.id)
     if (!collectiveRoot) throw new Error(`expected collective pan target ${collectiveTarget.id} to stay mounted`)
-    const collectiveSurfaceId = doc.querySelector<HTMLElement>('[data-kg-flow-editor-surface-root]')?.getAttribute('data-kg-flow-editor-surface-root') || ''
-    const collectiveSnapshot = readFlowEditorScreenAuthorityPanSnapshot({
-      flowEditorSurfaceId: collectiveSurfaceId,
+    const collectiveSurfaceId = doc.querySelector<HTMLElement>('[data-kg-storyboard-widget-surface-root]')?.getAttribute('data-kg-storyboard-widget-surface-root') || ''
+    const collectiveSnapshot = readStoryboardWidgetScreenAuthorityPanSnapshot({
+      storyboardWidgetSurfaceId: collectiveSurfaceId,
       transform: { k: 1, x: 0, y: 0 },
     })
     const missingRichMediaSnapshotIds = initial
@@ -1311,21 +1311,21 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     }
     const collectiveDx = 48
     const collectiveDy = 32
-    dispatchFlowEditorPointerEvent(collectiveRoot, dom.window, 'pointerdown', {
+    dispatchStoryboardWidgetPointerEvent(collectiveRoot, dom.window, 'pointerdown', {
       pointerId: 90,
       clientX: collectiveTarget.left + 24,
       clientY: collectiveTarget.top + 48,
       buttons: 1,
     })
     await waitForRuntimeTick()
-    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointermove', {
+    dispatchStoryboardWidgetPointerEvent(dom.window, dom.window, 'pointermove', {
       pointerId: 90,
       clientX: collectiveTarget.left + 24 + collectiveDx,
       clientY: collectiveTarget.top + 48 + collectiveDy,
       buttons: 1,
     })
     await waitForRuntimeTick()
-    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointerup', {
+    dispatchStoryboardWidgetPointerEvent(dom.window, dom.window, 'pointerup', {
       pointerId: 90,
       clientX: collectiveTarget.left + 24 + collectiveDx,
       clientY: collectiveTarget.top + 48 + collectiveDy,
@@ -1333,7 +1333,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     })
     for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
 
-    const afterCollectivePanEntries = await waitForFlowEditorWidgetTransformSpread({
+    const afterCollectivePanEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1343,35 +1343,35 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     })
     for (let i = 0; i < initial.length; i += 1) {
       const before = initial[i]!
-      const after = findFlowEditorWidgetEntry(afterCollectivePanEntries, before.id)
+      const after = findStoryboardWidgetEntry(afterCollectivePanEntries, before.id)
       const movedDx = after.left - before.left
       const movedDy = after.top - before.top
       if (Math.abs(movedDx - collectiveDx) > 1 || Math.abs(movedDy - collectiveDy) > 1 || Math.abs(after.scale - before.scale) > 0.0001) {
         throw new Error(`expected collective body pan to move ${before.id} by the shared pointer delta; before=${JSON.stringify(before)} after=${JSON.stringify(after)} delta=${JSON.stringify({ movedDx, movedDy })}`)
       }
     }
-    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-collective-body-pan' })
+    assertStoryboardWidgetRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-collective-body-pan' })
 
     store.setCanvasPointerMode2d('pan')
     const nativeCanvasPanDx = -36
     const nativeCanvasPanDy = 28
     const canvas = doc.querySelector<HTMLCanvasElement>('canvas')
-    if (!canvas) throw new Error('expected Flow Editor native canvas to stay mounted for collective pan tuning')
-    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointerdown', {
+    if (!canvas) throw new Error('expected Storyboard Widget native canvas to stay mounted for collective pan tuning')
+    dispatchStoryboardWidgetPointerEvent(canvas, dom.window, 'pointerdown', {
       pointerId: 94,
       clientX: targetViewport.width - 24,
       clientY: targetViewport.height - 24,
       buttons: 1,
     })
     await waitForRuntimeTick()
-    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointermove', {
+    dispatchStoryboardWidgetPointerEvent(canvas, dom.window, 'pointermove', {
       pointerId: 94,
       clientX: targetViewport.width - 24 + nativeCanvasPanDx,
       clientY: targetViewport.height - 24 + nativeCanvasPanDy,
       buttons: 1,
     })
     await waitForRuntimeTick()
-    dispatchFlowEditorPointerEvent(canvas, dom.window, 'pointerup', {
+    dispatchStoryboardWidgetPointerEvent(canvas, dom.window, 'pointerup', {
       pointerId: 94,
       clientX: targetViewport.width - 24 + nativeCanvasPanDx,
       clientY: targetViewport.height - 24 + nativeCanvasPanDy,
@@ -1380,7 +1380,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
     store.setCanvasPointerMode2d('select')
 
-    const afterNativeCanvasPanEntries = await waitForFlowEditorWidgetTransformSpread({
+    const afterNativeCanvasPanEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1390,35 +1390,35 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     })
     for (let i = 0; i < afterCollectivePanEntries.length; i += 1) {
       const before = afterCollectivePanEntries[i]!
-      const after = findFlowEditorWidgetEntry(afterNativeCanvasPanEntries, before.id)
+      const after = findStoryboardWidgetEntry(afterNativeCanvasPanEntries, before.id)
       const movedDx = after.left - before.left
       const movedDy = after.top - before.top
       if (Math.abs(movedDx - nativeCanvasPanDx) > 1 || Math.abs(movedDy - nativeCanvasPanDy) > 1 || Math.abs(after.scale - before.scale) > 0.0001) {
-        throw new Error(`expected native canvas pan to move Flow Editor collective widgets and rich media by the shared pointer delta; before=${JSON.stringify(before)} after=${JSON.stringify(after)} delta=${JSON.stringify({ movedDx, movedDy })}`)
+        throw new Error(`expected native canvas pan to move Storyboard Widget collective widgets and rich media by the shared pointer delta; before=${JSON.stringify(before)} after=${JSON.stringify(after)} delta=${JSON.stringify({ movedDx, movedDy })}`)
       }
     }
-    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-native-canvas-collective-pan' })
+    assertStoryboardWidgetRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-native-canvas-collective-pan' })
 
     store.setZoomState({ k: 1, x: 150, y: 75 })
     for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
-    const afterZoomProjectionEntries = readFlowEditorWidgetTransformEntries(doc)
+    const afterZoomProjectionEntries = readStoryboardWidgetTransformEntries(doc)
     for (let i = 0; i < afterNativeCanvasPanEntries.length; i += 1) {
       const before = afterNativeCanvasPanEntries[i]!
-      const after = findFlowEditorWidgetEntry(afterZoomProjectionEntries, before.id)
-      assertFlowEditorWidgetGeometryStable({ before, after, label: `collective-widget-after-stale-zoom-projection:${before.id}` })
+      const after = findStoryboardWidgetEntry(afterZoomProjectionEntries, before.id)
+      assertStoryboardWidgetGeometryStable({ before, after, label: `collective-widget-after-stale-zoom-projection:${before.id}` })
     }
 
     const toggleAndAssert = async (id: string, expectedPinned: boolean, label: string) => {
-      const beforeEntries = readFlowEditorWidgetTransformEntries(doc)
-      const before = findFlowEditorWidgetEntry(beforeEntries, id)
+      const beforeEntries = readStoryboardWidgetTransformEntries(doc)
+      const before = findStoryboardWidgetEntry(beforeEntries, id)
       const button = findPinToggleButton(doc, id)
-      dispatchFlowEditorPointerEvent(button, dom.window, 'pointerdown', {
+      dispatchStoryboardWidgetPointerEvent(button, dom.window, 'pointerdown', {
         pointerId: expectedPinned ? 92 : 93,
         clientX: before.left + 8,
         clientY: before.top + 8,
         buttons: 1,
       })
-      dispatchFlowEditorPointerEvent(button, dom.window, 'pointerup', {
+      dispatchStoryboardWidgetPointerEvent(button, dom.window, 'pointerup', {
         pointerId: expectedPinned ? 92 : 93,
         clientX: before.left + 8,
         clientY: before.top + 8,
@@ -1432,7 +1432,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
         button: 0,
       }))
       await waitForPinToggleGuard()
-      const nextEntries = await waitForFlowEditorWidgetTransformSpread({
+      const nextEntries = await waitForStoryboardWidgetTransformSpread({
         doc,
         minCount: Math.min(eligibleWidgetIds.length, 24),
         minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1440,37 +1440,37 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
         minSpanH: targetViewport.height * 0.35,
         label,
       })
-      const after = findFlowEditorWidgetEntry(nextEntries, id)
+      const after = findStoryboardWidgetEntry(nextEntries, id)
       if (after.pinned !== expectedPinned) {
         throw new Error(`expected ${label} to set pinned=${expectedPinned}, got ${after.pinned}`)
       }
-      assertFlowEditorWidgetGeometryStable({ before, after, label })
-      assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label })
+      assertStoryboardWidgetGeometryStable({ before, after, label })
+      assertStoryboardWidgetRuntimeStillScoped({ doc, eligibleWidgetIds, label })
     }
 
     await toggleAndAssert(collectiveTarget.id, true, 'collective-widget-pin-after-body-pan')
     await toggleAndAssert(collectiveTarget.id, false, 'collective-widget-unpin-after-body-pan')
 
-    const widgetTarget = pickFlowEditorWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: false, viewport: targetViewport })
-    const richMediaTarget = pickFlowEditorWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: true, viewport: targetViewport })
+    const widgetTarget = pickStoryboardWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: false, viewport: targetViewport })
+    const richMediaTarget = pickStoryboardWidgetTarget({ entries: afterNativeCanvasPanEntries, richMedia: true, viewport: targetViewport })
 
     const dragDx = 96
     const dragDy = 64
     const handle = findWidgetDragHandle(doc, widgetTarget.id)
-    dispatchFlowEditorPointerEvent(handle, dom.window, 'pointerdown', {
+    dispatchStoryboardWidgetPointerEvent(handle, dom.window, 'pointerdown', {
       pointerId: 91,
       clientX: widgetTarget.left + 24,
       clientY: widgetTarget.top + 14,
       buttons: 1,
     })
-    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointermove', {
+    dispatchStoryboardWidgetPointerEvent(dom.window, dom.window, 'pointermove', {
       pointerId: 91,
       clientX: widgetTarget.left + 24 + dragDx,
       clientY: widgetTarget.top + 14 + dragDy,
       buttons: 1,
     })
     await waitForRuntimeTick()
-    dispatchFlowEditorPointerEvent(dom.window, dom.window, 'pointerup', {
+    dispatchStoryboardWidgetPointerEvent(dom.window, dom.window, 'pointerup', {
       pointerId: 91,
       clientX: widgetTarget.left + 24 + dragDx,
       clientY: widgetTarget.top + 14 + dragDy,
@@ -1478,7 +1478,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     })
     for (let i = 0; i < 4; i += 1) await waitForRuntimeTick()
 
-    const afterDragEntries = await waitForFlowEditorWidgetTransformSpread({
+    const afterDragEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1486,8 +1486,8 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
       minSpanH: targetViewport.height * 0.35,
       label: 'after-widget-drag',
     })
-    const afterDragWidget = findFlowEditorWidgetEntry(afterDragEntries, widgetTarget.id)
-    const afterDragRichMedia = findFlowEditorWidgetEntry(afterDragEntries, richMediaTarget.id)
+    const afterDragWidget = findStoryboardWidgetEntry(afterDragEntries, widgetTarget.id)
+    const afterDragRichMedia = findStoryboardWidgetEntry(afterDragEntries, richMediaTarget.id)
     const movedDx = afterDragWidget.left - widgetTarget.left
     const movedDy = afterDragWidget.top - widgetTarget.top
     if (
@@ -1498,18 +1498,18 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
     ) {
       throw new Error(`expected widget drag to preserve size and move by the pointer delta; before=${JSON.stringify(widgetTarget)} after=${JSON.stringify(afterDragWidget)} delta=${JSON.stringify({ movedDx, movedDy })}`)
     }
-    assertFlowEditorWidgetGeometryStable({
+    assertStoryboardWidgetGeometryStable({
       before: richMediaTarget,
       after: afterDragRichMedia,
       label: 'rich media during adjacent widget drag',
     })
-    assertFlowEditorRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-widget-drag' })
+    assertStoryboardWidgetRuntimeStillScoped({ doc, eligibleWidgetIds, label: 'after-widget-drag' })
 
     await toggleAndAssert(widgetTarget.id, true, 'widget-pin-after-drag')
     await toggleAndAssert(widgetTarget.id, false, 'widget-unpin-after-drag')
     await toggleAndAssert(richMediaTarget.id, true, 'rich-media-pin')
     await toggleAndAssert(richMediaTarget.id, false, 'rich-media-unpin')
-    assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: 'expected screen-authority drag/pin/unpin to keep Flow Editor widget state graph-owned' })
+    assertFlowWidgetStateScopedToEligibleIds({ eligibleWidgetIds, messagePrefix: 'expected screen-authority drag/pin/unpin to keep Storyboard Widget state graph-owned' })
   } finally {
     try {
       restoreElementRect?.()
@@ -1517,7 +1517,7 @@ export async function testVideoDemoSourceFilesRuntimeScreenAuthorityDragPinUnpin
       void 0
     }
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -1544,7 +1544,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
       if (this.matches('[data-kg-workspace-left-pane="1"]')) {
         return {
           x: 0,
@@ -1608,8 +1608,8 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     applyComposedGraphFromSourceFiles()
 
     const postCompose = useGraphStore.getState()
-    if (postCompose.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-files video-demo landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    if (postCompose.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected source-files video-demo landing to use storyboard renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
     }
 
     const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
@@ -1632,7 +1632,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
@@ -1712,23 +1712,23 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
         }
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
       }
-      throw new Error(`expected source-files Flow Editor collective layout to remain in-view after ${phase}; snapshot=${lastSnapshot}`)
+      throw new Error(`expected source-files Storyboard Widget collective layout to remain in-view after ${phase}; snapshot=${lastSnapshot}`)
     }
 
     const assertOverlayToggleDoesNotMutateGeometry = (
-      beforeEntries: FlowEditorWidgetTransformEntry[],
-      afterEntries: FlowEditorWidgetTransformEntry[],
+      beforeEntries: StoryboardWidgetTransformEntry[],
+      afterEntries: StoryboardWidgetTransformEntry[],
       label: string,
     ) => {
       for (let i = 0; i < beforeEntries.length; i += 1) {
         const before = beforeEntries[i]!
-        const after = findFlowEditorWidgetEntry(afterEntries, before.id)
-        assertFlowEditorWidgetGeometryStable({ before, after, label: `${label}:${before.id}` })
+        const after = findStoryboardWidgetEntry(afterEntries, before.id)
+        assertStoryboardWidgetGeometryStable({ before, after, label: `${label}:${before.id}` })
       }
     }
 
     await waitForInViewCollective('initial-canvas')
-    const initialEntries = await waitForFlowEditorWidgetTransformSpread({
+    const initialEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1744,7 +1744,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     await waitForRuntimeTick()
 
     await waitForInViewCollective('opened')
-    const openedEntries = await waitForFlowEditorWidgetTransformSpread({
+    const openedEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1759,7 +1759,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     store.setWorkspaceViewMode('canvas')
     await waitForRuntimeTick()
     await waitForInViewCollective('closed')
-    const closedEntries = await waitForFlowEditorWidgetTransformSpread({
+    const closedEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1776,7 +1776,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
     await waitForRuntimeTick()
 
     await waitForInViewCollective('reopen')
-    const reopenedEntries = await waitForFlowEditorWidgetTransformSpread({
+    const reopenedEntries = await waitForStoryboardWidgetTransformSpread({
       doc,
       minCount: Math.min(eligibleWidgetIds.length, 24),
       minUniqueBins: Math.min(eligibleWidgetIds.length, 18),
@@ -1792,7 +1792,7 @@ export async function testVideoDemoSourceFilesRuntimeOpenCloseReopenStaysInView1
       void 0
     }
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }
@@ -1819,7 +1819,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     elementProto.getBoundingClientRect = function patchedGetBoundingClientRect(this: HTMLElement): DOMRect {
       const shouldForceViewportRect =
         this.matches('[data-kg-canvas-viewport-root="1"]')
-        || this.matches('[data-kg-flow-editor-surface-root]')
+        || this.matches('[data-kg-storyboard-widget-surface-root]')
       if (this.matches('[data-kg-workspace-left-pane="1"]')) {
         return {
           x: 0,
@@ -1872,7 +1872,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
 
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerWidth = targetViewport.width
     ;(dom.window as unknown as { innerWidth?: number; innerHeight?: number }).innerHeight = targetViewport.height
-    root = await mountFlowEditorCanvasRuntime(container as unknown as HTMLElement)
+    root = await mountStoryboardWidgetCanvasRuntime(container as unknown as HTMLElement)
 
     dom.window.dispatchEvent(new dom.window.Event('resize'))
     await waitForRuntimeTick()
@@ -1900,8 +1900,8 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
     applyComposedGraphFromSourceFiles()
 
     const postCompose = useGraphStore.getState()
-    if (postCompose.canvas2dRenderer !== 'flowEditor') {
-      throw new Error(`expected source-files initial workspace-open landing to use flowEditor renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
+    if (postCompose.canvas2dRenderer !== 'storyboard') {
+      throw new Error(`expected source-files initial workspace-open landing to use storyboard renderer, got ${String(postCompose.canvas2dRenderer || '')}`)
     }
     const graphNodes = Array.isArray(postCompose.graphData?.nodes) ? postCompose.graphData.nodes : []
     const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(graphNodes as never))
@@ -1995,7 +1995,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
         await new Promise<void>(resolveWait => setTimeout(resolveWait, 12))
       }
       throw new Error(
-        `expected source-files initial workspace-open Flow Editor collective layout to stay in-view; snapshot=${lastSnapshot}`,
+        `expected source-files initial workspace-open Storyboard Widget collective layout to stay in-view; snapshot=${lastSnapshot}`,
       )
     }
 
@@ -2007,7 +2007,7 @@ export async function testVideoDemoSourceFilesRuntimeInitialWorkspaceOpenStaysIn
       void 0
     }
     try {
-      await unmountFlowEditorCanvasRuntime(root)
+      await unmountStoryboardWidgetCanvasRuntime(root)
     } catch {
       void 0
     }

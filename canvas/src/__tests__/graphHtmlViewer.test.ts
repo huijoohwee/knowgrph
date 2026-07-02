@@ -38,8 +38,8 @@ export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelect
   if (!html.includes('.kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video') || !html.includes('data-kg-rich-media-render-surface')) {
     throw new Error('expected exported viewer to use the widget rich media render surface contract')
   }
-  if (!html.includes('[data-kg-rich-media-floating-toolbar="1"]') || !html.includes('[data-kg-rich-media-open-source="1"]')) {
-    throw new Error('expected exported viewer CSS to style the widget-like floating toolbar shell for rich media panels')
+  if (html.includes('[data-kg-rich-media-floating-toolbar="1"]') || html.includes('[data-kg-rich-media-open-source="1"]')) {
+    throw new Error('expected exported viewer CSS to avoid the legacy Rich Media floating toolbar variant')
   }
   if (!html.includes('kg-media-toggle') || !html.includes('Toggle media interaction')) {
     throw new Error('expected media interaction toggle control')
@@ -536,8 +536,10 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   if (!js.includes("el.setAttribute('data-kg-rich-media-render-surface', '1');") || !js.includes("el.setAttribute('data-kg-canvas-overlay-drag-handle', 'true');")) {
     throw new Error('expected runtime to synthesize only the widget rich media render surface')
   }
-  if (!js.includes("toolbar.setAttribute('data-kg-rich-media-floating-toolbar', '1');") || !js.includes("openBtn.setAttribute('data-kg-rich-media-open-source', '1');")) {
-    throw new Error('expected runtime to synthesize the widget-like floating toolbar shell for rich media panels')
+  if (js.includes("toolbar.setAttribute('data-kg-rich-media-floating-toolbar', '1');")
+    || js.includes("openBtn.setAttribute('data-kg-rich-media-open-source', '1');")
+    || js.includes("var toolbar = document.createElement('section');")) {
+    throw new Error('expected runtime template to avoid synthesizing a duplicate Rich Media floating toolbar variant')
   }
   if (js.includes('kg-mediaHeader') || js.includes('kg-mediaTitle') || js.includes('data-kg-media-panel-header')) {
     throw new Error('expected runtime template to remove legacy rich media header markers at the source')

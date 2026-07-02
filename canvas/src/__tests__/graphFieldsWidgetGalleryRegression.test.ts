@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testGraphFieldsViewAddsSmartMediaWidgetGalleryPresetSetup() {
-  const flowEditorGraphTabPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const storyboardWidgetGraphTabPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetGraphTab.tsx')
   const graphFieldsViewPath = resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
-  const text = readFileSync(flowEditorGraphTabPath, 'utf8')
+  const text = readFileSync(storyboardWidgetGraphTabPath, 'utf8')
   const graphFieldsViewText = readFileSync(graphFieldsViewPath, 'utf8')
 
   const hasConsolidatedEntryShortcut =

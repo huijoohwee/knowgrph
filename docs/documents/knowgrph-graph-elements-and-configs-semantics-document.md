@@ -8,19 +8,19 @@
 
 ## Stack (Surface Journey)
 
-**Canvas → 2D Renderer → Flow Editor → Flow Editor widget**
+**Canvas → 2D Renderer → Storyboard → Display Controls → Widget**
 
 - **Canvas**: hosts the active render surface and owns renderer/mode gating.
-- **2D Renderer**: renders the active graph view (D3 Graph, Flow, Flow Editor).
-- **Flow Editor**: edits a draft graph and commits explicitly; selection drives overlays.
-- **Flow Editor widget**: an in-canvas overlay for the selected node (semantic HTML; token-driven UI).
+- **2D Renderer**: renders the active graph view (D3 Graph, Flow, Storyboard).
+- **Storyboard Widget**: edits a draft graph through the shared Storyboard Widget subsystem and commits explicitly; selection drives overlays.
+- **Widget**: an in-canvas overlay for the selected node (semantic HTML; token-driven UI).
 
 ---
 
 ## GRAPHS Elements (SSOT Semantics)
 
 - **Nodes**
-- **Flow Editor widgets**
+- **Storyboard widgets**
 - **Edges**
 - **Graph layers**: subgraphs, groups, clusters, communities
 - **Labels**
@@ -30,7 +30,7 @@
 
 - **Definition**: a graph entity with `id`, optional `label`, and `type`; it carries `properties` and optional `metadata`.
 - **Rendering**: rendered by 2D/3D/Flow surfaces from the same SSOT-derived active graph view.
-- **Editing**: Flow Editor edits a draft copy; Flow Editor widget maps form fields to `node.properties`.
+- **Editing**: Storyboard Widget edits a draft copy; the shared widget form maps fields to `node.properties`.
 
 ### Edges
 
@@ -48,9 +48,9 @@
 - **Examples**:
   - **Subgraphs / Groups / Clusters / Communities**: structural or derived groupings rendered as group geometry.
   - **Selection layer**: highlights active selection without mutating base styles.
-  - **Overlay layer**: screen-space UI (Flow Editor widget) synchronized to world-space transforms.
+  - **Overlay layer**: screen-space UI (Storyboard Widget) synchronized to world-space transforms.
 
-### Flow Editor widgets
+### Storyboard widgets
 
 - **Definition**: a screen-space overlay editing surface anchored to a selected node.
 - **Contract**:
@@ -60,12 +60,12 @@
   - Scroll isolation: overlay scroll must not trigger canvas zoom (wheel-ignore zone).
   - Render isolation: zoom/pan must not re-render heavy form subtrees (DOM transform updates only).
   - Registry-driven fields/ports:
-    - Registry entries are authored via Flow Editor Manager and resolved per-node by node type + overrides.
+    - Registry entries are authored via Storyboard Widget Manager and resolved per-node by node type + overrides.
     - `isHidden: true` on registry fields/ports hides them in the widget and suppresses Flow port handles.
   - Connected-data semantics:
     - Connected values are derived from port-bound edges and registry port `schemaPath` (plus optional `schemaMappings`).
     - The UI may surface computed “Connected” hints and an explicit “Apply” action, but the compute pipeline must not silently mutate `GraphData`.
-    - Connected-value computation is shared across Flow Editor and Table Inspector to prevent cross-mode semantic drift.
+    - Connected-value computation is shared across Storyboard Widget and Table Inspector to prevent cross-mode semantic drift.
   - More actions contract:
     - Open in sidepane dispatches the floating panel open event (no graph mutation).
     - Enable Handles sets `schema.behavior.portHandles.enabled=true` and `schema.behavior.portHandles.showAllInputs=true` (gated by baseline lock).
@@ -114,7 +114,7 @@
 
 ## Success Criteria
 
-- **No semantic drift**: nodes/edges/layers/labels mean the same thing across Canvas, Flow, and Flow Editor.
-- **SSOT copy**: Flow Editor widget strings come from `UI_LABELS` / `UI_COPY`.
+- **No semantic drift**: nodes/edges/layers/labels mean the same thing across Canvas, Flow, and Storyboard Widget.
+- **SSOT copy**: Storyboard Widget strings come from `UI_LABELS` / `UI_COPY`.
 - **SSOT tokens**: panel typography and control styling reuse `usePanelTypography` and `UI_THEME_TOKENS`.
 - **Bounded work**: Port Handles, collision relax, and zoom commits stay step/interval bounded (no unbounded loops).

@@ -9,7 +9,7 @@ export function testMarkdownFlowBlockTypedNodeToNodeEdgesUseSemanticImplicitPort
   const md = [
     '---',
     'title: Typed edge demo',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'flow:',
     '  direction: {key: direction, type: string, value: "LR"}',
     '  nodes:',

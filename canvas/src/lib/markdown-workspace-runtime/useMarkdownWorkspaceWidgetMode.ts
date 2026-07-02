@@ -2,8 +2,8 @@ import React from 'react'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
   deriveWidgetCandidateNodeIds,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+} from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
 import {
   hashArrayOfObjectsSignature,

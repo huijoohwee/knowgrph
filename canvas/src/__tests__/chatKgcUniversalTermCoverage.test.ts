@@ -6,8 +6,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+} from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 const buildBaseTemplateSample = (): string => {
@@ -100,7 +100,7 @@ export function testKgcFallbackGeneratesFlowDiagramsForArbitraryPromptDynamicPan
   })
 
   assertIncludes(md, [
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'flow_diagrams:',
     'type: mermaid_gitgraph',
     'type: mermaid_gantt',

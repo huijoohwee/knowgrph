@@ -4,11 +4,11 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import {
   buildCanonicalWidgetRegistryDraft,
   inferTextGenerationProviderFamily,
-} from '@/features/flow-editor-manager/registryTemplates'
+} from '@/features/storyboard-widget-manager/registryTemplates'
 import type { ChatResponseStructuredSurface } from './chatResponseStructuredContent'
 
 const yamlScalar = (value: unknown): string => JSON.stringify(String(value ?? ''))

@@ -1,5 +1,5 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryField } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { CHAT_GEMINI_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 
 export type GeminiVideoApiDocRow = {
@@ -127,7 +127,7 @@ export const GEMINI_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<GeminiVideoApiDocRo
     keyDescription: 'Model selector -> pick the Gemini Veo engine -> decide which Veo capability tier executes the generation task.',
     valueDescription: `Default: ${CHAT_GEMINI_VIDEO_MODEL_DEFAULT}; Higher-tier models expand resolution and reference-image support; pinning one model narrows drift across Integrations and widget runs.`,
     ssot: `${GEMINI_VIDEO_GENERATION_API_DOCS_URL} :: Request body > model`,
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/geminiRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/geminiRunGeneration.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions', 'WidgetRegistryEntry'],
     functionName: ['readGeminiVideoWidgetDefaults', 'generateRunVideoWithGemini', 'buildGeminiVideoGenerationFields'],
     valueKey: 'geminiVideoModel',
@@ -145,7 +145,7 @@ export const GEMINI_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<GeminiVideoApiDocRo
     keyDescription: 'Scene brief -> describe the target motion, style, and narrative -> steer Veo toward the requested video outcome.',
     valueDescription: 'Default: empty; Richer prompt detail expands scene control; shorter prompts narrow specification and leave more to model inference.',
     ssot: `${GEMINI_VIDEO_GENERATION_API_DOCS_URL} :: Request body > instances[0].prompt`,
-    module: ['canvas/src/features/chat/geminiRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    module: ['canvas/src/features/chat/geminiRunGeneration.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     className: ['RunVideoGenerationOptions', 'WidgetRegistryEntry'],
     functionName: ['generateRunVideoWithGemini', 'buildGeminiVideoGenerationFields'],
     responsibility: 'Carries the prompt text used by the default content builder.',

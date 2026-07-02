@@ -141,7 +141,7 @@ export const testGrabMapsStyleDoesNotLeakIntoOtherMapLibreModes = () => {
   }
 }
 
-export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView = () => {
+export const testCanvasStartupDefaultsPreferStoryboardFrontmatterAndUnlockedView = () => {
   const uiSlicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSlice.ts')
   const uiSettingsSlicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSlice.ts')
   const configRenderPath = path.resolve(process.cwd(), 'src', 'lib', 'config.render.ts')
@@ -164,8 +164,8 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   const geospatialPreferenceText = readUtf8(geospatialPreferencePath)
   const sharedGeospatialConstantsText = readUtf8(sharedGeospatialConstantsPath)
 
-  if (!configRenderText.includes("export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'")) {
-    throw new Error('Expected startup 2D renderer baseline to default to Flow Editor at the shared renderer config')
+  if (!configRenderText.includes("export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'storyboard'")) {
+    throw new Error('Expected startup 2D renderer baseline to default to Storyboard at the shared renderer config')
   }
   if (!uiSettingsSliceText.includes('frontmatterModeEnabled: true')) {
     throw new Error('Expected startup frontmatter mode to default ON at the shared UI settings slice')
@@ -309,8 +309,8 @@ export const testGrabMapsReferenceDemoDeclaresCanonicalGeospatialSeedPreset = ()
   if (!text.includes('kgCanvasSurfaceMode: "geospatial"')) {
     throw new Error('Expected GrabMaps reference demo to declare geospatial surface mode as the canonical seed preset')
   }
-  if (!text.includes('kgCanvas2dRenderer: "flowEditor"')) {
-    throw new Error('Expected GrabMaps reference demo to preserve flowEditor as the canonical 2D renderer for geospatial widget-panel overlays')
+  if (!text.includes('kgCanvas2dRenderer: "storyboard"')) {
+    throw new Error('Expected GrabMaps reference demo to preserve Storyboard as the canonical 2D renderer for geospatial widget-panel overlays')
   }
   if (!text.includes('kgDocumentSemanticMode: "document"')) {
     throw new Error('Expected GrabMaps reference demo to declare document semantic mode explicitly')

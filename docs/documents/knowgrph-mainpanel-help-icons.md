@@ -62,7 +62,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.chat | floatingPanel.chat | Assistant interface | FloatingPanel view for chat runs and KGC output creation. |
 | floatingPanel.geo | floatingPanel.geo | Map interaction | FloatingPanel view for geospatial inspection and map interaction. |
 | floatingPanel.renderer | floatingPanel.renderer | Rendering controls | FloatingPanel view for renderer presets and visualization controls. |
-| floatingPanel.flowEditor | floatingPanel.flowEditor | Flow editing | FloatingPanel view for Flow Editor field and graph editing controls. |
+| floatingPanel.storyboardWidget | floatingPanel.storyboardWidget | Flow editing | FloatingPanel view for Storyboard Widget field and graph editing controls. |
 | floatingPanel.flowchart | floatingPanel.flowchart | Flowchart inspection | FloatingPanel view for flowchart-oriented diagram controls and inspection. |
 | floatingPanel.gitGraph | floatingPanel.gitGraph | Git history graph | FloatingPanel view for GitGraph history, branch topology, and commit inspection. |
 | floatingPanel.gantt | floatingPanel.gantt | Gantt planning | FloatingPanel view for Gantt-timeline inspection and planning controls. |

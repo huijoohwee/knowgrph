@@ -53,7 +53,7 @@ export function testLaunchSpotlightStatusCardLabelsXrRendererAsXr() {
   const label = resolveLaunchSpotlightRendererLabel({
     canvasRenderMode: '3d',
     canvas3dMode: 'xr',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
   })
   if (label !== 'XR') {
     throw new Error(`expected LaunchSpotlight renderer label to show XR instead of generic 3D, got ${label}`)

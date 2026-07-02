@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
+import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'

@@ -1,5 +1,5 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-export { buildBytePlusImageGenerationFields } from '@/lib/flowEditor/byteplusImageWidgetFields'
+export { buildBytePlusImageGenerationFields } from '@/lib/storyboardWidget/byteplusImageWidgetFields'
 
 export type BytePlusImageApiDocRow = {
   key: string
@@ -109,7 +109,7 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     module: [
       'canvas/src/features/settings/registry-ui.ui.ts',
       'canvas/src/features/chat/byteplusRunGeneration.ts',
-      'canvas/src/features/flow-editor-manager/registryTemplates.ts',
+      'canvas/src/features/storyboard-widget-manager/registryTemplates.ts',
     ],
     className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
     functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus', 'buildBytePlusImageGenerationFields'],
@@ -175,7 +175,7 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     keyDescription: 'Reference-image injector -> pass source imagery into the request -> let BytePlus perform image-conditioned generation or editing flows when supported.',
     valueDescription: 'Default: empty; Adding a reference image expands conditioning context; omitting it narrows the request to pure text-to-image generation.',
     ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > image`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx'],
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/StoryboardWidget/WidgetEditorForm.tsx'],
     className: ['RunImageGenerationOptions'],
     functionName: ['generateRunImageWithBytePlus', 'buildWidgetDraftFromSmartFields'],
     responsibility: 'Carries the optional reference image URL or Base64 payload for image-conditioned runs.',
@@ -206,7 +206,7 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     keyDescription: 'Image brief -> describe the visual outcome -> steer BytePlus toward the requested composition, style, and subject matter.',
     valueDescription: 'Default: empty; Richer prompt detail expands scene control; shorter prompts narrow specification and leave more to model inference.',
     ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > prompt`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     className: ['RunImageGenerationOptions', 'WidgetRegistryEntry'],
     functionName: ['generateRunImageWithBytePlus', 'buildBytePlusImageGenerationFields'],
     responsibility: 'Carries the required text prompt used for image generation.',

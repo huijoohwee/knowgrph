@@ -3,7 +3,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { defaultSchema } from '@/lib/graph/schema'
-import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
+import { WidgetEditorPortHandles } from '@/components/StoryboardWidget/WidgetEditorPortHandles'
 
 export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -25,7 +25,7 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
     React.createElement(
       'div',
       { style: { position: 'relative', width: 360, height: 320 } },
-      React.createElement(NodeOverlayEditorPortHandles, {
+      React.createElement(WidgetEditorPortHandles, {
         active: true,
         node: { id: 'n1', type: 'Node', properties: {} },
         schema,

@@ -1,4 +1,4 @@
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 export const SHOWRUNNER_BRIEF_SCHEMA = 'knowgrph-showrunner-brief/v1' as const
 export const SHOWRUNNER_SCRIPT_SCHEMA = 'knowgrph-script/v1' as const

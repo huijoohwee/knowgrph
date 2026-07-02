@@ -1,5 +1,5 @@
 import { buildRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
-import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
+import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 
 export const testBuildRichMediaPanelNodeUsesDefaults = () => {
   const node = buildRichMediaPanelNode({ id: 'p-test' })

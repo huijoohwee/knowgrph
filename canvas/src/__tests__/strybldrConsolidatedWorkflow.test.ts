@@ -24,7 +24,7 @@ const assert = (condition: unknown, message: string) => {
 }
 
 const demoText = readFileSync(strybldrDemoPath, 'utf8')
-const flowEditorParseResult = tryParseMarkdownFrontmatterFlowGraph('knowgrph-strybldr-demo.md', demoText)
+const storyboardWidgetParseResult = tryParseMarkdownFrontmatterFlowGraph('knowgrph-strybldr-demo.md', demoText)
 const demoFrontmatterBlock = extractYamlFrontmatterHeaderBlock(demoText)
 const readDemoFrontmatterValue = (key: string): string => demoFrontmatterBlock ? readYamlFrontmatterValue(demoFrontmatterBlock.rawBlock, key).trim() : ''
 const demoVideoId = readDemoFrontmatterValue('kgYoutubeVideoId')
@@ -48,7 +48,7 @@ assert(readDemoFrontmatterValue('videodb_credential_policy').startsWith('Server 
 for (const requiredText of [
   '2D Renderer: Storyboard',
   '2D Renderer: Storyboard',
-  '2D Renderer: Flow Editor',
+  '2D Renderer: Storyboard',
   'SenseNova API Lane (Text, Image, Video)',
   `VideoDB API + MCP Recreate ${demoVideoId} Lane`,
   'Confirm MainPanel Integrations exposes SenseNova API readiness',
@@ -68,8 +68,8 @@ assert(demoText.includes('\nstrybldr_storyboard:\n'), 'Strybldr demo must keep t
 assert(!demoText.includes('\nstrybldr_storyboard: |\n'), 'Strybldr demo must not store the Strybldr storyboard payload as a JSON string literal')
 assert(!/```json strybldr-storyboard/.test(demoText), 'Strybldr demo must not duplicate the Strybldr storyboard payload in the Markdown body')
 
-const parsedFrontmatter = flowEditorParseResult?.graphData?.metadata && typeof flowEditorParseResult.graphData.metadata === 'object'
-  ? flowEditorParseResult.graphData.metadata as { frontmatterMeta?: Record<string, unknown> }
+const parsedFrontmatter = storyboardWidgetParseResult?.graphData?.metadata && typeof storyboardWidgetParseResult.graphData.metadata === 'object'
+  ? storyboardWidgetParseResult.graphData.metadata as { frontmatterMeta?: Record<string, unknown> }
   : {}
 const storyboardPayload = parsedFrontmatter.frontmatterMeta?.strybldr_storyboard
 assert(storyboardPayload && typeof storyboardPayload === 'object' && !Array.isArray(storyboardPayload), 'Strybldr demo frontmatter must expose strybldr_storyboard as a YAML object payload')
@@ -151,14 +151,14 @@ assert(
   'Strybldr demo must not contain fabricated runtime SenseNova/VideoDB values or unrelated non-E2E workflow content',
 )
 
-assert(flowEditorParseResult, 'Strybldr demo must parse as frontmatter-flow for 2D Renderer: Flow Editor')
-const flowEditorGraph = flowEditorParseResult?.graphData
+assert(storyboardWidgetParseResult, 'Strybldr demo must parse as frontmatter-flow for 2D Renderer: Storyboard')
+const storyboardWidgetGraph = storyboardWidgetParseResult?.graphData
 assert(
-  String(flowEditorGraph?.context || '').trim() === 'frontmatter-flow',
-  `expected Strybldr demo Flow Editor graph context to be frontmatter-flow, got ${String(flowEditorGraph?.context || '')}`,
+  String(storyboardWidgetGraph?.context || '').trim() === 'frontmatter-flow',
+  `expected Strybldr demo Storyboard Widget graph context to be frontmatter-flow, got ${String(storyboardWidgetGraph?.context || '')}`,
 )
-const flowNodeIds = new Set((flowEditorGraph?.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
-const flowEdges = flowEditorGraph?.edges || []
+const flowNodeIds = new Set((storyboardWidgetGraph?.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
+const flowEdges = storyboardWidgetGraph?.edges || []
 for (const requiredNodeId of [
   'strybldr_flow_source',
   'strybldr_flow_storyboard',
@@ -171,21 +171,21 @@ for (const requiredNodeId of [
   'strybldr_flow_rich_media_panel',
   'strybldr_flow_publish',
 ]) {
-  assert(flowNodeIds.has(requiredNodeId), `Strybldr Flow Editor graph missing node ${requiredNodeId}`)
+  assert(flowNodeIds.has(requiredNodeId), `Strybldr Storyboard Widget graph missing node ${requiredNodeId}`)
 }
-const richMediaPanelNode = (flowEditorGraph?.nodes || []).find(node => String(node.id || '') === 'strybldr_flow_rich_media_panel') || null
+const richMediaPanelNode = (storyboardWidgetGraph?.nodes || []).find(node => String(node.id || '') === 'strybldr_flow_rich_media_panel') || null
 assert(
   String(richMediaPanelNode?.type || '') === 'RichMediaPanel',
-  `expected Strybldr Flow Editor rich media node type RichMediaPanel, got ${String(richMediaPanelNode?.type || '')}`,
+  `expected Strybldr Storyboard Widget rich media node type RichMediaPanel, got ${String(richMediaPanelNode?.type || '')}`,
 )
 const richMediaPanelProps = (richMediaPanelNode?.properties || {}) as Record<string, unknown>
 assert(
   String(richMediaPanelProps['flow:widgetFormId'] || '') === 'richMediaPanel',
-  'expected Strybldr Flow Editor rich media node to use shared richMediaPanel widget form',
+  'expected Strybldr Storyboard Widget rich media node to use shared richMediaPanel widget form',
 )
 assert(
   String(richMediaPanelProps.outputSrcDoc || '').includes('data-kg-strybldr-rich-media-panel'),
-  'expected Strybldr Flow Editor rich media node to carry source-backed outputSrcDoc content',
+  'expected Strybldr Storyboard Widget rich media node to carry source-backed outputSrcDoc content',
 )
 for (const requiredEdge of [
   ['strybldr_flow_fork', 'strybldr_flow_rest', 'fork_to_rest'],
@@ -200,6 +200,6 @@ for (const requiredEdge of [
       && String(edge.target || '') === requiredEdge[1]
       && String(edge.label || '') === requiredEdge[2]
     )),
-    `Strybldr Flow Editor graph missing edge ${requiredEdge.join(' -> ')}`,
+    `Strybldr Storyboard Widget graph missing edge ${requiredEdge.join(' -> ')}`,
   )
 }

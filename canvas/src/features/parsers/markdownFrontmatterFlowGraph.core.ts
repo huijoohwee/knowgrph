@@ -12,7 +12,7 @@ import {
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { buildFrontmatterFlowSourceLayerHash } from '@/features/parsers/markdownFrontmatterFlowGraph.sourceKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
-import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
@@ -21,7 +21,7 @@ import {
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import {
   buildConnectionWarnings,
   ensureAugmentedPortsFromDeclaredConnections,
@@ -52,7 +52,7 @@ import {
 import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
-import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/flowEditor/frontmatterCollectiveLayout'
+import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
 import { mergeWidgetRegistryEntries, readAuthoredWidgetRegistryEntries } from '@/features/parsers/markdownFrontmatterFlowGraph.widgetRegistry'
 import {
   deriveFlowDiagramsWidgets,

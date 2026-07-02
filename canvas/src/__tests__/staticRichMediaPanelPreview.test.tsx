@@ -113,9 +113,9 @@ export async function testStaticRichMediaPanelPreviewRendersImageVideoAndIframe(
       const srcdoc = iframe.getAttribute('srcdoc') || ''
       if (!srcdoc.trim()) throw new Error('expected iframe srcdoc to be populated')
     }
-    const flowEditorHeaders = Array.from(doc.querySelectorAll('[data-kg-rich-media-flow-editor-header="1"]'))
-    if (flowEditorHeaders.length !== 4) {
-      throw new Error(`expected static rich media previews to reuse RichMediaPanel Flow Editor chrome, got ${flowEditorHeaders.length}`)
+    const storyboardWidgetHeaders = Array.from(doc.querySelectorAll('[data-kg-rich-media-storyboard-widget-header="1"]'))
+    if (storyboardWidgetHeaders.length !== 4) {
+      throw new Error(`expected static rich media previews to reuse RichMediaPanel Storyboard Widget chrome, got ${storyboardWidgetHeaders.length}`)
     }
     const svgTitleText = Array.from(doc.querySelectorAll('svg > g > text'))
     if (svgTitleText.length !== 0) {

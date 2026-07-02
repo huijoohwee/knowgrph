@@ -30,7 +30,7 @@ kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 traceability:
   prd: "PRD-STORAGE-SYNC"
   tad: "TAD-STORAGE-SYNC"

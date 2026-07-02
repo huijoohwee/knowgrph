@@ -6,7 +6,7 @@ date: "2026-04-24"
 lang: en-US
 
 kgCanvasSurfaceMode: "geospatial"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false

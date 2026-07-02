@@ -13,16 +13,18 @@ import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
-  readFlowEditorElementSurfaceId,
+  readStoryboardWidgetElementSurfaceId,
   readCanvasOverlayPinnedState,
-  resolveFlowEditorOverlayProxyTarget,
-} from '@/lib/canvas/flow-editor-overlay-proxy'
+  isCanvasOverlayPanOwnedByCanvas,
+  resolveStoryboardWidgetOverlayProxyTarget,
+  shouldUseCanvasOverlayBodyPan,
+} from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import {
-  isFlowEditorSharedSurfaceRenderer,
-  readFlowEditorScreenAuthorityPanSnapshot,
-  shouldUseFlowEditorScreenAuthorityCollectivePan,
-  type FlowEditorScreenAuthorityPanSnapshot,
-} from '@/lib/flowEditor/screenAuthorityCollectivePan'
+  isStoryboardWidgetSurfaceRenderer,
+  readStoryboardWidgetScreenAuthorityPanSnapshot,
+  shouldUseStoryboardWidgetScreenAuthorityCollectivePan,
+  type StoryboardWidgetScreenAuthorityPanSnapshot,
+} from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import { UI_SELECTORS } from '@/lib/config'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { readFlowPanInteractionSpeed } from '@/components/FlowCanvas/interactions/dragSession'
@@ -62,8 +64,8 @@ export function bindFlowNativeInteractionListeners(args: {
         startTx: number
         startTy: number
         interactionSpeed: number
-        useFlowEditorScreenAuthorityPan: boolean
-        flowEditorScreenAuthorityPan: FlowEditorScreenAuthorityPanSnapshot | null
+        useStoryboardWidgetScreenAuthorityPan: boolean
+        storyboardWidgetScreenAuthorityPan: StoryboardWidgetScreenAuthorityPanSnapshot | null
       } = null
 
   const spacePanProxyTargetSelector = [CANVAS_OVERLAY_PROXY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
@@ -99,9 +101,9 @@ export function bindFlowNativeInteractionListeners(args: {
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
-    const flowEditorOverlayInteractionMode =
-      isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer) && shouldUseFlowEditorScreenAuthorityCollectivePan(st)
-    if (!flowEditorOverlayInteractionMode) return
+    const storyboardWidgetOverlayInteractionMode =
+      isStoryboardWidgetSurfaceRenderer(st.canvas2dRenderer) && shouldUseStoryboardWidgetScreenAuthorityCollectivePan(st)
+    if (!storyboardWidgetOverlayInteractionMode) return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return
     if (pendingProxyPan != null) return
@@ -117,15 +119,15 @@ export function bindFlowNativeInteractionListeners(args: {
     const storeStateAtDown = st
     const panInteractionSpeed = readFlowPanInteractionSpeed(storeStateAtDown)
     const readProxyPanScreenAuthority = (): {
-      useFlowEditorScreenAuthorityPan: boolean
-      flowEditorScreenAuthorityPan: FlowEditorScreenAuthorityPanSnapshot | null
+      useStoryboardWidgetScreenAuthorityPan: boolean
+      storyboardWidgetScreenAuthorityPan: StoryboardWidgetScreenAuthorityPanSnapshot | null
     } => {
-      const useFlowEditorScreenAuthorityPan = shouldUseFlowEditorScreenAuthorityCollectivePan(storeStateAtDown)
+      const useStoryboardWidgetScreenAuthorityPan = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(storeStateAtDown)
       return {
-        useFlowEditorScreenAuthorityPan,
-        flowEditorScreenAuthorityPan: useFlowEditorScreenAuthorityPan
-          ? readFlowEditorScreenAuthorityPanSnapshot({
-            flowEditorSurfaceId: ctx.args.flowEditorSurfaceId || readFlowEditorElementSurfaceId(canvasEl),
+        useStoryboardWidgetScreenAuthorityPan,
+        storyboardWidgetScreenAuthorityPan: useStoryboardWidgetScreenAuthorityPan
+          ? readStoryboardWidgetScreenAuthorityPanSnapshot({
+            storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId || readStoryboardWidgetElementSurfaceId(canvasEl),
             transform: runtime.transform,
           })
           : null,
@@ -152,10 +154,10 @@ export function bindFlowNativeInteractionListeners(args: {
       selectionOnDrag: ctx.args.selectionOnDrag,
     })
 
-    const resolved = resolveFlowEditorOverlayProxyTarget({
+    const resolved = resolveStoryboardWidgetOverlayProxyTarget({
       target: targetEl,
       canvasEl,
-      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+      storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId,
     })
     const overlayPinnedToNode = resolved.kind === 'overlay' && readCanvasOverlayPinnedState(resolved.overlayRoot)
     const overlayResizeHandle =
@@ -169,26 +171,24 @@ export function bindFlowNativeInteractionListeners(args: {
       && resolved.overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
     const overlayPanOwnerCanvas =
       resolved.kind === 'overlay'
-      && String(resolved.overlayRoot.getAttribute('data-kg-overlay-pan-owner') || '').trim() === 'canvas'
+      && isCanvasOverlayPanOwnedByCanvas(resolved.overlayRoot)
     const overlayBodyViewportPan =
       resolved.kind === 'overlay'
       && button === 0
       && spacePanHeld !== true
       && e.altKey !== true
-      && !overlayResizeHandle
-      && !overlayDragHandle
-      && resolved.isInteractive !== true
+      && shouldUseCanvasOverlayBodyPan({ target: resolved.targetEl, overlayRoot: resolved.overlayRoot })
     const overlayViewportPanIntent = allowPan || overlayBodyViewportPan
     const overlaySelectionDrag = overlayBodyViewportPan ? false : selectionDrag
 
     try {
       const overlaySurfaceId =
         resolved.kind === 'overlay'
-          ? String(resolved.overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+          ? String(resolved.overlayRoot.dataset.kgStoryboardWidgetSurface || '').trim()
           : ''
       __flowCanvasDebug.lastOverlayProxyPointerDown = [
         `kind=${resolved.kind}`,
-        `activeSurface=${String(ctx.args.flowEditorSurfaceId || '').trim() || '-'}`,
+        `activeSurface=${String(ctx.args.storyboardWidgetSurfaceId || '').trim() || '-'}`,
         `overlaySurface=${overlaySurfaceId || '-'}`,
         `pinned=${overlayPinnedToNode ? 1 : 0}`,
         `dragHandle=${overlayDragHandle ? 1 : 0}`,
@@ -206,7 +206,7 @@ export function bindFlowNativeInteractionListeners(args: {
     // Resize handles are always local owner interactions. Never let window-capture proxy steal them.
     if (overlayResizeHandle) return
 
-    if (overlayBodyViewportPan && flowEditorOverlayInteractionMode && !overlayPanOwnerCanvas) return
+    if (overlayBodyViewportPan && storyboardWidgetOverlayInteractionMode && !overlayPanOwnerCanvas) return
 
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && overlayDragHandle && button === 0 && spacePanHeld !== true) return
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
@@ -350,8 +350,8 @@ export function bindFlowNativeInteractionListeners(args: {
       startTy: pending.startTy,
       interactionSpeed: pending.interactionSpeed,
       pointerId: pending.pointerId,
-      useFlowEditorScreenAuthorityPan: pending.useFlowEditorScreenAuthorityPan,
-      flowEditorScreenAuthorityPan: pending.flowEditorScreenAuthorityPan,
+      useStoryboardWidgetScreenAuthorityPan: pending.useStoryboardWidgetScreenAuthorityPan,
+      storyboardWidgetScreenAuthorityPan: pending.storyboardWidgetScreenAuthorityPan,
     }
     proxyPanPointerId = pending.pointerId
     try {

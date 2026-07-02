@@ -217,7 +217,7 @@ pipelines (parallel) → integration → test harness → validation.
     - On `max_retries` exhausted for branch generation: surface last partial branch +
       structured `BRANCH_GENERATION_FAILED` error to operator (no silent stall)
     - Persist Choice_Graph to `showrunner/runs/<run_id>/choice-graph.md` on each branch commit
-    - Renderer-agnostic: Choice_Graph renders through existing Strytree + flowEditor renderers;
+    - Renderer-agnostic: Choice_Graph renders through existing Strytree + Storyboard projections;
       no NGE-specific renderer branch
     - Extend Strytree at `forkcompare` contract level only; do not replace or fork
       Strytree renderer or edge-projection contract
@@ -254,7 +254,7 @@ pipelines (parallel) → integration → test harness → validation.
   - [ ] 4.7 Checkpoint — pipeline unit tests pass
     - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Integration — MCP tools registration, Flow Editor node, Vdeoxpln registration
+- [ ] 5. Integration — MCP tools registration, Storyboard Widget node, Vdeoxpln registration
 
   - [ ] 5.1 Create `showrunnerMcpTools.ts` — 6 MCP tool definitions
     - Export frozen `SHOWRUNNER_MCP_TOOL_NAMES` constant (6 tool name strings)
@@ -277,7 +277,7 @@ pipelines (parallel) → integration → test harness → validation.
     - No parallel MCP server created
     - _Requirements: 8.6, 13.4_
 
-  - [ ] 5.3 Create `showrunnerFlowNode.ts` — Flow Editor node registration
+  - [ ] 5.3 Create `showrunnerFlowNode.ts` — Storyboard Widget node registration
     - Export `SHOWRUNNER_WIDGET_ENTRY: WidgetRegistryEntry` with
       `nodeTypeId: "showrunner"`, `widgetTypeId: "knowgrph-showrunner"`,
       `formId: "showrunner-form"`
@@ -289,7 +289,7 @@ pipelines (parallel) → integration → test harness → validation.
     - Surface approval widget via existing approval-gate + budget-meter primitives;
       no second approval UX
     - Render Choice_Graph, script draft, revision history through existing Strytree,
-      Strybldr, flowEditor renderers; no new renderer
+      Strybldr and Storyboard projections; no new renderer
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
   - [ ] 5.4 Create `showrunnerVdeoxpln.ts` — Vdeoxpln skill registry entry
@@ -308,7 +308,7 @@ pipelines (parallel) → integration → test harness → validation.
     - Zero modifications to any other logic in that file
     - _Requirements: 11.6, 13.1_
 
-  - [ ] 5.6 Checkpoint — MCP + Flow Editor integration wired
+  - [ ] 5.6 Checkpoint — MCP + Storyboard Widget integration wired
     - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Test harness — dry-run mode, unit tests, PBT tests

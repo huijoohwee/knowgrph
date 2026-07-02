@@ -30,7 +30,7 @@ import {
 interface HelpWorkflowLinksSectionProps {
   collapsed: boolean;
   onToggle: (next: boolean) => void;
-  onOpenFlowEditorManagerTab: () => void;
+  onOpenStoryboardWidgetManagerTab: () => void;
 }
 
 const PIPELINE_STAGE_HELP_ROWS = [
@@ -99,7 +99,7 @@ const EMPTY_WORKFLOW_LINK_TEXT: MainPanelWorkflowLinkText = {
 export function HelpWorkflowLinksSection({
   collapsed,
   onToggle,
-  onOpenFlowEditorManagerTab,
+  onOpenStoryboardWidgetManagerTab,
 }: HelpWorkflowLinksSectionProps) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
@@ -159,7 +159,7 @@ export function HelpWorkflowLinksSection({
                 <button
                   type="button"
                   className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
-                  onClick={onOpenFlowEditorManagerTab}
+                  onClick={onOpenStoryboardWidgetManagerTab}
                   data-kg-anchor={UI_ANCHORS.graphFields}
                 >
                   Open Workflow Manager

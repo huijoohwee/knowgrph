@@ -16,8 +16,8 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   const designText = readFileSync(designPath, 'utf8')
   const designWireframePath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useDesignCanvasWireframeDecor.ts')
   const designWireframeText = readFileSync(designWireframePath, 'utf8')
-  const flowEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
-  const flowEditorText = readFileSync(flowEditorPath, 'utf8')
+  const storyboardWidgetPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayEdges.ts')
+  const storyboardWidgetText = readFileSync(storyboardWidgetPath, 'utf8')
   const d3LinksPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'layers', 'links.ts')
   const d3LinksText = readFileSync(d3LinksPath, 'utf8')
 
@@ -87,17 +87,17 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   if (!designWireframeText.includes('const wireframeEdgeStroke = readGlobalEdgeColor(schema)')) {
     throw new Error('expected Design renderer wireframe edge stroke to reuse shared global edge color SSOT')
   }
-  if (!flowEditorText.includes('const edgeAnimated = readGlobalEdgeAnimationEnabled(schema)')) {
-    throw new Error('expected Flow Editor overlay edge animation to reuse shared global edge animation helper')
+  if (!storyboardWidgetText.includes('const edgeAnimated = readGlobalEdgeAnimationEnabled(schema)')) {
+    throw new Error('expected Storyboard Widget overlay edge animation to reuse shared global edge animation helper')
   }
-  if (!flowEditorText.includes('const globalEdgeColor = readGlobalEdgeColor(schema)')) {
-    throw new Error('expected Flow Editor overlay edge stroke to reuse shared global edge color helper')
+  if (!storyboardWidgetText.includes('const globalEdgeColor = readGlobalEdgeColor(schema)')) {
+    throw new Error('expected Storyboard Widget overlay edge stroke to reuse shared global edge color helper')
   }
   if (!designWireframeText.includes('const edgeType = readGlobalEdgeType(schema)')) {
     throw new Error('expected Design renderer edge type to derive from shared global edge-type SSOT')
   }
-  if (!flowEditorText.includes('const globalEdgeType = readGlobalEdgeType(schema)')) {
-    throw new Error('expected Flow Editor overlay edge type to derive from shared global edge-type SSOT')
+  if (!storyboardWidgetText.includes('const globalEdgeType = readGlobalEdgeType(schema)')) {
+    throw new Error('expected Storyboard Widget overlay edge type to derive from shared global edge-type SSOT')
   }
   if (!d3LinksText.includes("readEffectiveEdgeTypeFor2dRenderer({ schema, canvas2dRenderer: 'd3' })")) {
     throw new Error('expected Flowchart/D3 renderer edge path type resolution to reuse the shared 2D edge-type helper')

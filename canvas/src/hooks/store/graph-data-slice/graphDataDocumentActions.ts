@@ -177,7 +177,7 @@ function buildPendingMarkdownDocumentGraph(args: {
     || source
   const preset = args.preset || null
   const context =
-    preset?.frontmatterModeEnabled === true || preset?.canvas2dRenderer === 'flowEditor'
+    preset?.frontmatterModeEnabled === true || preset?.canvas2dRenderer === 'storyboard'
       ? 'frontmatter-flow'
       : 'markdown'
   const kind =

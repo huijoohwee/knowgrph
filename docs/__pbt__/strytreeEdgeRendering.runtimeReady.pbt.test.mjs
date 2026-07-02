@@ -74,7 +74,7 @@ const PRESERVED_TOPOLOGY = [
 // present alongside — not replacing — the preserved constraints).
 const ADDED_CONSTRAINTS = [
   '  - "story edge rendering must bind to kgSharedRendererContract@shared-renderer-contract/v1 and buildScopedGraphSemanticKey; no local/downstream/hardcoded edge logic"',
-  '  - "story edge projection must be renderer-agnostic across flowEditor | Storyboard | Strybldr; no per-renderer edge path, hardcode, or fork"',
+  '  - "story edge projection must use the canonical Storyboard renderer through kgSharedRendererContract; no per-renderer edge path, hardcode, or fork"',
 ]
 
 // ---------------------------------------------------------------------------
@@ -128,8 +128,8 @@ test('runtime-ready: flow carries direction + edgeType + storyEdgeProjection(han
 test('runtime-ready: kgCanvas2dRendererCapability carries supportedRenderers + selectionModel + edgeProjectionInvariance', () => {
   const block = topLevelBlock(prdFm, 'kgCanvas2dRendererCapability')
   assert.notEqual(block, null, 'PRD/TAD must carry kgCanvas2dRendererCapability')
-  assert.ok(/supportedRenderers:\s*\["flowEditor",\s*"Storyboard",\s*"Strybldr"\]/.test(block),
-    'supportedRenderers must equal ["flowEditor","Storyboard","Strybldr"]')
+  assert.ok(/supportedRenderers:\s*\["storyboard"\]/.test(block),
+    'supportedRenderers must equal ["storyboard"]')
   for (const r of RENDERER_SET) {
     assert.ok(block.includes(`"${r}"`), `supportedRenderers must declare "${r}"`)
   }
@@ -245,8 +245,8 @@ test('runtime-ready: forbid-hardcode-in-repo principle holds (principles + forbi
 test('runtime-ready: demo doc remains renderer-agnostic (capability + rendererAgnosticEdges)', () => {
   const cap = topLevelBlock(demoFm, 'kgCanvas2dRendererCapability')
   assert.notEqual(cap, null, 'demo doc must carry kgCanvas2dRendererCapability')
-  assert.ok(/supportedRenderers:\s*\["flowEditor",\s*"Storyboard",\s*"Strybldr"\]/.test(cap),
-    'demo supportedRenderers must equal ["flowEditor","Storyboard","Strybldr"]')
+  assert.ok(/supportedRenderers:\s*\["storyboard"\]/.test(cap),
+    'demo supportedRenderers must equal ["storyboard"]')
   assert.ok(demoFm.includes('rendererAgnosticEdges'),
     'demo doc must declare rendererAgnosticEdges')
 })

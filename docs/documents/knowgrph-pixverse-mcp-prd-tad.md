@@ -49,7 +49,7 @@ Knowgrph already ships the shared browser-local E2E path for AI-assisted workspa
 - MainPanel readiness can already open the FloatingPanel Chat UI and provider/widget surfaces.
 - FloatingPanel Chat already owns the current chat submit workflow.
 - Markdown YAML frontmatter remains the single source of truth for downstream canvas apply.
-- Flow Editor, Storyboard, and Animatic already reuse the shared frontmatter/graph pipeline.
+- Storyboard and Animatic already reuse the shared frontmatter/graph pipeline.
 - The local super-agent harness now supports `provider_mode="byteplus-modelark"` by default and `provider_mode="mock"` for deterministic test runs.
 - PixVerse is not a local SuperAgent harness provider; PixVerse readiness stays scoped to MainPanel MCP and Integrations documentation.
 
@@ -83,7 +83,7 @@ If Knowgrph adds:
 - a PixVerse MCP readiness section in MainPanel MCP, and
 - a readiness-only PixVerse configuration surface that does not compete with the SuperAgent BytePlus ModelArk placeholder,
 
-then users will be able to move from MainPanel discovery through chat/frontmatter generation into Flow Editor, Storyboard, and Animatic without introducing stale local schemas, duplicate pipelines, or PixVerse-specific hardcoded demo fixtures.
+then users will be able to move from MainPanel discovery through chat/frontmatter generation into Storyboard and Animatic without introducing stale local schemas, duplicate pipelines, or PixVerse-specific hardcoded demo fixtures.
 
 ### Phase 0 Gate
 
@@ -100,7 +100,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is 
 **Jobs-to-be-done**:
 - Discover how PixVerse MCP should be configured from inside Knowgrph.
 - Keep chat-driven markdown/frontmatter generation on the existing shared path.
-- Validate that Flow Editor, Storyboard, and Animatic continue to consume provider-neutral graph/media fields.
+- Validate that Storyboard and Animatic continue to consume provider-neutral graph/media fields.
 - Keep PixVerse readiness outside the SuperAgent harness while preserving renderer neutrality.
 
 ### Persona B - MCP Client / Agent Builder
@@ -118,7 +118,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is 
 
 **Jobs-to-be-done**:
 - Keep PixVerse integration out of renderer-specific code paths.
-- Preserve frontmatter as SSOT across Flow Editor, Storyboard, and Animatic.
+- Preserve frontmatter as SSOT across Storyboard and Animatic.
 - Prevent hardcoded PixVerse URLs or provider-specific demo schema drift in canonical docs.
 
 ---
@@ -132,7 +132,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is 
 | Trigger | User wants real video generation beyond mock output | MainPanel `mcp` / `integrations` | Readiness and harness boundaries need one truthful surface | Use the shipped PixVerse MCP readiness section in MainPanel MCP |
 | Discover | User reads config snippets and opens the next surface | Shared `SettingsView` | MCP setup is disconnected from chat/canvas workflow | Keep panel CTA routed into FloatingPanel Chat UI |
 | Engage | User works through chat-driven document generation | FloatingPanel Chat UI | Risk of duplicate pipeline design | Reuse existing chat -> KGC -> canvas apply path only |
-| Complete | Markdown YAML frontmatter lands in canvas | Flow Editor / Storyboard / Animatic | Risk of provider-specific renderer forks | Keep provider concerns upstream; renderers stay field-driven |
+| Complete | Markdown YAML frontmatter lands in canvas | Storyboard / Animatic | Risk of provider-specific renderer forks | Keep provider concerns upstream; renderers stay field-driven |
 | Return | User runs local super-agent harness | `knowgrph_parser` harness | Provider defaults need one truthful placeholder | Use the BytePlus ModelArk placeholder path |
 
 ---
@@ -171,13 +171,13 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is 
 
 **Acceptance Criteria**:
 
-*AC-4*: Given the PixVerse MCP readiness feature exists, when architecture is documented, then it names the current browser-local path as MainPanel MCP / Integrations -> FloatingPanel Chat -> markdown YAML frontmatter -> shared canvas apply -> Flow Editor / Storyboard / Animatic.
+*AC-4*: Given the PixVerse MCP readiness feature exists, when architecture is documented, then it names the current browser-local path as MainPanel MCP / Integrations -> FloatingPanel Chat -> markdown YAML frontmatter -> shared canvas apply -> Storyboard / Animatic.
 
 `/goal the PixVerse PRD/TAD names the existing browser-local E2E path and does not describe a second MCP-only graph materialization path`
 
 *AC-5*: Given the PixVerse PRD/TAD is updated, when scope boundaries are reviewed, then renderer-specific code ownership remains unchanged and provider logic stays upstream of renderer projection.
 
-`/goal the PixVerse PRD/TAD explicitly keeps Flow Editor, Storyboard, and Animatic on shared frontmatter/graph projection rather than provider-specific renderer logic`
+`/goal the PixVerse PRD/TAD explicitly keeps Storyboard and Animatic on shared frontmatter/graph projection rather than provider-specific renderer logic`
 
 ### Epic KPV-E3 - Local Harness Boundary
 
@@ -241,7 +241,7 @@ Problem, owners, and seams are verified in the repo: MainPanel MCP readiness is 
 **Explicitly excluded now**:
 - Claiming PixVerse is already a Cloudflare-deployed mutating video generation service
 - Adding a second MCP-only markdown-to-canvas runtime path
-- Provider-specific renderer behavior in Flow Editor, Storyboard, or Animatic
+- Provider-specific renderer behavior in Storyboard or Animatic
 - Cloudflare deployment changes for PixVerse video generation
 - Browser-stored PixVerse secret management
 
@@ -316,7 +316,7 @@ flowchart LR
     KGC[KGC recovery and validation]
     APPLY[Markdown YAML frontmatter apply]
     GRAPH[Shared GraphData]
-    FE[Flow Editor]
+    FE[Storyboard Widget]
     SB[Storyboard]
     AN[Animatic]
 
@@ -339,7 +339,7 @@ flowchart TB
     subgraph ExistingDownstream
       CHAT[FloatingPanel Chat UI]
       FRONTMATTER[Markdown YAML frontmatter]
-      CANVAS[Flow Editor / Storyboard / Animatic]
+      CANVAS[Storyboard / Animatic]
     end
 
     MCP --> SETTINGS --> PV
@@ -357,7 +357,7 @@ flowchart TB
     PIX[PixVerse MCP adapter]
     WORKSPACE[rich-media-flow.md]
     GRAPH[Canvas GraphData]
-    RENDER[Flow Editor / Storyboard / Animatic]
+    RENDER[Storyboard / Animatic]
 
     BRIEF --> HARNESS --> REGISTRY
     REGISTRY --> MOCK
@@ -431,7 +431,7 @@ flowchart TB
 - MainPanel readiness may document or launch downstream surfaces.
 - FloatingPanel Chat remains the active browser-local authoring assistant.
 - Markdown YAML frontmatter remains the SSOT for canvas application.
-- Flow Editor, Storyboard, and Animatic consume shared graph/media fields only.
+- Storyboard and Animatic consume shared graph/media fields only.
 - No PixVerse-specific renderer branch or second apply path is introduced.
 
 ### IC-03: SuperAgent Provider Boundary
@@ -463,7 +463,7 @@ flowchart TB
 | Ingest | FloatingPanel Chat | Prompt/user intent | Chat request | Existing chat state | Existing chat error handling |
 | Transform | KGC + markdown apply | LLM output | Markdown YAML frontmatter doc | Active markdown document | Existing KGC validation/recovery |
 | Transform | Frontmatter/flow parser | Markdown + `flow:` | GraphData | Store state | Existing parser warnings |
-| Serve | Flow Editor / Storyboard / Animatic | Shared GraphData | Rendered canvas surface | Runtime state | Surface-specific display fallback only |
+| Serve | Storyboard / Animatic | Shared GraphData | Rendered canvas surface | Runtime state | Surface-specific display fallback only |
 
 ### DF-03: Harness Provider Flow
 
@@ -520,7 +520,7 @@ This sequence preserves SSOT and avoids false shipped claims. It keeps the MainP
 
 #### Context
 
-Flow Editor, Storyboard, and Animatic already derive from shared GraphData and canonical media/text fields. Provider-specific branches in renderer code would create schema drift and duplicate ownership.
+Storyboard and Animatic already derive from shared GraphData and canonical media/text fields. Provider-specific branches in renderer code would create schema drift and duplicate ownership.
 
 #### Decision
 

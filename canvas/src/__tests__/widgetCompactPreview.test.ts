@@ -2,9 +2,9 @@ import {
   applyWidgetCompactPreviewTextUpdate,
   buildWidgetCompactPreviewViewModel,
   resolveWidgetCompactPreview,
-} from '@/features/flow-editor-manager/widgetCompactPreview'
-import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+} from '@/features/storyboard-widget-manager/widgetCompactPreview'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 
 const BASE_REGISTRY_ENTRY: WidgetRegistryEntry = {
   id: 'text-default',

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolveFlowEditorVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
+import { resolveStoryboardWidgetVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { resolveWorkspacePreviewWidthFromPointerDrag } from '@/features/canvas/useCanvasWorkspacePaneRuntime'
-import { shouldUseFlowEditorScreenAuthorityCollectivePan } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { shouldUseStoryboardWidgetScreenAuthorityCollectivePan } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import {
   WORKSPACE_EDITOR_CANVAS_GUTTER_CSS,
   WORKSPACE_EDITOR_CANVAS_GUTTER_PX,
@@ -13,7 +13,7 @@ import {
   resolveWorkspaceExplorerDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
-import { FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const setFixedElementRect = (
@@ -303,11 +303,11 @@ export function testWorkspaceEditorOverlayMaxWidthPreservesUsableCanvasStrip() {
   }
 }
 
-export function testFlowEditorVisibleViewportIgnoresEditorWorkspaceOverlayPane() {
+export function testStoryboardWidgetVisibleViewportIgnoresEditorWorkspaceOverlayPane() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
     const surface = dom.window.document.createElement('section')
-    surface.setAttribute(FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
+    surface.setAttribute(STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR, 'surface-a')
     setFixedElementRect(surface, { left: 0, top: 0, right: 1000, bottom: 800 })
 
     const workspacePane = dom.window.document.createElement('aside')
@@ -316,34 +316,34 @@ export function testFlowEditorVisibleViewportIgnoresEditorWorkspaceOverlayPane()
 
     dom.window.document.body.append(surface, workspacePane)
 
-    const visibleViewport = resolveFlowEditorVisibleViewport({
-      flowEditorSurfaceId: 'surface-a',
+    const visibleViewport = resolveStoryboardWidgetVisibleViewport({
+      storyboardWidgetSurfaceId: 'surface-a',
       viewportW: 1000,
       viewportH: 800,
     })
 
     if (visibleViewport.left !== 0 || visibleViewport.width !== 1000 || visibleViewport.centerX !== 500) {
-      throw new Error(`expected Flow Editor visible viewport to keep the full canvas surface when Editor Workspace overlays it, got ${JSON.stringify(visibleViewport)}`)
+      throw new Error(`expected Storyboard Widget visible viewport to keep the full canvas surface when Editor Workspace overlays it, got ${JSON.stringify(visibleViewport)}`)
     }
   } finally {
     restoreDom()
   }
 }
 
-export function testFlowEditorScreenAuthorityCollectivePanIncludesStandaloneRenderer() {
-  if (!shouldUseFlowEditorScreenAuthorityCollectivePan({
-    canvas2dRenderer: 'flowEditor',
+export function testStoryboardScreenAuthorityCollectivePanIncludesCanonicalRenderer() {
+  if (!shouldUseStoryboardWidgetScreenAuthorityCollectivePan({
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'keyword',
   })) {
-    throw new Error('expected standalone 2D Renderer: Flow Editor to use collective screen-authority pan')
+    throw new Error('expected standalone 2D Renderer: Storyboard to use collective screen-authority pan')
   }
-  if (shouldUseFlowEditorScreenAuthorityCollectivePan({
+  if (shouldUseStoryboardWidgetScreenAuthorityCollectivePan({
     canvas2dRenderer: 'd3',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'keyword',
   })) {
-    throw new Error('expected non-Flow-Editor 2D renderers to avoid Flow Editor collective screen-authority pan')
+    throw new Error('expected non-Storyboard 2D renderers to avoid Storyboard Widget collective screen-authority pan')
   }
 }
 
@@ -456,14 +456,14 @@ export function testWorkspaceEditorOverlayMobileWidthBoundsStayResizable() {
   }
 }
 
-export function testFlowEditorUsesCanonicalCanvasViewportForMeasurement() {
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+export function testStoryboardWidgetUsesCanonicalCanvasViewportForMeasurement() {
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
   const runtimeText = readFileSync(runtimePath, 'utf8')
   if (!runtimeText.includes('self.closest(\'[data-kg-canvas-viewport-root="1"]\')')) {
-    throw new Error('expected Flow Editor runtime to resolve viewport dims from the canonical canvas viewport root')
+    throw new Error('expected Storyboard Widget runtime to resolve viewport dims from the canonical canvas viewport root')
   }
   if (!runtimeText.includes('useContainerDims(rootRef, {')) {
-    throw new Error('expected Flow Editor runtime to route viewport measurement through the shared container-dims hook')
+    throw new Error('expected Storyboard Widget runtime to route viewport measurement through the shared container-dims hook')
   }
 }
 

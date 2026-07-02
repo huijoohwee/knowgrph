@@ -161,7 +161,7 @@ export function testMarkdownParserPreservesTypedFlowBlockEdgesWhenKgcSemanticMer
     '---',
     'title: Typed Flow Edge Contract',
     'schema: kgc-computing-flow/v1',
-    'kgCanvas2dRenderer: flowEditor',
+    'kgCanvas2dRenderer: storyboard',
     'kgFrontmatterModeEnabled: true',
     'node_types:',
     '  - metric',
@@ -200,7 +200,7 @@ export function testMarkdownParserPreservesTypedFlowBlockEdgesWhenKgcSemanticMer
     '',
     '# Typed Flow Edge Contract',
     '',
-    'Declare `@node:metric:semantic_metric` and keep Flow Editor card wiring separate.',
+    'Declare `@node:metric:semantic_metric` and keep Storyboard Widget card wiring separate.',
     `Trace semantic evidence with \`@edge:drives:semantic_metric${arrow}semantic_result\`.`,
   ].join('\n')
   const result = parser.parse('typed-flow-edge-contract.md', typedFlowEdgeFixture)
@@ -225,5 +225,5 @@ export function testMarkdownParserPreservesTypedFlowBlockEdgesWhenKgcSemanticMer
   }
   if (props['flow:animated'] !== true) throw new Error('expected typed frontmatter flow edge to retain animated flag')
   const semanticEdge = (graph.edges || []).find(edge => String(edge.id || '').startsWith('kgc-edge:drives:'))
-  if (!semanticEdge) throw new Error('expected KGC semantic edge to remain merged alongside Flow Editor edge')
+  if (!semanticEdge) throw new Error('expected KGC semantic edge to remain merged alongside Storyboard Widget edge')
 }

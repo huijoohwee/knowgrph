@@ -10,7 +10,7 @@ import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
@@ -94,13 +94,13 @@ export function testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens(
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 5, 7, 12, 0, 0),
     workspacePath: '/chat-log/20260607T120000Z/kgc_20260607T120000Z.md',
-    requestText: 'Generate a Flow Editor computing flow with KTV key/type/value inputs, compute_summary, Run All body tokens, and Rich Media Panels.',
+    requestText: 'Generate a Storyboard Widget computing flow with KTV key/type/value inputs, compute_summary, Run All body tokens, and Rich Media Panels.',
     assistantText: '',
   })
 
   const requiredText = [
     'schema: "kgc-computing-flow/v1"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'flow_diagrams:',
     `key: ${COMPUTING_FLOW_GITGRAPH_ID}`,
     'type: mermaid_gitgraph',
@@ -491,7 +491,7 @@ export function testKgcDeterministicFallbackTraceOnlyKeepsHumanFacingNoBackfill(
 
 export function testKgcComputingFlowStripsAppendedCanonicalSections() {
   const requestText = [
-    'Flow Editor KTV compute_summary Run All bodyTokens.',
+    'Storyboard Widget KTV compute_summary Run All bodyTokens.',
     'BTC gold signal.',
   ].join(' ')
   const assistantAnswer = [

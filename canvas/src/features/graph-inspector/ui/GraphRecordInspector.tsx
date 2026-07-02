@@ -11,13 +11,13 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type WebpageViewMode } from '@/lib/markdown/frontmatter'
-import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
-import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { WidgetEditorPanel } from '@/components/StoryboardWidget/WidgetEditorPanel'
+import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import {
   isWidgetCandidateNode,
   resolveWidgetRegistryEntry,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+} from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -407,7 +407,7 @@ export function GraphRecordInspector({
           <>
             {row?.tableId === 'nodes' && node && showWidget ? (
               <section className="px-3 py-2" aria-label="Widget">
-                <NodeOverlayEditorPanel
+                <WidgetEditorPanel
                   active={true}
                   node={node}
                   registryEntry={registryEntry}

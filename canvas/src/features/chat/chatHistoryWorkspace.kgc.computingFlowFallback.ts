@@ -310,7 +310,7 @@ export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): 
     input_metric_target: ['number', 500],
   }
   const frontmatter = [
-    `title: ${JSON.stringify(profile.product && profile.product !== '{{product}}' ? `${profile.product} Computing Flow` : 'Flow Editor Computing Flow')}`,
+    `title: ${JSON.stringify(profile.product && profile.product !== '{{product}}' ? `${profile.product} Computing Flow` : 'Storyboard Widget Computing Flow')}`,
     `graphId: ${JSON.stringify(graphId)}`,
     'doc_type: "Computing Flow Template"',
     `date: ${JSON.stringify(date)}`,
@@ -318,7 +318,7 @@ export const buildDeterministicComputingFlowKgcTurn = (args: BaseFallbackArgs): 
     'schema: "kgc-computing-flow/v1"',
     'kgCanvasSurfaceMode: "2d"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'kgMultiDimTableModeEnabled: true',

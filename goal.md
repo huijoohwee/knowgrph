@@ -48,7 +48,7 @@ The refactor is complete only when:
 - Existing over-budget files are split at stable ownership boundaries instead of exempted permanently.
 - New files and changed files cannot regress the budget gates.
 - Duplicate implementations, stale aliases, compatibility shims, legacy remaps, hardcoded fixtures, and conflicting branches are removed rather than preserved.
-- Graph, workspace, geospatial, flow-editor, markdown, parser, provider, storage, and canvas cache keys reuse the shared semantic-key helper where semantic equivalence is the authority.
+- Graph, workspace, geospatial, storyboard-widget, markdown, parser, provider, storage, and canvas cache keys reuse the shared semantic-key helper where semantic equivalence is the authority.
 - Expensive work is batched, cached, lazy-loaded, virtualized, deferred, or sharded at the source owner instead of patched downstream.
 - Re-render, re-calculation, stale replay, infinite-loop, and freeze risks are neutralized where state originates.
 - User-facing surfaces are mobile-first: narrow viewports must get the primary interaction path first, then progressively expand into tablet, desktop, and wide-canvas layouts.
@@ -103,7 +103,7 @@ Validation rules:
 
 The 100% refactor proceeds by ownership cluster, not by random line-count shaving:
 
-1. Flow Editor and FlowCanvas runtime: split layout, collision, edge routing, media overlay, zoom, and scene state into single-responsibility modules with bounded recalculation.
+1. Storyboard Widget and FlowCanvas runtime: split layout, collision, edge routing, media overlay, zoom, and scene state into single-responsibility modules with bounded recalculation.
 2. GraphCanvas and 3D runtime: split scene, simulation, positioning, group geometry, minimap, and render-order logic around shared semantic keys and lazy-loaded runtime chunks.
 3. Markdown workspace and source-files pipeline: isolate automated default bootstrap, manual source-file actions, indexing, source-file ingest, composed graph replay, storage sync, and stale-guard logic so one source controls active content.
 4. Rich media, provider, and parser pipeline: keep text/image/video contracts provider-agnostic, remove hardcoded demo assumptions, and split oversized parser/provider files by schema and execution concern.
@@ -346,7 +346,7 @@ The canvas must be treated as a graph of typed nodes and edges, not as one fixed
 - XR controls must expose status for available, unavailable, blocked, entering, entered, and exited states without requiring external hardware for baseline repo tests.
 
 The generated canvas artifact should be loadable or inspectable by existing Knowgrph surfaces where feasible, and must always be available as a standalone graph artifact.
-When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "flowEditor"`, canonical widget form ids, widget handles, responsive breakpoint/fallback metadata, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
+When Knowgrph frontmatter-flow is available, also emit a workspace markdown artifact that declares `kgCanvas2dRenderer: "storyboard"`, canonical widget form ids, widget handles, responsive breakpoint/fallback metadata, the balanced 16:9 widget layout metadata, and the Rich Media Panel node needed by the Editor Workspace Canvas Widgets, Edges, and Rich Media Panel surface.
 
 ## Tooling And Entry Points
 

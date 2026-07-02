@@ -7,8 +7,8 @@ import type { GraphData } from '@/lib/graph/types'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 import { resolveFitReferenceFrame } from '@/components/FlowCanvas/fitRuntime'
 import { dispatchRuntimeFitIntentSoon, dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
-import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 
 export function useAutoZoomModes2d(args: {
   viewportW: number
@@ -93,7 +93,7 @@ export function useAutoZoomModes2d(args: {
           }),
         }
         const schema = state.schema as GraphSchema | null
-        const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)
+        const graphLayoutSignature = isStoryboardCanvas2dRenderer(state.canvas2dRenderer)
           ? buildOverlayTopologyLayoutSignature(graphData)
           : ''
         const fitGraphDataRevision = graphLayoutSignature ? 0 : graphDataRevision
@@ -200,7 +200,7 @@ export function useAutoZoomModes2d(args: {
         if (!zoomOnSelection) return
         const override = graphOverrideRef.current ? graphOverrideRef.current() : null
         const graphData = override?.graphData ?? state.graphData
-        const graphLayoutSignature = isFlowEditorCanvas2dRenderer(state.canvas2dRenderer)
+        const graphLayoutSignature = isStoryboardCanvas2dRenderer(state.canvas2dRenderer)
           ? buildOverlayTopologyLayoutSignature(graphData)
           : ''
         const graphDataRevision = graphLayoutSignature ? 0 : (override?.graphDataRevision ?? state.graphDataRevision)

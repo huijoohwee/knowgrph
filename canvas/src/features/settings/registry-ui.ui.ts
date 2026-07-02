@@ -5,11 +5,11 @@ import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import {
-  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
-  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
-  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
-  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
-} from '@/lib/config.flow-editor'
+  STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS,
+  STORYBOARD_WIDGET_IMAGE_OUTPUT_FORMAT_OPTIONS,
+  STORYBOARD_WIDGET_IMAGE_SIZE_OPTIONS,
+  STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
+} from '@/lib/config.storyboard-widget'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
@@ -413,7 +413,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     },
     docKey: 'byteplusImageModel',
     default: () => CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-    options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS.map(option => String(option.value)),
+    options: STORYBOARD_WIDGET_IMAGE_MODEL_OPTIONS.map(option => String(option.value)),
   },
   {
     key: 'byteplusImageSize',
@@ -422,12 +422,12 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => lsJson<string>(LS_KEYS.byteplusImageSize, '2K', value => (typeof value === 'string' ? value : null)),
     write: (v) => {
       const raw = String(v || '').trim().toUpperCase()
-      const normalized = FLOW_EDITOR_IMAGE_SIZE_OPTIONS.some(option => option.value === raw) ? raw : '2K'
+      const normalized = STORYBOARD_WIDGET_IMAGE_SIZE_OPTIONS.some(option => option.value === raw) ? raw : '2K'
       lsSetJson(LS_KEYS.byteplusImageSize, normalized)
     },
     docKey: 'byteplusImageSize',
     default: () => '2K',
-    options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS.map(option => String(option.value)),
+    options: STORYBOARD_WIDGET_IMAGE_SIZE_OPTIONS.map(option => String(option.value)),
   },
   {
     key: 'byteplusImageOutputFormat',
@@ -436,12 +436,12 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => lsJson<string>(LS_KEYS.byteplusImageOutputFormat, 'jpeg', value => (typeof value === 'string' ? value : null)),
     write: (v) => {
       const raw = String(v || '').trim().toLowerCase()
-      const normalized = FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS.some(option => option.value === raw) ? raw : 'jpeg'
+      const normalized = STORYBOARD_WIDGET_IMAGE_OUTPUT_FORMAT_OPTIONS.some(option => option.value === raw) ? raw : 'jpeg'
       lsSetJson(LS_KEYS.byteplusImageOutputFormat, normalized)
     },
     docKey: 'byteplusImageOutputFormat',
     default: () => 'jpeg',
-    options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS.map(option => String(option.value)),
+    options: STORYBOARD_WIDGET_IMAGE_OUTPUT_FORMAT_OPTIONS.map(option => String(option.value)),
   },
   {
     key: 'byteplusImageResponseFormat',
@@ -540,7 +540,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     },
     docKey: 'byteplusVideoModel',
     default: () => CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
-    options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS.map(option => String(option.value)),
+    options: STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS.map(option => String(option.value)),
   },
   {
     key: 'byteplusVideoContentJson',

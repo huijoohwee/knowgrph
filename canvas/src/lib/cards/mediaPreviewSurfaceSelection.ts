@@ -28,10 +28,11 @@ export function resolveMediaPreviewSelectableDataAttr(enabled: boolean): typeof 
 export function resolveMediaPreviewSurfaceCardProps(args: {
   enabled: boolean
   interactive?: boolean
+  selectableSurface?: boolean
 }): MediaPreviewSurfaceCardProps {
   return {
     interactive: args.enabled ? false : args.interactive === true,
-    mediaSelectableSurfaceDataAttr: args.enabled,
+    mediaSelectableSurfaceDataAttr: args.enabled && args.selectableSurface !== false,
   }
 }
 
@@ -39,10 +40,12 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
   enabled: boolean
   ariaLabel?: string
   claimPointerDown?: boolean
+  selectableSurface?: boolean
   onSelect?: (event: MediaPreviewSurfaceSelectionEvent) => void
 }): MediaPreviewSurfaceSelectionProps {
   if (!args.enabled) return {}
   const claimPointerDown = args.claimPointerDown !== false
+  const selectableSurface = args.selectableSurface !== false
   const selectSurface = (event: MediaPreviewSurfaceSelectionEvent) => {
     if (event.button !== 0) return
     args.onSelect?.(event)
@@ -71,7 +74,7 @@ export function resolveMediaPreviewSurfaceSelectionProps(args: {
   return {
     role: 'group',
     'aria-label': args.ariaLabel,
-    [MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]: MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE,
+    [MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR]: selectableSurface ? MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE : undefined,
     onPointerDownCapture: claimPointerSurfaceEvent,
     onMouseDownCapture: claimPointerSurfaceEvent,
     onClickCapture: claimSurfaceClick,

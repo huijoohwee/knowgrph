@@ -781,7 +781,7 @@ export const readCanvasViewportSizeFromDom = (): { w: number; h: number } => {
       (document.querySelector('main[aria-label="Graph Canvas"]') as HTMLElement | null) ||
       (document.querySelector('section[aria-label="Design Canvas"]') as HTMLElement | null) ||
       (document.querySelector('section[aria-label="Flow Canvas"]') as HTMLElement | null) ||
-      (document.querySelector('section[aria-label="Flow Editor"]') as HTMLElement | null)
+      (document.querySelector('section[aria-label="Storyboard Widget"]') as HTMLElement | null)
     if (!candidate) return null
     try {
       return candidate.getBoundingClientRect()

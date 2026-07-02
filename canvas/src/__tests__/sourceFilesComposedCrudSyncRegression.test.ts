@@ -139,7 +139,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
     useMarkdownExplorerStore.getState().setActivePath(null)
     state.setDocumentStructureBaselineLock(true)
     state.setCanvasRenderMode('3d')
-    state.setCanvas2dRenderer('flowEditor')
+    state.setCanvas2dRenderer('storyboard')
     state.setDocumentSemanticMode('keyword')
     state.setFrontmatterModeEnabled(false)
     state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
@@ -178,7 +178,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
         '---',
         'title: "Demo"',
         'kgCanvasRenderMode: "2d"',
-        'kgCanvas2dRenderer: "flowEditor"',
+        'kgCanvas2dRenderer: "storyboard"',
         'kgDocumentSemanticMode: "document"',
         'kgFrontmatterModeEnabled: true',
         'kgDocumentStructureBaselineLock: false',
@@ -206,7 +206,7 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
       throw new Error(`expected README frontmatter preset to force 2d render mode on fresh composed boot, got ${String(after.canvasRenderMode)}`)
     }
     if (after.canvas2dRenderer !== 'd3') {
-      throw new Error(`expected enabled README seed frontmatter to win over default flowEditor renderer, got ${String(after.canvas2dRenderer)}`)
+      throw new Error(`expected enabled README seed frontmatter to win over default storyboard renderer, got ${String(after.canvas2dRenderer)}`)
     }
     if (after.documentSemanticMode !== 'document') {
       throw new Error(`expected README frontmatter preset to force document semantic mode, got ${String(after.documentSemanticMode)}`)
@@ -234,7 +234,7 @@ export async function testComposedSourceFilesOrderOnlyRecomposeDoesNotReplayUnch
     useMarkdownExplorerStore.getState().setActivePath('workspace:/README.md')
     state.setMarkdownDocument('workspace:/README.md', '---\ntitle: Readme\n---\n')
     state.setCanvasRenderMode('2d')
-    state.setCanvas2dRenderer('flowEditor')
+    state.setCanvas2dRenderer('storyboard')
     state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
 
     const readmeText = [
@@ -288,11 +288,11 @@ export async function testComposedSourceFilesOrderOnlyRecomposeDoesNotReplayUnch
       throw new Error('expected initial composed apply to honor the README preset renderer')
     }
 
-    useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+    useGraphStore.getState().setCanvas2dRenderer('storyboard')
     useGraphStore.setState(s => ({ sourceFiles: [s.sourceFiles[1], s.sourceFiles[0]] }))
     applyGraphOwnerComposedGraphFromSourceFiles()
 
-    if (useGraphStore.getState().canvas2dRenderer !== 'flowEditor') {
+    if (useGraphStore.getState().canvas2dRenderer !== 'storyboard') {
       throw new Error('expected order-only recomposition to avoid replaying an unchanged composed frontmatter preset')
     }
   } finally {

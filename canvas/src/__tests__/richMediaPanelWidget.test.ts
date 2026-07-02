@@ -1,17 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
-import { ensureDefaultWidgetRegistryEntries } from '@/hooks/store/flowEditorManagerSlice'
+import { ensureDefaultWidgetRegistryEntries } from '@/hooks/store/storyboardWidgetManagerSlice'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
+import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
 import { defaultSchema } from '@/lib/graph/schema'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec } from '@/lib/render/richMediaSsot'
@@ -409,16 +409,14 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   const ssotText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaSsot.ts'), 'utf8')
   const mediaSpecText = readFileSync(resolve(root, 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts'), 'utf8')
   const srcDocText = readFileSync(resolve(root, 'src', 'lib', 'render', 'richMediaPanelSrcDoc.ts'), 'utf8')
-  const richMediaPreviewHookText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'useRichMediaWidgetPreview.ts'), 'utf8')
-  const widgetOverlaySharedPath = resolve(root, 'src', 'components', 'FlowEditor', 'flowWidgetOverlayShared.ts')
-  const legacyNodeOverlaySharedPath = resolve(root, 'src', 'components', 'FlowEditor', 'nodeOverlayEditorShared.ts')
-  const legacyNodeOverlayEntrypointPath = resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const richMediaPreviewHookText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'useRichMediaWidgetPreview.ts'), 'utf8')
+  const widgetOverlaySharedPath = resolve(root, 'src', 'components', 'StoryboardWidget', 'flowWidgetOverlayShared.ts')
   const widgetOverlaySharedText = readFileSync(widgetOverlaySharedPath, 'utf8')
-  const widgetOverlayEntrypointText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'FlowWidgetOverlay.tsx'), 'utf8')
-  const flowEditorCanvasSharedText = readFileSync(resolve(root, 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx'), 'utf8')
-  const nodeOverlayPanelText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx'), 'utf8')
-  const nodeOverlayViewText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'), 'utf8')
-  const nodeOverlayFormText = readFileSync(resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx'), 'utf8')
+  const widgetOverlayEntrypointText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'FlowWidgetOverlay.tsx'), 'utf8')
+  const storyboardWidgetCanvasSharedText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx'), 'utf8')
+  const widgetPanelText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx'), 'utf8')
+  const widgetViewText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'), 'utf8')
+  const widgetFormText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx'), 'utf8')
   const cardMediaPreviewText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'CardMediaPreview.tsx'), 'utf8')
   const mediaSurfaceSelectionText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts'), 'utf8')
   const zoomPanViewportText = readFileSync(resolve(root, 'src', 'features', 'panels', 'views', 'preview-panel', 'ui', 'ZoomPanViewport.tsx'), 'utf8')
@@ -461,16 +459,16 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes('&& !mediaState.effectiveInlineSrcDoc')) {
     throw new Error('expected RichMediaPanel inline srcdoc previews to bypass the empty text editor placeholder')
   }
-  if (!nodeOverlayFormText.includes('resolveMediaPreviewSurfaceCardProps')
-    || !nodeOverlayFormText.includes('const compactMediaPreviewSelectionProps = React.useMemo')
-    || !nodeOverlayFormText.includes('const compactMediaPreviewCardProps = React.useMemo')
-    || !nodeOverlayFormText.includes('resolveMediaPreviewSurfaceSelectionProps({')
-    || !nodeOverlayFormText.includes('resolveMediaPreviewSurfaceCardProps({')
-    || !nodeOverlayFormText.includes('enabled: !!compactPreviewView && compactPreviewView.kind !== \'text\'')
-    || !nodeOverlayFormText.includes('{...compactMediaPreviewSelectionProps}')
-    || !nodeOverlayFormText.includes('{...compactMediaPreviewCardProps}')
-    || !nodeOverlayFormText.includes("setSelectionSource('editor')")
-    || !nodeOverlayFormText.includes('selectNode(id)')) {
+  if (!widgetFormText.includes('resolveMediaPreviewSurfaceCardProps')
+    || !widgetFormText.includes('const compactMediaPreviewSelectionProps = React.useMemo')
+    || !widgetFormText.includes('const compactMediaPreviewCardProps = React.useMemo')
+    || !widgetFormText.includes('resolveMediaPreviewSurfaceSelectionProps({')
+    || !widgetFormText.includes('resolveMediaPreviewSurfaceCardProps({')
+    || !widgetFormText.includes('enabled: !!compactPreviewView && compactPreviewView.kind !== \'text\'')
+    || !widgetFormText.includes('{...compactMediaPreviewSelectionProps}')
+    || !widgetFormText.includes('{...compactMediaPreviewCardProps}')
+    || !widgetFormText.includes("setSelectionSource('editor')")
+    || !widgetFormText.includes('selectNode(id)')) {
     throw new Error('expected compact Rich Media widget previews to reuse the shared selectable media preview surface helper')
   }
   if (!componentText.includes('resolveMediaPreviewSurfaceCardProps')
@@ -493,22 +491,24 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceSelectionProps')
     || !mediaSurfaceSelectionText.includes('const claimSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {')
     || !mediaSurfaceSelectionText.includes('claimPointerDown?: boolean') || !mediaSurfaceSelectionText.includes('const claimPointerDown = args.claimPointerDown !== false')
+    || !mediaSurfaceSelectionText.includes('selectableSurface?: boolean') || !mediaSurfaceSelectionText.includes('const selectableSurface = args.selectableSurface !== false')
     || !mediaSurfaceSelectionText.includes('const claimPointerSurfaceEvent = (event: MediaPreviewSurfaceSelectionEvent) => {') || !mediaSurfaceSelectionText.includes('onPointerDownCapture: claimPointerSurfaceEvent') || !mediaSurfaceSelectionText.includes('onMouseDownCapture: claimPointerSurfaceEvent')
     || !mediaSurfaceSelectionText.includes('onClickCapture: claimSurfaceClick')
     || !mediaSurfaceSelectionText.includes('event.preventDefault()')
     || !mediaSurfaceSelectionText.includes('event.stopPropagation()')
     || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSurfaceCardProps')
+    || !mediaSurfaceSelectionText.includes('mediaSelectableSurfaceDataAttr: args.enabled && args.selectableSurface !== false')
     || !mediaSurfaceSelectionText.includes('interactive: args.enabled ? false : args.interactive === true')
     || !mediaSurfaceSelectionText.includes('export function resolveMediaPreviewSelectableDataAttr')
     || !mediaSurfaceSelectionText.includes("export const MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR = 'data-kg-rich-media-selectable-surface'")) {
     throw new Error('expected shared CardMediaPreview media elements to carry the Rich Media selectable marker when requested')
   }
-  if (!nodeOverlayViewText.includes('[&_input:disabled]:pointer-events-none')
-    || !nodeOverlayViewText.includes('[&_select:disabled]:pointer-events-none')
-    || !nodeOverlayViewText.includes('[&_textarea:disabled]:pointer-events-none')
-    || !nodeOverlayViewText.includes('onMouseDownCapture={handleRootPointerCapture}')
-    || !nodeOverlayViewText.includes('onPointerDownCapture={handleRootPointerCapture}')) {
-    throw new Error('expected inactive Flow Editor widget fields to pass pointer targeting to the widget root selection handler')
+  if (!widgetViewText.includes('[&_input:disabled]:pointer-events-none')
+    || !widgetViewText.includes('[&_select:disabled]:pointer-events-none')
+    || !widgetViewText.includes('[&_textarea:disabled]:pointer-events-none')
+    || !widgetViewText.includes('onMouseDownCapture={handleRootPointerCapture}')
+    || !widgetViewText.includes('onPointerDownCapture={handleRootPointerCapture}')) {
+    throw new Error('expected inactive Storyboard Widget fields to pass pointer targeting to the widget root selection handler')
   }
   if (!componentText.includes("frameMode?: 'panel' | 'surface'")) {
     throw new Error('expected RichMediaPanel to expose a shared unframed surface mode')
@@ -589,19 +589,17 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
     || !widgetInnerPanelScrollText.includes('consumeScrollablePanelWheelEvent')
     || !widgetInnerPanelScrollText.includes('shouldKeepWidgetInnerPanelWheel')
     || !widgetInnerPanelScrollText.includes('WIDGET_INNER_PANEL_SCROLL_SURFACE_SELECTOR')
-    || !nodeOverlayPanelText.includes('handleWidgetInnerPanelWheelCapture')
-    || !nodeOverlayFormText.includes('handleWidgetInnerPanelWheelCapture')
+    || !widgetPanelText.includes('handleWidgetInnerPanelWheelCapture')
+    || !widgetFormText.includes('handleWidgetInnerPanelWheelCapture')
   ) {
     throw new Error('expected FloatingEditor Rich Media Panel scrolling to reuse the shared widget inner-panel wheel consumer')
   }
   if (
-    existsSync(legacyNodeOverlaySharedPath)
-    || existsSync(legacyNodeOverlayEntrypointPath)
-    || !widgetOverlayEntrypointText.includes('flowWidgetOverlayShared')
-    || !flowEditorCanvasSharedText.includes("import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'")
-    || flowEditorCanvasSharedText.includes("from '@/components/FlowEditor/NodeOverlayEditor'")
+    !widgetOverlayEntrypointText.includes('flowWidgetOverlayShared')
+    || !storyboardWidgetCanvasSharedText.includes("import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'")
+    || storyboardWidgetCanvasSharedText.includes("from '@/components/StoryboardWidget/WidgetEditor'")
   ) {
-    throw new Error('expected Flow Editor widget runtime to use the canonical widget overlay owner without legacy node-overlay duplicates')
+    throw new Error('expected Storyboard Widget runtime to use the canonical widget overlay owner without legacy widget duplicates')
   }
   if (!componentText.includes("pointerEvents: 'auto'") || componentText.includes("pointerEvents: allowPanelContentPointerEvents ? 'auto' : 'none'")) {
     throw new Error('expected RichMediaPanel embedded markdown scroll surfaces to stay pointer-targetable instead of falling through to canvas zoom')
@@ -609,46 +607,46 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!componentText.includes("'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined")) {
     throw new Error('expected RichMediaPanel unframed surface mode to be observable on the shared root')
   }
-  if (!nodeOverlayPanelText.includes('frameMode="surface"') || !nodeOverlayFormText.includes('frameMode="surface"')) {
+  if (!widgetPanelText.includes('frameMode="surface"') || !widgetFormText.includes('frameMode="surface"')) {
     throw new Error('expected FloatingEditor Rich Media Panel bodies to reuse the shared unframed surface mode')
   }
-  if (!nodeOverlayPanelText.includes('flowEditorInteractionMode={true}') || !nodeOverlayFormText.includes('flowEditorInteractionMode={true}')) {
-    throw new Error('expected FloatingEditor Rich Media Panel bodies to enter Flow Editor layout mode from the first render')
+  if (!widgetPanelText.includes('storyboardWidgetInteractionMode={true}') || !widgetFormText.includes('storyboardWidgetInteractionMode={true}')) {
+    throw new Error('expected FloatingEditor Rich Media Panel bodies to enter Storyboard Widget layout mode from the first render')
   }
-  if (!nodeOverlayPanelText.includes('flowEditorFrontmatterDocumentMode={isFrontmatterFlow}') || !nodeOverlayFormText.includes('flowEditorFrontmatterDocumentMode={isFrontmatterFlow}')) {
-    throw new Error('expected FloatingEditor Rich Media Panel bodies to receive frontmatter document mode from the Flow Editor owner instead of store hydration')
+  if (!widgetPanelText.includes('storyboardWidgetFrontmatterDocumentMode={isFrontmatterFlow}') || !widgetFormText.includes('storyboardWidgetFrontmatterDocumentMode={isFrontmatterFlow}')) {
+    throw new Error('expected FloatingEditor Rich Media Panel bodies to receive frontmatter document mode from the Storyboard Widget owner instead of store hydration')
   }
-  if (!nodeOverlayPanelText.includes('resizeHandlePlacement="external"') || !nodeOverlayPanelText.includes('<RichMediaPanelResizeHandle placement="panel"')) {
+  if (!widgetPanelText.includes('resizeHandlePlacement="external"') || !widgetPanelText.includes('<RichMediaPanelResizeHandle placement="panel"')) {
     throw new Error('expected FloatingEditor Chart Panel to place the shared resize handle on the outer panel bottom-right')
   }
-  if (!nodeOverlayPanelText.includes('data-kg-rich-media-scroll-owner="panel"') || !nodeOverlayPanelText.includes('scrollOwner="panel"')) {
+  if (!widgetPanelText.includes('data-kg-rich-media-scroll-owner="panel"') || !widgetPanelText.includes('scrollOwner="panel"')) {
     throw new Error('expected FloatingEditor Chart Panel to place scrolling on the panel chrome instead of the embedded media surface')
   }
-  if (!nodeOverlayPanelText.includes('data-kg-media-scroll-surface="1"') || !nodeOverlayPanelText.includes('overflow-y-auto overflow-x-hidden')) {
+  if (!widgetPanelText.includes('data-kg-media-scroll-surface="1"') || !widgetPanelText.includes('overflow-y-auto overflow-x-hidden')) {
     throw new Error('expected FloatingEditor Chart Panel scroll chrome to allow vertical scrolling only')
   }
-  if (!nodeOverlayPanelText.includes("pointerEvents: 'auto'")) {
+  if (!widgetPanelText.includes("pointerEvents: 'auto'")) {
     throw new Error('expected FloatingEditor Chart Panel scroll chrome to stay pointer-targetable while the widget shell passes canvas input through')
   }
-  if (!nodeOverlayPanelText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || nodeOverlayPanelText.includes('{ width: 280, height: 180 }')) {
+  if (!widgetPanelText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || widgetPanelText.includes('{ width: 280, height: 180 }')) {
     throw new Error('expected FloatingEditor Chart Panel fallback sizing to reuse the shared Rich Media Panel default size')
   }
-  if (!nodeOverlayPanelText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
+  if (!widgetPanelText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
     throw new Error('expected FloatingEditor Chart Panel to auto-fit measured inline rich media content at the panel chrome')
   }
-  if (!nodeOverlayFormText.includes('data-kg-rich-media-scroll-owner="panel"') || !nodeOverlayFormText.includes('scrollOwner="panel"')) {
+  if (!widgetFormText.includes('data-kg-rich-media-scroll-owner="panel"') || !widgetFormText.includes('scrollOwner="panel"')) {
     throw new Error('expected Rich Media Panel form preview to reuse the shared panel-owned scroll surface')
   }
-  if (!nodeOverlayFormText.includes('data-kg-media-scroll-surface="1"') || !nodeOverlayFormText.includes('overflow-y-auto overflow-x-hidden')) {
+  if (!widgetFormText.includes('data-kg-media-scroll-surface="1"') || !widgetFormText.includes('overflow-y-auto overflow-x-hidden')) {
     throw new Error('expected Rich Media Panel form preview scroll chrome to allow vertical scrolling only')
   }
-  if (!nodeOverlayFormText.includes("pointerEvents: 'auto'")) {
+  if (!widgetFormText.includes("pointerEvents: 'auto'")) {
     throw new Error('expected Rich Media Panel form preview scroll chrome to stay pointer-targetable while the widget shell passes canvas input through')
   }
-  if (!nodeOverlayFormText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || nodeOverlayFormText.includes('{ width: 280, height: 180 }')) {
+  if (!widgetFormText.includes('RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE') || widgetFormText.includes('{ width: 280, height: 180 }')) {
     throw new Error('expected Rich Media Panel form preview fallback sizing to reuse the shared default size')
   }
-  if (!nodeOverlayFormText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
+  if (!widgetFormText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
     throw new Error('expected Rich Media Panel form preview to auto-fit measured inline rich media content at the panel chrome')
   }
   if (!srcDocText.includes('body>:is(main,section,article):first-child')) {
@@ -955,10 +953,10 @@ export function testBytePlusVideoWidgetPipelineRendersInRichMediaPanel() {
 }
 
 export function testFlowCanvasUsesConnectedValuesForRichMediaPanelOverlays() {
-  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const overlayElementsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorOverlaySurfaceElements.tsx')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
+  const overlayElementsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceElements.tsx')
   const overlay = `${readFileSync(overlayPath, 'utf8')}\n${readFileSync(overlayElementsPath, 'utf8')}`
-  const dataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const dataflowPath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowDataflow.ts')
   const dataflow = readFileSync(dataflowPath, 'utf8')
   const mediaNodePath = resolve(process.cwd(), 'src', 'lib', 'render', 'effectiveMediaNode.ts')
   const mediaNode = readFileSync(mediaNodePath, 'utf8')
@@ -972,7 +970,7 @@ export function testFlowCanvasUsesConnectedValuesForRichMediaPanelOverlays() {
   ]
   for (const snippet of requiredOverlaySnippets) {
     if (!overlay.includes(snippet)) {
-      throw new Error(`expected Flow Editor overlay connected-values snippet: ${snippet}`)
+      throw new Error(`expected Storyboard Widget overlay connected-values snippet: ${snippet}`)
     }
   }
 
@@ -1035,8 +1033,8 @@ export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
   const filePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
   const text = readFileSync(filePath, 'utf8')
   const requiredSnippets = [
-    `const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled`,
-    `'data-kg-rich-media-overlay': flowEditorRichMediaOverlayRoot ? '1' : undefined`,
+    `const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled`,
+    `'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined`,
     `'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? '1' : undefined`,
     `'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined`,
     `'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined`,
@@ -1081,30 +1079,36 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
   const mediaOverlaysPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const text = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const requiredSnippets = [
-    'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
-    'const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)', "const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'",
+    'storyboardWidgetOverlayInteractionMode={storyboardWidgetOverlayInteractionMode}',
+    'const storyboardWidgetSurfaceRendererMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)', "const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'",
     'resolveFlowCanvasMediaOverlayInteractionPolicy',
     'const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive',
     'const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive',
     'const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive',
-    'onOverlayPanStart={overlayInteractionEnabled ?',
-    'onOverlayPan={overlayInteractionEnabled ?',
-    'onOverlayPanEnd={overlayInteractionEnabled ?',
-    'onHeaderDragStart={headerDragInteractionActive ?',
-    'onHeaderDrag={headerDragInteractionActive ?',
-    'onHeaderDragEnd={headerDragInteractionActive ?',
+    "const storyboardFixedBoardLayoutEnabled = storyboardSharedSurfaceRendererMode && storyboardBoardLayoutMode === 'fixed'",
+    'const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({',
+    'fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled',
+    'pinnedInCanvas: richMediaPanelPinned',
+    'const richMediaPanelMoveEnabled = headerDragInteractionActive && richMediaPanelPinAllowsMovement',
+    'const richMediaPanelOverlayPanEnabled = overlayInteractionEnabled && richMediaPanelPinAllowsMovement',
+    'onOverlayPanStart={richMediaPanelOverlayPanEnabled ?',
+    'onOverlayPan={richMediaPanelOverlayPanEnabled ?',
+    'onOverlayPanEnd={richMediaPanelOverlayPanEnabled ?',
+    'onHeaderDragStart={richMediaPanelMoveEnabled ?',
+    'onHeaderDrag={richMediaPanelMoveEnabled ?',
+    'onHeaderDragEnd={richMediaPanelMoveEnabled ?',
     'const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === \'flowCanvas\')',
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',
-    "if (flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas') return",
+    "if (storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas') return",
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
       throw new Error(`expected FlowCanvas Rich Media drag/pan renderer guard snippet: ${snippet}`)
     }
   }
-  if (text.includes('isFlowEditorFrontmatterInteractionMode')) {
+  if (text.includes('isStoryboardWidgetFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas Rich Media overlay drag runtime to remove stale frontmatter-only gate alias')
   }
 }

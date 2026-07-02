@@ -180,7 +180,7 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     '---',
     '$schema: "kgc-pipeline/v1"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'kgVideoAgentImport: true',

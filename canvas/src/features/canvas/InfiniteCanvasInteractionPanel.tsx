@@ -50,8 +50,8 @@ export function InfiniteCanvasInteractionPanel() {
     flowWheelZoomIncrementMultiplier,
     flowWheelZoomSmoothMinDurationMs,
     flowWheelZoomSmoothMaxDurationMs,
-    flowEditorSelectionOnDrag,
-    flowEditorOverlayWheelProxyEnabled,
+    storyboardWidgetSelectionOnDrag,
+    storyboardWidgetOverlayWheelProxyEnabled,
   } = useGraphStore(
     useShallow(s => ({
       schema: s.schema,
@@ -80,8 +80,8 @@ export function InfiniteCanvasInteractionPanel() {
       flowWheelZoomIncrementMultiplier: s.flowWheelZoomIncrementMultiplier,
       flowWheelZoomSmoothMinDurationMs: s.flowWheelZoomSmoothMinDurationMs,
       flowWheelZoomSmoothMaxDurationMs: s.flowWheelZoomSmoothMaxDurationMs,
-      flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag,
-      flowEditorOverlayWheelProxyEnabled: s.flowEditorOverlayWheelProxyEnabled,
+      storyboardWidgetSelectionOnDrag: s.storyboardWidgetSelectionOnDrag,
+      storyboardWidgetOverlayWheelProxyEnabled: s.storyboardWidgetOverlayWheelProxyEnabled,
     })),
   )
 
@@ -206,8 +206,8 @@ export function InfiniteCanvasInteractionPanel() {
         { label: labelWithTooltip('Flow wheel increment', 'Wheel zoom increment multiplier for Flow.'), value: fmtNum(flowWheelZoomIncrementMultiplier, 2) },
         { label: labelWithTooltip('Flow wheel smooth min', 'Minimum smoothing duration for Flow zoom.'), value: fmtMs(flowWheelZoomSmoothMinDurationMs) },
         { label: labelWithTooltip('Flow wheel smooth max', 'Maximum smoothing duration for Flow zoom.'), value: fmtMs(flowWheelZoomSmoothMaxDurationMs) },
-        { label: labelWithTooltip('Flow selection on drag', 'Enable selection box when dragging in Flow editor.'), value: fmtBool(flowEditorSelectionOnDrag) },
-        { label: labelWithTooltip('Flow overlay wheel proxy', 'Allow wheel gestures over Flow overlays to control the canvas.'), value: fmtBool(flowEditorOverlayWheelProxyEnabled) },
+        { label: labelWithTooltip('Flow selection on drag', 'Enable selection box when dragging in Storyboard widget.'), value: fmtBool(storyboardWidgetSelectionOnDrag) },
+        { label: labelWithTooltip('Flow overlay wheel proxy', 'Allow wheel gestures over Flow overlays to control the canvas.'), value: fmtBool(storyboardWidgetOverlayWheelProxyEnabled) },
       ],
     },
   ]

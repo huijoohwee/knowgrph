@@ -64,7 +64,7 @@ if (spec.routedToPanelSurfaces) continue  // skip all: source, compute, panel, e
 
 **Consequence**: stale pre-authored `flow-diagram-*` nodes in the `flow:` block bypass routing-key checks and cause typed diagrams to appear in the canvas or Rich Media Panel path. **They must be removed.**
 
-The `doc:sanity` check (`checkRunnableFlowEditorDemoCompliance`) and the Kiro hook enforce this by forbidding authored `flow-diagram-*` nodes in committed documents.
+The `doc:sanity` check (`checkRunnableStoryboardWidgetDemoCompliance`) and the Kiro hook enforce this by forbidding authored `flow-diagram-*` nodes in committed documents.
 
 ---
 
@@ -183,9 +183,9 @@ Forbidden hardcoded inflated values: `$150,529,352`, `$350,000,000`, `$360,944,6
 | Layer | What it checks | Trigger |
 |---|---|---|
 | `doc:sanity` `checkComputeIntegrity()` | `* 1000` bugs, inflated output values, frozen `run_status:done` output | Every `prebuild` |
-| `doc:sanity` `checkRunnableFlowEditorDemoCompliance()` | Required template keys, diagram routing keys per entry | Every `prebuild` |
-| `test:ci` `testFlowEditorComputeIntegrity()` | Same as `checkComputeIntegrity` | Every CI run |
-| `test:ci` `testFlowEditorDemoRunnableStructure()` | InputWidget, compute nodes, typed handles, routing keys | Every CI run |
+| `doc:sanity` `checkRunnableStoryboardWidgetDemoCompliance()` | Required template keys, diagram routing keys per entry | Every `prebuild` |
+| `test:ci` `testStoryboardWidgetComputeIntegrity()` | Same as `checkComputeIntegrity` | Every CI run |
+| `test:ci` `testStoryboardWidgetDemoRunnableStructure()` | InputWidget, compute nodes, typed handles, routing keys | Every CI run |
 | `test:ci` `testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels()` | Parser derives source/compute/panel fallback only for unrouted kinds | Every CI run |
 | `test:ci` `testMarkdownFrontmatterFlowGraphPublishedAgenticCanvasOsDemoArchitectureAndEventModeling()` | Typed diagram routing keys present; no derived fallback nodes for routed entries | Every CI run |
 | Kiro hook `runnable-demo-compliance-check` | Runs `doc:sanity` on every `*-demo.md` save | File save |
@@ -226,9 +226,9 @@ The token economics demo is ~2250 lines and ~130k chars — well under both thre
 |---|---|---|---|
 | `d3Graph` (2D D3 renderer) | 420 | 1800 | 10 |
 | `surface3d` (3D renderer) | 320 | 1200 | 8 |
-| `flowEditor` (Flow Editor) | **no budget applied** | **no budget applied** | — |
+| `storyboardWidget` (Storyboard Widget) | **no budget applied** | **no budget applied** | — |
 
-Flow Editor canvas never has its render budget compacted. The 69 nodes in the token economics demo render without pruning.
+Storyboard Widget canvas never has its render budget compacted. The 69 nodes in the token economics demo render without pruning.
 
 ### Schema derive cache
 
@@ -246,16 +246,16 @@ The `useActiveGraphRenderData` hook chains five `useMemo` calls, each invalidate
 graphData
   → deriveGraphDataForActiveView       (view projection, ~O(nodes))
   → withGraphTopologyMetadata          (topology annotation, ~O(nodes + edges))
-  → applyCanvasRenderBudget            (node/edge pruning — d3/3d only; no-op for flowEditor)
+  → applyCanvasRenderBudget            (node/edge pruning — d3/3d only; no-op for storyboardWidget)
   → applyMarkdownSigilHighlights       (sigil annotation)
   → withGraphTopologyMetadata (final)  (final topology stamp)
 ```
 
-For FlowEditor (`budgetSurface = 'none'`), `applyCanvasRenderBudget` is a no-op. The cost is dominated by `withGraphTopologyMetadata` running twice on every `graphDataRevision` increment. Every node edit, run completion, or approval triggers one increment.
+For StoryboardWidget (`budgetSurface = 'none'`), `applyCanvasRenderBudget` is a no-op. The cost is dominated by `withGraphTopologyMetadata` running twice on every `graphDataRevision` increment. Every node edit, run completion, or approval triggers one increment.
 
-### FlowEditor performance patterns
+### StoryboardWidget performance patterns
 
-For FlowEditor documents with many nodes (>40):
+For StoryboardWidget documents with many nodes (>40):
 
 1. **Use `visual:importance`** — `scoreNode` uses it to rank nodes; higher importance = retained first if budget ever applies
 2. **Use `visual:nodeSize`** — larger nodes signal higher render priority  

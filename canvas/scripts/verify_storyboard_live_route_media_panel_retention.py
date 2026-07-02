@@ -53,10 +53,10 @@ def rich_media_overlay_shell_selector(node_id: str) -> str:
     safe_id = css_attr_value(node_id)
     safe_suffix = css_attr_value(canonical_node_id_suffix(node_id))
     return (
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id="{safe_id}"], '
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-node-id$="::{safe_suffix}"], '
-        f'aside[data-kg-widget="{safe_id}"][data-kg-flow-editor-mode="1"], '
-        f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-flow-editor-mode="1"]'
+        f'[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id="{safe_id}"], '
+        f'[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id$="::{safe_suffix}"], '
+        f'aside[data-kg-widget="{safe_id}"][data-kg-storyboard-widget-mode="1"], '
+        f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-storyboard-widget-mode="1"]'
     )
 
 
@@ -154,7 +154,7 @@ def apply_starter_markdown(page, markdown_text: str) -> None:
 def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio_y: float):
     page.wait_for_function(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')).some((el) => {
+        () => Array.from(document.querySelectorAll('[data-kg-storyboard-widget-surface-root="storyboard"]')).some((el) => {
           const rect = el.getBoundingClientRect()
           return rect.width > 0 && rect.height > 0
         })
@@ -166,7 +166,7 @@ def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio
         ({ targetRatioX, targetRatioY }) => {
           const consumeAttr = '[data-kg-media-drop-consumes-canvas-drop="1"]'
           const candidateOffsets = [0, 0.02, -0.02, 0.04, -0.04, 0.06, -0.06, 0.08, -0.08, 0.1, -0.1]
-          for (const el of document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')) {
+          for (const el of document.querySelectorAll('[data-kg-storyboard-widget-surface-root="storyboard"]')) {
             const rect = el.getBoundingClientRect()
             if (!(rect.width > 0 && rect.height > 0)) continue
             let best = null
@@ -199,7 +199,7 @@ def read_storyboard_surface_drop_point(page, target_ratio_x: float, target_ratio
 def read_visible_rich_media_shell_ids(page):
     return page.evaluate(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+        () => Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"], aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
           .filter((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
@@ -247,7 +247,7 @@ def dispatch_media_panel_drop(page, media_case: dict[str, object]) -> str:
     )
     page.wait_for_function(
         """
-        (beforeIds) => Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+        (beforeIds) => Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"], aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
           .map((el) => String(el.getAttribute('data-node-id') || el.getAttribute('data-kg-widget') || '').trim())
           .filter(Boolean)
           .some((id) => !beforeIds.includes(id))
@@ -593,7 +593,7 @@ def assert_live_route_returns_to_baseline(
         page.wait_for_function(
             """
             ({ createdNodeId, createdEdgeId, baselineShellIds, baselineEdgeCount }) => {
-              const visibleShellIds = Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+              const visibleShellIds = Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"], aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
                 .filter((el) => {
                   const rect = el.getBoundingClientRect()
                   return rect.width > 0 && rect.height > 0

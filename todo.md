@@ -73,7 +73,7 @@ https://www.citriniresearch.com/p/2028gic
 # 2D Renderer (Design)
  ## ENHANCE HTML/CSS/JS hydration/DOM/heuristics -> 2D Renderer (Design) PIPELINE
 - refer to Penpot (upstream), ENHANCE penpot-like functionalities for webpage UI components & layout;
- - ALIGN 2D Renderer (D3, Flow, Flow Editor) with 2D Renderer (Design) ENSURE consistency across modes/layouts;
+ - ALIGN 2D Renderer (D3, Flow, Storyboard) with 2D Renderer (Design) ENSURE consistency across modes/layouts;
  - ENFORCE high UI wireframe layout fidelity with `https://astro.build/`  ;
  - ENHANCE heuristics processing of patterns;
  - ADHERE to universal, neutrality, url-agnostic (i.e. URLs only for validation; not customized for individual url/hardcoded into system);
@@ -122,13 +122,13 @@ update to demo; FORBID duplicate content
  - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas PreviewÂ
  Â Â
  ### MODES/LAYOUTSÂ
- - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)Â
+ - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Storyboard), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)Â
  Â Â  Â
  ### ZOOMSÂ
  - Pin to View, Fit to View, Fit to Screen, Zoom to SelectionÂ
  Â Â  Â
  ### GRAPHS
- - **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, textÂ
+ - **GRAPHS Elements:** nodes, Storyboard Widget widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, textÂ
  - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobsÂ
  Â Â  Â
  ## Code MaintenanceÂ
@@ -174,13 +174,13 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas Preview
 
 ### MODES/LAYOUTS
-- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Storyboard), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
 
 ### ZOOMS
 - Pin to View, Fit to View, Fit to Screen, Zoom to Selection
 
 ## ALIGN Semantic Definition
-- **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+- **GRAPHS Elements:** nodes, Storyboard Widget widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
 - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
 
 ## Code Maintenance
@@ -228,13 +228,13 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas Preview
 
 ### MODES/LAYOUTS
-- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Storyboard), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
 
 ### ZOOMS
 - Pin to View, Fit to View, Fit to Screen, Zoom to Selection
 
 ## ALIGN Semantic Definition
-- **GRAPHS Elements:** nodes, Flow Editor widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+- **GRAPHS Elements:** nodes, Storyboard Widget widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
 - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
 
 ## Code Maintenance

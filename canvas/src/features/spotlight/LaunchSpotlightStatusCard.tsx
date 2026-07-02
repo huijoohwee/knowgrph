@@ -32,7 +32,7 @@ type FlowWidgetTraceEntry = {
   overlayIdsHead?: string
 }
 
-const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorWidgetTrace'
+const FLOW_QE_TRACE_LS_KEY = 'kg:debug:storyboardWidgetTrace'
 const EMPTY_STRING_ARRAY: string[] = []
 const spotlightCardClassName = `pointer-events-auto rounded-xl border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 ${UI_RESPONSIVE_FLOATING_NOTICE_CARD_CLASSNAME}`
 const spotlightGhostButtonClassName = `${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -269,8 +269,8 @@ export function LaunchSpotlightStatusCard({
 
   const handleSummarizeWidgetTrace = React.useCallback(() => {
     if (typeof window === 'undefined') return
-    const w = window as Window & { __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
-    const rows = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
+    const w = window as Window & { __KG_STORYBOARD_WIDGET_QE_TRACE__?: Array<Record<string, unknown>> }
+    const rows = Array.isArray(w.__KG_STORYBOARD_WIDGET_QE_TRACE__) ? w.__KG_STORYBOARD_WIDGET_QE_TRACE__ : []
     const normalized = rows.map(r => ({
       ts: typeof r.ts === 'number' ? r.ts : 0,
       doc: typeof r.doc === 'string' ? r.doc : '',
@@ -301,13 +301,13 @@ export function LaunchSpotlightStatusCard({
       lastOverlayIdsHead: last?.overlayIdsHead || '',
       latestEntries: normalized.slice(-8),
     }
-    console.info('[FlowEditor][WidgetTrace][Summary]', summary)
+    console.info('[StoryboardWidget][WidgetTrace][Summary]', summary)
   }, [])
   const handleResetZoomFloorCache = React.useCallback(() => {
     if (typeof window === 'undefined') return
     try {
       emitFlowResetZoomFloorCache()
-      console.info('[FlowEditor][ZoomFloorCache] reset requested')
+      console.info('[StoryboardWidget][ZoomFloorCache] reset requested')
     } catch {
       void 0
     }
@@ -315,8 +315,8 @@ export function LaunchSpotlightStatusCard({
   const widgetTraceBadge = React.useMemo(() => {
     if (!devTraceEnabled) return null
     if (typeof window === 'undefined') return null
-    const w = window as Window & { __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
-    const rows = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
+    const w = window as Window & { __KG_STORYBOARD_WIDGET_QE_TRACE__?: Array<Record<string, unknown>> }
+    const rows = Array.isArray(w.__KG_STORYBOARD_WIDGET_QE_TRACE__) ? w.__KG_STORYBOARD_WIDGET_QE_TRACE__ : []
     let drops = 0
     let spikes = 0
     for (let i = 1; i < rows.length; i += 1) {

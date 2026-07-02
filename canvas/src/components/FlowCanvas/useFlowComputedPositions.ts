@@ -27,7 +27,7 @@ export function useFlowComputedPositions(args: {
   graphDataRevision: number
   layoutMode: string
   layoutVariant: string
-  flowEditorMode?: boolean
+  storyboardWidgetMode?: boolean
   documentSemanticMode: string
   effectiveFrontmatter: boolean
   layoutViewKey: string
@@ -50,7 +50,7 @@ export function useFlowComputedPositions(args: {
     graphDataRevision,
     layoutMode,
     layoutVariant,
-    flowEditorMode,
+    storyboardWidgetMode,
     documentSemanticMode,
     effectiveFrontmatter,
     layoutViewKey,
@@ -194,7 +194,7 @@ export function useFlowComputedPositions(args: {
           cache,
           baseKey,
           allowVariantFallback: false,
-          targetRenderer: flowEditorMode === true ? 'flowEditor' : 'flow',
+          targetRenderer: storyboardWidgetMode === true ? 'storyboard' : 'flow',
         })
         const normalized = centerToTopLeft(best)
         seededFromOtherRendererPositionsRef.current = normalized
@@ -206,7 +206,7 @@ export function useFlowComputedPositions(args: {
       const allowCache = cacheCoverageOk && !cacheUnstable
 
       const preferSourceSeededPositions =
-        flowEditorMode === true &&
+        storyboardWidgetMode === true &&
         effectiveFrontmatter === true &&
         !usePerNodeVisualSize
 
@@ -268,7 +268,7 @@ export function useFlowComputedPositions(args: {
                     edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
                     rankdir,
                     nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
-                    spacingPx: flowEditorMode === true
+                    spacingPx: storyboardWidgetMode === true
                       ? {
                           nodesep: Math.max(14, Math.min(90, Math.round(flowConfig.node.widthPx * 0.12))),
                           ranksep: Math.max(22, Math.min(140, Math.round(flowConfig.node.heightPx * 1.15))),
@@ -538,7 +538,7 @@ export function useFlowComputedPositions(args: {
                 const keyword = typeof rawKey === 'number' && Number.isFinite(rawKey) ? rawKey : 64
                 const base = semanticMode === 'document' ? doc : keyword
                 const basePx = Math.max(0, Math.min(240, Math.floor(base)))
-                if (flowEditorMode !== true) return basePx
+                if (storyboardWidgetMode !== true) return basePx
                 const nodeMin = Math.max(1, Math.min(nodeW, nodeH))
                 const cap = Math.max(28, Math.min(96, Math.floor(24 + nodeMin * 0.35)))
                 return Math.max(0, Math.min(basePx, cap))
@@ -546,7 +546,7 @@ export function useFlowComputedPositions(args: {
               targetAspect: (() => {
                 const raw = schema?.layout?.fitTargetAspectRatio
                 const base = typeof raw === 'number' && Number.isFinite(raw) && raw > 0.05 ? raw : 16 / 9
-                if (flowEditorMode !== true) return base
+                if (storyboardWidgetMode !== true) return base
                 return Math.max(0.8, Math.min(1.6, base))
               })(),
             })
@@ -579,7 +579,7 @@ export function useFlowComputedPositions(args: {
     active,
     cacheKey,
     datasetKey,
-    flowEditorMode,
+    storyboardWidgetMode,
     documentSemanticMode,
     effectiveFrontmatter,
     flowConfig,

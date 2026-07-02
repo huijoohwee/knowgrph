@@ -1,7 +1,7 @@
 import type { GraphData } from '@/lib/graph/types'
 import {
   computeEffectiveFrontmatterMode,
-  isFlowEditorFrontmatterDocumentModeRequested,
+  isStoryboardWidgetFrontmatterDocumentModeRequested,
   isFrontmatterDocumentModeRequested,
   isFrontmatterFlowGraph,
   readFlowchartFrontmatterGraphSource,
@@ -161,12 +161,12 @@ export function testFrontmatterSemanticRequestNormalizationKeepsExplicitAndImpli
     throw new Error('expected frontmatter document-mode request helper to normalize whitespace and casing for document semantic mode')
   }
   if (
-    isFlowEditorFrontmatterDocumentModeRequested({
-      canvas2dRenderer: 'flowEditor',
+    isStoryboardWidgetFrontmatterDocumentModeRequested({
+      canvas2dRenderer: 'storyboard',
       frontmatterModeEnabled: true,
       documentSemanticMode: ' Document ',
     }) !== true
   ) {
-    throw new Error('expected flow editor frontmatter document-mode request helper to reuse the shared semantic normalization contract')
+    throw new Error('expected storyboard widget frontmatter document-mode request helper to reuse the shared semantic normalization contract')
   }
 }

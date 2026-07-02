@@ -11,7 +11,7 @@ lang: "en-US"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgCanvasSurfaceMode: "2d"
-kgCanvas2dRenderer: "flowEditor"
+kgCanvas2dRenderer: "storyboard"
 kgDocumentStructureBaselineLock: false
 kgSchema: "kgc-computing-flow/v1"
 traceability:

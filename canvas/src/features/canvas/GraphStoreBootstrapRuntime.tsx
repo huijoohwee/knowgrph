@@ -1,7 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyCanvasSliceStorageMigrations } from '@/hooks/store/canvasSliceStorageMigrations'
-import { applyFlowEditorManagerDefaultRegistrySeed } from '@/hooks/store/flowEditorManagerRegistryPersistence'
+import { applyStoryboardWidgetManagerDefaultRegistrySeed } from '@/hooks/store/storyboardWidgetManagerRegistryPersistence'
 import { applyGraphViewPinnedSemanticsMigration } from '@/hooks/store/graphViewPinnedSemanticsMigration'
 import { ensureSessionTabId } from '@/hooks/store/uiSettingsSliceSession'
 
@@ -15,7 +15,7 @@ export function GraphStoreBootstrapRuntime() {
 
   React.useEffect(() => {
     applyCanvasSliceStorageMigrations()
-    applyFlowEditorManagerDefaultRegistrySeed()
+    applyStoryboardWidgetManagerDefaultRegistrySeed()
     applyGraphViewPinnedSemanticsMigration()
   }, [])
 

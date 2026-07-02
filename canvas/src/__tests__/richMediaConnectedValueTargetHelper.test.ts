@@ -114,20 +114,20 @@ export function testResolvePreferredRichMediaPanelNodeIdFollowsSharedPriorityOrd
     graphData,
     selectedNodeId: 'panel-selected',
     selectedNodeIds: ['panel-open'],
-    flowEditorOpenWidgetNodeIds: ['panel-flow-open'],
+    storyboardWidgetOpenWidgetNodeIds: ['panel-flow-open'],
     openWidgetNodeIds: ['panel-open'],
   })
   if (selectedId !== 'panel-selected') {
     throw new Error(`expected selected rich media panel to win priority order, got ${selectedId}`)
   }
 
-  const flowEditorOpenId = resolvePreferredRichMediaPanelNodeId({
+  const storyboardWidgetOpenId = resolvePreferredRichMediaPanelNodeId({
     graphData,
     selectedNodeIds: ['missing'],
-    flowEditorOpenWidgetNodeIds: ['panel-flow-open'],
+    storyboardWidgetOpenWidgetNodeIds: ['panel-flow-open'],
     openWidgetNodeIds: ['panel-open'],
   })
-  if (flowEditorOpenId !== 'panel-flow-open') {
-    throw new Error(`expected flow editor open panel to beat generic open widget ids, got ${flowEditorOpenId}`)
+  if (storyboardWidgetOpenId !== 'panel-flow-open') {
+    throw new Error(`expected storyboard widget open panel to beat generic open widget ids, got ${storyboardWidgetOpenId}`)
   }
 }

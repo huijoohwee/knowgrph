@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import FlowWidgetOverlay from '@/components/FlowEditor/FlowWidgetOverlay'
+import FlowWidgetOverlay from '@/components/StoryboardWidget/FlowWidgetOverlay'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -81,7 +81,7 @@ export async function testFlowWidgetTypographyInheritsPanelSettings() {
       throw new Error(`expected caption to use micro label class, got ${JSON.stringify(captionClass)}`)
     }
 
-    const formSource = readFileSync(resolve(process.cwd(), 'src/components/FlowEditor/NodeOverlayEditorForm.tsx'), 'utf8')
+    const formSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorForm.tsx'), 'utf8')
     if (
       !formSource.includes('const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()') ||
       !formSource.includes('monospaceTextClass={monospaceTextClass}') ||

@@ -37,7 +37,7 @@ export function resolveGrabMapsPoiRichMediaPanelNodeId(args: {
   selectedNodeId?: string | null
   selectedNodeIds?: readonly string[]
   openWidgetNodeIds?: readonly string[]
-  flowEditorOpenWidgetNodeIds?: readonly string[]
+  storyboardWidgetOpenWidgetNodeIds?: readonly string[]
 }): string {
   const nodes = readGraphNodes(args.graphData)
   if (nodes.length === 0) return ''
@@ -53,7 +53,7 @@ export function resolveGrabMapsPoiRichMediaPanelNodeId(args: {
     selectedNodeId: args.selectedNodeId,
     selectedNodeIds: args.selectedNodeIds,
     openWidgetNodeIds: args.openWidgetNodeIds,
-    flowEditorOpenWidgetNodeIds: args.flowEditorOpenWidgetNodeIds,
+    storyboardWidgetOpenWidgetNodeIds: args.storyboardWidgetOpenWidgetNodeIds,
     nodeById,
   })
 }

@@ -10,7 +10,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 
 export function testWorkspaceRuntimeCommandInstallsStableWindowCommand() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'features', 'agent-ready', 'workspaceRuntimeCommand.ts'), 'utf8')

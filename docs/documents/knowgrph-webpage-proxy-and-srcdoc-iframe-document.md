@@ -185,10 +185,10 @@ This embedded preview iframe is not used for the Editor/Table split view (Editor
 
 **Opt-in flag**: add `data-kg-preview-writeback="1"` on the preview iframe to allow `kg-preview-graph` writeback.
 
-## Renderer Toggle Invariants (D3 / Flow / Flow Editor)
+## Renderer Toggle Invariants (D3 / Flow / Storyboard)
 
 - Switching 2D renderer variants must not reseed layout positions when node positions already exist.
-- The layout-position cache key must be renderer-agnostic for `renderMode: 2d` so D3/Flow/Flow Editor toggles preserve the same cached positions.
+- The layout-position cache key must be renderer-agnostic for `renderMode: 2d` so D3/Flow/Storyboard toggles preserve the same cached positions.
 - 3D render variants may remain isolated by variant.
 
 ## Markdown Round-Trip Fidelity (MD → HTML → MD)

@@ -47,7 +47,7 @@ export type CanvasViewportGeospatialOverlayProps = {
   active: boolean
   geospatialModeEnabled: boolean
   graphData: GraphData
-  flowEditorWidgetPanelsActive: boolean
+  storyboardWidgetPanelsActive: boolean
 }
 
 const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverlayHost(_props: GeospatialOverlayHostProps) {
@@ -82,7 +82,7 @@ const GeospatialOverlayHostLazy = React.lazy(async (): Promise<{ default: React.
 export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospatialOverlay(
   props: CanvasViewportGeospatialOverlayProps,
 ) {
-  const { active, geospatialModeEnabled, graphData, flowEditorWidgetPanelsActive } = props
+  const { active, geospatialModeEnabled, graphData, storyboardWidgetPanelsActive } = props
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
       zoomState: s.zoomState,
@@ -175,7 +175,7 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
       selectedNodeId: gympgrphBridge.selectedNodeId,
       selectedNodeIds: gympgrphBridge.selectedNodeIds,
       selectedEdgeId: gympgrphBridge.selectedEdgeId,
-      geospatialPanelNodeIds: flowEditorWidgetPanelsActive ? gympgrphBridge.openWidgetNodeIds : [],
+      geospatialPanelNodeIds: storyboardWidgetPanelsActive ? gympgrphBridge.openWidgetNodeIds : [],
     }),
     [
       geospatialGraphData,
@@ -185,7 +185,7 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
       gympgrphBridge.selectedEdgeId,
       gympgrphBridge.selectedNodeId,
       gympgrphBridge.selectedNodeIds,
-      flowEditorWidgetPanelsActive,
+      storyboardWidgetPanelsActive,
       gympgrphBridge.viewportControlsPreset,
       gympgrphBridge.zoomState,
     ],
@@ -197,15 +197,15 @@ export const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewpor
     const poiCategory = String(detail.category || '').trim() || resolveGeoPoiCategoryFromProperties(poiProperties)
     const normalizedDetail = { ...detail, address: poiAddress, category: poiCategory, properties: poiProperties }
     const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(normalizedDetail)
-    const flowEditorOpenWidgetNodeIds = Array.isArray(gympgrphBridge.openWidgetNodeIdsByRenderer?.flowEditor)
-      ? gympgrphBridge.openWidgetNodeIdsByRenderer.flowEditor
+    const storyboardWidgetOpenWidgetNodeIds = Array.isArray(gympgrphBridge.openWidgetNodeIdsByRenderer?.storyboard)
+      ? gympgrphBridge.openWidgetNodeIdsByRenderer.storyboard
       : []
     let targetNodeId = resolveGrabMapsPoiRichMediaPanelNodeId({
       graphData,
       selectedNodeId: gympgrphBridge.selectedNodeId,
       selectedNodeIds: gympgrphBridge.selectedNodeIds,
       openWidgetNodeIds: gympgrphBridge.openWidgetNodeIds,
-      flowEditorOpenWidgetNodeIds,
+      storyboardWidgetOpenWidgetNodeIds,
     })
     if (!targetNodeId) {
       const candidateIds = [

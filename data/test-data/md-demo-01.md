@@ -1,4 +1,4 @@
-# Flow Editor (2D) + D3 Canvas · Demo
+# Storyboard Widget (2D) + D3 Canvas · Demo
 
 This deck includes a **frontmatter-flow graph** (see the YAML block at the top of this file) to demo:
 
@@ -12,14 +12,14 @@ It also includes a separate **2D (D3) editor-mode** section for generic graph ed
 Hover term: <abbr title="The 2D graph renderer built with D3 + SVG">D3 Canvas</abbr>
 
 > [!info] What this demo covers
-> - **Flow Editor (2D)**: node quick editors + port handles + groups/clusters
+> - **Storyboard Widget (2D)**: node quick editors + port handles + groups/clusters
 > - **2D → D3 → Editor**: interactive graph editing on the canvas
 > - **Schema-driven visuals** + per-node overrides (shapes, grouping)
 
-## Flow Editor Quick Start (2 minutes)
+## Storyboard Widget Quick Start (2 minutes)
 
 - Open this markdown file in Knowgrph
-- Switch to **Canvas → 2D → Flow Editor**
+- Switch to **Canvas → 2D → Storyboard Widget**
 - Select **NODE_KEYFRAME** or **NODE_VIDEO**, then open the node quick editor and tweak:
   - `model` (`generate_image` / `generate_video`)
   - `prompt`, `aspect_ratio`, `duration`, `resolution`

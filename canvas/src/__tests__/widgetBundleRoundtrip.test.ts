@@ -102,16 +102,16 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
     throw new Error('expected GraphRecordInspector shared graph lookup to preserve current graph references on cache refresh')
   }
 
-  const flowEditorMappingRegistryIoPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingRegistryIo.ts')
-  const flowEditorMappingRegistryIoText = readFileSync(flowEditorMappingRegistryIoPath, 'utf8')
-  if (!flowEditorMappingRegistryIoText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
-    throw new Error('expected FlowEditorMappingTab JSON export path to reuse the shared widget bundle JSON helper')
+  const storyboardWidgetMappingRegistryIoPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetMappingRegistryIo.ts')
+  const storyboardWidgetMappingRegistryIoText = readFileSync(storyboardWidgetMappingRegistryIoPath, 'utf8')
+  if (!storyboardWidgetMappingRegistryIoText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
+    throw new Error('expected StoryboardWidgetMappingTab JSON export path to reuse the shared widget bundle JSON helper')
   }
-  if (!flowEditorMappingRegistryIoText.includes('readValidatedWidgetRegistryMetadataEntries(meta)')) {
-    throw new Error('expected FlowEditorMappingTab JSON import path to reuse the shared validated widget-registry metadata reader')
+  if (!storyboardWidgetMappingRegistryIoText.includes('readValidatedWidgetRegistryMetadataEntries(meta)')) {
+    throw new Error('expected StoryboardWidgetMappingTab JSON import path to reuse the shared validated widget-registry metadata reader')
   }
-  if (flowEditorMappingRegistryIoText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
-    throw new Error('expected FlowEditorMappingTab JSON import path to stop parsing the widget registry metadata key inline')
+  if (storyboardWidgetMappingRegistryIoText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected StoryboardWidgetMappingTab JSON import path to stop parsing the widget registry metadata key inline')
   }
 
   const graphFilePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'file.ts')
@@ -123,7 +123,7 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
     throw new Error('expected graph file export/copy helpers to stop rebuilding widget bundles inline')
   }
 
-  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
   const workflowActionsText = readFileSync(workflowActionsPath, 'utf8')
   if (!workflowActionsText.includes('graphRevision: readGraphDataRevision(subgraph)')) {
     throw new Error('expected workflow node export path to pass graph revision metadata into shared widget bundle export')

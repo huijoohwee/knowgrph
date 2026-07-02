@@ -4,9 +4,9 @@ import { resolve } from 'node:path'
 export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefaults() {
   const paletteText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/WidgetPalette.tsx'), 'utf8')
   const floatingPanelText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/FloatingPropsPanel.tsx'), 'utf8')
-  const canvasRuntimeText = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas.runtime.tsx'), 'utf8')
-  const widgetDropBridgeText = readFileSync(resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorWidgetDropBridge.ts'), 'utf8')
-  const flowEditorConfigText = readFileSync(resolve(process.cwd(), 'src/lib/config.flow-editor.ts'), 'utf8')
+  const canvasRuntimeText = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const widgetDropBridgeText = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts'), 'utf8')
+  const storyboardWidgetConfigText = readFileSync(resolve(process.cwd(), 'src/lib/config.storyboard-widget.ts'), 'utf8')
   const imageDefaultsText = readFileSync(resolve(process.cwd(), 'src/features/integrations/byteplusImageGenerationDefaults.ts'), 'utf8')
   const videoDefaultsText = readFileSync(resolve(process.cwd(), 'src/features/integrations/byteplusVideoGenerationDefaults.ts'), 'utf8')
   const copyText = readFileSync(resolve(process.cwd(), 'src/lib/config-copy/uiMeta.ts'), 'utf8')
@@ -30,9 +30,9 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
   }
 
   const canvasRuntimeSnippets = [
-    'useFlowEditorWidgetDropBridge',
+    'useStoryboardWidgetDropBridge',
     'const pendingOpenWidgetNodeIdRef = React.useRef<string | null>(null)',
-    'const { addNodeFromRegistryAtWorld } = useFlowEditorWidgetDropBridge({',
+    'const { addNodeFromRegistryAtWorld } = useStoryboardWidgetDropBridge({',
     'pendingOpenWidgetNodeIdRef,',
   ]
   for (const snippet of canvasRuntimeSnippets) {
@@ -78,8 +78,8 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
     [imageDefaultsText, 'CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT', 'image model default'],
     [imageDefaultsText, 'export function buildBytePlusImageWidgetSeedProperties', 'image seed helper'],
     [imageDefaultsText, 'model: defaults.model', 'image seed model'],
-    [flowEditorConfigText, "FLOW_TEXT_GENERATION_SEED_PROMPT_DEFAULT = 'Generate a text response for the active request.'", 'text seed default'],
-    [flowEditorConfigText, 'export function getFlowTextGenerationSeedPrompt', 'text seed helper'],
+    [storyboardWidgetConfigText, "FLOW_TEXT_GENERATION_SEED_PROMPT_DEFAULT = 'Generate a text response for the active request.'", 'text seed default'],
+    [storyboardWidgetConfigText, 'export function getFlowTextGenerationSeedPrompt', 'text seed helper'],
     [videoDefaultsText, 'CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT', 'video model default'],
     [videoDefaultsText, 'export function buildBytePlusVideoWidgetSeedProperties', 'video seed helper'],
     [videoDefaultsText, 'model: defaults.model', 'video seed model'],

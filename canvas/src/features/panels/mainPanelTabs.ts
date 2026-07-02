@@ -84,7 +84,7 @@ const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
     key: 'workflowManager',
     label: UI_LABELS.workflowManager,
     searchable: true,
-    searchPlaceholder: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
+    searchPlaceholder: UI_COPY.searchStoryboardWidgetManagerRegistryPlaceholder,
     footerLabel: UI_LABELS.workflowManager,
   },
   {

@@ -1,16 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-function readNodeOverlayEditorImplementationText(): string {
+function readWidgetEditorImplementationText(): string {
   return [
-    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorInner.tsx'),
-    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorView.tsx'),
-    resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'useNodeOverlayRichMediaToolbar.ts'),
+    resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'),
+    resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetRichMediaToolbar.ts'),
   ].map(path => readFileSync(path, 'utf8')).join('\n')
 }
 
 export function testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition() {
-  const text = readNodeOverlayEditorImplementationText()
+  const text = readWidgetEditorImplementationText()
 
   const requiredSnippets = [
     'const wasSelectedRef = React.useRef(false)',
@@ -19,21 +19,21 @@ export function testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition() {
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
-      throw new Error(`expected NodeOverlayEditor to auto-show floating toolbar when widget selection transitions to active: ${snippet}`)
+      throw new Error(`expected WidgetEditor to auto-show floating toolbar when widget selection transitions to active: ${snippet}`)
     }
   }
   if (!text.includes('if (selected && !wasSelectedRef.current) setToolbarVisible(true)')) {
-    throw new Error('expected NodeOverlayEditor to auto-show floating toolbar when widget selection transitions to active')
+    throw new Error('expected WidgetEditor to auto-show floating toolbar when widget selection transitions to active')
   }
 }
 
 export function testFlowWidgetToolbarVisibleWhenViewLockOn() {
-  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
-  const overlayText = readNodeOverlayEditorImplementationText()
+  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx')
+  const overlayText = readWidgetEditorImplementationText()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
 
   if (!overlayText.includes('onPointerDownCapture={(ev) => {')) {
-    throw new Error('expected NodeOverlayEditor to keep pointer-down selection path for widget clicks')
+    throw new Error('expected WidgetEditor to keep pointer-down selection path for widget clicks')
   }
   if (overlayText.includes('if (!active) return')) {
     const aroundPointerDown = overlayText.includes('onPointerDownCapture={(ev) => {\n        if (!active) return')
@@ -50,68 +50,70 @@ export function testFlowWidgetToolbarVisibleWhenViewLockOn() {
 }
 
 export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
-  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
-  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const overlayText = readNodeOverlayEditorImplementationText()
+  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx')
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
+  const innerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
+  const flowCanvasToolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasRichMediaOverlayToolbar.tsx')
+  const graphCanvasLayerPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
+  const lsKeysPath = resolve(process.cwd(), 'src', 'lib', 'config.ls.keys.ts')
+  const overlayText = readWidgetEditorImplementationText()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
+  const innerText = readFileSync(innerPath, 'utf8')
+  const flowCanvasToolbarText = readFileSync(flowCanvasToolbarPath, 'utf8')
+  const graphCanvasLayerText = readFileSync(graphCanvasLayerPath, 'utf8')
+  const lsKeysText = readFileSync(lsKeysPath, 'utf8')
+  const uiCopyText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts'), 'utf8')
 
   if (overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to remove legacy Rich Media view-toggle wiring from the outer generic toolbar')
+    throw new Error('expected WidgetEditor to remove legacy Rich Media view-toggle wiring from the outer generic toolbar')
   }
   if (overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to remove legacy Rich Media media-selector wiring from the outer generic toolbar')
+    throw new Error('expected WidgetEditor to remove legacy Rich Media media-selector wiring from the outer generic toolbar')
   }
   if (!overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaViewToggle : undefined}')) {
-    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel view toggle through the real outer widget floating toolbar')
+    throw new Error('expected WidgetEditor to wire the Rich Media Panel view toggle through the real outer widget floating toolbar')
   }
-  if (!overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}')) {
-    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel Media Selector through the real outer widget floating toolbar')
+  if (!overlayText.includes('actionVisibility={isRichMediaPanelWidget ? richMediaPanelToolbarProps.actionVisibility : undefined}')) {
+    throw new Error('expected WidgetEditor to suppress stale Rich Media Panel bubble-toolbar actions through the shared view-switch mask')
   }
-  if (!overlayText.includes('richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}')) {
-    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel aspect toggle through the real outer widget floating toolbar')
-  }
-  if (!overlayText.includes('richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}')) {
-    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel text edit/view toggle through the real outer widget floating toolbar')
-  }
-  if (!overlayText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
-    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel open-source action through the real outer widget floating toolbar')
-  }
-  if (!overlayText.includes("import { buildNodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
-    throw new Error('expected Rich Media floating toolbar wiring to import the shared node-overlay external action helper')
-  }
-  if (!overlayText.includes('openExternalAction: buildNodeOverlayOpenExternalAction({')) {
-    throw new Error('expected Rich Media floating toolbar wiring to build the open-source action through the shared helper')
+  for (const stale of [
+    'richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}',
+    'richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}',
+    'richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}',
+    'openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}',
+    'openExternalAction: buildWidgetOpenExternalAction({',
+  ]) {
+    if (overlayText.includes(stale)) {
+      throw new Error(`expected Rich Media Panel bubble toolbar to remove stale click-open action wiring: ${stale}`)
+    }
   }
   if (overlayText.includes("window.open(richMediaOpenUrl, '_blank', 'noopener,noreferrer')")) {
     throw new Error('expected Rich Media floating toolbar wiring to avoid inline window.open choreography')
   }
   if (!panelText.includes('widgetToolbarActive={false}')) {
-    throw new Error('expected NodeOverlayEditorPanel to keep the RichMediaPanel body free of duplicate in-body widget toolbar ownership')
+    throw new Error('expected WidgetEditorPanel to keep the RichMediaPanel body free of duplicate in-body widget toolbar ownership')
   }
-  if (!overlayText.includes('selectedMode: richMediaSelectedMode')) {
-    throw new Error('expected NodeOverlayEditor to pass the selected Rich Media mode into the shared RichMediaPanel shell')
-  }
-  if (!overlayText.includes('onSelect: handleSelectRichMediaMode')) {
-    throw new Error('expected NodeOverlayEditor to update richMediaActiveTab through the shared RichMediaPanel selector callback')
+  if (!overlayText.includes('actionVisibility: RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY')) {
+    throw new Error('expected Rich Media Panel widget toolbar props to consolidate onto the shared view-switch action mask')
   }
   if (!toolbarText.includes('richMediaViewToggle?.visible')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to render a Rich Media Panel view toggle')
+    throw new Error('expected WidgetEditorActionsToolbar to render a Rich Media Panel view toggle')
   }
-  if (!toolbarText.includes('richMediaMediaSelector?.visible')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to render a Rich Media Panel Media Selector')
-  }
-  if (!toolbarText.includes('RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL')) {
-    throw new Error('expected Rich Media floating toolbar selector to reuse the shared Media Selector label')
-  }
-  if (!toolbarText.includes('getRichMediaPanelMediaSelectorOptions')) {
-    throw new Error('expected Rich Media floating toolbar selector to reuse shared media-mode option metadata')
-  }
-  if (!toolbarText.includes('Images')) {
-    throw new Error('expected Rich Media floating toolbar selector to use the dedicated Media Selector icon button')
-  }
-  if (!toolbarText.includes("option.value === richMediaMediaSelector?.selectedMode")) {
-    throw new Error('expected Rich Media floating toolbar selector to highlight the currently selected media mode')
+  for (const stale of [
+    'richMediaMediaSelector?.visible',
+    'richMediaAspectToggle?.visible',
+    'richMediaTextModeToggle?.visible',
+    'data-kg-rich-media-media-selector',
+    'data-kg-rich-media-aspect-toggle',
+    'data-kg-rich-media-text-mode-toggle',
+    'data-kg-rich-media-open-source',
+    'RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL',
+    'getRichMediaPanelMediaSelectorOptions',
+  ]) {
+    if (toolbarText.includes(stale)) {
+      throw new Error(`expected Rich Media Panel bubble toolbar to keep only the shared view switch, found stale control: ${stale}`)
+    }
   }
   if (!toolbarText.includes('SplitSquareVertical')) {
     throw new Error('expected floating toolbar Rich Media toggle to use the dedicated tiny split-view button')
@@ -119,22 +121,37 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   if (!toolbarText.includes('getRichMediaPanelViewTitle(richMediaViewToggle.isKtvRows)')) {
     throw new Error('expected Rich Media floating toolbar toggle to reuse the shared Rich Media Panel title helper')
   }
-  if (!toolbarText.includes("import type { NodeOverlayOpenExternalAction } from '@/components/FlowEditor/nodeOverlayOpenExternalAction'")) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to type the open-source action through the shared helper contract')
-  }
-  if (!toolbarText.includes('openExternalAction?: NodeOverlayOpenExternalAction')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to expose the typed shared open-source action contract')
+  if (!uiCopyText.includes("flowWidgetRichMediaPanelView: 'Switch to Rich Media Panel (Connect media to render) in the shared widget shell.'")
+    || !uiCopyText.includes("flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows with port handles in the shared widget shell.'")) {
+    throw new Error('expected the shared widget-shell Rich Media toolbar to keep the approved Rich Media Panel switch tooltips')
   }
   if (!toolbarText.includes('onEnableHandlesForAllInputs?: () => void')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to make the enable-handles callback optional when the action is hidden')
+    throw new Error('expected WidgetEditorActionsToolbar to make the enable-handles callback optional when the action is hidden')
   }
   if (!toolbarText.includes('showEnableHandlesAction && !enableHandlesDisabled && onEnableHandlesForAllInputs')) {
-    throw new Error('expected NodeOverlayEditorActionsToolbar to only render the enable-handles action when a real callback is provided')
+    throw new Error('expected WidgetEditorActionsToolbar to only render the enable-handles action when a real callback is provided')
   }
   if (toolbarText.includes('UI_LABELS.panelView') || toolbarText.includes('UI_LABELS.ktvRows')) {
     throw new Error('expected Rich Media floating toolbar toggle to avoid generic Panel View/KTV Rows labels')
   }
   if (panelText.includes('flowWidgetRichMediaPanelView') || panelText.includes('flowWidgetRichMediaKtvRows')) {
-    throw new Error('expected NodeOverlayEditorPanel header to avoid duplicating the Rich Media Panel view toggle')
+    throw new Error('expected WidgetEditorPanel header to avoid duplicating the Rich Media Panel view toggle')
+  }
+  if (!lsKeysText.includes("flowWidgetRichMediaKtvRows: 'kg:ui:storyboardWidget:richMedia:ktvRows'")) {
+    throw new Error('expected Rich Media Panel KTV-row mode to use a dedicated central local-storage key')
+  }
+  if (!innerText.includes('const [richMediaKtvRows, setRichMediaKtvRows] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetRichMediaKtvRows, false))')
+    || !innerText.includes('const effectiveHideFields = isRichMediaPanelNode ? richMediaKtvRows : hideFields')
+    || !innerText.includes('hideFields: effectiveHideFields')
+    || !innerText.includes('hideFields={effectiveHideFields}')) {
+    throw new Error('expected Rich Media Panel widget view mode to be isolated from generic widget hide-fields state')
+  }
+  if (!flowCanvasToolbarText.includes('lsSetBool(LS_KEYS.flowWidgetRichMediaKtvRows, true)')
+    || !graphCanvasLayerText.includes('lsSetBool(LS_KEYS.flowWidgetRichMediaKtvRows, true)')) {
+    throw new Error('expected Rich Media overlay view-switch actions to open KTV rows through the Rich Media-specific view key')
+  }
+  if (flowCanvasToolbarText.includes('lsSetBool(LS_KEYS.flowWidgetHideFields, true)')
+    || graphCanvasLayerText.includes('lsSetBool(LS_KEYS.flowWidgetHideFields, true)')) {
+    throw new Error('expected Rich Media overlay view-switch actions not to mutate generic widget hide-fields state')
   }
 }

@@ -8,7 +8,7 @@ import {
 import {
   writeGrabMapsDiscoverySettingsValues,
   type GrabMapsDiscoverySettingsValues,
-} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+} from '@/features/storyboard-widget-manager/grabMapsDiscoveryWidget'
 
 export const GRABMAPS_DISCOVERY_SETTINGS_GRID_CLASS_NAME = 'kg-grabmaps-discovery-settings-grid'
 

@@ -72,7 +72,7 @@ No other surface should duplicate these controls.
 - WYSIWYG-ish in-place editing must preserve read-mode typography and spacing for inline code and lists, including list-to-list gaps and mixed paragraph→code→list sequences; entering contentEditable must not change layout, margins, or padding.
 - In-place edit surfaces must reuse read-surface baseline layout and interaction styling, including indent/padding/margin/border plus caret/whitespace/tab-size parity; entering edit must not mutate wrapper geometry.
 - In Workspace Editor `Markdown + Read + Viewer`, header-level duplicate formatting buttons (`Heading/Bold/Italic/Strikethrough/...`) must be removed from the workspace toolbar and deferred to the inline floating selection toolbar SSOT. Viewer-read header chrome keeps navigation/layout/display actions only.
-- Viewer header controls must be actionable-only: hide Content controls when no mode switch exists, hide `Flow Editor widget` when unavailable, and avoid disabled/no-op toolbar placeholders.
+- Viewer header controls must be actionable-only: hide Content controls when no mode switch exists, hide `Storyboard Widget` when unavailable, and avoid disabled/no-op toolbar placeholders.
 - Header Display controls are markdown read-surface only; do not render them for non-markdown or non-read viewer surfaces.
 - Floating toolbar and slash/variable menus must use shared pointer-down guards and shared hand-cursor class tokens for all actionable buttons; arrow-cursor or per-button interaction forks are forbidden.
 - Variable toolbar Apply must use the shared variable action pipeline only; direct contentEditable query/mutation fallbacks are forbidden.

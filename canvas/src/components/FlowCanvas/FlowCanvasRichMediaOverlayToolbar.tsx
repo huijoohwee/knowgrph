@@ -1,11 +1,12 @@
 import React from 'react'
-import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/FlowEditor/richMediaOverlayToolbarProps'
+import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
+import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/StoryboardWidget/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createUniqueId } from '@/lib/ids'
-import { commitRichMediaPanelChange, type RichMediaPanelChange } from '@/lib/render/richMediaSsot'
 import type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { lsSetBool } from '@/lib/persistence'
+import { LS_KEYS } from '@/lib/config'
 
 function readGraphNodes(graphData: GraphData | null | undefined): GraphNode[] {
   return Array.isArray(graphData?.nodes) ? graphData.nodes as GraphNode[] : []
@@ -18,14 +19,6 @@ function findGraphNode(graphData: GraphData | null | undefined, nodeId: string):
   return nodes.find(item => String(item?.id || '').trim() === key) || null
 }
 
-function readNodeProperties(node: GraphNode | null | undefined, fallback?: Record<string, unknown>): Record<string, unknown> {
-  const properties = node?.properties
-  if (properties && typeof properties === 'object' && !Array.isArray(properties)) {
-    return { ...(properties as Record<string, unknown>) }
-  }
-  return { ...(fallback || {}) }
-}
-
 export function FlowCanvasRichMediaOverlayToolbar(props: {
   visible: boolean
   nodeId: string
@@ -35,40 +28,6 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
   sceneGraphData: GraphData | null
   workspaceMutationBlockedRef: React.MutableRefObject<boolean>
 }) {
-  const graphData = useGraphStore(s => s.graphData)
-  const node = React.useMemo(() => {
-    return findGraphNode(graphData || props.sceneGraphData, props.nodeId)
-  }, [graphData, props.nodeId, props.sceneGraphData])
-  const toolbarProperties = React.useMemo(() => {
-    return readNodeProperties(node, props.nodeProperties)
-  }, [node, props.nodeProperties])
-  const patchProperties = React.useCallback((patch: Record<string, unknown>) => {
-    const key = String(props.nodeId || '').trim()
-    if (!key || props.workspaceMutationBlockedRef.current) return
-    const store = useGraphStore.getState()
-    const currentNode = findGraphNode(store.graphData || props.sceneGraphData, key)
-    const baseProperties = readNodeProperties(currentNode, props.nodeProperties)
-    store.updateNode?.(key, {
-      properties: { ...baseProperties, ...patch },
-    } as Partial<GraphNode>)
-  }, [props.nodeId, props.nodeProperties, props.sceneGraphData, props.workspaceMutationBlockedRef])
-  const changePanel = React.useCallback((next: RichMediaPanelChange) => {
-    const key = String(props.nodeId || '').trim()
-    if (!key || props.workspaceMutationBlockedRef.current) return
-    const store = useGraphStore.getState()
-    commitRichMediaPanelChange({
-      nodeId: key,
-      next,
-      updateNode: (id, patch) => store.updateNode?.(id, patch as Partial<GraphNode>),
-    })
-  }, [props.nodeId, props.workspaceMutationBlockedRef])
-  const toolbarControlProps = React.useMemo(() => buildSharedRichMediaOverlayControlProps({
-    properties: toolbarProperties,
-    panel: props.panel,
-    openUrl: props.openUrl,
-    onPatchProperties: patchProperties,
-    onPanelChange: changePanel,
-  }), [changePanel, patchProperties, props.openUrl, props.panel, toolbarProperties])
   const openInSidepane = React.useCallback(() => {
     const key = String(props.nodeId || '').trim()
     if (!key) return
@@ -77,6 +36,12 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
     store.selectNode?.(key)
     store.updateOpenWidgetNodeIds?.(prev => (prev.includes(key) ? prev : [...prev, key]))
   }, [props.nodeId])
+  const toolbarControlProps = React.useMemo(() => buildSharedRichMediaOverlayControlProps({
+    onSwitchToKtvRows: () => {
+      lsSetBool(LS_KEYS.flowWidgetRichMediaKtvRows, true)
+      openInSidepane()
+    },
+  }), [openInSidepane])
   const duplicate = React.useCallback(() => {
     const key = String(props.nodeId || '').trim()
     if (!key || props.workspaceMutationBlockedRef.current) return
@@ -107,7 +72,7 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
     store.addHistory?.('Rich Media remove')
   }, [props.nodeId, props.workspaceMutationBlockedRef])
   return (
-    <NodeOverlayEditorActionsToolbar
+    <WidgetEditorActionsToolbar
       visible={props.visible}
       {...buildSharedRichMediaOverlayToolbarProps()}
       {...toolbarControlProps}

@@ -655,7 +655,7 @@ export function testComposedGraphRenderDeferralAllowsActiveFrontmatterFlowGraph(
       layers: [{ enabled: true, status: 'parsed', parsedGraphData: otherParsedGraph }],
     })
   ) {
-    throw new Error('expected active frontmatter-flow graphs to render Flow Editor overlays while Source Files composition catches up')
+    throw new Error('expected active frontmatter-flow graphs to render Storyboard Widget overlays while Source Files composition catches up')
   }
 }
 
@@ -686,7 +686,7 @@ export async function testComposedUnchangedLayersReapplyActiveSourceFrontmatterP
       'title: "Video Demo"',
       'kgCanvasSurfaceMode: "2d"',
       'kgCanvasRenderMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
+      'kgCanvas2dRenderer: "storyboard"',
       'kgDocumentSemanticMode: "document"',
       'kgFrontmatterModeEnabled: true',
       '---',
@@ -739,7 +739,7 @@ export async function testComposedUnchangedLayersReapplyActiveSourceFrontmatterP
     if (after.canvasRenderMode !== '2d') {
       throw new Error(`expected unchanged-layer active source switch to keep render mode in 2d, got ${String(after.canvasRenderMode)}`)
     }
-    if (after.canvas2dRenderer !== 'flowEditor') {
+    if (after.canvas2dRenderer !== 'storyboard') {
       throw new Error(`expected unchanged-layer active source switch to reapply video frontmatter renderer preset, got ${String(after.canvas2dRenderer)}`)
     }
   } finally {

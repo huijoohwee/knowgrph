@@ -8,6 +8,7 @@ const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy
 const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
+const modCanvasViewStoryboardDisplayControls = () => import('@/__tests__/canvasViewStoryboardDisplayControls.test')
 const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
 const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
@@ -82,9 +83,9 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testRenderSettings3dModeSelectPreservesXrMode()
   })
-  await execTest(results, 'canvas.frontmatter.videoSequenceTimelineFlowEditorPreset', async () => {
+  await execTest(results, 'canvas.frontmatter.videoSequenceTimelineStoryboardPreset', async () => {
     const mod = await modVideoSequenceTimelinePreset()
-    await mod.testVideoSequenceTimelinePresetRespectsExplicitFlowEditorRenderer()
+    await mod.testVideoSequenceTimelinePresetRespectsExplicitStoryboardRenderer()
   })
   await execTest(results, 'canvas.viewDisplayControls.gridSnap.all2dRenderers', async () => {
     const mod = await modCanvasViewDisplayControls()
@@ -192,15 +193,19 @@ export const runSchemaTests = async (results: TestResult[]) => {
   })
   await execTest(results, 'canvas.viewSelection.minimapDisplayControl', async () => {
     const mod = await modCanvasViewDisplayControls()
-    await mod.testCanvasViewMinimapToggleUsesDisplayControlOption()
+    await mod.testStoryboardMinimapDisplayControlIsDisabled()
+  })
+  await execTest(results, 'canvas.viewSelection.storyboardCardWidgetDisplayControls', async () => {
+    const mod = await modCanvasViewStoryboardDisplayControls()
+    await mod.testStoryboardCardWidgetDisplayControlsUseSingleStoryboardRenderer()
   })
   await execTest(results, 'canvas.viewSelection.rendererActivates2dSurface', async () => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewRendererSelectionActivates2dSurface()
   })
-  await execTest(results, 'canvas.viewSelection.flowEditorLayoutRebalance', async () => {
+  await execTest(results, 'canvas.viewSelection.storyboardWidgetLayoutRebalance', async () => {
     const mod = await modCanvas3dMode()
-    await mod.testFlowEditorLayoutMenuRequestsBalancedRebalance()
+    await mod.testStoryboardWidgetLayoutMenuRequestsBalancedRebalance()
   })
   await execTest(results, 'canvas.3dMode.persistedGeospatialGuard', async () => {
     const mod = await modCanvas3dMode()

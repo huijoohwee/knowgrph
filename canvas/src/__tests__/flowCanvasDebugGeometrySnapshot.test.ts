@@ -114,7 +114,7 @@ export async function testFlowCanvasDebugGeometrySnapshotPublishesWidgetAndRichM
     },
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
     canvasRenderMode: '2d',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     documentStructureBaselineLock: false,

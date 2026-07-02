@@ -16,8 +16,8 @@ const E2E_VIDEO_DOC_PATHS = [
 const STORYBOARD_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo.md')
 const STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-product-ui-demo.md')
 const STORYBOARD_NEUTRAL_CONTRACT_TYPED_WRAPPER_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-neutral-schema-contract-demo.md')
-const FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-flow-editor-computing-flow-template.md')
-const MISSALPH_FLOW_EDITOR_DEMO_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-missalph-demo.md')
+const STORYBOARD_WIDGET_COMPUTING_TEMPLATE_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-widget-computing-flow-template.md')
+const MISSALPH_STORYBOARD_WIDGET_DEMO_DOC_PATH = path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-missalph-demo.md')
 const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
   STORYBOARD_TYPED_WRAPPER_DOC_PATH,
   STORYBOARD_PRODUCT_UI_TYPED_WRAPPER_DOC_PATH,
@@ -26,7 +26,7 @@ const APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS = [
 const APPROVED_TYPED_WRAPPER_DOC_PATHS = [
   ...E2E_VIDEO_DOC_PATHS,
   ...APPROVED_STORYBOARD_TYPED_WRAPPER_DOC_PATHS,
-  FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH,
+  STORYBOARD_WIDGET_COMPUTING_TEMPLATE_DOC_PATH,
 ]
 const E2E_TYPED_WRAPPER_DOC_SET = new Set(APPROVED_TYPED_WRAPPER_DOC_PATHS)
 const CANONICAL_PLAIN_YAML_DOC_CONTRACTS = [
@@ -34,10 +34,10 @@ const CANONICAL_PLAIN_YAML_DOC_CONTRACTS = [
   { filePath: path.join(HUIJOOHWEE_DOCS_ROOT, 'knowgrph-storyboard-demo-index.md'), renderer: 'd3', requiresFlow: false },
 ] as const
 const REQUIRED_FLOW_TYPED_SETTING_KEYS = ['direction', 'edgeType', 'snapToGrid', 'computed'] as const
-const REQUIRED_FLOW_EDITOR_TYPED_FIXTURE_PRESET: Record<string, string | boolean> = {
+const REQUIRED_STORYBOARD_WIDGET_TYPED_FIXTURE_PRESET: Record<string, string | boolean> = {
   kgCanvasSurfaceMode: '2d',
   kgCanvasRenderMode: '2d',
-  kgCanvas2dRenderer: 'flowEditor',
+  kgCanvas2dRenderer: 'storyboard',
   kgDocumentSemanticMode: 'document',
   kgFrontmatterModeEnabled: true,
   kgMultiDimTableModeEnabled: false,
@@ -70,7 +70,7 @@ const MISSALPH_SOURCE_INPUT_FIELDS = [
 ] as const
 
 type PlainRecord = Record<string, unknown>
-type PublishedFlowEditorDocContract = {
+type PublishedStoryboardWidgetDocContract = {
   filePath: string | null
   requiredSummaries: ReadonlyArray<readonly [string, string]>
   requiredNodeTypedFields?: ReadonlyArray<{
@@ -297,7 +297,7 @@ export function testE2EVideoFixturesUseTypedFrontmatterValueWrappers() {
   violations.push(...unexpectedTypedWrapperDocs, ...missingTypedWrapperDocs)
 
   for (const filePath of E2E_VIDEO_DOC_PATHS) {
-    validateTypedWrapperFixtureFrontmatter(filePath, violations, REQUIRED_FLOW_EDITOR_TYPED_FIXTURE_PRESET)
+    validateTypedWrapperFixtureFrontmatter(filePath, violations, REQUIRED_STORYBOARD_WIDGET_TYPED_FIXTURE_PRESET)
   }
 
   if (violations.length > 0) {
@@ -415,8 +415,8 @@ export function testGuidelinesDescribeCanonicalAndNormalizedFrontmatterContracts
   }
 }
 
-export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
-  const contracts: PublishedFlowEditorDocContract[] = [
+export function testPublishedStoryboardWidgetDocsKeepFrontmatterAsMachineSsot() {
+  const contracts: PublishedStoryboardWidgetDocContract[] = [
     {
       filePath: resolveMarkdownDocBySemanticFragments([
         'knowgrph-mainpanel-superagent-integrations-demo/v1',
@@ -432,7 +432,7 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
       optional: false,
     },
     {
-      filePath: FLOW_EDITOR_COMPUTING_TEMPLATE_DOC_PATH,
+      filePath: STORYBOARD_WIDGET_COMPUTING_TEMPLATE_DOC_PATH,
       requiredSummaries: [
         ['source_input', 'granular query, context, audience, format, constraints, evidence, tone, metric label, and metric target inputs'],
         ['compute_summary', 'semantic ports for granular inputs'],
@@ -501,7 +501,7 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
       optional: false,
     },
     {
-      filePath: MISSALPH_FLOW_EDITOR_DEMO_DOC_PATH,
+      filePath: MISSALPH_STORYBOARD_WIDGET_DEMO_DOC_PATH,
       requiredSummaries: [
         ['source_input', 'Alpha discovery source'],
         ['compute_summary', 'Synthesises alpha signals'],
@@ -579,7 +579,7 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
 
     const meta = parseYaml(yamlText)
     if (!isPlainRecord(meta) || !isPlainRecord(meta.flow) || !Array.isArray(meta.flow.nodes)) {
-      violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter.flow.nodes to own Flow Editor nodes`)
+      violations.push(`${toRepoRelativePath(contract.filePath)} expected frontmatter.flow.nodes to own Storyboard Widget nodes`)
       continue
     }
     for (const [nodeId, expectedFragment] of contract.requiredSummaries) {
@@ -716,18 +716,18 @@ export function testPublishedFlowEditorDocsKeepFrontmatterAsMachineSsot() {
   }
 
   if (violations.length > 0) {
-    throw new Error(`Expected published Flow Editor docs to keep frontmatter as the machine SSOT:\n${violations.join('\n')}`)
+    throw new Error(`Expected published Storyboard Widget docs to keep frontmatter as the machine SSOT:\n${violations.join('\n')}`)
   }
 }
 
 // ---------------------------------------------------------------------------
-// Runnable compliance: all flowEditor *-demo.md docs must carry the required
+// Runnable compliance: all storyboardWidget *-demo.md docs must carry the required
 // template keys and declare correct panel routing on every typed diagram entry.
 // ---------------------------------------------------------------------------
 
-const FLOW_EDITOR_DEMO_GLOB = path.join(HUIJOOHWEE_DOCS_ROOT, '*-demo.md')
+const STORYBOARD_WIDGET_DEMO_GLOB = path.join(HUIJOOHWEE_DOCS_ROOT, '*-demo.md')
 
-const listFlowEditorDemoDocs = (): string[] => {
+const listStoryboardWidgetDemoDocs = (): string[] => {
   if (!fs.existsSync(HUIJOOHWEE_DOCS_ROOT)) return []
   return fs
     .readdirSync(HUIJOOHWEE_DOCS_ROOT)
@@ -735,7 +735,7 @@ const listFlowEditorDemoDocs = (): string[] => {
     .map(name => path.join(HUIJOOHWEE_DOCS_ROOT, name))
     .filter(fp => {
       const text = fs.readFileSync(fp, 'utf8')
-      return /kgCanvas2dRenderer:\s*["']?flowEditor["']?/m.test(text)
+      return /kgCanvas2dRenderer:\s*["']?storyboard["']?/m.test(text)
     })
 }
 
@@ -755,8 +755,8 @@ const DIAGRAM_TYPE_PANEL_CONTRACTS: Record<string, DiagramPanelContract> = {
   mermaid_gantt:         { floatingPanelView: 'gantt',         bottomPanelTab: 'gantt'         },
 }
 
-export function testFlowEditorDemoRunnableStructure() {
-  const demoPaths = listFlowEditorDemoDocs()
+export function testStoryboardWidgetDemoRunnableStructure() {
+  const demoPaths = listStoryboardWidgetDemoDocs()
   const violations: string[] = []
 
   for (const filePath of demoPaths) {
@@ -796,7 +796,7 @@ export function testFlowEditorDemoRunnableStructure() {
     }
 
     // 4. At least one compute node with non-empty inline compute source
-    const { readFlowComputeSource, isUnsafeFlowComputeSource } = require('@/lib/flowEditor/flowComputeInline')
+    const { readFlowComputeSource, isUnsafeFlowComputeSource } = require('@/lib/storyboardWidget/flowComputeInline')
     const computeNodes = nodes.filter(n => {
       const props = (n.properties || {}) as Record<string, unknown>
       const t = String(n.type || props['type'] || '')
@@ -875,7 +875,7 @@ export function testFlowEditorDemoRunnableStructure() {
 // and frozen run_status:done outputs across all huijoohwee/docs/*.md files.
 // ---------------------------------------------------------------------------
 
-export function testFlowEditorComputeIntegrity() {
+export function testStoryboardWidgetComputeIntegrity() {
   if (!fs.existsSync(HUIJOOHWEE_DOCS_ROOT)) return
 
   const allDocs = fs

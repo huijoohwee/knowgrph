@@ -10,11 +10,12 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownViewerMediaMode } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
+import type { CanvasStoryboardDisplayMode } from '@/lib/canvas/canvasStoryboardDisplayControls'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -52,6 +53,7 @@ import type {
 
 export type StoryboardCardAspectMode = CanvasAspectRatioMode
 export type StoryboardBoardLayoutMode = CanvasBoardLayoutMode
+export type StoryboardDisplayMode = CanvasStoryboardDisplayMode
 
 export interface GraphStateEditorUi {
   codeHighlightDurationMs: number;
@@ -79,6 +81,8 @@ export interface GraphStateEditorUi {
   setStrybldrStoryboardCardAspectMode: (v: StoryboardCardAspectMode) => void;
   strybldrStoryboardBoardLayoutMode: StoryboardBoardLayoutMode;
   setStrybldrStoryboardBoardLayoutMode: (v: StoryboardBoardLayoutMode) => void;
+  strybldrStoryboardDisplayMode: StoryboardDisplayMode;
+  setStrybldrStoryboardDisplayMode: (v: StoryboardDisplayMode) => void;
   monacoLanguageJsonEnabled: boolean;
   setMonacoLanguageJsonEnabled: (v: boolean) => void;
   monacoLanguageJsonLoadMode: MonacoCapabilityLoadMode;

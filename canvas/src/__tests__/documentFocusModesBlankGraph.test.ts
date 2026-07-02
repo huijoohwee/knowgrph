@@ -269,14 +269,14 @@ export function testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags() 
   applyCanvasViewSelection({
     ...baseParams,
     id: 'document:multiDimTable',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     documentSemanticMode: 'keyword',
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: true,
   })
-  const flowEditorTableCalls = calls.splice(0)
-  if (flowEditorTableCalls.join('|') !== 'mdtbl:true|semantic:document') {
-    throw new Error(`expected Multi-dimensional Table toolbar action to re-apply table mode for non-graph renderer handoff, got ${flowEditorTableCalls.join('|')}`)
+  const storyboardTableCalls = calls.splice(0)
+  if (storyboardTableCalls.join('|') !== 'mdtbl:true|semantic:document') {
+    throw new Error(`expected Multi-dimensional Table toolbar action to re-apply table mode for non-graph renderer handoff, got ${storyboardTableCalls.join('|')}`)
   }
 
   applyCanvasViewSelection({
@@ -310,14 +310,14 @@ export function testMultiDimTableModeUsesGraphCapableRenderer() {
   useGraphStore.getState().resetAll()
   const store = useGraphStore.getState()
   store.setCanvasRenderMode('2d')
-  store.setCanvas2dRenderer('flowEditor')
+  store.setCanvas2dRenderer('storyboard')
   store.setDocumentSemanticMode('keyword')
   store.setFrontmatterModeEnabled(true)
   store.setMultiDimTableModeEnabled(true)
 
   const next = useGraphStore.getState()
   if (next.canvasRenderMode !== '2d') throw new Error(`expected Multi-dimensional Table mode to stay on 2D surface, got ${String(next.canvasRenderMode)}`)
-  if (next.canvas2dRenderer !== 'multiDimTable') throw new Error(`expected Multi-dimensional Table mode to switch Flow Editor to Multi-dimensional Table renderer, got ${String(next.canvas2dRenderer)}`)
+  if (next.canvas2dRenderer !== 'multiDimTable') throw new Error(`expected Multi-dimensional Table mode to switch Storyboard to Multi-dimensional Table renderer, got ${String(next.canvas2dRenderer)}`)
   if (next.frontmatterModeEnabled !== false) throw new Error('expected Multi-dimensional Table mode to disable Frontmatter mode')
   if (next.multiDimTableModeEnabled !== true) throw new Error('expected Multi-dimensional Table mode to be enabled')
   if (next.documentSemanticMode !== 'keyword') throw new Error('expected renderer handoff to avoid changing semantic mode outside explicit toolbar actions')
@@ -327,7 +327,7 @@ export function testMultiDimTableRestoreUsesGraphCapableRenderer() {
   useGraphStore.getState().resetAll()
   const store = useGraphStore.getState()
   store.setCanvasRenderMode('2d')
-  store.setCanvas2dRenderer('flowEditor')
+  store.setCanvas2dRenderer('storyboard')
   store.setMultiDimTableModeEnabled(false)
 
   applySavedDocumentUiModeStateWrites(useGraphStore.getState(), {
@@ -336,12 +336,12 @@ export function testMultiDimTableRestoreUsesGraphCapableRenderer() {
     multiDimTableModeEnabled: true,
     canvasRenderMode: '2d',
     canvas3dMode: undefined,
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
   })
 
   const next = useGraphStore.getState()
   if (next.canvasRenderMode !== '2d') throw new Error(`expected restored Multi-dimensional Table mode to use 2D surface, got ${String(next.canvasRenderMode)}`)
-  if (next.canvas2dRenderer !== 'multiDimTable') throw new Error(`expected restored Multi-dimensional Table mode to normalize stale Flow Editor renderer to Multi-dimensional Table, got ${String(next.canvas2dRenderer)}`)
+  if (next.canvas2dRenderer !== 'multiDimTable') throw new Error(`expected restored Multi-dimensional Table mode to normalize stale Storyboard renderer to Multi-dimensional Table, got ${String(next.canvas2dRenderer)}`)
   if (next.multiDimTableModeEnabled !== true) throw new Error('expected restored Multi-dimensional Table mode to stay enabled')
   if (next.frontmatterModeEnabled !== false) throw new Error('expected restored Multi-dimensional Table mode to keep Frontmatter mode disabled')
 }

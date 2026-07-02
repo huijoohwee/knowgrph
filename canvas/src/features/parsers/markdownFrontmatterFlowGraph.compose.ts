@@ -1,6 +1,6 @@
 import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
-import { writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
+import { writeWidgetRegistryMetadata } from '@/lib/config.storyboard-widget'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FRONTMATTER_ANNOTATION_WIRING_KEY = 'frontmatterAnnotationWiring' as const

@@ -3,7 +3,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 
-import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
+import { WidgetEditorRegistrySection } from '@/components/StoryboardWidget/WidgetEditorRegistrySection'
 
 type DomGlobalState = {
   window?: unknown
@@ -60,7 +60,7 @@ export const testWidgetRegistryDuplicateValueAndPortRowsUseUniqueControlNames = 
   try {
     await act(() => {
       root.render(
-        React.createElement(NodeOverlayEditorRegistrySection, {
+        React.createElement(WidgetEditorRegistrySection, {
           active: true,
           properties: { value: 1, nested: { value: 2 } },
           registryEntry: {

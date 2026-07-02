@@ -6,13 +6,13 @@ import { UI_SELECTORS } from '@/lib/config'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
 import {
   readCanvasOverlayPinnedState,
-  resolveFlowEditorOverlayProxyTarget,
-  type FlowEditorOverlayProxyTarget,
-} from '@/lib/canvas/flow-editor-overlay-proxy'
+  resolveStoryboardWidgetOverlayProxyTarget,
+  type StoryboardWidgetOverlayProxyTarget,
+} from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import {
-  isFlowEditorSharedSurfaceRenderer,
-  shouldUseFlowEditorScreenAuthorityCollectivePan,
-} from '@/lib/flowEditor/screenAuthorityCollectivePan'
+  isStoryboardWidgetSurfaceRenderer,
+  shouldUseStoryboardWidgetScreenAuthorityCollectivePan,
+} from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-zoom'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
@@ -26,13 +26,13 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
   const shouldProxyWheelFromOverlay = (
     event: WheelEvent,
-    resolved: FlowEditorOverlayProxyTarget,
-    opts?: { isFlowEditor?: boolean },
+    resolved: StoryboardWidgetOverlayProxyTarget,
+    opts?: { storyboardWidgetMode?: boolean },
   ): boolean => {
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
     const overlayPinnedToNode = readCanvasOverlayPinnedState(overlayRoot)
-    const isFlowEditor = opts?.isFlowEditor === true
+    const storyboardWidgetMode = opts?.storyboardWidgetMode === true
 
     const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0
     const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
@@ -43,7 +43,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
     if (shouldKeepWidgetInnerPanelWheel(event, overlayRoot)) return false
 
-    if (isFlowEditor && overlayPinnedToNode && event.altKey !== true) return true
+    if (storyboardWidgetMode && overlayPinnedToNode && event.altKey !== true) return true
     if (overlayPinnedToNode && resolved.isInteractive !== true && event.altKey !== true) return true
     if (isSpacePanHeld()) return true
 
@@ -69,7 +69,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     }
 
     const storeState = ctx.readViewportInteractionSnapshot()
-    const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
+    const storyboardWidgetMode = String(storeState.canvas2dRenderer || '') === 'storyboard'
     const preset = ctx.getPreset()
     disableAutoZoomModesForUserGesture(storeState)
     const schemaForWheel = storeState.schema
@@ -79,7 +79,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const ignoreWheelTarget = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
     if (ignoreWheelTarget && !allowZoomThroughIgnore) {
-      if (isFlowEditor && !opts?.skipIgnoreGuard) {
+      if (storyboardWidgetMode && !opts?.skipIgnoreGuard) {
         const cx = (e as unknown as { clientX?: unknown }).clientX
         const cy = (e as unknown as { clientY?: unknown }).clientY
         if (typeof cx === 'number' && Number.isFinite(cx) && typeof cy === 'number' && Number.isFinite(cy)) {
@@ -114,22 +114,22 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   const onWindowWheelCapture = (e: WheelEvent) => {
     if (!ctx.args.active) return
     const st = ctx.readViewportInteractionSnapshot()
-    const isFlowEditor = isFlowEditorSharedSurfaceRenderer(st.canvas2dRenderer)
-    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
-    if (!flowEditorOverlayInteractionMode) return
-    const resolved = resolveFlowEditorOverlayProxyTarget({
+    const storyboardWidgetMode = isStoryboardWidgetSurfaceRenderer(st.canvas2dRenderer)
+    const storyboardWidgetOverlayInteractionMode = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(st)
+    if (!storyboardWidgetOverlayInteractionMode) return
+    const resolved = resolveStoryboardWidgetOverlayProxyTarget({
       target: (e as unknown as { target?: unknown }).target,
       canvasEl,
-      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+      storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId,
     })
-    const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { isFlowEditor })
+    const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { storyboardWidgetMode })
     const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     if (ignoreWheelTarget && !proxyOverlayWheel) return
     const target = e.target
     const targetEl = target instanceof Element ? target : null
     const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))
 
-    if (!targetInCanvas && isFlowEditor) {
+    if (!targetInCanvas && storyboardWidgetMode) {
       const cx = (e as unknown as { clientX?: unknown }).clientX
       const cy = (e as unknown as { clientY?: unknown }).clientY
       if (typeof cx === 'number' && Number.isFinite(cx) && typeof cy === 'number' && Number.isFinite(cy)) {
@@ -147,12 +147,12 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
   const shouldProxyGestureToCanvas = (event: Event): boolean => {
     const st = ctx.readViewportInteractionSnapshot()
-    const flowEditorOverlayInteractionMode = shouldUseFlowEditorScreenAuthorityCollectivePan(st)
-    if (!flowEditorOverlayInteractionMode) return false
-    const resolved = resolveFlowEditorOverlayProxyTarget({
+    const storyboardWidgetOverlayInteractionMode = shouldUseStoryboardWidgetScreenAuthorityCollectivePan(st)
+    if (!storyboardWidgetOverlayInteractionMode) return false
+    const resolved = resolveStoryboardWidgetOverlayProxyTarget({
       target: (event as unknown as { target?: unknown }).target,
       canvasEl,
-      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+      storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId,
     })
     if (resolved.kind === 'none') return false
     return true

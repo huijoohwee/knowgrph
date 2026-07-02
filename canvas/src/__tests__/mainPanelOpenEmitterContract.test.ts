@@ -50,14 +50,14 @@ export const testEmitMainPanelOpenDispatchesSharedEvent = async () => {
 
 export const testMainPanelOpenCallsitesUseSharedEmitter = () => {
   const files = [
-    'src/components/FlowEditorCanvas/runtime/flowEditorOverlaySurfaceElements.tsx',
+    'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceElements.tsx',
     'src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx',
     'src/features/canvas/CanvasQueryBootstrapRuntime.tsx',
     'src/features/panels/hooks/useHelpViewLogic.ts',
     'src/features/spotlight/LaunchSpotlightTourCard.tsx',
     'src/lib/markdown-core/ui/MarkdownMediaWrapper.tsx',
-    'src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx',
-    'src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx',
+    'src/components/StoryboardWidget/WidgetEditorActionsToolbar.tsx',
+    'src/features/panels/ui/MainPanelStoryboardWidgetManagerHeader.tsx',
     'src/features/panels/ui/SchemaSummary.tsx',
     'src/lib/panels/views/preview-panel/ui/MermaidDiagram.impl.tsx',
     'src/features/markdown-workspace/hooks/useMarkdownSectionLogic.ts',
@@ -75,7 +75,7 @@ export const testMainPanelOpenCallsitesUseSharedEmitter = () => {
 }
 
 export const testWorkflowManagerHeaderUsesSharedSectionChooser = () => {
-  const text = readUtf8('src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx')
+  const text = readUtf8('src/features/panels/ui/MainPanelStoryboardWidgetManagerHeader.tsx')
   if (!text.includes('<ToolbarDropdownSelect') || !text.includes('title={`Workflow section:') || text.includes('inline-flex items-center gap-1" aria-label={UI_LABELS.workflowManager}')) {
     throw new Error('expected workflow manager header section switching to use the shared click-expand-down chooser instead of a local horizontal row')
   }
@@ -86,8 +86,8 @@ export const testWorkflowManagerNodeEntryRequestFlowsFromToolbarIntoGraphFields 
   const useCanvasToolbarContextText = readUtf8('src/components/toolbar/useCanvasToolbarContext.ts')
   const mainPanelDragText = readUtf8('src/features/toolbar/hooks/useMainPanelDrag.ts')
   const mainPanelText = readUtf8('src/features/panels/MainPanel.tsx')
-  const managerViewText = readUtf8('src/features/panels/views/FlowEditorManagerView.tsx')
-  const graphTabText = readUtf8('src/features/flow-editor-manager/FlowEditorGraphTab.tsx')
+  const managerViewText = readUtf8('src/features/panels/views/StoryboardWidgetManagerView.tsx')
+  const graphTabText = readUtf8('src/features/storyboard-widget-manager/StoryboardWidgetGraphTab.tsx')
 
   for (const snippet of [
     'workflowManagerEntryLabel?: string',

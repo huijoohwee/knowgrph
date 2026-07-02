@@ -367,8 +367,7 @@ export function testCanvasViewportMountsOnlyActiveRendererSurface() {
   const requiredSnippets = [
     "sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null",
     "active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null",
-    "active2dSurface === 'flowEditor' ? <FlowEditorCanvasLazy active /> : null",
-    "active2dSurface === 'storyboard' ? <FlowEditorCanvasLazy active flowEditorSurfaceId=\"storyboard\" storyboardCardsMode /> : null",
+    "active2dSurface === 'storyboard' ? <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId=\"storyboard\" storyboardCardsMode /> : null",
     "canvasRenderMode === '2d' && (",
   ]
   const missing = requiredSnippets.filter(s => !text.includes(s))

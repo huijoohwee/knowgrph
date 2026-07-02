@@ -7,14 +7,14 @@ const readUtf8 = (absPath: string): string => {
 
 export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const root = process.cwd()
-  const panelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const chromePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorPanelChrome.tsx')
-  const formPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
-  const registryPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
-  const inlineValuePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'FlowEditorInlineValueEditor.tsx')
-  const jsonLikeValuePath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorJsonLikeValueEditor.tsx')
-  const fieldMutationPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'widgetFieldMutation.ts')
-  const registryTemplatesPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'registryTemplates.ts')
+  const panelPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
+  const chromePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
+  const formPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const registryPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorRegistrySection.tsx')
+  const inlineValuePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetInlineValueEditor.tsx')
+  const jsonLikeValuePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorJsonLikeValueEditor.tsx')
+  const fieldMutationPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'widgetFieldMutation.ts')
+  const registryTemplatesPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'registryTemplates.ts')
 
   const panel = readUtf8(panelPath)
   const chrome = readUtf8(chromePath)
@@ -62,24 +62,24 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const inlineValue = readUtf8(inlineValuePath)
   const jsonLikeValue = readUtf8(jsonLikeValuePath)
   if (!inlineValue.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")) {
-    throw new Error('Expected Flow Editor editable Value cells to reuse the shared CardInlineTextEditor owner')
+    throw new Error('Expected Storyboard Widget editable Value cells to reuse the shared CardInlineTextEditor owner')
   }
   if (inlineValue.includes('stopActivationPropagation={active}')) {
-    throw new Error('Expected Flow Editor editable Value cells to keep first-click editing local instead of bubbling into workspace/indexing activation')
+    throw new Error('Expected Storyboard Widget editable Value cells to keep first-click editing local instead of bubbling into workspace/indexing activation')
   }
   if (!inlineValue.includes('canEdit')) {
-    throw new Error('Expected Flow Editor editable Value cells to allow first-click editing through the shared inline editor')
+    throw new Error('Expected Storyboard Widget editable Value cells to allow first-click editing through the shared inline editor')
   }
   if (form.includes('if (!active || !fieldSchemaPath) return')) {
     throw new Error('Expected frontmatter Flow Envelope Value commits to accept the first inactive inline edit')
   }
   if (jsonLikeValue.includes('if (!props.active) return')) {
-    throw new Error('Expected JSON-like Flow Editor Value commits to accept the first inactive inline edit')
+    throw new Error('Expected JSON-like Storyboard Widget Value commits to accept the first inactive inline edit')
   }
-  if (!form.includes("import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'")) {
+  if (!form.includes("import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'")) {
     throw new Error('Expected frontmatter Flow Envelope Value cells to route through the shared inline Value adapter')
   }
-  if (!registry.includes("import { FlowEditorInlineValueEditor } from '@/components/FlowEditor/FlowEditorInlineValueEditor'")) {
+  if (!registry.includes("import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'")) {
     throw new Error('Expected widget registry Value cells to route through the shared inline Value adapter')
   }
   if (registry.includes('MAIN_PANEL_OPEN_EVENT')) {

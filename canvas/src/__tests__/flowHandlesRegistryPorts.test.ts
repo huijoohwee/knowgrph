@@ -1,5 +1,5 @@
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 
 export const testFlowHandlesIncludeRegistryPortsWithoutEdges = () => {
   const registry = [

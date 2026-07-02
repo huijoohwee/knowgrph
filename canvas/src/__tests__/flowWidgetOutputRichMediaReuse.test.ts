@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
-import { deriveOpenWidgetOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { deriveOpenWidgetOverlayNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildTextWidgetOutputPatch } from '@/features/chat/richMediaRun'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
-import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/flowEditor/widgetAutoRender'
+import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
+import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/storyboardWidget/widgetAutoRender'
 
 export function testTextWidgetOutputPatchBuildsRichMediaIframeSpec() {
   const patch = buildTextWidgetOutputPatch({
@@ -38,54 +38,54 @@ export function testRichMediaRunDispatchSupportsDeerFlowAdapters() {
   }
 }
 
-export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
-  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
-  const workflowRichMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRichMediaPanel.ts')
+export function testStoryboardWidgetCanvasTextRunUsesSharedRichMediaOutputPatch() {
+  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
+  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
+  const workflowRichMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRichMediaPanel.ts')
   const text = [
-    readFileSync(flowEditorCanvasPath, 'utf8'),
+    readFileSync(storyboardWidgetCanvasPath, 'utf8'),
     readFileSync(workflowActionsPath, 'utf8'),
     readFileSync(workflowRunActionPath, 'utf8'),
   ].join('\n')
   const workflowRichMediaPanelText = readFileSync(workflowRichMediaPanelPath, 'utf8')
 
   if (!text.includes('buildTextWidgetOutputPatch')) {
-    throw new Error('expected FlowEditorCanvas text widget run path to reuse shared text-widget rich-media output patch helper')
+    throw new Error('expected StoryboardWidgetCanvas text widget run path to reuse shared text-widget rich-media output patch helper')
   }
   if (!text.includes('...clearRichMediaOutputProperties(nodeProps)')) {
-    throw new Error('expected FlowEditorCanvas text widget run path to clear stale rich-media output properties before writing next output')
+    throw new Error('expected StoryboardWidgetCanvas text widget run path to clear stale rich-media output properties before writing next output')
   }
   if (!text.includes('...buildTextWidgetOutputPatch({')) {
-    throw new Error('expected FlowEditorCanvas text widget run path to write shared rich-media panel output metadata')
+    throw new Error('expected StoryboardWidgetCanvas text widget run path to write shared rich-media panel output metadata')
   }
-  if (!workflowRichMediaPanelText.includes('export function ensureFlowEditorWorkflowRichMediaPanelNodeId(args: {')) {
-    throw new Error('expected FlowEditor runtime helper to centralize rich-media panel creation fallback')
+  if (!workflowRichMediaPanelText.includes('export function ensureStoryboardWidgetWorkflowRichMediaPanelNodeId(args: {')) {
+    throw new Error('expected StoryboardWidget runtime helper to centralize rich-media panel creation fallback')
   }
-  if (!text.includes('const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({')) {
-    throw new Error('expected FlowEditorCanvas text widget run path to reuse the shared rich-media panel target helper')
+  if (!text.includes('const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({')) {
+    throw new Error('expected StoryboardWidgetCanvas text widget run path to reuse the shared rich-media panel target helper')
   }
-  if (!text.includes('const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({')) {
-    throw new Error('expected FlowEditorCanvas text widget run path to reuse the shared rich-media panel draft patch helper')
+  if (!text.includes('const updatedPanelInDraft = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({')) {
+    throw new Error('expected StoryboardWidgetCanvas text widget run path to reuse the shared rich-media panel draft patch helper')
   }
 }
 
-export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
-  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
-  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
-  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
+export function testStoryboardWidgetCanvasRunTargetsWritableNodeIdForComposedGraphs() {
+  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
+  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRenderGraph.ts')
+  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowWriteback.ts')
   const text = [
-    readFileSync(flowEditorCanvasPath, 'utf8'),
+    readFileSync(storyboardWidgetCanvasPath, 'utf8'),
     readFileSync(workflowActionsPath, 'utf8'),
     readFileSync(workflowRunActionPath, 'utf8'),
   ].join('\n')
   const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
   const workflowWritebackText = readFileSync(workflowWritebackPath, 'utf8')
 
-  if (!renderGraphHelperText.includes('export function resolveFlowEditorWorkflowWritableNodeId(args: {')) {
-    throw new Error('expected FlowEditor runtime helper to centralize composed-id draft write-target resolution')
+  if (!renderGraphHelperText.includes('export function resolveStoryboardWidgetWorkflowWritableNodeId(args: {')) {
+    throw new Error('expected StoryboardWidget runtime helper to centralize composed-id draft write-target resolution')
   }
   if (!renderGraphHelperText.includes('const exactRequested = requested.full ? args.context.draftNodeById.get(requested.full) || null : null')) {
     throw new Error('expected shared workflow node-resolution helper to prefer exact draft node matches before canonical fallback')
@@ -94,48 +94,48 @@ export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() 
     throw new Error('expected shared workflow node-resolution helper to reuse canonical inner-id fallback when draft ids are composed')
   }
   if (!text.includes('const writableNodeId = String(resolvedRunTarget?.writableNodeId || resolvedNodeId).trim() || resolvedNodeId')) {
-    throw new Error('expected FlowEditorCanvas run path to consume the shared writable node id from the upstream run-target resolver')
+    throw new Error('expected StoryboardWidgetCanvas run path to consume the shared writable node id from the upstream run-target resolver')
   }
-  if (!workflowWritebackText.includes('export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {')) {
-    throw new Error('expected FlowEditor runtime helper to centralize output writes via canonical id updater')
+  if (!workflowWritebackText.includes('export function updateStoryboardWidgetWorkflowOutputForKnownNodeIds(args: {')) {
+    throw new Error('expected StoryboardWidget runtime helper to centralize output writes via canonical id updater')
   }
   if (!text.includes('args.draftGraphDataRef.current = nextDraft')) {
-    throw new Error('expected FlowEditorCanvas run path to update live draft graph ref output before renderer recompute')
+    throw new Error('expected StoryboardWidgetCanvas run path to update live draft graph ref output before renderer recompute')
   }
   if (!text.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
-    throw new Error('expected FlowEditorCanvas run path to preserve live draft ref as SSOT while React state catches up')
+    throw new Error('expected StoryboardWidgetCanvas run path to preserve live draft ref as SSOT while React state catches up')
   }
-  if (!workflowWritebackText.includes("import { bumpFlowEditorDraftGraphDataRevision } from '@/lib/flowEditor/flowEditorDraftGraphData'")) {
-    throw new Error('expected FlowEditor runtime helper to reuse neutral draft graph revision bumping for output cache invalidation')
+  if (!workflowWritebackText.includes("import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'")) {
+    throw new Error('expected StoryboardWidget runtime helper to reuse neutral draft graph revision bumping for output cache invalidation')
   }
 }
 
-export function testFlowEditorCanvasUsesDraftRevisionForActiveRenderGraph() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
-  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
-  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(runtimePath, 'utf8')}\n${readFileSync(surfacePath, 'utf8')}\n${readFileSync(renderStatePath, 'utf8')}`
+export function testStoryboardWidgetCanvasUsesDraftRevisionForActiveRenderGraph() {
+  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRenderState.ts')
+  const text = `${readFileSync(storyboardWidgetCanvasPath, 'utf8')}\n${readFileSync(runtimePath, 'utf8')}\n${readFileSync(surfacePath, 'utf8')}\n${readFileSync(renderStatePath, 'utf8')}`
 
   if (!text.includes('const draftGraphDataRevision = React.useMemo(() => {')) {
-    throw new Error('expected FlowEditorCanvas to derive a render revision from the live draft graph')
+    throw new Error('expected StoryboardWidgetCanvas to derive a render revision from the live draft graph')
   }
   if (!text.includes("const raw = (meta as Record<string, unknown>).graphDataRevision")) {
-    throw new Error('expected FlowEditorCanvas to read the draft graph revision from graph metadata')
+    throw new Error('expected StoryboardWidgetCanvas to read the draft graph revision from graph metadata')
   }
-  if (!text.includes('graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}')) {
-    throw new Error('expected FlowCanvas to render against the live draft revision while Flow Editor is active')
+  if (!text.includes('graphDataRevisionOverride={props.storyboardWidgetViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}')) {
+    throw new Error('expected FlowCanvas to render against the live draft revision while Storyboard Widget is active')
   }
 }
 
 export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueCaching() {
-  const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowDataflow.ts')
   const flowCanvasStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
   const overlays2dPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
   const previewPanelPath = resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx')
   const commandMenuRichMediaInventoryPath = resolve(process.cwd(), 'src', 'lib', 'command-menu', 'commandMenuRichMediaInventory.ts')
   const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-inspector', 'ui', 'GraphRecordInspector.tsx')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
   const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
   const flowCanvasStateText = readFileSync(flowCanvasStatePath, 'utf8')
   const overlays2dText = readFileSync(overlays2dPath, 'utf8')
@@ -175,39 +175,39 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
     throw new Error('expected GraphRecordInspector widget preview path to thread a semantic graph key into connected-value caching')
   }
   if (!overlaySurfaceText.includes('frontmatterVisibleSceneDisplayRef.current.key !== frontmatterVisibleGraphSemanticKey')) {
-    throw new Error('expected FlowEditor overlay surface to invalidate frontmatter scene derivation on semantic graph keys instead of raw graph identity')
+    throw new Error('expected StoryboardWidget overlay surface to invalidate frontmatter scene derivation on semantic graph keys instead of raw graph identity')
   }
 }
 
-export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndOverlayGraphs() {
-  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
-  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
-  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+export function testStoryboardWidgetCanvasResolvesCanonicalSelectionIdsAcrossDraftAndOverlayGraphs() {
+  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetSelectionBookkeeping.ts')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx')
   const text = `${readFileSync(selectionBookkeepingPath, 'utf8')}\n${readFileSync(overlaySurfacePath, 'utf8')}\n${readFileSync(sharedPath, 'utf8')}`
 
   if (!text.includes("import { isCanonicalNodeIdEqual, parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
-    throw new Error('expected FlowEditorCanvas to reuse the shared canonical node-id resolver SSOT for selection and overlay paths')
+    throw new Error('expected StoryboardWidgetCanvas to reuse the shared canonical node-id resolver SSOT for selection and overlay paths')
   }
   if (!text.includes('if (selected && isCanonicalNodeIdEqual(selected, override))')) {
-    throw new Error('expected FlowEditorCanvas overlay selection bookkeeping to compare selected and override ids canonically')
+    throw new Error('expected StoryboardWidgetCanvas overlay selection bookkeeping to compare selected and override ids canonically')
   }
   if (!text.includes('const selectedMatchesOverride = selected ? isCanonicalNodeIdEqual(selected, override) : false')) {
-    throw new Error('expected FlowEditorCanvas overlay override cleanup to resolve composed and canonical node ids through shared canonical equality')
+    throw new Error('expected StoryboardWidgetCanvas overlay override cleanup to resolve composed and canonical node ids through shared canonical equality')
   }
   if (!text.includes('return resolveDraftGraphNode(selectedNodeId) || resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)')) {
-    throw new Error('expected FlowEditorCanvas selected draft node lookup to resolve composed ids against the draft graph')
+    throw new Error('expected StoryboardWidgetCanvas selected draft node lookup to resolve composed ids against the draft graph')
   }
   if (!text.includes('deriveOpenWidgetOverlayNodeIds({')) {
-    throw new Error('expected FlowEditorCanvas overlay-open widget ids to resolve through the shared overlay node-id helper')
+    throw new Error('expected StoryboardWidgetCanvas overlay-open widget ids to resolve through the shared overlay node-id helper')
   }
   if (!text.includes('const resolvedId = resolveGraphNodeIdByCanonicalId(args.graphData, rawId)')) {
-    throw new Error('expected shared FlowEditor overlay node-id helper to normalize composed ids against the active render graph')
+    throw new Error('expected shared StoryboardWidget overlay node-id helper to normalize composed ids against the active render graph')
   }
   if (!text.includes('const pendingOverlayNodeMatch =')) {
-    throw new Error('expected FlowEditorCanvas pending-open bookkeeping to derive a pending-overlay fallback before giving up on rich-media widget opens')
+    throw new Error('expected StoryboardWidgetCanvas pending-open bookkeeping to derive a pending-overlay fallback before giving up on rich-media widget opens')
   }
   if (!text.includes("pendingOverlayNode && isCanonicalNodeIdEqual(String(pendingOverlayNode.id || '').trim(), resolvedPending || pending)")) {
-    throw new Error('expected FlowEditorCanvas pending-open bookkeeping to compare pending overlay ids canonically against the unresolved widget-open target')
+    throw new Error('expected StoryboardWidgetCanvas pending-open bookkeeping to compare pending overlay ids canonically against the unresolved widget-open target')
   }
 }
 
@@ -243,73 +243,73 @@ export function testDeriveOpenWidgetOverlayNodeIdsNormalizesCanonicalIdsAndFilte
   }
 }
 
-export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenEffectiveThenBase() {
-  const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
-  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
-  const workflowRunInputsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunInputs.ts')
-  const runtimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
+export function testStoryboardWidgetCanvasDataflowRegistryPrefersNonEmptyDocumentThenEffectiveThenBase() {
+  const storyboardWidgetCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
+  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
+  const workflowRunInputsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunInputs.ts')
+  const runtimeText = readFileSync(storyboardWidgetCanvasRuntimePath, 'utf8')
   const workflowActionsText = `${readFileSync(workflowActionsPath, 'utf8')}\n${readFileSync(workflowRunActionPath, 'utf8')}`
   const workflowRunInputsText = readFileSync(workflowRunInputsPath, 'utf8')
 
   if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected FlowEditorCanvas runtime to derive one upstream merged dataflow widget registry')
+    throw new Error('expected StoryboardWidgetCanvas runtime to derive one upstream merged dataflow widget registry')
   }
   if (!runtimeText.includes('() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry })')) {
-    throw new Error('expected FlowEditorCanvas runtime to merge document, effective, and base widget registries through the shared dataflow registry SSOT')
+    throw new Error('expected StoryboardWidgetCanvas runtime to merge document, effective, and base widget registries through the shared dataflow registry SSOT')
   }
   if (!runtimeText.includes('widgetRegistry,')) {
-    throw new Error('expected FlowEditorCanvas runtime to pass the upstream merged widget registry into workflow actions')
+    throw new Error('expected StoryboardWidgetCanvas runtime to pass the upstream merged widget registry into workflow actions')
   }
   if (!workflowActionsText.includes('widgetRegistry: WidgetRegistryEntry[]')) {
-    throw new Error('expected FlowEditor workflow actions to accept the upstream merged widget registry instead of rebuilding it locally')
+    throw new Error('expected StoryboardWidget workflow actions to accept the upstream merged widget registry instead of rebuilding it locally')
   }
   if (!workflowRunInputsText.includes('registry: args.registry,')) {
-    throw new Error('expected FlowEditor workflow run-input helper to reuse the upstream merged widget registry for connected-value resolution')
+    throw new Error('expected StoryboardWidget workflow run-input helper to reuse the upstream merged widget registry for connected-value resolution')
   }
   if (!workflowRunInputsText.includes('if (args.context.renderGraph) candidateGraphs.push(args.context.renderGraph)')) {
-    throw new Error('expected FlowEditor workflow run-input helper to prefer render graph data for connected-value resolution')
+    throw new Error('expected StoryboardWidget workflow run-input helper to prefer render graph data for connected-value resolution')
   }
-  if (!workflowActionsText.includes('const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({')) {
-    throw new Error('expected FlowEditor workflow rich-media runs to reuse the shared run-input helper instead of choosing a graph locally')
+  if (!workflowActionsText.includes('const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({')) {
+    throw new Error('expected StoryboardWidget workflow rich-media runs to reuse the shared run-input helper instead of choosing a graph locally')
   }
   if (!workflowActionsText.includes('connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)')) {
     throw new Error('expected rich-media runs to read connected values through the helper-resolved target node id')
   }
   if (!workflowActionsText.includes('resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })')) {
-    throw new Error('expected FlowEditor workflow text runs to reuse the upstream merged widget registry for registry resolution')
+    throw new Error('expected StoryboardWidget workflow text runs to reuse the upstream merged widget registry for registry resolution')
   }
   if (!workflowActionsText.includes('registryEntries: args.widgetRegistry,')) {
-    throw new Error('expected FlowEditor workflow bundle export path to reuse the upstream merged widget registry for full-bundle export')
+    throw new Error('expected StoryboardWidget workflow bundle export path to reuse the upstream merged widget registry for full-bundle export')
   }
   if (workflowActionsText.includes('buildDataflowWidgetRegistry({')) {
-    throw new Error('expected FlowEditor workflow actions to stop rebuilding a local merged dataflow widget registry')
+    throw new Error('expected StoryboardWidget workflow actions to stop rebuilding a local merged dataflow widget registry')
   }
   if (workflowActionsText.includes('Array.isArray(store.widgetRegistry)')) {
-    throw new Error('expected FlowEditor workflow actions to stop reading base widget registry directly from store state')
+    throw new Error('expected StoryboardWidget workflow actions to stop reading base widget registry directly from store state')
   }
   if (workflowActionsText.includes('computeFlowConnectedValuesBySchemaPath({')) {
-    throw new Error('expected FlowEditor workflow actions to stop owning inline connected-values graph selection')
+    throw new Error('expected StoryboardWidget workflow actions to stop owning inline connected-values graph selection')
   }
 }
 
-export function testNodeOverlayEditorUsesMergedDataflowRegistry() {
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
-  const runtimeStoreStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeStoreState.ts')
+export function testWidgetEditorUsesMergedDataflowRegistry() {
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
+  const runtimeStoreStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeStoreState.ts')
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const runtimeStoreStateText = readFileSync(runtimeStoreStatePath, 'utf8')
 
   if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected Flow Editor runtime to resolve widget forms from shared merged dataflow registry')
+    throw new Error('expected Storyboard Widget runtime to resolve widget forms from shared merged dataflow registry')
   }
   if (!runtimeStoreStateText.includes('documentWidgetRegistry: Array.isArray(s.documentWidgetRegistry)')) {
-    throw new Error('expected Flow Editor runtime state to include document widget registry in merged form resolution')
+    throw new Error('expected Storyboard Widget runtime state to include document widget registry in merged form resolution')
   }
   if (!runtimeStoreStateText.includes('effectiveWidgetRegistry: Array.isArray(s.effectiveWidgetRegistry)')) {
-    throw new Error('expected Flow Editor runtime state to include effective widget registry in merged form resolution')
+    throw new Error('expected Storyboard Widget runtime state to include effective widget registry in merged form resolution')
   }
   if (!runtimeText.includes('widgetRegistry: baseWidgetRegistry')) {
-    throw new Error('expected Flow Editor runtime to include base widget registry in merged form resolution')
+    throw new Error('expected Storyboard Widget runtime to include base widget registry in merged form resolution')
   }
 }
 
@@ -375,8 +375,8 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!panelText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('expected RichMediaPanel to use canonical workspace overlay-open state instead of workspace editor mode alone')
   }
-  if (!panelText.includes('const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true')) {
-    throw new Error('expected RichMediaPanel to keep content pointer interactions enabled in FlowEditor interaction mode for in-panel scrolling')
+  if (!panelText.includes('const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || storyboardWidgetInteractionMode === true || isStoryboardRenderer === true')) {
+    throw new Error('expected RichMediaPanel to keep content pointer interactions enabled in StoryboardWidget interaction mode for in-panel scrolling')
   }
   if (!panelText.includes('data-kg-media-scroll-surface="1"')) {
     throw new Error('expected RichMediaPanel markdown preview container to self-declare scroll-surface marker for overlay-pan gating')
@@ -390,8 +390,8 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!panelText.includes("overflowX: 'hidden'")) {
     throw new Error('expected RichMediaPanel markdown preview container to keep horizontal overflow hidden like MainPanel settings bodies')
   }
-  if (!panelText.includes('const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode')) {
-    throw new Error('expected RichMediaPanel selection/scroll interactivity gate to accept Flow Editor interaction and frontmatter document overlay semantics')
+  if (!panelText.includes('const storyboardWidgetInteractionMode = storyboardWidgetOverlayProxyMode || storyboardWidgetFrontmatterDocumentMode')) {
+    throw new Error('expected RichMediaPanel selection/scroll interactivity gate to accept Storyboard Widget interaction and frontmatter document overlay semantics')
   }
   if (!panelText.includes("import { useShallow } from 'zustand/react/shallow'")) {
     throw new Error('expected RichMediaPanel to reuse zustand shallow selectors for hot-path store subscriptions')
@@ -429,13 +429,13 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
     throw new Error('expected FlowCanvas media overlays to reuse shared canonical node-id set membership helper')
   }
   if (!overlayText.includes('canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)') || !overlayText.includes('isCanonicalNodeIdEqual(selectedNodeId, node.id)') || !overlayText.includes('isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)')) throw new Error('expected FlowCanvas media overlay selection checks to use shared canonical membership plus active rich-media panel state')
-  if (!stateText.includes('const flowEditorOverlayInteractionMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)')) {
-    throw new Error('expected FlowCanvas overlay interactions to use the shared Flow Editor surface renderer gate as interaction SSOT')
+  if (!stateText.includes('const storyboardWidgetOverlayInteractionMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)')) {
+    throw new Error('expected FlowCanvas overlay interactions to use the shared Storyboard Widget surface renderer gate as interaction SSOT')
   }
-  if (!overlayText.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
-    throw new Error('expected FlowCanvas media overlay pan/drag handlers to use the shared Flow Editor surface/Flow Canvas interaction gate')
+  if (!overlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected FlowCanvas media overlay pan/drag handlers to use the shared Storyboard Widget surface/Flow Canvas interaction gate')
   }
-  if (overlayText.includes('isFlowEditorFrontmatterInteractionMode')) {
+  if (overlayText.includes('isStoryboardWidgetFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas rich-media overlay runtime to remove stale frontmatter-only interaction gate references')
   }
   if (!overlayText.includes("const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === 'flowCanvas')")) {
@@ -513,11 +513,11 @@ export function testRichMediaPanelHeaderDragStaysAvailableInPanMode() {
       throw new Error(`expected ${label} to preserve the explicit space-pan header drag guard`)
     }
   }
-  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = flowEditorSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Flow Canvas media overlay drag ownership to stay renderer-scoped instead of pointer-mode scoped')
   }
-  if (!richMediaPanelSurfaceStateText.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-flow-editor-header=\"1\"]')")) {
-    throw new Error('expected RichMediaPanel header drag to stay scoped to the reusable Flow Editor card header')
+  if (!richMediaPanelSurfaceStateText.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-storyboard-widget-header=\"1\"]')")) {
+    throw new Error('expected RichMediaPanel header drag to stay scoped to the reusable Storyboard Widget card header')
   }
   if (!designOverlayText.includes("const explicitAnchorId = String(anchorByBlockIdRef.current?.[b.id] || '').trim()")) {
     throw new Error('expected Markdown Design rich-media header drag to distinguish explicit graph anchors from local markdown block ids')
@@ -587,17 +587,17 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
   }
 }
 
-export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
-  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunAction.ts')
-  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
-  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+export function testStoryboardWidgetCanvasRunSetsSharedOutputLoadingState() {
+  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
+  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRenderGraph.ts')
+  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowWriteback.ts')
+  const text = readFileSync(storyboardWidgetCanvasPath, 'utf8')
   const workflowRunActionText = readFileSync(workflowRunActionPath, 'utf8')
   const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
   const workflowWritebackText = readFileSync(workflowWritebackPath, 'utf8')
-  if (!workflowWritebackText.includes('export function setFlowEditorWorkflowRunLoadingStateForKnownNodeIds(args: {') || !workflowWritebackText.includes("kind?: FlowEditorWorkflowOutputLoadingKind")) {
-    throw new Error('expected FlowEditor runtime helper to centralize output loading state patching for run widgets')
+  if (!workflowWritebackText.includes('export function setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds(args: {') || !workflowWritebackText.includes("kind?: StoryboardWidgetWorkflowOutputLoadingKind")) {
+    throw new Error('expected StoryboardWidget runtime helper to centralize output loading state patching for run widgets')
   }
   if (!workflowRunActionText.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })")) {
     throw new Error('expected RichMedia widget run path to publish loading state before generation')
@@ -632,18 +632,18 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!workflowWritebackText.includes('if (updated) args.scheduleWorkflowOutputEdgeRefresh()')) {
     throw new Error('expected shared workflow output writes to refresh overlay edges after output/loading writes without forcing layout reseed')
   }
-  if (!renderGraphHelperText.includes('export function getCachedFlowEditorWorkflowRunPlan(args: {')) {
-    throw new Error('expected FlowEditor runtime helper to centralize run-all workflow plan derivation')
+  if (!renderGraphHelperText.includes('export function getCachedStoryboardWidgetWorkflowRunPlan(args: {')) {
+    throw new Error('expected StoryboardWidget runtime helper to centralize run-all workflow plan derivation')
   }
-  const workflowRunAllText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowRunAll.ts'), 'utf8')
-  if (!workflowRunAllText.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
-    throw new Error('expected FlowEditor run-all helper to reuse the shared workflow plan')
+  const workflowRunAllText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts'), 'utf8')
+  if (!workflowRunAllText.includes('const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({')) {
+    throw new Error('expected StoryboardWidget run-all helper to reuse the shared workflow plan')
   }
   if (!workflowRunAllText.includes("import type { UiToastInput } from '@/hooks/store/types'")) {
-    throw new Error('expected FlowEditor Run All progress to reuse the shared toast input contract')
+    throw new Error('expected StoryboardWidget Run All progress to reuse the shared toast input contract')
   }
   for (const snippet of [
-    "const toastId = 'flow-editor-run-all'",
+    "const toastId = 'storyboard-widget-run-all'",
     'const upsertRunAllToast = (toast: Omit<UiToastInput,',
     'ttlMs: null',
     'dismissible: false',
@@ -654,11 +654,11 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
     "`Run All complete: ran ${ids.length} node${ids.length === 1 ? '' : 's'}.`",
   ]) {
     if (!workflowRunAllText.includes(snippet)) {
-      throw new Error(`expected FlowEditor Run All progress toast contract snippet: ${snippet}`)
+      throw new Error(`expected StoryboardWidget Run All progress toast contract snippet: ${snippet}`)
     }
   }
-  if (workflowRunAllText.includes("args.upsertUiToast({ id: 'flow-editor-run-all-done'")) {
-    throw new Error('expected FlowEditor Run All completion to resolve the shared progress toast instead of spawning a separate done toast')
+  if (workflowRunAllText.includes("args.upsertUiToast({ id: 'storyboard-widget-run-all-done'")) {
+    throw new Error('expected StoryboardWidget Run All completion to resolve the shared progress toast instead of spawning a separate done toast')
   }
 }
 

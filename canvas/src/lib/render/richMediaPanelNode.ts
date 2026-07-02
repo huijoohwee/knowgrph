@@ -1,6 +1,6 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { FLOW_RICH_MEDIA_PANEL_FORM_ID, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID } from '@/lib/flowEditor/richMediaPanelConfig'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_RICH_MEDIA_PANEL_FORM_ID, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
@@ -60,7 +60,7 @@ export function resolvePreferredRichMediaPanelNodeId(args: {
   selectedNodeId?: string | null
   selectedNodeIds?: readonly string[]
   openWidgetNodeIds?: readonly string[]
-  flowEditorOpenWidgetNodeIds?: readonly string[]
+  storyboardWidgetOpenWidgetNodeIds?: readonly string[]
   nodeById?: ReadonlyMap<string, GraphNode> | null | undefined
 }): string {
   const graphData = args.graphData
@@ -84,8 +84,8 @@ export function resolvePreferredRichMediaPanelNodeId(args: {
   const selectedMulti = pickFromIds(args.selectedNodeIds)
   if (selectedMulti) return selectedMulti
 
-  const flowEditorOpenWidget = pickFromIds(args.flowEditorOpenWidgetNodeIds)
-  if (flowEditorOpenWidget) return flowEditorOpenWidget
+  const storyboardWidgetOpenWidget = pickFromIds(args.storyboardWidgetOpenWidgetNodeIds)
+  if (storyboardWidgetOpenWidget) return storyboardWidgetOpenWidget
 
   const openWidget = pickFromIds(args.openWidgetNodeIds)
   if (openWidget) return openWidget

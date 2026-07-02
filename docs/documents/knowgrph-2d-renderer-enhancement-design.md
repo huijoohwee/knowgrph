@@ -3,7 +3,7 @@
 ## Scope
 
 - This document defines the 2D renderer enhancement goals and constraints for in-repo, native implementation.
-- It applies to 2D render variants (D3 Graph, Flowchart, GitGraph, Flow, Design, Flow Editor) and their shared behaviors across touchpoints; 3D and Voxel modes reuse the same SSOT GraphData/layout and canvas.jsonld contracts and are documented in the renderer and AgenticRAG Canvas directives.
+- It applies to 2D render variants (D3 Graph, Flowchart, GitGraph, Flow, Design, Storyboard) and their shared behaviors across touchpoints; 3D and Voxel modes reuse the same SSOT GraphData/layout and canvas.jsonld contracts and are documented in the renderer and AgenticRAG Canvas directives.
 
 ## Hard Constraints
 
@@ -35,9 +35,9 @@
 - Best for Git history, branch, commit, checkout, and merge diagrams authored in YAML frontmatter `mermaid: |`.
 - Main risk: parser drift if GitGraph commands are expanded by the Flowchart topology parser. GitGraph must remain diagram-code rendering unless a future source-owned semantic parser is added.
 
-### Flow Editor (Canvas2D + Semantic Overlays)
+### Storyboard Widget (Canvas2D + Semantic Overlays)
 
-- Best for editing workflows and flow editor widgets.
+- Best for editing workflows and storyboard widgets.
 - Main risk: overlay re-render churn and viewport transform drift.
 
 ### Design (2D Webpage Wireframe)
@@ -82,7 +82,7 @@
 - Initialization must be idempotent:
   - If a valid stored transform is applied, do not also auto-fit in the same init pass.
   - Bounds guard: do not apply stale transforms until graph bounds are computable.
-- Initialization group envelopes must derive from the same display-graph AABBs across D3, Flowchart, Flow, Design, and Flow Editor; Flow Editor extends these envelopes with zoom-aware pinned widget overlay extents so panels remain contained inside cluster/subgraph/layer borders on first paint.
+- Initialization group envelopes must derive from the same display-graph AABBs across D3, Flowchart, Flow, Design, and Storyboard Widget; Storyboard Widget extends these envelopes with zoom-aware pinned widget overlay extents so panels remain contained inside cluster/subgraph/layer borders on first paint.
 
 ### 3) Layer Stack Ordering
 
@@ -119,7 +119,7 @@
   - Reduce per-tick edge endpoint computations and avoid per-edge DOM writes when alpha is low.
   - LOD for labels: hide below scale threshold using schema knobs.
   - Batch style updates for selection/hover.
-- Flow/Flow Editor:
+- Flow/Storyboard Widget:
   - Cache token reads and text metrics per theme key.
   - Cache glyphs/text layouts where safe.
   - Avoid per-event full redraw if only overlays changed.

@@ -1,8 +1,8 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { splitMarkdownLines, parseMarkdownFrontmatter, parseMarkdownBlocks } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
-import { writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
-import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { writeWidgetRegistryMetadata } from '@/lib/config.storyboard-widget'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 

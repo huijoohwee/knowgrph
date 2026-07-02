@@ -9,8 +9,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
-} from '@/lib/config.flow-editor'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+} from '@/lib/config.storyboard-widget'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { collectStructuredFrontmatterFields } from '@/features/chat/chatResponseStructuredFrontmatter'
 import type { JSONValue } from '@/lib/graph/types'
 
@@ -33,7 +33,7 @@ export async function testChatResponseStructuredContentProjectsFlowDiagramsToDyn
       'response:',
       '  structuredContent:',
       '    canvas:',
-      '      renderer: "2D Renderer: Flow Editor"',
+      '      renderer: "2D Renderer: Storyboard"',
       '    flow_diagrams:',
       '      key: flow_diagrams',
       '      type: object',

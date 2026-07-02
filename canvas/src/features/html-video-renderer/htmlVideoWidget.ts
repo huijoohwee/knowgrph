@@ -1,10 +1,10 @@
-import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
   FLOW_HTML_VIDEO_RENDERER_FORM_ID,
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
   FLOW_HTML_VIDEO_RENDERER_WIDGET_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 
 const HTML_VIDEO_RENDERER_FIELDS: WidgetRegistryField[] = [
   { fieldKey: 'html', fieldType: 'textarea', schemaPath: 'properties.html', label: 'HTML' },

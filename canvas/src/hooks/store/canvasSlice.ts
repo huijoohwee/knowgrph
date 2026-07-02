@@ -105,8 +105,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   )
   const initialViewportControlsPreset = initialViewportControlsPresetStored
 
-  const initialFlowEditorSelectionOnDrag = lsBool(LS_KEYS.flowEditorSelectionOnDrag, false)
-  const initialFlowEditorOverlayWheelProxyEnabled = lsBool(LS_KEYS.flowEditorOverlayWheelProxyEnabled, true)
+  const initialStoryboardWidgetSelectionOnDrag = lsBool(LS_KEYS.storyboardWidgetSelectionOnDrag, false)
+  const initialStoryboardWidgetOverlayWheelProxyEnabled = lsBool(LS_KEYS.storyboardWidgetOverlayWheelProxyEnabled, true)
 
   const initialInfiniteCanvasInteractionMode = lsJson(
     LS_KEYS.infiniteCanvasInteractionMode,
@@ -317,10 +317,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) =>
     set({ graphCanvasArrangeRequest: { ...req, at: Date.now() } }),
   clearGraphCanvasArrangeRequest: () => set({ graphCanvasArrangeRequest: null }),
-  flowEditorLayoutRebalanceRequest: null as null | { type: 'balanced-spread'; at: number },
-  requestFlowEditorLayoutRebalance: () =>
-    set({ flowEditorLayoutRebalanceRequest: { type: 'balanced-spread', at: Date.now() } }),
-  clearFlowEditorLayoutRebalanceRequest: () => set({ flowEditorLayoutRebalanceRequest: null }),
+  storyboardWidgetLayoutRebalanceRequest: null as null | { type: 'balanced-spread'; at: number },
+  requestStoryboardWidgetLayoutRebalance: () =>
+    set({ storyboardWidgetLayoutRebalanceRequest: { type: 'balanced-spread', at: Date.now() } }),
+  clearStoryboardWidgetLayoutRebalanceRequest: () => set({ storyboardWidgetLayoutRebalanceRequest: null }),
   zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
   zoomStateByKey: {} as Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>,
@@ -357,8 +357,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   infiniteCanvasInteractionMode: initialInfiniteCanvasInteractionMode,
   canvasWorkspaceSyncMode: initialCanvasWorkspaceSyncMode,
   canvasRunMode: initialCanvasRunMode,
-  flowEditorSelectionOnDrag: initialFlowEditorSelectionOnDrag,
-  flowEditorOverlayWheelProxyEnabled: initialFlowEditorOverlayWheelProxyEnabled,
+  storyboardWidgetSelectionOnDrag: initialStoryboardWidgetSelectionOnDrag,
+  storyboardWidgetOverlayWheelProxyEnabled: initialStoryboardWidgetOverlayWheelProxyEnabled,
   flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
   flowWheelZoomIncrementMultiplier: initialFlowWheelZoomIncrementMultiplier,
   flowWheelZoomSmoothMinDurationMs: initialFlowWheelZoomSmoothMinDurationMs,
@@ -678,19 +678,19 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     }
     set({ canvasRunMode: next })
   },
-  setFlowEditorSelectionOnDrag: (v: boolean) => {
+  setStoryboardWidgetSelectionOnDrag: (v: boolean) => {
     const next = Boolean(v)
-    const cur = get().flowEditorSelectionOnDrag === true
+    const cur = get().storyboardWidgetSelectionOnDrag === true
     if (cur === next) return
-    lsSetBool(LS_KEYS.flowEditorSelectionOnDrag, next)
-    set({ flowEditorSelectionOnDrag: next })
+    lsSetBool(LS_KEYS.storyboardWidgetSelectionOnDrag, next)
+    set({ storyboardWidgetSelectionOnDrag: next })
   },
-  setFlowEditorOverlayWheelProxyEnabled: (v: boolean) => {
+  setStoryboardWidgetOverlayWheelProxyEnabled: (v: boolean) => {
     const next = Boolean(v)
-    const cur = get().flowEditorOverlayWheelProxyEnabled === true
+    const cur = get().storyboardWidgetOverlayWheelProxyEnabled === true
     if (cur === next) return
-    lsSetBool(LS_KEYS.flowEditorOverlayWheelProxyEnabled, next)
-    set({ flowEditorOverlayWheelProxyEnabled: next })
+    lsSetBool(LS_KEYS.storyboardWidgetOverlayWheelProxyEnabled, next)
+    set({ storyboardWidgetOverlayWheelProxyEnabled: next })
   },
   setFlowWheelZoomSpeedMultiplier: (v: number) => {
     const next = clampFlowWheelZoomSpeedMultiplier(

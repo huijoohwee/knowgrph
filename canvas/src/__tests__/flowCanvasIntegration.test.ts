@@ -12,8 +12,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
-import { readFlowEditorWidgetGeometryStateSignature } from '@/components/FlowEditorCanvas/runtime/flowEditorRuntimeWidgetState'
+} from '@/lib/config.storyboard-widget'
+import { readStoryboardWidgetGeometryStateSignature } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeWidgetState'
 
 type Ctx2d = Partial<CanvasRenderingContext2D>
 
@@ -184,7 +184,7 @@ const readFlowSceneSignature = (runtime: import('@/components/FlowCanvas/nativeR
   })
 }
 
-const buildCollectiveFlowEditorGraphFixture = () => ({
+const buildCollectiveStoryboardWidgetGraphFixture = () => ({
   type: 'Graph',
   context: 'flow',
   nodes: [
@@ -252,7 +252,7 @@ const buildCollectiveFlowEditorGraphFixture = () => ({
   ],
   metadata: {
     kind: 'test',
-    source: 'flowEditorCollectiveInteractions',
+    source: 'storyboardWidgetCollectiveInteractions',
     [KG_SUBGRAPHS_KEY]: [
       { id: 'sg-a', label: 'Subgraph A', kind: 'subgraph', memberNodeIds: ['left', 'widget-text', 'widget-image'] },
       { id: 'cluster-b', label: 'Cluster B', kind: 'cluster', memberNodeIds: ['right', 'widget-video', 'rich-panel'] },
@@ -370,14 +370,14 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
   })
 }
 
-export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWrites = async () => {
+export const testStoryboardWidgetWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWrites = async () => {
   const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
   installFlowCanvasViewportRect(dom, 960, 540)
 
   const priorState = useGraphStore.getState()
   const runtimeHolder: { ref: React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null } = { ref: null }
-  const graphData = buildCollectiveFlowEditorGraphFixture()
+  const graphData = buildCollectiveStoryboardWidgetGraphFixture()
   const schema = {
     ...defaultSchema,
     performance: {
@@ -394,7 +394,7 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
     schema,
     canvasRenderMode: '2d',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     markdownDocumentName: null,
@@ -437,7 +437,7 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
       )
     },
   }).catch(e => {
-    throw new Error(`stage=flowEditorSceneBuild ${String((e as { message?: unknown })?.message ?? e)}`)
+    throw new Error(`stage=storyboardWidgetSceneBuild ${String((e as { message?: unknown })?.message ?? e)}`)
   })
 
   await waitFor({
@@ -451,13 +451,13 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
 
   const runtime = runtimeHolder.ref?.current
   const canvas = host.querySelector('canvas')
-  if (!runtime || !canvas) throw new Error('expected mounted Flow Editor runtime and canvas')
+  if (!runtime || !canvas) throw new Error('expected mounted Storyboard Widget runtime and canvas')
   await waitFor({
     ms: 5_000,
     pollMs: 25,
     ok: () => runtime.scene.nodes.some(node => Math.abs(node.x) > 1 || Math.abs(node.y) > 1),
   }).catch(e => {
-    throw new Error(`stage=flowEditorInitialSceneLayout ${String((e as { message?: unknown })?.message ?? e)}`)
+    throw new Error(`stage=storyboardWidgetInitialSceneLayout ${String((e as { message?: unknown })?.message ?? e)}`)
   })
   const beforeTransform = runtime.transform
   const beforePositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
@@ -465,7 +465,7 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
   const expectedNodeIds = ['left', 'right', 'widget-text', 'widget-image', 'widget-video', 'rich-panel']
   for (let i = 0; i < expectedNodeIds.length; i += 1) {
     if (!runtime.scene.nodeById.has(expectedNodeIds[i]!)) {
-      throw new Error(`expected collective Flow Editor scene to include ${expectedNodeIds[i]}`)
+      throw new Error(`expected collective Storyboard Widget scene to include ${expectedNodeIds[i]}`)
     }
   }
   const beforeSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
@@ -516,22 +516,22 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
   const afterGraphData = JSON.stringify(useGraphStore.getState().graphData)
   const afterSceneSignature = readFlowSceneSignature(runtime)
   if (afterTransform.x > beforeTransform.x - 300) {
-    throw new Error(`expected Flow Editor wheel pan to remain off-viewport instead of bouncing back, before=${beforeTransform.x} after=${afterTransform.x}`)
+    throw new Error(`expected Storyboard Widget wheel pan to remain off-viewport instead of bouncing back, before=${beforeTransform.x} after=${afterTransform.x}`)
   }
   if (Math.abs(afterTransform.y - beforeTransform.y) > 1e-6) {
     throw new Error(`expected horizontal wheel pan to preserve y transform, before=${beforeTransform.y} after=${afterTransform.y}`)
   }
   if (afterPositions !== beforePositions) {
-    throw new Error(`expected Flow Editor wheel pan to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
+    throw new Error(`expected Storyboard Widget wheel pan to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
   }
   if (afterGraphData !== beforeGraphData) {
-    throw new Error('expected Flow Editor wheel pan to avoid mutating source graph data for nodes, widgets, groups, edges, or rich media panels')
+    throw new Error('expected Storyboard Widget wheel pan to avoid mutating source graph data for nodes, widgets, groups, edges, or rich media panels')
   }
   if (afterSceneSignature !== beforeSceneSignature) {
-    throw new Error(`expected Flow Editor wheel pan to preserve native scene layout for nodes/widgets/subgraphs/clusters/groups/edges/rich media panels, before=${beforeSceneSignature} after=${afterSceneSignature}`)
+    throw new Error(`expected Storyboard Widget wheel pan to preserve native scene layout for nodes/widgets/subgraphs/clusters/groups/edges/rich media panels, before=${beforeSceneSignature} after=${afterSceneSignature}`)
   }
   if (String(__flowCanvasDebug.lastBuiltSceneKey || '') !== beforeSceneKey) {
-    throw new Error('expected Flow Editor wheel pan not to rebuild collective native scene')
+    throw new Error('expected Storyboard Widget wheel pan not to rebuild collective native scene')
   }
   } finally {
     root.unmount()
@@ -561,14 +561,14 @@ export const testFlowEditorWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWr
   }
 }
 
-export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable = async () => {
+export const testStoryboardWidgetDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable = async () => {
   const dom = createFlowCanvasTestDom()
   installDomStubs(dom)
   installFlowCanvasViewportRect(dom, 960, 540)
 
   const priorState = useGraphStore.getState()
   const runtimeHolder: { ref: React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null } = { ref: null }
-  const graphData = buildCollectiveFlowEditorGraphFixture()
+  const graphData = buildCollectiveStoryboardWidgetGraphFixture()
   const schema = {
     ...defaultSchema,
     performance: {
@@ -586,7 +586,7 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
     graphDataRevision: (priorState.graphDataRevision || 0) + 1,
     schema,
     canvasRenderMode: '2d',
-    canvas2dRenderer: 'flowEditor',
+    canvas2dRenderer: 'storyboard',
     frontmatterModeEnabled: false,
     documentSemanticMode: 'document',
     markdownDocumentName: null,
@@ -636,7 +636,7 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
 
     const runtime = runtimeHolder.ref?.current
     const canvas = host.querySelector('canvas')
-    if (!runtime || !canvas) throw new Error('expected mounted Flow Editor runtime and canvas')
+    if (!runtime || !canvas) throw new Error('expected mounted Storyboard Widget runtime and canvas')
 
     await waitFor({
       ms: 5_000,
@@ -650,7 +650,7 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
     const beforeSceneSignature = readFlowSceneSignature(runtime)
     const beforePositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
     const beforeGraphData = JSON.stringify(useGraphStore.getState().graphData)
-    const beforeFlowWidgetGeometry = readFlowEditorWidgetGeometryStateSignature(useGraphStore.getState())
+    const beforeFlowWidgetGeometry = readStoryboardWidgetGeometryStateSignature(useGraphStore.getState())
     dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointerdown', { pointerId: 31, button: 1, clientX: 220, clientY: 180, buttons: 4 })
     dispatchFlowCanvasPointerEvent(canvas, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
     dispatchFlowCanvasPointerEvent(dom.window, dom.window, 'pointermove', { pointerId: 31, button: 1, clientX: 300, clientY: 220, buttons: 4 })
@@ -685,21 +685,21 @@ export const testFlowEditorDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable 
 
     const afterPositions = JSON.stringify(useGraphStore.getState().layoutPositionCacheByMode || {})
     const afterGraphData = JSON.stringify(useGraphStore.getState().graphData)
-    const afterFlowWidgetGeometry = readFlowEditorWidgetGeometryStateSignature(useGraphStore.getState())
+    const afterFlowWidgetGeometry = readStoryboardWidgetGeometryStateSignature(useGraphStore.getState())
     const afterSceneSignature = readFlowSceneSignature(runtime)
     const afterSceneKey = String(__flowCanvasDebug.lastBuiltSceneKey || '')
     if (afterPositions !== beforePositions) {
-      throw new Error(`expected Flow Editor drag/zoom/workspace toggle to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
+      throw new Error(`expected Storyboard Widget drag/zoom/workspace toggle to avoid layout-position writes, before=${beforePositions} after=${afterPositions}`)
     }
     if (afterGraphData !== beforeGraphData) {
-      throw new Error('expected Flow Editor drag/zoom/workspace toggle to avoid mutating graph data for collective elements')
+      throw new Error('expected Storyboard Widget drag/zoom/workspace toggle to avoid mutating graph data for collective elements')
     }
-    if (afterFlowWidgetGeometry !== beforeFlowWidgetGeometry) throw new Error(`expected Flow Editor drag/zoom/workspace toggle to avoid mutating widget geometry state, before=${beforeFlowWidgetGeometry} after=${afterFlowWidgetGeometry}`)
+    if (afterFlowWidgetGeometry !== beforeFlowWidgetGeometry) throw new Error(`expected Storyboard Widget drag/zoom/workspace toggle to avoid mutating widget geometry state, before=${beforeFlowWidgetGeometry} after=${afterFlowWidgetGeometry}`)
     if (afterSceneSignature !== beforeSceneSignature) {
-      throw new Error(`expected Flow Editor drag/zoom/workspace toggle to preserve collective scene layout, before=${beforeSceneSignature} after=${afterSceneSignature}`)
+      throw new Error(`expected Storyboard Widget drag/zoom/workspace toggle to preserve collective scene layout, before=${beforeSceneSignature} after=${afterSceneSignature}`)
     }
     if (afterSceneKey !== beforeSceneKey) {
-      throw new Error('expected Flow Editor drag/zoom/workspace toggle not to rebuild collective native scene')
+      throw new Error('expected Storyboard Widget drag/zoom/workspace toggle not to rebuild collective native scene')
     }
   } finally {
     root.unmount()

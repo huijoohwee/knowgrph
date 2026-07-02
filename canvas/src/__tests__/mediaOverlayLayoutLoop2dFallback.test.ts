@@ -309,8 +309,8 @@ export function testRichMediaOverlayCallersUseInfiniteCanvasClampPolicy() {
   if (!d3HookText.includes('clampToViewport: null')) {
     throw new Error('expected D3/flowchart Rich Media overlays to opt out of viewport clamp and follow the shared infinite-canvas transform')
   }
-  if (!flowOverlayText.includes('const flowEditorSharedSurfaceRendererMode = isFlowEditorSharedSurfaceRenderer(canvas2dRenderer)') || !flowOverlayText.includes("const richMediaInfiniteCanvasMode = flowEditorSharedSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
-    throw new Error('expected Flow Editor shared surfaces and Flow Canvas Rich Media overlays to share the same infinite-canvas clamp policy')
+  if (!flowOverlayText.includes('const storyboardWidgetSurfaceRendererMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)') || !flowOverlayText.includes("const richMediaInfiniteCanvasMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+    throw new Error('expected Storyboard Widget shared surfaces and Flow Canvas Rich Media overlays to share the same infinite-canvas clamp policy')
   }
   for (const snippet of [
     'manualPlacement: richMediaInfiniteCanvasMode',

@@ -122,13 +122,13 @@ const inspectDeclaredSuperAgentPipeline = (args: {
     mainPanelDemo.canvas2dRenderer
     || args.workspaceDocument.frontmatterScalars?.kgCanvas2dRenderer,
   )
-  const flowEditorRendererReady = declaredRenderer === KNOWGRPH_SUPERAGENT_CANVAS_RENDERER
+  const storyboardRendererReady = declaredRenderer === KNOWGRPH_SUPERAGENT_CANVAS_RENDERER
     ? args.canvasTopology.canvas2dRenderer === KNOWGRPH_SUPERAGENT_CANVAS_RENDERER
     : true
   const superAgentDemoReady =
     (superAgentDemo.present !== true || (taskCapabilitiesReady && taskLevelsReady && runtimeSurfacesReady && runtimeSurfaceNodesReady && subagentNodesReady))
     && (mainPanelDemo.present !== true || (entryTabReady && providerCoverageReady))
-    && flowEditorRendererReady
+    && storyboardRendererReady
 
   return {
     declared: mainPanelDemo.present === true || superAgentDemo.present === true,
@@ -139,7 +139,7 @@ const inspectDeclaredSuperAgentPipeline = (args: {
     runtimeSurfacesReady,
     runtimeSurfaceNodesReady,
     subagentNodesReady,
-    flowEditorRendererReady,
+    storyboardRendererReady,
     superAgentDemoReady,
     requiredEntryTabs,
     activeEntryTab: activeEntryTab || null,
@@ -271,13 +271,13 @@ const buildIssues = (args: {
       issues.push(`The active workspace document does not declare all SuperAgent runtime surfaces: ${KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_KEYS.join(', ')}.`)
     }
     if (args.declaredSuperAgentPipeline.runtimeSurfaceNodesReady !== true) {
-      issues.push('The active Flow Editor graph does not render every declared SuperAgent runtime surface node.')
+      issues.push('The active Storyboard Widget graph does not render every declared SuperAgent runtime surface node.')
     }
     if (args.declaredSuperAgentPipeline.subagentNodesReady !== true) {
-      issues.push('The active Flow Editor graph does not render every declared SuperAgent subagent node.')
+      issues.push('The active Storyboard Widget graph does not render every declared SuperAgent subagent node.')
     }
-    if (args.declaredSuperAgentPipeline.flowEditorRendererReady !== true) {
-      issues.push('The active workspace document declares Flow Editor rendering, but the active canvas topology is not using the Flow Editor renderer.')
+    if (args.declaredSuperAgentPipeline.storyboardRendererReady !== true) {
+      issues.push('The active workspace document declares Storyboard rendering, but the active canvas topology is using another renderer.')
     }
   }
 
@@ -404,7 +404,7 @@ export const inspectLocalMainPanelChatCanvasPipeline = (
       superAgentRuntimeSurfacesReady: declaredSuperAgentPipeline.runtimeSurfacesReady,
       superAgentRuntimeSurfaceNodesReady: declaredSuperAgentPipeline.runtimeSurfaceNodesReady,
       superAgentSubagentNodesReady: declaredSuperAgentPipeline.subagentNodesReady,
-      flowEditorRendererReady: declaredSuperAgentPipeline.flowEditorRendererReady,
+      storyboardRendererReady: declaredSuperAgentPipeline.storyboardRendererReady,
       superAgentDemoReady: declaredSuperAgentPipeline.superAgentDemoReady,
     },
     entrySurfaces: {

@@ -221,7 +221,7 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 | 2D (D3) | Mermaid diagram nodes/edges + internal links navigation |
 | 2D (Flow) | Frontmatter Flow nodes/ports/typed edges |
 | 2D (Design) | Layers by `category` and overlays by `'kg:subgraphs'` |
-| 2D (Flow Editor) | Overlay-first Widgets + port handles (ComfyUI-like) |
+| 2D (Storyboard Widget) | Overlay-first Widgets + port handles (ComfyUI-like) |
 | 3D | Shape parity (diamond/hex + media nodes) |
 | Frontmatter On/Off | Mermaid-in-frontmatter + Flow overlay vs body-only |
 | Geospatial On/Off | `geojson` fences become map layers |
@@ -251,7 +251,7 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 - Toggle layers/subgraphs: `AI Generation (Cluster)` and `Publish (Subgraph)`.
 - Confirm groups/clusters have visible boundaries.
 
-### 2D Renderer (Flow Editor)
+### 2D Renderer (Storyboard) - Widget
 
 - You should see Widgets (not node glyphs) for Flow nodes.
 - Connect ports using the overlay handle dots.
@@ -283,11 +283,11 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 - [[NODE_CAPTION]] formats a caption using `{{title}}` / `{{script}}`.
 - [[NODE_RENDER]] is the final output node.
 
-### Flow Editor: ComfyUI-like Video Generation
+### Storyboard Widget: ComfyUI-like Video Generation
 
-This section is designed to look and feel like a ComfyUI workflow in **2D Renderer (Flow Editor)**.
+This section is designed to look and feel like a ComfyUI workflow in **2D Renderer (Storyboard) - Widget**.
 
-1. Open Flow Editor.
+1. Open Storyboard Widget.
 2. You should immediately see Widgets for:
    - [[NODE_KEYFRAME]] (model `generate_image`)
    - [[NODE_VIDEO]] (model `generate_video`)
@@ -365,7 +365,7 @@ Short link variant: https://youtu.be/dQw4w9WgXcQ
 ## Code Blocks + Mermaid Fence
 
 ```ts
-export type DemoMode = 'infinite-canvas' | 'd3' | 'flow' | 'design' | 'flow-editor' | '3d'
+export type DemoMode = 'infinite-canvas' | 'd3' | 'flow' | 'design' | 'storyboard-widget' | '3d'
 ```
 
 ```mermaid
@@ -422,11 +422,11 @@ Turn **Geospatial Mode ON** to render these layers.
 
 ### Keywords
 
-- #canvas #flow #design #flow-editor #d3 #3d #geo
+- #canvas #flow #design #storyboard-widget #d3 #3d #geo
 
 ### Section Tags
 
-- Flow + editing: #flow #flow-editor
+- Flow + editing: #flow #storyboard-widget
 - Renderers: #d3 #design #3d
 - Geospatial: #geo
 
@@ -435,4 +435,3 @@ Turn **Geospatial Mode ON** to render these layers.
 - Use **Document Structure Mode** to inspect heading/tree derivation.
 - Use **Keyword Mode** to cluster/tag-filter.
 - Toggle **Frontmatter Mode** on/off to compare overlays.
-

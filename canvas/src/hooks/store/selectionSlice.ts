@@ -1,6 +1,6 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { emitTocFocus } from '@/features/markdown/ui/tocFocusEvents'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 

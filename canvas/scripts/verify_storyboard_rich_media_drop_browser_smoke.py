@@ -31,17 +31,17 @@ def rich_media_overlay_shell_selector(node_id: str) -> str:
     safe_id = css_attr_value(node_id)
     safe_suffix = css_attr_value(canonical_node_id_suffix(node_id))
     return (
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-kg-flow-editor-surface="storyboard"][data-node-id="{safe_id}"], '
-        f'[data-kg-rich-media-flow-editor-overlay-shell="1"][data-kg-flow-editor-surface="storyboard"][data-node-id$="::{safe_suffix}"], '
-        f'aside[data-kg-widget="{safe_id}"][data-kg-flow-editor-mode="1"], '
-        f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-flow-editor-mode="1"]'
+        f'[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-kg-storyboard-widget-surface="storyboard"][data-node-id="{safe_id}"], '
+        f'[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-kg-storyboard-widget-surface="storyboard"][data-node-id$="::{safe_suffix}"], '
+        f'aside[data-kg-widget="{safe_id}"][data-kg-storyboard-widget-mode="1"], '
+        f'aside[data-kg-widget$="::{safe_suffix}"][data-kg-storyboard-widget-mode="1"]'
     )
 
 
 def read_visible_rich_media_shell_ids(page):
     return page.evaluate(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]'))
+        () => Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"], aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]'))
           .filter((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
@@ -108,7 +108,7 @@ def read_visible_rich_media_shell_box(page, node_id: str):
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
           })
-          const shell = candidates.find((el) => el.matches('aside[data-kg-widget][data-kg-flow-editor-mode="1"]')) || candidates[0]
+          const shell = candidates.find((el) => el.matches('aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]')) || candidates[0]
           if (!shell) return null
           const rect = shell.getBoundingClientRect()
           return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
@@ -370,7 +370,7 @@ def load_storyboard_smoke_page(page):
     page.wait_for_selector('[data-kg-storyboard-drop-smoke-page="1"]')
     page.wait_for_function(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]'))
+        () => Array.from(document.querySelectorAll('[data-kg-storyboard-widget-surface-root="storyboard"]'))
           .some((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
@@ -392,7 +392,7 @@ def load_storyboard_smoke_page(page):
         """,
         timeout=15000,
     )
-    canvas_surface = page.locator('[data-kg-flow-editor-surface-root="storyboard"]').filter(
+    canvas_surface = page.locator('[data-kg-storyboard-widget-surface-root="storyboard"]').filter(
         has=page.locator(':scope')
     ).first
     return canvas_surface
@@ -402,7 +402,7 @@ def read_storyboard_surface_box(page):
     box = page.evaluate(
         """
         () => {
-          for (const el of document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')) {
+          for (const el of document.querySelectorAll('[data-kg-storyboard-widget-surface-root="storyboard"]')) {
             const rect = el.getBoundingClientRect()
             if (rect.width > 0 && rect.height > 0) {
               return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
@@ -414,6 +414,25 @@ def read_storyboard_surface_box(page):
     )
     if not box:
         raise AssertionError("expected storyboard surface bounding box")
+    return box
+
+
+def read_canvas_viewport_box(page):
+    box = page.evaluate(
+        """
+        () => {
+          for (const el of document.querySelectorAll('[data-kg-canvas-viewport-root="1"]')) {
+            const rect = el.getBoundingClientRect()
+            if (rect.width > 0 && rect.height > 0) {
+              return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+            }
+          }
+          return null
+        }
+        """
+    )
+    if not box:
+        raise AssertionError("expected canvas viewport bounding box")
     return box
 
 
@@ -440,7 +459,7 @@ def read_smoke_source_box(page, source_kind: str):
 def read_canvas_drop_point(page, target_ratio_x: float, target_ratio_y: float):
     page.wait_for_function(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]'))
+        () => Array.from(document.querySelectorAll('[data-kg-canvas-viewport-root="1"]'))
           .some((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
@@ -451,11 +470,10 @@ def read_canvas_drop_point(page, target_ratio_x: float, target_ratio_y: float):
     point = page.evaluate(
         """
         ({ targetRatioX, targetRatioY }) => {
-          const surfaces = Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]'))
           for (const el of document.querySelectorAll('[data-kg-media-drop-consumes-canvas-drop="1"]')) {
             el.style.pointerEvents = 'none'
           }
-          for (const el of surfaces) {
+          for (const el of document.querySelectorAll('[data-kg-canvas-viewport-root="1"]')) {
             const rect = el.getBoundingClientRect()
             if (!(rect.width > 0 && rect.height > 0)) continue
             return {
@@ -498,7 +516,7 @@ def drag_storyboard_media(page, canvas_surface, source_kind: str, target_ratio_x
     }
     page.wait_for_function(
         """
-        () => Array.from(document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]'))
+        () => Array.from(document.querySelectorAll('[data-kg-canvas-viewport-root="1"]'))
           .some((el) => {
             const rect = el.getBoundingClientRect()
             return rect.width > 0 && rect.height > 0
@@ -511,8 +529,8 @@ def drag_storyboard_media(page, canvas_surface, source_kind: str, target_ratio_x
         ({ payload, targetRatioX, targetRatioY, startClientX, startClientY }) => {
           let clientX = Number.NaN
           let clientY = Number.NaN
-          for (const surface of document.querySelectorAll('[data-kg-flow-editor-surface-root="storyboard"]')) {
-            const rect = surface.getBoundingClientRect()
+          for (const viewportRoot of document.querySelectorAll('[data-kg-canvas-viewport-root="1"]')) {
+            const rect = viewportRoot.getBoundingClientRect()
             if (!(rect.width > 0 && rect.height > 0)) continue
             clientX = rect.x + rect.width * targetRatioX
             clientY = rect.y + rect.height * targetRatioY
@@ -557,10 +575,10 @@ def drag_storyboard_media(page, canvas_surface, source_kind: str, target_ratio_x
                 target: target ? {
                   tag: target.tagName,
                   className: String(target.className || '').slice(0, 160),
-                  storyboardRoot: !!target.closest?.('[data-kg-flow-editor-surface-root="storyboard"]'),
+                  storyboardRoot: !!target.closest?.('[data-kg-storyboard-widget-surface-root="storyboard"]'),
                   consumesCanvasDrop: !!target.closest?.('[data-kg-media-drop-consumes-canvas-drop="1"]'),
                 } : null,
-                shells: Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"]')).map((el) => el.getAttribute('data-node-id')),
+                shells: Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"]')).map((el) => el.getAttribute('data-node-id')),
                 richMediaNodes: (window.__KG_STORE__?.getState?.().graphData?.nodes || []).filter((node) => String(node?.type || '') === 'RichMediaPanel').map((node) => ({
                   id: node.id,
                   label: node.label,
@@ -600,12 +618,12 @@ def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_rat
         panel_selector = rich_media_overlay_shell_selector(node_id)
         panel_shell = page.locator(panel_selector).first
         expect(panel_shell).to_be_visible(timeout=15000)
-        target_box = read_storyboard_surface_box(page)
+        target_box = read_canvas_viewport_box(page)
         dropped_box = read_visible_rich_media_shell_box(page, node_id)
         try:
             expect_rich_media_shell_center_near_target(dropped_box, target_box["x"] + target_box["width"] * target_ratio_x, target_box["y"] + target_box["height"] * target_ratio_y, f"after {source_kind} drop")
         except AssertionError as exc:
-            debug_state = page.evaluate("""(nodeId) => { const shell = document.querySelector(`[data-node-id="${CSS.escape(nodeId)}"]`); return { flowCanvasDebug: window.__flowCanvasDebug || null, shellHtml: shell?.outerHTML?.slice(0, 1000) || '', shellStyle: shell?.getAttribute('style') || '', candidates: Array.from(document.querySelectorAll('[data-kg-rich-media-flow-editor-overlay-shell="1"], aside[data-kg-widget][data-kg-flow-editor-mode="1"]')).map((el) => { const r = el.getBoundingClientRect(); return { tag: el.tagName, nodeId: el.getAttribute('data-node-id') || '', widget: el.getAttribute('data-kg-widget') || '', x: r.x, y: r.y, width: r.width, height: r.height, style: el.getAttribute('style') || '' }; }), graphNode: (window.__KG_STORE__?.getState?.().graphData?.nodes || []).find((node) => String(node?.id || '') === nodeId || String(node?.id || '').endsWith(`::${nodeId.split('::').pop()}`)) || null }; }""", node_id)
+            debug_state = page.evaluate("""(nodeId) => { const shell = document.querySelector(`[data-node-id="${CSS.escape(nodeId)}"]`); return { flowCanvasDebug: window.__flowCanvasDebug || null, shellHtml: shell?.outerHTML?.slice(0, 1000) || '', shellStyle: shell?.getAttribute('style') || '', candidates: Array.from(document.querySelectorAll('[data-kg-rich-media-storyboard-widget-overlay-shell="1"], aside[data-kg-widget][data-kg-storyboard-widget-mode="1"]')).map((el) => { const r = el.getBoundingClientRect(); return { tag: el.tagName, nodeId: el.getAttribute('data-node-id') || '', widget: el.getAttribute('data-kg-widget') || '', x: r.x, y: r.y, width: r.width, height: r.height, style: el.getAttribute('style') || '' }; }), graphNode: (window.__KG_STORE__?.getState?.().graphData?.nodes || []).find((node) => String(node?.id || '') === nodeId || String(node?.id || '').endsWith(`::${nodeId.split('::').pop()}`)) || null }; }""", node_id)
             raise AssertionError(f"{exc}; debug={debug_state}") from None
         click_visible_rich_media_shell(page, node_id)
         expect_visible_rich_media_shell_ports(page, node_id)

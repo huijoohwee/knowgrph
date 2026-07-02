@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { invalidateFlowComputeSourceCache, readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { invalidateFlowComputeSourceCache, readFlowComputeSource, runFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 
 export const testFlowComputeInlineReusesSharedReaders = () => {
-  const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowComputeInline.ts')
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowComputeInline.ts')
   const text = readFileSync(filePath, 'utf8')
   if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
     throw new Error('expected flow compute inline to reuse the shared node properties reader upstream')

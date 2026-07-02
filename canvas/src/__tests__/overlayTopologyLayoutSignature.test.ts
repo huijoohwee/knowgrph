@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 
 export const testOverlayTopologyLayoutSignatureReusesSharedNodePropertiesReader = () => {
-  const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'overlayTopologyLayoutSignature.ts')
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'overlayTopologyLayoutSignature.ts')
   const text = readFileSync(filePath, 'utf8')
   if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
     throw new Error('expected overlay topology layout signature to reuse the shared node properties reader upstream')

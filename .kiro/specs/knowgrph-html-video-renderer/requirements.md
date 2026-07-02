@@ -42,13 +42,13 @@ traceability:
 ## Introduction
 
 `knowgrph-html-video-renderer` adds a pluggable HTML-to-video render pipeline to the knowgrph
-platform. Coding agents, Flow Editor nodes, and MCP clients supply HTML + CSS + data as a
+platform. Coding agents, Storyboard Widget nodes, and MCP clients supply HTML + CSS + data as a
 self-contained render spec; the pipeline resolves the active render engine at runtime, produces
 a real MP4 blob, and routes the artifact through the existing `writeRichMediaWidgetRunOutputArtifact`
 → storage → manifest → canvas-apply path.
 
 No render engine is hardcoded. Operators select the engine at runtime via environment variable or
-config. The feature registers as a Flow Editor node type
+config. The feature registers as a Storyboard Widget node type
 (`FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID`), a vdeoxpln skill entry
 (`knowgrph-html-video-renderer`), and an MCP tool (`knowgrph.html_video.render`). All owners,
 IDs, and semantic keys reuse existing helpers — no duplicate or parallel path is introduced.
@@ -90,10 +90,10 @@ html2canvas, browser WebCodecs, and Mediabunny to mux MP4 directly in the browse
   `engineHint` when explicitly passed), validates the value against the Engine_Registry, and
   returns the selected Render_Engine. Fails fast with a structured error when the engine is
   absent from the registry.
-- **Html_Video_Run_Request**: The typed input to the Flow Editor node run path; contains
+- **Html_Video_Run_Request**: The typed input to the Storyboard Widget node run path; contains
   `renderSpec` (Render_Spec) and `generationConfig` (operator-supplied, passed through without
   mutation).
-- **Html_Video_Run_Result**: The typed output of the Flow Editor node run path; contains `kind`
+- **Html_Video_Run_Result**: The typed output of the Storyboard Widget node run path; contains `kind`
   fixed to `"video"`, `asset` (GeneratedBinaryAsset from the existing richMediaRun types),
   `outputPath`, `outputManifestPath`, and `outputStorageUrl`.
 - **Render_Job**: A single bounded execution of the Engine_Resolver + Render_Engine +
@@ -101,7 +101,7 @@ html2canvas, browser WebCodecs, and Mediabunny to mux MP4 directly in the browse
   `renderJobId` built with `buildScopedGraphSemanticKey()`.
 - **Render_Manifest**: The markdown artifact written by `writeRichMediaWidgetRunOutputArtifact`
   describing the MP4 artifact, storage URL, canonical path, and render metadata.
-- **Html_Video_Flow_Node**: The Flow Editor node type registered under
+- **Html_Video_Flow_Node**: The Storyboard Widget node type registered under
   `FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID`. Follows the same form-id, widget-type-id, and label
   pattern as `FLOW_VIDEO_GENERATION_NODE_TYPE_ID` and `FLOW_SWARM_PREDICTION_NODE_TYPE_ID`.
 - **MCP_Html_Video_Tool**: The local MCP tool registered as `knowgrph.html_video.render` through
@@ -255,16 +255,16 @@ parallel artifact owner is introduced.
 
 ---
 
-### Requirement 5: Flow Editor Node Registration
+### Requirement 5: Storyboard Widget Node Registration
 
-**User Story:** As a Flow Editor user, I want an HTML Video Renderer node type available in the
+**User Story:** As a Storyboard Widget user, I want an HTML Video Renderer node type available in the
 widget registry, so that I can wire HTML + CSS + data into a render job directly in the canvas.
 
 #### Acceptance Criteria
 
 1. THE Html_Video_Flow_Node SHALL be registered under a constant
    `FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID` with value `'HtmlVideoRenderer'` exported from
-   `canvas/src/lib/config.flow-editor.ts`, following the PascalCase pattern of
+   `canvas/src/lib/config.storyboard-widget.ts`, following the PascalCase pattern of
    `FLOW_VIDEO_GENERATION_NODE_TYPE_ID` (`'VideoGeneration'`) and
    `FLOW_SWARM_PREDICTION_NODE_TYPE_ID` (`'SwarmPrediction'`).
 2. THE Html_Video_Flow_Node registration SHALL export `FLOW_HTML_VIDEO_RENDERER_FORM_ID` with
@@ -280,7 +280,7 @@ widget registry, so that I can wire HTML + CSS + data into a render job directly
    `engine_hint` (string); all are optional in the node schema with defaults resolved at
    runtime from operator config, never from hardcoded source values.
 5. THE Html_Video_Flow_Node SHALL NOT declare a property key already present on
-   `FlowEditorSmartNodeProperties` in `config.flow-editor.ts`.
+   `StoryboardWidgetSmartNodeProperties` in `config.storyboard-widget.ts`.
 
 ---
 

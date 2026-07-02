@@ -40,7 +40,7 @@ export function resolveFitReferenceFrame(args: {
   }
 }
 
-export function readFlowEditorPortExtraPadScreenPx(schema: GraphSchema | null): number {
+export function readStoryboardWidgetPortExtraPadScreenPx(schema: GraphSchema | null): number {
   const port = schema?.behavior?.portHandles || null
   const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
   if (!portEnabled) return 0

@@ -7,11 +7,11 @@ import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeS
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
-import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel, resolveWidgetRegistryApiDocRef } from '@/features/flow-editor-manager/registryTemplates'
+import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel, resolveWidgetRegistryApiDocRef } from '@/features/storyboard-widget-manager/registryTemplates'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
@@ -306,7 +306,7 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
     'meta:',
     '  id: video-script-template-like-001',
     'nodes:',
-    '  - id: NODE_OVERLAY_04',
+    '  - id: WIDGET_04',
     '    type: TextOverlay',
     '    category: overlay',
     '    pos: { x: 1020, y: 560 }',
@@ -326,13 +326,13 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
     '    inputs:',
     '      - port: clip_04_in',
     '        type: VIDEO_CLIP',
-    '        from: NODE_OVERLAY_04.composed_out',
+    '        from: WIDGET_04.composed_out',
     '    outputs:',
     '      - port: sequence_out',
     '        type: VIDEO_SEQUENCE',
     'connections:',
     '  - id: e42',
-    '    from: NODE_OVERLAY_04.composed_out',
+    '    from: WIDGET_04.composed_out',
     '    to: NODE_SEQUENCE.clip_04_in',
     '    type: VIDEO_CLIP',
     'socket_types:',
@@ -344,7 +344,7 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
     '',
     '| Edge | From port | To port | Type |',
     '|---|---|---|---|',
-    '| e42 | `NODE_OVERLAY_04.composed_out` | `NODE_SEQUENCE.clip_04_in` | `VIDEO_CLIP` |',
+    '| e42 | `WIDGET_04.composed_out` | `NODE_SEQUENCE.clip_04_in` | `VIDEO_CLIP` |',
     '',
   ].join('\n')
 
@@ -357,8 +357,8 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
   if (e42Props[FLOW_EDGE_SOURCE_PORT_KEY] !== 'composed_out') throw new Error('expected e42 source port composed_out')
   if (e42Props[FLOW_EDGE_TARGET_PORT_KEY] !== 'clip_04_in') throw new Error('expected e42 target port clip_04_in')
 
-  const overlay = g.nodes.find(n => n.id === 'NODE_OVERLAY_04') || null
-  if (!overlay) throw new Error('expected NODE_OVERLAY_04')
+  const overlay = g.nodes.find(n => n.id === 'WIDGET_04') || null
+  if (!overlay) throw new Error('expected WIDGET_04')
   const overlayProps = (overlay.properties || {}) as Record<string, unknown>
   const params = overlayProps.params
   if (!params || typeof params !== 'object') throw new Error('expected node params payload for widget fidelity')
@@ -2371,8 +2371,8 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
   if (String(frontmatterMeta?.kgCanvasRenderMode || '') !== '2d') {
     throw new Error('expected rich-media generation demo to preserve kgCanvasRenderMode=2d in frontmatter metadata')
   }
-  if (String(frontmatterMeta?.kgCanvas2dRenderer || '') !== 'flowEditor') {
-    throw new Error('expected rich-media generation demo to preserve kgCanvas2dRenderer=flowEditor in frontmatter metadata')
+  if (String(frontmatterMeta?.kgCanvas2dRenderer || '') !== 'storyboard') {
+    throw new Error('expected rich-media generation demo to preserve kgCanvas2dRenderer=storyboard in frontmatter metadata')
   }
   if (frontmatterMeta?.kgFrontmatterModeEnabled !== true) {
     throw new Error('expected rich-media generation demo to preserve kgFrontmatterModeEnabled=true in frontmatter metadata')

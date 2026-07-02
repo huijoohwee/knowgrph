@@ -22,7 +22,7 @@ import {
   writeWorkspaceSourceTextIfPresent,
 } from './graphDataFrontmatterFlowSync'
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'

@@ -13,11 +13,11 @@ import { computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { readMergedGraphNodeLookup, type MergedGraphNodeLookupCache } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 import {
-  computeFlowEditorOverlayDraggedWorldPoint,
-  computeFlowEditorOverlayPointerGrabOffset,
-  readFlowEditorOverlayCanvasOffset,
-  type FlowEditorOverlayDragPoint,
-} from '@/lib/flowEditor/overlayWorldDrag'
+  computeStoryboardWidgetOverlayDraggedWorldPoint,
+  computeStoryboardWidgetOverlayPointerGrabOffset,
+  readStoryboardWidgetOverlayCanvasOffset,
+  type StoryboardWidgetOverlayDragPoint,
+} from '@/lib/storyboardWidget/overlayWorldDrag'
 
 export function useOverlayInteractions2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -51,7 +51,7 @@ export function useOverlayInteractions2d(args: {
     startClientY: number
     lastClientX: number
     lastClientY: number
-    grabOffsetWorld: FlowEditorOverlayDragPoint
+    grabOffsetWorld: StoryboardWidgetOverlayDragPoint
     workspaceViewModeAtStart: 'canvas' | 'editor'
   }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
@@ -87,9 +87,9 @@ export function useOverlayInteractions2d(args: {
       st.lastClientX = args0.clientX
       st.lastClientY = args0.clientY
       const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const p = computeFlowEditorOverlayDraggedWorldPoint({
+      const p = computeStoryboardWidgetOverlayDraggedWorldPoint({
         transform: t,
-        canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+        canvasOffset: readStoryboardWidgetOverlayCanvasOffset(svgEl),
         pointerClient: { x: args0.clientX, y: args0.clientY },
         grabOffsetWorld: st.grabOffsetWorld,
         baseWorld: { x: st.baseX, y: st.baseY },
@@ -168,9 +168,9 @@ export function useOverlayInteractions2d(args: {
       const frozen = svgEl.getAttribute('data-kg-layout-frozen') === '1'
       const workspaceViewModeAtStart = useGraphStore.getState().workspaceViewMode === 'editor' ? 'editor' : 'canvas'
       const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const grabOffsetWorld = computeFlowEditorOverlayPointerGrabOffset({
+      const grabOffsetWorld = computeStoryboardWidgetOverlayPointerGrabOffset({
         transform: t,
-        canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+        canvasOffset: readStoryboardWidgetOverlayCanvasOffset(svgEl),
         pointerClient: { x: clientX, y: clientY },
         startWorld: { x: x0, y: y0 },
       })
@@ -260,9 +260,9 @@ export function useOverlayInteractions2d(args: {
       return
     }
     const t = svgEl ? d3.zoomTransform(svgEl as unknown as SVGSVGElement) : null
-    const p = computeFlowEditorOverlayDraggedWorldPoint({
+    const p = computeStoryboardWidgetOverlayDraggedWorldPoint({
       transform: t,
-      canvasOffset: readFlowEditorOverlayCanvasOffset(svgEl),
+      canvasOffset: readStoryboardWidgetOverlayCanvasOffset(svgEl),
       pointerClient: { x: st.lastClientX, y: st.lastClientY },
       grabOffsetWorld: st.grabOffsetWorld,
       baseWorld: { x: st.baseX, y: st.baseY },

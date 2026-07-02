@@ -149,7 +149,7 @@ function enrichFrontmatterFlowWithMarkdownReferences(args: {
     frontmatterModeEnabledRaw === true ||
     String(frontmatterModeEnabledRaw || '').trim().toLowerCase() === 'true'
   const canvas2dRenderer = String(frontmatterMeta?.kgCanvas2dRenderer || '').trim()
-  if (isRecord(frontmatterMeta?.flow) || frontmatterModeEnabled || canvas2dRenderer === 'flowEditor') {
+  if (isRecord(frontmatterMeta?.flow) || frontmatterModeEnabled || canvas2dRenderer === 'storyboard') {
     return args.frontmatterFlow
   }
 

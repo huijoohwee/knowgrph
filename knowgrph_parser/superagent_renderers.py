@@ -193,7 +193,7 @@ def render_workspace_flow_markdown(
     lines = [
         "---",
         'kgCanvasSurfaceMode: "2d"',
-        'kgCanvas2dRenderer: "flowEditor"',
+        'kgCanvas2dRenderer: "storyboard"',
         'kgDocumentSemanticMode: "document"',
         "kgFrontmatterModeEnabled: true",
         f"kgSuperAgentRunId: {yaml_inline_string(run_id)}",

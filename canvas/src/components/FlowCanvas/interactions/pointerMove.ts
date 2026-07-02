@@ -4,7 +4,7 @@ import { computeFlowGroupAabb, hitTestGroup, requestFlowNativeDraw, setFlowNativ
 import { unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
-import { applyFlowEditorScreenAuthorityPanSnapshot } from '@/lib/flowEditor/screenAuthorityCollectivePan'
+import { applyStoryboardWidgetScreenAuthorityPanSnapshot } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import { clampFlowDelta, clampFlowNodeTopLeft } from '@/components/FlowCanvas/groupContainment'
 import { snapDeltaToGridByAnchor, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { computeGroupResizeBottomRight } from '@/lib/canvas/groupResizeMath2d'
@@ -227,14 +227,18 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     if (drag.type === 'pan') {
       const dx = (sx - drag.startSx) * drag.interactionSpeed
       const dy = (sy - drag.startSy) * drag.interactionSpeed
-      if (drag.useFlowEditorScreenAuthorityPan === true) {
-        const snapshot = drag.flowEditorScreenAuthorityPan || null
+      const nextTransform = d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k)
+      if (drag.useStoryboardWidgetScreenAuthorityPan === true) {
+        const snapshot = drag.storyboardWidgetScreenAuthorityPan || null
         if (snapshot) {
-          const changed = applyFlowEditorScreenAuthorityPanSnapshot({
+          setFlowNativeTransform(runtime, nextTransform)
+          requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
+          const changed = applyStoryboardWidgetScreenAuthorityPanSnapshot({
             snapshot,
             dx,
             dy,
-            transform: runtime.transform,
+            transform: nextTransform,
+            canvasTransformShifted: true,
           })
           if (changed) ctx.args.onInteractionFrame?.()
           try {
@@ -245,7 +249,7 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
           return
         }
       }
-      setFlowNativeTransform(runtime, d3.zoomIdentity.translate(drag.startTx + dx, drag.startTy + dy).scale(runtime.transform.k))
+      setFlowNativeTransform(runtime, nextTransform)
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
       ctx.args.onInteractionFrame?.()
       try {

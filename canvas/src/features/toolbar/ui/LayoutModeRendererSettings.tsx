@@ -70,7 +70,7 @@ export function LayoutModeRendererSettings(props: {
   const layoutMode = readLayoutMode2d(schema)
   const selectedLayoutMode = props.selectedLayoutMode ?? layoutMode
   const disabled = props.disabled === true
-  const showFrontmatterFlowControls = canvas2dRenderer === 'flowEditor' || frontmatterModeEnabled
+  const showFrontmatterFlowControls = canvas2dRenderer === 'storyboard' || frontmatterModeEnabled
   const fitReferenceFrame = React.useMemo(() => resolveFitReferenceFrame({
     referenceWidth: viewportFitReferenceWidth,
     referenceHeight: viewportFitReferenceHeight,
@@ -195,7 +195,7 @@ export function LayoutModeRendererSettings(props: {
         {showFrontmatterFlowControls ? (
           <section className={uiToolbarSettingsPanelSubsectionClassName}>
             <section className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
-              Frontmatter Flow Editor fit controls. Lower proxy values fit a denser overlay footprint and make the on-screen collective larger.
+              Frontmatter Storyboard Widget fit controls. Lower proxy values fit a denser overlay footprint and make the on-screen collective larger.
             </section>
             <ResponsiveNumberRow
               label="Initial fit fill"

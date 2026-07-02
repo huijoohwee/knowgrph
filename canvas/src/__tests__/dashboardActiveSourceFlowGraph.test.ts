@@ -10,7 +10,7 @@ export function testDashboardWorkspaceFrontmatterFlowUsesSelectedSourceContent()
     'doc_type: "Computing Flow Demo"',
     'kgCanvasSurfaceMode: "2d"',
     'kgCanvasRenderMode: "2d"',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgFrontmatterModeEnabled: true',
     'flow:',
     '  nodes:',

@@ -39,7 +39,7 @@ import { SWARM_PREDICTION_SCHEMA_VERSION } from '@/features/swarm-prediction/swa
 import {
   FLOW_SWARM_PREDICTION_FORM_ID,
   FLOW_SWARM_PREDICTION_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import { readResearchAgentDemoFixture } from './helpers/researchAgentDemoFixture'
 
 export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
@@ -132,7 +132,7 @@ export async function testResearchAgentDemoIngestsParsesAndBuildsFlowScene() {
     throw new Error(`expected MainPanel Integrations/MCP -> chat routing metadata, got ${JSON.stringify(mainPanelIntegrationsDemo)}`)
   }
   if (String(mainPanelIntegrationsDemo.canvas_2d_renderer || '') !== KNOWGRPH_SUPERAGENT_CANVAS_RENDERER) {
-    throw new Error(`expected MainPanel demo to target Flow Editor rendering, got ${String(mainPanelIntegrationsDemo.canvas_2d_renderer || '')}`)
+    throw new Error(`expected MainPanel demo to target Storyboard rendering, got ${String(mainPanelIntegrationsDemo.canvas_2d_renderer || '')}`)
   }
   const providerIds = new Set(Array.isArray(mainPanelIntegrationsDemo.provider_ids) ? mainPanelIntegrationsDemo.provider_ids.map(String) : [])
   for (const providerId of KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_IDS) {

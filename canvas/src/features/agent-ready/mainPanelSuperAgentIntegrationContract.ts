@@ -54,7 +54,7 @@ export const KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_EDGE_TYPE = 'agent_runtime_surf
 
 export const KNOWGRPH_SUPERAGENT_SUBAGENT_EDGE_TYPE = 'agent_subagent_signal'
 
-export const KNOWGRPH_SUPERAGENT_CANVAS_RENDERER = 'flowEditor'
+export const KNOWGRPH_SUPERAGENT_CANVAS_RENDERER = 'storyboard'
 
 export const KNOWGRPH_SUPERAGENT_RICH_MEDIA_OUTPUT_NODE_IDS = [
   'panel_text_research_brief',

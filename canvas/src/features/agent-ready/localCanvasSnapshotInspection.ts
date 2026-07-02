@@ -16,7 +16,7 @@ const readSvgAttribute = (svgMarkup: string, attributeName: string): string | nu
 export const inspectLocalCanvasSnapshot = (args: LocalCanvasSnapshotInspectionArgs) => {
   const documentName = normalizeString(args.markdownDocumentName)
   const canvasRenderMode = normalizeString(args.canvasRenderMode) || '2d'
-  const canvas2dRenderer = normalizeString(args.canvas2dRenderer) || 'flowEditor'
+  const canvas2dRenderer = normalizeString(args.canvas2dRenderer) || 'storyboard'
   const svgMarkup = typeof args.svgMarkup === 'string' ? args.svgMarkup.trim() : ''
 
   if (canvasRenderMode !== '2d') {

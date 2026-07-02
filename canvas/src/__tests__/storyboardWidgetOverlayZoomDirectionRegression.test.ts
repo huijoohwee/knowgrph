@@ -1,0 +1,600 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
+import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
+import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
+import { computeTransformScaleAboutViewportFrameCenter, screenToWorld } from '@/lib/zoom/viewport'
+import {
+  applyFixedStoryboardCardPlacementsToGraphData2d,
+  readStoryboardWidgetPlacementSize2d,
+} from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+
+function readSourceFilesUnder(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  const files: string[] = []
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...readSourceFilesUnder(full))
+      continue
+    }
+    if (/\.[cm]?[tj]sx?$/.test(entry.name)) files.push(full)
+  }
+  return files
+}
+
+function assertTextIncludes(text: string, snippets: string[], message: string) {
+  for (const snippet of snippets) {
+    if (!text.includes(snippet)) throw new Error(`${message}: ${snippet}`)
+  }
+}
+
+export function testStoryboardWidgetCollectiveScaleDoesNotReverseZoomDirection() {
+  const zoomOut = computeCollectiveFollowPinnedScale({
+    zoomK: 0.5,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 12,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  const neutral = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 12,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  const zoomIn = computeCollectiveFollowPinnedScale({
+    zoomK: 2,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 12,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+
+  if (!(zoomOut <= neutral)) {
+    throw new Error(`expected widget collective zoom-out scale to not grow past neutral, got out=${zoomOut} neutral=${neutral}`)
+  }
+  if (!(zoomIn >= neutral)) {
+    throw new Error(`expected widget collective zoom-in scale to not shrink below neutral, got in=${zoomIn} neutral=${neutral}`)
+  }
+}
+
+export function testStoryboardWidgetPlacementUsesWidgetBalancedSpreadSize() {
+  const graphData = {
+    type: 'application/json',
+    nodes: [
+      {
+        id: 'card-a',
+        type: 'storyboard',
+        label: 'Card A',
+        x: 0,
+        y: 0,
+        properties: { lane: 'Elements', summary: 'A', order: 0 },
+      },
+      {
+        id: 'card-b',
+        type: 'storyboard',
+        label: 'Card B',
+        x: 0,
+        y: 0,
+        properties: { lane: 'Elements', summary: 'B', order: 1 },
+      },
+    ],
+    edges: [],
+  } as never
+  const cardLayout = applyFixedStoryboardCardPlacementsToGraphData2d({
+    aspectRatioMode: '16:9',
+    graphData,
+    graphRevision: 1,
+    schema: null,
+  })
+  const widgetLayout = applyFixedStoryboardCardPlacementsToGraphData2d({
+    aspectRatioMode: '16:9',
+    graphData,
+    graphRevision: 1,
+    readPlacementSize: node => readStoryboardWidgetPlacementSize2d(node, '16:9'),
+    schema: null,
+  })
+  const readGap = (next: typeof cardLayout): number => {
+    const nodes = Array.isArray(next?.nodes) ? next!.nodes : []
+    const a = nodes.find(node => String(node?.id || '') === 'card-a') as { y?: number } | undefined
+    const b = nodes.find(node => String(node?.id || '') === 'card-b') as { y?: number } | undefined
+    if (!Number.isFinite(a?.y) || !Number.isFinite(b?.y)) return 0
+    return Math.abs(Number(b!.y) - Number(a!.y))
+  }
+  const cardGap = readGap(cardLayout)
+  const widgetGap = readGap(widgetLayout)
+  const minimumWidgetGap = WIDGET_BASE_SIZE.height + 64
+  if (!(widgetGap >= minimumWidgetGap)) {
+    throw new Error(`expected Widget Storyboard placement to use balanced widget-height rows, got gap=${widgetGap} minimum=${minimumWidgetGap}`)
+  }
+  if (!(widgetGap > cardGap + WIDGET_BASE_SIZE.height / 2)) {
+    throw new Error(`expected Widget placement to avoid Card-height row overlap, cardGap=${cardGap} widgetGap=${widgetGap}`)
+  }
+}
+
+export function testStoryboardWidgetRichMediaCollectiveSizingDoesNotReverseZoomDirection() {
+  const sizingConfig = {
+    widthRatio: 0.2,
+    widthMinPx: 220,
+    widthMaxPx: 360,
+    quantizeStepPx: 16,
+  }
+  const itemCount = 12
+  const widgetZoomOut = computeCollectiveFollowPinnedScale({
+    zoomK: 0.5,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: itemCount,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  const widgetNeutral = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: itemCount,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  const widgetZoomIn = computeCollectiveFollowPinnedScale({
+    zoomK: 2,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: itemCount,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+
+  const zoomOut = computeMediaOverlaySizing({
+    density: 'default',
+    viewportW: 1920,
+    viewportH: 1080,
+    zoomK: widgetZoomOut,
+    itemCount,
+    config: sizingConfig,
+  })
+  const neutral = computeMediaOverlaySizing({
+    density: 'default',
+    viewportW: 1920,
+    viewportH: 1080,
+    zoomK: widgetNeutral,
+    itemCount,
+    config: sizingConfig,
+  })
+  const zoomIn = computeMediaOverlaySizing({
+    density: 'default',
+    viewportW: 1920,
+    viewportH: 1080,
+    zoomK: widgetZoomIn,
+    itemCount,
+    config: sizingConfig,
+  })
+
+  if (!(zoomOut.panelW <= neutral.panelW && zoomOut.panelH <= neutral.panelH)) {
+    throw new Error(`expected rich media zoom-out sizing to not grow past neutral, got out=${zoomOut.panelW}x${zoomOut.panelH} neutral=${neutral.panelW}x${neutral.panelH}`)
+  }
+  if (!(zoomIn.panelW >= neutral.panelW && zoomIn.panelH >= neutral.panelH)) {
+    throw new Error(`expected rich media zoom-in sizing to not shrink below neutral, got in=${zoomIn.panelW}x${zoomIn.panelH} neutral=${neutral.panelW}x${neutral.panelH}`)
+  }
+}
+
+export function testStoryboardWidgetCollectiveScaleUsesRequestedLayoutAspect() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const neutralZoomPath = path.join(srcRoot, 'lib', 'canvas', 'overlayWidgetZoom.ts')
+  const neutralText = fs.readFileSync(neutralZoomPath, 'utf8')
+  const collectiveStart = neutralText.indexOf('export function computeCollectiveFollowPinnedScale')
+  if (collectiveStart < 0) {
+    throw new Error('expected neutral overlay zoom owner to expose collective scale helper')
+  }
+  const collectiveBody = neutralText.slice(collectiveStart)
+  if (!collectiveBody.includes('width: baseWidth * candidate') || !collectiveBody.includes('height: baseHeight * candidate')) {
+    throw new Error('expected collective zoom fit loop to measure the requested base layout size instead of widget-only dimensions')
+  }
+  if (collectiveBody.includes('const panel = computeWidgetScaledSize(candidate)')) {
+    throw new Error('expected collective zoom fit loop to avoid widget-only sizing for rich-media panel collectives')
+  }
+
+  const landscapeScale = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1280,
+    viewportH: 720,
+    count: 12,
+    baseWidth: 320,
+    baseHeight: 180,
+    hardMinScale: 0.05,
+    hardMaxScale: 1,
+  })
+  const portraitScale = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    viewportW: 1280,
+    viewportH: 720,
+    count: 12,
+    baseWidth: 180,
+    baseHeight: 320,
+    hardMinScale: 0.05,
+    hardMaxScale: 1,
+  })
+  if (Math.abs(landscapeScale - portraitScale) <= 0.01) {
+    throw new Error(`expected collective zoom scale to react to caller-provided layout aspect, got landscape=${landscapeScale} portrait=${portraitScale}`)
+  }
+}
+
+export function testStoryboardWidgetLiveCollectiveScaleFollowsZoomWithoutViewportFitClamp() {
+  const viewport = { viewportW: 909, viewportH: 801, count: 19, baseWidth: 360, baseHeight: 520 }
+  const followNeutral = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1,
+    fitToViewport: false,
+  })
+  const followZoomIn = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1.25,
+    fitToViewport: false,
+  })
+  const fittedZoomIn = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: 1.25,
+  })
+  if (!(followZoomIn > followNeutral)) {
+    throw new Error(`expected Storyboard Widget live collective scale to grow with zoom, neutral=${followNeutral} zoomIn=${followZoomIn}`)
+  }
+  if (!(fittedZoomIn <= followZoomIn)) {
+    throw new Error(`expected viewport-fit collective scale to remain the fit/reset path, fitted=${fittedZoomIn} follow=${followZoomIn}`)
+  }
+  const fitBaselineK = 0.18
+  const baselineRelative = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: computeCollectiveFollowZoomK({ zoomK: fitBaselineK, baselineZoomK: fitBaselineK }),
+    fitToViewport: false,
+  })
+  const zoomedRelative = computeCollectiveFollowPinnedScale({
+    ...viewport,
+    zoomK: computeCollectiveFollowZoomK({ zoomK: fitBaselineK * 1.25, baselineZoomK: fitBaselineK }),
+    fitToViewport: false,
+  })
+  if (!(zoomedRelative > baselineRelative)) {
+    throw new Error(`expected baseline-normalized Storyboard Widget zoom to change visible collective scale while native fit k is below 1, baseline=${baselineRelative} zoomed=${zoomedRelative}`)
+  }
+
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const placementText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts'), 'utf8')
+  if (!placementText.includes('fitToViewport: false')) {
+    throw new Error('expected Storyboard Widget placement to follow zoom instead of fitting every zoom step back into the viewport')
+  }
+  if (!placementText.includes('computeCollectiveFollowZoomK({')) {
+    throw new Error('expected screen-authority Storyboard widgets to normalize viewport zoom against their live baseline')
+  }
+  if (placementText.includes('const frontmatterPanelScaleZoomK = frontmatterVisibleViewportAuthority ? 1 : zoomK')) {
+    throw new Error('expected Storyboard Widget zoom to avoid stale neutral-scale screen-authority gating')
+  }
+  const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
+  const mediaViewportText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'flowCanvasMediaLayoutViewport.ts'), 'utf8')
+  assertTextIncludes(mediaText, [
+    'fitToViewport: storyboardWidgetSurfaceRendererMode ? false : undefined',
+    'computeCollectiveFollowZoomK({',
+    'const readMediaLayoutViewport = React.useCallback',
+    'readLayoutViewport: readMediaLayoutViewport',
+    'coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport',
+  ], 'expected rich-media Storyboard Widget overlays to use the shared visible viewport zoom owner')
+  assertTextIncludes(mediaViewportText, ['resolveStoryboardWidgetVisibleViewport({'], 'expected rich-media Storyboard Widget overlays to reuse the widget visible viewport owner')
+
+  const mediaLoopText = fs.readFileSync(path.join(srcRoot, 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts'), 'utf8')
+  assertTextIncludes(mediaLoopText, [
+    'readLayoutViewport?: (() => MediaOverlayLayoutViewport | null) | null',
+    'viewportW: layoutViewport.width',
+    'viewportH: layoutViewport.height',
+    'left: layoutViewport.left + cell.left',
+    'top: layoutViewport.top + cell.top',
+  ], 'expected shared media overlay loop to honor the active layout viewport')
+}
+
+export function testStoryboardWidgetToolbarExposesRuntimeZoomActions() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const toolbarText = fs.readFileSync(path.join(srcRoot, 'components', 'Toolbar.tsx'), 'utf8')
+  const zoomModeSelectText = fs.readFileSync(path.join(srcRoot, 'components', 'toolbar', 'ZoomModeSelect.tsx'), 'utf8')
+  const zoomMenuModelText = fs.readFileSync(path.join(srcRoot, 'components', 'toolbar', 'toolbarZoomMenuModel.ts'), 'utf8')
+  assertTextIncludes(toolbarText, [
+    '<ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />',
+  ], 'expected toolbar Zoom owner to route zoom controls through the shared Zoom menu')
+  assertTextIncludes(zoomModeSelectText, [
+    "key: 'action:out' as const",
+    "key: 'action:in' as const",
+    "requestZoom('in')",
+    "requestZoom('out')",
+    'computeToolbarZoomPresetTransform({ state, preset: presetValue })',
+    'disableAutoZoomModesForUserGesture({',
+  ], 'expected Zoom menu to own in/out actions and center-preserving preset dispatch')
+  assertTextIncludes(zoomMenuModelText, [
+    'TOOLBAR_ZOOM_PRESETS',
+    'readToolbarZoomScale',
+    'computeTransformScaleAboutViewportCenter',
+    'buildActive2dZoomViewKey',
+    'getEffectiveZoomStateForKey',
+  ], 'expected Zoom menu model to reuse shared zoom key and viewport transform helpers')
+}
+
+export function testStoryboardWidgetRichMediaZoomCoercionMaintainsIndividualAspectRatio() {
+  const samples = [
+    { width: 96, height: 54, viewportW: 640, viewportH: 360 },
+    { width: 960, height: 540, viewportW: 640, viewportH: 360 },
+    { width: 54, height: 96, viewportW: 640, viewportH: 900 },
+  ]
+  for (const sample of samples) {
+    const targetAspect = sample.width / sample.height
+    const coerced = coerceRichMediaPanelSizePx({
+      width: sample.width,
+      height: sample.height,
+      viewportW: sample.viewportW,
+      viewportH: sample.viewportH,
+      minWidthPx: 220,
+      minHeightPx: 160,
+    })
+    const actualAspect = coerced.width / coerced.height
+    if (Math.abs(actualAspect - targetAspect) > 0.01) {
+      throw new Error(`expected zoom-bound rich-media panel size to preserve individual aspect, target=${targetAspect} actual=${actualAspect}`)
+    }
+    if (coerced.width < 220 || coerced.height < 160) {
+      throw new Error(`expected rich-media zoom coercion to preserve minimum usable panel size, got ${coerced.width}x${coerced.height}`)
+    }
+  }
+}
+
+export function testStoryboardWidgetZoomInOutUsesVisibleCanvasCenterAsContextualAnchor() {
+  const applyZoomPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts')
+  const applyZoomText = fs.readFileSync(applyZoomPath, 'utf8')
+  for (const snippet of [
+    'computeTransformScaleAboutViewportFrameCenter',
+    'const isStoryboardWidgetContextualZoomRequest =',
+    'viewport: visibleViewport',
+    'const shouldRecenterStoryboardWidgetCollectiveAfterZoom =',
+    'const resolved = isStoryboardWidgetFitLikeRequest && storyboardWidgetOverlayFitResolved',
+  ]) {
+    if (!applyZoomText.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget zoom in/out to use visible canvas center contextual zoom behavior: ${snippet}`)
+    }
+  }
+
+  const current = { k: 0.8, x: -120, y: 36 }
+  const focal = { x: 612, y: 360 }
+  const beforeWorld = screenToWorld({ transform: current, sx: focal.x, sy: focal.y })
+  const next = computeTransformScaleAboutViewportFrameCenter({
+    transform: current,
+    viewport: { centerX: focal.x, centerY: focal.y },
+    nextK: 1.25,
+  })
+  const afterWorld = screenToWorld({ transform: next, sx: focal.x, sy: focal.y })
+  if (Math.abs(afterWorld.x - beforeWorld.x) > 1e-9 || Math.abs(afterWorld.y - beforeWorld.y) > 1e-9) {
+    throw new Error(`expected contextual zoom focal world point to remain stable, before=${JSON.stringify(beforeWorld)} after=${JSON.stringify(afterWorld)}`)
+  }
+}
+
+export function testRuntimeZoomDispatchDoesNotGate2dZoomOnGeospatialBridge() {
+  const dispatchPath = path.resolve(process.cwd(), 'src', 'lib', 'canvas', 'runtimeZoomDispatch.ts')
+  const text = fs.readFileSync(dispatchPath, 'utf8')
+  const zoomBranch = text.indexOf("if (store.canvasRenderMode === '2d') {\n    store.requestZoom(type)")
+  const geospatialRead = text.indexOf('const geospatialEnabled = await readGeospatialModeEnabled()')
+  if (zoomBranch < 0 || geospatialRead < 0 || zoomBranch > geospatialRead) {
+    throw new Error('expected 2D runtime zoom dispatch to request zoom before awaiting the geospatial bridge')
+  }
+  const fitBranch = text.indexOf("if (store.canvasRenderMode === '2d') {\n    store.requestZoom('fit', { intent })")
+  const fitGeospatialRead = text.indexOf('const geospatialEnabled = await readGeospatialModeEnabled().catch(() => false)', geospatialRead + 1)
+  if (fitBranch < 0 || fitGeospatialRead < 0 || fitBranch > fitGeospatialRead) {
+    throw new Error('expected 2D runtime fit dispatch to request zoom before awaiting the geospatial bridge')
+  }
+}
+
+export function testFlowCanvasZoomHelpersStayRendererNeutral() {
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const neutralZoomPath = path.join(srcRoot, 'lib', 'canvas', 'overlayWidgetZoom.ts')
+  const legacyStoryboardWidgetZoomPath = path.join(srcRoot, 'components', 'StoryboardWidget', 'widgetZoom.ts')
+  const flowCanvasFiles = readSourceFilesUnder(path.join(srcRoot, 'components', 'FlowCanvas'))
+  const forbiddenStoryboardWidgetOwners = [
+    '@/components/StoryboardWidget/widgetZoom',
+    '@/components/StoryboardWidget/useWidgetPlacementRuntime',
+    'components/StoryboardWidget/widgetZoom',
+    'components/StoryboardWidget/useWidgetPlacementRuntime',
+  ]
+
+  if (!fs.existsSync(neutralZoomPath)) {
+    throw new Error('expected overlay zoom sizing to live in the neutral canvas helper owner')
+  }
+  if (fs.existsSync(legacyStoryboardWidgetZoomPath)) {
+    throw new Error('expected legacy Storyboard Widget zoom owner to be removed instead of kept as a renderer alias')
+  }
+
+  const neutralText = fs.readFileSync(neutralZoomPath, 'utf8')
+  if (!neutralText.includes('export function computeCollectiveFollowPinnedScale') || !neutralText.includes('export function computeWidgetScaledSize')) {
+    throw new Error('expected neutral overlay zoom owner to export collective scale and widget size helpers')
+  }
+
+  for (const file of flowCanvasFiles) {
+    const text = fs.readFileSync(file, 'utf8')
+    for (const owner of forbiddenStoryboardWidgetOwners) {
+      if (text.includes(owner)) {
+        throw new Error(`expected Flow Canvas to avoid Storyboard Widget overlay owner seepage in ${path.relative(srcRoot, file)}`)
+      }
+    }
+  }
+
+  const flowCanvasZoomUsers = flowCanvasFiles.filter(file => {
+    const text = fs.readFileSync(file, 'utf8')
+    return text.includes('computeCollectiveFollowPinnedScale') || text.includes('computeWidgetScale') || text.includes('WIDGET_BASE_SIZE')
+  })
+  if (flowCanvasZoomUsers.length > 0) {
+    const nonNeutralUsers = flowCanvasZoomUsers.filter(file => !fs.readFileSync(file, 'utf8').includes('@/lib/canvas/overlayWidgetZoom'))
+    if (nonNeutralUsers.length > 0) {
+      throw new Error(`expected Flow Canvas zoom helper users to import the neutral canvas owner: ${nonNeutralUsers.map(file => path.relative(srcRoot, file)).join(', ')}`)
+    }
+  }
+}
+
+export function testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection() {
+  const placementPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
+  const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeScene.ts')
+  const mediaLoopPath = path.resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
+  const mediaOverlaysPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const placementText = fs.readFileSync(placementPath, 'utf8')
+  const overlaySurfaceText = fs.readFileSync(overlaySurfacePath, 'utf8')
+  const runtimeSceneText = fs.readFileSync(runtimeScenePath, 'utf8')
+  const mediaLoopText = fs.readFileSync(mediaLoopPath, 'utf8')
+  const mediaOverlaysText = fs.readFileSync(mediaOverlaysPath, 'utf8')
+
+  if (placementText.includes('stabilizePinnedWorldPosForZoom')
+    || placementText.includes('resolvePinnedZoomCenterPreservingPlacement')
+    || placementText.includes('liveZoomCenterPreservingPlacement')) {
+    throw new Error('expected pinned widget zoom to render from stable world positions instead of mutating layout to chase screen centers')
+  }
+  assertTextIncludes(placementText, [
+    'computeStoryboardWidgetOverlayScreenBox({',
+    'centerWorld: worldPinned',
+    'const storyboardPinnedCardLayoutActive = !floatingRef.current',
+    'const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? panelScale',
+    '? { top: storyboardPinnedScreenBox.top, left: storyboardPinnedScreenBox.left }',
+  ], 'expected pinned Storyboard Widget placement to reuse Card world-center screen-box layout during zoom')
+  if (!placementText.includes(': { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }')) {
+    throw new Error('expected non-Storyboard pinned widget placement to retain direct stable-world fallback during zoom')
+  }
+  assertTextIncludes(placementText, [
+    'screenAuthorityLayoutZoomBaseRef',
+    'projectCollectiveScreenLayoutForZoom({',
+    'anchorX: screenAuthorityViewportLeft + screenAuthorityViewportWidth / 2',
+    'anchorY: screenAuthorityViewportTop + screenAuthorityViewportHeight / 2',
+  ], 'expected frontmatter screen-authority widgets to project around the visible viewport center while zooming')
+  assertTextIncludes(overlaySurfaceText, [
+    'applyFixedStoryboardCardPlacementsToGraphData2d({',
+    'const overlayLayoutGraphData = React.useMemo((): GraphData | null => {',
+    "if (String(storyboardWidgetSurfaceId || '').trim() !== 'storyboard') return renderGraphDataOverride",
+    'graphData: overlayLayoutGraphData',
+  ], 'expected Storyboard Widget overlay surface to render from the shared Card placement graph')
+  if (!runtimeSceneText.includes("if (bucketId === viewportBucketId) return `${bucketId}:visible-viewport`")) {
+    throw new Error('expected storyboard widget runtime scene to keep viewport auto-seed signatures stable across zoom changes')
+  }
+  if (!runtimeSceneText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`')) {
+    throw new Error('expected storyboard widget runtime scene layout signature to exclude zoom-key churn for overlay auto-seeding')
+  }
+  if (!mediaLoopText.includes('const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6')) {
+    throw new Error('expected rich media overlay layout loop to detect zoom-scale changes separately from pan changes')
+  }
+  assertTextIncludes(mediaLoopText, ['scaleLayoutOnZoom?: boolean', 'zoomLayoutBaseBoxById', 'projectCollectiveScreenLayoutForZoom({'], 'expected rich media overlay layout loop to support proportional zoom layout projection')
+  assertTextIncludes(mediaOverlaysText, ['scaleLayoutOnZoom: storyboardWidgetSurfaceRendererMode'], 'expected Storyboard Widget shared rich-media overlays to opt into proportional zoom layout projection')
+}
+
+type ProbeRect = {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+function measureCollectiveMetrics(rects: ProbeRect[]) {
+  const centroid = rects.reduce((acc, rect) => ({
+    x: acc.x + rect.left + rect.width / 2,
+    y: acc.y + rect.top + rect.height / 2,
+  }), { x: 0, y: 0 })
+  centroid.x /= Math.max(1, rects.length)
+  centroid.y /= Math.max(1, rects.length)
+  const avgRadius =
+    rects.reduce((sum, rect) => {
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      return sum + Math.hypot(cx - centroid.x, cy - centroid.y)
+    }, 0) / Math.max(1, rects.length)
+  return { centroidX: centroid.x, centroidY: centroid.y, avgRadius }
+}
+
+function projectScreenLayoutAcrossZoom(args: {
+  previousRects: ProbeRect[]
+  nextWidth: number
+  nextHeight: number
+  anchorX: number
+  anchorY: number
+}): ProbeRect[] {
+  return args.previousRects.map(rect => {
+    const baseScale = rect.width / Math.max(1, args.nextWidth)
+    const pos = projectCollectiveScreenLayoutForZoom({
+      base: { left: rect.left, top: rect.top, scale: baseScale },
+      scale: 1,
+      anchorX: args.anchorX,
+      anchorY: args.anchorY,
+      baseWidth: args.nextWidth,
+      baseHeight: args.nextHeight,
+    })
+    return { left: pos.left, top: pos.top, width: args.nextWidth, height: args.nextHeight }
+  })
+}
+
+export function testStoryboardWidgetOverlayMetricProbeScalesProportionallyAcrossZoom() {
+  const centers = [
+    { x: 520, y: 320 },
+    { x: 760, y: 320 },
+    { x: 1000, y: 320 },
+    { x: 640, y: 560 },
+    { x: 880, y: 560 },
+    { x: 1120, y: 560 },
+  ]
+  const anchor = { x: 960, y: 540 }
+  const readWidgetScale = (zoomK: number) => computeCollectiveFollowPinnedScale({ zoomK, viewportW: 1920, viewportH: 1080, count: centers.length, baseWidth: 360, baseHeight: 520 })
+  const widgetNeutralScale = readWidgetScale(1)
+  const widgetZoomOutScale = readWidgetScale(0.5)
+  const widgetZoomInScale = readWidgetScale(2)
+  const widgetNeutralSize = computeWidgetScaledSize(widgetNeutralScale)
+  const widgetNeutralRects = centers.map(center => ({
+    left: center.x - widgetNeutralSize.width / 2,
+    top: center.y - widgetNeutralSize.height / 2,
+    width: widgetNeutralSize.width,
+    height: widgetNeutralSize.height,
+  }))
+  const widgetZoomOutSize = computeWidgetScaledSize(widgetZoomOutScale)
+  const widgetZoomInSize = computeWidgetScaledSize(widgetZoomInScale)
+  const widgetZoomOutRects = projectScreenLayoutAcrossZoom({ previousRects: widgetNeutralRects, nextWidth: widgetZoomOutSize.width, nextHeight: widgetZoomOutSize.height, anchorX: anchor.x, anchorY: anchor.y })
+  const widgetZoomInRects = projectScreenLayoutAcrossZoom({ previousRects: widgetNeutralRects, nextWidth: widgetZoomInSize.width, nextHeight: widgetZoomInSize.height, anchorX: anchor.x, anchorY: anchor.y })
+
+  const richSizingConfig = {
+    widthRatio: 0.2,
+    widthMinPx: 220,
+    widthMaxPx: 360,
+    quantizeStepPx: 16,
+  }
+  const readRichSizing = (zoomK: number) => computeMediaOverlaySizing({ density: 'default', viewportW: 1920, viewportH: 1080, zoomK, itemCount: centers.length, config: richSizingConfig })
+  const richNeutral = readRichSizing(widgetNeutralScale)
+  const richZoomOut = readRichSizing(widgetZoomOutScale)
+  const richZoomIn = readRichSizing(widgetZoomInScale)
+  const richNeutralRects = centers.map(center => ({
+    left: center.x - richNeutral.panelW / 2,
+    top: center.y - richNeutral.panelH / 2,
+    width: richNeutral.panelW,
+    height: richNeutral.panelH,
+  }))
+  const richZoomOutRects = projectScreenLayoutAcrossZoom({ previousRects: richNeutralRects, nextWidth: richZoomOut.panelW, nextHeight: richZoomOut.panelH, anchorX: anchor.x, anchorY: anchor.y })
+  const richZoomInRects = projectScreenLayoutAcrossZoom({ previousRects: richNeutralRects, nextWidth: richZoomIn.panelW, nextHeight: richZoomIn.panelH, anchorX: anchor.x, anchorY: anchor.y })
+
+  const widgetNeutralMetrics = measureCollectiveMetrics(widgetNeutralRects)
+  const widgetZoomOutMetrics = measureCollectiveMetrics(widgetZoomOutRects)
+  const widgetZoomInMetrics = measureCollectiveMetrics(widgetZoomInRects)
+  const richNeutralMetrics = measureCollectiveMetrics(richNeutralRects)
+  const richZoomOutMetrics = measureCollectiveMetrics(richZoomOutRects)
+  const richZoomInMetrics = measureCollectiveMetrics(richZoomInRects)
+
+  const assertScaledRadius = (label: string, actual: number, expected: number) => {
+    if (Math.abs(actual - expected) > 0.001) {
+      throw new Error(`expected ${label} average radius to scale with panel size, actual=${actual} expected=${expected}`)
+    }
+  }
+  assertScaledRadius('widget zoom-out', widgetZoomOutMetrics.avgRadius, widgetNeutralMetrics.avgRadius * (widgetZoomOutSize.width / widgetNeutralSize.width))
+  assertScaledRadius('widget zoom-in', widgetZoomInMetrics.avgRadius, widgetNeutralMetrics.avgRadius * (widgetZoomInSize.width / widgetNeutralSize.width))
+  assertScaledRadius('rich-media zoom-out', richZoomOutMetrics.avgRadius, richNeutralMetrics.avgRadius * (richZoomOut.panelW / richNeutral.panelW))
+  assertScaledRadius('rich-media zoom-in', richZoomInMetrics.avgRadius, richNeutralMetrics.avgRadius * (richZoomIn.panelW / richNeutral.panelW))
+  if (!(widgetZoomOutMetrics.avgRadius < widgetNeutralMetrics.avgRadius && widgetZoomInMetrics.avgRadius > widgetNeutralMetrics.avgRadius)) {
+    throw new Error(`expected widget layout to contract on zoom-out and expand on zoom-in, out=${widgetZoomOutMetrics.avgRadius} neutral=${widgetNeutralMetrics.avgRadius} in=${widgetZoomInMetrics.avgRadius}`)
+  }
+  if (!(richZoomOutMetrics.avgRadius <= richNeutralMetrics.avgRadius && richZoomInMetrics.avgRadius >= richNeutralMetrics.avgRadius)) {
+    throw new Error(`expected rich-media layout to not diverge on zoom-out or collide on zoom-in, out=${richZoomOutMetrics.avgRadius} neutral=${richNeutralMetrics.avgRadius} in=${richZoomInMetrics.avgRadius}`)
+  }
+}

@@ -56,7 +56,7 @@ export async function testRichMediaPanelMarkdownScrollSurfaceCanPanCanvasWhenFor
         title: `Markdown ${label}`,
         url: '',
         kind: 'iframe',
-        panelChrome: 'flowEditor',
+        panelChrome: 'storyboardWidget',
         interactive: true,
         forwardPointerTo: () => doc.body,
         shouldForwardPointerDown: () => true,

@@ -1,15 +1,15 @@
 import {
   testD3RichMediaOverlayForwardsWheelBeforeScrollableBody,
   testRichMediaPanelEditorModeDisablesInteractiveContentForDragging,
-  testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll,
-  testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant,
+  testRichMediaPanelStoryboardWidgetModifierWheelZoomKeepsInteractiveScroll,
+  testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVariant,
 } from '@/__tests__/richMediaPanelEditorModeDragRegression.test'
 import {
-  testRichMediaPanelFlowEditorChromeMaintainsContentAspectAcrossZoom,
+  testRichMediaPanelStoryboardWidgetChromeMaintainsContentAspectAcrossZoom,
   testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath,
   testRichMediaPanelUsesSectionBodyResizeHandleSsot,
   testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot,
-} from '@/__tests__/flowEditorRichMediaPanelResizeHandleSsotRegression.test'
+} from '@/__tests__/storyboardWidgetRichMediaPanelResizeHandleSsotRegression.test'
 import {
   testRichMediaPanelDirectImageSurfaceStartsOverlayDrag,
 } from '@/__tests__/richMediaPanelDirectSurfaceDragRegression.test'
@@ -26,18 +26,19 @@ import {
   testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix,
   testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners,
 } from '@/__tests__/richMediaSurfaceCoverage.test'
+import { testStoryboardWidgetScreenAuthorityPanPreservesTranslateScaleTransforms } from '@/__tests__/storyboardWidgetScreenAuthorityTransformScaleRegression.test'
 import { testStaticRichMediaPanelPreviewRendersImageVideoAndIframe } from '@/__tests__/staticRichMediaPanelPreview.test'
 
 async function main() {
   testRichMediaPanelEditorModeDisablesInteractiveContentForDragging()
-  await testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll()
+  await testRichMediaPanelStoryboardWidgetModifierWheelZoomKeepsInteractiveScroll()
   testD3RichMediaOverlayForwardsWheelBeforeScrollableBody()
   await testRichMediaPanelDirectImageSurfaceStartsOverlayDrag()
-  testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
+  testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVariant()
 
   testRichMediaPanelUsesSectionBodyResizeHandleSsot()
   testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot()
-  testRichMediaPanelFlowEditorChromeMaintainsContentAspectAcrossZoom()
+  testRichMediaPanelStoryboardWidgetChromeMaintainsContentAspectAcrossZoom()
   testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath()
 
   testRichMediaPanelTextFallbackRendersMarkdownBlocksAsHtml()
@@ -48,6 +49,7 @@ async function main() {
 
   testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix()
   testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners()
+  testStoryboardWidgetScreenAuthorityPanPreservesTranslateScaleTransforms()
   await testStaticRichMediaPanelPreviewRendersImageVideoAndIframe()
 
   console.log('OK subsetRichMediaSmoke')

@@ -19,30 +19,30 @@ export const testGeospatialOverlayHostNotGatedBySidebar = () => {
   }
 }
 
-export const testFitToViewActionDoesNotRouteFlowEditor2dToGeospatialFallback = () => {
+export const testFitToViewActionDoesNotRouteStoryboard2dToGeospatialFallback = () => {
   const fitToViewPath = path.resolve(process.cwd(), 'src', 'features', 'toolbar', 'hooks', 'useFitToViewAction.ts')
   const text = readUtf8(fitToViewPath)
-  if (!text.includes("const flowEditor2dActive = canvas2dRenderer === 'flowEditor'")) {
-    throw new Error('Expected Fit-to-View action to fast-path Flow Editor onto the canvas zoom pipeline')
+  if (!text.includes("const storyboard2dActive = canvas2dRenderer === 'storyboard'")) {
+    throw new Error('Expected Fit-to-View action to fast-path Storyboard onto the canvas zoom pipeline')
   }
-  if (!text.includes('if (flowEditor2dActive) {')) {
-    throw new Error('Expected Fit-to-View action to guard Flow Editor before geospatial fallback branches')
+  if (!text.includes('if (storyboard2dActive) {')) {
+    throw new Error('Expected Fit-to-View action to guard Storyboard before geospatial fallback branches')
   }
   if (!text.includes("const allowGeospatialFit = geospatialEnabled && canvasRenderMode !== '2d'")) {
-    throw new Error('Expected Fit-to-View action to keep Flow Editor 2D requests on the canvas zoom pipeline')
+    throw new Error('Expected Fit-to-View action to keep Storyboard 2D requests on the canvas zoom pipeline')
   }
-  const flowEditorGuardIndex = text.indexOf('if (flowEditor2dActive) {')
+  const storyboardGuardIndex = text.indexOf('if (storyboard2dActive) {')
   const geospatialGuardIndex = text.indexOf('if (allowGeospatialFit)')
-  const flowEditorBranchText =
-    flowEditorGuardIndex >= 0 && geospatialGuardIndex > flowEditorGuardIndex
-      ? text.slice(flowEditorGuardIndex, geospatialGuardIndex)
+  const storyboardBranchText =
+    storyboardGuardIndex >= 0 && geospatialGuardIndex > storyboardGuardIndex
+      ? text.slice(storyboardGuardIndex, geospatialGuardIndex)
       : ''
   const fallbackFitZoomIndex = text.lastIndexOf("requestZoom('fit', { intent: 'fitToView' })")
   if (
-    flowEditorGuardIndex < 0
+    storyboardGuardIndex < 0
     || geospatialGuardIndex < 0
-    || flowEditorGuardIndex > geospatialGuardIndex
-    || !flowEditorBranchText.includes("requestZoom('fit', { intent: 'fitToView' })")
+    || storyboardGuardIndex > geospatialGuardIndex
+    || !storyboardBranchText.includes("requestZoom('fit', { intent: 'fitToView' })")
     || fallbackFitZoomIndex < geospatialGuardIndex
   ) {
     throw new Error('Expected non-geospatial Fit-to-View path to route through fit zoom requests for 2D canvas')
@@ -64,39 +64,39 @@ export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
   }
 }
 
-export const testGeospatialFlowEditorWidgetDropBridgeStaysMounted = () => {
+export const testGeospatialStoryboardWidgetDropBridgeStaysMounted = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
   const viewportText = readUtf8(viewportPath)
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
 
-  if (!viewportText.includes("geospatialModeEnabled && active2dSurface === 'flowEditor'")) {
-    throw new Error('Expected Geospatial mode to mount FlowEditor widget drop bridge when flowEditor renderer is selected')
+  if (!viewportText.includes("geospatialModeEnabled && active2dSurface === 'storyboard'")) {
+    throw new Error('Expected Geospatial mode to mount the Storyboard widget drop bridge when Storyboard is selected')
   }
-  if (!viewportText.includes('<FlowEditorCanvas active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />')) {
-    throw new Error('Expected Geospatial flowEditor bridge to mount with widgetDropCaptureEnabled and geospatial widget panel mode')
+  if (!viewportText.includes('<StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />')) {
+    throw new Error('Expected Geospatial Storyboard widget bridge to mount with widget-drop capture and geospatial panel mode')
   }
-  if (!flowEditorText.includes('widgetDropCaptureEnabled')) {
-    throw new Error('Expected FlowEditorCanvas to expose widgetDropCaptureEnabled override for drop listeners')
+  if (!storyboardWidgetText.includes('widgetDropCaptureEnabled')) {
+    throw new Error('Expected StoryboardWidgetCanvas to expose widgetDropCaptureEnabled override for drop listeners')
   }
-  if (!flowEditorText.includes('geospatialWidgetPanelMode')) {
-    throw new Error('Expected FlowEditorCanvas to expose geospatial widget panel overlay mode')
+  if (!storyboardWidgetText.includes('geospatialWidgetPanelMode')) {
+    throw new Error('Expected StoryboardWidgetCanvas to expose geospatial widget panel overlay mode')
   }
 }
 
 export const testGeospatialWidgetPanelsDefaultToFloatingAndHideMapDots = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWidgetDropBridge.ts')
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetDropBridge.ts')
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const viewportText = readUtf8(viewportPath)
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
   const hostText = readUtf8(hostPath)
 
   if (!viewportText.includes('geospatialPanelNodeIds')) {
     throw new Error('Expected CanvasViewport geospatial snapshot to publish panel-rendered widget node ids')
   }
-  if (!flowEditorText.includes("import { setFlowWidgetPinnedById } from '@/lib/flowEditor/flowWidgetPinnedState'")
-    || !flowEditorText.includes('setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
+  if (!storyboardWidgetText.includes("import { setFlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'")
+    || !storyboardWidgetText.includes('setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
     throw new Error('Expected geospatial widget drops to default to unpinned floating panels')
   }
   if (!hostText.includes('if (panelNodeIds.has(nodeId)) continue')) {
@@ -105,54 +105,54 @@ export const testGeospatialWidgetPanelsDefaultToFloatingAndHideMapDots = () => {
 }
 
 export const testGeospatialWidgetPanelsResolvePendingOpenAgainstRenderedGraph = () => {
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
 
-  if (!flowEditorText.includes('resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending')) {
-    throw new Error('Expected FlowEditorCanvas to resolve pending widget opens against rendered graph canonical ids')
+  if (!storyboardWidgetText.includes('resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending')) {
+    throw new Error('Expected StoryboardWidgetCanvas to resolve pending widget opens against rendered graph canonical ids')
   }
-  if (!flowEditorText.includes('Array.isArray(renderGraphDataOverride?.nodes)')) {
+  if (!storyboardWidgetText.includes('Array.isArray(renderGraphDataOverride?.nodes)')) {
     throw new Error('Expected pending widget-open resolution to inspect rendered graph nodes, not only local draft nodes')
   }
 }
 
 export const testGeospatialWidgetPanelsDoNotBindDiscoveryWidgetsToGeoCoordinates = () => {
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
 
-  if (!flowEditorText.includes('if (!geospatialWidgetPanelMode) {')) {
+  if (!storyboardWidgetText.includes('if (!geospatialWidgetPanelMode) {')) {
     throw new Error('Expected geospatial widget panel mode to guard coordinate-coupled discovery widget behavior')
   }
-  if (!flowEditorText.includes('if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && !geospatialWidgetPanelMode) {')) {
+  if (!storyboardWidgetText.includes('if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && !geospatialWidgetPanelMode) {')) {
     throw new Error('Expected post-drop discovery geo sync to stay disabled for geospatial widget panel mode')
   }
-  if (!flowEditorText.includes('if (!geospatialWidgetPanelMode) {\n          const dropGeo = readFiniteGeoLatLng(properties)')) {
+  if (!storyboardWidgetText.includes('if (!geospatialWidgetPanelMode) {\n          const dropGeo = readFiniteGeoLatLng(properties)')) {
     throw new Error('Expected map recentering to stay disabled for geospatial widget panel mode discovery widget drops')
   }
 }
 
 export const testGeospatialWidgetPanelsOverrideStalePinnedReuseOnDrop = () => {
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWidgetDropBridge.ts')
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetDropBridge.ts')
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
 
-  if (!flowEditorText.includes('const nextPinnedMap = setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
+  if (!storyboardWidgetText.includes('const nextPinnedMap = setFlowWidgetPinnedById(st.flowWidgetPinnedByNodeId, actualId, false)')) {
     throw new Error('Expected geospatial widget panel drops to override stale pinned state for reused node ids')
   }
-  if (!flowEditorText.includes('if (nextPinnedMap) st.setFlowWidgetPinnedByNodeId(nextPinnedMap)')) {
+  if (!storyboardWidgetText.includes('if (nextPinnedMap) st.setFlowWidgetPinnedByNodeId(nextPinnedMap)')) {
     throw new Error('Expected geospatial widget panel drops to force new widgets back to floating mode')
   }
 }
 
 export const testGeospatialWidgetPanelsIncludeRichMediaPanelInSharedOpenPath = () => {
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
   const grabMapsPoiPath = path.resolve(process.cwd(), 'src', 'features', 'geospatial', 'grabMapsPoiRichMedia.ts')
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
   const grabMapsPoiText = readUtf8(grabMapsPoiPath)
 
-  if (flowEditorText.includes('entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID')) {
+  if (storyboardWidgetText.includes('entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID')) {
     throw new Error('Expected Rich Media Panel drops to reuse the shared pending widget-open path')
   }
-  if (flowEditorText.includes("String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
+  if (storyboardWidgetText.includes("String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
     throw new Error('Expected Rich Media Panel nodes to stay eligible for shared geospatial widget overlay visibility')
   }
   if (!grabMapsPoiText.includes("from '@/lib/render/richMediaSsot'") || !grabMapsPoiText.includes('resolvePreferredRichMediaPanelNodeId')) {
@@ -166,10 +166,10 @@ export const testGeospatialWidgetPanelsIncludeRichMediaPanelInSharedOpenPath = (
 export const testGeospatialHostPublishesCursorLngLatForWidgetDropPlacement = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
-  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const storyboardWidgetPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.tsx')
   const hostText = readUtf8(hostPath)
   const sliceText = readUtf8(slicePath)
-  const flowEditorText = readUtf8(flowEditorPath)
+  const storyboardWidgetText = readUtf8(storyboardWidgetPath)
   if (!hostText.includes("map.on?.('mousemove'")) {
     throw new Error('Expected GeospatialHost to track cursor lng/lat from map mousemove events')
   }
@@ -182,11 +182,11 @@ export const testGeospatialHostPublishesCursorLngLatForWidgetDropPlacement = () 
   if (!sliceText.includes('setGeospatialCursorLngLat')) {
     throw new Error('Expected geospatial store to expose setGeospatialCursorLngLat SSOT action')
   }
-  if (!flowEditorText.includes('syncGrabMapsDiscoveryGeoFromDropCursor')) {
-    throw new Error('Expected FlowEditor bridge drop path to perform a short post-drop geo sync for GrabMaps discovery widgets')
+  if (!storyboardWidgetText.includes('syncGrabMapsDiscoveryGeoFromDropCursor')) {
+    throw new Error('Expected StoryboardWidget bridge drop path to perform a short post-drop geo sync for GrabMaps discovery widgets')
   }
-  if (!flowEditorText.includes('readGeospatialCursorLngLat()')) {
-    throw new Error('Expected FlowEditor drop path to reuse geospatial cursor lng/lat for widget placement')
+  if (!storyboardWidgetText.includes('readGeospatialCursorLngLat()')) {
+    throw new Error('Expected StoryboardWidget drop path to reuse geospatial cursor lng/lat for widget placement')
   }
 }
 
@@ -797,8 +797,8 @@ export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   if (!viewportText.includes('const renderPoiInRichMediaPanel = React.useCallback')) {
     throw new Error('Expected CanvasViewport to define the shared POI -> Rich Media Panel handoff')
   }
-  if (!viewportText.includes('openWidgetNodeIdsByRenderer?.flowEditor')) {
-    throw new Error('Expected CanvasViewport to resolve POI targets against Flow Editor widget-panel ids in geospatial mode')
+  if (!viewportText.includes('openWidgetNodeIdsByRenderer?.storyboard')) {
+    throw new Error('Expected CanvasViewport to resolve POI targets against Storyboard Widget-panel ids in geospatial mode')
   }
   if (!viewportText.includes('const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(normalizedDetail)')) {
     throw new Error('Expected CanvasViewport to build a single shared POI srcdoc payload for Rich Media rendering')
@@ -833,8 +833,8 @@ export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   if (!hostText.includes('renderPoiInRichMediaPanel?.(detail)')) {
     throw new Error('Expected GeospatialHost POI handler to invoke the shared Rich Media Panel renderer before clipboard fallback')
   }
-  if (!viewportText.includes('flowEditorOpenWidgetNodeIds')) {
-    throw new Error('Expected CanvasViewport POI resolution to reuse Flow Editor widget ids explicitly')
+  if (!viewportText.includes('storyboardWidgetOpenWidgetNodeIds')) {
+    throw new Error('Expected CanvasViewport POI resolution to reuse Storyboard Widget ids explicitly')
   }
   if (!viewportText.includes('gympgrphBridge.addNode(buildRichMediaPanelNode')) {
     throw new Error('Expected CanvasViewport POI handoff to auto-create a Rich Media Panel when none exists')

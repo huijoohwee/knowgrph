@@ -15,7 +15,7 @@ The reference document has already been written to `docs/documents/knowgrph-api-
     - Keep `demo_status` scoped to Dev/runtime-slot behavior
     - Set `deployed_api_claim: false`
     - Reference the API table keys for every flow node
-    - Declare compatibility with `2D Renderer: Flow Editor`, `2D Renderer: Storyboard`, and `2D Renderer: Strybldr`
+    - Declare compatibility with `2D Renderer: Storyboard` and `2D Renderer: Strybldr`
     - _Requirements: 20.1, 20.2, 20.3, 20.9_
 
   - [ ] 0.2 Validate the demo runtime-value contract
@@ -42,7 +42,7 @@ The reference document has already been written to `docs/documents/knowgrph-api-
     - _Requirements: 1.1–1.9_
 
 - [ ] 2. Validate document header and overlay section (Req 2)
-  - [ ] 2.1 Write a header validator (`scripts/validate-videodb-header.ts`) that reads the markdown file and asserts: H1 contains exact text `knowgrph — VideoDB API Reference (SSOT + Codebase Map)`, SSOT line contains `https://docs.videodb.io/api-reference/introduction.md`, scope section mentions `MainPanel Integrations`, `FlowEditor Manager`, `NodeOverlayEditor`, table columns legend lists all nine column names, and the `## knowgrph VideoDB Integration Overlay` table has ≥ 5 rows
+  - [ ] 2.1 Write a header validator (`scripts/validate-videodb-header.ts`) that reads the markdown file and asserts: H1 contains exact text `knowgrph — VideoDB API Reference (SSOT + Codebase Map)`, SSOT line contains `https://docs.videodb.io/api-reference/introduction.md`, scope section mentions `MainPanel Integrations`, `StoryboardWidget Manager`, `NodeOverlayEditor`, table columns legend lists all nine column names, and the `## knowgrph VideoDB Integration Overlay` table has ≥ 5 rows
     - Verify auth/no-hardcode assertion present in overlay section (Req 2.7)
     - Verify `## Async vs Synchronous Operation Notes` section exists with at least one sync and one async endpoint named, and `GET /async-response/{id}` is named as the shared polling endpoint (Req 2.8)
     - Verify `## Pipeline Correctness Properties` section exists with at least three properties: upload → index → search, stream URL validity, transcription round-trip, and async polling termination (Req 2.9)
@@ -256,7 +256,7 @@ The reference document has already been written to `docs/documents/knowgrph-api-
     - Surface: `VideoDB pipeline`
     - Directive: Keep VideoDB integration rows, Workflow Manager schema fields, and Props Panel Video widget fields generated from one VideoDB TS SSOT. Forbid duplicate local row maps and manual row edits.
     - SSOT Source: `canvas/src/features/integrations/videodbSsot.ts`
-    - Runtime Consumer: `MainPanel Integrations`, `FlowEditor Manager`, `NodeOverlayEditor`
+    - Runtime Consumer: `MainPanel Integrations`, `StoryboardWidget Manager`, `NodeOverlayEditor`
     - Doc Emitter: `canvas/src/cli/generate-videodb-reference.ts` (planned)
     - Ensure the row text is ≤ 50 words for the Directive cell, matching the canonical directive constraint
     - _Requirements: 2.6 (overlay SSOT sync directive row), 19.4_

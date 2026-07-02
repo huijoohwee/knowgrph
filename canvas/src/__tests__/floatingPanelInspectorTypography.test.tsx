@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GraphRecordInspector, type GraphRecordInspectorRow } from '@/features/graph-inspector/ui/GraphRecordInspector'
-import FlowEditorInspector from '@/components/FlowEditor/FlowEditorInspector'
+import StoryboardWidgetInspector from '@/components/StoryboardWidget/StoryboardWidgetInspector'
 import type { GraphRecordColumnDoc } from '@/lib/graph-record-db'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -67,7 +67,7 @@ export async function testInspectorTypographyUsesUiSettings() {
             onDeleteRow: () => void 0,
             onChangeCell: () => void 0,
           }),
-          React.createElement(FlowEditorInspector, {
+          React.createElement(StoryboardWidgetInspector, {
             active: true,
             tab: 'node',
             setTab: () => void 0,
@@ -119,7 +119,7 @@ export async function testInspectorTypographyUsesUiSettings() {
     }
 
     const textarea = container.querySelector('textarea')
-    if (!textarea) throw new Error('expected Flow Editor inspector to render a textarea')
+    if (!textarea) throw new Error('expected Storyboard Widget inspector to render a textarea')
     const taClass = String(textarea.getAttribute('class') || '')
     if (!taClass.includes('text-[13px]')) {
       throw new Error(`expected textarea to use monospace size class, got ${JSON.stringify(taClass)}`)

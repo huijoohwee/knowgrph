@@ -150,7 +150,7 @@ export function testAnimaticTimelineModelAppliesPersistedLaneOrder() {
       nodes: [
         { id: 'NODE_CLIP_01', label: 'Clip', type: 'Clip', properties: { params: { beat_ref: 'beat_01' } } },
         { id: 'NODE_AUDIO_01', label: 'Audio', type: 'Audio', properties: { params: { beat_ref: 'beat_01' } } },
-        { id: 'NODE_OVERLAY_01', label: 'Overlay', type: 'Overlay', properties: { params: { beat_ref: 'beat_01' } } },
+        { id: 'WIDGET_01', label: 'Overlay', type: 'Overlay', properties: { params: { beat_ref: 'beat_01' } } },
       ],
       edges: [],
     } as GraphData,

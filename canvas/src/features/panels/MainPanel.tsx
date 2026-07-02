@@ -35,7 +35,7 @@ const ResearchCompilerViewLazy = React.lazy(() => import('./views/ResearchCompil
 const CollaborationViewLazy = React.lazy(() => import('./views/CollaborationView'))
 const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
 const SkillsCommandsViewLazy = React.lazy(() => import('@/features/panels/views/SkillsCommandsView'))
-const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
+const StoryboardWidgetManagerViewLazy = React.lazy(() => import('@/features/panels/views/StoryboardWidgetManagerView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
 const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/HistoryView'))
@@ -458,7 +458,7 @@ export default function MainPanel({
         >
           {tab === 'workflowManager' && (
             <React.Suspense fallback={null}>
-              <FlowEditorManagerViewLazy
+              <StoryboardWidgetManagerViewLazy
                 searchQuery={search}
                 requestedTab={requestedWorkflowManagerTab}
                 requestedEntryLabel={requestedWorkflowManagerEntryLabel}

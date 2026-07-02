@@ -8,7 +8,7 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_FORM_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
-} from '@/lib/config.flow-editor'
+} from '@/lib/config.storyboard-widget'
 import {
   appendEmbeddedStructuredTextCandidates,
   collectStructuredTextCandidates,

@@ -17,7 +17,7 @@ import {
 } from '@/lib/mermaid/mermaidGitGraphSelection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { useFlowEditorDiagramSelectionBridge } from './useFlowEditorDiagramSelectionBridge'
+import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from './useMermaidGitGraphDocument'
 
 const GITGRAPH_COMMAND_LABELS: Record<MermaidGitGraphAddKind, string> = {
@@ -53,7 +53,7 @@ export function GitGraphFloatingPanelView() {
   )
   const { code, commitGitGraphCode, gitGraphModel, graphData } = useMermaidGitGraphDocument()
   const gitGraphDiagramModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gitgraph'), [code])
-  const { handleDiagramSelectedRowKeyChange } = useFlowEditorDiagramSelectionBridge({
+  const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: gitGraphDiagramModel,
     kind: 'gitgraph',

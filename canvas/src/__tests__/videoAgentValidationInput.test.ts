@@ -172,13 +172,12 @@ export function testVideoAgentValidationConfigSupportsUserConfiguredImportUrls()
   }
   const visualAnnotationRendererIds = VISUAL_ANNOTATION_E2E_CANVAS_2D_RENDERERS.join('|')
   if (
-    visualAnnotationRendererIds !== 'flowEditor|media|storyboard'
-    || !isVisualAnnotationE2eCanvas2dRenderer('flowEditor')
+    visualAnnotationRendererIds !== 'media|storyboard'
     || !isVisualAnnotationE2eCanvas2dRenderer('media')
     || !isVisualAnnotationE2eCanvas2dRenderer('storyboard')
     || isVisualAnnotationE2eCanvas2dRenderer('d3')
   ) {
-    throw new Error(`expected Flow Editor, Media, and Storyboard to share the visual annotation E2E runtime, got ${visualAnnotationRendererIds}`)
+    throw new Error(`expected Media and Storyboard to share the visual annotation E2E runtime, got ${visualAnnotationRendererIds}`)
   }
 
   const configSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'video-agent', 'videoAgentValidationConfig.ts'), 'utf8')
@@ -401,7 +400,7 @@ export async function testVideoAgentPipelineUsesExternalValidationInputsWithoutR
   const frameAnalysisPanelIds = new Set(frameAnalysisPanels.map(node => readKtvString(node.id)).filter(Boolean))
   const edges = Array.isArray(flow?.edges) ? flow.edges as Array<Record<string, unknown>> : []
   if (!edges.some(edge => frameAnalysisPanelIds.has(String(edge.target || '')) && String(edge.sourceHandle || '') === 'frameBoundingBoxes')) {
-    throw new Error('expected frameBoundingBoxes to route into a RichMediaPanel through explicit Flow Editor edges')
+    throw new Error('expected frameBoundingBoxes to route into a RichMediaPanel through explicit Storyboard Widget edges')
   }
   if (!edges.some(edge => String(edge.target || '') === 'floating_panel_media_annotation_panel' && String(edge.targetHandle || '') === 'frameBoundingBoxes')) {
     throw new Error('expected frameBoundingBoxes to route explicitly into FloatingPanel Media Annotation Outputs')
@@ -529,7 +528,7 @@ export async function testVideoAgentImportUrlMaterializesCompleteParsedGraph() {
     const videoAgentPanels = nodes.filter(node => videoAgentPanelIds.has(String(node.id || '')))
     const datasetPanel = videoAgentPanels.find(node => String(node.id || '') === 'video_agent_dataset_panel')
     if (!sourceSpecNode || !rendererNode || videoAgentPanels.length !== VIDEO_AGENT_RICH_MEDIA_PANEL_ROUTES.length || !datasetPanel) {
-      throw new Error(`expected complete video-agent import to parse Flow Editor graph nodes, got ${JSON.stringify(nodes.map(node => ({ id: node.id, type: node.type })))}`)
+      throw new Error(`expected complete video-agent import to parse Storyboard Widget graph nodes, got ${JSON.stringify(nodes.map(node => ({ id: node.id, type: node.type })))}`)
     }
     const sourceSpecProperties = (sourceSpecNode.properties || {}) as Record<string, unknown>
     if (

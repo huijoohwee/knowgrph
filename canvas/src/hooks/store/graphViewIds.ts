@@ -4,7 +4,7 @@ import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetE
 import {
   deriveFrontmatterFlowOverlayNodeIds,
   resolveGraphNodeIdByCanonicalId,
-} from '@/lib/flowEditor/frontmatterOverlayNodeIds'
+} from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
 
 export const normalizeIds = (ids: string[]): string[] => {
   const unique = new Set<string>()

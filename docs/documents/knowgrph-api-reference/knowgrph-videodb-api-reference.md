@@ -33,7 +33,7 @@ CLI generator (planned): `canvas/src/cli/generate-videodb-reference.ts`
 Generated file: `docs/documents/knowgrph-api-reference/knowgrph-videodb-api-reference.md`.
 
 Scope:
-- This static reference covers the VideoDB API surface relevant to `MainPanel Integrations`, `FlowEditor Manager`, and `NodeOverlayEditor` — the three knowgrph surfaces that consume integration SSOT rows at runtime.
+- This static reference covers the VideoDB API surface relevant to `MainPanel Integrations`, `StoryboardWidget Manager`, and `WidgetEditor` — the three knowgrph surfaces that consume integration SSOT rows at runtime.
 - Rows are mirrored by the TS SSOT (`videodbSsot.ts`) for the MainPanel Integrations runtime surface; the CLI generator remains planned until promoted.
 
 Table columns:

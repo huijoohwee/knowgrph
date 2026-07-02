@@ -4,7 +4,7 @@ import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/grap
 export function testMarkdownFrontmatterFlowGraphPreservesBalancedEdgeLayoutMetadata() {
   const md = [
     '---',
-    'kgCanvas2dRenderer: "flowEditor"',
+    'kgCanvas2dRenderer: "storyboard"',
     'kgDocumentSemanticMode: "document"',
     'kgFrontmatterModeEnabled: true',
     'flow:',

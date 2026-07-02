@@ -6,7 +6,7 @@ export const KNOWGRPH_AI_SHOWRUNNER_VDEOXPLN_ID = 'knowgrph-ai-showrunner' as co
 export const KNOWGRPH_AI_SHOWRUNNER_VDEOXPLN_ENTRY = Object.freeze({
   id: KNOWGRPH_AI_SHOWRUNNER_VDEOXPLN_ID,
   title: 'Knowgrph AI Showrunner',
-  purpose: 'Run provider-neutral multi-agent creative pipelines for podcasts, narrative games, and writers rooms through existing Source Files, memory, MCP, KGC, and Flow Editor owners.',
+  purpose: 'Run provider-neutral multi-agent creative pipelines for podcasts, narrative games, and writers rooms through existing Source Files, memory, MCP, KGC, and Storyboard Widget owners.',
   scope: 'local-stdio-and-browser-local',
   mutation: 'local-approval-gated',
   triggers: ['ai showrunner', 'podcast pipeline', 'narrative game', 'writers room', 'creative state', 'multi-agent orchestration'],

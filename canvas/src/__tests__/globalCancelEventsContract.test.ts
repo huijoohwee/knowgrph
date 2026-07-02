@@ -59,7 +59,7 @@ export const testGlobalCancelEventsHelperCentralizesPointerBlurAndVisibilityFall
 
 export const testGlobalCancelEventsCallsitesUseSharedHelperBoundary = () => {
   const helperText = readUtf8('src/lib/browser/globalCancelEvents.ts')
-  const editorText = readUtf8('src/components/FlowEditor/NodeOverlayEditorView.tsx')
+  const editorText = readUtf8('src/components/StoryboardWidget/WidgetEditorView.tsx')
 
   if (!helperText.includes('export function subscribeGlobalCancelEvents')) {
     throw new Error('expected global cancel helper module to expose shared pointer/blur/visibility subscription')
@@ -71,12 +71,12 @@ export const testGlobalCancelEventsCallsitesUseSharedHelperBoundary = () => {
     throw new Error('expected global cancel helper to own visibilitychange listener wiring')
   }
   if (!editorText.includes('subscribeGlobalCancelEvents({')) {
-    throw new Error('expected NodeOverlayEditor to subscribe through the shared global cancel helper')
+    throw new Error('expected WidgetEditor to subscribe through the shared global cancel helper')
   }
   if (editorText.includes("window.addEventListener('pointerup', unlock, true)")) {
-    throw new Error('expected NodeOverlayEditor to avoid raw pointerup unlock listener wiring')
+    throw new Error('expected WidgetEditor to avoid raw pointerup unlock listener wiring')
   }
   if (editorText.includes("document.addEventListener('visibilitychange', unlock, true)")) {
-    throw new Error('expected NodeOverlayEditor to avoid raw visibilitychange unlock listener wiring')
+    throw new Error('expected WidgetEditor to avoid raw visibilitychange unlock listener wiring')
   }
 }

@@ -1,5 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
 import { hashSchemaForPreviewSync } from '@/features/canvas/canvasSyncHashes'
 
@@ -29,7 +29,7 @@ export function applyCanvasPreviewSyncPayload(args: {
     lastInboundPreviewSchemaHashRef,
   } = args
   const store = useGraphStore.getState()
-  const lockRenderer = store.canvasRenderMode === '2d' && isFlowEditorCanvas2dRenderer(store.canvas2dRenderer)
+  const lockRenderer = store.canvasRenderMode === '2d' && isStoryboardCanvas2dRenderer(store.canvas2dRenderer)
 
   if (!lockRenderer && payload.canvasRenderMode && payload.canvasRenderMode !== store.canvasRenderMode) {
     try {
