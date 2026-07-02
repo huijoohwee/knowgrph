@@ -84,13 +84,13 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
       throw new Error(`expected timeline transport interaction helper to stay centralized: ${snippet}`)
     }
   }
-  if (TIMELINE_TRANSPORT_ZOOM_LEVELS.join(',') !== '1,1.5,2,3,4') {
+  if (TIMELINE_TRANSPORT_ZOOM_LEVELS.join(',') !== '1,1.25,1.5,2,2.5,3,4,5,6') {
     throw new Error('expected shared transport zoom levels to remain stable')
   }
   if (!TIMELINE_TRANSPORT_AUTOMATION_INTENTS.includes('center-playhead')) {
     throw new Error('expected shared transport automation intents to include playhead centering')
   }
-  if (resolveTimelineTransportZoom(99) !== 4 || resolveTimelineTransportNextZoomIndex(0, -1) !== 0) {
+  if (resolveTimelineTransportZoom(99) !== 6 || resolveTimelineTransportNextZoomIndex(0, -1) !== 0) {
     throw new Error('expected shared transport zoom helpers to clamp safely')
   }
   if (resolveTimelineTransportPlayheadPercent(25, 100) !== 25) {

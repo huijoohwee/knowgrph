@@ -1,0 +1,72 @@
+.timeline-transport-ruler--video-sequence {
+  overflow: hidden;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-editor {
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-lane-sidebar {
+  contain: layout paint;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll {
+  min-width: 0;
+  min-height: inherit;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  contain: layout paint;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll-content {
+  display: flex;
+  min-width: 100%;
+  align-items: stretch;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-content {
+  flex: 0 0 auto;
+  min-width: 100%;
+  border-top: 1px solid var(--kg-border, rgb(226 232 240 / 1));
+  contain: layout paint;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-append-space {
+  flex: 0 0 auto;
+  border-top: 1px dashed color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--kg-border, #e5e7eb) 48%, transparent) 1px, transparent 1px) repeat-x 0 0 / 40px 100%,
+    color-mix(in srgb, var(--kg-panel-bg, #fff) 82%, var(--kg-canvas-accent, #2563eb) 6%);
+  contain: layout paint;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick {
+  top: 0;
+  height: 24px;
+  justify-content: flex-start;
+  gap: 0;
+  padding-bottom: 0;
+  color: var(--kg-text-tertiary, rgb(107 114 128 / 1));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 14px;
+}
+
+.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-line {
+  top: 3px;
+  bottom: auto;
+  height: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 24%, transparent);
+}
+
+.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-label {
+  display: block;
+  margin-top: 9px;
+  padding-inline: 2px;
+  color: inherit;
+  text-decoration: none;
+}

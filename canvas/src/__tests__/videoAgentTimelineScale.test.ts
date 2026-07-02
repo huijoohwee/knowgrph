@@ -7,6 +7,8 @@ import {
 } from '@/lib/mermaid/mermaidDiagramCode'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  resolveVideoSequenceTimelineDisplayLaneId,
+  resolveVisibleVideoSequenceTimelineDisplayLanes,
   resolveVisibleVideoSequenceTimelineLanes,
 } from '@/components/timeline/videoSequenceTimeline'
 import { readMermaidGanttFrameSamples } from '@/lib/mermaid/mermaidGanttFrameThumbnailToken'
@@ -96,6 +98,39 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
     || mediaGantt.includes('kgthumb_')
   ) {
     throw new Error(`expected imported media Timeline to keep compact VIDEO/FBF/AUDIO tracks with frame samples on FBF: ${JSON.stringify({ mediaGantt, mediaLaneIds })}`)
+  }
+}
+
+export function testVideoSequenceBottomPanelExpandsMultipleVideoSourcesIntoDisplayLanes() {
+  const code = `gantt
+  title Video Sequence Timeline
+  dateFormat HH:mm
+  axisFormat %H:%M
+  section Source video
+  flower.mp4 : flower_mp4, kgpos_0, 5m
+  港岛仿生局.mp4 : hong_kong_mp4, kgpos_0, 5m
+  section Source audio
+  Source audio waveform : source_audio, kgpos_0, 5m`
+  const model = buildMermaidGanttTimelineModel(code)
+  const displayLanes = resolveVisibleVideoSequenceTimelineDisplayLanes(model.taskSpans, {
+    disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  })
+  const displayLaneIds = displayLanes.map(lane => lane.id).join(',')
+  const semanticLaneIds = resolveVisibleVideoSequenceTimelineLanes(model.taskSpans, {
+    disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  }).map(lane => lane.id).join(',')
+  const flowerSpan = model.taskSpans.find(span => span.label === 'flower.mp4')
+  const hongKongSpan = model.taskSpans.find(span => span.label === '港岛仿生局.mp4')
+  if (
+    !flowerSpan ||
+    !hongKongSpan ||
+    semanticLaneIds !== 'video,audio' ||
+    displayLaneIds !== 'video:flower,video:港岛仿生局,audio' ||
+    resolveVideoSequenceTimelineDisplayLaneId(flowerSpan, model.taskSpans, { disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS }) !== 'video:flower' ||
+    resolveVideoSequenceTimelineDisplayLaneId(hongKongSpan, model.taskSpans, { disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS }) !== 'video:港岛仿生局' ||
+    displayLanes.map(lane => lane.label).join(',') !== 'V1,V2,Audio'
+  ) {
+    throw new Error(`expected BottomPanel Timeline to expand multiple video sources into native display lanes: ${JSON.stringify({ displayLaneIds, semanticLaneIds, displayLanes })}`)
   }
 }
 
@@ -194,6 +229,7 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-transport-track-clip[data-kg-video-agent-compact-media="1"]::before',
     '[data-kg-video-agent-compact-media="1"] .timeline-transport-track-clip-move',
     '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-timecode',
+    '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-meta',
     '!verticalMarker && !compactVideoAgentMedia',
     '[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-audio-waveform',
     '.timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-frame-sample-rail',
@@ -204,11 +240,15 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-preview',
     '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"]:hover .timeline-video-sequence-clip-thumbnail:first-child .timeline-video-sequence-clip-thumbnail-preview',
     'transform: translate(-50%, -4px) scale(0.96)',
-    'inset: 20px 18px 5px',
+    'height: var(--kg-control-height)',
+    'translate: 0 calc((38px - var(--kg-control-height)) / 2)',
+    'inset: 16px 10px 4px',
     'z-index: 8',
     'background-size: var(--kg-video-sequence-frame-sample-cell) 100%',
-    'inset: 9px 18px 4px',
-    'min-width: 10px',
+    'inset: 2px 6px',
+    'min-width: 15px',
+    'border-color: var(--kg-canvas-accent',
+    'background: var(--kg-panel-bg-hover',
     'VIDEO_AGENT_COMPACT_TRACK_PATTERN',
     '[data-kg-video-sequence-dense-fbf="1"]',
     'min-width: 8px',
@@ -217,6 +257,7 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     'min-width: 0',
     '.timeline-transport-track-clip-label',
     '.timeline-video-sequence-clip-timecode',
+    '.timeline-video-sequence-clip-meta',
   ]) {
     if (!`${rulerText}\n${frameSampleRailText}\n${surfaceModelText}\n${sequenceTimelineText}\n${cssText}`.includes(token)) {
       throw new Error(`expected dense FBF no-overlap guard token: ${token}`)

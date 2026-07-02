@@ -7,6 +7,7 @@ import {
   type TimelineTransportPlaybackRate,
 } from './timelineTransport'
 import './TimelineTransportControls.css'
+import './TimelineTransportControlsMermaidGantt.css'
 
 export type TimelineTransportControlsProps = {
   ariaLabel: string

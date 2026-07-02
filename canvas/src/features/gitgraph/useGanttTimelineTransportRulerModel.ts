@@ -60,6 +60,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   visibleLaneCount: number
   disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
+  onRulerWheel: (event: React.WheelEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
   onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
@@ -71,6 +72,8 @@ export function useGanttTimelineTransportRulerModel(args: {
         : 'timeline-transport-ruler--tracks timeline-transport-ruler--video-sequence',
       rulerProps: {
         'data-kg-gantt-timeline-ruler': 'bottomPanel',
+        'data-kg-gantt-timeline-pinch-zoom': '1',
+        onWheel: args.onRulerWheel,
         style: {
           '--kg-video-sequence-lane-count': args.visibleLaneCount,
         } as React.CSSProperties,
@@ -109,6 +112,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.maxMinutes,
     args.mediaDurationSeconds,
     args.onRulerPointerDown,
+    args.onRulerWheel,
     args.onSelectRowKey,
     args.onSelectRowPosition,
     args.onTrackPointerStart,

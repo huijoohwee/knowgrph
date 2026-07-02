@@ -1,4 +1,4 @@
-import { BROWSER_API_TOOL } from "./browser-api-runtime.js";
+import { BROWSER_API_TOOL } from "./browser-api-runtime.js"; import { OS_STATUS_TOOL_NAME, buildOsStatusToolDefinition } from "./os-status-contract.js";
 import {
   KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
@@ -19,7 +19,7 @@ import {
   PROMPT_ASSEMBLER_OUTPUT_SCHEMA,
 } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 
-export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
+export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({ ...SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES, osStatus: OS_STATUS_TOOL_NAME });
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
@@ -394,11 +394,11 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
           },
           frontendUrl: {
             type: "string",
-            description: "Optional Vercel frontend URL to record in the demo pack after all live gates are approved.",
+            description: "Optional product frontend URL to record in the demo pack after all live gates are approved.",
           },
           backendHealthUrl: {
             type: "string",
-            description: "Optional AWS backend health URL to record in the demo pack after all live gates are approved.",
+            description: "Optional control-plane health URL to record in the demo pack after all live gates are approved.",
           },
         },
       },
@@ -532,7 +532,7 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
         },
       },
     }, READ_ONLY_TOOL_ANNOTATIONS),
-    withLocalMcpDescriptorDefaults({
+    withLocalMcpDescriptorDefaults(buildOsStatusToolDefinition(), READ_ONLY_TOOL_ANNOTATIONS), withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:
         "Use this when a local MCP host needs to list the canonical Knowgrph vdeoxpln registry with semantic keys, source owners, tool projections, and optional generated skill markdown.",

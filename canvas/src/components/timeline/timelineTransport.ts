@@ -3,7 +3,10 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export const TIMELINE_TRANSPORT_PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const
-export const TIMELINE_TRANSPORT_ZOOM_LEVELS = [1, 1.5, 2, 3, 4] as const
+export const TIMELINE_TRANSPORT_ZOOM_LEVELS = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6] as const
+export const TIMELINE_TRANSPORT_GESTURE_ZOOM_DELTA = 24
+export const TIMELINE_TRANSPORT_GESTURE_MAX_STEPS = 3
+export const TIMELINE_TRANSPORT_WHEEL_LINE_DELTA = 16
 export const TIMELINE_TRANSPORT_AUTOMATION_INTENTS = [
   'zoom-out',
   'zoom-in',
@@ -39,8 +42,14 @@ export function resolveTimelineTransportZoom(index: number): TimelineTransportZo
   return TIMELINE_TRANSPORT_ZOOM_LEVELS[clampTimelineTransportZoomIndex(index)] || 1
 }
 
-export function resolveTimelineTransportNextZoomIndex(index: number, direction: -1 | 1): number {
-  return clampTimelineTransportZoomIndex(clampTimelineTransportZoomIndex(index) + direction)
+export function resolveTimelineTransportGestureZoomStepCount(delta: number): number {
+  const steps = Math.floor(Math.abs(Number.isFinite(delta) ? delta : 0) / TIMELINE_TRANSPORT_GESTURE_ZOOM_DELTA)
+  return Math.min(TIMELINE_TRANSPORT_GESTURE_MAX_STEPS, Math.max(1, steps))
+}
+
+export function resolveTimelineTransportNextZoomIndex(index: number, direction: -1 | 1, stepCount = 1): number {
+  const steps = Number.isFinite(stepCount) ? Math.max(1, Math.round(stepCount)) : 1
+  return clampTimelineTransportZoomIndex(clampTimelineTransportZoomIndex(index) + direction * steps)
 }
 
 export function resolveTimelineTransportPlayheadPercent(position: number, max: number): number {

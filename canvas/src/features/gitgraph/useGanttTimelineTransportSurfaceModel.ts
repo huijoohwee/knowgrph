@@ -118,6 +118,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     setTransportPlaying: transportSession.setTransportPlaying,
   })
   const transportInteractionModel = useGanttTimelineTransportInteractionModel({
+    disabled: transportSession.disabled,
     markdownDocumentName: transportSession.markdownDocumentName,
     markdownText: transportSession.markdownText,
     maxMinutes: transportSession.maxMinutes,
@@ -145,6 +146,8 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
     playheadMinutes: transportSession.positionMinutes,
     selectedSpan: transportSession.selectedSpan,
+    timelineZoom: transportInteractionModel.timelineZoom,
+    timelineZoomPercent: transportInteractionModel.timelineZoomPercent,
     toolStatus: transportSession.toolStatus,
     ...transportCommandModel.chromeModelCommands,
   })
@@ -157,6 +160,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds),
+    onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
     onSelectRowKey: transportSession.setSelectedRowKey,
     onSelectRowPosition: (rowKey, positionMinutes) => {

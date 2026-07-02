@@ -65,11 +65,23 @@ export type GanttTimelineTransportChromeModel = {
       ariaLabel: string
       dataValue?: 'audio' | 'retry' | 'video'
       disabled: boolean
-      icon: 'audio' | 'center' | 'download' | 'fit' | 'retry' | 'zoom-in' | 'zoom-out'
-      key: 'audio' | 'center' | 'fit' | 'retry' | 'video' | 'zoom-in' | 'zoom-out'
+      icon: 'audio' | 'download' | 'retry'
+      key: 'audio' | 'retry' | 'video'
       onClick: () => void
       title: string
     }>
+    zoomControls: {
+      label: string
+      percent: number
+      actionButtons: Array<{
+        ariaLabel: string
+        disabled: boolean
+        icon: 'center' | 'fit' | 'zoom-in' | 'zoom-out'
+        key: 'center' | 'fit' | 'zoom-in' | 'zoom-out'
+        onClick: () => void
+        title: string
+      }>
+    }
     toolButtons: Array<{
       active: boolean
       disabled: boolean
@@ -105,6 +117,8 @@ export function useGanttTimelineTransportChromeModel(args: {
   mediaDurationSeconds: number
   playheadMinutes: number
   selectedSpan: MermaidGanttTimelineTaskSpan | null
+  timelineZoom: number
+  timelineZoomPercent: number
   timingSyncMode: MermaidGanttVideoSequenceTimingSyncMode
   toolStatus: Record<VideoSequenceTimelineToolId, boolean>
 }): GanttTimelineTransportChromeModel {
@@ -282,39 +296,45 @@ export function useGanttTimelineTransportChromeModel(args: {
             },
             title: args.exportSessionCollection.retryControl.title,
           },
-          {
-            ariaLabel: 'Zoom out Gantt timeline',
-            disabled: args.disabled || !args.canZoomOut,
-            icon: 'zoom-out',
-            key: 'zoom-out',
-            onClick: args.handleZoomOut,
-            title: 'Zoom out',
-          },
-          {
-            ariaLabel: 'Zoom in Gantt timeline',
-            disabled: args.disabled || !args.canZoomIn,
-            icon: 'zoom-in',
-            key: 'zoom-in',
-            onClick: args.handleZoomIn,
-            title: 'Zoom in',
-          },
-          {
-            ariaLabel: 'Fit full Gantt timeline',
-            disabled: args.disabled || !args.canFitTimeline,
-            icon: 'fit',
-            key: 'fit',
-            onClick: args.handleFitTimeline,
-            title: 'Fit timeline',
-          },
-          {
-            ariaLabel: 'Center Gantt playhead',
-            disabled: args.disabled,
-            icon: 'center',
-            key: 'center',
-            onClick: args.centerTimelinePlayhead,
-            title: 'Center playhead',
-          },
         ],
+        zoomControls: {
+          label: `${Math.round(args.timelineZoom * 100)}%`,
+          percent: Math.max(0, Math.min(100, args.timelineZoomPercent)),
+          actionButtons: [
+            {
+              ariaLabel: 'Zoom out Gantt timeline',
+              disabled: args.disabled || !args.canZoomOut,
+              icon: 'zoom-out',
+              key: 'zoom-out',
+              onClick: args.handleZoomOut,
+              title: 'Zoom out',
+            },
+            {
+              ariaLabel: 'Zoom in Gantt timeline',
+              disabled: args.disabled || !args.canZoomIn,
+              icon: 'zoom-in',
+              key: 'zoom-in',
+              onClick: args.handleZoomIn,
+              title: 'Zoom in',
+            },
+            {
+              ariaLabel: 'Fit full Gantt timeline',
+              disabled: args.disabled || !args.canFitTimeline,
+              icon: 'fit',
+              key: 'fit',
+              onClick: args.handleFitTimeline,
+              title: 'Fit timeline',
+            },
+            {
+              ariaLabel: 'Center Gantt playhead',
+              disabled: args.disabled,
+              icon: 'center',
+              key: 'center',
+              onClick: args.centerTimelinePlayhead,
+              title: 'Center playhead',
+            },
+          ],
+        },
         toolButtons: VIDEO_SEQUENCE_TIMELINE_TOOLS.map(tool => ({
           active: args.toolStatus[tool.id],
           disabled: args.disabled || !args.toolStatus[tool.id],
@@ -354,6 +374,8 @@ export function useGanttTimelineTransportChromeModel(args: {
     args.mediaDurationSeconds,
     args.playheadMinutes,
     args.selectedSpan,
+    args.timelineZoom,
+    args.timelineZoomPercent,
     args.timingSyncMode,
     args.toolStatus,
   ])

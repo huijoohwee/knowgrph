@@ -206,11 +206,11 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('VIDEO_SEQUENCE_BOTTOM_PANEL_PROJECTION_OPTIONS') ||
     !rulerText.includes('disabledLaneIds = VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS') ||
     !rulerText.includes('const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>') ||
-    !rulerText.includes('resolveVisibleVideoSequenceTimelineLanes(taskSpans, projectionOptions)') ||
+    !rulerText.includes('resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions)') ||
     !rulerText.includes('resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions)') ||
     rulerText.includes("sourceCoverageMode: 'source-covered'") ||
     !rulerText.includes('visibleLanes.map(lane =>') ||
-    !rulerText.includes('visibleLaneIndexById.get(lane)') ||
+    !['resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)', 'visibleLaneIndexById.get(displayLaneId)', 'data-kg-video-sequence-display-lane', 'data-kg-video-sequence-display-lane-label'].every(token => rulerText.includes(token)) ||
     !rulerText.includes('buildVideoSequenceTimelineCueSamples') ||
     !rulerText.includes('buildVideoSequenceTimelineFrameSamples') ||
     !rulerText.includes('buildVideoSequenceTimelineWaveformSamples') ||

@@ -97,7 +97,7 @@ function enableGeospatialForDocumentPreset(): void {
   }
 }
 
-const VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS = new Set(['timeline', 'flowchart', 'gantt', 'storyboardWidget'])
+const VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS = new Set(['timeline', 'flowchart', 'gantt'])
 
 function shouldRetainVideoSequenceFloatingPanelView(value: unknown): boolean {
   return VIDEO_SEQUENCE_FLOATING_PANEL_VIEWS.has(String(value || '').trim())

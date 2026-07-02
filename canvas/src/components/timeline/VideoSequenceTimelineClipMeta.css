@@ -1,0 +1,32 @@
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip-move {
+  flex-wrap: wrap;
+  align-content: center;
+}
+
+.timeline-video-sequence-clip-meta {
+  display: inline-flex;
+  max-width: 100%;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.82);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 9px;
+}
+
+.timeline-video-sequence-clip-meta span,
+.timeline-video-sequence-clip-meta time {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-video-sequence-clip-meta span {
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.16);
+  padding-inline: 3px;
+}

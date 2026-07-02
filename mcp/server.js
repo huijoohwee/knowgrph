@@ -15,7 +15,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { runVideoRemix } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js";
+import { runVideoRemix } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import {
   addMemoryLayerMemory,
@@ -560,7 +560,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args));
     if (typeof toolName === "string" && toolName.startsWith("knowgrph.showrunner.")) return runShowrunnerLocalTool(toolName, args, { rootDir: KNOWGRPH_ROOT });
-
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus) return runOsStatusTool(args.view, args, { rootDir: KNOWGRPH_ROOT }).then((payload) => jsonToolResult(payload, payload.ok === false));
     if (
       toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search
       || toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch

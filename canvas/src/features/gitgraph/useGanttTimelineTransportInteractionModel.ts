@@ -16,15 +16,18 @@ export type GanttTimelineTransportInteractionModel = {
   draggingRowKey: string
   handleFitTimeline: () => void
   handlePositionChange: (value: number) => void
+  handleRulerWheelZoom: (event: React.WheelEvent<HTMLElement>) => void
   handleRulerPointerScrub: ReturnType<typeof useGanttTimelineInteractions>['handleRulerPointerScrub']
   handleTrackPointerStart: ReturnType<typeof useGanttTimelineInteractions>['handleTrackPointerStart']
   handleZoomIn: () => void
   handleZoomOut: () => void
   playheadPercent: number
   timelineZoom: number
+  timelineZoomPercent: number
 }
 
 export function useGanttTimelineTransportInteractionModel(args: {
+  disabled: boolean
   markdownDocumentName: string
   markdownText: string
   maxMinutes: number
@@ -53,6 +56,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
     onCommitDrag: args.onCommitDrag,
   })
   const transportView = useGanttTimelineTransportView({
+    disabled: args.disabled,
     maxMinutes: args.maxMinutes,
     positionMinutes: args.positionMinutes,
     rulerContentRef: args.rulerContentRef,
@@ -77,11 +81,13 @@ export function useGanttTimelineTransportInteractionModel(args: {
     draggingRowKey: interactions.draggingRowKey,
     handleFitTimeline: transportView.handleFitTimeline,
     handlePositionChange: interactions.handlePositionChange,
+    handleRulerWheelZoom: transportView.handleRulerWheelZoom,
     handleRulerPointerScrub: interactions.handleRulerPointerScrub,
     handleTrackPointerStart: interactions.handleTrackPointerStart,
     handleZoomIn: transportView.handleZoomIn,
     handleZoomOut: transportView.handleZoomOut,
     playheadPercent: transportView.playheadPercent,
     timelineZoom: transportView.timelineZoom,
+    timelineZoomPercent: transportView.timelineZoomPercent,
   }
 }

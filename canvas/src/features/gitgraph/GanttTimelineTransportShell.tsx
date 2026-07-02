@@ -14,9 +14,7 @@ export type GanttTimelineTransportShellProps = {
 
 export function GanttTimelineTransportShell(args: GanttTimelineTransportShellProps) {
   const contextDetailsLabel = `Timeline context: ${args.rulerModel.chrome.subtitleLabel}. ${args.chromeModel.contextControls.clipEdit.detailsLabel}`
-  const contextControls = args.chromeModel.contextControls.exportSessions.items.length
-    ? <GanttTimelineTransportContextControls model={args.chromeModel.contextControls} />
-    : null
+  const contextControls = <GanttTimelineTransportContextControls model={args.chromeModel.contextControls} />
 
   return (
     <TimelineTransportChrome

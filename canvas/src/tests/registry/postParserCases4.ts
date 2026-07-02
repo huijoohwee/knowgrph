@@ -9,6 +9,8 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["ui.videoSequence.frameContext.timelineSeconds","@/__tests__/videoSequenceFrameContextRegression.test","testFrameByFrameClipContextUsesTimelineSeconds"],
   ["ui.timelineAnimation.nativeRuntime.sourceBacked","@/__tests__/timelineAnimationNativeRuntime.test","testTimelineAnimationNativeRuntimeIsSourceBacked"],
   ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
+  ["ui.videoSequence.timelineEditor.enhancedBottomPanel","@/__tests__/videoSequenceTimelineEditorEnhancement.test","testVideoSequenceTimelineEditorEnhancementContracts"],
+  ["workspace.import.localFiles.videoStackedSequenceDocument","@/__tests__/videoSequenceTimelineImportProjection.test","testWorkspaceImportLocalMultipleVideosCreatesStackedVideoAudioSequenceDocument"],
   ["ui.videoSequence.localImport.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMediaRemounts"],
   ["ui.videoSequence.export.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceExportKeepsSuccessfulSourceProbesBound"],
   ["ui.videoSequence.export.compatibility","@/__tests__/videoSequenceExportCompatibility.test","testVideoSequenceExportCapabilityAndMimeFallbacks"],
