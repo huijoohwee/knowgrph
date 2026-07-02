@@ -8,6 +8,8 @@ export type GanttTimelineTransportContextControlsProps = {
 
 export function GanttTimelineTransportContextControls(args: GanttTimelineTransportContextControlsProps) {
   const selectedSpan = args.model.clipEdit.selectedSpan
+  if (!selectedSpan && !args.model.exportSessions.items.length) return null
+
   const selectedSpanLabel = selectedSpan ? args.model.clipEdit.detailsLabel : args.model.exportSessions.emptyLabel
   const selectedSpanDuration = selectedSpan
     ? `${selectedSpan.startMinutes.toFixed(2)}-${selectedSpan.endMinutes.toFixed(2)}m`

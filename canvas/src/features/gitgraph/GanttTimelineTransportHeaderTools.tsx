@@ -1,4 +1,4 @@
-import { ChevronsLeft, ChevronsRight, Download, FileAudio, Link2, LocateFixed, Maximize2, MoreHorizontal, MoveHorizontal, RotateCcw, Scissors, StepBack, StepForward, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, Download, FileAudio, Link2, LocateFixed, Maximize2, MoreHorizontal, MoveHorizontal, RotateCcw, Scissors, SlidersHorizontal, StepBack, StepForward, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
 import type React from 'react'
 import { TimelineVideoSequenceToolButton } from '@/components/timeline/VideoSequenceTimelineToolButton'
 import { type GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
@@ -52,26 +52,6 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
   return (
     <section className="timeline-transport-header-tools" aria-label="Timeline tools">
       <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
-        <details className="timeline-tool-menu timeline-tool-menu--clip">
-          <summary aria-label="Clip nudge and trim tools" title="Clip nudge and trim tools">
-            <MoveHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-          </summary>
-          <section className="timeline-tool-menu-panel" aria-label="Clip nudge and trim tools">
-            {args.model.clipActionButtons.map(button => (
-              <button
-                key={button.key}
-                type="button"
-                aria-label={button.ariaLabel}
-                title={button.title}
-                disabled={button.disabled}
-                data-kg-video-sequence-clip-edit={button.action}
-                onClick={button.onClick}
-              >
-                {renderClipActionIcon(button.icon)}
-              </button>
-            ))}
-          </section>
-        </details>
         <button
           type="button"
           aria-label={args.model.syncModeButton.ariaLabel}
@@ -86,31 +66,64 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
             ? <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
             : <Unlink2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />}
         </button>
-        {args.model.toolButtons.map(tool => (
-          <TimelineVideoSequenceToolButton
-            key={tool.id}
-            id={tool.id}
-            label={tool.label}
-            title={tool.title}
-            active={tool.active}
-            disabled={tool.disabled}
-            onClick={tool.onClick}
-          />
-        ))}
+        <details className="timeline-tool-menu timeline-tool-menu--edit">
+          <summary aria-label="Video sequence edit tools" title="Video sequence edit tools">
+            <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+          </summary>
+          <nav className="timeline-tool-menu-panel" aria-label="Video sequence edit tools">
+            {args.model.toolButtons.map(tool => (
+              <TimelineVideoSequenceToolButton
+                key={tool.id}
+                id={tool.id}
+                label={tool.label}
+                title={tool.title}
+                active={tool.active}
+                disabled={tool.disabled}
+                onClick={tool.onClick}
+              />
+            ))}
+          </nav>
+        </details>
+        <details className="timeline-tool-menu timeline-tool-menu--clip">
+          <summary aria-label="Clip nudge and trim tools" title="Clip nudge and trim tools">
+            <MoveHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+          </summary>
+          <nav className="timeline-tool-menu-panel" aria-label="Clip nudge and trim tools">
+            {args.model.clipActionButtons.map(button => (
+              <button
+                key={button.key}
+                type="button"
+                aria-label={button.ariaLabel}
+                title={button.title}
+                disabled={button.disabled}
+                data-kg-video-sequence-clip-edit={button.action}
+                onClick={button.onClick}
+              >
+                {renderClipActionIcon(button.icon)}
+              </button>
+            ))}
+          </nav>
+        </details>
       </nav>
       <nav
         className="timeline-transport-zoom-controls"
         aria-label="Timeline zoom controls"
         style={{ '--kg-timeline-zoom-progress': `${args.model.zoomControls.percent}%` } as React.CSSProperties}
       >
-        {renderZoomButton('fit')}
-        {renderZoomButton('center')}
         {renderZoomButton('zoom-out')}
-        <span className="timeline-transport-zoom-rail" aria-hidden="true" />
         <output className="timeline-transport-zoom-label" aria-label={`Timeline zoom ${args.model.zoomControls.label}`}>
           {args.model.zoomControls.label}
         </output>
         {renderZoomButton('zoom-in')}
+        <details className="timeline-tool-menu timeline-tool-menu--zoom">
+          <summary aria-label="Timeline fit and center tools" title="Timeline fit and center tools">
+            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+          </summary>
+          <nav className="timeline-tool-menu-panel" aria-label="Timeline fit and center tools">
+            {renderZoomButton('fit')}
+            {renderZoomButton('center')}
+          </nav>
+        </details>
       </nav>
       <details className="timeline-tool-menu timeline-tool-menu--utilities">
         <summary aria-label="Timeline utility tools" title="Timeline utility tools">
