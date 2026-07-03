@@ -184,6 +184,51 @@
   display: none;
 }
 
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-slot {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  justify-content: center;
+  border-bottom: 1px solid var(--kg-border, rgb(226 232 240 / 1));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 68%, var(--kg-panel-bg, #fff)) 0, color-mix(in srgb, var(--kg-panel-bg, #fff) 88%, var(--kg-panel-bg-hover, #f9fafb)) 100%),
+    var(--kg-panel-bg, #fff);
+  padding: 8px 10px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player {
+  display: flex;
+  width: min(100%, 720px);
+  min-width: 0;
+  justify-content: center;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-frame {
+  width: min(100%, 640px);
+  height: clamp(120px, 22vh, 240px);
+  max-height: 240px;
+  min-height: 104px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 82%, var(--kg-text-primary, #111827) 8%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(15 23 42 / 0.94), rgb(2 6 23 / 0.98)),
+    rgb(2 6 23 / 1);
+  box-shadow:
+    0 10px 26px rgb(15 23 42 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-frame [data-kg-card-media-kind] {
+  background: transparent;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-media {
+  width: 100%;
+  height: 100%;
+}
+
 .timeline-transport-chrome--mermaid-gantt .timeline-player-range-rail {
   height: 4px;
   background:
@@ -257,15 +302,25 @@
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]),
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"][data-kg-video-sequence-active-track="1"]:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
+  border-width: 2px;
   border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1));
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.1);
+  box-shadow: none;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-placeholder="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]),
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-placeholder="1"][data-kg-video-sequence-active-track="1"]:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
+  border-color: color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 28%, var(--kg-border, #cbd5e1) 72%);
+  box-shadow: none;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip {
   border-color: color-mix(in srgb, var(--kg-panel-bg, #fff) 88%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg, #fff) 76%, var(--kg-canvas-accent, #2563eb) 24%), var(--kg-canvas-accent, rgb(37 99 235 / 1)));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 36%, transparent),
-    0 1px 3px rgb(15 23 42 / 0.18);
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle-grip,
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:hover .timeline-transport-track-handle-grip,
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:focus-visible .timeline-transport-track-handle-grip,
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"].timeline-transport-track-clip--selected .timeline-transport-track-handle-grip,
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"].timeline-transport-track-clip--dragging .timeline-transport-track-handle-grip {
+  display: none;
 }

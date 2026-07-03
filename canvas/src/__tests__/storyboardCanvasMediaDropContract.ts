@@ -7,6 +7,7 @@ export function assertStoryboard2dMediaDropContract() {
   const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
+  const mediaDragPayloadSource = readFileSync(new URL('../lib/ui/mediaDragPayload.ts', import.meta.url), 'utf8')
   const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
   const flowCanvasMediaOverlaysSource = readFileSync(new URL('../components/FlowCanvas/FlowCanvasMediaOverlays.tsx', import.meta.url), 'utf8')
   const flowCanvasMediaOverlayWorldPointSource = readFileSync(new URL('../components/FlowCanvas/flowCanvasMediaOverlayWorldPoint.ts', import.meta.url), 'utf8')
@@ -26,6 +27,23 @@ export function assertStoryboard2dMediaDropContract() {
     }
     if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
       throw new Error(`expected Storyboard Widget drop bridge to skip nested media drop targets: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'document.querySelectorAll(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)',
+    '.some(element => isMediaDragPointInsideElement(element, clientX, clientY))',
+  ]) {
+    if (!mediaDragPayloadSource.includes(snippet)) {
+      throw new Error(`expected nested media drop detection to reserve registered drop-consumer rectangles even when an overlay covers elementFromPoint: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'if (hasMediaDragPayload(dt) && isMediaDropClaimedByNestedTarget(x, y)) return',
+    'if (isMediaDropClaimedByNestedTarget(release.clientX, release.clientY)) return',
+    'if (isMediaDropClaimedByNestedTarget(Number(detail.clientX), Number(detail.clientY))) return',
+  ]) {
+    if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget drop bridge to leave registered nested media drop targets for their local owner before claiming the event: ${snippet}`)
     }
   }
   for (const snippet of [

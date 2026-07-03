@@ -21,6 +21,7 @@ export type GanttTimelineTransportRulerModel = {
   }
   ruler: {
     contentRef: React.RefObject<HTMLElement | null>
+    viewportRef: React.RefObject<HTMLElement | null>
     displayTicks: readonly MermaidGanttTimelineTick[]
     dragPreview: MermaidGanttTimelineDragPreview | null
     draggingRowKey: string
@@ -36,7 +37,7 @@ export type GanttTimelineTransportRulerModel = {
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
     disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
-    onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
+    onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => boolean
     onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
     onSelectRowKey: (rowKey: string) => void
     onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
@@ -47,6 +48,7 @@ export type GanttTimelineTransportRulerModel = {
 export function useGanttTimelineTransportRulerModel(args: {
   compact: boolean
   contentRef: React.RefObject<HTMLElement | null>
+  viewportRef: React.RefObject<HTMLElement | null>
   displayTicks: readonly MermaidGanttTimelineTick[]
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingRowKey: string
@@ -65,7 +67,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   totalLabel: string
   visibleLaneCount: number
   disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
-  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
+  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => boolean
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onRulerWheel: (event: React.WheelEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
@@ -111,6 +113,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       sourceThumbnailSets: args.sourceThumbnailSets,
       taskSpans: args.taskSpans,
       timelineZoom: args.timelineZoom,
+      viewportRef: args.viewportRef,
     },
   }), [
     args.compact,
@@ -139,5 +142,6 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.timelineZoom,
     args.totalLabel,
     args.visibleLaneCount,
+    args.viewportRef,
   ])
 }

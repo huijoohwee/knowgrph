@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
 
 export type TimelineGanttSelectionStoreBinding = {
@@ -55,6 +56,15 @@ export function useTimelineDocumentSnapshotReader(args: TimelineDocumentSnapshot
     markdownText: String(args.markdownText || ''),
   }), [args.markdownDocumentName, args.markdownText])
   const snapshotRef = React.useRef(snapshot)
+  const storeMarkdownDocumentNameRef = useGraphStoreKeyRef('markdownDocumentName')
+  const storeMarkdownDocumentTextRef = useGraphStoreKeyRef('markdownDocumentText')
   snapshotRef.current = snapshot
-  return React.useCallback(() => snapshotRef.current, [])
+  return React.useCallback(() => {
+    const markdownDocumentName = String(storeMarkdownDocumentNameRef.current || '')
+    if (!markdownDocumentName) return snapshotRef.current
+    return {
+      markdownDocumentName,
+      markdownText: String(storeMarkdownDocumentTextRef.current || ''),
+    }
+  }, [storeMarkdownDocumentNameRef, storeMarkdownDocumentTextRef])
 }

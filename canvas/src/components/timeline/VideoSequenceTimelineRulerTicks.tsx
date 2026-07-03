@@ -1,4 +1,5 @@
 import type { MermaidGanttTimelineTick } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { resolveVideoSequenceRulerInsetLeft } from './videoSequenceTimelineRulerGeometry'
 
 export type VideoSequenceTimelineRulerTicksProps = {
   displayTicks: readonly MermaidGanttTimelineTick[]
@@ -30,7 +31,7 @@ export function VideoSequenceTimelineRulerTicks({ displayTicks }: VideoSequenceT
         <span
           key={`${tick.minutes}:${tick.label}`}
           className="timeline-transport-ruler-tick"
-          style={{ left: `clamp(14px, ${tick.percent}%, calc(100% - 14px))` }}
+          style={{ left: resolveVideoSequenceRulerInsetLeft(tick.percent) }}
           data-kg-gantt-timeline-tick="1"
           data-kg-video-sequence-major-tick={resolveVideoSequenceTickMajor(tick) ? '1' : undefined}
         >

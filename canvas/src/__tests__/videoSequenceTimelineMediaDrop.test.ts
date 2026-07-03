@@ -139,6 +139,62 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
   ) {
     throw new Error(`expected dropped media to initialize a timeline clip, got ${JSON.stringify({ code: nextCode, model: nextModel, plan: nextPlan, markdownText: result.markdownText })}`)
   }
+
+  const starterPlaceholderMarkdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: ""',
+    '    relativePath: ""',
+    '    importMode: "url"',
+    '    sourceUrl: ""',
+    '    mimeHint: "video/mp4"',
+    '    byteSize: 0',
+    '    durationSeconds: 0',
+    '    frameRate: 0',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgpos_0, 1m',
+    '---',
+    '',
+  ].join('\n')
+  const starterPlaceholderResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(starterPlaceholderMarkdownText),
+    markdownText: starterPlaceholderMarkdownText,
+    media: {
+      durationSeconds: 15,
+      kind: 'video',
+      label: 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/media/seedance.mp4',
+    },
+    startMinutes: 0.32,
+  })
+  if (!starterPlaceholderResult) throw new Error('expected starter placeholder media drop to replace the blank source row')
+  const starterPlaceholderCode = readVideoSequenceCode(starterPlaceholderResult.markdownText)
+  const starterPlaceholderModel = readVideoSequenceTimelineModelFromMarkdown(starterPlaceholderResult.markdownText)
+  const starterPlaceholderRows = buildMermaidGanttTimelineModel(starterPlaceholderCode).taskSpans
+  if (
+    starterPlaceholderModel?.sources.length !== 1 ||
+    starterPlaceholderModel.sources[0]?.id !== 'operator_source_video' ||
+    starterPlaceholderModel.sources[0]?.sourceUrl !== '/media/seedance.mp4' ||
+    starterPlaceholderCode.includes('Source video : operator_source_video, kgpos_0, 1m') ||
+    !starterPlaceholderCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_25, kgpos_0_32, 0.25m') ||
+    starterPlaceholderRows.length !== 1 ||
+    starterPlaceholderRows[0]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
+  ) {
+    throw new Error(`expected first real video drop to consume starter placeholder instead of duplicating bars, got ${JSON.stringify({ code: starterPlaceholderCode, model: starterPlaceholderModel, rows: starterPlaceholderRows })}`)
+  }
 }
 
 export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
@@ -191,5 +247,127 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
     Math.abs(imageSpan.durationMinutes - (1 / 12 / 60)) > 0.000001
   ) {
     throw new Error(`expected dropped image to persist as one frame, got ${JSON.stringify({ code: nextCode, imageSpan, model: nextModel })}`)
+  }
+
+  const thumbnailResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: nextCode,
+    markdownText: result.markdownText,
+    media: {
+      displayHeight: 720,
+      displayWidth: 1280,
+      frameRate: 24,
+      kind: 'image',
+      label: 'Source video frame 0:01',
+      mimeHint: 'image/png',
+      sourceKey: 'source-video-frame:1000000',
+      thumbnailUrl: 'data:image/png;base64,kg-frame',
+      url: 'data:image/png;base64,kg-frame',
+    },
+    startMinutes: 0.5,
+  })
+  if (!thumbnailResult) throw new Error('expected thumbnail frame drop to append an image row')
+  const thumbnailCode = readVideoSequenceCode(thumbnailResult.markdownText)
+  const thumbnailModel = readVideoSequenceTimelineModelFromMarkdown(thumbnailResult.markdownText)
+  const thumbnailSpan = buildMermaidGanttTimelineModel(thumbnailCode).taskSpans.find(span => span.label === 'Source video frame 0 01 image')
+  if (
+    !thumbnailModel?.sources.some(source => source.sourceUrl === 'data:image/png;base64,kg-frame' && source.mimeHint === 'image/png') ||
+    !thumbnailCode.includes('section Image') ||
+    !thumbnailCode.includes('Source video frame 0 01 image : clip_') ||
+    !thumbnailCode.includes('kgpos_0_5') ||
+    !thumbnailSpan ||
+    Math.abs(thumbnailSpan.durationMinutes - (1 / 24 / 60)) > 0.000001
+  ) {
+    throw new Error(`expected dropped timeline thumbnail to create a one-frame image clip, got ${JSON.stringify({ code: thumbnailCode, model: thumbnailModel, span: thumbnailSpan })}`)
+  }
+}
+
+export function testVideoSequenceTimelineMediaDropRoutesFloatingPanelKinds() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Video',
+    '        section Audio',
+    '---',
+    '',
+  ].join('\n')
+  const imageResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(markdownText),
+    markdownText,
+    media: {
+      byteSize: 1102,
+      displayHeight: 720,
+      displayWidth: 1280,
+      frameRate: 24,
+      kind: 'image',
+      label: 'flower.png',
+      mimeHint: 'image/png',
+      sourceKey: 'floating-panel-image',
+      url: '/media/flower.png',
+    },
+    startMinutes: 0.1,
+  })
+  if (!imageResult) throw new Error('expected FloatingPanel image payload to append an Image lane clip')
+  const audioResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(imageResult.markdownText),
+    markdownText: imageResult.markdownText,
+    media: {
+      byteSize: 4096,
+      durationSeconds: 6,
+      kind: 'audio',
+      label: 'voice.m4a',
+      mimeHint: 'audio/mp4',
+      sourceKey: 'floating-panel-audio',
+      url: '/media/voice.m4a',
+    },
+    startMinutes: 0.2,
+  })
+  if (!audioResult) throw new Error('expected FloatingPanel audio payload to append an Audio lane clip')
+  const videoResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(audioResult.markdownText),
+    markdownText: audioResult.markdownText,
+    media: {
+      byteSize: 6632,
+      displayHeight: 720,
+      displayWidth: 1280,
+      durationSeconds: 15.09,
+      frameRate: 24,
+      kind: 'video',
+      label: '港岛仿生局.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'floating-panel-video',
+      url: '/media/harbor.mp4',
+    },
+    startMinutes: 0.3,
+  })
+  if (!videoResult) throw new Error('expected FloatingPanel video payload to append a Video lane clip')
+  const nextCode = readVideoSequenceCode(videoResult.markdownText)
+  const nextModel = readVideoSequenceTimelineModelFromMarkdown(videoResult.markdownText)
+  const spans = buildMermaidGanttTimelineModel(nextCode).taskSpans
+  const imageSpan = spans.find(span => span.label === 'flower.png image')
+  const audioSpan = spans.find(span => span.label === 'voice.m4a audio')
+  const videoSpan = spans.find(span => span.label === '港岛仿生局.mp4')
+  if (
+    !nextModel ||
+    !nextCode.includes('section Image') ||
+    !nextCode.includes('section Audio') ||
+    !nextCode.includes('section Video') ||
+    !nextModel.sources.some(source => source.sourceUrl === '/media/flower.png' && source.mimeHint === 'image/png' && source.displayWidth === 1280 && source.displayHeight === 720) ||
+    !nextModel.sources.some(source => source.sourceUrl === '/media/voice.m4a' && source.mimeHint === 'audio/mp4' && source.durationSeconds === 6) ||
+    !nextModel.sources.some(source => source.sourceUrl === '/media/harbor.mp4' && source.mimeHint === 'video/mp4' && source.durationSeconds === 15.09 && source.frameRate === 24) ||
+    !imageSpan ||
+    !audioSpan ||
+    !videoSpan ||
+    Math.abs(imageSpan.durationMinutes - (1 / 24 / 60)) > 0.000001
+  ) {
+    throw new Error(`expected FloatingPanel media drops to create typed Image/Audio/Video clips, got ${JSON.stringify({ code: nextCode, model: nextModel, spans })}`)
   }
 }

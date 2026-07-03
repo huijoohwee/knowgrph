@@ -1,4 +1,4 @@
-import { BookmarkPlus, ChevronsLeft, ChevronsRight, Copy, Download, FileAudio, Link2, LocateFixed, Magnet, Maximize2, MoreHorizontal, MoveHorizontal, MoveRight, RotateCcw, Scissors, SlidersHorizontal, StepBack, StepForward, Trash2, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
+import { BookmarkPlus, ChevronsLeft, ChevronsRight, Copy, Download, FileAudio, Link2, LocateFixed, Magnet, Maximize2, MonitorPlay, MoreHorizontal, MoveHorizontal, MoveRight, RotateCcw, Scissors, SlidersHorizontal, StepBack, StepForward, Trash2, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
 import type React from 'react'
 import { TimelineVideoSequenceToolButton } from '@/components/timeline/VideoSequenceTimelineToolButton'
 import { type GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
@@ -90,6 +90,19 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
   return (
     <section className="timeline-transport-header-tools" aria-label="Timeline tools">
       <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
+        <button
+          type="button"
+          aria-label={args.model.mediaPlayerButton.ariaLabel}
+          aria-pressed={args.model.mediaPlayerButton.active}
+          title={args.model.mediaPlayerButton.title}
+          disabled={args.model.mediaPlayerButton.disabled}
+          data-kg-video-sequence-tool="media-player"
+          data-kg-video-sequence-media-player-toggle="1"
+          data-kg-video-sequence-tool-active={args.model.mediaPlayerButton.active ? '1' : undefined}
+          onClick={args.model.mediaPlayerButton.onClick}
+        >
+          <MonitorPlay className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+        </button>
         <button
           type="button"
           aria-label={args.model.syncModeButton.ariaLabel}

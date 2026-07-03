@@ -44,6 +44,8 @@ import {
   type MermaidGanttVideoSequenceTimingSyncMode,
   type MermaidGanttVideoSequenceOperation,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
+import { resolveMermaidGanttCode } from '@/lib/mermaid/mermaidGitGraph'
 import {
   deleteMermaidGanttVideoSequenceClip,
   deleteMermaidGanttVideoSequenceClipWithRipple,
@@ -54,6 +56,7 @@ import {
 } from '@/lib/mermaid/mermaidGanttVideoSequenceElementActions'
 import { appendMermaidGanttVideoSequenceMediaDrop } from '@/lib/mermaid/mermaidGanttVideoSequenceMediaDrop'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { resolveGanttTimelineVideoSequenceActionContext, resolveGanttTimelineVideoSequenceSelectedRowKey, type GanttTimelineVideoSequenceActionContext } from './ganttTimelineVideoSequenceActionContext'
 import type { GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
 
 const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
@@ -91,88 +94,97 @@ export function useGanttTimelineDocumentActions(args: {
     markdownText: args.markdownText,
   })
 
-  const commitGanttVideoSequenceCode = React.useCallback((nextCode: string | null, nextLineIndex?: number) => {
-    if (!nextCode || nextCode === args.code) return
+  const resolveCurrentVideoSequenceActionContext = React.useCallback(() => resolveGanttTimelineVideoSequenceActionContext({
+    code: args.code,
+    markdownDocumentName: args.markdownDocumentName,
+    markdownText: args.markdownText,
+    maxMinutes: args.maxMinutes,
+    readDocumentSnapshot,
+    selectedSpan: args.selectedSpan,
+  }), [args.code, args.markdownDocumentName, args.markdownText, args.maxMinutes, args.selectedSpan, readDocumentSnapshot])
+
+  const commitGanttVideoSequenceCode = React.useCallback((actionContext: GanttTimelineVideoSequenceActionContext, nextCode: string | null, nextLineIndex?: number) => {
+    if (!nextCode || nextCode === actionContext.code) return
     const currentDocument = readDocumentSnapshot()
+    const currentMarkdownText = currentDocument.markdownText || args.markdownText
     if (
-      currentDocument.markdownDocumentName !== args.markdownDocumentName ||
-      currentDocument.markdownText !== args.markdownText
+      currentDocument.markdownDocumentName !== actionContext.markdownDocumentName ||
+      currentMarkdownText !== actionContext.markdownText
     ) {
       return
     }
-    const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(args.markdownText, nextCode)
-    if (!nextMarkdownText || nextMarkdownText === args.markdownText) return
-    setMarkdownDocument(args.markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
-    const lineIndex = nextLineIndex ?? args.selectedSpan?.lineIndex
-    const nextLine = typeof lineIndex === 'number' ? nextCode.split('\n')[lineIndex]?.trim() : ''
-    if (nextLine) args.setSelectedRowKey(`${lineIndex}:task:${nextLine}`)
+    const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(actionContext.markdownText, nextCode)
+    if (!nextMarkdownText || nextMarkdownText === actionContext.markdownText) return
+    setMarkdownDocument(actionContext.markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+    const lineIndex = nextLineIndex ?? actionContext.selectedSpan.lineIndex
+    args.setSelectedRowKey(resolveGanttTimelineVideoSequenceSelectedRowKey({ code: nextCode, lineIndex }))
   }, [
-    args.code,
-    args.markdownDocumentName,
     args.markdownText,
-    args.selectedSpan?.lineIndex,
     args.setSelectedRowKey,
     readDocumentSnapshot,
     setMarkdownDocument,
   ])
 
   const handleVideoSequenceTool = React.useCallback((toolId: VideoSequenceTimelineToolId) => {
-    if (!args.selectedSpan || args.maxMinutes <= 0) return
-    const timelineModel = buildMermaidGanttTimelineModel(args.code)
+    const actionContext = resolveCurrentVideoSequenceActionContext()
+    if (!actionContext) return
+    const timelineModel = buildMermaidGanttTimelineModel(actionContext.code)
     const editPositionMinutes = resolveVideoSequenceClipEditSnappedMinutes({
       enabled: autoSnappingEnabled,
       positionMinutes: args.positionMinutes,
-      selectedSpan: args.selectedSpan,
+      selectedSpan: actionContext.selectedSpan,
       spans: timelineModel.taskSpans,
     })
-    const editStepMinutes = resolveVideoSequenceClipEditStepMinutes(args.selectedSpan)
+    const editStepMinutes = resolveVideoSequenceClipEditStepMinutes(actionContext.selectedSpan)
     if (toolId === 'cut') {
       commitGanttVideoSequenceCode(
+        actionContext,
         splitMermaidGanttVideoSequenceClipAtOffset({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
-          splitOffsetMinutes: editPositionMinutes - args.selectedSpan.startMinutes,
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
+          splitOffsetMinutes: editPositionMinutes - actionContext.selectedSpan.startMinutes,
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex,
+        actionContext.selectedSpan.lineIndex,
       )
       return
     }
     if (toolId === 'splice') {
       commitGanttVideoSequenceCode(
+        actionContext,
         updateMermaidGanttVideoSequenceClipTiming({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
           mode: 'move',
-          deltaMinutes: normalizeVideoSequenceClipEditDeltaMinutes(editPositionMinutes - args.selectedSpan.startMinutes, editStepMinutes),
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          deltaMinutes: normalizeVideoSequenceClipEditDeltaMinutes(editPositionMinutes - actionContext.selectedSpan.startMinutes, editStepMinutes),
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex,
+        actionContext.selectedSpan.lineIndex,
       )
       return
     }
     if (!VIDEO_SEQUENCE_OPERATION_TOOL_SET.has(toolId)) return
     commitGanttVideoSequenceCode(
+      actionContext,
       insertMermaidGanttVideoSequenceOperationRow({
-        code: args.code,
-        rowLineIndex: args.selectedSpan.lineIndex,
+        code: actionContext.code,
+        rowLineIndex: actionContext.selectedSpan.lineIndex,
         operation: toolId as MermaidGanttVideoSequenceOperation,
       }),
-      args.selectedSpan.lineIndex + 1,
+      actionContext.selectedSpan.lineIndex + 1,
     )
-  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, autoSnappingEnabled, commitGanttVideoSequenceCode, timingSyncMode])
+  }, [args.positionMinutes, autoSnappingEnabled, commitGanttVideoSequenceCode, resolveCurrentVideoSequenceActionContext, timingSyncMode])
 
   const handleMediaDrop = React.useCallback((media: MediaDragPayload, positionMinutes: number) => {
     const currentDocument = readDocumentSnapshot()
-    if (
-      currentDocument.markdownDocumentName !== args.markdownDocumentName ||
-      currentDocument.markdownText !== args.markdownText
-    ) {
-      return
-    }
+    if (currentDocument.markdownDocumentName !== args.markdownDocumentName) return false
+    const baseMarkdownText = currentDocument.markdownText || args.markdownText
+    const baseCode = currentDocument.markdownText === args.markdownText
+      ? args.code
+      : resolveMermaidGanttCode(readYamlFrontmatterMermaidDiagramCodes(baseMarkdownText, 'gantt'))
     const next = appendMermaidGanttVideoSequenceMediaDrop({
-      code: args.code,
-      markdownText: args.markdownText,
+      code: baseCode,
+      markdownText: baseMarkdownText,
       media,
       startMinutes: Math.max(0, positionMinutes),
     })
@@ -183,10 +195,11 @@ export function useGanttTimelineDocumentActions(args: {
         message: 'Media drop needs an active Video Sequence timeline.',
         ttlMs: 4_000,
       })
-      return
+      return false
     }
     setMarkdownDocument(args.markdownDocumentName, next.markdownText, { applyViewPreset: false })
     args.setSelectedRowKey(next.rowKey)
+    return true
   }, [
     args.code,
     args.markdownDocumentName,
@@ -206,77 +219,83 @@ export function useGanttTimelineDocumentActions(args: {
       setRippleEditingEnabled(current => !current)
       return
     }
-    if (!args.selectedSpan || args.maxMinutes <= 0) return
-    const timelineModel = buildMermaidGanttTimelineModel(args.code)
+    const actionContext = resolveCurrentVideoSequenceActionContext()
+    if (!actionContext) return
+    const timelineModel = buildMermaidGanttTimelineModel(actionContext.code)
     const editPositionMinutes = resolveVideoSequenceClipEditSnappedMinutes({
       enabled: autoSnappingEnabled,
       positionMinutes: args.positionMinutes,
-      selectedSpan: args.selectedSpan,
+      selectedSpan: actionContext.selectedSpan,
       spans: timelineModel.taskSpans,
     })
-    const editStepMinutes = resolveVideoSequenceClipEditStepMinutes(args.selectedSpan)
+    const editStepMinutes = resolveVideoSequenceClipEditStepMinutes(actionContext.selectedSpan)
     if (action === 'add-bookmark') {
       const next = insertMermaidGanttVideoSequenceBookmark({
-        code: args.code,
+        code: actionContext.code,
         positionMinutes: editPositionMinutes,
-        rowLineIndex: args.selectedSpan.lineIndex,
+        rowLineIndex: actionContext.selectedSpan.lineIndex,
       })
-      commitGanttVideoSequenceCode(next?.code || null, next?.lineIndex)
+      commitGanttVideoSequenceCode(actionContext, next?.code || null, next?.lineIndex)
       return
     }
     if (action === 'split-at-playhead') {
       commitGanttVideoSequenceCode(
+        actionContext,
         splitMermaidGanttVideoSequenceClipAtOffset({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
-          splitOffsetMinutes: editPositionMinutes - args.selectedSpan.startMinutes,
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
+          splitOffsetMinutes: editPositionMinutes - actionContext.selectedSpan.startMinutes,
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex,
+        actionContext.selectedSpan.lineIndex,
       )
       return
     }
     if (action === 'split-right-at-playhead') {
       commitGanttVideoSequenceCode(
+        actionContext,
         splitMermaidGanttVideoSequenceClipRightAtOffset({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
-          splitOffsetMinutes: editPositionMinutes - args.selectedSpan.startMinutes,
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
+          splitOffsetMinutes: editPositionMinutes - actionContext.selectedSpan.startMinutes,
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex,
+        actionContext.selectedSpan.lineIndex,
       )
       return
     }
     if (action === 'extract-audio') {
       commitGanttVideoSequenceCode(
+        actionContext,
         extractMermaidGanttVideoSequenceAudioRow({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
         }),
-        args.selectedSpan.lineIndex + 1,
+        actionContext.selectedSpan.lineIndex + 1,
       )
       return
     }
     if (action === 'duplicate-element') {
       commitGanttVideoSequenceCode(
+        actionContext,
         duplicateMermaidGanttVideoSequenceClip({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex + 1,
+        actionContext.selectedSpan.lineIndex + 1,
       )
       return
     }
     if (action === 'delete-element') {
       commitGanttVideoSequenceCode(
+        actionContext,
         (rippleEditingEnabled ? deleteMermaidGanttVideoSequenceClipWithRipple : deleteMermaidGanttVideoSequenceClip)({
-          code: args.code,
-          rowLineIndex: args.selectedSpan.lineIndex,
-          syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+          code: actionContext.code,
+          rowLineIndex: actionContext.selectedSpan.lineIndex,
+          syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
         }),
-        args.selectedSpan.lineIndex,
+        actionContext.selectedSpan.lineIndex,
       )
       return
     }
@@ -284,36 +303,37 @@ export function useGanttTimelineDocumentActions(args: {
     let mode: MermaidGanttBarDragMode = 'move'
     let deltaMinutes = 0
     if (action === 'nudge-back') {
-      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, args.selectedSpan.startMinutes))
+      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, actionContext.selectedSpan.startMinutes))
     } else if (action === 'nudge-forward') {
       deltaMinutes = editStepMinutes
     } else if (action === 'trim-start-back') {
       mode = 'resize-start'
-      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, args.selectedSpan.startMinutes))
+      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, actionContext.selectedSpan.startMinutes))
     } else if (action === 'trim-start-forward') {
       mode = 'resize-start'
-      deltaMinutes = Math.min(editStepMinutes, Math.max(0, args.selectedSpan.durationMinutes - editStepMinutes))
+      deltaMinutes = Math.min(editStepMinutes, Math.max(0, actionContext.selectedSpan.durationMinutes - editStepMinutes))
     } else if (action === 'trim-end-back') {
       mode = 'resize-end'
-      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, args.selectedSpan.durationMinutes - editStepMinutes))
+      deltaMinutes = -Math.min(editStepMinutes, Math.max(0, actionContext.selectedSpan.durationMinutes - editStepMinutes))
     } else if (action === 'trim-end-forward') {
       mode = 'resize-end'
       deltaMinutes = editStepMinutes
     } else if (action === 'snap-to-playhead') {
-      deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(editPositionMinutes - args.selectedSpan.startMinutes, editStepMinutes)
+      deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(editPositionMinutes - actionContext.selectedSpan.startMinutes, editStepMinutes)
     }
     if (!deltaMinutes) return
     commitGanttVideoSequenceCode(
+      actionContext,
       updateMermaidGanttVideoSequenceClipTiming({
-        code: args.code,
-        rowLineIndex: args.selectedSpan.lineIndex,
+        code: actionContext.code,
+        rowLineIndex: actionContext.selectedSpan.lineIndex,
         mode,
         deltaMinutes,
-        syncMode: resolveDirectEditTimingSyncMode({ span: args.selectedSpan, timingSyncMode }),
+        syncMode: resolveDirectEditTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode }),
       }),
-      args.selectedSpan.lineIndex,
+      actionContext.selectedSpan.lineIndex,
     )
-  }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, autoSnappingEnabled, commitGanttVideoSequenceCode, rippleEditingEnabled, timingSyncMode])
+  }, [args.positionMinutes, autoSnappingEnabled, commitGanttVideoSequenceCode, resolveCurrentVideoSequenceActionContext, rippleEditingEnabled, timingSyncMode])
 
   const handleToggleVideoSequenceTimingSyncMode = React.useCallback(() => {
     setTimelineTransportTimingSyncMode(timingSyncMode === 'grouped' ? 'selected' : 'grouped')

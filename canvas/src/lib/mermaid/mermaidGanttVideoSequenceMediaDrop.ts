@@ -70,6 +70,52 @@ const buildMediaSourceId = (media: MediaDragPayload, frontmatterLines: readonly 
   return `${base}_${Date.now().toString(36)}`
 }
 
+const readSourceEntryId = (line: string): string => {
+  const match = /^\s*-\s+id\s*:\s*["']?([^"'\s]+)["']?\s*$/.exec(line)
+  return cleanInline(match?.[1])
+}
+
+const readVideoSequenceSourceEntries = (
+  lines: readonly string[],
+  frontmatterEndIndex: number,
+): readonly { endIndex: number; id: string; lines: readonly string[]; startIndex: number }[] => {
+  const sourceKeyIndex = lines.findIndex((line, index) => (
+    index > 0 && index < frontmatterEndIndex && /^\s*kgVideoSequenceSources\s*:\s*$/.test(line)
+  ))
+  if (sourceKeyIndex < 0) return []
+  const entries: { endIndex: number; id: string; lines: readonly string[]; startIndex: number }[] = []
+  let index = sourceKeyIndex + 1
+  while (index < frontmatterEndIndex) {
+    const line = lines[index] || ''
+    if (line.trim() && !/^\s/.test(line)) break
+    const id = readSourceEntryId(line)
+    if (!id) {
+      index += 1
+      continue
+    }
+    let endIndex = index + 1
+    while (endIndex < frontmatterEndIndex && !readSourceEntryId(lines[endIndex] || '')) {
+      const entryLine = lines[endIndex] || ''
+      if (entryLine.trim() && !/^\s/.test(entryLine)) break
+      endIndex += 1
+    }
+    entries.push({ endIndex, id, lines: lines.slice(index, endIndex), startIndex: index })
+    index = endIndex
+  }
+  return entries
+}
+
+const readReusableBlankVideoSourceId = (lines: readonly string[]): string => {
+  const frontmatterEndIndex = findFrontmatterEndIndex(lines)
+  if (frontmatterEndIndex <= 0) return ''
+  const blankVideoSource = readVideoSequenceSourceEntries(lines, frontmatterEndIndex).find(entry => {
+    const sourceText = entry.lines.join('\n')
+    return /^\s*sourceUrl\s*:\s*(?:""|''|)\s*$/m.test(sourceText)
+      && /^\s*mimeHint\s*:\s*["']?video\//m.test(sourceText)
+  })
+  return blankVideoSource?.id || ''
+}
+
 const inferMimeHint = (media: MediaDragPayload): string => {
   const explicit = cleanInline(media.mimeHint)
   if (explicit) return explicit
@@ -183,13 +229,23 @@ const appendSourceToFrontmatter = (args: {
   lines: string[]
   sourceId: string
   media: MediaDragPayload
+  replaceSourceId?: string
 }): string[] | null => {
   const frontmatterEndIndex = findFrontmatterEndIndex(args.lines)
   if (frontmatterEndIndex <= 0) return null
+  const sourceLines = buildSourceLines({ id: args.sourceId, media: args.media })
+  if (args.replaceSourceId) {
+    const replaceEntry = readVideoSequenceSourceEntries(args.lines, frontmatterEndIndex)
+      .find(entry => entry.id === args.replaceSourceId)
+    if (replaceEntry) {
+      const nextLines = args.lines.slice()
+      nextLines.splice(replaceEntry.startIndex, replaceEntry.endIndex - replaceEntry.startIndex, ...sourceLines)
+      return nextLines
+    }
+  }
   const sourceKeyIndex = args.lines.findIndex((line, index) => (
     index > 0 && index < frontmatterEndIndex && /^\s*kgVideoSequenceSources\s*:\s*$/.test(line)
   ))
-  const sourceLines = buildSourceLines({ id: args.sourceId, media: args.media })
   const nextLines = args.lines.slice()
   if (sourceKeyIndex < 0) {
     const flowIndex = nextLines.findIndex((line, index) => index > 0 && index < frontmatterEndIndex && /^\s*flow_diagrams\s*:\s*$/.test(line))
@@ -268,6 +324,7 @@ const appendTaskToCode = (args: {
   durationMinutes: number
   importChrome: boolean
   media: MediaDragPayload
+  replaceSourceId?: string
   sourceId: string
   startMinutes: number
 }): { code: string; lineIndex: number; line: string } | null => {
@@ -277,6 +334,17 @@ const appendTaskToCode = (args: {
   const taskLine = buildTaskLine(args)
   const existingSection = readCodeSectionRangeAny(lines, mediaSectionLabels(lane))
   if (existingSection) {
+    if (lane === 'Video' && args.replaceSourceId) {
+      const replaceIndex = lines.findIndex((line, index) => (
+        index > existingSection.startIndex &&
+        index < existingSection.endIndex &&
+        new RegExp(`^\\s*Source video\\s*:\\s*${args.replaceSourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*,|\\s*$)`, 'i').test(line)
+      ))
+      if (replaceIndex > existingSection.startIndex) {
+        lines.splice(replaceIndex, 1, taskLine)
+        return { code: lines.join('\n'), line: taskLine, lineIndex: replaceIndex }
+      }
+    }
     lines.splice(existingSection.endIndex, 0, taskLine)
     return { code: lines.join('\n'), line: taskLine, lineIndex: existingSection.endIndex }
   }
@@ -297,7 +365,11 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
   startMinutes: number
   durationMinutes?: number
 }): MermaidGanttVideoSequenceMediaDropResult | null {
-  const sourceId = buildMediaSourceId(args.media, String(args.markdownText || '').split('\n'))
+  const markdownLines = String(args.markdownText || '').split('\n')
+  const reusableBlankVideoSourceId = args.media.kind === 'video'
+    ? readReusableBlankVideoSourceId(markdownLines)
+    : ''
+  const sourceId = reusableBlankVideoSourceId || buildMediaSourceId(args.media, markdownLines)
   const durationMinutes = resolveDropDurationMinutes(args.media, args.durationMinutes)
   const baseCode = String(args.code || '').trim() || DEFAULT_VIDEO_SEQUENCE_CODE
   const importChrome = args.media.kind === 'video' && !hasMermaidGanttTaskLine(baseCode)
@@ -306,13 +378,15 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
     durationMinutes,
     importChrome,
     media: args.media,
+    replaceSourceId: reusableBlankVideoSourceId,
     sourceId,
     startMinutes: importChrome ? 0 : args.startMinutes,
   })
   if (!nextCode) return null
   const linesWithSource = appendSourceToFrontmatter({
-    lines: String(args.markdownText || '').split('\n'),
+    lines: markdownLines,
     media: args.media,
+    replaceSourceId: reusableBlankVideoSourceId,
     sourceId,
   })
   if (!linesWithSource) return null

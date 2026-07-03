@@ -18,6 +18,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const clipMetaText = readSource('components', 'timeline', 'VideoSequenceTimelineClipMeta.tsx')
   const clipMetaCssText = readSource('components', 'timeline', 'VideoSequenceTimelineClipMeta.css')
   const denseFbfCssText = readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css')
+  const rulerGeometryText = readSource('components', 'timeline', 'videoSequenceTimelineRulerGeometry.ts')
   const mermaidTransportCssText = readSource('components', 'timeline', 'TimelineTransportControlsMermaidGantt.css')
   const transportCssText = readSource('components', 'timeline', 'TimelineTransportControls.css')
   const timelineTransportText = readSource('components', 'timeline', 'timelineTransport.ts')
@@ -31,13 +32,16 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const transportViewText = readSource('features', 'gitgraph', 'useGanttTimelineTransportView.ts')
   const contextControlsText = readSource('features', 'gitgraph', 'GanttTimelineTransportContextControls.tsx')
   const contextCssText = readSource('features', 'gitgraph', 'GanttTimelineTransportClipContext.css')
+  const mediaPlayerText = readSource('features', 'gitgraph', 'GanttTimelineTransportMediaPlayer.tsx')
   const shellText = readSource('features', 'gitgraph', 'GanttTimelineTransportShell.tsx')
-
   for (const token of [
     'data-kg-video-sequence-active-track',
+    'data-kg-compact-source-placeholder={compactSourcePlaceholder ?',
     'data-kg-video-sequence-source-window',
     'VideoSequenceTimelineClipMeta',
     'VideoSequenceTimelineRulerTicks',
+    'resolveVideoSequenceRulerInsetLeft',
+    'resolveVideoSequenceRulerInsetWidth',
     'buildVideoSequenceTimelineZoomTicks({ displayTicks, frameRate: mediaFrameRate, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom })',
     'resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes, mediaDurationSeconds })',
     'resolveVideoSequenceTimelineAppendSpacePercent(timelineZoom)',
@@ -48,6 +52,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'timeline-video-sequence-ruler-scroll timeline-video-sequence-ruler-surface',
     'timeline-video-sequence-ruler-scroll-content',
     'timeline-video-sequence-ruler-viewport',
+    'ref={viewportRef}',
     'timeline-video-sequence-ruler-axis',
     'data-kg-video-sequence-ruler-axis="1"',
     'data-kg-video-sequence-ruler-body="1"',
@@ -61,6 +66,14 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'resolveVideoSequenceSourceWindowLabel(thumbnailWindow)',
   ]) {
     if (!rulerText.includes(token)) throw new Error(`expected enhanced ruler token: ${token}`)
+  }
+  for (const token of [
+    'VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX = 14',
+    'resolveVideoSequenceRulerInsetLeft',
+    'resolveVideoSequenceRulerInsetWidth',
+    '100% - ${VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX * 2}px',
+  ]) {
+    if (!rulerGeometryText.includes(token)) throw new Error(`expected ruler geometry token: ${token}`)
   }
   for (const token of [
     'TimelineVideoSequenceEmptyState',
@@ -101,12 +114,19 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 112px) minmax(0, 1fr)',
     'repeat-x 0 24px / 25% calc(100% - 24px)',
     '.timeline-video-sequence-ruler-scroll',
-    'overflow-y: auto',
+    'overflow-y: hidden',
     'overscroll-behavior: contain',
     '.timeline-video-sequence-ruler-scroll-content',
     '.timeline-video-sequence-ruler-viewport',
     '.timeline-video-sequence-ruler-axis',
+    'position: sticky',
+    'top: 0',
+    '.timeline-video-sequence-lane-sidebar-scroll',
+    '--kg-video-sequence-sidebar-scroll-top',
+    'transform: translateY(calc(var(--kg-video-sequence-sidebar-scroll-top, 0px) * -1))',
     '.timeline-video-sequence-ruler-content',
+    'max-height: calc(100% - 24px)',
+    'overflow-y: auto',
     'border-bottom: 1px solid rgb(226 232 240 / 1)',
     'cursor: ew-resize',
     'pointer-events: auto',
@@ -119,7 +139,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-video-sequence-ruler-playhead-marker',
     'padding-inline: 18px 12px',
     'border-bottom: 1px solid rgb(203 213 225 / 0.34)',
-    'margin-top: 24px',
+    'margin-top: 0',
     '.timeline-video-sequence-ruler-surface',
   ]) {
     if (!transportCssText.includes(token)) throw new Error(`expected shared empty/source timeline visual style: ${token}`)
@@ -189,18 +209,29 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
 
   for (const token of [
     'aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}',
+    'buildVideoSequenceThumbnailDragPayload',
+    'beginMediaPointerDragPayload',
+    'writeMediaDragPayload(event.dataTransfer, payload)',
+    'finishMediaPointerDragPayloadForEvent(event.nativeEvent)',
+    'data-kg-media-draggable="1"',
+    'timeline-video-sequence-clip-thumbnail-drag-affordance',
+    'data-kg-video-sequence-clip-thumbnail-drag-affordance="1"',
+    'data-kg-video-sequence-clip-thumbnail-drag-kind="image"',
+    'onMovePointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan) => void',
+    'onMovePointerStart(event, span)',
+    'const [activeThumbnailIndex, setActiveThumbnailIndex] = React.useState<number | null>(null)',
+    'timeline-video-sequence-clip-thumbnail-strip-preview',
+    '--kg-video-sequence-clip-thumbnail-preview-left',
+    'data-kg-video-sequence-clip-thumbnail-preview-active',
+    'onMouseEnter={() => setActiveThumbnailIndex(thumbnailIndex)}',
     'data-kg-video-sequence-clip-thumbnail-caption-format',
     'data-kg-video-sequence-clip-thumbnail-caption-time',
     'data-kg-video-sequence-clip-thumbnail-preview-caption',
   ]) {
     if (!clipThumbnailStripText.includes(token)) throw new Error(`expected text-neutral thumbnail metadata token: ${token}`)
   }
-  if (
-    clipThumbnailStripText.includes('{thumbnail.format}/{thumbnail.rasterFormat}</span>') ||
-    clipThumbnailStripText.includes('{formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}')
-  ) {
-    throw new Error('expected thumbnail metadata to stay out of visible ruler text')
-  }
+  if (!rulerText.includes("onMovePointerStart={(event, targetSpan) => onTrackPointerStart(event, targetSpan, 'move')}")) throw new Error('expected compact source thumbnail pointer-down to delegate to the whole-bar move handler')
+  if (clipThumbnailStripText.includes('{thumbnail.format}/{thumbnail.rasterFormat}</span>') || clipThumbnailStripText.includes('{formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}')) throw new Error('expected thumbnail metadata to stay out of visible ruler text')
 
   for (const token of [
     'timeline-video-sequence-clip-meta',
@@ -220,21 +251,62 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
 
   for (const token of [
+    '--kg-compact-source-media-bar-height: calc(var(--kg-main-toolbar-height, 38px) * 1.5)',
+    '--kg-compact-source-placeholder-bar-height: var(--kg-compact-source-media-bar-height)',
     '.timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--lane-fbf)',
-    'height: var(--kg-compact-source-media-bar-height, 42px)',
-    'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-compact-source-media-bar-height, 42px)) / 2)',
-    'border-color: rgb(15 23 42 / 0.24)',
-    'inset: 2px 5px',
+    'height: var(--kg-compact-source-media-bar-height)',
+    'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-compact-source-media-bar-height)) / 2)',
+    'border-color: var(--kg-border, rgb(226 232 240 / 1))',
+    'border-radius: 6px',
+    'background: color-mix(in srgb, var(--kg-panel-bg, #fff) 94%, var(--kg-canvas-accent, #2563eb) 3%)',
+    '.timeline-transport-track-clip--lane-image[data-kg-compact-source-media="1"]', 'var(--kg-canvas-accent, #2563eb) 36%', 'max-width: 100%', 'var(--kg-text-primary, #0f172a) 78%',
+    'border-width: 2px',
+    'border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1))',
+    'box-shadow: none',
+    'z-index: 9',
+    'contain: layout style',
+    '.timeline-transport-chrome--mermaid-gantt:has(.timeline-video-sequence-clip-thumbnail-strip[data-kg-video-sequence-clip-thumbnail-preview-active="1"])',
+    'z-index: 12',
+    'overflow: visible',
+    'inset: 0',
     'flex: 1 1 0',
     'min-width: 0',
     'filter: saturate(1.04) contrast(1.02)',
+    'cursor: move',
+    '.timeline-video-sequence-clip-thumbnail-drag-affordance',
+    'inset-block-start: 2px',
+    'width: 8px',
+    'height: 8px',
+    '.timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-drag-affordance',
+    'cursor: grab',
+    'cursor: grabbing',
     'background: transparent',
-    'box-shadow: 0 1px 2px rgb(15 23 42 / 0.1)',
-    'width: 3px',
-    'height: 18px',
-    'linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg',
+    'data-kg-compact-source-placeholder="1"',
+    'height: var(--kg-compact-source-placeholder-bar-height)',
+    'border-style: dashed',
+    'var(--kg-canvas-accent, #2563eb) 22%',
+    'repeating-linear-gradient(90deg, transparent 0 14px',
+    'rgb(37 99 235 / 0.035)',
+    'var(--kg-canvas-accent, #2563eb) 3%',
+    'var(--kg-text-secondary, #64748b) 74%',
+    '.timeline-transport-track-clip[data-kg-compact-source-placeholder="1"].timeline-transport-track-clip--selected',
+    '.timeline-transport-track-clip[data-kg-compact-source-placeholder="1"] .timeline-video-sequence-clip-thumbnail-strip',
+    'top: calc(100% + 6px)',
+    'overflow: visible',
+    'transform-origin: top center',
+    '[data-kg-video-sequence-clip-thumbnail-preview-active="1"] .timeline-video-sequence-clip-thumbnail-strip-preview',
+    '.timeline-video-sequence-clip-thumbnail-strip-preview',
+    'left: var(--kg-video-sequence-clip-thumbnail-preview-left, 50%)',
+    '.timeline-transport-track-handle',
+    'width: 10px',
+    'opacity: 0',
+    '.timeline-transport-track-handle-grip',
+    'display: none',
   ]) {
     if (!denseFbfCssText.includes(token)) throw new Error(`expected edit rail style: ${token}`)
+  }
+  if (denseFbfCssText.includes('[data-kg-compact-source-media="1"] .timeline-transport-track-handle {\n  display: none;')) {
+    throw new Error('expected compact media resize handles to stay interactive while their grips stay hidden')
   }
   if (denseFbfCssText.includes('border-color: rgb(0 153 255')) {
     throw new Error('expected compact timeline chrome to use design token canvas accent')
@@ -245,17 +317,57 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (denseFbfCssText.includes('background: rgb(2 6 23 / 0.58);')) {
     throw new Error('expected compact media bar labels to render as direct top-left text without a badge background')
   }
+  if (denseFbfCssText.includes('background: color-mix(in srgb, var(--kg-text-primary, #0f172a) 12%, transparent)')) {
+    throw new Error('expected compact media bezel to reuse the toolbar bezel palette')
+  }
+  if (denseFbfCssText.includes('linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02))')) {
+    throw new Error('expected compact media source bars to avoid a second wash tone')
+  }
+  if (denseFbfCssText.includes('background: rgb(3 7 18 / 0.66);')) {
+    throw new Error('expected compact media source bars to keep a translucent background')
+  }
   if (denseFbfCssText.includes('0 0 0 1px rgb(37 99 235 / 0.32)')) {
     throw new Error('expected compact media selected chrome to use a subtle border line instead of an outer glow')
   }
+  if (
+    denseFbfCssText.includes('inset 0 1px 0 rgb(255 255 255 / 0.76)') ||
+    denseFbfCssText.includes('inset 0 -1px 0 color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent)') ||
+    mermaidTransportCssText.includes('border-inline-color: transparent') ||
+    mermaidTransportCssText.includes('0 1px 2px rgb(15 23 42 / 0.1)')
+  ) {
+    throw new Error('expected compact media selected chrome to keep only the accent border line')
+  }
+  if (
+    denseFbfCssText.includes('inset: 2px 5px') ||
+    denseFbfCssText.includes('background: rgb(2 6 23 / 0.72);') ||
+    denseFbfCssText.includes('box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);') ||
+    denseFbfCssText.includes('box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.08);') ||
+    denseFbfCssText.includes('0 2px 8px rgb(15 23 42 / 0.28)')
+  ) {
+    throw new Error('expected compact media thumbnails to avoid redundant inner border chrome')
+  }
+  if (
+    denseFbfCssText.includes(':hover .timeline-video-sequence-clip-thumbnail:first-child .timeline-video-sequence-clip-thumbnail-preview {\n  opacity: 0;') ||
+    denseFbfCssText.includes(':focus-within .timeline-video-sequence-clip-thumbnail:first-child .timeline-video-sequence-clip-thumbnail-preview {\n  opacity: 0;') ||
+    denseFbfCssText.includes('.timeline-video-sequence-clip-thumbnail:first-child .timeline-video-sequence-clip-thumbnail-preview') ||
+    denseFbfCssText.includes('.timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-preview')
+  ) {
+    throw new Error('expected compact media thumbnail hover to use the strip-level active preview state')
+  }
   if (mermaidTransportCssText.includes('0 0 0 2px rgb(37 99 235 / 0.44)')) {
     throw new Error('expected scoped compact media selected chrome to avoid the heavy outer ring')
+  }
+  if (!mermaidTransportCssText.includes('var(--kg-canvas-accent, #2563eb) 28%')) {
+    throw new Error('expected scoped placeholder selected chrome to keep the soft dashed border tone')
   }
   if (
     denseFbfCssText.includes('inset 0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent') ||
     mermaidTransportCssText.includes('inset 0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent')
   ) {
     throw new Error('expected compact media selected chrome to avoid redundant inset frames')
+  }
+  if (mermaidTransportCssText.includes('linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg, #fff) 76%, var(--kg-canvas-accent, #2563eb) 24%), var(--kg-canvas-accent, rgb(37 99 235 / 1)))')) {
+    throw new Error('expected compact source handles to stay removed under scoped transport styling')
   }
   if (denseFbfCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-compact-source-media="1"]')) {
     throw new Error('expected compact source audio to reuse the shared source bar chrome')
@@ -333,6 +445,9 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-slot',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-frame',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-media',
     'flex-wrap: nowrap',
     'gap: 2px',
     'color-mix(in srgb, var(--kg-canvas-accent',
@@ -346,6 +461,9 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'timeline-transport-zoom-label',
     'timeline-tool-menu--edit',
     'timeline-tool-menu--zoom',
+    'MonitorPlay',
+    'data-kg-video-sequence-tool="media-player"',
+    'data-kg-video-sequence-media-player-toggle="1"',
     'aria-label="Video sequence edit tools"',
     'aria-label="Timeline fit and center tools"',
     'renderZoomButton',
@@ -384,14 +502,48 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'percent: Math.max(0, Math.min(100, args.timelineZoomPercent))',
     'timelineZoom: number',
     'timelineZoomPercent: number',
+    'mediaPlayerButton: {',
+    'mediaPlayerAvailable: boolean',
+    'mediaPlayerEnabled: boolean',
+    'onToggleMediaPlayer: () => void',
   ]) {
     if (!transportChromeModelText.includes(token)) throw new Error(`expected zoom control model token: ${token}`)
   }
   for (const token of [
     'const timelinePlanSourceFrameRate = React.useMemo',
     'mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate)',
+    'const [mediaPlayerVisible, setMediaPlayerVisible] = React.useState(false)',
+    'const mediaPlayerSourceSegment = React.useMemo',
+    'readTimelineTransportMediaPreviewKind',
+    'const mediaPlayerModel = React.useMemo<GanttTimelineTransportMediaPlayerModel>',
+    'mediaPlayerAvailable',
+    'mediaPlayerEnabled',
   ]) {
     if (!transportSurfaceModelText.includes(token)) throw new Error(`expected source-backed frame-rate ruler token: ${token}`)
+  }
+  for (const token of [
+    'mediaPlayer?: React.ReactNode',
+    'timeline-transport-media-player-slot',
+  ]) {
+    if (!transportText.includes(token)) throw new Error(`expected shared transport media player slot token: ${token}`)
+  }
+  for (const token of [
+    'GanttTimelineTransportMediaPlayer',
+    'mediaPlayerModel={args.model.mediaPlayerModel}',
+    'mediaPlayer={args.mediaPlayerModel.active ?',
+  ]) {
+    if (!shellText.includes(token)) throw new Error(`expected shell media player token: ${token}`)
+  }
+  for (const token of [
+    'CardMediaPreview',
+    'useTimelineVideoPreviewSyncController',
+    'data-kg-video-sequence-media-player="1"',
+    'data-kg-video-sequence-media-player-kind',
+    'videoControls={false}',
+    'mediaThumbnailDataAttr={true}',
+    'readTransportSnapshot',
+  ]) {
+    if (!mediaPlayerText.includes(token)) throw new Error(`expected media player reuse token: ${token}`)
   }
 
   for (const token of [
@@ -399,6 +551,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'TIMELINE_TRANSPORT_WHEEL_LINE_DELTA',
     'captureZoomScrollAnchor',
     'resolveTimelineTransportRailScroller',
+    'rulerViewportRef',
     'wheelZoomClientXRef',
     'zoomScrollAnchorRef',
     'wheelZoomDeltaRef',

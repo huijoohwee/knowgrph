@@ -80,6 +80,10 @@ async function assertUploadedMediaSurfaceStartsPointerDrag(surface: 'card' | 'ro
     if (!(uploadItem instanceof dom.window.HTMLElement)) {
       throw new Error(`expected uploaded media ${surface} root`)
     }
+    const dragFrame = container.querySelector('[data-kg-media-drag-affordance="frame"]')
+    if (!(dragFrame instanceof dom.window.HTMLElement) || !dragFrame.className.includes('cursor-grab') || !dragFrame.className.includes('cursor-grabbing')) {
+      throw new Error(`expected uploaded media ${surface} frame to expose a grab/grabbing drag affordance`)
+    }
     const thumbnailImage = container.querySelector('img[data-kg-command-menu-media-thumbnail="1"]')
     if (!(thumbnailImage instanceof dom.window.HTMLImageElement)) {
       throw new Error(`expected uploaded media ${surface} thumbnail image`)

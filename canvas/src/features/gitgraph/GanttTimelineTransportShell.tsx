@@ -4,10 +4,12 @@ import { type GanttTimelineTransportRulerModel } from './useGanttTimelineTranspo
 import { type GanttTimelineTransportShellModel } from './useGanttTimelineTransportShellModel'
 import { GanttTimelineTransportContextControls } from './GanttTimelineTransportContextControls'
 import { GanttTimelineTransportHeaderTools } from './GanttTimelineTransportHeaderTools'
+import { GanttTimelineTransportMediaPlayer, type GanttTimelineTransportMediaPlayerModel } from './GanttTimelineTransportMediaPlayer'
 import { GanttTimelineTransportRuler } from './GanttTimelineTransportRuler'
 
 export type GanttTimelineTransportShellProps = {
   chromeModel: GanttTimelineTransportChromeModel
+  mediaPlayerModel: GanttTimelineTransportMediaPlayerModel
   rulerModel: GanttTimelineTransportRulerModel
   shellModel: GanttTimelineTransportShellModel
 }
@@ -32,6 +34,7 @@ export function GanttTimelineTransportShell(args: GanttTimelineTransportShellPro
       shellClassName={args.shellModel.shellClassName}
       rootProps={args.shellModel.rootProps}
       headerAside={<GanttTimelineTransportHeaderTools model={args.chromeModel.headerTools} />}
+      mediaPlayer={args.mediaPlayerModel.active ? <GanttTimelineTransportMediaPlayer model={args.mediaPlayerModel} /> : null}
       ruler={<GanttTimelineTransportRuler model={args.rulerModel.ruler} />}
       rulerClassName={args.rulerModel.chrome.rulerClassName}
       rulerProps={args.rulerModel.chrome.rulerProps}

@@ -11,6 +11,7 @@ export function GanttTimelineTransportSurface(args: GanttTimelineTransportSurfac
     <>
       <GanttTimelineTransportShell
         chromeModel={args.model.chromeModel}
+        mediaPlayerModel={args.model.mediaPlayerModel}
         rulerModel={args.model.rulerModel}
         shellModel={args.model.shellModel}
       />

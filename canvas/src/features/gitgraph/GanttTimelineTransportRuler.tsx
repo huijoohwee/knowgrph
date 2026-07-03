@@ -9,6 +9,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
   return (
     <VideoSequenceTimelineRuler
       contentRef={args.model.contentRef}
+      viewportRef={args.model.viewportRef}
       disabledLaneIds={args.model.disabledLaneIds}
       displayTicks={args.model.displayTicks}
       dragPreview={args.model.dragPreview}

@@ -6,6 +6,8 @@ import { VideoSequenceClipThumbnailStrip } from './VideoSequenceClipThumbnailStr
 import { buildVideoSequenceGeneratedFrameThumbnails } from './videoSequenceGeneratedFrameThumbnails'
 import { VideoSequenceTimelineClipMeta, resolveVideoSequenceSourceWindowLabel } from './VideoSequenceTimelineClipMeta'
 import { VideoSequenceTimelineRulerTicks } from './VideoSequenceTimelineRulerTicks'
+import { resolveVideoSequenceRulerInsetLeft, resolveVideoSequenceRulerInsetWidth } from './videoSequenceTimelineRulerGeometry'
+import { buildVideoSequenceSourceImageThumbnail } from './videoSequenceSourceImageThumbnail'
 import { useVideoSequenceTimelineMediaDropTarget } from './useVideoSequenceTimelineMediaDropTarget'
 import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineContentZoom, resolveVideoSequenceTimelineScaleMaxMinutes } from './videoSequenceTimelineZoom'
 import {
@@ -115,7 +117,7 @@ function resolveVideoSequenceSourceThumbnailSet(args: {
 }): VideoSequenceTimelineSourceThumbnailSet | null {
   const expectedKind = args.lane === 'image' || args.lane === 'scene' ? 'image' : args.lane === 'video' || args.lane === 'audio' ? 'video' : null
   if (!expectedKind) return null
-  const candidates = args.sets.filter(set => set.kind === expectedKind && (args.lane === 'audio' ? set.sourceAudioWaveformSamples.length || set.sourceThumbnails.length : set.sourceThumbnails.length))
+  const candidates = args.sets.filter(set => set.kind === expectedKind && (args.lane === 'audio' ? set.sourceAudioWaveformSamples.length || set.sourceThumbnails.length : set.sourceThumbnails.length || (expectedKind === 'image' && !!set.sourceUrl)))
   if (!candidates.length) return null
   const spanLabel = normalizeSourceThumbnailLabel(args.span.label)
   const matched = candidates.find(set => {
@@ -134,6 +136,7 @@ function buildVideoSequenceClipMediaCache(args: {
   const cache = new Map<string, {
     compactSourceFrameSamples: boolean
     compactSourceMedia: boolean
+    compactSourcePlaceholder: boolean
     generatedFrameSamples: readonly TimelineMediaReaderThumbnail[]
     lane: VideoSequenceTimelineLaneId
     semanticFrameSamples: readonly TimelineMediaReaderThumbnail[]
@@ -148,40 +151,34 @@ function buildVideoSequenceClipMediaCache(args: {
     const lane = resolveVideoSequenceTimelineLane(span)
     const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
     const compactSourceMedia = isCompactSourceMediaSpan(span, lane)
-    const compactVisualSourceMedia = compactSourceMedia && (lane === 'video' || lane === 'audio')
+    const compactSourceVideo = compactSourceMedia && lane === 'video'
     const compactSourceImage = compactSourceMedia && (lane === 'image' || lane === 'scene')
     const compactSourceFrameSamples = compactSourceMedia && lane === 'fbf'
-    const showsMediaContent = !verticalMarker && (
-      VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
-      VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
-      showsGeneratedFrameContent
-    )
+    const showsMediaContent = !verticalMarker && (VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) || showsGeneratedFrameContent)
     const sourceThumbnailSet = resolveVideoSequenceSourceThumbnailSet({ lane, sets: args.sourceThumbnailSets, span })
     const sourceThumbnails = sourceThumbnailSet?.sourceThumbnails || args.sourceThumbnails
     const sourceThumbnailWindows = sourceThumbnailSet?.sourceThumbnailWindows || args.sourceThumbnailWindows
-    const thumbnailWindow = showsMediaContent
-      ? resolveVideoSequenceSpanThumbnailWindow({
-          allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent,
-          span,
-          windows: sourceThumbnailWindows,
-        })
-      : null
-    const nativeFrameSamples = showsMediaContent && (!compactSourceMedia || compactVisualSourceMedia)
+    const compactSourcePlaceholder = compactSourceMedia && lane !== 'audio' && lane !== 'fbf' && !sourceThumbnailSet?.sourceThumbnails.length && !(compactSourceImage && sourceThumbnailSet?.sourceUrl)
+    const thumbnailWindow = showsMediaContent ? resolveVideoSequenceSpanThumbnailWindow({ allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent, span, windows: sourceThumbnailWindows }) : null
+    const nativeFrameSamples = showsMediaContent && (!compactSourceMedia || compactSourceVideo)
       ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
       : []
-    const stillImageSamples = compactSourceImage && sourceThumbnailSet?.kind === 'image' ? sourceThumbnailSet.sourceThumbnails.slice(0, 1) : []
+    const stillImageSamples = compactSourceImage && sourceThumbnailSet?.kind === 'image'
+      ? (sourceThumbnailSet.sourceThumbnails.length ? sourceThumbnailSet.sourceThumbnails.slice(0, 1) : buildVideoSequenceSourceImageThumbnail(sourceThumbnailSet))
+      : []
     const sourceAudioWaveformSamples = lane === 'audio' ? (sourceThumbnailSet?.sourceAudioWaveformSamples || []) : []
     const semanticFrameSamples = compactSourceFrameSamples ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
-    const generatedFrameSamples = (showsGeneratedFrameContent || compactVisualSourceMedia) && !nativeFrameSamples.length && !semanticFrameSamples.length ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
+    const generatedFrameSamples = (showsGeneratedFrameContent || compactSourceVideo) && !nativeFrameSamples.length && !semanticFrameSamples.length ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
     cache.set(span.rowKey, {
       compactSourceFrameSamples,
       compactSourceMedia,
+      compactSourcePlaceholder,
       generatedFrameSamples,
       lane,
       semanticFrameSamples,
       showMediaCues: showsMediaContent && lane !== 'audio' && !compactSourceMedia,
       sourceAudioWaveformSamples,
-      thumbnailSamples: compactSourceFrameSamples ? [] : (stillImageSamples.length ? stillImageSamples : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)),
+      thumbnailSamples: compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? [] : (stillImageSamples.length ? stillImageSamples : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)),
       thumbnailWindow,
       verticalMarker,
     })
@@ -211,6 +208,7 @@ export function resolveVideoSequenceRulerMinHeight(laneCount = VIDEO_SEQUENCE_TI
 
 export function VideoSequenceTimelineRuler({
   contentRef,
+  viewportRef,
   displayTicks,
   dragPreview,
   draggingRowKey,
@@ -233,6 +231,7 @@ export function VideoSequenceTimelineRuler({
   onTrackPointerStart,
 }: {
   contentRef: React.RefObject<HTMLElement | null>
+  viewportRef: React.RefObject<HTMLElement | null>
   displayTicks: readonly MermaidGanttTimelineTick[]
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingRowKey: string
@@ -251,10 +250,11 @@ export function VideoSequenceTimelineRuler({
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
   onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
-  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
+  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => boolean
   onTrackPointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan, mode: MermaidGanttBarDragMode) => void
 }) {
   const mediaDropRef = React.useRef<HTMLElement | null>(null)
+  const laneSidebarScrollRef = React.useRef<HTMLElement | null>(null)
   const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>(() => ({ disabledLaneIds }), [disabledLaneIds])
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
@@ -278,6 +278,14 @@ export function VideoSequenceTimelineRuler({
     surface: 'bottom-timeline',
   }), [draggingRowKey, playheadPercent, selectedRowKey, taskSpans.length])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
+  React.useEffect(() => {
+    const scroller = contentRef.current
+    if (!scroller) return
+    const syncSidebarScroll = () => laneSidebarScrollRef.current?.style.setProperty('--kg-video-sequence-sidebar-scroll-top', `${scroller.scrollTop || 0}px`)
+    syncSidebarScroll()
+    scroller.addEventListener('scroll', syncSidebarScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', syncSidebarScroll)
+  }, [contentRef])
   return (
     <section
       className="timeline-video-sequence-editor timeline-video-sequence-grid"
@@ -299,16 +307,23 @@ export function VideoSequenceTimelineRuler({
       data-kg-animation-recording-enabled={animationState.recording.enabled ? '1' : undefined}
       data-kg-animation-vector-morph-path={animationState.vectorMorph.pathSample}
     >
-      <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
-        {visibleLanes.map(lane => (
-          <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-display-lane-label={lane.id} data-kg-video-sequence-lane-append={lane.append ? '1' : undefined} data-kg-video-sequence-lane-label={lane.semanticId}>
-            {lane.label}
-          </section>
-        ))}
+      <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels">
+        <section
+          ref={laneSidebarScrollRef}
+          className="timeline-video-sequence-lane-sidebar-scroll"
+          style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}
+        >
+          {visibleLanes.map(lane => (
+            <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-display-lane-label={lane.id} data-kg-video-sequence-lane-append={lane.append ? '1' : undefined} data-kg-video-sequence-lane-label={lane.semanticId}>
+              {lane.label}
+            </section>
+          ))}
+        </section>
       </aside>
       <section ref={mediaDropRef} className="timeline-video-sequence-ruler-scroll timeline-video-sequence-ruler-surface" aria-label="Video sequence timeline rail" data-kg-video-sequence-ruler-scroll="1" {...mediaDropTargetProps}>
         <section className="timeline-video-sequence-ruler-scroll-content" aria-label="Video sequence timeline workspace" style={{ minHeight }}>
         <section
+          ref={viewportRef}
           className="timeline-video-sequence-ruler-viewport"
           aria-label="Video sequence timeline axis and lanes"
           style={{
@@ -324,7 +339,7 @@ export function VideoSequenceTimelineRuler({
           <VideoSequenceTimelineRulerTicks displayTicks={timelineAxisTicks} />
           <span
             className="timeline-transport-playhead-marker timeline-video-sequence-ruler-playhead-marker"
-            style={{ left: `clamp(14px, ${timelineScaleMaxMinutes > 0 ? playheadPercent * (maxMinutes / timelineScaleMaxMinutes) : playheadPercent}%, calc(100% - 14px))` }}
+            style={{ left: resolveVideoSequenceRulerInsetLeft(timelineScaleMaxMinutes > 0 ? playheadPercent * (maxMinutes / timelineScaleMaxMinutes) : playheadPercent) }}
             data-kg-video-sequence-ruler-playhead-marker="1"
             aria-label="Timeline playhead marker"
             onPointerDown={onRulerPointerDown}
@@ -352,7 +367,7 @@ export function VideoSequenceTimelineRuler({
         </svg>
         <span
           className="timeline-transport-playhead"
-          style={{ left: `clamp(14px, ${timelineScaleMaxMinutes > 0 ? playheadPercent * (maxMinutes / timelineScaleMaxMinutes) : playheadPercent}%, calc(100% - 14px))` }}
+          style={{ left: resolveVideoSequenceRulerInsetLeft(timelineScaleMaxMinutes > 0 ? playheadPercent * (maxMinutes / timelineScaleMaxMinutes) : playheadPercent) }}
           data-kg-gantt-timeline-playhead="1"
           data-kg-video-sequence-ruler-playhead="1"
           aria-label="Timeline playhead"
@@ -362,7 +377,7 @@ export function VideoSequenceTimelineRuler({
         {renderableSpans.map((span, index) => {
           const media = clipMediaByRowKey.get(span.rowKey)
           if (!media) return null
-          const { compactSourceMedia, generatedFrameSamples, lane, semanticFrameSamples, showMediaCues, sourceAudioWaveformSamples, thumbnailSamples, thumbnailWindow, verticalMarker } = media
+          const { compactSourceMedia, compactSourcePlaceholder, generatedFrameSamples, lane, semanticFrameSamples, showMediaCues, sourceAudioWaveformSamples, thumbnailSamples, thumbnailWindow, verticalMarker } = media
           const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
           const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
@@ -386,9 +401,9 @@ export function VideoSequenceTimelineRuler({
                 seedText: `${span.label} ${span.raw}`,
               })
             : []
-          const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia
+          const waveformSamples = lane === 'audio' && !verticalMarker
             ? (sourceAudioWaveformSamples.length ? sourceAudioWaveformSamples : buildVideoSequenceTimelineWaveformSamples({
-                sampleCount: Math.max(8, Math.round(durationMinutes * 3)),
+                sampleCount: compactSourceMedia ? Math.max(320, Math.round(durationMinutes * 480)) : Math.max(8, Math.round(durationMinutes * 3)),
                 seedText: `${span.label} ${span.raw}`,
               }))
             : []
@@ -417,9 +432,9 @@ export function VideoSequenceTimelineRuler({
               key={`span:${span.rowKey}`}
               className={`timeline-transport-track-clip timeline-transport-track-clip--lane-${lane} ${verticalMarker ? 'timeline-transport-track-clip--milestone' : ''} ${selected ? 'timeline-transport-track-clip--selected' : ''} ${dragging ? 'timeline-transport-track-clip--dragging' : ''}`}
               style={{
-                left: verticalMarker ? `clamp(24px, ${leftPercent}%, calc(100% - 24px))` : `${leftPercent}%`,
+                left: verticalMarker ? `clamp(24px, ${leftPercent}%, calc(100% - 24px))` : resolveVideoSequenceRulerInsetLeft(leftPercent),
                 top: verticalMarker ? '0px' : `${laneIndex * VIDEO_SEQUENCE_LANE_HEIGHT_PX + (compactSourceMedia ? 0 : (index % 2) * 2)}px`,
-                width: verticalMarker ? '14px' : `${Math.min(100 - leftPercent, widthPercent)}%`,
+                width: verticalMarker ? '14px' : resolveVideoSequenceRulerInsetWidth(Math.min(100 - leftPercent, widthPercent)),
               }}
               aria-label={`${span.label} timeline clip`}
               data-kg-gantt-timeline-track-span="1"
@@ -428,9 +443,10 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
               data-kg-video-sequence-active-track={selected ? '1' : undefined}
               data-kg-compact-source-media={compactSourceMedia ? '1' : undefined}
+              data-kg-compact-source-placeholder={compactSourcePlaceholder ? '1' : undefined}
               data-kg-video-sequence-dense-fbf={denseFbfClip ? '1' : undefined}
               data-kg-video-sequence-display-lane={displayLaneId}
-              data-kg-video-sequence-audio-waveform-source={lane === 'audio' && !compactSourceMedia ? (sourceAudioWaveformSamples.length ? 'source' : 'synthetic') : undefined} data-kg-video-sequence-audio-waveform-samples={lane === 'audio' && !compactSourceMedia ? waveformSamples.length : undefined}
+              data-kg-video-sequence-audio-waveform-source={lane === 'audio' ? (sourceAudioWaveformSamples.length ? 'source' : 'synthetic') : undefined} data-kg-video-sequence-audio-waveform-samples={lane === 'audio' ? waveformSamples.length : undefined}
               data-kg-video-sequence-lane={lane}
               data-kg-video-sequence-source-window={resolveVideoSequenceSourceWindowLabel(thumbnailWindow) || undefined}
               data-kg-video-sequence-trim-start={clipStartLabel}
@@ -450,7 +466,7 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-motion-work-area={`${animationState.workArea.start}-${animationState.workArea.end}`}
               title={span.label}
             >
-              <VideoSequenceClipThumbnailStrip generated={generatedFrameSamples.length > 0} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
+              <VideoSequenceClipThumbnailStrip generated={generatedFrameSamples.length > 0} onMovePointerStart={(event, targetSpan) => onTrackPointerStart(event, targetSpan, 'move')} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
               <VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />
               {frameSamples.length ? (
                 <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">

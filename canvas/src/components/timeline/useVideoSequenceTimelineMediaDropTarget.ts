@@ -21,7 +21,7 @@ export type VideoSequenceTimelineMediaDropTargetProps = React.HTMLAttributes<HTM
 export function useVideoSequenceTimelineMediaDropTarget(args: {
   contentRef: React.RefObject<HTMLElement | null>
   maxMinutes: number
-  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => void
+  onDropMedia: (payload: MediaDragPayload, positionMinutes: number) => boolean
   targetRef: React.RefObject<HTMLElement | null>
 }): VideoSequenceTimelineMediaDropTargetProps {
   const resolvePositionMinutes = React.useCallback((clientX: number): number => {
@@ -37,7 +37,7 @@ export function useVideoSequenceTimelineMediaDropTarget(args: {
 
   const consumeDrop = React.useCallback((payload: MediaDragPayload | null, clientX: number, clientY: number): boolean => {
     if (!payload || !isInside(clientX, clientY)) return false
-    args.onDropMedia(payload, resolvePositionMinutes(clientX))
+    if (!args.onDropMedia(payload, resolvePositionMinutes(clientX))) return false
     clearMediaPointerDragPayload()
     return true
   }, [args, isInside, resolvePositionMinutes])

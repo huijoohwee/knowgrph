@@ -64,7 +64,9 @@ export function isMediaDropClaimedByNestedTarget(clientX: number, clientY: numbe
   if (typeof document === 'undefined') return false
   if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false
   const target = document.elementFromPoint(clientX, clientY)
-  return target instanceof Element && !!target.closest(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)
+  if (target instanceof Element && !!target.closest(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)) return true
+  return Array.from(document.querySelectorAll(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`))
+    .some(element => isMediaDragPointInsideElement(element, clientX, clientY))
 }
 
 export function isMediaDragPointInsideElement(element: Element | null | undefined, clientX: number, clientY: number): boolean {

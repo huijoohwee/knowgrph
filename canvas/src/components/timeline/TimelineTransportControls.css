@@ -902,7 +902,7 @@
   min-width: 0;
   min-height: inherit;
   overflow-x: auto;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   contain: layout paint;
@@ -925,8 +925,10 @@
 }
 
 .timeline-video-sequence-ruler-axis {
-  position: absolute;
-  inset: 0 0 auto;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 2;
   height: 24px;
   border-bottom: 1px solid rgb(226 232 240 / 1);
@@ -937,9 +939,13 @@
 }
 
 .timeline-video-sequence-ruler-content {
-  margin-top: 24px;
+  margin-top: 0;
   width: 100%;
   min-width: 100%;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   contain: layout paint;
 }
 
@@ -947,13 +953,19 @@
   position: sticky;
   left: 0;
   z-index: 4;
+  overflow: hidden;
+  border-right: 1px solid rgb(203 213 225 / 0.72);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 1) 0, rgb(255 255 255 / 1) 24px, rgb(248 250 252 / 0.96) 24px, rgb(248 250 252 / 0.96) 100%);
+}
+
+.timeline-video-sequence-lane-sidebar-scroll {
   display: grid;
   align-content: start;
   gap: 0;
   padding-top: 24px;
-  border-right: 1px solid rgb(203 213 225 / 0.72);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 1) 0, rgb(255 255 255 / 1) 24px, rgb(248 250 252 / 0.96) 24px, rgb(248 250 252 / 0.96) 100%);
+  transform: translateY(calc(var(--kg-video-sequence-sidebar-scroll-top, 0px) * -1));
+  will-change: transform;
 }
 
 .timeline-video-sequence-lane-label {

@@ -37,6 +37,7 @@ export type TimelineTransportControlsProps = {
 export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
   chromeClassName?: string
   headerAside?: React.ReactNode
+  mediaPlayer?: React.ReactNode
   rootProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
   ruler?: React.ReactNode
   rulerClassName?: string
@@ -181,6 +182,7 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
   const {
     chromeClassName,
     headerAside,
+    mediaPlayer,
     rootProps,
     ruler,
     rulerClassName,
@@ -211,6 +213,11 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
         </header>
       ) : null}
       <TimelineTransportControls {...transportProps} toolbarControls={inlineHeaderAside} />
+      {mediaPlayer ? (
+        <section className="timeline-transport-media-player-slot" aria-label="Timeline media player slot">
+          {mediaPlayer}
+        </section>
+      ) : null}
       {ruler ? (
         <section className="timeline-transport-ruler-layout" data-kg-timeline-transport-ruler-layout="shared">
           <section

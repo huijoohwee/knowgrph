@@ -347,7 +347,11 @@ export function buildTimelinePreviewThumbnailPlan(args: {
     gradeSegments: buildOperationSet(model.taskSpans, 'grade'),
     maskSegments: buildOperationSet(model.taskSpans, 'mask'),
     sourceRangeMode: 'timeline',
-    segments: buildSourceSegmentsForLane(model.taskSpans, 'video'),
+    segments: [
+      ...buildSourceSegmentsForLane(model.taskSpans, 'video'),
+      ...buildSourceSegmentsForLane(model.taskSpans, 'image'),
+      ...buildSourceSegmentsForLane(model.taskSpans, 'scene'),
+    ],
     sources: args.sources,
   })
 }

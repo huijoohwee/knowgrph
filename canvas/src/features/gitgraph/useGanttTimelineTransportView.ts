@@ -26,7 +26,7 @@ export function useGanttTimelineTransportView(args: {
   disabled: boolean
   maxMinutes: number
   positionMinutes: number
-  rulerContentRef: React.RefObject<HTMLElement | null>
+  rulerViewportRef: React.RefObject<HTMLElement | null>
 }) {
   const [timelineZoomIndex, setTimelineZoomIndex] = React.useState(0)
   const wheelZoomClientXRef = React.useRef(0)
@@ -54,7 +54,7 @@ export function useGanttTimelineTransportView(args: {
     const anchor = zoomScrollAnchorRef.current
     if (!anchor) return
     zoomScrollAnchorRef.current = null
-    const contentElement = args.rulerContentRef.current
+    const contentElement = args.rulerViewportRef.current
     if (!contentElement || !anchor.scroller.isConnected) return
     const nextScrollLeft = anchor.contentRatio * contentElement.scrollWidth - anchor.viewportX
     anchor.scroller.scrollLeft = clampTimelineTransportValue(
@@ -62,10 +62,10 @@ export function useGanttTimelineTransportView(args: {
       0,
       Math.max(0, contentElement.scrollWidth - anchor.scroller.clientWidth),
     )
-  }, [args.rulerContentRef, timelineZoom])
+  }, [args.rulerViewportRef, timelineZoom])
 
   const captureZoomScrollAnchor = React.useCallback((clientX: number) => {
-    const contentElement = args.rulerContentRef.current
+    const contentElement = args.rulerViewportRef.current
     const scroller = resolveTimelineTransportRailScroller(contentElement)
     if (!contentElement || !scroller) return
     const scrollerRect = scroller.getBoundingClientRect()
@@ -76,7 +76,7 @@ export function useGanttTimelineTransportView(args: {
       scroller,
       viewportX,
     }
-  }, [args.rulerContentRef])
+  }, [args.rulerViewportRef])
 
   const applyZoomStep = React.useCallback((direction: -1 | 1, clientX?: number, stepCount = 1) => {
     const currentIndex = timelineZoomIndex
@@ -102,7 +102,7 @@ export function useGanttTimelineTransportView(args: {
   }, [])
 
   React.useEffect(() => {
-    const contentElement = args.rulerContentRef.current
+    const contentElement = args.rulerViewportRef.current
     const scroller = resolveTimelineTransportRailScroller(contentElement)
     if (!contentElement || !scroller) return
     const resolveClientX = (event: Event) => {
@@ -134,10 +134,10 @@ export function useGanttTimelineTransportView(args: {
       scroller.removeEventListener('gesturestart', handleGestureStart)
       scroller.removeEventListener('gesturechange', handleGestureChange)
     }
-  }, [applyZoomStep, args.disabled, args.rulerContentRef, captureZoomScrollAnchor])
+  }, [applyZoomStep, args.disabled, args.rulerViewportRef, captureZoomScrollAnchor])
 
   const centerTimelinePlayhead = React.useCallback(() => {
-    const contentElement = args.rulerContentRef.current
+    const contentElement = args.rulerViewportRef.current
     const scroller = resolveTimelineTransportRailScroller(contentElement)
     if (!contentElement || !scroller || args.maxMinutes <= 0) return
     scroller.scrollLeft = resolveTimelineTransportPlayheadScrollLeft({
@@ -146,7 +146,7 @@ export function useGanttTimelineTransportView(args: {
       position: args.positionMinutes,
       viewportWidth: scroller.clientWidth,
     })
-  }, [args.maxMinutes, args.positionMinutes, args.rulerContentRef])
+  }, [args.maxMinutes, args.positionMinutes, args.rulerViewportRef])
 
   const handleZoomOut = React.useCallback(() => {
     applyZoomStep(-1)
@@ -158,9 +158,9 @@ export function useGanttTimelineTransportView(args: {
 
   const handleFitTimeline = React.useCallback(() => {
     setTimelineZoomIndex(0)
-    const scroller = resolveTimelineTransportRailScroller(args.rulerContentRef.current)
+    const scroller = resolveTimelineTransportRailScroller(args.rulerViewportRef.current)
     if (scroller) scroller.scrollLeft = 0
-  }, [args.rulerContentRef])
+  }, [args.rulerViewportRef])
 
   const handleRulerWheelZoom = React.useCallback((event: React.WheelEvent<HTMLElement>) => {
     if (args.disabled || (!event.ctrlKey && !event.metaKey)) return

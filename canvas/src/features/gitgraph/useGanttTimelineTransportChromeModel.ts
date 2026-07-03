@@ -45,6 +45,13 @@ export type GanttTimelineTransportChromeModel = {
     }
   }
   headerTools: {
+    mediaPlayerButton: {
+      active: boolean
+      ariaLabel: string
+      disabled: boolean
+      onClick: () => void
+      title: string
+    }
     syncModeButton: {
       active: boolean
       ariaLabel: string
@@ -118,7 +125,10 @@ export function useGanttTimelineTransportChromeModel(args: {
   handleZoomOut: () => void
   latestRetryableExportSession: VideoSequenceExportSessionRecord | null | undefined
   maxMinutes: number
+  mediaPlayerAvailable: boolean
+  mediaPlayerEnabled: boolean
   mediaDurationSeconds: number
+  onToggleMediaPlayer: () => void
   playheadMinutes: number
   selectedSpan: MermaidGanttTimelineTaskSpan | null
   rippleEditingEnabled: boolean
@@ -179,6 +189,13 @@ export function useGanttTimelineTransportChromeModel(args: {
         },
       },
       headerTools: {
+        mediaPlayerButton: {
+          active: args.mediaPlayerEnabled,
+          ariaLabel: args.mediaPlayerEnabled ? 'Hide BottomPanel media player' : 'Show BottomPanel media player',
+          disabled: args.disabled || !args.mediaPlayerAvailable,
+          onClick: args.onToggleMediaPlayer,
+          title: args.mediaPlayerEnabled ? 'Hide media player' : 'Show media player',
+        },
         syncModeButton: {
           active: args.timingSyncMode === 'grouped',
           ariaLabel: args.timingSyncMode === 'grouped' ? 'Ungroup video and audio timing sync' : 'Group video and audio timing sync',
@@ -453,7 +470,10 @@ export function useGanttTimelineTransportChromeModel(args: {
     args.handleZoomOut,
     args.latestRetryableExportSession,
     args.maxMinutes,
+    args.mediaPlayerAvailable,
+    args.mediaPlayerEnabled,
     args.mediaDurationSeconds,
+    args.onToggleMediaPlayer,
     args.playheadMinutes,
     args.rippleEditingEnabled,
     args.selectedSpan,

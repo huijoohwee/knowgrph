@@ -201,6 +201,7 @@ export function MediaCandidateThumb({
       <span
         className={mediaListThumbnailFrameClassName('cursor-grab active:cursor-grabbing')}
         draggable={true}
+        data-kg-media-drag-affordance="frame"
         data-kg-media-draggable="1"
         data-kg-media-row-control="1"
         onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
@@ -222,6 +223,7 @@ export function MediaCandidateThumb({
   return (
     <span
       draggable={true}
+      data-kg-media-drag-affordance="frame"
       data-kg-media-draggable="1"
       data-kg-media-row-control="1"
       onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
@@ -258,6 +260,7 @@ export function MediaCandidatePreview({
       <figure
         className={cn('group relative m-0 aspect-[16/9] w-full cursor-grab overflow-hidden border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
         draggable={true}
+        data-kg-media-drag-affordance="frame"
         data-kg-media-draggable="1"
         data-kg-media-row-control="1"
         onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
@@ -279,6 +282,7 @@ export function MediaCandidatePreview({
     <figure
       className={cn('group relative m-0 grid aspect-[16/9] w-full cursor-grab place-items-center border-b active:cursor-grabbing', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
       draggable={true}
+      data-kg-media-drag-affordance="frame"
       data-kg-media-draggable="1"
       data-kg-media-row-control="1"
       onPointerDown={event => startMediaPointerDrag(event, buildCommandMenuMediaDragPayload(item))}
@@ -374,7 +378,7 @@ export function UploadedMediaPreview({
 
 export function mediaCardClassName(): string {
   return cn(
-    'min-w-0 overflow-hidden rounded border text-left shadow-sm transition-colors',
+    'min-w-0 cursor-grab overflow-hidden rounded border text-left shadow-sm transition-colors active:cursor-grabbing',
     UI_THEME_TOKENS.panel.border,
     UI_THEME_TOKENS.panel.bg,
     UI_THEME_TOKENS.button.hoverBg,
@@ -383,7 +387,7 @@ export function mediaCardClassName(): string {
 
 export function mediaListItemClassName(): string {
   return cn(
-    'grid min-w-0 cursor-pointer gap-2 rounded border p-2 text-left shadow-sm transition-colors',
+    'grid min-w-0 cursor-grab gap-2 rounded border p-2 text-left shadow-sm transition-colors active:cursor-grabbing',
     MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME,
     UI_THEME_TOKENS.panel.border,
     UI_THEME_TOKENS.panel.bg,

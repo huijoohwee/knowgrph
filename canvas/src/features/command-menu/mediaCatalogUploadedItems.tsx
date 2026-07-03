@@ -133,10 +133,11 @@ export function UploadedMediaRow({
     >
       <button
         type="button"
-        className={cn(mediaListThumbnailFrameClassName(), 'cursor-zoom-in')}
+        className={cn(mediaListThumbnailFrameClassName(), 'cursor-grab active:cursor-grabbing')}
         title={`Preview ${item.name}`}
         aria-label={`Preview ${item.name}`}
         draggable={true}
+        data-kg-media-drag-affordance="frame"
         data-kg-media-thumbnail-fullscreen={item.id}
         data-kg-media-draggable="1"
         data-kg-media-row-control="1"
@@ -321,6 +322,7 @@ export function UploadedMediaCard({
       className={mediaCardClassName()}
       onDragStart={event => onDragStart(event, item)}
       onDragEnd={finishMediaDrag}
+      data-kg-media-drag-affordance="frame"
       data-kg-media-upload-item={item.id}
       data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}

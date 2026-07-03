@@ -33,7 +33,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
   maxMinutes: number
   playing: boolean
   positionMinutes: number
-  rulerContentRef: React.RefObject<HTMLElement | null>
+  rulerViewportRef: React.RefObject<HTMLElement | null>
   scrubMaxMinutes?: number
   selectedRowKey: string
   setSelectedRowKey: (rowKey: string) => void
@@ -61,7 +61,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
     disabled: args.disabled,
     maxMinutes: args.maxMinutes,
     positionMinutes: args.positionMinutes,
-    rulerContentRef: args.rulerContentRef,
+    rulerViewportRef: args.rulerViewportRef,
   })
 
   useGanttTimelineSelectionSync({

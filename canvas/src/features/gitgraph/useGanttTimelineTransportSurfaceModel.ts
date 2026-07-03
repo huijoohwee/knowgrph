@@ -17,6 +17,7 @@ import {
 } from './useGanttTimelineTransportShellModel'
 import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
+import { type CardMediaKind } from '@/lib/cards/cardMediaPreviewUtils'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   isCompactSourceMediaSpan,
@@ -27,10 +28,12 @@ import {
 import { resolveVideoSequenceTimelineScaleMaxMinutes } from '@/components/timeline/videoSequenceTimelineZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { type GanttTimelineTransportAudioPlaybackBridgeModel } from './GanttTimelineTransportAudioPlaybackBridge'
+import { type GanttTimelineTransportMediaPlayerModel } from './GanttTimelineTransportMediaPlayer'
 
 export type GanttTimelineTransportSurfaceModel = {
   audioPlaybackBridgeModel: GanttTimelineTransportAudioPlaybackBridgeModel
   chromeModel: GanttTimelineTransportChromeModel
+  mediaPlayerModel: GanttTimelineTransportMediaPlayerModel
   rulerModel: GanttTimelineTransportRulerModel
   shellModel: GanttTimelineTransportShellModel
 }
@@ -61,6 +64,19 @@ const readTimelineTransportThumbnailSourceKind = (source: VideoSequenceTimelineS
   return /\bimage\b|\.avif\b|\.gif\b|\.jpe?g\b|\.png\b|\.svg\b|\.webp\b/.test(signature) ? 'image' : 'video'
 }
 
+const readTimelineTransportMediaPreviewKind = (source: VideoSequenceTimelineSource | null, fallbackUrl: string): CardMediaKind => {
+  const signature = [
+    source?.mimeHint,
+    source?.originalName,
+    source?.relativePath,
+    source?.sourceUrl,
+    fallbackUrl,
+  ].join(' ').toLowerCase()
+  if (/\bimage\b|\.avif\b|\.gif\b|\.jpe?g\b|\.png\b|\.svg\b|\.webp\b/.test(signature)) return 'image'
+  if (/\baudio\b|\.aac\b|\.aiff?\b|\.flac\b|\.m4a\b|\.mp3\b|\.oga\b|\.ogg\b|\.opus\b|\.wav\b/.test(signature)) return 'audio'
+  return 'video'
+}
+
 const collectTimelineTransportThumbnailSourceItems = (plans: readonly (ReturnType<typeof useGanttTimelineTransportSession>['exportPlan'])[]): TimelineTransportThumbnailSourceItem[] => {
   const itemBySrc = new Map<string, TimelineTransportThumbnailSourceItem>()
   for (const plan of plans) {
@@ -85,6 +101,8 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   compact: boolean
 }): GanttTimelineTransportSurfaceModel {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
+  const rulerViewportRef = React.useRef<HTMLElement | null>(null)
+  const [mediaPlayerVisible, setMediaPlayerVisible] = React.useState(false)
   const videoSequenceTimelineLaneVisibility = useGraphStore(state => state.videoSequenceTimelineLaneVisibility)
   const disabledLaneIds = React.useMemo(() => (
     VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS.filter(laneId => videoSequenceTimelineLaneVisibility?.[laneId] !== true)
@@ -109,6 +127,24 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       || null
     return source ? resolveTimelinePlanSourceUrl(source) : ''
   }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const mediaPlayerSourceSegment = React.useMemo(() => {
+    if (selectedPreviewEmpty) return null
+    return transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))
+      || transportSession.thumbnailPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))
+      || transportSession.exportPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))
+      || null
+  }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const mediaPlayerSourceUrl = React.useMemo(() => (
+    mediaPlayerSourceSegment ? resolveTimelinePlanSourceUrl(mediaPlayerSourceSegment.source) : mediaPreviewSourceUrl
+  ), [mediaPlayerSourceSegment, mediaPreviewSourceUrl])
+  const mediaPlayerKind = React.useMemo(() => (
+    readTimelineTransportMediaPreviewKind(mediaPlayerSourceSegment?.source || null, mediaPlayerSourceUrl)
+  ), [mediaPlayerSourceSegment, mediaPlayerSourceUrl])
+  const mediaPlayerAvailable = !!mediaPlayerSourceUrl && !selectedPreviewEmpty
+  const mediaPlayerEnabled = mediaPlayerVisible && mediaPlayerAvailable && !transportSession.disabled
+  const handleToggleMediaPlayer = React.useCallback(() => {
+    setMediaPlayerVisible(value => !value)
+  }, [])
   const timelinePlanSourceDurationSeconds = React.useMemo(() => {
     if (selectedPreviewEmpty) return 0
     const source = transportSession.previewPlan?.segments.find(segment => Number(segment.source.durationSeconds) > 0)?.source
@@ -178,7 +214,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       const summary = sourceThumbnailSummaries[item.src]
       const durationSeconds = Number(item.source.durationSeconds) > 0 ? Number(item.source.durationSeconds) : Number(summary?.durationSeconds || 0)
       const thumbnails = summary?.thumbnails || []
-      if (!thumbnails.length && !summary?.audioWaveformSamples.length) return []
+      if (!thumbnails.length && !summary?.audioWaveformSamples.length && item.kind !== 'image') return []
       return [{
         kind: item.kind,
         label: item.label,
@@ -227,6 +263,38 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     transportSession.maxMinutes,
     transportSession.previewPlan,
   ])
+  const mediaPlayerModel = React.useMemo<GanttTimelineTransportMediaPlayerModel>(() => ({
+    active: mediaPlayerEnabled,
+    documentKey: transportSession.documentKey,
+    exportPlan: mediaPlayerSourceSegment ? (transportSession.previewPlan || transportSession.thumbnailPlan || transportSession.exportPlan) : null,
+    kind: mediaPlayerKind,
+    maxMinutes: transportSession.maxMinutes,
+    playbackRate: transportSession.playbackRate,
+    playing: transportSession.playing,
+    positionMinutes: transportSession.positionMinutes,
+    readerDurationSeconds: displaySourceDurationSeconds,
+    setTransportPlaybackPosition: transportSession.setTransportPlaybackPosition,
+    setTransportPlaying: transportSession.setTransportPlaying,
+    source: mediaPlayerSourceSegment?.source || null,
+    title: mediaPlayerSourceSegment ? readTimelineTransportSourceLabel(mediaPlayerSourceSegment.source) : 'Media output',
+    url: mediaPlayerSourceUrl,
+  }), [
+    displaySourceDurationSeconds,
+    mediaPlayerEnabled,
+    mediaPlayerKind,
+    mediaPlayerSourceSegment,
+    mediaPlayerSourceUrl,
+    transportSession.documentKey,
+    transportSession.maxMinutes,
+    transportSession.playbackRate,
+    transportSession.playing,
+    transportSession.positionMinutes,
+    transportSession.previewPlan,
+    transportSession.thumbnailPlan,
+    transportSession.exportPlan,
+    transportSession.setTransportPlaybackPosition,
+    transportSession.setTransportPlaying,
+  ])
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
     exportPlan: transportSession.exportPlan,
@@ -245,7 +313,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     maxMinutes: transportSession.maxMinutes,
     playing: transportSession.playing,
     positionMinutes: transportSession.positionMinutes,
-    rulerContentRef,
+    rulerViewportRef,
     scrubMaxMinutes: rulerScaleMaxMinutes,
     selectedRowKey: transportSession.selectedRowKey,
     setSelectedRowKey: transportSession.setSelectedRowKey,
@@ -265,7 +333,10 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     handleZoomIn: transportInteractionModel.handleZoomIn,
     handleZoomOut: transportInteractionModel.handleZoomOut,
     maxMinutes: transportSession.maxMinutes,
+    mediaPlayerAvailable,
+    mediaPlayerEnabled,
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
+    onToggleMediaPlayer: handleToggleMediaPlayer,
     playheadMinutes: transportSession.positionMinutes,
     selectedSpan: transportSession.selectedSpan,
     timelineZoom: transportInteractionModel.timelineZoom,
@@ -302,6 +373,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
     totalLabel: transportClockDisplayModel.totalLabel,
+    viewportRef: rulerViewportRef,
     visibleLaneCount: rulerVisibleLaneCount,
   })
   const transportPlaybackModel = useGanttTimelineTransportPlaybackModel({
@@ -334,6 +406,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   return {
     audioPlaybackBridgeModel,
     chromeModel,
+    mediaPlayerModel,
     rulerModel,
     shellModel,
   }

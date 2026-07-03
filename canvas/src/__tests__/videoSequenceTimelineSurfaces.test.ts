@@ -209,7 +209,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('VideoSequenceTimelineRuler') ||
     !rulerText.includes('data-kg-video-sequence-clip-cues="1"') ||
     !rulerText.includes('data-kg-video-sequence-clip-frames="1"') ||
-    !['data-kg-video-sequence-audio-waveform="1"', "const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia", 'waveformSamples.length ? ('].every(token => rulerText.includes(token)) ||
+    !['data-kg-video-sequence-audio-waveform="1"', "const waveformSamples = lane === 'audio' && !verticalMarker", 'waveformSamples.length ? ('].every(token => rulerText.includes(token)) ||
     !rulerText.includes('data-kg-video-sequence-ruler-scopes="1"') ||
     !rulerText.includes('data-kg-video-sequence-scope-active-family') ||
     !rulerText.includes('data-kg-video-sequence-scope-activity-mode') ||
@@ -249,7 +249,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     rulerText.includes("sourceCoverageMode: 'source-covered'") ||
     !rulerText.includes('visibleLanes.map(lane =>') ||
     !['resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)', 'visibleLaneIndexById.get(displayLaneId)', 'data-kg-video-sequence-display-lane', 'data-kg-video-sequence-display-lane-label', 'data-kg-video-sequence-lane-append'].every(token => rulerText.includes(token)) ||
-    !['buildVideoSequenceTimelineCueSamples', 'buildVideoSequenceTimelineFrameSamples', 'buildVideoSequenceTimelineWaveformSamples', 'buildVideoSequenceClipMediaCache', 'const clipMediaByRowKey = React.useMemo', "const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia", 'sourceAudioWaveformSamples', "sourceAudioWaveformSamples.length ? 'source' : 'synthetic'"].every(token => rulerText.includes(token)) ||
+    !['buildVideoSequenceTimelineCueSamples', 'buildVideoSequenceTimelineFrameSamples', 'buildVideoSequenceTimelineWaveformSamples', 'buildVideoSequenceClipMediaCache', 'const clipMediaByRowKey = React.useMemo', "const waveformSamples = lane === 'audio' && !verticalMarker", 'sourceAudioWaveformSamples', "sourceAudioWaveformSamples.length ? 'source' : 'synthetic'"].every(token => rulerText.includes(token)) ||
     !rulerText.includes('timeline-video-sequence-clip-timecode') ||
     !['const bodyMinHeight = Math.max(1, minHeight - VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX)', 'data-kg-video-sequence-ruler-body="1"', 'data-kg-video-sequence-ruler-playhead="1"', 'laneIndex * VIDEO_SEQUENCE_LANE_HEIGHT_PX'].every(token => rulerText.includes(token)) ||
     rulerCssText.includes('transform: translateX(var(--kg-motion-translate-x, 0px)) scale(var(--kg-motion-scale, 1));') ||
@@ -277,7 +277,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerCssText.includes('@media (prefers-reduced-motion: reduce)') ||
     rulerCssText.includes('.timeline-video-sequence-grade-strip') ||
     rulerCssText.includes('.timeline-video-sequence-ruler-scope-header') ||
-    !['grid-column: 1 / -1', 'contain: layout paint style', 'height: var(--kg-timeline-bar-height, 57px)', 'top: calc((var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px)'].every(token => rulerCssText.includes(token)) ||
+    !['grid-column: 1 / -1', 'contain: layout paint style', 'height: var(--kg-timeline-bar-height, calc(var(--kg-main-toolbar-height, 38px) * 1.5))', 'top: calc((var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px)'].every(token => rulerCssText.includes(token)) ||
     !rulerCssText.includes('grid-template-columns: repeat(6, minmax(5.5rem, 1fr))') ||
     !rulerCssText.includes('.timeline-video-sequence-ruler-scope-bar') ||
     rulerCssText.includes('.timeline-video-sequence-slot-grid') ||

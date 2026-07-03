@@ -438,6 +438,7 @@ export function useStoryboardWidgetDropBridge(args: {
       if (!rect) return
       const x = ev.clientX
       const y = ev.clientY
+      if (hasMediaDragPayload(dt) && isMediaDropClaimedByNestedTarget(x, y)) return
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return
       try {
         ev.preventDefault()
@@ -453,6 +454,8 @@ export function useStoryboardWidgetDropBridge(args: {
         if (!args.widgetDropBridgeOnly) return
         const rect = readDropRect()
         if (!rect) return
+        const release = resolveMediaDragEventReleaseClientPoint(ev)
+        if (isMediaDropClaimedByNestedTarget(release.clientX, release.clientY)) return
         if (!appendMediaPanelFromDrop(ev, rect)) return
         try {
           ev.preventDefault()
@@ -506,6 +509,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
       if (!detail?.payload || !isMediaPointerDropDistanceAccepted(detail)) return
       if (isMediaPointerDragDropClaimed(detail)) return
+      if (isMediaDropClaimedByNestedTarget(Number(detail.clientX), Number(detail.clientY))) return
       const rect = readDropRect()
       if (!rect) return
       claimMediaPointerDragDrop(detail)
