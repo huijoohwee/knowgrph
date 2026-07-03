@@ -9,12 +9,17 @@ import {
   type MermaidGanttTimelineTaskSpan,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
+import {
+  normalizeVideoSequenceClipEditDeltaMinutes,
+  resolveVideoSequenceClipEditStepMinutes,
+} from '@/components/timeline/videoSequenceClipEdit'
 
 export type GanttTimelineTransportDragState = {
   mode: MermaidGanttBarDragMode
   pointerId: number
   originClientX: number
   minutesPerPixel: number
+  stepMinutes: number
   markdownDocumentName: string | null
   markdownText: string
   span: MermaidGanttTimelineTaskSpan
@@ -69,6 +74,8 @@ export function useGanttTimelineInteractions(args: {
     return ratio * Math.max(args.maxMinutes, args.scrubMaxMinutes || 0)
   }, [args.maxMinutes, args.scrubMaxMinutes])
 
+  const dragScaleMaxMinutes = Math.max(args.maxMinutes, args.scrubMaxMinutes || 0)
+
   React.useEffect(() => {
     if (!dragState) return
     const handlePointerMove = (event: PointerEvent) => {
@@ -79,12 +86,13 @@ export function useGanttTimelineInteractions(args: {
         clientX: event.clientX,
       })
       if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
-      const deltaMinutes = Math.round(preview.deltaPx * dragState.minutesPerPixel)
+      const deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(preview.deltaPx * dragState.minutesPerPixel, dragState.stepMinutes)
       const nextPreview = resolveMermaidGanttTimelineDragPreviewSpan({
         allowTimelineExpansion: true,
         deltaMinutes,
         maxMinutes: args.maxMinutes,
         mode: dragState.mode,
+        stepMinutes: dragState.stepMinutes,
         span: dragState.span,
       })
       setDragPreview(nextPreview)
@@ -100,12 +108,13 @@ export function useGanttTimelineInteractions(args: {
       setDragState(null)
       setDragPreview(null)
       if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
-      const deltaMinutes = Math.round(preview.deltaPx * dragState.minutesPerPixel)
+      const deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(preview.deltaPx * dragState.minutesPerPixel, dragState.stepMinutes)
       const effectiveDeltaMinutes = resolveMermaidGanttTimelineDragEffectiveDelta({
         allowTimelineExpansion: true,
         deltaMinutes,
         maxMinutes: args.maxMinutes,
         mode: dragState.mode,
+        stepMinutes: dragState.stepMinutes,
         span: dragState.span,
       })
       if (effectiveDeltaMinutes === 0) return
@@ -183,13 +192,14 @@ export function useGanttTimelineInteractions(args: {
       mode,
       pointerId: event.pointerId,
       originClientX: event.clientX,
-      minutesPerPixel: args.maxMinutes / rulerWidth,
+      minutesPerPixel: dragScaleMaxMinutes / rulerWidth,
+      stepMinutes: resolveVideoSequenceClipEditStepMinutes(span),
       markdownDocumentName: args.markdownDocumentName,
       markdownText: args.markdownText,
       span,
     })
     if (args.selectedRowKey !== span.rowKey) args.setSelectedRowKey(span.rowKey)
-  }, [args])
+  }, [args, dragScaleMaxMinutes])
 
   return {
     dragPreview,

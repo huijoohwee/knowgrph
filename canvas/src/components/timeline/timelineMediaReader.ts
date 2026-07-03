@@ -14,6 +14,7 @@ export type TimelineMediaReaderSummary = {
   audioSampleRate: number
   averageVideoBitrate: number
   averageVideoFrameRate: number
+  audioWaveformSamples: number[]
   byteSize: number
   bytesRead: number
   canDecodeAudio: boolean | null
@@ -62,6 +63,7 @@ const EMPTY_TIMELINE_MEDIA_READER_SUMMARY: TimelineMediaReaderSummary = {
   audioSampleRate: 0,
   averageVideoBitrate: 0,
   averageVideoFrameRate: 0,
+  audioWaveformSamples: [],
   byteSize: 0,
   bytesRead: 0,
   canDecodeAudio: null,
@@ -92,6 +94,10 @@ const NATIVE_MEDIA_THUMBNAIL_MAX_COUNT = 24
 const NATIVE_MEDIA_THUMBNAIL_HEIGHT = 90
 const NATIVE_MEDIA_THUMBNAIL_MAX_WIDTH = 160
 const NATIVE_MEDIA_THUMBNAIL_TIMEOUT_MS = 4500
+const NATIVE_MEDIA_WAVEFORM_SAMPLE_COUNT = 1024
+const NATIVE_MEDIA_WAVEFORM_TIMEOUT_MS = 5000
+const NATIVE_IMAGE_THUMBNAIL_HEIGHT = 90
+const NATIVE_IMAGE_THUMBNAIL_MAX_WIDTH = 160
 
 const clean = (value: unknown): string => String(value || '').trim()
 
@@ -108,6 +114,19 @@ const escapeXml = (value: unknown): string =>
     .replace(/"/g, '&quot;')
 
 const toSvgDataUrl = (svg: string): string => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+
+const isNativeImageMediaUrl = (url: string): boolean => {
+  const normalized = clean(url).toLowerCase()
+  return /^data:image\//.test(normalized) || /(?:^|\/)image(?:\/|$)/.test(normalized) || /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#]|$)/.test(normalized)
+}
+
+const readImageFormatFromUrl = (url: string): PreferredMediaImageFormat => {
+  const normalized = clean(url).toLowerCase()
+  if (/\.svg(?:[?#]|$)|^data:image\/svg\+xml/.test(normalized)) return 'svg'
+  if (/\.webp(?:[?#]|$)|^data:image\/webp/.test(normalized)) return 'webp'
+  if (/\.png(?:[?#]|$)|^data:image\/png/.test(normalized)) return 'png'
+  return 'jpeg'
+}
 
 function loadNativeMediaElementMetadata(url: string): Promise<NativeMediaElementSummary> {
   return new Promise(resolve => {
@@ -210,6 +229,69 @@ const buildSemanticThumbnailSvgDataUrl = (args: {
   return toSvgDataUrl(svg)
 }
 
+function loadNativeImageElement(url: string): Promise<HTMLImageElement | null> {
+  return new Promise(resolve => {
+    const image = new Image()
+    const cleanup = () => {
+      window.clearTimeout(timeoutId)
+    }
+    const finish = (nextImage: HTMLImageElement | null) => {
+      cleanup()
+      resolve(nextImage)
+    }
+    const timeoutId = window.setTimeout(() => finish(null), NATIVE_MEDIA_METADATA_TIMEOUT_MS)
+    image.crossOrigin = 'anonymous'
+    image.decoding = 'async'
+    image.onload = () => finish(image)
+    image.onerror = () => finish(null)
+    image.src = url
+  })
+}
+
+async function loadNativeImageThumbnails(url: string): Promise<TimelineMediaReaderThumbnail[]> {
+  if (!url || typeof window === 'undefined' || typeof document === 'undefined' || typeof HTMLCanvasElement === 'undefined') return []
+  const image = await loadNativeImageElement(url)
+  if (!image) return []
+  const sourceWidth = readPositiveNumber(image.naturalWidth) || readPositiveNumber(image.width) || 16
+  const sourceHeight = readPositiveNumber(image.naturalHeight) || readPositiveNumber(image.height) || 9
+  const thumbnailHeight = NATIVE_IMAGE_THUMBNAIL_HEIGHT
+  const thumbnailWidth = Math.max(1, Math.min(NATIVE_IMAGE_THUMBNAIL_MAX_WIDTH, Math.round((sourceWidth / sourceHeight) * thumbnailHeight)))
+  const fallbackFormat = readImageFormatFromUrl(url)
+  const fallbackRasterFormat = fallbackFormat === 'webp' || fallbackFormat === 'png' || fallbackFormat === 'jpeg' ? fallbackFormat : 'png'
+  const fallbackMimeType = fallbackRasterFormat === 'webp' ? 'image/webp' : fallbackRasterFormat === 'jpeg' ? 'image/jpeg' : 'image/png'
+  let rasterThumbnail = { dataUrl: url, format: fallbackRasterFormat, mimeType: fallbackMimeType }
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = thumbnailWidth
+    canvas.height = thumbnailHeight
+    const context = canvas.getContext('2d', { alpha: false })
+    if (context) {
+      context.drawImage(image, 0, 0, thumbnailWidth, thumbnailHeight)
+      rasterThumbnail = readCanvasRasterThumbnail(canvas)
+    }
+  } catch {
+    rasterThumbnail = { dataUrl: url, format: fallbackRasterFormat, mimeType: fallbackMimeType }
+  }
+  return [{
+    dataUrl: buildSemanticThumbnailSvgDataUrl({
+      height: thumbnailHeight,
+      label: 'Image',
+      rasterDataUrl: rasterThumbnail.dataUrl,
+      rasterFormat: rasterThumbnail.format,
+      timestampSeconds: 0,
+      width: thumbnailWidth,
+    }),
+    format: 'svg',
+    height: thumbnailHeight,
+    mimeType: 'image/svg+xml',
+    rasterDataUrl: rasterThumbnail.dataUrl,
+    rasterFormat: rasterThumbnail.format,
+    rasterMimeType: rasterThumbnail.mimeType,
+    timestampSeconds: 0,
+    width: thumbnailWidth,
+  }]
+}
+
 async function loadNativeVideoThumbnails(args: {
   displayHeight: number
   displayWidth: number
@@ -281,6 +363,39 @@ async function loadNativeVideoThumbnails(args: {
   }
 }
 
+async function loadNativeAudioWaveformSamples(url: string): Promise<number[]> {
+  if (!url || typeof window === 'undefined' || typeof AudioContext === 'undefined') return []
+  const audioContext = new AudioContext()
+  try {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), NATIVE_MEDIA_WAVEFORM_TIMEOUT_MS)
+    const buffer = await fetch(url, { signal: controller.signal }).then(response => response.ok ? response.arrayBuffer() : Promise.reject(new Error('audio fetch failed'))).finally(() => window.clearTimeout(timeoutId))
+    const decoded = await audioContext.decodeAudioData(buffer.slice(0))
+    const channelCount = Math.max(1, decoded.numberOfChannels)
+    const samplesPerBucket = Math.max(1, Math.floor(decoded.length / NATIVE_MEDIA_WAVEFORM_SAMPLE_COUNT))
+    return Array.from({ length: NATIVE_MEDIA_WAVEFORM_SAMPLE_COUNT }, (_, bucketIndex) => {
+      const start = bucketIndex * samplesPerBucket
+      const end = Math.min(decoded.length, start + samplesPerBucket)
+      let peak = 0
+      for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+        const channel = decoded.getChannelData(channelIndex)
+        for (let index = start; index < end; index += 1) peak = Math.max(peak, Math.abs(channel[index] || 0))
+      }
+      return Math.round(Math.max(4, Math.min(100, peak * 100)))
+    })
+  } catch {
+    return []
+  } finally {
+    void audioContext.close()
+  }
+}
+
+const buildNativeAudioPacketWaveformSamples = (sampleSizes: readonly number[]): number[] => {
+  if (!sampleSizes.length) return []
+  const maxSize = Math.max(1, ...sampleSizes)
+  return sampleSizes.map(size => Math.round(Math.max(4, Math.min(100, (size / maxSize) * 100))))
+}
+
 const canDecodeCodec = (codec: string, kind: 'audio' | 'video'): boolean | null => {
   if (!codec || typeof document === 'undefined') return null
   const probe = document.createElement(kind === 'audio' ? 'audio' : 'video')
@@ -291,6 +406,24 @@ const canDecodeCodec = (codec: string, kind: 'audio' | 'video'): boolean | null 
 
 async function loadTimelineMediaReaderSummaryUncached(url: string): Promise<TimelineMediaReaderSummary> {
   if (!url || typeof window === 'undefined' || typeof document === 'undefined') return EMPTY_TIMELINE_MEDIA_READER_SUMMARY
+  if (isNativeImageMediaUrl(url)) {
+    const thumbnails = await loadNativeImageThumbnails(url)
+    if (thumbnails.length) {
+      return {
+        ...EMPTY_TIMELINE_MEDIA_READER_SUMMARY,
+        displayHeight: thumbnails[0]?.height || 0,
+        displayWidth: thumbnails[0]?.width || 0,
+        durationSeconds: 1,
+        durationSource: 'computed',
+        formatName: readImageFormatFromUrl(url),
+        mimeType: thumbnails[0]?.rasterMimeType || 'image/*',
+        status: 'ready',
+        thumbnailHeight: thumbnails[0]?.height || 0,
+        thumbnails,
+        thumbnailWidth: thumbnails[0]?.width || 0,
+      }
+    }
+  }
   const [mediaElement, container] = await Promise.all([
     loadNativeMediaElementMetadata(url),
     fetchNativeMediaContainerBytes(url).then(readNativeIsoBmffContainerSummary),
@@ -299,14 +432,11 @@ async function loadTimelineMediaReaderSummaryUncached(url: string): Promise<Time
   const displayWidth = container.displayWidth || mediaElement.displayWidth
   const displayHeight = container.displayHeight || mediaElement.displayHeight
   const videoTrackCount = container.videoTrackCount || (displayWidth > 0 || displayHeight > 0 ? 1 : 0)
-  const thumbnails = videoTrackCount > 0
-    ? await loadNativeVideoThumbnails({
-      displayHeight,
-      displayWidth,
-      durationSeconds,
-      url,
-    })
-    : []
+  const [thumbnails, decodedAudioWaveformSamples] = await Promise.all([
+    videoTrackCount > 0 ? loadNativeVideoThumbnails({ displayHeight, displayWidth, durationSeconds, url }) : Promise.resolve([]),
+    container.audioTrackCount > 0 ? loadNativeAudioWaveformSamples(url) : Promise.resolve([]),
+  ])
+  const audioWaveformSamples = decodedAudioWaveformSamples.length ? decodedAudioWaveformSamples : buildNativeAudioPacketWaveformSamples(container.audioSampleSizes)
   const status: TimelineMediaReaderStatus = durationSeconds > 0 || videoTrackCount > 0 || container.audioTrackCount > 0
     ? 'ready'
     : (mediaElement.canPlayMp4 === false ? 'unsupported' : 'error')
@@ -316,6 +446,7 @@ async function loadTimelineMediaReaderSummaryUncached(url: string): Promise<Time
     audioSampleRate: container.audioSampleRate,
     averageVideoBitrate: container.averageVideoBitrate,
     averageVideoFrameRate: container.averageVideoFrameRate,
+    audioWaveformSamples,
     byteSize: container.byteSize,
     bytesRead: container.bytesRead,
     canDecodeAudio: canDecodeCodec(container.primaryAudioCodec, 'audio'),
@@ -374,6 +505,32 @@ export function useTimelineMediaReaderSummary(args: {
   }, [args.active, url])
 
   return summary
+}
+
+export function useTimelineMediaReaderSummaries(args: {
+  active: boolean
+  urls: readonly string[]
+}): Readonly<Record<string, TimelineMediaReaderSummary>> {
+  const urls = React.useMemo(() => Array.from(new Set(args.urls.map(clean).filter(Boolean))).sort(), [args.urls])
+  const [summaries, setSummaries] = React.useState<Readonly<Record<string, TimelineMediaReaderSummary>>>({})
+
+  React.useEffect(() => {
+    if (!args.active || !urls.length) {
+      setSummaries({})
+      return
+    }
+    let cancelled = false
+    setSummaries(Object.fromEntries(urls.map(url => [url, { ...EMPTY_TIMELINE_MEDIA_READER_SUMMARY, status: 'loading' }])))
+    void Promise.all(urls.map(async url => [url, await loadTimelineMediaReaderSummary(url)] as const)).then(entries => {
+      if (cancelled) return
+      setSummaries(Object.fromEntries(entries))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [args.active, urls])
+
+  return summaries
 }
 
 export function mergeTimelineMediaReaderSummaryWithSource(

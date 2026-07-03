@@ -975,7 +975,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportSurfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
     !ganttTransportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
     !ganttTransportSurfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
-    !ganttTransportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !ganttTransportSurfaceModelText.includes('sourceThumbnailWindows') ||
+    !ganttTransportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !ganttTransportSurfaceModelText.includes('sourceThumbnailWindows') || !ganttTransportSurfaceModelText.includes('sourceThumbnailSets') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportSurface') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportShell') ||
     !ganttTransportSurfaceText.includes('model: GanttTimelineTransportSurfaceModel') ||
@@ -988,7 +988,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttDocumentActionsText.includes('useGanttTimelineDocumentActions') ||
     !ganttDocumentActionsText.includes('useTimelineDocumentMutationStoreBinding') ||
     !ganttDocumentActionsText.includes('downloadVideoSequenceExport') ||
-    !ganttDocumentActionsText.includes("React.useState<MermaidGanttVideoSequenceTimingSyncMode>('grouped')") ||
+    !ganttDocumentActionsText.includes('useTimelineTransportTimingSyncStoreBinding') ||
+    !ganttDocumentActionsText.includes('setTimelineTransportTimingSyncMode(timingSyncMode ===') ||
     !ganttDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipAtOffset') ||
     !ganttDocumentActionsText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
     !ganttDocumentActionsText.includes('useTimelineDocumentSnapshotReader') ||
@@ -996,7 +997,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttDocumentActionsText.includes('updateMermaidGanttVideoSequenceClipTiming') ||
     !ganttDocumentActionsText.includes('handleToggleVideoSequenceTimingSyncMode') ||
     !ganttDocumentActionsText.includes('resolveDirectEditTimingSyncMode') ||
-    !ganttDocumentActionsText.includes("return SOURCE_BACKED_VIDEO_LANES.has(resolveVideoSequenceTimelineLane(args.span))") ||
+    !["const SOURCE_BACKED_TIMING_SYNC_LANES = new Set(['video', 'image', 'scene', 'audio'])", 'return SOURCE_BACKED_TIMING_SYNC_LANES.has(resolveVideoSequenceTimelineLane(args.span))'].every(token => ganttDocumentActionsText.includes(token)) ||
     !ganttDocumentActionsText.includes('syncMode: resolveDirectEditTimingSyncMode({ span: input.dragState.span, timingSyncMode })') ||
     ganttDocumentActionsText.includes('const nextCode = updateMermaidGanttCodeRowTiming') ||
     !ganttDocumentActionsText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
@@ -1036,14 +1037,14 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     ganttTransportRulerModelText.includes("titleLabel: 'Gantt-Timeline'") ||
     !ganttTransportRulerModelText.includes('value: clampTimelineTransportValue(args.positionMinutes, 0, Math.max(1, args.maxMinutes))') ||
     !ganttTransportRulerModelText.includes("'data-kg-gantt-timeline-ruler': 'bottomPanel'") ||
-    !ganttTransportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') || !ganttTransportRulerModelText.includes('sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]') ||
+    !ganttTransportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') || !ganttTransportRulerModelText.includes('sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]') || !ganttTransportRulerModelText.includes('sourceThumbnailSets: readonly VideoSequenceTimelineSourceThumbnailSet[]') ||
     !ganttTransportRulerModelText.includes('onSelectRowPosition: (rowKey: string, positionMinutes: number) => void') ||
     !ganttTransportRulerModelText.includes('scopes: args.scopes') ||
     !ganttTransportRulerText.includes('GanttTimelineTransportRuler') ||
     !ganttTransportRulerText.includes('VideoSequenceTimelineRuler') ||
     !ganttTransportRulerText.includes('onSelectRowKey={args.model.onSelectRowKey}') ||
     !ganttTransportRulerText.includes('onSelectRowPosition={args.model.onSelectRowPosition}') ||
-    !ganttTransportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !ganttTransportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') ||
+    !ganttTransportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !ganttTransportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') || !ganttTransportRulerText.includes('sourceThumbnailSets={args.model.sourceThumbnailSets}') ||
     !ganttTransportRulerText.includes('scopes={args.model.scopes}') ||
     !ganttTransportShellModelText.includes('useGanttTimelineTransportShellModel') ||
     !ganttTransportShellModelText.includes("ariaLabel: 'Scrub Gantt-timeline position'") ||
@@ -1337,7 +1338,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !timelineSourceActivityModelText.includes("? 'empty'") ||
     !timelinePlanSyncText.includes('if (selectedRowKey && !selectedSpan) return null') ||
     !timelinePlanSyncText.includes('canTimelineSegmentDriveMediaPreview') ||
-    !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio'") ||
+    !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio' || sourceKind === 'video'") ||
     !timelinePlanSyncText.includes("return lane === 'video' && sourceKind === 'video'") ||
     !timelinePlanSyncText.includes('if (args.mediaPreviewOnly && !canTimelineSegmentDriveMediaPreview(segment, source)) return []') ||
     !timelinePreviewActivitySurfaceModelText.includes("if (args.activityMode === 'empty')") ||
@@ -1673,12 +1674,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     afterTransportSet.timelineTransportPlaying !== true ||
     afterTransportSet.timelineTransportPlaybackRate !== 1.5
   ) {
-    throw new Error(`expected shared Gantt transport state to update atomically, got ${JSON.stringify({
-      documentKey: afterTransportSet.timelineTransportDocumentKey,
-      position: afterTransportSet.timelineTransportPosition,
-      playing: afterTransportSet.timelineTransportPlaying,
-      rate: afterTransportSet.timelineTransportPlaybackRate,
-    })}`)
+    throw new Error(`expected shared Gantt transport state to update atomically, got ${JSON.stringify({ documentKey: afterTransportSet.timelineTransportDocumentKey, position: afterTransportSet.timelineTransportPosition, playing: afterTransportSet.timelineTransportPlaying, rate: afterTransportSet.timelineTransportPlaybackRate })}`)
   }
   store.setTimelineTransportState({ documentKey: 'sequence-b.md' })
   const afterTransportDocumentSwitch = useGraphStore.getState()
@@ -1695,6 +1691,10 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
       rate: afterTransportDocumentSwitch.timelineTransportPlaybackRate,
     })}`)
   }
+  afterTransportDocumentSwitch.setTimelineTransportTimingSyncMode('selected')
+  if (useGraphStore.getState().timelineTransportTimingSyncMode !== 'selected') throw new Error('expected shared Gantt timing sync mode to leave component-local state')
+  useGraphStore.getState().setTimelineTransportTimingSyncMode('grouped')
+  if (useGraphStore.getState().timelineTransportTimingSyncMode !== 'grouped') throw new Error('expected shared Gantt timing sync mode to toggle back to grouped')
   const visibleFrameGanttTransform = computeSvgSurfaceWideTimelineFitTransform({
     bounds: { minX: 0, minY: 0, width: 1375, height: 196 },
     viewportWidth: 925,

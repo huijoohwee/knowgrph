@@ -1,6 +1,6 @@
 import React from 'react'
 import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
-import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
+import type { VideoSequenceTimelineSourceThumbnailSet, VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
 import { type VideoSequenceTimelineLaneId, type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
@@ -32,6 +32,7 @@ export type GanttTimelineTransportRulerModel = {
     selectedRowKey: string
     sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
     sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
+    sourceThumbnailSets: readonly VideoSequenceTimelineSourceThumbnailSet[]
     taskSpans: readonly MermaidGanttTimelineTaskSpan[]
     timelineZoom: number
     disabledLaneIds: readonly VideoSequenceTimelineLaneId[]
@@ -58,6 +59,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   selectedRowKey: string
   sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
   sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
+  sourceThumbnailSets: readonly VideoSequenceTimelineSourceThumbnailSet[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
   totalLabel: string
@@ -106,6 +108,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       selectedRowKey: args.selectedRowKey,
       sourceThumbnails: args.sourceThumbnails,
       sourceThumbnailWindows: args.sourceThumbnailWindows,
+      sourceThumbnailSets: args.sourceThumbnailSets,
       taskSpans: args.taskSpans,
       timelineZoom: args.timelineZoom,
     },
@@ -131,6 +134,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.selectedRowKey,
     args.sourceThumbnails,
     args.sourceThumbnailWindows,
+    args.sourceThumbnailSets,
     args.taskSpans,
     args.timelineZoom,
     args.totalLabel,

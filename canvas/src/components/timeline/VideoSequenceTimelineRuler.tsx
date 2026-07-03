@@ -34,6 +34,7 @@ export const VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX = 24
 export const VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX = 24
 export const VIDEO_SEQUENCE_RULER_FOOTER_PX = 28 + VIDEO_SEQUENCE_RULER_SCOPE_STRIP_PX
 export type VideoSequenceTimelineThumbnailWindow = { sourceEndSeconds: number; sourceStartSeconds: number; timelineEndMinutes: number; timelineStartMinutes: number }
+export type VideoSequenceTimelineSourceThumbnailSet = { kind: 'image' | 'video'; label: string; sourceAudioWaveformSamples: readonly number[]; sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]; sourceThumbnails: readonly TimelineMediaReaderThumbnail[]; sourceUrl: string }
 const VIDEO_SEQUENCE_RESIZE_MODE_LABELS: Record<Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'>, string> = {
   'resize-end': 'end',
   'resize-start': 'start',
@@ -100,18 +101,43 @@ function resolveVideoSequenceClipThumbnails(args: {
   return []
 }
 
+const normalizeSourceThumbnailLabel = (value: unknown): string => String(value || '')
+  .toLowerCase()
+  .replace(/\.(?:avif|gif|jpe?g|png|svg|webp|mp4|mov|m4v|webm)(?=\s|$)/g, '')
+  .replace(/\b(?:source|image|scene|video|media)\b/g, ' ')
+  .replace(/[^a-z0-9\u4e00-\u9fff]+/g, ' ')
+  .trim()
+
+function resolveVideoSequenceSourceThumbnailSet(args: {
+  lane: VideoSequenceTimelineLaneId
+  sets: readonly VideoSequenceTimelineSourceThumbnailSet[]
+  span: MermaidGanttTimelineTaskSpan
+}): VideoSequenceTimelineSourceThumbnailSet | null {
+  const expectedKind = args.lane === 'image' || args.lane === 'scene' ? 'image' : args.lane === 'video' || args.lane === 'audio' ? 'video' : null
+  if (!expectedKind) return null
+  const candidates = args.sets.filter(set => set.kind === expectedKind && (args.lane === 'audio' ? set.sourceAudioWaveformSamples.length || set.sourceThumbnails.length : set.sourceThumbnails.length))
+  if (!candidates.length) return null
+  const spanLabel = normalizeSourceThumbnailLabel(args.span.label)
+  const matched = candidates.find(set => {
+    const setLabel = normalizeSourceThumbnailLabel(set.label || set.sourceUrl)
+    return !!setLabel && !!spanLabel && (spanLabel.includes(setLabel) || setLabel.includes(spanLabel))
+  })
+  return matched || (candidates.length === 1 ? candidates[0] : null)
+}
+
 function buildVideoSequenceClipMediaCache(args: {
   renderableSpans: readonly MermaidGanttTimelineTaskSpan[]
   sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]
+  sourceThumbnailSets: readonly VideoSequenceTimelineSourceThumbnailSet[]
   sourceThumbnails: readonly TimelineMediaReaderThumbnail[]
 }) {
   const cache = new Map<string, {
     compactSourceFrameSamples: boolean
     compactSourceMedia: boolean
-    compactSourceVideo: boolean
     generatedFrameSamples: readonly TimelineMediaReaderThumbnail[]
     lane: VideoSequenceTimelineLaneId
     semanticFrameSamples: readonly TimelineMediaReaderThumbnail[]
+    sourceAudioWaveformSamples: readonly number[]
     showMediaCues: boolean
     thumbnailSamples: readonly TimelineMediaReaderThumbnail[]
     thumbnailWindow: VideoSequenceTimelineThumbnailWindow | null
@@ -122,34 +148,40 @@ function buildVideoSequenceClipMediaCache(args: {
     const lane = resolveVideoSequenceTimelineLane(span)
     const showsGeneratedFrameContent = VIDEO_SEQUENCE_GENERATED_FRAME_CONTENT_LANES.has(lane)
     const compactSourceMedia = isCompactSourceMediaSpan(span, lane)
-    const compactSourceVideo = compactSourceMedia && lane === 'video'
+    const compactVisualSourceMedia = compactSourceMedia && (lane === 'video' || lane === 'audio')
+    const compactSourceImage = compactSourceMedia && (lane === 'image' || lane === 'scene')
     const compactSourceFrameSamples = compactSourceMedia && lane === 'fbf'
     const showsMediaContent = !verticalMarker && (
       VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) ||
       VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) ||
       showsGeneratedFrameContent
     )
+    const sourceThumbnailSet = resolveVideoSequenceSourceThumbnailSet({ lane, sets: args.sourceThumbnailSets, span })
+    const sourceThumbnails = sourceThumbnailSet?.sourceThumbnails || args.sourceThumbnails
+    const sourceThumbnailWindows = sourceThumbnailSet?.sourceThumbnailWindows || args.sourceThumbnailWindows
     const thumbnailWindow = showsMediaContent
       ? resolveVideoSequenceSpanThumbnailWindow({
           allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent,
           span,
-          windows: args.sourceThumbnailWindows,
+          windows: sourceThumbnailWindows,
         })
       : null
-    const nativeFrameSamples = showsMediaContent && (!compactSourceMedia || compactSourceVideo)
-      ? resolveVideoSequenceClipThumbnails({ sourceThumbnails: args.sourceThumbnails, sourceWindow: thumbnailWindow, span })
+    const nativeFrameSamples = showsMediaContent && (!compactSourceMedia || compactVisualSourceMedia)
+      ? resolveVideoSequenceClipThumbnails({ sourceThumbnails, sourceWindow: thumbnailWindow, span })
       : []
+    const stillImageSamples = compactSourceImage && sourceThumbnailSet?.kind === 'image' ? sourceThumbnailSet.sourceThumbnails.slice(0, 1) : []
+    const sourceAudioWaveformSamples = lane === 'audio' ? (sourceThumbnailSet?.sourceAudioWaveformSamples || []) : []
     const semanticFrameSamples = compactSourceFrameSamples ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
-    const generatedFrameSamples = (showsGeneratedFrameContent || compactSourceVideo) && !nativeFrameSamples.length && !semanticFrameSamples.length ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
+    const generatedFrameSamples = (showsGeneratedFrameContent || compactVisualSourceMedia) && !nativeFrameSamples.length && !semanticFrameSamples.length ? buildVideoSequenceGeneratedFrameThumbnails({ sourceWindow: thumbnailWindow, span }) : []
     cache.set(span.rowKey, {
       compactSourceFrameSamples,
       compactSourceMedia,
-      compactSourceVideo,
       generatedFrameSamples,
       lane,
       semanticFrameSamples,
       showMediaCues: showsMediaContent && lane !== 'audio' && !compactSourceMedia,
-      thumbnailSamples: compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? [] : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples),
+      sourceAudioWaveformSamples,
+      thumbnailSamples: compactSourceFrameSamples ? [] : (stillImageSamples.length ? stillImageSamples : (nativeFrameSamples.length ? nativeFrameSamples : generatedFrameSamples)),
       thumbnailWindow,
       verticalMarker,
     })
@@ -189,6 +221,7 @@ export function VideoSequenceTimelineRuler({
   selectedRowKey,
   sourceThumbnails = [],
   sourceThumbnailWindows = [],
+  sourceThumbnailSets = [],
   scopes = [],
   taskSpans,
   timelineZoom,
@@ -210,6 +243,7 @@ export function VideoSequenceTimelineRuler({
   selectedRowKey: string
   sourceThumbnails?: readonly TimelineMediaReaderThumbnail[]
   sourceThumbnailWindows?: readonly VideoSequenceTimelineThumbnailWindow[]
+  sourceThumbnailSets?: readonly VideoSequenceTimelineSourceThumbnailSet[]
   scopes?: readonly VideoSequenceTimelineScope[]
   taskSpans: readonly MermaidGanttTimelineTaskSpan[]
   timelineZoom: number
@@ -224,7 +258,7 @@ export function VideoSequenceTimelineRuler({
   const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>(() => ({ disabledLaneIds }), [disabledLaneIds])
   const visibleLanes = React.useMemo(() => resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions), [projectionOptions, taskSpans])
   const renderableSpans = React.useMemo(() => resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions), [projectionOptions, taskSpans])
-  const clipMediaByRowKey = React.useMemo(() => buildVideoSequenceClipMediaCache({ renderableSpans, sourceThumbnailWindows, sourceThumbnails }), [renderableSpans, sourceThumbnailWindows, sourceThumbnails])
+  const clipMediaByRowKey = React.useMemo(() => buildVideoSequenceClipMediaCache({ renderableSpans, sourceThumbnailSets, sourceThumbnailWindows, sourceThumbnails }), [renderableSpans, sourceThumbnailSets, sourceThumbnailWindows, sourceThumbnails])
   const visibleLaneIndexById = React.useMemo(() => new Map<string, number>(visibleLanes.map((lane, index) => [lane.id, index])), [visibleLanes])
   const displayLaneIdByRowKey = React.useMemo(() => new Map(renderableSpans.map(span => [span.rowKey, resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)])), [projectionOptions, renderableSpans])
   const formatClipTime = React.useCallback((positionMinutes: number) => formatVideoSequenceTimelineSecondsOffset(
@@ -267,7 +301,7 @@ export function VideoSequenceTimelineRuler({
     >
       <aside className="timeline-video-sequence-lane-sidebar" aria-label="Video sequence lane labels" style={buildVideoSequenceLaneSidebarStyle(visibleLanes)}>
         {visibleLanes.map(lane => (
-          <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-display-lane-label={lane.id} data-kg-video-sequence-lane-label={lane.semanticId}>
+          <section key={lane.id} className="timeline-video-sequence-lane-label" data-kg-video-sequence-display-lane-label={lane.id} data-kg-video-sequence-lane-append={lane.append ? '1' : undefined} data-kg-video-sequence-lane-label={lane.semanticId}>
             {lane.label}
           </section>
         ))}
@@ -328,7 +362,7 @@ export function VideoSequenceTimelineRuler({
         {renderableSpans.map((span, index) => {
           const media = clipMediaByRowKey.get(span.rowKey)
           if (!media) return null
-          const { compactSourceMedia, generatedFrameSamples, lane, semanticFrameSamples, showMediaCues, thumbnailSamples, thumbnailWindow, verticalMarker } = media
+          const { compactSourceMedia, generatedFrameSamples, lane, semanticFrameSamples, showMediaCues, sourceAudioWaveformSamples, thumbnailSamples, thumbnailWindow, verticalMarker } = media
           const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
           const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
@@ -353,10 +387,10 @@ export function VideoSequenceTimelineRuler({
               })
             : []
           const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia
-            ? buildVideoSequenceTimelineWaveformSamples({
+            ? (sourceAudioWaveformSamples.length ? sourceAudioWaveformSamples : buildVideoSequenceTimelineWaveformSamples({
                 sampleCount: Math.max(8, Math.round(durationMinutes * 3)),
                 seedText: `${span.label} ${span.raw}`,
-              })
+              }))
             : []
           const keyframeSamples = lane === 'keyframe' && !verticalMarker ? animationState.keyframes : []
           const morphSamples = lane === 'morph' && !verticalMarker
@@ -396,6 +430,7 @@ export function VideoSequenceTimelineRuler({
               data-kg-compact-source-media={compactSourceMedia ? '1' : undefined}
               data-kg-video-sequence-dense-fbf={denseFbfClip ? '1' : undefined}
               data-kg-video-sequence-display-lane={displayLaneId}
+              data-kg-video-sequence-audio-waveform-source={lane === 'audio' && !compactSourceMedia ? (sourceAudioWaveformSamples.length ? 'source' : 'synthetic') : undefined} data-kg-video-sequence-audio-waveform-samples={lane === 'audio' && !compactSourceMedia ? waveformSamples.length : undefined}
               data-kg-video-sequence-lane={lane}
               data-kg-video-sequence-source-window={resolveVideoSequenceSourceWindowLabel(thumbnailWindow) || undefined}
               data-kg-video-sequence-trim-start={clipStartLabel}

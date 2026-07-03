@@ -1,5 +1,8 @@
 import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
 import { deriveFilenameFromUrl, normalizeImportUrlInput } from '@/lib/url'
+import { isVideoDownloadEligible } from '@/lib/video-download/isVideoDownloadEligible'
+import { resolveVideoDownload } from '@/lib/video-download/videoDownloadResolver'
+import type { VideoDownloadOptions } from '@/lib/video-download/types'
 import { uploadFilesToUploadedMediaPanel, type UploadedMediaPanelUploadResult, type UploadedMediaPanelUploadSetItems } from '@/lib/storage/uploadedMediaPanelUpload'
 
 type ImportUrlToUploadedMediaPanelArgs = {
@@ -8,6 +11,13 @@ type ImportUrlToUploadedMediaPanelArgs = {
   fetchImpl?: typeof fetch
   registerObjectUrl?: (url: string) => void
   onSynced?: (result: UploadedMediaPanelUploadResult) => void
+  videoDownloadEndpoint?: string | null
+}
+
+type ResolveMediaImportUrlFileArgs = {
+  urlRaw: string
+  fetchImpl?: typeof fetch
+  videoDownloadEndpoint?: string | null
 }
 
 const MEDIA_MIME_BY_EXTENSION: Record<string, string> = {
@@ -30,6 +40,13 @@ const MEDIA_MIME_BY_EXTENSION: Record<string, string> = {
   wav: 'audio/wav',
   webm: 'video/webm',
   webp: 'image/webp',
+}
+
+const DEFAULT_VIDEO_DOWNLOAD_OPTIONS: VideoDownloadOptions = {
+  format: 'best',
+  mediaKind: 'video-audio',
+  quality: 'best',
+  subtitleLang: '',
 }
 
 const normalizeContentType = (value: unknown): string => String(value || '').split(';')[0]?.trim().toLowerCase() || ''
@@ -66,9 +83,10 @@ const ensureFilenameExtension = (filename: string, contentType: string): string 
 const fetchMediaUrlBlob = async (args: {
   fetchImpl: typeof fetch
   url: string
+  contentTypeHint?: string
 }): Promise<{ blob: Blob; contentType: string }> => {
   const proxyUrl = resolveBinaryDownloadProxyUrl(args.url)
-  const fallbackContentType = readMediaContentTypeFromUrl(args.url)
+  const fallbackContentType = normalizeContentType(args.contentTypeHint) || readMediaContentTypeFromUrl(args.url)
   const candidates = [args.url, proxyUrl].filter((value, index, values) => value && values.indexOf(value) === index)
   let lastError = ''
   for (const candidate of candidates) {
@@ -102,15 +120,32 @@ const fetchMediaUrlBlob = async (args: {
   throw new Error(lastError || 'Request failed')
 }
 
-export async function importUrlToUploadedMediaPanel(args: ImportUrlToUploadedMediaPanelArgs): Promise<UploadedMediaPanelUploadResult[]> {
+export async function resolveMediaImportUrlFile(args: ResolveMediaImportUrlFileArgs): Promise<File> {
   const url = normalizeImportUrlInput(args.urlRaw)
   if (!url) throw new Error('Enter a valid http(s) media URL')
   const fetchImpl = args.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null)
   if (!fetchImpl) throw new Error('Fetch is unavailable')
   if (typeof File !== 'function') throw new Error('File uploads are unavailable')
-  const { blob, contentType } = await fetchMediaUrlBlob({ fetchImpl, url })
-  const fileName = ensureFilenameExtension(deriveFilenameFromUrl(url, 'imported-media'), contentType)
-  const file = new File([blob], fileName, { type: contentType, lastModified: Date.now() })
+
+  try {
+    const { blob, contentType } = await fetchMediaUrlBlob({ fetchImpl, url })
+    return new File([blob], ensureFilenameExtension(deriveFilenameFromUrl(url, 'imported-media'), contentType), { type: contentType, lastModified: Date.now() })
+  } catch (directError) {
+    if (!isVideoDownloadEligible(url)) throw directError
+    const download = await resolveVideoDownload(url, DEFAULT_VIDEO_DOWNLOAD_OPTIONS, {
+      endpoint: args.videoDownloadEndpoint,
+      fetchImpl,
+    })
+    if (download.ok === false) throw new Error(download.error || 'Video download failed')
+    const fileUrl = String(download.result.fileUrl || '').trim()
+    if (!fileUrl) throw new Error('Video download did not expose a media file URL')
+    const { blob, contentType } = await fetchMediaUrlBlob({ fetchImpl, url: fileUrl, contentTypeHint: download.result.mimeType })
+    return new File([blob], ensureFilenameExtension(download.result.fileName || deriveFilenameFromUrl(fileUrl, 'imported-media'), contentType), { type: contentType, lastModified: Date.now() })
+  }
+}
+
+export async function importUrlToUploadedMediaPanel(args: ImportUrlToUploadedMediaPanelArgs): Promise<UploadedMediaPanelUploadResult[]> {
+  const file = await resolveMediaImportUrlFile(args)
   return uploadFilesToUploadedMediaPanel({
     files: [file],
     setItems: args.setItems,

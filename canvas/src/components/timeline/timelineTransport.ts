@@ -119,6 +119,13 @@ export type TimelineTransportStoreBinding = {
   }) => void
 }
 
+export type TimelineTransportTimingSyncMode = 'grouped' | 'selected'
+
+export type TimelineTransportTimingSyncStoreBinding = {
+  timingSyncMode: TimelineTransportTimingSyncMode
+  setTimelineTransportTimingSyncMode: (mode: TimelineTransportTimingSyncMode) => void
+}
+
 export type TimelineDocumentStoreBinding = {
   markdownDocumentName: string
   markdownText: string
@@ -157,6 +164,15 @@ export function useTimelineTransportStoreBinding(): TimelineTransportStoreBindin
       transportPlaying: state.timelineTransportPlaying === true,
       transportPlaybackRate: state.timelineTransportPlaybackRate || 1,
       setTimelineTransportState: state.setTimelineTransportState,
+    })),
+  )
+}
+
+export function useTimelineTransportTimingSyncStoreBinding(): TimelineTransportTimingSyncStoreBinding {
+  return useGraphStore(
+    useShallow(state => ({
+      timingSyncMode: state.timelineTransportTimingSyncMode === 'selected' ? 'selected' : 'grouped',
+      setTimelineTransportTimingSyncMode: state.setTimelineTransportTimingSyncMode,
     })),
   )
 }

@@ -1,5 +1,6 @@
 import { hashText } from '@/features/parsers/hash'
 import { yamlQuote } from '@/features/markdown-workspace/workspaceImport/yaml'
+import { resolveVideoSequenceTimelineFrameRate } from '@/components/timeline/videoSequenceTimelineZoom'
 import { replaceFirstMermaidGanttFrontmatterCode } from './mermaidGanttBarInteraction'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 
@@ -9,6 +10,7 @@ export type MermaidGanttVideoSequenceMediaDropResult = {
 }
 
 const DEFAULT_DROP_DURATION_MINUTES = 1
+const MIN_DROP_DURATION_MINUTES = 0.000001
 const DEFAULT_VIDEO_SEQUENCE_CODE = [
   'gantt',
   '  title Video Sequence',
@@ -28,19 +30,23 @@ const sanitizeMermaidLabel = (value: unknown, fallback: string): string => {
   return label || fallback
 }
 
+const formatFractionalMinuteToken = (minutes: number): string => {
+  const safe = Math.max(MIN_DROP_DURATION_MINUTES, Number.isFinite(minutes) ? minutes : DEFAULT_DROP_DURATION_MINUTES)
+  const precision = safe < 0.01 ? 6 : 3
+  return String(Number(safe.toFixed(precision)))
+}
+
 const normalizeClockToken = (minutes: number): string => {
   const safe = Math.max(0, Number.isFinite(minutes) ? minutes : 0)
   return `kgpos_${String(Number(safe.toFixed(3))).replace(/\./g, '_')}`
 }
 
 const normalizeSourceRangeToken = (durationMinutes: number): string => {
-  const duration = Math.max(0.001, Number.isFinite(durationMinutes) ? durationMinutes : DEFAULT_DROP_DURATION_MINUTES)
-  return `kgsrc_0_${String(Number(duration.toFixed(3))).replace(/\./g, '_')}`
+  return `kgsrc_0_${formatFractionalMinuteToken(durationMinutes).replace(/\./g, '_')}`
 }
 
 const normalizeDurationToken = (durationMinutes: number): string => {
-  const duration = Math.max(0.001, Number.isFinite(durationMinutes) ? durationMinutes : DEFAULT_DROP_DURATION_MINUTES)
-  return `${Number(duration.toFixed(3))}m`
+  return `${formatFractionalMinuteToken(durationMinutes)}m`
 }
 
 const readExistingSourceIds = (frontmatterLines: readonly string[]): Set<string> => {
@@ -234,9 +240,10 @@ const hasMermaidGanttTaskLine = (code: string): boolean =>
 
 const resolveDropDurationMinutes = (media: MediaDragPayload, overrideDurationMinutes?: number): number => {
   const override = readPositiveNumber(overrideDurationMinutes)
-  if (override > 0) return Math.max(0.001, override)
+  if (override > 0) return Math.max(MIN_DROP_DURATION_MINUTES, override)
+  if (media.kind === 'image') return 1 / (resolveVideoSequenceTimelineFrameRate(readPositiveNumber(media.frameRate)) * 60)
   const durationSeconds = readPositiveNumber(media.durationSeconds)
-  if (durationSeconds > 0 && media.kind !== 'image') return Math.max(0.001, durationSeconds / 60)
+  if (durationSeconds > 0) return Math.max(MIN_DROP_DURATION_MINUTES, durationSeconds / 60)
   return DEFAULT_DROP_DURATION_MINUTES
 }
 

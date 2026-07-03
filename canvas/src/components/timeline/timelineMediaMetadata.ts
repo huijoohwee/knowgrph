@@ -8,6 +8,7 @@ export type TimelineMediaContainerRead = {
 export type TimelineMediaContainerMetadata = {
   audioTrackCount: number
   audioChannelCount: number
+  audioSampleSizes: number[]
   audioSampleRate: number
   averageVideoBitrate: number
   averageVideoFrameRate: number
@@ -43,6 +44,7 @@ type IsoTrackSummary = {
   kind: 'audio' | 'video' | 'unknown'
   sampleCount: number
   sampleDurationUnits: number
+  sampleSizes: number[]
   timeResolution: number
   width: number
 }
@@ -53,6 +55,7 @@ const NATIVE_MEDIA_CONTAINER_READ_TIMEOUT_MS = 2500
 const EMPTY_NATIVE_MEDIA_CONTAINER_METADATA: TimelineMediaContainerMetadata = {
   audioTrackCount: 0,
   audioChannelCount: 0,
+  audioSampleSizes: [],
   audioSampleRate: 0,
   averageVideoBitrate: 0,
   averageVideoFrameRate: 0,
@@ -199,6 +202,16 @@ const readIsoStts = (view: DataView, box: IsoBox | null): Pick<IsoTrackSummary, 
   return { sampleCount, sampleDurationUnits }
 }
 
+const readIsoStsz = (view: DataView, box: IsoBox | null): number[] => {
+  if (!box || box.contentStart + 12 > box.end) return []
+  const sampleSize = view.getUint32(box.contentStart + 4)
+  const sampleCount = view.getUint32(box.contentStart + 8)
+  if (sampleSize > 0) return Array.from({ length: Math.min(sampleCount, 2048) }, () => sampleSize)
+  const sizes: number[] = []
+  for (let offset = box.contentStart + 12; sizes.length < sampleCount && sizes.length < 2048 && offset + 4 <= box.end; offset += 4) sizes.push(view.getUint32(offset))
+  return sizes
+}
+
 const readIsoStsd = (view: DataView, box: IsoBox | null, kind: IsoTrackSummary['kind']): Pick<IsoTrackSummary, 'audioChannelCount' | 'audioSampleRate' | 'codec' | 'height' | 'width'> => {
   if (!box || box.contentStart + 16 > box.end) return { audioChannelCount: 0, audioSampleRate: 0, codec: '', height: 0, width: 0 }
   const entryStart = box.contentStart + 8
@@ -215,8 +228,9 @@ const readIsoTrackSummary = (view: DataView, trak: IsoBox): IsoTrackSummary => {
   const kind = readIsoHandlerKind(view, mdia ? findIsoChildBox(view, mdia.contentStart, mdia.end, 'hdlr') : null)
   const timing = readIsoMdhd(view, mdia ? findIsoChildBox(view, mdia.contentStart, mdia.end, 'mdhd') : null)
   const sampleTiming = readIsoStts(view, stbl ? findIsoChildBox(view, stbl.contentStart, stbl.end, 'stts') : null)
+  const sampleSizes = readIsoStsz(view, stbl ? findIsoChildBox(view, stbl.contentStart, stbl.end, 'stsz') : null)
   const sampleDescription = readIsoStsd(view, stbl ? findIsoChildBox(view, stbl.contentStart, stbl.end, 'stsd') : null, kind)
-  return { ...timing, ...sampleTiming, ...sampleDescription, kind }
+  return { ...timing, ...sampleTiming, ...sampleDescription, kind, sampleSizes }
 }
 
 export async function fetchNativeMediaContainerBytes(url: string): Promise<TimelineMediaContainerRead> {
@@ -268,6 +282,7 @@ export function readNativeIsoBmffContainerSummary(read: TimelineMediaContainerRe
     ...containerIdentity,
     audioTrackCount: audioTracks.length,
     audioChannelCount: primaryAudioTrack?.audioChannelCount || 0,
+    audioSampleSizes: primaryAudioTrack?.sampleSizes || [],
     audioSampleRate: primaryAudioTrack?.audioSampleRate || 0,
     averageVideoBitrate: byteSize > 0 && durationSeconds > 0 ? Math.round((byteSize * 8) / durationSeconds) : 0,
     averageVideoFrameRate,

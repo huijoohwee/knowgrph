@@ -1,3 +1,15 @@
+import {
+  buildMermaidGanttTimelineModel,
+  formatClockMinutes,
+  formatDurationMinutes,
+  formatPositionToken,
+  readBaseClockMinutes,
+  readClockMinutes,
+  readDurationMinutes,
+  readGanttTaskLabel,
+  readGanttTaskTokens,
+} from './mermaidGanttTimelineModel'
+
 export type MermaidGanttBarDragMode = 'move' | 'resize-start' | 'resize-end'
 
 export type MermaidGanttBarDragPreview = {
@@ -42,176 +54,26 @@ export type MermaidGanttTimelineTick = {
   percent: number
 }
 
-type GanttTimeParts = {
-  hours: number
-  minutes: number
-}
+export {
+  MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX,
+  MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_STEP_PX,
+  MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_THRESHOLD_PX,
+  MERMAID_GANTT_BAR_MIN_INTERACTION_HEIGHT_PX,
+  MERMAID_GANTT_BAR_MIN_INTERACTION_WIDTH_PX,
+  isMermaidGanttBarDragMode,
+  resolveMermaidGanttBarDragCommitted,
+  resolveMermaidGanttBarDragPreview,
+  resolveMermaidGanttTimelineDragEffectiveDelta,
+  resolveMermaidGanttTimelineDragPreviewSpan,
+  shouldExposeMermaidGanttBarInteraction,
+} from './mermaidGanttDragInteraction'
 
-export const MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX = 4
-export const MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_THRESHOLD_PX = 72
-export const MERMAID_GANTT_BAR_DRAG_EDGE_SCROLL_STEP_PX = 28
-export const MERMAID_GANTT_BAR_MIN_INTERACTION_WIDTH_PX = 24
-export const MERMAID_GANTT_BAR_MIN_INTERACTION_HEIGHT_PX = 18
-
-export function isMermaidGanttBarDragMode(value: unknown): value is MermaidGanttBarDragMode {
-  return value === 'move' || value === 'resize-start' || value === 'resize-end'
-}
-
-export function shouldExposeMermaidGanttBarInteraction(row: { kind?: string | null } | null | undefined): boolean {
-  return row?.kind === 'task'
-}
-
-export function resolveMermaidGanttBarDragPreview(args: {
-  mode: MermaidGanttBarDragMode
-  originClientX: number
-  clientX: number
-}): MermaidGanttBarDragPreview {
-  const deltaPx = args.clientX - args.originClientX
-  if (args.mode === 'resize-start') {
-    return {
-      deltaPx,
-      offsetPx: deltaPx,
-      widthDeltaPx: -deltaPx,
-    }
-  }
-  if (args.mode === 'resize-end') {
-    return {
-      deltaPx,
-      offsetPx: 0,
-      widthDeltaPx: deltaPx,
-    }
-  }
-  return {
-    deltaPx,
-    offsetPx: deltaPx,
-    widthDeltaPx: 0,
-  }
-}
-
-export function resolveMermaidGanttBarDragCommitted(deltaPx: number): boolean {
-  return Math.abs(deltaPx) >= MERMAID_GANTT_BAR_DRAG_COMMIT_MIN_DELTA_PX
-}
-
-export function resolveMermaidGanttTimelineDragPreviewSpan(args: {
-  allowTimelineExpansion?: boolean
-  deltaMinutes: number
-  maxMinutes: number
-  mode: MermaidGanttBarDragMode
-  span: MermaidGanttTimelineTaskSpan
-}): MermaidGanttTimelineDragPreview {
-  const durationMinutes = Math.max(1, args.span.durationMinutes)
-  const endMinutes = args.span.startMinutes + durationMinutes
-  const deltaMinutes = Math.round(args.deltaMinutes)
-  const maxMinutes = Math.max(0, Math.round(args.maxMinutes))
-  if (args.mode === 'resize-start') {
-    const nextStartMinutes = clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, Math.max(0, endMinutes - 1))
-    return {
-      durationMinutes: Math.max(1, endMinutes - nextStartMinutes),
-      rowKey: args.span.rowKey,
-      startMinutes: nextStartMinutes,
-    }
-  }
-  if (args.mode === 'resize-end') {
-    if (args.allowTimelineExpansion) {
-      return {
-        durationMinutes: Math.max(1, durationMinutes + deltaMinutes),
-        rowKey: args.span.rowKey,
-        startMinutes: args.span.startMinutes,
-      }
-    }
-    return {
-      durationMinutes: clampGanttTimelineMinutes(durationMinutes + deltaMinutes, 1, Math.max(1, maxMinutes - args.span.startMinutes)),
-      rowKey: args.span.rowKey,
-      startMinutes: args.span.startMinutes,
-    }
-  }
-  const maxMoveStartMinutes = args.allowTimelineExpansion
-    ? Math.max(0, maxMinutes)
-    : Math.max(0, maxMinutes - durationMinutes)
-  return {
-    durationMinutes,
-    rowKey: args.span.rowKey,
-    startMinutes: clampGanttTimelineMinutes(args.span.startMinutes + deltaMinutes, 0, maxMoveStartMinutes),
-  }
-}
-
-export function resolveMermaidGanttTimelineDragEffectiveDelta(args: {
-  allowTimelineExpansion?: boolean
-  deltaMinutes: number
-  maxMinutes: number
-  mode: MermaidGanttBarDragMode
-  span: MermaidGanttTimelineTaskSpan
-}): number {
-  const preview = resolveMermaidGanttTimelineDragPreviewSpan(args)
-  if (args.mode === 'resize-end') {
-    return preview.durationMinutes - Math.max(1, args.span.durationMinutes)
-  }
-  return preview.startMinutes - args.span.startMinutes
-}
-
-function clampGanttTimelineMinutes(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min
-  return Math.min(max, Math.max(min, value))
-}
-
-function parseGanttClockTime(value: string): GanttTimeParts | null {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim())
-  if (!match) return null
-  const hours = Number(match[1])
-  const minutes = Number(match[2])
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
-  return { hours, minutes }
-}
-function readClockMinutes(value: string): number | null {
-  const positionMatch = /^kgpos_(\d+(?:_\d+)?)$/i.exec(String(value || '').trim())
-  const positionMinutes = positionMatch?.[1] ? Number(positionMatch[1].replace(/_/g, '.')) : NaN
-  if (Number.isFinite(positionMinutes) && positionMinutes >= 0) return positionMinutes
-  const time = parseGanttClockTime(value)
-  if (!time) return null
-  return time.hours * 60 + time.minutes
-}
-function formatClockMinutes(value: number): string {
-  const totalMinutes = Math.max(0, Math.round(value))
-  const hours = Math.floor(totalMinutes / 60) % 24
-  const minutes = totalMinutes % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-}
-
-function formatFractionalMinutesToken(value: number): string {
-  const safe = Math.max(0, Number.isFinite(value) ? value : 0)
-  return String(Number(safe.toFixed(3)))
-}
-
-function formatPositionToken(value: number, existingToken: string): string {
-  if (/^kgpos_/i.test(String(existingToken || '').trim())) {
-    return `kgpos_${formatFractionalMinutesToken(value).replace(/\./g, '_')}`
-  }
-  return formatClockMinutes(value)
-}
-
-function readDurationMinutes(value: string): number | null {
-  const match = /^(\d+(?:\.\d+)?)m$/i.exec(String(value || '').trim())
-  if (!match) return null
-  const minutes = Number(match[1])
-  return Number.isFinite(minutes) && minutes > 0 ? minutes : null
-}
-
-function formatDurationMinutes(value: number): string {
-  return `${formatFractionalMinutesToken(Math.max(0.001, value))}m`
-}
-
-function readGanttTaskLabel(line: string): string {
-  const colonIndex = line.indexOf(':')
-  if (colonIndex < 0) return line.trim()
-  return line.slice(0, colonIndex).trim() || line.trim()
-}
-
-function readGanttTaskTokens(line: string): string[] {
-  const colonIndex = line.indexOf(':')
-  if (colonIndex < 0) return []
-  return line.slice(colonIndex + 1).split(',').map(token => token.trim()).filter(Boolean)
-}
+export {
+  buildMermaidGanttTimelineModel,
+  buildMermaidGanttTimelineTicks,
+  formatMermaidGanttTimelineOffset,
+  resolveMermaidGanttTimelineRowKeyAtPosition,
+} from './mermaidGanttTimelineModel'
 
 function isMermaidGanttStatusToken(token: string): boolean {
   return /^(?:active|done|crit|milestone|vert)$/i.test(String(token || '').trim())
@@ -395,105 +257,6 @@ function buildGanttTaskLine(args: {
     formatDurationMinutes(args.durationMinutes),
   ]
   return `${args.indent}${args.label} : ${timingTokens.join(', ')}`
-}
-
-function readBaseClockMinutes(lines: string[]): number | null {
-  for (const line of lines) {
-    const tokens = readGanttTaskTokens(String(line || '').trim())
-    const clockToken = tokens.find(token => readClockMinutes(token) != null)
-    const minutes = clockToken ? readClockMinutes(clockToken) : null
-    if (minutes != null) return minutes
-  }
-  return null
-}
-
-function resolveGanttTimelineTickStep(totalMinutes: number): number {
-  const targetTickCount = 6
-  const rawStep = Math.max(1, totalMinutes / targetTickCount)
-  const candidates = [1, 2, 5, 10, 15, 30, 60, 120, 240, 480]
-  return candidates.find(candidate => candidate >= rawStep) || 480
-}
-
-export function formatMermaidGanttTimelineOffset(value: number): string {
-  const totalMinutes = Math.max(0, Math.round(value))
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${hours}:${String(minutes).padStart(2, '0')}`
-}
-
-export function buildMermaidGanttTimelineModel(code: string): MermaidGanttTimelineModel {
-  const lines = String(code || '').replace(/\r/g, '').split('\n')
-  const taskSpans: MermaidGanttTimelineTaskSpan[] = []
-  const usesVideoSequenceZeroOrigin = lines.some(line => /^\s*title\s+Video Sequence\s*$/i.test(String(line || '').trim()))
-  let baseClockMinutes: number | null = usesVideoSequenceZeroOrigin ? 0 : null
-  let cursorMinutes = 0
-
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    const raw = String(lines[lineIndex] || '').trim()
-    if (!raw || !raw.includes(':')) continue
-    if (/^(?:title|dateFormat|axisFormat|tickInterval|weekday|excludes|includes|todayMarker)\b/i.test(raw)) continue
-    const tokens = readGanttTaskTokens(raw)
-    const durationMinutes = readDurationMinutes(tokens[tokens.length - 1] || '')
-    if (durationMinutes == null) continue
-    const clockToken = tokens.find(token => readClockMinutes(token) != null)
-    const clockMinutes = clockToken ? readClockMinutes(clockToken) : null
-    if (baseClockMinutes == null && clockMinutes != null) baseClockMinutes = clockMinutes
-    const startMinutes = Math.max(0, clockMinutes == null || baseClockMinutes == null ? cursorMinutes : clockMinutes - baseClockMinutes)
-    const endMinutes = startMinutes + durationMinutes
-    taskSpans.push({
-      durationMinutes,
-      endMinutes,
-      label: readGanttTaskLabel(raw),
-      lineIndex,
-      raw,
-      rowKey: `${lineIndex}:task:${raw}`,
-      startMinutes,
-    })
-    cursorMinutes = Math.max(cursorMinutes, endMinutes)
-  }
-
-  const startMinutes = taskSpans.length ? Math.min(...taskSpans.map(span => span.startMinutes)) : 0
-  const endMinutes = taskSpans.length ? Math.max(...taskSpans.map(span => span.endMinutes)) : 0
-  const originMinutes = usesVideoSequenceZeroOrigin ? 0 : startMinutes
-  return {
-    durationMinutes: Math.max(0, endMinutes - originMinutes),
-    endMinutes,
-    startMinutes,
-    taskSpans,
-  }
-}
-
-export function buildMermaidGanttTimelineTicks(model: MermaidGanttTimelineModel): MermaidGanttTimelineTick[] {
-  const totalMinutes = Math.max(0, model.durationMinutes)
-  if (totalMinutes <= 0) return [{ label: '0:00', minutes: 0, percent: 0 }]
-  const step = resolveGanttTimelineTickStep(totalMinutes)
-  const ticks: MermaidGanttTimelineTick[] = []
-  for (let minutes = 0; minutes < totalMinutes; minutes += step) {
-    ticks.push({
-      label: formatMermaidGanttTimelineOffset(minutes),
-      minutes,
-      percent: (minutes / totalMinutes) * 100,
-    })
-  }
-  ticks.push({
-    label: formatMermaidGanttTimelineOffset(totalMinutes),
-    minutes: totalMinutes,
-    percent: 100,
-  })
-  return ticks
-}
-
-export function resolveMermaidGanttTimelineRowKeyAtPosition(
-  model: MermaidGanttTimelineModel,
-  positionMinutes: number,
-): string | null {
-  const position = Math.max(0, Number.isFinite(positionMinutes) ? positionMinutes : 0)
-  const containing = model.taskSpans.find(span => position >= span.startMinutes && position <= span.endMinutes)
-  if (containing) return containing.rowKey
-  const nearest = model.taskSpans
-    .map(span => ({ span, distance: Math.min(Math.abs(position - span.startMinutes), Math.abs(position - span.endMinutes)) }))
-    .sort((a, b) => a.distance - b.distance)[0]?.span
-  return nearest?.rowKey || null
 }
 
 export function updateMermaidGanttCodeRowTiming(args: {

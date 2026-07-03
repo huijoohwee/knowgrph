@@ -129,7 +129,7 @@ const canTimelineSegmentDriveMediaPreview = (
 ): boolean => {
   const lane = resolveVideoSequenceTimelineLane(segment.span)
   const sourceKind = readVideoSequenceTimelineSourceKind(source)
-  if (lane === 'audio') return sourceKind === 'audio'
+  if (lane === 'audio') return sourceKind === 'audio' || sourceKind === 'video'
   if (lane === 'image' || lane === 'scene') return sourceKind === 'image'
   return lane === 'video' && sourceKind === 'video'
 }
@@ -150,6 +150,20 @@ const findSourceForKey = (
   const key = clean(sourceKey).toLowerCase()
   if (!key) return sources[0] || null
   return sources.find(source => sourceLookupKeys(source).includes(key)) || sources[0] || null
+}
+
+const findSourceForSegment = (
+  sources: readonly VideoSequenceTimelineSource[],
+  segment: SourceSegmentDraft,
+): VideoSequenceTimelineSource | null => {
+  const key = clean(segment.sourceKey).toLowerCase()
+  const keyedSource = key ? sources.find(source => sourceLookupKeys(source).includes(key)) : null
+  if (keyedSource) return keyedSource
+  const lane = resolveVideoSequenceTimelineLane(segment.span)
+  const expectedKind = lane === 'audio' ? 'audio' : lane === 'image' || lane === 'scene' ? 'image' : lane === 'video' ? 'video' : null
+  const laneSource = expectedKind ? sources.find(source => readVideoSequenceTimelineSourceKind(source) === expectedKind) : null
+  if (laneSource) return laneSource
+  return key ? null : sources[0] || null
 }
 
 const buildOperationSet = (spans: readonly MermaidGanttTimelineTaskSpan[], lane: 'mask' | 'grade'): Set<string> => {
@@ -207,7 +221,7 @@ function buildVideoSequencePlanFromSegments(args: {
     .map((segment): SourceSegmentRange => {
       const duration = Math.max(0, segment.span.durationMinutes)
       if (segment.sourceRangeMinutes) {
-        const source = findSourceForKey(args.sources, segment.sourceKey)
+        const source = findSourceForSegment(args.sources, segment)
         const durationMinutes = Math.max(
           0.0001,
           source?.durationSeconds || 0,
@@ -241,7 +255,7 @@ function buildVideoSequencePlanFromSegments(args: {
     .sort((a, b) => a.span.startMinutes - b.span.startMinutes || a.span.lineIndex - b.span.lineIndex)
     .flatMap(segment => {
       if (args.includeSpanRowKeys?.size && !args.includeSpanRowKeys.has(segment.span.rowKey)) return []
-      const source = findSourceForKey(args.sources, segment.sourceKey)
+      const source = findSourceForSegment(args.sources, segment)
       if (!source) return []
       if (args.mediaPreviewOnly && !canTimelineSegmentDriveMediaPreview(segment, source)) return []
       const duration = Math.max(0, segment.span.durationMinutes)

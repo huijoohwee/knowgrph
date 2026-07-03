@@ -77,6 +77,7 @@ export type TimelineTransportStateUpdate = {
   playing?: boolean
   playbackRate?: number | null
 }
+export type TimelineTransportTimingSyncMode = 'grouped' | 'selected'
 
 export interface GraphStateChatImport {
   flowchartDataSource: 'api' | 'fixture' | 'workspace';
@@ -201,7 +202,9 @@ export interface GraphStateChatImport {
   timelineTransportPosition: number;
   timelineTransportPlaying: boolean;
   timelineTransportPlaybackRate: number;
+  timelineTransportTimingSyncMode: TimelineTransportTimingSyncMode;
   setTimelineTransportState: (update: TimelineTransportStateUpdate) => void;
+  setTimelineTransportTimingSyncMode: (mode: TimelineTransportTimingSyncMode) => void;
   gitGraphSelectedCommandLineIndex: number | null;
   setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) => void;
   chatExchangeLogs: ChatExchangeLogEntry[];

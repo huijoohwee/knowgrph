@@ -1,7 +1,7 @@
 import React from 'react'
-import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
+import { useTimelineMediaReaderSummaries, useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 import { resolveTimelinePlanSourceUrl } from '@/components/timeline/timelinePlanSync'
-import type { VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
+import type { VideoSequenceTimelineSourceThumbnailSet, VideoSequenceTimelineThumbnailWindow } from '@/components/timeline/VideoSequenceTimelineRuler'
 import { useGanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { useGanttTimelineTransportCommandModel } from './useGanttTimelineTransportCommandModel'
 import { useGanttTimelineTransportInteractionModel } from './useGanttTimelineTransportInteractionModel'
@@ -22,14 +22,62 @@ import {
   isCompactSourceMediaSpan,
   resolveVideoSequenceTimelineLane,
   resolveVisibleVideoSequenceTimelineLaneCount,
+  type VideoSequenceTimelineSource,
 } from '@/components/timeline/videoSequenceTimeline'
 import { resolveVideoSequenceTimelineScaleMaxMinutes } from '@/components/timeline/videoSequenceTimelineZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { type GanttTimelineTransportAudioPlaybackBridgeModel } from './GanttTimelineTransportAudioPlaybackBridge'
 
 export type GanttTimelineTransportSurfaceModel = {
+  audioPlaybackBridgeModel: GanttTimelineTransportAudioPlaybackBridgeModel
   chromeModel: GanttTimelineTransportChromeModel
   rulerModel: GanttTimelineTransportRulerModel
   shellModel: GanttTimelineTransportShellModel
+}
+
+type TimelineTransportThumbnailSourceItem = {
+  kind: 'image' | 'video'
+  label: string
+  source: VideoSequenceTimelineSource
+  src: string
+}
+
+const clean = (value: unknown): string => String(value || '').trim()
+
+const readTimelineTransportSourceLabel = (source: VideoSequenceTimelineSource): string => (
+  clean(source.originalName)
+  || clean(source.relativePath).split('/').filter(Boolean).pop()
+  || clean(source.sourceUrl)
+  || 'Media source'
+)
+
+const readTimelineTransportThumbnailSourceKind = (source: VideoSequenceTimelineSource): TimelineTransportThumbnailSourceItem['kind'] => {
+  const signature = [
+    source.mimeHint,
+    source.originalName,
+    source.relativePath,
+    source.sourceUrl,
+  ].join(' ').toLowerCase()
+  return /\bimage\b|\.avif\b|\.gif\b|\.jpe?g\b|\.png\b|\.svg\b|\.webp\b/.test(signature) ? 'image' : 'video'
+}
+
+const collectTimelineTransportThumbnailSourceItems = (plans: readonly (ReturnType<typeof useGanttTimelineTransportSession>['exportPlan'])[]): TimelineTransportThumbnailSourceItem[] => {
+  const itemBySrc = new Map<string, TimelineTransportThumbnailSourceItem>()
+  for (const plan of plans) {
+    for (const segment of plan?.segments || []) {
+      const src = resolveTimelinePlanSourceUrl(segment.source)
+      if (!src || itemBySrc.has(src)) continue
+      const kind = readTimelineTransportThumbnailSourceKind(segment.source)
+      if (kind !== 'image' && kind !== 'video') continue
+      itemBySrc.set(src, {
+        kind,
+        label: readTimelineTransportSourceLabel(segment.source),
+        source: segment.source,
+        src,
+      })
+    }
+  }
+  return Array.from(itemBySrc.values())
 }
 
 export function useGanttTimelineTransportSurfaceModel(args: {
@@ -100,6 +148,16 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     active: !!thumbnailSourceUrl,
     url: thumbnailSourceUrl,
   })
+  const sourceThumbnailItems = React.useMemo(() => collectTimelineTransportThumbnailSourceItems([
+    transportSession.thumbnailPlan,
+    transportSession.previewPlan,
+    transportSession.exportPlan,
+  ]), [transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const sourceThumbnailUrls = React.useMemo(() => sourceThumbnailItems.map(item => item.src), [sourceThumbnailItems])
+  const sourceThumbnailSummaries = useTimelineMediaReaderSummaries({
+    active: sourceThumbnailUrls.length > 0,
+    urls: sourceThumbnailUrls,
+  })
   const sourceThumbnailWindows = React.useMemo<VideoSequenceTimelineThumbnailWindow[]>(() => {
     const durationSeconds = thumbnailSummary.durationSeconds
     const thumbnailPlan = transportSession.thumbnailPlan || transportSession.exportPlan
@@ -113,6 +171,33 @@ export function useGanttTimelineTransportSurfaceModel(args: {
         timelineStartMinutes: segment.timelineStartMinutes,
       }))
   }, [thumbnailSourceUrl, thumbnailSummary.durationSeconds, transportSession.exportPlan, transportSession.thumbnailPlan])
+  const sourceThumbnailSets = React.useMemo<VideoSequenceTimelineSourceThumbnailSet[]>(() => {
+    const thumbnailPlan = transportSession.thumbnailPlan || transportSession.exportPlan
+    if (!thumbnailPlan?.segments.length) return []
+    const collected = sourceThumbnailItems.flatMap((item): VideoSequenceTimelineSourceThumbnailSet[] => {
+      const summary = sourceThumbnailSummaries[item.src]
+      const durationSeconds = Number(item.source.durationSeconds) > 0 ? Number(item.source.durationSeconds) : Number(summary?.durationSeconds || 0)
+      const thumbnails = summary?.thumbnails || []
+      if (!thumbnails.length && !summary?.audioWaveformSamples.length) return []
+      return [{
+        kind: item.kind,
+        label: item.label,
+        sourceAudioWaveformSamples: summary?.audioWaveformSamples || [],
+        sourceThumbnailWindows: thumbnailPlan.segments
+          .filter(segment => resolveTimelinePlanSourceUrl(segment.source) === item.src)
+          .map(segment => ({
+            sourceEndSeconds: segment.sourceEndRatio * Math.max(0.0001, durationSeconds || 1),
+            sourceStartSeconds: segment.sourceStartRatio * Math.max(0.0001, durationSeconds || 1),
+            timelineEndMinutes: segment.timelineEndMinutes,
+            timelineStartMinutes: segment.timelineStartMinutes,
+          })),
+        sourceThumbnails: thumbnails,
+        sourceUrl: item.src,
+      }]
+    })
+    if (thumbnailSourceUrl && thumbnailSummary.audioWaveformSamples.length && !collected.some(set => set.sourceUrl === thumbnailSourceUrl)) collected.push({ kind: 'video', label: 'Source video', sourceAudioWaveformSamples: thumbnailSummary.audioWaveformSamples, sourceThumbnailWindows, sourceThumbnails: thumbnailSummary.thumbnails, sourceUrl: thumbnailSourceUrl })
+    return collected
+  }, [sourceThumbnailItems, sourceThumbnailSummaries, sourceThumbnailWindows, thumbnailSourceUrl, thumbnailSummary.audioWaveformSamples, thumbnailSummary.thumbnails, transportSession.exportPlan, transportSession.thumbnailPlan])
   const transportClockDisplayModel = useGanttTimelineDisplayModel({
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: transportSession.mediaDurationSeconds,
@@ -121,6 +206,27 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds,
     ticks: transportSession.ticks,
   })
+  const selectedAudioPlaybackSegment = React.useMemo(() => {
+    if (!transportSession.selectedSpan || resolveVideoSequenceTimelineLane(transportSession.selectedSpan) !== 'audio') return null
+    return transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source)) || null
+  }, [transportSession.previewPlan, transportSession.selectedSpan])
+  const audioPlaybackBridgeModel = React.useMemo<GanttTimelineTransportAudioPlaybackBridgeModel>(() => {
+    const mediaKey = selectedAudioPlaybackSegment ? resolveTimelinePlanSourceUrl(selectedAudioPlaybackSegment.source) : ''
+    return {
+      active: !!selectedAudioPlaybackSegment && !!mediaKey && !transportSession.disabled,
+      documentKey: transportSession.documentKey,
+      exportPlan: selectedAudioPlaybackSegment ? transportSession.previewPlan : null,
+      maxMinutes: transportSession.maxMinutes,
+      mediaKey,
+      source: selectedAudioPlaybackSegment?.source || null,
+    }
+  }, [
+    selectedAudioPlaybackSegment,
+    transportSession.disabled,
+    transportSession.documentKey,
+    transportSession.maxMinutes,
+    transportSession.previewPlan,
+  ])
   const transportCommandModel = useGanttTimelineTransportCommandModel({
     code: args.code,
     exportPlan: transportSession.exportPlan,
@@ -192,6 +298,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     selectedRowKey: transportSession.selectedRowKey,
     sourceThumbnails: thumbnailSummary.thumbnails,
     sourceThumbnailWindows,
+    sourceThumbnailSets,
     taskSpans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
     totalLabel: transportClockDisplayModel.totalLabel,
@@ -225,6 +332,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   })
 
   return {
+    audioPlaybackBridgeModel,
     chromeModel,
     rulerModel,
     shellModel,

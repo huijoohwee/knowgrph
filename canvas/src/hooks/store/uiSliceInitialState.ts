@@ -147,8 +147,8 @@ export const createUiInitialState = (
     timelineTransportPosition: 0,
     timelineTransportPlaying: false,
     timelineTransportPlaybackRate: 1,
-    setTimelineTransportState: (update: GraphState['setTimelineTransportState'] extends (arg: infer Arg) => void ? Arg : never) =>
-      set(state => {
+    timelineTransportTimingSyncMode: 'grouped' as GraphState['timelineTransportTimingSyncMode'],
+    setTimelineTransportState: (update: GraphState['setTimelineTransportState'] extends (arg: infer Arg) => void ? Arg : never) => set(state => {
         const documentKey = Object.prototype.hasOwnProperty.call(update || {}, 'documentKey')
           ? String(update?.documentKey || '').trim()
           : state.timelineTransportDocumentKey
@@ -160,14 +160,7 @@ export const createUiInitialState = (
         const playbackRateRaw = typeof update?.playbackRate === 'number' && Number.isFinite(update.playbackRate)
           ? update.playbackRate
           : (documentChanged ? 1 : state.timelineTransportPlaybackRate)
-        const next = {
-          timelineTransportDocumentKey: documentKey,
-          timelineTransportPosition: positionRaw,
-          timelineTransportPlaying: typeof update?.playing === 'boolean'
-            ? update.playing
-            : (documentChanged ? false : state.timelineTransportPlaying),
-          timelineTransportPlaybackRate: playbackRateRaw,
-        }
+        const next = { timelineTransportDocumentKey: documentKey, timelineTransportPosition: positionRaw, timelineTransportPlaying: typeof update?.playing === 'boolean' ? update.playing : (documentChanged ? false : state.timelineTransportPlaying), timelineTransportPlaybackRate: playbackRateRaw }
         if (
           state.timelineTransportDocumentKey === next.timelineTransportDocumentKey &&
           Math.abs((state.timelineTransportPosition || 0) - next.timelineTransportPosition) < 0.001 &&
@@ -177,6 +170,10 @@ export const createUiInitialState = (
           return {}
         }
         return next as Partial<GraphState>
+      }),
+    setTimelineTransportTimingSyncMode: mode => set(state => {
+        const nextMode = mode === 'selected' ? 'selected' : 'grouped'
+        return state.timelineTransportTimingSyncMode === nextMode ? {} : ({ timelineTransportTimingSyncMode: nextMode } as Partial<GraphState>)
       }),
 
     storyboardWidgetSelectedPortRowKey: '',

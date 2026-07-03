@@ -1,6 +1,7 @@
 import { buildTimelinePreviewSyncPlan } from '@/components/timeline/timelinePlanSync'
 import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
 import { appendMermaidGanttVideoSequenceMediaDrop } from '@/lib/mermaid/mermaidGanttVideoSequenceMediaDrop'
+import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
 import { resolveMermaidGanttCode } from '@/lib/mermaid/mermaidGitGraph'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
@@ -137,5 +138,58 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     droppedSegment.timelineEndMinutes !== 0.25
   ) {
     throw new Error(`expected dropped media to initialize a timeline clip, got ${JSON.stringify({ code: nextCode, model: nextModel, plan: nextPlan, markdownText: result.markdownText })}`)
+  }
+}
+
+export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Image',
+    '---',
+    '',
+  ].join('\n')
+  const result = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(markdownText),
+    markdownText,
+    media: {
+      displayHeight: 720,
+      displayWidth: 1280,
+      durationSeconds: 1,
+      frameRate: 12,
+      kind: 'image',
+      label: '空武.jpg',
+      mimeHint: 'image/jpeg',
+      sourceKey: 'synced-r2-object',
+      url: '/media/kongwu.jpg',
+    },
+    startMinutes: 0.25,
+  })
+  if (!result) throw new Error('expected image drop to append a source-backed one-frame row')
+  const nextCode = readVideoSequenceCode(result.markdownText)
+  const nextModel = readVideoSequenceTimelineModelFromMarkdown(result.markdownText)
+  const imageSpan = buildMermaidGanttTimelineModel(nextCode).taskSpans.find(span => span.label === '空武.jpg image')
+  if (
+    !nextModel ||
+    !nextModel.sources.some(source => source.sourceUrl === '/media/kongwu.jpg' && source.frameRate === 12) ||
+    !nextCode.includes('空武.jpg image : clip_') ||
+    !nextCode.includes('kgsrc_0_0_001389') ||
+    !nextCode.includes('kgpos_0_25') ||
+    !nextCode.includes('0.001389m') ||
+    nextCode.includes('0.016667m') ||
+    nextCode.includes('1s') ||
+    !imageSpan ||
+    Math.abs(imageSpan.durationMinutes - (1 / 12 / 60)) > 0.000001
+  ) {
+    throw new Error(`expected dropped image to persist as one frame, got ${JSON.stringify({ code: nextCode, imageSpan, model: nextModel })}`)
   }
 }

@@ -101,7 +101,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 112px) minmax(0, 1fr)',
     'repeat-x 0 24px / 25% calc(100% - 24px)',
     '.timeline-video-sequence-ruler-scroll',
-    'overscroll-behavior-x: contain',
+    'overflow-y: auto',
+    'overscroll-behavior: contain',
     '.timeline-video-sequence-ruler-scroll-content',
     '.timeline-video-sequence-ruler-viewport',
     '.timeline-video-sequence-ruler-axis',
@@ -219,15 +220,16 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
 
   for (const token of [
-    '.timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]',
-    'height: var(--kg-timeline-bar-height, 57px)',
-    'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-timeline-bar-height, 57px)) / 2)',
-    'border-color: rgb(15 23 42 / 0.34)',
-    'inset: 2px 6px',
-    'min-width: 18px',
+    '.timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--lane-fbf)',
+    'height: var(--kg-compact-source-media-bar-height, 42px)',
+    'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-compact-source-media-bar-height, 42px)) / 2)',
+    'border-color: rgb(15 23 42 / 0.24)',
+    'inset: 2px 5px',
+    'flex: 1 1 0',
+    'min-width: 0',
     'filter: saturate(1.04) contrast(1.02)',
     'background: transparent',
-    '0 0 0 1px rgb(37 99 235 / 0.32)',
+    'box-shadow: 0 1px 2px rgb(15 23 42 / 0.1)',
     'width: 3px',
     'height: 18px',
     'linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg',
@@ -239,6 +241,24 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   if (denseFbfCssText.includes('height: var(--kg-control-height,')) {
     throw new Error('expected compact timeline bar height to use the main-toolbar-derived timeline bar token')
+  }
+  if (denseFbfCssText.includes('background: rgb(2 6 23 / 0.58);')) {
+    throw new Error('expected compact media bar labels to render as direct top-left text without a badge background')
+  }
+  if (denseFbfCssText.includes('0 0 0 1px rgb(37 99 235 / 0.32)')) {
+    throw new Error('expected compact media selected chrome to use a subtle border line instead of an outer glow')
+  }
+  if (mermaidTransportCssText.includes('0 0 0 2px rgb(37 99 235 / 0.44)')) {
+    throw new Error('expected scoped compact media selected chrome to avoid the heavy outer ring')
+  }
+  if (
+    denseFbfCssText.includes('inset 0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent') ||
+    mermaidTransportCssText.includes('inset 0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent')
+  ) {
+    throw new Error('expected compact media selected chrome to avoid redundant inset frames')
+  }
+  if (denseFbfCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-compact-source-media="1"]')) {
+    throw new Error('expected compact source audio to reuse the shared source bar chrome')
   }
 
   if (
@@ -309,7 +329,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-tick:not([data-kg-video-sequence-major-tick="1"]) .timeline-transport-ruler-tick-label',
     'color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 62%, var(--kg-panel-bg, #fff))',
-    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf)',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',

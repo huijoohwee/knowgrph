@@ -47,17 +47,13 @@ function readSource(...parts: string[]): string {
 }
 
 export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming() {
-  const code = [
-    'gantt',
-    '  title Video Sequence Timeline',
-    '  dateFormat HH:mm',
-    '  axisFormat %H:%M',
-    '  section Source video',
-    '  Source video : clip_source, kgsrc_0_0_252, kgpos_0, 0.252m',
-  ].join('\n')
+  const code = ['gantt', '  title Video Sequence Timeline', '  dateFormat HH:mm', '  axisFormat %H:%M', '  section Source video', '  Source video : clip_source, kgsrc_0_0_252, kgpos_0, 0.252m'].join('\n')
   const span = buildMermaidGanttTimelineModel(code).taskSpans[0]
   const editStep = resolveVideoSequenceClipEditStepMinutes(span)
-  const nudgeDelta = normalizeVideoSequenceClipEditDeltaMinutes(editStep, editStep)
+  const nudgeDelta = normalizeVideoSequenceClipEditDeltaMinutes(editStep, editStep), pointerMoveDelta = normalizeVideoSequenceClipEditDeltaMinutes(16 * (1 / 960), editStep)
+  const dragArgs = { allowTimelineExpansion: true, deltaMinutes: pointerMoveDelta, maxMinutes: 1, mode: 'resize-end' as const, span, stepMinutes: editStep }
+  const pointerResizePreview = resolveMermaidGanttTimelineDragPreviewSpan(dragArgs)
+  const pointerResizeDelta = resolveMermaidGanttTimelineDragEffectiveDelta(dragArgs)
   const nudged = updateMermaidGanttVideoSequenceClipTiming({
     code,
     deltaMinutes: nudgeDelta,
@@ -74,12 +70,15 @@ export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming
   })
   if (
     editStep !== 1 / 60 ||
+    pointerMoveDelta !== 0.017 ||
+    Math.abs(pointerResizePreview.durationMinutes - 0.269) > 0.0001 ||
+    Math.abs(pointerResizeDelta - 0.017) > 0.0001 ||
     !nudged?.includes('kgpos_0_017') ||
     !nudged.includes('0.252m') ||
     !trimmed?.includes('0.235m') ||
     trimmed.includes('1m')
   ) {
-    throw new Error(`expected source clip edit tools to preserve fractional timing: ${JSON.stringify({ editStep, nudgeDelta, nudged, trimmed })}`)
+    throw new Error(`expected source clip edit tools to preserve fractional timing: ${JSON.stringify({ editStep, nudgeDelta, pointerMoveDelta, pointerResizePreview, pointerResizeDelta, nudged, trimmed })}`)
   }
 }
 
@@ -210,7 +209,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('VideoSequenceTimelineRuler') ||
     !rulerText.includes('data-kg-video-sequence-clip-cues="1"') ||
     !rulerText.includes('data-kg-video-sequence-clip-frames="1"') ||
-    !rulerText.includes('data-kg-video-sequence-audio-waveform="1"') ||
+    !['data-kg-video-sequence-audio-waveform="1"', "const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia", 'waveformSamples.length ? ('].every(token => rulerText.includes(token)) ||
     !rulerText.includes('data-kg-video-sequence-ruler-scopes="1"') ||
     !rulerText.includes('data-kg-video-sequence-scope-active-family') ||
     !rulerText.includes('data-kg-video-sequence-scope-activity-mode') ||
@@ -249,8 +248,8 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes('resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions)') ||
     rulerText.includes("sourceCoverageMode: 'source-covered'") ||
     !rulerText.includes('visibleLanes.map(lane =>') ||
-    !['resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)', 'visibleLaneIndexById.get(displayLaneId)', 'data-kg-video-sequence-display-lane', 'data-kg-video-sequence-display-lane-label'].every(token => rulerText.includes(token)) ||
-    !['buildVideoSequenceTimelineCueSamples', 'buildVideoSequenceTimelineFrameSamples', 'buildVideoSequenceTimelineWaveformSamples', 'buildVideoSequenceClipMediaCache', 'const clipMediaByRowKey = React.useMemo'].every(token => rulerText.includes(token)) ||
+    !['resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions)', 'visibleLaneIndexById.get(displayLaneId)', 'data-kg-video-sequence-display-lane', 'data-kg-video-sequence-display-lane-label', 'data-kg-video-sequence-lane-append'].every(token => rulerText.includes(token)) ||
+    !['buildVideoSequenceTimelineCueSamples', 'buildVideoSequenceTimelineFrameSamples', 'buildVideoSequenceTimelineWaveformSamples', 'buildVideoSequenceClipMediaCache', 'const clipMediaByRowKey = React.useMemo', "const waveformSamples = lane === 'audio' && !verticalMarker && !compactSourceMedia", 'sourceAudioWaveformSamples', "sourceAudioWaveformSamples.length ? 'source' : 'synthetic'"].every(token => rulerText.includes(token)) ||
     !rulerText.includes('timeline-video-sequence-clip-timecode') ||
     !['const bodyMinHeight = Math.max(1, minHeight - VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX)', 'data-kg-video-sequence-ruler-body="1"', 'data-kg-video-sequence-ruler-playhead="1"', 'laneIndex * VIDEO_SEQUENCE_LANE_HEIGHT_PX'].every(token => rulerText.includes(token)) ||
     rulerCssText.includes('transform: translateX(var(--kg-motion-translate-x, 0px)) scale(var(--kg-motion-scale, 1));') ||
@@ -492,12 +491,14 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportCommandModelText.includes('handleToggleVideoSequenceTimingSyncMode: documentActions.handleToggleVideoSequenceTimingSyncMode') ||
     !transportCommandModelText.includes('timingSyncMode: documentActions.timingSyncMode') ||
     !transportCommandModelText.includes('handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit') ||
-    !transportDocumentActionsText.includes("React.useState<MermaidGanttVideoSequenceTimingSyncMode>('grouped')") ||
+    !transportDocumentActionsText.includes('useTimelineTransportTimingSyncStoreBinding') ||
+    !transportDocumentActionsText.includes('setTimelineTransportTimingSyncMode(timingSyncMode ===') ||
     !transportDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipAtOffset') ||
     !transportDocumentActionsText.includes('updateMermaidGanttVideoSequenceClipTiming') ||
     !transportDocumentActionsText.includes('handleToggleVideoSequenceTimingSyncMode') ||
     !transportDocumentActionsText.includes('resolveDirectEditTimingSyncMode') ||
-    !transportDocumentActionsText.includes("return SOURCE_BACKED_VIDEO_LANES.has(resolveVideoSequenceTimelineLane(args.span))") ||
+    !transportDocumentActionsText.includes("const SOURCE_BACKED_TIMING_SYNC_LANES = new Set(['video', 'image', 'scene', 'audio'])") ||
+    !transportDocumentActionsText.includes('return SOURCE_BACKED_TIMING_SYNC_LANES.has(resolveVideoSequenceTimelineLane(args.span))') ||
     !transportDocumentActionsText.includes("    : 'selected'") ||
     !transportDocumentActionsText.includes('syncMode: resolveDirectEditTimingSyncMode({ span: input.dragState.span, timingSyncMode })') ||
     transportDocumentActionsText.includes('const nextCode = updateMermaidGanttCodeRowTiming') ||
@@ -642,7 +643,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !timelineSourceActivityModelText.includes("? 'empty'") ||
     !timelinePlanSyncText.includes('if (selectedRowKey && !selectedSpan) return null') ||
     !timelinePlanSyncText.includes('canTimelineSegmentDriveMediaPreview') ||
-    !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio'") ||
+    !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio' || sourceKind === 'video'") ||
     !timelinePlanSyncText.includes("return lane === 'video' && sourceKind === 'video'") ||
     !timelinePlanSyncText.includes('if (args.mediaPreviewOnly && !canTimelineSegmentDriveMediaPreview(segment, source)) return []') ||
     !previewActivitySurfaceModelText.includes("if (args.activityMode === 'empty')") ||
@@ -728,10 +729,10 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !mediaReaderText.includes("headers: { Range: `bytes=0-${NATIVE_MEDIA_CONTAINER_READ_BYTES - 1}` }") ||
     !mediaReaderText.includes('readIsoTrackSummary') ||
     !mediaReaderText.includes('readIsoStsd') ||
-    !mediaReaderText.includes('readIsoStts') ||
+    !mediaReaderText.includes('readIsoStts') || !mediaReaderText.includes('readIsoStsz') ||
     !mediaReaderText.includes('readIsoMdhd') ||
     !mediaReaderText.includes('canDecodeCodec') ||
-    !mediaReaderText.includes('TimelineMediaReaderThumbnail') ||
+    !mediaReaderText.includes('TimelineMediaReaderThumbnail') || !mediaReaderText.includes('audioWaveformSamples: number[]') || !mediaReaderText.includes('buildNativeAudioPacketWaveformSamples(container.audioSampleSizes)') ||
     !mediaReaderText.includes('loadNativeVideoThumbnails') ||
     !mediaReaderText.includes('resolveThumbnailTimestamps') ||
     !mediaReaderText.includes("document.createElement('canvas')") ||
@@ -760,12 +761,12 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !['const timelinePlanSourceDurationSeconds = React.useMemo', 'const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds', 'sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds'].every(token => transportSurfaceModelText.includes(token)) ||
     !transportSurfaceModelText.includes('mediaReaderSummary: mediaPreviewSummary') ||
     !transportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
-    !transportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !transportSurfaceModelText.includes('sourceThumbnailWindows') ||
+    !transportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !transportSurfaceModelText.includes('sourceThumbnailWindows') || !transportSurfaceModelText.includes('sourceAudioWaveformSamples: summary?.audioWaveformSamples || []') ||
     !transportRulerModelText.includes('sourceThumbnails: readonly TimelineMediaReaderThumbnail[]') || !transportRulerModelText.includes('sourceThumbnailWindows: readonly VideoSequenceTimelineThumbnailWindow[]') ||
     !transportRulerModelText.includes('onSelectRowPosition: (rowKey: string, positionMinutes: number) => void') ||
     !transportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !transportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') ||
     !transportRulerText.includes('onSelectRowPosition={args.model.onSelectRowPosition}') ||
-    !rulerText.includes('sourceThumbnails = []') || !rulerText.includes('sourceThumbnailWindows = []') || !rulerText.includes('resolveVideoSequenceClipThumbnails') ||
+    !rulerText.includes('sourceThumbnails = []') || !rulerText.includes('sourceThumbnailWindows = []') || !rulerText.includes('resolveVideoSequenceClipThumbnails') || !rulerText.includes("args.lane === 'video' || args.lane === 'audio' ? 'video'") ||
     !rulerText.includes("VIDEO_SEQUENCE_SOURCE_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['video', 'image', 'scene'])") ||
     !rulerText.includes("VIDEO_SEQUENCE_OPERATION_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['mask', 'grade', 'audio'])") ||
     !rulerText.includes('resolveVideoSequenceSpanThumbnailWindow') ||
@@ -894,15 +895,15 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   ) {
     throw new Error(`expected bounded luma/chroma/audio scope samples, got ${JSON.stringify(scopes)}`)
   }
-  const waveformSamples = buildVideoSequenceTimelineWaveformSamples({ sampleCount: 16, seedText: 'narration source-clip.mp4 audio' })
+  const waveformSamples = buildVideoSequenceTimelineWaveformSamples({ sampleCount: 16, seedText: 'narration source-clip.mp4 audio' }), denseWaveformSamples = buildVideoSequenceTimelineWaveformSamples({ sampleCount: 640, seedText: 'source-backed clip audio' })
   const frameSamples = buildVideoSequenceTimelineFrameSamples({ sampleCount: 10, seedText: 'source-clip.mp4 video' })
   const cueSamples = buildVideoSequenceTimelineCueSamples({ sampleCount: 12, seedText: 'source-clip.mp4 video' })
   if (
     waveformSamples.length !== 16 ||
     waveformSamples.some(sample => sample < 0 || sample > 100) ||
-    waveformSamples.join(',') !== buildVideoSequenceTimelineWaveformSamples({ sampleCount: 16, seedText: 'narration source-clip.mp4 audio' }).join(',')
+    waveformSamples.join(',') !== buildVideoSequenceTimelineWaveformSamples({ sampleCount: 16, seedText: 'narration source-clip.mp4 audio' }).join(',') || denseWaveformSamples.length !== 640
   ) {
-    throw new Error(`expected deterministic bounded audio waveform samples for timeline ruler, got ${JSON.stringify(waveformSamples)}`)
+    throw new Error(`expected deterministic dense audio waveform samples for timeline ruler, got ${JSON.stringify({ dense: denseWaveformSamples.length, waveformSamples })}`)
   }
   if (
     frameSamples.length !== 10 ||
@@ -1296,11 +1297,10 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   if (
     !decoupledAudioSpan ||
     Math.abs((decoupledVideoSourceTime?.sourceTimeSeconds || 0) - 13.5) > 0.0001 ||
-    decoupledAudioPreviewPlan !== null ||
-    decoupledAudioSourceTime !== null ||
-    decoupledAudioPosition !== null
+    decoupledAudioPreviewPlan?.segments.length !== 1 || decoupledAudioPreviewPlan.segments[0]?.label !== 'source-clip.mp4 audio' ||
+    Math.abs((decoupledAudioSourceTime?.sourceTimeSeconds || 0) - 4.5) > 0.0001 || Math.abs((decoupledAudioPosition || 0) - 4.5) > 0.0001
   ) {
-    throw new Error(`expected Media canvas preview sync to keep a selected audio strip empty when it has no standalone audio source, got ${JSON.stringify({ decoupledAudioPosition, decoupledAudioPreviewPlan, decoupledAudioSourceTime, decoupledAudioSpan, decoupledVideoSourceTime })}`)
+    throw new Error(`expected Media canvas preview sync to play selected audio strips through their source-backed video media, got ${JSON.stringify({ decoupledAudioPosition, decoupledAudioPreviewPlan, decoupledAudioSourceTime, decoupledAudioSpan, decoupledVideoSourceTime })}`)
   }
   const multiLanePreviewCode = [
     'gantt',
@@ -1386,11 +1386,10 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   })
   if (
     !boundedAudioSpan ||
-    boundedAudioPreviewPlan !== null ||
-    boundedAudioSourceTime !== null ||
-    boundedAudioPosition !== null
+    boundedAudioPreviewPlan?.segments.length !== 1 || boundedAudioPreviewPlan.segments[0]?.label !== 'source-clip.mp4 audio' ||
+    Math.abs((boundedAudioSourceTime?.sourceTimeSeconds || 0) - 4) > 0.0001 || Math.abs((boundedAudioPosition || 0) - 4) > 0.0001
   ) {
-    throw new Error(`expected selected audio rows backed only by video media to stay empty instead of falling back to full media time, got ${JSON.stringify({ boundedAudioPosition, boundedAudioPreviewPlan, boundedAudioSourceTime, boundedAudioSpan })}`)
+    throw new Error(`expected selected audio rows backed by video media to resolve to the bounded source audio window, got ${JSON.stringify({ boundedAudioPosition, boundedAudioPreviewPlan, boundedAudioSourceTime, boundedAudioSpan })}`)
   }
   const sourceMirror: VideoSequenceTimelineSource = {
     ...sequenceSource,

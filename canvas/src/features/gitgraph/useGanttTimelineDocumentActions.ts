@@ -26,6 +26,9 @@ import {
   useTimelineDocumentSnapshotReader,
 } from '@/components/timeline/timelineSurfaceBindings'
 import {
+  useTimelineTransportTimingSyncStoreBinding,
+} from '@/components/timeline/timelineTransport'
+import {
   VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS,
   resolveVideoSequenceTimelineLane,
   type VideoSequenceTimelineToolId,
@@ -54,13 +57,13 @@ import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { GanttTimelineTransportDragState } from './useGanttTimelineInteractions'
 
 const VIDEO_SEQUENCE_OPERATION_TOOL_SET = new Set<VideoSequenceTimelineToolId>(VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS)
-const SOURCE_BACKED_VIDEO_LANES = new Set(['video', 'image', 'scene'])
+const SOURCE_BACKED_TIMING_SYNC_LANES = new Set(['video', 'image', 'scene', 'audio'])
 
 function resolveDirectEditTimingSyncMode(args: {
   span: MermaidGanttTimelineTaskSpan
   timingSyncMode: MermaidGanttVideoSequenceTimingSyncMode
 }): MermaidGanttVideoSequenceTimingSyncMode {
-  return SOURCE_BACKED_VIDEO_LANES.has(resolveVideoSequenceTimelineLane(args.span))
+  return SOURCE_BACKED_TIMING_SYNC_LANES.has(resolveVideoSequenceTimelineLane(args.span))
     ? args.timingSyncMode
     : 'selected'
 }
@@ -78,11 +81,11 @@ export function useGanttTimelineDocumentActions(args: {
 }) {
   const [exportingKind, setExportingKind] = React.useState<VideoSequenceExportKind | ''>('')
   const [recentExportSessions, setRecentExportSessions] = React.useState<VideoSequenceExportSessionRecord[]>([])
-  const [timingSyncMode, setTimingSyncMode] = React.useState<MermaidGanttVideoSequenceTimingSyncMode>('grouped')
   const [autoSnappingEnabled, setAutoSnappingEnabled] = React.useState(true)
   const [rippleEditingEnabled, setRippleEditingEnabled] = React.useState(false)
   const exportAbortControllerRef = React.useRef<AbortController | null>(null)
   const { setMarkdownDocument, upsertUiToast } = useTimelineDocumentMutationStoreBinding()
+  const { timingSyncMode, setTimelineTransportTimingSyncMode } = useTimelineTransportTimingSyncStoreBinding()
   const readDocumentSnapshot = useTimelineDocumentSnapshotReader({
     markdownDocumentName: args.markdownDocumentName,
     markdownText: args.markdownText,
@@ -313,8 +316,8 @@ export function useGanttTimelineDocumentActions(args: {
   }, [args.code, args.maxMinutes, args.positionMinutes, args.selectedSpan, autoSnappingEnabled, commitGanttVideoSequenceCode, rippleEditingEnabled, timingSyncMode])
 
   const handleToggleVideoSequenceTimingSyncMode = React.useCallback(() => {
-    setTimingSyncMode(current => current === 'grouped' ? 'selected' : 'grouped')
-  }, [])
+    setTimelineTransportTimingSyncMode(timingSyncMode === 'grouped' ? 'selected' : 'grouped')
+  }, [setTimelineTransportTimingSyncMode, timingSyncMode])
 
   const cancelEditedMediaExport = React.useCallback((kind?: VideoSequenceExportKind) => {
     if (!exportingKind) return false

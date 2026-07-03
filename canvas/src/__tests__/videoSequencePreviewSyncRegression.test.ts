@@ -293,12 +293,14 @@ export function testVideoSequencePreviewSyncKeepsVideoGapsEmpty() {
     selectedRowGapTarget !== null ||
     selectedSectionPlan !== null ||
     selectedGradePlan !== null ||
-    selectedVideoBackedAudioPlan !== null ||
+    selectedVideoBackedAudioPlan?.segments.length !== 1 ||
+    selectedVideoBackedAudioPlan.segments[0]?.label !== 'Audio A' ||
+    selectedVideoBackedAudioPlan.segments[0]?.source.id !== 'clip_opening' ||
     selectedShotAPlan?.segments.length !== 1 ||
     Math.abs((secondClipTarget || 0) - 2.5) > 0.0001 ||
     Math.abs((clampedGapTarget?.sourceTimeSeconds || 0) - 1) > 0.0001
     || !timelinePlanSyncText.includes('canTimelineSegmentDriveMediaPreview')
-    || !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio'")
+    || !timelinePlanSyncText.includes("if (lane === 'audio') return sourceKind === 'audio' || sourceKind === 'video'")
     || !timelinePlanSyncText.includes("return lane === 'video' && sourceKind === 'video'")
     || !timelinePlanSyncText.includes('if (args.mediaPreviewOnly && !canTimelineSegmentDriveMediaPreview(segment, source)) return []')
     || !previewSurfaceText.includes('data-kg-video-sequence-playback-gap')

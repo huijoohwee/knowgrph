@@ -7,6 +7,7 @@ import { resolveVideoDownload, resolveVideoDownloadEndpoint, sanitizeVideoDownlo
 import type { VideoDownloadResultOk } from '@/lib/video-download/types'
 import { normalizeImportUrlInput } from '@/lib/url'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { resolveMediaImportUrlFile } from '@/lib/storage/uploadedMediaPanelImportUrl'
 
 const rootDir = process.cwd()
 
@@ -194,5 +195,48 @@ export function testImportUrlRejectsDownloadFailureStatusText() {
   const valid = normalizeImportUrlInput('https://www.youtube.com/watch?v=AbC_DeF1234')
   if (valid !== 'https://www.youtube.com/watch?v=AbC_DeF1234') {
     throw new Error(`expected valid YouTube URL to remain importable, got ${valid}`)
+  }
+}
+
+export async function testFloatingPanelMediaImportUrlFallsBackToVideoDownload() {
+  const sourceUrl = `https://youtu.be/${['MediaImport', '01'].join('')}`
+  const endpoint = 'http://localhost:5178/__video_download'
+  const fileUrl = '/__video_download_file?path=video%2Fsample.mp4'
+  const calls: Array<{ input: string; body: string }> = []
+  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const inputText = String(input)
+    calls.push({ input: inputText, body: String(init?.body || '') })
+    if (inputText === endpoint) {
+      return new Response(JSON.stringify({ result: { ...okResult(sourceUrl), fileUrl } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    if (inputText === fileUrl) {
+      return new Response(new Blob(['video bytes'], { type: 'video/mp4' }), {
+        status: 200,
+        headers: { 'content-type': 'video/mp4' },
+      })
+    }
+    return new Response('<html>provider page</html>', {
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+    })
+  }
+
+  const file = await resolveMediaImportUrlFile({ urlRaw: sourceUrl, fetchImpl, videoDownloadEndpoint: endpoint })
+  const downloadCall = calls.find(call => call.input === endpoint)
+  const requestBody = JSON.parse(downloadCall?.body || '{}') as Record<string, unknown>
+  if (
+    file.name !== 'sample.mp4' ||
+    file.type !== 'video/mp4' ||
+    file.size <= 0 ||
+    !downloadCall ||
+    requestBody.url !== sourceUrl ||
+    requestBody.mediaKind !== 'video-audio' ||
+    requestBody.quality !== 'best' ||
+    !calls.some(call => call.input === fileUrl)
+  ) {
+    throw new Error(`expected FloatingPanel Media Import URL to reuse video-download fallback, got ${JSON.stringify({ calls, file: { name: file.name, size: file.size, type: file.type }, requestBody })}`)
   }
 }

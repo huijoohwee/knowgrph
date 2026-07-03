@@ -902,8 +902,8 @@
   min-width: 0;
   min-height: inherit;
   overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   contain: layout paint;
 }
