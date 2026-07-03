@@ -3,9 +3,14 @@ title: "Knowgrph — Agentic OS PRD/TAD"
 id: "md:knowgrph-agentic-os-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-02"
-updated: "2026-07-02"
-version: "0.3.0"
+updated: "2026-07-03"
+version: "0.4.1"
 status: "runtime-ready"
+readiness:
+  agentic_os: "implemented — knowgrph.os.status (local + Cloudflare McpAgent)"
+  ai_agent: "implemented — four-surface MCP + harness contracts"
+  mcp_gateway: "implemented — discovery-first federation (no new proxy tier)"
+  follow_on: "spec-complete — see knowgrph-agentic-os-follow-on-prd-tad.md"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -43,6 +48,7 @@ source_references:
   design: ".kiro/specs/knowgrph-agentic-os/design.md"
   connector_spec: ".kiro/specs/knowgrph-acos-mcp-connector"
   tech_stack: "docs/documents/knowgrph-tech-stack-document.md"
+  follow_on: "docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md"
 ---
 
 # Knowgrph — Agentic OS PRD/TAD
@@ -56,6 +62,10 @@ SSOT upstream: `.kiro/specs/knowgrph-agentic-os/requirements.md` (EARS acceptanc
 Every capability is **read-only aggregation at call time**. The Agentic OS introduces zero new persistent datastore, zero new runtime process, and zero new dependency by default (Requirement 7). It does not modify, weaken, or duplicate the existing R11 Spend_Isolation_Boundary or the Approval_Gate_Invariant (Property 1) established in `knowgrph-acos-mcp-connector`.
 
 **Runtime surfaces (native-in-repo only)**: the Os_Status_Tool is reachable through the local stdio MCP server (`mcp/server.js`) and, WHERE deployed, the Cloudflare `McpAgent` worker (`cloudflare/workers/knowgrph-mcp`). There is no Vercel frontend tier, no Supabase datastore, and no AWS Agent-API / AgentCore tier anywhere in this topology — those tiers, previously documented in the Agentic Canvas OS PRD/TAD, are removed by ADR-3 and their responsibilities are absorbed by existing in-repo surfaces (CF Pages for the product frontend, the Cloudflare `McpAgent` for remote MCP access, CF D1/R2/KV/Durable Objects for all persistence).
+
+**MCP Gateway (discovery-first federation)**: Knowgrph does not introduce a fifth monolithic proxy gateway. Instead, the **MCP Gateway contract** is the existing four-surface topology — local stdio, Pages HTTP (`/knowgrph/mcp`), browser WebMCP, and Cloudflare `McpAgent` (`/knowgrph/control-plane/mcp`) — unified by shared contracts in `canvas/src/features/agent-ready/` and `contracts/*.schema.js`. External agents discover the full capability surface through DNS-AID → Link headers → `.well-known` MCP server card → `knowgrph.os.status` (`view:"capabilities"`) on local stdio, or through the control-plane tool listing on the deployed Worker. Spend-bearing orchestration routes exclusively through the Cloudflare control plane; read-only discovery routes through Pages HTTP MCP at zero token cost.
+
+**AI Agent readiness**: Any stdio-capable, HTTP MCP, or WebMCP host can operate Knowgrph harnesses today. Local stdio exposes the richest tool surface (pipelines, SuperAgent, Video Remix Director, browser bridge, memory, OS status). Deployed agents use Pages HTTP MCP for read-only Source Files retrieval and the control-plane Worker for approval-gated Director runs. The Agentic OS layer gives agents a single onboarding call (`capabilities`) instead of learning each harness catalog independently.
 
 ## Four-Lens Overview
 
@@ -112,6 +122,8 @@ Additionally, the former Agentic Canvas OS PRD/TAD spread the product runtime ac
 | **PRD-AOS-5**: Circuit-breaker bound observability | Circuit_Breaker_Registry reports each harness's already-configured bound and current iteration count, read-only | `Verify no Harness configuration file, retry counter, or circuit-breaker state file changes value as a result of a read call (before/after snapshot diff is empty)` |
 | **PRD-AOS-6**: One MCP surface for OS-level visibility | Os_Status_Tool reachable via Local_Mcp_Tool_Catalog and, WHERE deployed, Cloudflare_Mcp_Agent; structured error on failure; $0 cost log | `Verify every induced registry failure yields { ok:false, errorCode } with the test process exiting 0 and no unhandled rejection logged` |
 | **PRD-AOS-7**: TCO-zero and no new dependency by default (guardrail) | Zero new datastore; zero new dependency unless flagged/justified by ADR; zero external tier (no Vercel/Supabase/AWS) | `Verify package manifests and lockfiles (package.json/package-lock.json where present) across canvas/, mcp/, contracts/, cloudflare/workers/knowgrph-mcp show zero added dependencies attributable to this increment; no new D1 migration/R2 bucket/KV namespace/Durable Object class is present in the diff; and no aws/, vercel*, or supabase* runtime configuration is referenced by any Agentic OS module` |
+| **PRD-AOS-8**: MCP Gateway discovery for External_Agents | Agent resolves the four-surface MCP topology from DNS-AID + `.well-known` + `knowgrph.os.status` (`view:"capabilities"`) without a fifth proxy tier | `Verify KNOWGRPH_AGENT_READY_BASE_URL agent-ready:check passes; capabilities view returns deduplicated tool ids with sourceCatalogs[]; unreachableCatalogs[] names optional remote catalogs without failing the call` |
+| **PRD-AOS-9**: Control-plane MCP gateway for spend-bearing runs | External_Agent invokes approval-gated Director + stage tools over Streamable HTTP at `/knowgrph/control-plane/mcp` with Run_Manifest persistence | `Verify cloudflare/workers/knowgrph-mcp tool-registry tests pass; live run without approval tokens returns state blocked with zero estimated cost; GET /knowgrph/control-plane/mcp/runs/{id} returns persisted manifest after Director completion` |
 
 ### Success Metrics
 
@@ -124,6 +136,8 @@ Additionally, the former Agentic Canvas OS PRD/TAD spread the product runtime ac
 | Capability catalogs unified | 0 of 3 (each queried separately) | 3 of 3 (Vdeoxpln_Registry, Local_Mcp_Tool_Catalog, Cloudflare_Mcp_Agent) | First increment ship |
 | Cost_Emission_Gap harnesses identified | Unknown before Agentic OS | 100% of model-bearing Harnesses classified as covered or gapped | Runtime-ready increment |
 | External tiers in runtime topology | 3 vendors (Cloudflare + Vercel + AWS per superseded canvas-os doc) | 1 (Cloudflare only, plus local dev) | This document (ADR-3) |
+| MCP surfaces in gateway federation | 4 parallel surfaces, no unified discovery | 4 surfaces + `knowgrph.os.status` capabilities union | First increment ship |
+| Control-plane MCP tools deployed | 0 remote orchestration tools | 7 (Director + 5 stages + os.status) on Worker | WHERE deployed |
 | Token cost / month (Os_Status_Tool itself) | N/A | $0 (read-only, zero model calls) | Ongoing |
 | Monthly TCO (Agentic_OS itself) | N/A | $0 (no new datastore, no new paid service) | Ongoing |
 | ROI Score threshold | — | ≥ 50 for any item promoted out of Won't | Per sprint review |
@@ -139,9 +153,14 @@ Reproduced from requirements.md (ROI Score = User Impact × Reach / (Build Hours
 | Must | R2 Capability_Registry | 100.0 | Cheapest to build; high External_Agent onboarding value |
 | Must | R7 TCO-zero guardrail (incl. no external tier) | n/a (guardrail) | Non-negotiable cost-avoidance constraint |
 | Must | ADR-3 vendor removal (Vercel/Supabase/AWS out of topology + docs) | n/a (guardrail) | Eliminates three-vendor drift, deploy pipelines, and secret-audit surfaces; documentation-only cost |
+| Must | MCP Gateway discovery contract (four-surface federation + capabilities union) | 90.0 | Reuses shipped DNS-AID, Pages MCP, WebMCP, control-plane Worker — zero new infra |
+| Must | Control-plane Streamable HTTP MCP (Director + stages + os.status) | 75.0 | Already implemented in `cloudflare/workers/knowgrph-mcp`; spend isolation preserved |
 | Should | R3 Cost_Ledger_Aggregator | 60.0 | High value, more build risk than Must-tier |
 | Should | R4 Gate_Catalog extension | 56.25 | Improves consistency; not blocking |
 | Could | R5 Circuit_Breaker_Registry | 50.0 | Nice-to-have observability |
+| Could | HITL durable Worker store (Track A) | 45.0 | Local HITL complete; KV adapter is smallest deploy diff |
+| Could | Live Exa + storyboard golden path (Track B) | 40.0 | Env-gated clients exist; needs operator deploy proof |
+| Could | Dashboard Canvas render (Track C) | 35.0 | Dry-run plan exists; UI projection reuses frontmatter-flow |
 | Won't (this increment) | Shared in-process scheduler across Harnesses | — | Three incompatible runtimes; fails min-viable-max-value; risks Spend_Isolation_Boundary |
 | Won't (this increment) | New persistent OS-level datastore | — | Violates R7 guardrail |
 | Won't (this increment) | Visual dashboard/UI | — | Out of scope for an MCP-tool-surface increment |
@@ -192,12 +211,16 @@ The Os_Status_Tool exposes five read views — `process_list`, `capabilities`, `
 
 ### Topology
 
-**Version**: 2.0.0 — 2026-07-02 (supersedes the v1.0.0 design draft; extends `knowgrph-tech-stack-document.md` Topology v1.0.0)
+**Version**: 2.1.0 — 2026-07-03 (extends v2.0.0 with MCP Gateway federation layer and control-plane routing)
 **Boundaries**: Local Dev (stdio), CF Edge (`airvio.co`, WHERE deployed) — two trust boundaries only. The AWS and Vercel boundaries present in the superseded Agentic Canvas OS topology are **removed** (ADR-3); the Agentic OS adds no new boundary.
 
 | Node | Role | Type | Connects to | Connection type | Data residency |
 |---|---|---|---|---|---|
-| Os_Status_Tool | Aggregator + gateway | Node.js module (`mcp/os-status-runtime.js`), dispatched from `mcp/server.js` | Process_Registry, Capability_Registry, Cost_Ledger_Aggregator, Gate_Catalog, Circuit_Breaker_Registry | In-process function calls (sync/async, no network) | Local dev process memory (no persistence) |
+| MCP Gateway (discovery contract) | Router / catalog union | Shared contracts (`knowgrphAgentReadyToolContract.mjs`, `mcp/local-tool-contract.js`, `tool-registry.mjs`) | DNS-AID, Pages `.well-known`, Os_Status_Tool `capabilities`, control-plane `tools/list` | Sync in-process / async HTTPS discovery | CF edge + local module memory (no persistence) |
+| Pages HTTP MCP | Read-only discovery gateway | Pages Function (`knowgrph-agent-ready.mjs`) | Source Files storage, MCP clients | Sync REST JSON-RPC POST `/knowgrph/mcp` | CF Pages region |
+| Cloudflare `McpAgent` | Control-plane orchestration gateway | CF Worker (`knowgrph-mcp/index.ts`) | Director, stage tools, Os_Status_Tool, Run_Manifest DO | MCP Streamable HTTP `/knowgrph/control-plane/mcp` | CF region |
+| Browser WebMCP | In-page discovery gateway | Canvas runtime (`webMcpRuntime.ts`) | Shared published tool contract | In-memory `navigator.modelContext` | Browser local |
+| Os_Status_Tool | Aggregator + OS visibility | Node.js module (`mcp/os-status-runtime.js`), dispatched from `mcp/server.js` | Process_Registry, Capability_Registry, Cost_Ledger_Aggregator, Gate_Catalog, Circuit_Breaker_Registry | In-process function calls (sync/async, no network) | Local dev process memory (no persistence) |
 | Process_Registry | Read-only aggregator | In-process function | Showrunner `state.json`, Video_Remix Run_Manifest, SuperAgent `state.json` | Sync filesystem read / in-memory read | Local filesystem (existing files, unmodified) |
 | Capability_Registry | Read-only aggregator | In-process function | Vdeoxpln_Registry, Local_Mcp_Tool_Catalog, Cloudflare_Mcp_Agent (WHERE reachable) | Sync in-process call (local 2) + async HTTPS MCP Streamable HTTP (remote 1) | Local module memory; CF edge (catalog only, no state written) |
 | Cost_Ledger_Aggregator | Read-only aggregator | In-process function | `contracts/cost-log.schema.js`, `contracts/credit-ledger.schema.js`, `mcp/video-remix/cost-log.js`, `Credit_Ledger` | Sync in-process read | Local filesystem / in-memory Director state (existing, unmodified) |
@@ -213,9 +236,17 @@ flowchart TB
         EA["External_Agent"]
     end
 
+    subgraph Gateway["MCP Gateway (discovery-first federation)"]
+        DNS["DNS-AID SVCB\n_agents.airvio.co"]
+        WK[".well-known MCP card\n/knowgrph/mcp"]
+        PG["Pages HTTP MCP\nread-only gateway"]
+        CP["Control-plane McpAgent\n/knowgrph/control-plane/mcp"]
+        WM["Browser WebMCP\nin-page gateway"]
+    end
+
     subgraph LocalDev["Local Dev (stdio)"]
         MCP["Local MCP Server\nmcp/server.js"]
-        OST["Os_Status_Tool\nmcp/os-status-runtime.js\nmcp/os-status-cost-ledger.js"]
+        OST["Os_Status_Tool\nmcp/os-status-runtime.js"]
         PR["Process_Registry"]
         CRg["Capability_Registry"]
         CLA["Cost_Ledger_Aggregator"]
@@ -230,35 +261,39 @@ flowchart TB
     end
 
     subgraph Harnesses["Existing Harness State (unmodified)"]
-        SR["Showrunner state.json\nshowrunner/runs/*/"]
+        SR["Showrunner state.json"]
         VR["Video_Remix Run_Manifest"]
-        SA["SuperAgent state.json\ndata/superagent-runs/*/"]
+        SA["SuperAgent state.json"]
         VD["Vdeoxpln_Registry"]
         LTC["Local_Mcp_Tool_Catalog"]
-        CLS["contracts/cost-log.schema.js"]
-        APS["contracts/approval.schema.js"]
     end
 
     subgraph CFEdge["Cloudflare Edge (WHERE deployed)"]
-        CFA["Cloudflare McpAgent\ncloudflare/workers/knowgrph-mcp\n+ knowgrph.os.status catalog entry"]
+        CFA["Cloudflare McpAgent\nDirector + stages + os.status"]
+        RMDO["Run_Manifest Durable Object"]
+        CFA --> RMDO
     end
 
-    OP -->|stdio| MCP
+    EA --> DNS
+    DNS --> WK
+    WK --> PG
+    WK --> CP
     EA -->|stdio| MCP
-    EA -.->|MCP Streamable HTTP, WHERE deployed| CFA
-    CFA -.->|forwards, keyless| MCP
+    EA -->|Streamable HTTP| CP
+    EA -.->|page load| WM
+    OP -->|stdio| MCP
+    CRg -. capabilities union .-> PG
+    CRg -. capabilities union .-> CFA
+    CP --> CFA
 
     PR -. read-only .-> SR
     PR -. read-only .-> VR
     PR -. read-only .-> SA
     CRg -. read-only .-> VD
     CRg -. read-only .-> LTC
-    CRg -. read-only, WHERE reachable .-> CFA
-    CLA -. read-only .-> CLS
-    GC -. read-only .-> APS
 ```
 
-**Version notes**: v2.0.0 — (a) adds `Os_Status_Tool` and its five in-process aggregator nodes; (b) **removes** the AWS AgentCore node, the AWS Agent-API fallback tier, and every Vercel node carried over from the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md` topology (ADR-3); (c) reduces the Capability_Registry catalog union from four sources to three. No node from `knowgrph-tech-stack-document.md` Topology v1.0.0 is changed; the Cloudflare `McpAgent` row gains one additive catalog entry (`knowgrph.os.status`) and a Worker-owned remote read-view dispatcher. Prior version (v1.0.0, four-catalog / AWS-inclusive) is archived in git history of this file.
+**Version notes**: v2.1.0 — (a) adds the **MCP Gateway federation layer** (Pages HTTP, control-plane Worker, WebMCP, DNS-AID) as explicit topology nodes; (b) documents control-plane routing for spend-bearing Director runs; (c) retains v2.0.0 Os_Status_Tool aggregator nodes and ADR-3 tier removals. v2.0.0 — (a) adds `Os_Status_Tool` and its five in-process aggregator nodes; (b) **removes** the AWS AgentCore node, the AWS Agent-API fallback tier, and every Vercel node; (c) reduces the Capability_Registry catalog union from four sources to three. Prior versions archived in git history.
 
 ### Orchestration/Harness Flow: Os_Status_Tool (zero-token)
 
@@ -515,6 +550,50 @@ flowchart TB
 **Interface**: `knowgrph.os.status` (local stdio) | **Protocol**: MCP stdio (JSON-RPC over stdio) | **Format**: JSON | **Errors**: structured `{ ok:false, errorCode, message }`, never an uncaught exception
 **Interface**: `knowgrph.os.status` (Cloudflare `McpAgent`, WHERE deployed) | **Protocol**: MCP Streamable HTTP | **Format**: JSON | **Errors**: same structured error shape; remote read views return available Cloudflare catalog/static guard data and list non-enumerable local sources in `unavailableSources`; the `McpAgent` tier holds no model key (R11 preserved by construction)
 
+**Interface**: MCP Gateway discovery | **Protocol**: DNS SVCB + HTTPS GET (`.well-known`, Link headers, MCP server card) + MCP `tools/list` / `knowgrph.os.status` capabilities | **Format**: JSON / MCP tool descriptors | **Errors**: partial catalog unavailability surfaced in `unreachableCatalogs[]`; discovery never invokes paid models
+
+## ADR-4: Discovery-first MCP Gateway federation (no fifth proxy tier)
+
+**Status**: Accepted
+**Date**: 2026-07-03
+
+### Context
+
+External agents need one coherent onboarding path to Knowgrph's MCP capabilities without learning four separate transport semantics. A common anti-pattern is building a new API Gateway that proxies all tool calls — adding latency, a second auth surface, and duplicate schema maintenance. Knowgrph already ships four MCP surfaces with shared contracts.
+
+### Decision
+
+**Treat the four existing MCP surfaces plus `knowgrph.os.status` capabilities union as the MCP Gateway.** Discovery flows: DNS-AID → Link headers → `.well-known` MCP server card → choose surface by trust boundary (read-only → Pages HTTP MCP; orchestration → control-plane Worker; local dev → stdio; in-browser → WebMCP). No fifth monolithic proxy tier is introduced.
+
+### Alternatives Considered
+
+1. **Single unified MCP proxy (new Worker route forwarding all tools)**: Pros — one URL for agents. Cons — duplicates dispatch logic already in `mcp/server.js` and `tool-registry.mjs`; adds hop latency; violates min-viable-max-value; reintroduces a tier ADR-3 removed.
+2. **FOSS alternative — self-hosted LiteLLM or MCP-router proxy**: Pros — portable. Cons — new dependency (Requirement 7 guardrail); ops burden; no zero-egress edge cache; splits token accounting off Cloudflare AI Gateway.
+3. **Pages HTTP MCP only (drop control-plane Worker)**: Pros — simplest deploy. Cons — cannot expose approval-gated Director runs or Run_Manifest persistence; fails spend-bearing orchestration requirement.
+
+### Rationale
+
+- **Min-viable-max-value**: reuse four shipped surfaces and one capabilities union call — zero new infrastructure.
+- **Harness-first**: each surface already has typed contracts; federation is discovery routing, not re-implementation.
+- **TCO-zero**: no new Worker, no new paid service; DNS-AID and Pages MCP already deployed at $0 incremental.
+- **Token economics**: discovery path spends zero LLM tokens; orchestration spend remains behind Cloudflare approval gates.
+
+### TCO Impact
+
+| Dimension | Chosen: four-surface federation | Alternative: unified proxy Worker | FOSS Alternative: self-hosted MCP router | Delta / 12 months |
+|---|---|---|---|---|
+| Infra cost | $0 (existing CF free tier) | ~$0–5/mo (extra Worker invocations at scale) | ~$60–180 (VPS) | saves up to ~$180 |
+| Egress cost | $0 (CF zero-egress) | $0 | variable | — |
+| Token cost | $0 on discovery | $0 on discovery | $0 on discovery | $0 |
+| Ops burden | Near-zero (one wrangler deploy path) | Low-Medium (second dispatch layer to maintain) | High (patching, backup) | — |
+| Vendor risk | Medium (Cloudflare — accepted) | Medium | Low (FOSS) but adds dependency | — |
+
+### Consequences
+
+- **Positive**: agents onboard via existing DNS-AID + server card; capabilities union deduplicates tool ids; no proxy duplication.
+- **Negative**: agents must choose the correct surface for read vs orchestration (mitigated by server card metadata and `inspect_agent_surface`).
+- **Neutral**: a future increment may add surface-routing hints to the MCP server card without introducing a proxy.
+
 ## ADR-1: Single combined `knowgrph.os.status` tool vs. four separate tools
 
 **Status**: Accepted
@@ -666,12 +745,19 @@ The Agentic OS ships as an in-repo code change to `mcp/os-status-runtime.js`, `m
 
 | Layer | Component | File / Module | Status |
 |---|---|---|---|
-| Aggregation | Os_Status_Tool dispatcher + read registries | `mcp/os-status-runtime.js` | New (this increment) |
-| Aggregation | Cost_Ledger_Aggregator helper | `mcp/os-status-cost-ledger.js` | New (this increment) |
-| Local MCP wiring | Tool descriptor | `mcp/local-tool-contract.js` | Extended (additive) |
-| Local MCP wiring | Dispatch branch | `mcp/server.js` | Extended (additive) |
-| Remote MCP wiring | Catalog entry | `cloudflare/workers/knowgrph-mcp/tool-registry.mjs` | Extended (additive, WHERE deployed) |
-| Remote MCP wiring | Worker read-view dispatcher | `cloudflare/workers/knowgrph-mcp/os-status-tool.mjs` | New (additive, WHERE deployed) |
+| MCP Gateway | Discovery contract (four-surface federation) | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs`, DNS-AID scripts, Pages `.well-known` | Implemented |
+| MCP Gateway | Pages HTTP read-only gateway | `cloudflare/pages/knowgrph-agent-ready.mjs` | Implemented |
+| MCP Gateway | Control-plane orchestration gateway | `cloudflare/workers/knowgrph-mcp/index.ts`, `tool-registry.mjs` | Implemented (WHERE deployed) |
+| MCP Gateway | Browser WebMCP gateway | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Implemented |
+| Aggregation | Os_Status_Tool dispatcher + read registries | `mcp/os-status-runtime.js` | Implemented |
+| Aggregation | Cost_Ledger_Aggregator helper | `mcp/os-status-cost-ledger.js` | Implemented |
+| Aggregation | OS status contract SSOT | `mcp/os-status-contract.js` | Implemented |
+| Local MCP wiring | Tool descriptor | `mcp/local-tool-contract.js` | Extended (implemented) |
+| Local MCP wiring | Dispatch branch | `mcp/server.js` | Extended (implemented) |
+| Remote MCP wiring | Catalog entry + stage tools | `cloudflare/workers/knowgrph-mcp/tool-registry.mjs` | Extended (implemented, WHERE deployed) |
+| Remote MCP wiring | Worker read-view dispatcher | `cloudflare/workers/knowgrph-mcp/os-status-tool.mjs` | Implemented (WHERE deployed) |
+| Remote MCP wiring | Run_Manifest persistence | `cloudflare/workers/knowgrph-mcp/run-manifest-store.mjs` | Implemented (WHERE deployed) |
+| Orchestration | Video_Remix Director | `mcp/video-remix-runtime.js` | Implemented (local + Worker) |
 | Reused contract | Cost_Log validator | `contracts/cost-log.schema.js` | Unmodified (read-only dependency) |
 | Reused contract | Credit_Ledger validator | `contracts/credit-ledger.schema.js` | Unmodified (read-only dependency) |
 | Reused contract | Approval gate constants | `contracts/approval.schema.js` | Unmodified (read-only dependency) |
@@ -680,9 +766,27 @@ The Agentic OS ships as an in-repo code change to `mcp/os-status-runtime.js`, `m
 | Reused source | Video_Remix Run_Manifest | `mcp/video-remix-runtime.js` | Unmodified (read-only source) |
 | Reused source | SuperAgent run state | `knowgrph_parser/superagent_harness.py`, `data/superagent-runs/*/state.json` | Unmodified (read-only source) |
 | Reused source | Vdeoxpln_Registry | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Unmodified (read-only source) |
-| Removed (ADR-3) | AWS AgentCore forwarder / `TOOL_CATALOG` | `aws/agentcore` (archival reference only) | Removed from runtime topology |
+| Follow-on | HITL Gate Service (durable Worker store) | `mcp/video-remix/approval-token-issuer.js` + KV adapter (proposed ADR-FO-1) | **Local implemented**; Worker persistence in [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) Track A |
+| Follow-on | Live stage harness wiring | `mcp/video-remix/live-clients.js`, stage harnesses | **Exa/storyboard wireable**; render/commerce async scaffold — Track B |
+| Follow-on | Agentic Canvas OS dashboard UI | `knowgrph.agentic_canvas_os.plan`, companion lanes | **Dry-run implemented**; Canvas Storyboard render — Track C |
+| Removed (ADR-3) | AWS AgentCore forwarder | `aws/agentcore` (archival reference only) | Removed from runtime topology |
 | Removed (ADR-3) | AWS Agent-API fallback | `aws/agent-api` (archival reference only) | Removed from runtime topology |
 | Removed (ADR-3) | Vercel frontend + serverless Agent-API | external repo `agentic-canvas-os` | Removed from runtime topology |
+
+### Readiness Gap Matrix (Agentic OS + MCP Gateway)
+
+Full follow-on specification: [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md).
+
+| Workstream | Current State | Gap | Priority | Exit Criteria |
+|---|---|---|---|---|
+| Os_Status_Tool (local) | Implemented with PBT + unit tests | None for Must-tier | P0 | os-status tests exit 0 |
+| Os_Status_Tool (Worker) | Worker-owned read views; local FS sources marked unavailable | Process_Registry cannot enumerate local runs from edge | P1 (accepted) | Worker returns structured `unavailableSources` without failing |
+| MCP Gateway discovery | DNS-AID + Pages MCP + server card + capabilities union | Agents must read server card to pick surface | P0 (documented) | `agent-ready:check` passes |
+| Control-plane MCP | Director + 5 stages + os.status + Run_Manifest DO | Deployed live golden path | P1 | Track B in follow-on doc |
+| HITL Gate Service | Local issuance/verify/consume + tests pass | Durable Worker token store | P1 | Track A in follow-on doc |
+| Live stage clients | `live-clients.js` env-gated; Exa live; storyboard wireable | Render/commerce async live proof on Worker | P1–P2 | Track B/B2 in follow-on doc |
+| Agentic Canvas OS dashboard UI | Dry-run plan tool + companion lane contracts | Canvas Storyboard render of dashboard doc | P2 | Track C in follow-on doc |
+| Local → remote tool parity | Documented surface separation | By design Won't | P2 | `mcp/README.md` |
 
 ## Spend_Isolation_Boundary and Approval_Gate_Invariant Reaffirmation
 
@@ -703,6 +807,8 @@ This Agentic OS increment **introduces no new spend boundary and no new approval
 | `PRD-AOS-5 ↔ TAD-Circuit_Breaker_Registry-listCircuitBreakerRegistry ↔ VCC "no harness config/counter/state file changes value (before/after diff empty)"` |
 | `PRD-AOS-6 ↔ TAD-Os_Status_Tool-runOsStatusTool ↔ VCC "every induced registry failure yields { ok:false, errorCode }, process exits 0, no unhandled rejection"` |
 | `PRD-AOS-7 ↔ TAD-Deployment_Strategy-dependency_manifest ↔ VCC "zero added dependencies, no new D1/R2/KV/Durable Object class in the diff, no aws/vercel/supabase runtime config referenced by Agentic OS modules"` |
+| `PRD-AOS-8 ↔ TAD-MCP_Gateway-discovery_contract ↔ VCC "agent-ready:check passes; capabilities view deduplicates tool ids with sourceCatalogs[]"` |
+| `PRD-AOS-9 ↔ TAD-Control_Plane_McpAgent-tool-registry ↔ VCC "tool-registry tests pass; blocked live run has zero estimated cost; Run_Manifest read-back returns persisted manifest"` |
 
 ## Validation
 
@@ -711,10 +817,21 @@ Focused Dev checks:
 ```bash
 node --test mcp/__tests__/os-status-runtime.test.mjs mcp/__pbt__/os-status.pbt.test.mjs
 node --test cloudflare/workers/knowgrph-mcp/__tests__/tool-registry.test.mjs
+node --test cloudflare/workers/knowgrph-mcp/__tests__/run-manifest-store.test.mjs
 npm run mcp:worker:test
+KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check
 npm run vdeoxpln:check
 npm run hygiene:check
+
+# Follow-on tracks (HITL + live harnesses)
+node --test mcp/__tests__/approval-token-single-use.test.mjs \
+  mcp/__tests__/approval-rejection-path.test.mjs \
+  mcp/__tests__/director-gates-enforcement.test.mjs \
+  mcp/__tests__/research-harness.test.mjs \
+  mcp/__tests__/director-live-run.test.mjs
 ```
+
+See [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) for Track A/B/C exit criteria and deploy steps.
 
 ## Anti-Pattern Guards
 
@@ -727,6 +844,7 @@ npm run hygiene:check
 | No new dependency without ADR | ADR-1 and ADR-2 both show $0 TCO delta and zero new dependencies for the chosen path |
 | No blended deployment-model TCO | ADR-3 separates Managed/Serverless vs Provisioned/Self-Managed columns for both the removed tiers and the FOSS alternative |
 | No silent catalog/harness omission | `unavailableSources` / `unreachableCatalogs` / `validationFailures` fields surface every partial failure explicitly |
-| No topology overwrite without version note | Topology bumped v1.0.0 → v2.0.0 with explicit version notes recording the ADR-3 removals; prior version archived in git history |
+| No topology overwrite without version note | Topology bumped v2.0.0 → v2.1.0 with explicit version notes recording MCP Gateway federation (ADR-4) and ADR-3 removals; prior versions archived in git history |
+| No fifth proxy gateway tier | MCP Gateway is discovery-first federation over four existing surfaces (ADR-4); forbid building a unified proxy that duplicates `mcp/server.js` dispatch |
 
-*Content in the Four-Lens Overview, ADRs, and Quality Attributes sections was synthesized from `.kiro/specs/knowgrph-agentic-os/requirements.md` and `.kiro/specs/knowgrph-agentic-os/design.md`, and consolidates the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md` (v0.3.1), following the Core Templates in [PRD & TAD Guidelines v1.3.0](https://huijoohwee.github.io/guidelines/prd-tad-guidelines.md).*
+*Content synthesized from `.kiro/specs/knowgrph-agentic-os/requirements.md`, `.kiro/specs/knowgrph-agentic-os/design.md`, and the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md`, following [PRD & TAD Guidelines v1.3.0](https://huijoohwee.github.io/guidelines/prd-tad-guidelines.md). v0.4.1 links follow-on Tracks A/B/C to [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) with accurate local implementation status.*

@@ -12,6 +12,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["ui.timelineAnimation.nativeRuntime.sourceBacked","@/__tests__/timelineAnimationNativeRuntime.test","testTimelineAnimationNativeRuntimeIsSourceBacked"],
   ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
   ["ui.videoSequence.timelineEditor.enhancedBottomPanel","@/__tests__/videoSequenceTimelineEditorEnhancement.test","testVideoSequenceTimelineEditorEnhancementContracts"],
+  ["ui.videoSequence.timelineElementActions.sourceBacked","@/__tests__/videoSequenceElementActions.test","testVideoSequenceElementActionsStaySourceBacked"],
   ["ui.videoSequence.timeline.mediaDropSourceBacked","@/__tests__/videoSequenceTimelineMediaDrop.test","testVideoSequenceTimelineMediaDropAppendsSourceBackedClip"],
   ["ui.videoSequence.timeline.mediaDropBootstrapsEmpty","@/__tests__/videoSequenceTimelineMediaDrop.test","testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline"],
   ["workspace.import.localFiles.videoStackedSequenceDocument","@/__tests__/videoSequenceTimelineImportProjection.test","testWorkspaceImportLocalMultipleVideosCreatesStackedVideoAudioSequenceDocument"],

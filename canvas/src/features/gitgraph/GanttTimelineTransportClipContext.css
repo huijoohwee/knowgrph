@@ -1,12 +1,12 @@
 .timeline-transport-clip-context {
   display: inline-grid;
-  min-width: 7.5rem;
-  max-width: min(16rem, 28vw);
+  min-width: 0;
+  max-width: min(13rem, 22vw);
   min-height: 22px;
-  grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(4.5rem, 1fr) auto;
   align-items: center;
-  gap: 5px;
-  padding: 2px 4px 2px 6px;
+  gap: 4px;
+  padding: 2px 4px 2px 7px;
   border: 1px solid var(--kg-border, rgb(226 232 240 / 1));
   border-radius: 4px;
   background: color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 70%, var(--kg-panel-bg, #fff));
@@ -16,7 +16,7 @@
 }
 
 .timeline-transport-clip-context[data-kg-video-sequence-clip-context="empty"] {
-  max-width: min(15rem, 26vw);
+  max-width: min(11rem, 20vw);
 }
 
 .timeline-transport-clip-context-title,
@@ -34,7 +34,13 @@
 }
 
 .timeline-transport-clip-context-detail {
-  color: var(--kg-text-tertiary, rgb(100 116 139 / 1));
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .timeline-transport-clip-context-time {

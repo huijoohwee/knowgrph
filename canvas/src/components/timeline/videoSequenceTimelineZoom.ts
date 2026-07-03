@@ -2,11 +2,18 @@ import type { MermaidGanttTimelineTick } from '@/lib/mermaid/mermaidGanttBarInte
 import { formatVideoSequenceTimelineSecondsOffset } from './videoSequenceTimeline'
 
 const VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_TARGET_PER_ZOOM = 8
-const VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_STEPS_SECONDS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600] as const
+const VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_STEPS_SECONDS = [1, 2, 10, 15, 30, 60, 120, 300, 600] as const
 const VIDEO_SEQUENCE_TIMELINE_SCALE_STEPS_SECONDS = [10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600] as const
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MIN_ZOOM = 2
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_PER_ZOOM_PERCENT = 40
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MAX_PERCENT = 160
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM = 6
+const VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES = 2
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME = 12
+const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX = 46
+const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX = 960
+const VIDEO_SEQUENCE_TIMELINE_DEFAULT_FRAME_RATE = 24
+const VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS = 960
 
 export function resolveVideoSequenceTimelineScaleDurationSeconds(durationSeconds: number): number {
   const duration = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0
@@ -41,8 +48,80 @@ export function resolveVideoSequenceTimelineZoomTickStepSeconds(args: {
     || VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_STEPS_SECONDS[VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_STEPS_SECONDS.length - 1]
 }
 
+export function resolveVideoSequenceTimelineFrameRate(value: number): number {
+  const frameRate = Number.isFinite(value) && value > 0 ? value : VIDEO_SEQUENCE_TIMELINE_DEFAULT_FRAME_RATE
+  return Math.min(120, Math.max(1, frameRate))
+}
+
+function resolveVideoSequenceTimelineFrameTickStepFrames(totalFrames: number): number {
+  const safeTotalFrames = Math.max(0, Math.round(Number.isFinite(totalFrames) ? totalFrames : 0))
+  if (safeTotalFrames <= VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS * VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES) {
+    return VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES
+  }
+  const rawStep = Math.ceil(safeTotalFrames / VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS)
+  return Math.max(VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES, rawStep + (rawStep % 2))
+}
+
+function shouldUseVideoSequenceFrameTicks(args: {
+  mediaDurationSeconds: number
+  timelineZoom: number
+}): boolean {
+  return args.timelineZoom >= VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM && args.mediaDurationSeconds > 0
+}
+
+function formatVideoSequenceTimelineFrameLabel(frame: number, frameRate: number, labelMaxFrame = VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME): string {
+  if (frame <= 0) return '00:00'
+  const wholeSeconds = Math.floor(frame / frameRate)
+  const frameInSecond = frame - wholeSeconds * frameRate
+  if (wholeSeconds > 0 || frameInSecond > labelMaxFrame) return ''
+  if (frameInSecond === 0) return formatVideoSequenceTimelineSecondsOffset(wholeSeconds)
+  return `${frameInSecond}f`
+}
+
+function buildVideoSequenceTimelineFrameTicks(args: {
+  frameRate: number
+  maxMinutes: number
+  scaleDurationSeconds: number
+}): readonly MermaidGanttTimelineTick[] {
+  const frameRate = resolveVideoSequenceTimelineFrameRate(args.frameRate)
+  const totalFrames = Math.max(1, Math.round(args.scaleDurationSeconds * frameRate))
+  const stepFrames = resolveVideoSequenceTimelineFrameTickStepFrames(totalFrames)
+  const ticks: MermaidGanttTimelineTick[] = []
+  for (let frame = 0; frame < totalFrames; frame += stepFrames) {
+    const seconds = frame / frameRate
+    const minutes = (seconds / args.scaleDurationSeconds) * args.maxMinutes
+    ticks.push({
+      label: formatVideoSequenceTimelineFrameLabel(frame, frameRate),
+      minutes,
+      percent: (minutes / args.maxMinutes) * 100,
+    })
+  }
+  ticks.push({
+    label: formatVideoSequenceTimelineSecondsOffset(args.scaleDurationSeconds),
+    minutes: args.maxMinutes,
+    percent: 100,
+  })
+  return ticks
+}
+
+export function resolveVideoSequenceTimelineContentZoom(args: {
+  frameRate?: number
+  mediaDurationSeconds: number
+  timelineZoom: number
+}): number {
+  const timelineZoom = Number.isFinite(args.timelineZoom) && args.timelineZoom > 0 ? args.timelineZoom : 1
+  const mediaDurationSeconds = Number.isFinite(args.mediaDurationSeconds) && args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : 0
+  if (!shouldUseVideoSequenceFrameTicks({ mediaDurationSeconds, timelineZoom })) return timelineZoom
+  const frameRate = resolveVideoSequenceTimelineFrameRate(args.frameRate || 0)
+  const labelSpacingPercent = (VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES / Math.max(1, Math.round(mediaDurationSeconds * frameRate))) * 100
+  if (labelSpacingPercent <= 0) return timelineZoom
+  const minimumContentScale = (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX * 100) / (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX * labelSpacingPercent)
+  return Math.max(timelineZoom, Math.ceil(minimumContentScale))
+}
+
 export function buildVideoSequenceTimelineZoomTicks(args: {
   displayTicks: readonly MermaidGanttTimelineTick[]
+  frameRate?: number
   maxMinutes: number
   mediaDurationSeconds: number
   timelineZoom: number
@@ -51,6 +130,13 @@ export function buildVideoSequenceTimelineZoomTicks(args: {
   const maxMinutes = Number.isFinite(args.maxMinutes) && args.maxMinutes > 0 ? args.maxMinutes : 0
   if (mediaDurationSeconds <= 0 || maxMinutes <= 0) return args.displayTicks
   const scaleDurationSeconds = resolveVideoSequenceTimelineScaleDurationSeconds(mediaDurationSeconds)
+  if (shouldUseVideoSequenceFrameTicks({ mediaDurationSeconds: scaleDurationSeconds, timelineZoom: args.timelineZoom })) {
+    return buildVideoSequenceTimelineFrameTicks({
+      frameRate: resolveVideoSequenceTimelineFrameRate(args.frameRate || 0),
+      maxMinutes,
+      scaleDurationSeconds,
+    })
+  }
   const stepSeconds = resolveVideoSequenceTimelineZoomTickStepSeconds({
     durationSeconds: scaleDurationSeconds,
     timelineZoom: args.timelineZoom,

@@ -3,8 +3,8 @@ title: "Knowgrph MCP Agentic Canvas OS - PRD and TAD"
 id: "md:knowgrph-mcp-agentic-os-prd-tad"
 author: "airvio / joohwee"
 created: "2026-06-08"
-updated: "2026-06-08"
-version: "0.3.0"
+updated: "2026-07-03"
+version: "0.3.1"
 status: "local-dry-run-contract-implemented"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -28,6 +28,7 @@ linked_docs:
   - "knowgrph-mcp.md"
   - "knowgrph-mcp-service-prd-tad.md"
   - "knowgrph-mcp-agentic-os-prd-tad.companion.md"
+  - "../knowgrph-agentic-os-follow-on-prd-tad.md"
   - "../knowgrph-superagent-harness.md"
   - "../knowgrph-agent-ready-prd-tad.md"
 external_adapters:
@@ -63,6 +64,8 @@ This is not a new graph runtime, not a replacement for the shipped stdio MCP ser
 The Agentic Canvas OS Dashboard is a **document/runtime model**: one Source Files Markdown document owns the dashboard frontmatter and body, while a typed run manifest owns volatile runtime facts such as tool attempts, approvals, cost logs, and failure transitions. Canvas renders both through the existing frontmatter-flow and Storyboard Widget path; it must not introduce a dashboard-only graph store, renderer, or mutation bridge.
 
 Agentic Canvas OS also supports **Market Radar**, **real-browser evidence**, **market-to-artifact generation**, **Starter Repo**, and **Learning Loop** lanes. The detailed lane contracts live in [knowgrph-mcp-agentic-os-prd-tad.companion.md](knowgrph-mcp-agentic-os-prd-tad.companion.md) so this PRD/TAD remains the compact governing document and all docs stay under the 600-line limit.
+
+**Follow-on increment** (HITL durable store, live stage golden path, Canvas dashboard render): [`knowgrph-agentic-os-follow-on-prd-tad.md`](../knowgrph-agentic-os-follow-on-prd-tad.md).
 
 The companion is normative for lane payloads, node fields, evidence grades, artifact lineage, skill states, identity facets, and privacy guardrails. This file remains normative for PRD/TAD scope, orchestration, budgets, approval policy, `/goal` conditions, and shipped-vs-planned boundaries.
 

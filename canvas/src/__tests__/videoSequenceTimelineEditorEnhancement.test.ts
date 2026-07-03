@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineScaleDurationSeconds, resolveVideoSequenceTimelineScaleMaxMinutes, resolveVideoSequenceTimelineZoomTickStepSeconds } from '@/components/timeline/videoSequenceTimelineZoom'
+import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineContentZoom, resolveVideoSequenceTimelineFrameRate, resolveVideoSequenceTimelineScaleDurationSeconds, resolveVideoSequenceTimelineScaleMaxMinutes, resolveVideoSequenceTimelineZoomTickStepSeconds } from '@/components/timeline/videoSequenceTimelineZoom'
 import { resolveTimelineTransportGestureZoomStepCount, resolveTimelineTransportNextZoomIndex, resolveTimelineTransportZoom } from '@/components/timeline/timelineTransport'
 
 const root = process.cwd()
@@ -14,6 +14,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const rulerTicksText = readSource('components', 'timeline', 'VideoSequenceTimelineRulerTicks.tsx')
   const rulerTimeAxisCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRulerTimeAxis.css')
   const rulerZoomText = readSource('components', 'timeline', 'videoSequenceTimelineZoom.ts')
+  const clipThumbnailStripText = readSource('components', 'timeline', 'VideoSequenceClipThumbnailStrip.tsx')
   const clipMetaText = readSource('components', 'timeline', 'VideoSequenceTimelineClipMeta.tsx')
   const clipMetaCssText = readSource('components', 'timeline', 'VideoSequenceTimelineClipMeta.css')
   const denseFbfCssText = readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css')
@@ -37,9 +38,12 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'data-kg-video-sequence-source-window',
     'VideoSequenceTimelineClipMeta',
     'VideoSequenceTimelineRulerTicks',
-    'buildVideoSequenceTimelineZoomTicks({ displayTicks, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom })',
+    'buildVideoSequenceTimelineZoomTicks({ displayTicks, frameRate: mediaFrameRate, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom })',
     'resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes, mediaDurationSeconds })',
     'resolveVideoSequenceTimelineAppendSpacePercent(timelineZoom)',
+    'resolveVideoSequenceTimelineContentZoom({ frameRate: mediaFrameRate, mediaDurationSeconds, timelineZoom })',
+    'flexBasis: `${timelineContentZoom * 100}%`',
+    'data-kg-video-sequence-content-zoom',
     'timeline-video-sequence-editor timeline-video-sequence-grid',
     'timeline-video-sequence-surface timeline-video-sequence-surface--empty',
     'timeline-video-sequence-ruler-scroll timeline-video-sequence-ruler-surface',
@@ -54,6 +58,10 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   for (const token of [
     'formatVideoSequenceTimeAxisLabel',
     "padStart(2, '0')",
+    'resolveVideoSequenceTickMajor',
+    'data-kg-video-sequence-major-tick',
+    "/^\\d+f$/i",
+    'seconds % 10 === 0',
     '<time className="timeline-transport-ruler-tick-label"',
     'dateTime={resolveVideoSequenceTickDateTime(tick)}',
     'aria-hidden="true"',
@@ -95,11 +103,24 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'resolveVideoSequenceTimelineScaleMaxMinutes',
     'resolveVideoSequenceTimelineAppendSpacePercent',
     'VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MAX_PERCENT',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX',
+    'VIDEO_SEQUENCE_TIMELINE_DEFAULT_FRAME_RATE',
+    'resolveVideoSequenceTimelineFrameRate',
+    'resolveVideoSequenceTimelineContentZoom',
+    'formatVideoSequenceTimelineFrameLabel',
   ]) {
     if (!rulerZoomText.includes(token)) throw new Error(`expected shared zoom-axis helper token: ${token}`)
   }
   if (resolveVideoSequenceTimelineZoomTickStepSeconds({ durationSeconds: resolveVideoSequenceTimelineScaleDurationSeconds(52), timelineZoom: 4 }) !== 2) {
     throw new Error('expected max zoom to expose two-second timeline ticks for sub-minute media')
+  }
+  const defaultTicks = buildVideoSequenceTimelineZoomTicks({ displayTicks: [], maxMinutes: 30, mediaDurationSeconds: 30, timelineZoom: 1 })
+  if (defaultTicks.map(tick => tick.label).join(',') !== '0:00,0:10,0:20,0:30') {
+    throw new Error(`expected default BottomPanel source timeline ticks to use ten-second major labels, got ${JSON.stringify(defaultTicks)}`)
   }
   const scaleMaxMinutes = resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes: 52, mediaDurationSeconds: 52 })
   const zoomTicks = buildVideoSequenceTimelineZoomTicks({ displayTicks: [], maxMinutes: scaleMaxMinutes, mediaDurationSeconds: 52, timelineZoom: 4 })
@@ -108,6 +129,34 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   if (resolveVideoSequenceTimelineAppendSpacePercent(1) !== 0 || resolveVideoSequenceTimelineAppendSpacePercent(4) <= 0) {
     throw new Error('expected right-side append workspace only when the timeline is zoomed in')
+  }
+  if (resolveVideoSequenceTimelineFrameRate(0) !== 24 || resolveVideoSequenceTimelineFrameRate(240) !== 120) {
+    throw new Error('expected max-zoom frame ticks to use a bounded source frame-rate hint')
+  }
+  const maxZoomFrameTicks = buildVideoSequenceTimelineZoomTicks({ displayTicks: [], frameRate: 24, maxMinutes: 30, mediaDurationSeconds: 30, timelineZoom: 6 })
+  if (maxZoomFrameTicks.slice(0, 7).map(tick => tick.label).join(',') !== '00:00,2f,4f,6f,8f,10f,12f') {
+    throw new Error(`expected max-zoom BottomPanel source timeline ticks to expose frame-step labels, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 6))}`)
+  }
+  if (maxZoomFrameTicks.slice(7, 40).some(tick => tick.label && !/^\d+:\d{2}$/.test(tick.label))) {
+    throw new Error(`expected max-zoom frame labels not to repeat every second, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 40).map(tick => tick.label))}`)
+  }
+  if (resolveVideoSequenceTimelineContentZoom({ frameRate: 24, mediaDurationSeconds: 30, timelineZoom: 6 }) <= 6) {
+    throw new Error('expected max-zoom frame ruler content to expand beyond the nominal zoom level for readable frame labels')
+  }
+
+  for (const token of [
+    'aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}',
+    'data-kg-video-sequence-clip-thumbnail-caption-format',
+    'data-kg-video-sequence-clip-thumbnail-caption-time',
+    'data-kg-video-sequence-clip-thumbnail-preview-caption',
+  ]) {
+    if (!clipThumbnailStripText.includes(token)) throw new Error(`expected text-neutral thumbnail metadata token: ${token}`)
+  }
+  if (
+    clipThumbnailStripText.includes('{thumbnail.format}/{thumbnail.rasterFormat}</span>') ||
+    clipThumbnailStripText.includes('{formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}')
+  ) {
+    throw new Error('expected thumbnail metadata to stay out of visible ruler text')
   }
 
   for (const token of [
@@ -177,7 +226,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'border: 1px solid var(--kg-border',
     'background: color-mix(in srgb, var(--kg-panel-bg-hover',
     'color: var(--kg-text-primary',
-    'color: var(--kg-text-tertiary',
+    'clip-path: inset(50%)',
     'background: color-mix(in srgb, var(--kg-canvas-accent',
   ]) {
     if (!contextCssText.includes(token)) throw new Error(`expected clip context to reuse design tokens: ${token}`)
@@ -189,14 +238,32 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   for (const token of [
     '.timeline-transport-chrome--mermaid-gantt .timeline-player',
     'height: var(--kg-main-toolbar-height, 38px)',
-    'flex: 0 0 var(--kg-timeline-toolbar-button-size, 28px)',
+    'flex: 0 0 26px',
     'isolation: isolate',
+    'min-height: 100%',
+    'gap: 0',
+    'padding: 0',
+    'inset 0 -1px 0 color-mix(in srgb, var(--kg-border',
+    '.timeline-transport-chrome--mermaid-gantt[data-kg-video-sequence-timeline="source-backed"]',
+    '.timeline-transport-chrome--mermaid-gantt[data-kg-video-sequence-timeline="empty"]',
+    'height: 100%',
     'border-bottom: 1px solid var(--kg-border',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls',
+    'height: 22px',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label',
+    'flex: 0 0 28px',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip',
+    'border-inline: 1px solid color-mix(in srgb, var(--kg-border',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools',
+    'justify-content: flex-start',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-layout',
+    'flex: 1 1 auto',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler--video-sequence',
+    'border-top: 0',
+    'min-height: calc(76px + (var(--kg-video-sequence-lane-count, 4) * var(--kg-video-sequence-lane-height)))',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll-content',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-tick:not([data-kg-video-sequence-major-tick="1"]) .timeline-transport-ruler-tick-label',
     'repeating-linear-gradient(180deg',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
@@ -255,6 +322,12 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'timelineZoomPercent: number',
   ]) {
     if (!transportChromeModelText.includes(token)) throw new Error(`expected zoom control model token: ${token}`)
+  }
+  for (const token of [
+    'const timelinePlanSourceFrameRate = React.useMemo',
+    'mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate)',
+  ]) {
+    if (!transportSurfaceModelText.includes(token)) throw new Error(`expected source-backed frame-rate ruler token: ${token}`)
   }
 
   for (const token of [

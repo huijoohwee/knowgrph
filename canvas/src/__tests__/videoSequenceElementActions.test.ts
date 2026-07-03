@@ -75,7 +75,7 @@ export function testVideoSequenceElementActionsStaySourceBacked() {
   const rippleModel = buildMermaidGanttTimelineModel(rippleDeleted || '')
   const snapped = resolveVideoSequenceClipEditSnappedMinutes({
     enabled: true,
-    positionMinutes: 3.98,
+    positionMinutes: 2.98,
     selectedSpan: rippleModel.taskSpans[0],
     spans: rippleModel.taskSpans,
   })
@@ -83,7 +83,7 @@ export function testVideoSequenceElementActionsStaySourceBacked() {
   if (
     !rippleDeleted?.includes('Scene : clip_scene, kgsrc_4_7, kgpos_1, 3m') ||
     !rippleDeleted.includes('Outro : clip_outro, kgsrc_7_9, kgpos_4, 2m') ||
-    snapped !== 4
+    snapped !== 3
   ) {
     throw new Error(`expected ripple delete and auto snapping: ${JSON.stringify({ rippleDeleted, snapped })}`)
   }

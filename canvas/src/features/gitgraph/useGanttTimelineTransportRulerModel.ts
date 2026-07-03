@@ -26,6 +26,7 @@ export type GanttTimelineTransportRulerModel = {
     draggingRowKey: string
     maxMinutes: number
     mediaDurationSeconds: number
+    mediaFrameRate: number
     playheadPercent: number
     scopes: readonly VideoSequenceTimelineScope[]
     selectedRowKey: string
@@ -50,6 +51,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   draggingRowKey: string
   maxMinutes: number
   mediaDurationSeconds: number
+  mediaFrameRate: number
   playheadPercent: number
   positionMinutes: number
   scopes: readonly VideoSequenceTimelineScope[]
@@ -93,6 +95,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       draggingRowKey: args.draggingRowKey,
       maxMinutes: args.maxMinutes,
       mediaDurationSeconds: args.mediaDurationSeconds,
+      mediaFrameRate: args.mediaFrameRate,
       onDropMedia: args.onDropMedia,
       onRulerPointerDown: args.onRulerPointerDown,
       onSelectRowKey: args.onSelectRowKey,
@@ -115,6 +118,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.draggingRowKey,
     args.maxMinutes,
     args.mediaDurationSeconds,
+    args.mediaFrameRate,
     args.onDropMedia,
     args.onRulerPointerDown,
     args.onRulerWheel,

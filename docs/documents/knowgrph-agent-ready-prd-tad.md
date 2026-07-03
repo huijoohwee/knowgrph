@@ -186,7 +186,7 @@ Knowgrph does not currently aim to:
 | Publish sync and Pages control-file hygiene | Implemented | `scripts/sync-pages-knowgrph.mjs` | Must keep mirror non-authoritative |
 | PWA base-path correctness | Implemented | `canvas/index.html` and Pages root config | Must keep `%BASE_URL%manifest.webmanifest` invariant |
 | Full remote MCP pipeline platform from the separate MCP service PRD/TAD | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md` | Must not be documented here as already shipped on the Pages agent-ready surface |
-| Agentic OS Canvas UI and cross-repo build/control dashboard | Planned extension | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` | Profiles and plans consumer repos through allowlisted roots, dry-run manifests, HITL gates, token/TCO budgets, and Source Files/Canvas dashboard rendering; must not be documented here as a shipped mutating Pages/WebMCP tool chain |
+| Agentic OS Canvas UI and cross-repo build/control dashboard | Follow-on Track C | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` + [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) | Dry-run plan **implemented** (`knowgrph.agentic_canvas_os.plan`); Canvas Storyboard render + live lanes → follow-on Track C; HITL/live deploy → Tracks A/B |
 
 ## Commerce
 

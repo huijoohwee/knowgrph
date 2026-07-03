@@ -8,7 +8,7 @@ import { buildVideoSequenceGeneratedFrameThumbnails } from './videoSequenceGener
 import { VideoSequenceTimelineClipMeta, resolveVideoSequenceSourceWindowLabel } from './VideoSequenceTimelineClipMeta'
 import { VideoSequenceTimelineRulerTicks } from './VideoSequenceTimelineRulerTicks'
 import { useVideoSequenceTimelineMediaDropTarget } from './useVideoSequenceTimelineMediaDropTarget'
-import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineScaleMaxMinutes } from './videoSequenceTimelineZoom'
+import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineContentZoom, resolveVideoSequenceTimelineScaleMaxMinutes } from './videoSequenceTimelineZoom'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   VIDEO_SEQUENCE_TIMELINE_LANES,
@@ -263,6 +263,7 @@ export function VideoSequenceTimelineRuler({
   draggingRowKey,
   maxMinutes,
   mediaDurationSeconds = 0,
+  mediaFrameRate = 0,
   playheadPercent,
   selectedRowKey,
   sourceThumbnails = [],
@@ -283,6 +284,7 @@ export function VideoSequenceTimelineRuler({
   draggingRowKey: string
   maxMinutes: number
   mediaDurationSeconds?: number
+  mediaFrameRate?: number
   playheadPercent: number
   selectedRowKey: string
   sourceThumbnails?: readonly TimelineMediaReaderThumbnail[]
@@ -310,7 +312,8 @@ export function VideoSequenceTimelineRuler({
   const minHeight = resolveVideoSequenceRulerMinHeight(visibleLanes.length)
   const timelineScaleMaxMinutes = React.useMemo(() => resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes, mediaDurationSeconds }), [maxMinutes, mediaDurationSeconds])
   const mediaDropTargetProps = useVideoSequenceTimelineMediaDropTarget({ contentRef, maxMinutes: timelineScaleMaxMinutes, onDropMedia, targetRef: mediaDropRef })
-  const timelineAxisTicks = React.useMemo(() => buildVideoSequenceTimelineZoomTicks({ displayTicks, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom }), [displayTicks, mediaDurationSeconds, timelineScaleMaxMinutes, timelineZoom])
+  const timelineAxisTicks = React.useMemo(() => buildVideoSequenceTimelineZoomTicks({ displayTicks, frameRate: mediaFrameRate, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom }), [displayTicks, mediaDurationSeconds, mediaFrameRate, timelineScaleMaxMinutes, timelineZoom])
+  const timelineContentZoom = React.useMemo(() => resolveVideoSequenceTimelineContentZoom({ frameRate: mediaFrameRate, mediaDurationSeconds, timelineZoom }), [mediaDurationSeconds, mediaFrameRate, timelineZoom])
   const appendSpacePercent = React.useMemo(() => resolveVideoSequenceTimelineAppendSpacePercent(timelineZoom), [timelineZoom])
   const animationState = React.useMemo(() => buildTimelineAnimationState({
     active: !!draggingRowKey || !!selectedRowKey,
@@ -351,11 +354,12 @@ export function VideoSequenceTimelineRuler({
         <section className="timeline-video-sequence-ruler-scroll-content" aria-label="Video sequence timeline workspace" style={{ minHeight }}>
         <section ref={contentRef} className="timeline-transport-ruler-content timeline-video-sequence-ruler-content"
           style={{
-            flexBasis: `${timelineZoom * 100}%`,
+            flexBasis: `${timelineContentZoom * 100}%`,
             minHeight,
             '--kg-video-sequence-lane-count': visibleLanes.length,
           } as React.CSSProperties}
           data-kg-gantt-timeline-ruler-content="1"
+          data-kg-video-sequence-content-zoom={String(timelineContentZoom)}
           data-kg-gantt-timeline-zoom={String(timelineZoom)}
           onPointerDown={onRulerPointerDown}
         >

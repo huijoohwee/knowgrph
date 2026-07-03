@@ -39,7 +39,9 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 | MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
 | Cloudflare AI Gateway MCP docs surface | Shipped | `canvas/src/features/panels/views/cloudflareAiGatewayMcpApiDocs.ts` | MainPanel MCP operator docs for `https://ai-gateway.mcp.cloudflare.com/mcp`, AI Gateway endpoint patterns, log-inspection tools, and secret/account boundary |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown or literal MCP structured response -> Editor Workspace -> Canvas apply path |
-| Agentic Canvas OS dashboard contract | Planned extension over shipped owners | `knowgrph-mcp-agentic-os-prd-tad.md` + companion | Canvas UI/cross-repo agent build and control dashboard; dry-run first; repo allowlist, HITL, TCO/token budgets, adapter plans, market/artifact/starter lanes, and learning-loop lane |
+| MCP Gateway (discovery contract) | **Implemented** — four-surface federation + `knowgrph.os.status` | [`knowgrph-agentic-os-prd-tad.md`](https://github.com/huijoohwee/knowgrph/blob/main/docs/documents/knowgrph-agentic-os-prd-tad.md) v0.4.1 |
+| Agentic OS follow-on (HITL / live stages / dashboard) | **Spec-complete** — local HITL + live clients implemented; Worker deploy proof pending | [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) |
+| Agentic Canvas OS dashboard contract | Planned extension over shipped owners | `knowgrph-mcp-agentic-os-prd-tad.md` + companion | Canvas UI/cross-repo agent build and control dashboard; dry-run first; Track C in follow-on doc |
 | Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
 
 ---

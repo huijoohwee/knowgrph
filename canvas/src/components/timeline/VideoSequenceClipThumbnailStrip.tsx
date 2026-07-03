@@ -70,17 +70,18 @@ export function VideoSequenceClipThumbnailStrip({
           }}
         >
           <img alt="" decoding="async" draggable={false} height={thumbnail.height} loading="lazy" src={thumbnail.dataUrl} width={thumbnail.width} />
-          <span className="timeline-video-sequence-clip-thumbnail-caption">
-            <time dateTime={`PT${thumbnail.timestampSeconds.toFixed(3)}S`}>
-              {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)}
-            </time>
-            <span>{thumbnail.format}/{thumbnail.rasterFormat}</span>
-          </span>
+          <span
+            className="timeline-video-sequence-clip-thumbnail-caption"
+            aria-hidden="true"
+            data-kg-video-sequence-clip-thumbnail-caption-format={`${thumbnail.format}/${thumbnail.rasterFormat}`}
+            data-kg-video-sequence-clip-thumbnail-caption-time={formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)}
+          />
           <span className="timeline-video-sequence-clip-thumbnail-preview" aria-hidden="true" data-kg-video-sequence-clip-thumbnail-preview="1">
             <img alt="" decoding="async" draggable={false} height={thumbnail.height} loading="lazy" src={thumbnail.dataUrl} width={thumbnail.width} />
-            <span className="timeline-video-sequence-clip-thumbnail-preview-caption">
-              {formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}
-            </span>
+            <span
+              className="timeline-video-sequence-clip-thumbnail-preview-caption"
+              data-kg-video-sequence-clip-thumbnail-preview-caption={`${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}
+            />
           </span>
         </button>
       ))}

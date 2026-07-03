@@ -1,20 +1,25 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.1.0
+version: 1.3.0
 status: implemented
 created: 2026-05-29
-updated: 2026-05-29
+updated: 2026-07-03
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Implementation PRD/TAD"
 frontmatter_contract: required
 baseline_prd_tad: docs/documents/knowgrph-agent-ready-prd-tad.md
 baseline_prd_tad_version: 1.27.5
+agentic_os_prd_tad: docs/documents/knowgrph-agentic-os-prd-tad.md
+agentic_os_prd_tad_version: 0.4.1
+agentic_os_follow_on_prd_tad: docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md
+agentic_os_follow_on_version: 1.0.0
 canonical_service_url: "https://airvio.co/knowgrph/"
+control_plane_mcp_url: "https://airvio.co/knowgrph/control-plane/mcp"
 cloudflare_pages_project: joohwee
-last_verified: 2026-05-29
-tags: [agent-ready, auth-md, dns-aid, webmcp, mcp, a2a, commerce, acp, ucp, mpp, x402, cloudflare, markdown, canvas, prd, tad]
+last_verified: 2026-07-03
+tags: [agent-ready, agentic-os, mcp-gateway, auth-md, dns-aid, webmcp, mcp, a2a, commerce, acp, ucp, mpp, x402, cloudflare, markdown, canvas, prd, tad]
 constraints:
   - solo-dev
   - tco-zero
@@ -26,6 +31,9 @@ related:
   - docs/documents/knowgrph-agent-ready-prd-tad.runtime.md
   - docs/documents/knowgrph-agent-ready-prd-tad.companion.md
   - docs/documents/knowgrph-agent-ready-cloudflare-isitagentready.md
+  - docs/documents/knowgrph-agentic-os-prd-tad.md
+  - docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md
+  - docs/documents/knowgrph-mcp/knowgrph-mcp.md
 ---
 
 # Knowgrph Agent Ready Document
@@ -34,8 +42,17 @@ related:
 
 Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. The current
 implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, root and app-scoped `.well-known`
-artifacts, Markdown negotiation, read-only HTTP MCP, browser-visible WebMCP, and root Commerce
-discovery without moving authority out of the `knowgrph` repository.
+artifacts, Markdown negotiation, read-only HTTP MCP, browser-visible WebMCP, control-plane Streamable
+HTTP MCP for approval-gated orchestration, Agentic OS visibility via `knowgrph.os.status`, and root
+Commerce discovery without moving authority out of the `knowgrph` repository.
+
+The **MCP Gateway** is a discovery-first federation over four existing surfaces (local stdio, Pages
+HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
+fifth monolithic proxy tier (see `knowgrph-agentic-os-prd-tad.md` ADR-4). Agents discover capabilities
+via DNS-AID → Link headers → `.well-known` MCP server card → surface selection by trust boundary.
+
+The **Agentic OS** (`knowgrph.os.status`) provides read-only cross-harness visibility: process list,
+capability union, cost summary, gate catalog, and circuit-breaker bounds — at zero token cost per call.
 
 The repo also ships a local long-horizon SuperAgent harness for research/code/create artifact runs.
 That harness is available through `python3 -m knowgrph_parser superagent`, `npm run goal:run`, and
@@ -92,6 +109,8 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | API/MCP client | Read public Source Files and shared documents | HTTP MCP lists and calls read-only tools successfully |
 | Commerce-capable agent | Discover paid resource and checkout capabilities | ACP, UCP, MPP, and x402 root commerce probes pass |
 | Solo maintainer | Ship one source-owned readiness surface | Dev build, prod sync, deploy, and live checks pass without mirror patches |
+| External agent operator | Discover full MCP capability surface in one call | `knowgrph.os.status` (`view:"capabilities"`) returns deduplicated tool union |
+| Harness operator | See all in-flight agent work from one MCP call | `knowgrph.os.status` (`view:"process_list"`) returns normalized Process_Entry[] |
 | Knowledge worker | Turn chat output into canvas graph structure | LLM output starts with YAML frontmatter and applies through the existing Canvas pipeline |
 
 ## Journey: Agent Resolver - Discover Knowgrph
@@ -114,7 +133,11 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - app-scoped and root `.well-known` discovery artifacts
 - Markdown negotiation for root, service homepage, and published document routes
 - read-only HTTP MCP on `/knowgrph/mcp`
+- control-plane Streamable HTTP MCP on `/knowgrph/control-plane/mcp` (Director + stages + os.status)
 - browser WebMCP runtime and Pages HTML fallback WebMCP
+- local stdio MCP with Agentic OS `knowgrph.os.status` and full harness tool surface
+- Agentic OS read-only aggregation (process list, capabilities, cost, gates, circuit breakers)
+- MCP Gateway discovery contract (four-surface federation via shared agent-ready contracts)
 - local CLI/local-MCP SuperAgent harness documentation and source-owner linkage
 - root Commerce discovery for ACP, UCP, MPP, and x402
 - MainPanel `mcp` / `integrations` / `commerce` -> FloatingPanel Chat -> KGC Markdown -> Canvas apply path
@@ -127,7 +150,8 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 
 ### Out Of Scope
 
-- write-capable public MCP tools
+- a fifth monolithic MCP proxy gateway tier (federation uses existing four surfaces per ADR-4)
+- write-capable public MCP tools on Pages HTTP MCP (control-plane orchestration is approval-gated separately)
 - direct mutation of unpublished browser drafts from deployed MCP
 - replacing `/knowgrph/` with apex `/` as the service homepage
 - TXT-only DNS-AID substitutes or unsigned public discovery as the canonical path
@@ -153,17 +177,29 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | PRD-AR-09 | As an Agentic Canvas OS operator, I want market validation and browser evidence to be inspectable without exposing private browser data. | Given a market report and scoped browser evidence manifest exist, when browser-local agent inspection runs, then evidence levels, source cards, claim ids, screenshots/media hashes, allowed domains, and blocked gates are readable while credentials, cookies, private messages, unrelated tabs, and unscoped network bodies are absent. | Future implementation proves source-card inspection and browser privacy redaction before any richer research tool ships. |
 | PRD-AR-10 | As an Agentic Canvas OS operator, I want self-improving memory to be inspectable and controllable. | Given finalized traces or explicit notes exist, when browser-local learning inspection runs, then recall cards, skill states, learning nudges, identity facets, confidence, expiry, and source trace ids are readable while drafts, rejected memories, hidden prompts, raw transcripts, and private browser data stay excluded. | Future implementation proves local-first learning inspection, skill-promotion approval, and identity-facet edit/delete controls. |
 | PRD-AR-11 | As an Agentic Canvas OS operator, I want starter-repo blueprints to be inspectable before creation. | Given a starter manifest exists, when browser-local inspection runs, then frontend, backend, auth, gateway/tool policy, IaC choice, tests, docs, security checks, and deployment preflight state are readable while file writes, copied scaffolds, generated secrets, and deployment remain blocked without approval. | Future implementation proves starter-repo dry-run inspection and rejects unapproved creation/deploy actions. |
+| PRD-AR-12 | As an external agent, I want MCP Gateway discovery so I can choose the correct surface without scraping HTML. | Given DNS-AID and `.well-known` metadata, when the agent reads the MCP server card and calls `knowgrph.os.status` (`view:"capabilities"`), then deduplicated tool ids with `sourceCatalogs[]` are returned and `unreachableCatalogs[]` names any optional catalog without failing the call. | `npm run agent-ready:check` exits 0; local `knowgrph.os.status` capabilities view matches fixture union. |
+| PRD-AR-13 | As a harness operator, I want Agentic OS process visibility in one MCP call. | Given Showrunner, Video Remix, or SuperAgent runs exist on disk, when `knowgrph.os.status` (`view:"process_list"`) is called, then normalized Process_Entry[] are returned with `unavailableSources` for unreadable sources and no harness state file is modified. | `node --test mcp/__tests__/os-status-runtime.test.mjs` exits 0; before/after state snapshot diff is empty. |
+| PRD-AR-14 | As an external agent, I want control-plane MCP for approval-gated orchestration. | Given `/knowgrph/control-plane/mcp` is deployed, when the agent calls `knowgrph.video_remix.run` in live mode without approval tokens, then state is blocked, estimated cost is zero, and Run_Manifest is persistable via `GET /knowgrph/control-plane/mcp/runs/{id}`. | `node --test cloudflare/workers/knowgrph-mcp/__tests__/tool-registry.test.mjs` exits 0. |
+| PRD-AR-15 | As maintainer, I want Agentic OS and MCP Gateway docs aligned with runtime. | Given v0.4.1 Agentic OS PRD/TAD, when this document is reviewed, then four-surface gateway federation, os.status views, and control-plane URL are documented with traceability to canonical owners. | Document frontmatter references `knowgrph-agentic-os-prd-tad.md` v0.4.1; component inventory lists implemented modules. |
+| PRD-AR-16 | As operator, I want durable HITL tokens on the control plane before live spend. | Given Approval_Token issuance on Worker, when the Worker restarts within TTL, then verify and single-use consume still succeed for an approved stage. | Follow-on Track A in `knowgrph-agentic-os-follow-on-prd-tad.md`; local HITL tests pass today. |
+| PRD-AR-17 | As operator, I want one gated live Director stage proof on the deployed Worker. | Given live env vars and approval tokens, when research+storyboard stages run live, then Run_Manifest persists with cited evidence and validated Cost_Log. | Follow-on Track B; `director-live-run` + `research-harness` tests pass locally. |
+| PRD-AR-18 | As operator, I want the Agentic Canvas OS dashboard visible on Canvas. | Given `knowgrph.agentic_canvas_os.plan` output, when dashboard markdown opens in Canvas, then Storyboard Widget renders lane nodes from frontmatter-flow. | Follow-on Track C; companion lane contracts unchanged. |
 
 ## Success Metrics
 
 | Metric | Baseline | Target | Current |
 |---|---:|---:|---:|
 | Agent-ready smoke checks | 0 | 42 | 42 |
+| Agentic OS unit + PBT tests | 0 | pass | pass (local) |
+| Control-plane MCP tool-registry tests | 0 | pass | pass |
 | Auth.md checks | 0 | 5 | 5 |
 | DNS-AID public checks | 0 | 3 | 3 |
 | External WebMCP published tools | 0 | 5 | 5 |
 | Commerce protocol checks | 0 | 4 | 4 |
 | Discovery token spend | Unknown | 0 LLM tokens | 0 LLM tokens |
+| Agentic OS token spend | N/A | $0 per call | $0 (read-only, zero model calls) |
+| Time-to-value (TTV steps) — Agentic OS | N/A | ≤ 2 (start local MCP; call os.status) | ≤ 2 |
+| Time-to-value (TTV elapsed) — Agentic OS | N/A | ≤ 1 min | ≤ 1 min (local MCP already running) |
 | Monthly TCO for discovery layer | Unknown | zero incremental paid services | Cloudflare-native, no added paid dependency |
 | ROI score | Unscored | ship min-viable max-value readiness | High: reused existing Pages, DNS, storage, and chat owners |
 
@@ -188,7 +224,9 @@ Inputs:
 
 | Tier | Items | Rationale |
 |---|---|---|
-| Must | DNS-AID, Auth.md, OAuth metadata, `.well-known`, Link headers, Markdown negotiation, HTTP MCP, WebMCP fallback, Commerce discovery, deploy validation | Required for agent discovery and public readiness scans |
+| Must | DNS-AID, Auth.md, OAuth metadata, `.well-known`, Link headers, Markdown negotiation, HTTP MCP, WebMCP fallback, Commerce discovery, deploy validation, MCP Gateway discovery contract, Agentic OS local os.status | Required for agent discovery, gateway federation, and OS visibility |
+| Must | Control-plane Streamable HTTP MCP (WHERE deployed) | Required for remote approval-gated orchestration |
+| Should | Agentic Canvas OS dashboard documentation, follow-on Tracks A/B/C | See `knowgrph-agentic-os-follow-on-prd-tad.md` |
 | Should | MainPanel MCP/integrations/commerce documentation, chat-to-canvas traceability, canonical frontmatter constraints | Prevents future implementation drift |
 | Could | richer write-capable agent workflows, remote MCP pipeline expansion | Requires auth, mutation policy, and separate acceptance |
 | Won't | mirror-only patches, duplicate route owners, TXT-only DNS-AID, grouping alias remaps | Conflicts with source ownership and neutrality guardrails |
@@ -208,6 +246,21 @@ flowchart LR
   Pages --> Live["https://airvio.co/knowgrph/"]
 ```
 
+### MCP Gateway Federation Topology
+
+```mermaid
+flowchart LR
+  Agent["External Agent"] --> DNS["DNS-AID\n_agents.airvio.co"]
+  DNS --> WK[".well-known\nMCP server card"]
+  WK --> Read["Pages HTTP MCP\n/knowgrph/mcp\nread-only"]
+  WK --> Orch["Control-plane McpAgent\n/knowgrph/control-plane/mcp\norchestration"]
+  WK --> Local["Local stdio MCP\nmcp/server.js\nfull harness surface"]
+  WK --> Web["Browser WebMCP\nin-page inspection"]
+  Local --> OS["knowgrph.os.status\ncapabilities union"]
+  Read --> SF["Source Files\nstorage reads"]
+  Orch --> Dir["Video Remix Director\n+ Run_Manifest DO"]
+```
+
 ### Discovery Flow
 
 ```mermaid
@@ -219,6 +272,7 @@ flowchart LR
   Links --> WellKnown[".well-known metadata"]
   Links --> Auth["/auth.md + agent_auth"]
   Links --> MCP["/knowgrph/mcp"]
+  Links --> ControlPlane["/knowgrph/control-plane/mcp"]
   Links --> Commerce["ACP/UCP/MPP/x402 commerce metadata"]
   Home --> WebMCP["HTML WebMCP fallback"]
 ```
@@ -301,6 +355,14 @@ and the prod mirror remains a downstream artifact rather than a hand-edited sour
 | Payment worker runtime | `cloudflare/workers/knowgrph-payment/agenticCommerce.ts` | Implemented |
 | Commerce readiness validation | `scripts/agent-ready-commerce-checks.mjs` | Implemented |
 | HTTP MCP and HTML fallback validation | `scripts/check-agent-ready.mjs` | Implemented |
+| Local stdio MCP + Agentic OS | `mcp/server.js`, `mcp/os-status-runtime.js`, `mcp/local-tool-contract.js` | Implemented |
+| Control-plane McpAgent Worker | `cloudflare/workers/knowgrph-mcp/index.ts`, `tool-registry.mjs`, `os-status-tool.mjs` | Implemented (WHERE deployed) |
+| Agentic OS PRD/TAD SSOT | `docs/documents/knowgrph-agentic-os-prd-tad.md` | v0.4.1 |
+| Agentic OS follow-on PRD/TAD | `docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md` | v1.0.0 — Tracks A/B/C |
+| HITL issuance (local) | `mcp/video-remix/approval-token-issuer.js` | Implemented; Worker KV pending Track A |
+| Live stage clients | `mcp/video-remix/live-clients.js` | Env-gated; Track B |
+| Agentic Canvas OS plan tool | `mcp/local-tool-contract.js` → `knowgrph.agentic_canvas_os.plan` | Dry-run; Track C |
+| MCP architecture overview | `docs/documents/knowgrph-mcp/knowgrph-mcp.md` | Active |
 | Auth.md validation | `scripts/check-auth-md.mjs` | Implemented |
 | DNS-AID record contract and live check | `scripts/dns-aid-records.mjs`, `scripts/check-dns-aid-cloudflare.mjs` | Implemented |
 | DNS-AID publish tooling | `scripts/publish-dns-aid-cloudflare.mjs` | Implemented |
@@ -316,6 +378,8 @@ and the prod mirror remains a downstream artifact rather than a hand-edited sour
 | HTTP discover | Pages function | GET/HEAD with optional Accept | HTML, Markdown, JSON metadata, Link headers | Cloudflare Pages artifact | smoke checks require expected routes and headers |
 | Commerce discover | root Pages function | ACP, UCP, MPP, and x402 probes | commerce protocol JSON and HTTP 402 payment metadata | Cloudflare Pages artifact / payment Worker | commerce checks fail closed on missing protocol fields, service lists, schemas, or payment-required metadata |
 | MCP read | Pages MCP transport | JSON-RPC | read-only tool results | storage worker / D1-backed public docs | tool errors return structured JSON-RPC errors |
+| Control-plane MCP | McpAgent Streamable HTTP | JSON-RPC POST `/knowgrph/control-plane/mcp` | Director Run_Manifest + stage tool results | Run_Manifest Durable Object | approval_required on unapproved spend; structured errors |
+| Agentic OS read | Local stdio os.status | MCP tool call | Process/Capability/Cost/Gate/Breaker views | none (read-time aggregation) | registry failure → `{ ok:false, errorCode }`; harness state unmodified |
 | Browser context | WebMCP lifecycle | page runtime context | model-context tools | in-memory browser runtime | bounded late binding and readable fallback context |
 | Chat output | FloatingPanel Chat | user prompt + selected context | Markdown with YAML frontmatter or literal MCP `structuredContent` | workspace / chat history | KGC recovery validates malformed Markdown; structured-surface acceptance rejects non-renderable MCP output |
 | Canvas apply | KGC parser and graph bridge | frontmatter flow markdown or projected MCP structured surface | canvas nodes, edges, widgets, cards, rich media panels, subgraphs | graph store / workspace state | parser rejects non-canonical grouping aliases and graph apply stays source-owned |
@@ -357,6 +421,8 @@ Token budget:
 | DNS/HTTP discovery | 0 | 0 | CDN and DNS cache | zero LLM spend |
 | Commerce discovery | 0 | 0 | static protocol metadata and HTTP 402 probes | zero LLM spend before an agent chooses to pay |
 | HTTP MCP read-only calls | 0 | 0 | public storage reads | zero LLM spend |
+| Agentic OS os.status (all views) | 0 | 0 | read-time aggregation | zero LLM spend; non-zero cost_log is a defect |
+| Control-plane MCP discovery | 0 | 0 | tool listing / server card | zero LLM spend before orchestration |
 | Browser WebMCP inspection | 0 | 0 | in-memory runtime | zero LLM spend |
 | FloatingPanel Chat -> Canvas | provider-dependent | provider-dependent | selected model/provider settings | log through existing chat/provider metadata; no unbounded retry loops |
 
@@ -428,6 +494,33 @@ Alternatives considered:
 TCO/FOSS result: shared payment owners keep Dev -> Prod -> Cloudflare parity intact, preserve one
 semantic-key source for MainPanel Commerce readiness, and avoid stale static fixtures.
 
+### ADR-006: MCP Gateway as Four-Surface Federation (Not a Fifth Proxy)
+
+Decision: the MCP Gateway is discovery-first federation over local stdio, Pages HTTP MCP, browser
+WebMCP, and Cloudflare control-plane `McpAgent` — unified by shared contracts and
+`knowgrph.os.status` capabilities union. No fifth monolithic proxy tier.
+
+Alternatives considered:
+
+- unified MCP proxy Worker (rejected: duplicates dispatch, violates min-viable-max-value)
+- Pages HTTP MCP only (rejected: cannot expose approval-gated orchestration)
+
+TCO/FOSS result: $0 incremental infrastructure; reuses existing DNS-AID, Pages, and Worker deploy
+paths. Full rationale in `knowgrph-agentic-os-prd-tad.md` ADR-4.
+
+### ADR-007: Agentic OS Read-Only Aggregation via knowgrph.os.status
+
+Decision: cross-harness visibility (process list, capabilities, cost, gates, circuit breakers) is
+exposed through one combined MCP tool with a `view` argument at zero token cost.
+
+Alternatives considered:
+
+- five separate os.* tools (rejected: 5× wiring surface for identical read-only behavior)
+- new OS-level persistent datastore (rejected: violates TCO-zero guardrail)
+
+TCO/FOSS result: $0 infra, $0 token cost per call; read-time aggregation from existing harness
+state. Full rationale in `knowgrph-agentic-os-prd-tad.md` ADR-1 and ADR-2.
+
 ## Validation Evidence
 
 Latest live deployment target:
@@ -444,6 +537,10 @@ Checks:
 |---|---|---|
 | Prod sync | `npm run pages:check-sync` | passed |
 | Agent-ready smoke | `KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check` | `43/43` |
+| Agentic OS local | `node --test mcp/__tests__/os-status-runtime.test.mjs mcp/__pbt__/os-status.pbt.test.mjs` | pass |
+| Control-plane MCP | `node --test cloudflare/workers/knowgrph-mcp/__tests__/tool-registry.test.mjs` | pass |
+| Follow-on HITL (local) | `node --test mcp/__tests__/approval-token-single-use.test.mjs mcp/__tests__/director-gates-enforcement.test.mjs` | pass |
+| Follow-on live harness (local) | `node --test mcp/__tests__/research-harness.test.mjs mcp/__tests__/director-live-run.test.mjs` | pass |
 | Auth.md | `npm run auth-md:check` | `5/5` |
 | DNS-AID | `npm run dns-aid:check` | `3/3` |
 | WebMCP external scan | `isitagentready.com` scan for `https://airvio.co/knowgrph/` | passed with five published tools |
@@ -461,8 +558,9 @@ Checks:
   helpers already exist.
 - Do not re-render or re-apply Canvas graphs from stale Source Files snapshots.
 - Do not freeze browser scanner execution with root redirects or meta refreshes.
-- Do not advertise write tools or mutation capability before auth, scopes, and revocation are
-  specified.
+- Do not build a fifth monolithic MCP proxy when four federated surfaces plus os.status suffice.
+- Do not describe Agentic OS as write-capable; it is read-only aggregation only.
+- Do not conflate Pages HTTP MCP (read-only) with control-plane MCP (approval-gated orchestration).
 
 ## Traceability
 
@@ -475,10 +573,16 @@ Checks:
 | PRD-AR-05 Chat to Canvas | shared MainPanel, FloatingPanel, KGC, parser, and Canvas owners | source-owner audit plus focused app tests |
 | PRD-AR-06 Deploy parity | `pages:build-sync`, prod mirror, Pages deploy artifact | sync check and live asset comparison |
 | PRD-AR-07 Commerce discovery | shared Commerce SSOT, Pages commerce static files, and payment Worker | `agent-ready:check` plus external Commerce scan |
+| PRD-AR-12 MCP Gateway discovery | DNS-AID, Pages `.well-known`, os.status capabilities | `agent-ready:check` + os.status capabilities test |
+| PRD-AR-13 Agentic OS process visibility | `mcp/os-status-runtime.js` | os-status unit + PBT tests |
+| PRD-AR-14 Control-plane MCP | `cloudflare/workers/knowgrph-mcp/tool-registry.mjs` | tool-registry tests |
+| PRD-AR-16..18 Follow-on tracks | `knowgrph-agentic-os-follow-on-prd-tad.md` | follow-on validation commands |
 
 ## Change Log
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.0 | 2026-07-03 | Added follow-on PRD/TAD link, PRD-AR-16..18 (HITL durable store, live golden path, dashboard Canvas), Track A/B/C component inventory and validation commands. |
+| 1.2.0 | 2026-07-03 | Added Agentic OS (`knowgrph.os.status`), MCP Gateway four-surface federation, control-plane MCP URL, PRD-AR-12..15, ADR-006/007, updated topology and validation evidence per `knowgrph-agentic-os-prd-tad.md` v0.4.0. |
 | 1.1.0 | 2026-05-29 | Updated Commerce readiness for ACP, UCP, MPP, x402, MainPanel Commerce ownership, validation evidence, and shared payment-owner guardrails. |
 | 1.0.0 | 2026-05-29 | Created implementation PRD/TAD living document for the deployed DNS-AID, Auth.md, WebMCP, MCP, MainPanel, chat, Markdown frontmatter, Canvas, and Cloudflare validation baseline. |

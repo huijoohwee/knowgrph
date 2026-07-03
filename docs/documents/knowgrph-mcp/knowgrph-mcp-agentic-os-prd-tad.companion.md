@@ -3,9 +3,10 @@ title: "Knowgrph MCP Agentic Canvas OS - PRD/TAD Companion"
 id: "md:knowgrph-mcp-agentic-canvas-os-companion"
 author: "airvio / joohwee"
 created: "2026-06-08"
-updated: "2026-06-08"
-version: "0.3.0"
+updated: "2026-07-03"
+version: "0.3.1"
 status: "local-dry-run-contract-implemented"
+follow_on: "docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md"
 doc_type: "PRD/TAD Companion"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -22,14 +23,16 @@ This companion keeps the detailed Agentic Canvas OS lane contracts outside the p
 
 ## Lane Inventory
 
-| Lane | Purpose | Source of truth | Planned status |
+| Lane | Purpose | Source of truth | Status (2026-07-03) |
 |---|---|---|---|
-| Dashboard runtime | Render run state as Source Files Markdown plus typed manifest | parent PRD/TAD | P0 local dry-run implemented |
-| Market Radar | Convert messy market evidence into validation reports | this companion | P0 dry-run payload implemented; live retrieval approval-gated |
-| Real-browser evidence | Capture scoped rendered-page evidence from local Chrome | this companion | P0 scope/redaction payload implemented; real capture approval-gated |
-| Market-to-artifact | Generate text, image, audio, and video artifacts from validated evidence | this companion | P0 dry-run manifest implemented; generation approval-gated |
-| Starter repo | Generate a secured web React frontend plus AI-agent backend starter repository | this companion | P0 blueprint implemented; repo writes still approval-gated |
-| Learning Loop | Learn from finalized traces through recall cards, skills, and identity facets | this companion | P0 dry-run payload implemented; promotion approval-gated |
+| Dashboard runtime | Render run state as Source Files Markdown plus typed manifest | parent PRD/TAD | P0 dry-run **implemented**; Canvas Storyboard render → **Track C** follow-on |
+| Market Radar | Convert messy market evidence into validation reports | this companion | P0 dry-run payload **implemented**; live retrieval → approval-gated **Track C** |
+| Real-browser evidence | Capture scoped rendered-page evidence from local Chrome | this companion | P0 scope/redaction payload **implemented**; live capture → **Track C** |
+| Market-to-artifact | Generate text, image, audio, and video artifacts from validated evidence | this companion | P0 dry-run manifest **implemented**; generation → approval-gated |
+| Starter repo | Generate a secured web React frontend plus AI-agent backend starter repository | this companion | P0 blueprint **implemented**; repo writes → approval-gated |
+| Learning Loop | Learn from finalized traces through recall cards, skills, and identity facets | this companion | P0 dry-run payload **implemented**; promotion → approval-gated |
+
+Follow-on execution order and VCCs: [`knowgrph-agentic-os-follow-on-prd-tad.md`](../knowgrph-agentic-os-follow-on-prd-tad.md) Track C.
 
 ## Market Radar Contract
 

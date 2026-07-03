@@ -69,6 +69,15 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     const durationSeconds = Number(source?.durationSeconds)
     return Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0
   }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
+  const timelinePlanSourceFrameRate = React.useMemo(() => {
+    if (selectedPreviewEmpty) return 0
+    const source = transportSession.previewPlan?.segments.find(segment => Number(segment.source.frameRate) > 0)?.source
+      || transportSession.thumbnailPlan?.segments.find(segment => Number(segment.source.frameRate) > 0)?.source
+      || transportSession.exportPlan?.segments.find(segment => Number(segment.source.frameRate) > 0)?.source
+      || null
+    const frameRate = Number(source?.frameRate)
+    return Number.isFinite(frameRate) && frameRate > 0 ? frameRate : 0
+  }, [selectedPreviewEmpty, transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
   const thumbnailSourceUrl = React.useMemo(() => {
     const source = transportSession.thumbnailPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
       || transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
@@ -160,6 +169,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds),
+    mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate),
     onDropMedia: transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
