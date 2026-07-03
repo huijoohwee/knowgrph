@@ -1074,7 +1074,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportPlaybackModelText.includes('active: args.clockActive !== false && !args.disabled') ||
     !ganttTransportPlaybackModelText.includes('unitsPerMs: args.playbackUnitsPerMs') ||
     !ganttDocumentActionsText.includes('upsertVideoSequenceExportSessionHistory') ||
-    !ganttDocumentActionsText.includes('recentExportSessions') ||
+    !ganttDocumentActionsText.includes('recentExportSessions') || !ganttTransportSurfaceModelText.includes('resolveVideoSequenceTimelineScaleMaxMinutes') || !ganttTransportSurfaceModelText.includes('rulerScaleMaxMinutes') || !ganttTransportSurfaceModelText.includes('scrubMaxMinutes: rulerScaleMaxMinutes') ||
     !ganttDisplayModelText.includes('useGanttTimelineDisplayModel') ||
     !ganttDisplayModelText.includes('formatVideoSequenceTimelineSecondsOffset') ||
     !ganttDisplayModelText.includes('resolveVideoSequenceTimelineMediaSeconds') ||
@@ -1083,18 +1083,18 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttDisplayModelText.includes('displayTicks') ||
     !ganttDisplayModelText.includes('playbackUnitsPerMs') ||
     !ganttInteractionsText.includes('useGanttTimelineInteractions') ||
-    !ganttInteractionsText.includes('rulerScrubState') ||
+    !ganttInteractionsText.includes('rulerScrubState') || !ganttInteractionsText.includes('scrubMaxMinutes?: number') || !ganttInteractionsText.includes('Math.max(args.maxMinutes, args.scrubMaxMinutes || 0)') ||
     !ganttInteractionsText.includes('resolveMermaidGanttBarDragCommitted') ||
     !ganttInteractionsText.includes('resolveMermaidGanttBarDragPreview') ||
     !ganttInteractionsText.includes('resolveMermaidGanttTimelineDragEffectiveDelta') ||
     !ganttInteractionsText.includes('resolveMermaidGanttTimelineDragPreviewSpan') ||
     !ganttInteractionsText.includes('effectiveDeltaMinutes,') ||
-    !ganttInteractionsText.includes('handleRulerPointerScrub') ||
+    !ganttInteractionsText.includes('handleRulerPointerScrub') || !ganttInteractionsText.includes('resolveTimelineRulerScrubElement') || !ganttInteractionsText.includes('[data-kg-gantt-timeline-ruler-content="1"],[data-kg-video-sequence-ruler-axis="1"]') || !ganttInteractionsText.includes('const scrubElement = resolveTimelineRulerScrubElement(event.target, event.currentTarget)') || !ganttInteractionsText.includes('const rect = scrubElement.getBoundingClientRect()') || !ganttInteractionsText.includes('isTimelinePlayheadScrubTarget') || !ganttInteractionsText.includes('[data-kg-gantt-timeline-playhead="1"],[data-kg-video-sequence-ruler-playhead-marker="1"]') ||
     !ganttInteractionsText.includes('handleTrackPointerStart') ||
     !ganttTransportInteractionModelText.includes('useGanttTimelineTransportInteractionModel') ||
     !ganttTransportInteractionModelText.includes('useGanttTimelineInteractions') ||
     !ganttTransportInteractionModelText.includes('useGanttTimelineSelectionSync') ||
-    !ganttTransportInteractionModelText.includes('useGanttTimelineTransportView') ||
+    !ganttTransportInteractionModelText.includes('useGanttTimelineTransportView') || !ganttTransportInteractionModelText.includes('scrubMaxMinutes: args.scrubMaxMinutes') ||
     !ganttTransportInteractionModelText.includes('resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position)') ||
     !ganttTransportInteractionModelText.includes('centerTimelinePlayhead: transportView.centerTimelinePlayhead') ||
     !ganttTransportInteractionModelText.includes('handleRulerPointerScrub: interactions.handleRulerPointerScrub') ||
@@ -1402,12 +1402,11 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   ) {
     throw new Error('expected Media Canvas video playback and BottomPanel Timeline slider to share the neutral Gantt transport state')
   }
-  if (
-    !timelineBottomText.includes('TimelineVideoSequenceEmptyState') ||
-    !timelineBottomText.includes('TimelineVideoSequenceEmptyDropState') ||
-    !timelineBottomText.includes('onDropMedia={rulerModel.onDropMedia}')
-  ) {
-    throw new Error('expected empty BottomPanel Timeline to render the shared video sequence editor shell instead of a blank Mermaid-only panel')
+  if (!timelineBottomText.includes('<GanttTimelineTransportPanel code={ganttCode} compact={compact} />') ||
+    timelineBottomText.includes('TimelineVideoSequenceEmptyState') ||
+    timelineBottomText.includes('TimelineVideoSequenceEmptyDropState') ||
+    timelineBottomText.includes('onDropMedia={rulerModel.onDropMedia}')) {
+    throw new Error('expected empty BottomPanel Timeline to reuse the shared Gantt transport shell instead of a separate empty Timeline UI')
   }
   if (
     !localImportText.includes('materializeVideoSequenceTimelineImportDocument') ||

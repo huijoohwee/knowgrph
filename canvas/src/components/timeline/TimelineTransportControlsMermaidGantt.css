@@ -220,26 +220,24 @@
 }
 
 .timeline-video-sequence-lane-sidebar {
-  border-right: 1px solid var(--kg-border, rgb(203 213 225 / 0.86));
+  border-right: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
   background:
     linear-gradient(180deg, var(--kg-panel-bg, #fff) 0, var(--kg-panel-bg, #fff) 24px, transparent 24px),
-    repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--kg-video-sequence-lane-height, 61px) - 1px), color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent) calc(var(--kg-video-sequence-lane-height, 61px) - 1px), color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent) var(--kg-video-sequence-lane-height, 61px)),
-    color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 72%, var(--kg-panel-bg, #fff));
-  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--kg-border, #e5e7eb) 82%, transparent);
+    color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 62%, var(--kg-panel-bg, #fff));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--kg-border, #e5e7eb) 66%, transparent);
 }
 
 .timeline-video-sequence-lane-label {
-  color: var(--kg-text-secondary, rgb(51 65 85 / 1));
+  justify-content: flex-start;
+  color: color-mix(in srgb, var(--kg-text-secondary, #475569) 86%, transparent);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface {
   background:
     linear-gradient(180deg, var(--kg-panel-bg, #fff) 0, var(--kg-panel-bg, #fff) 24px, transparent 24px),
-    repeating-linear-gradient(90deg, transparent 0, transparent 39px, color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 14%, transparent) 39px, color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 14%, transparent) 40px),
-    repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--kg-video-sequence-lane-height, 61px) - 1px), color-mix(in srgb, var(--kg-border, #e5e7eb) 64%, transparent) calc(var(--kg-video-sequence-lane-height, 61px) - 1px), color-mix(in srgb, var(--kg-border, #e5e7eb) 64%, transparent) var(--kg-video-sequence-lane-height, 61px)),
     linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 78%, var(--kg-panel-bg, #fff)), color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 88%, var(--kg-panel-bg, #fff)));
 }
 

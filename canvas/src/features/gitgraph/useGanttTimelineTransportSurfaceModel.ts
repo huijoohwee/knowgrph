@@ -23,6 +23,7 @@ import {
   resolveVideoSequenceTimelineLane,
   resolveVisibleVideoSequenceTimelineLaneCount,
 } from '@/components/timeline/videoSequenceTimeline'
+import { resolveVideoSequenceTimelineScaleMaxMinutes } from '@/components/timeline/videoSequenceTimelineZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type GanttTimelineTransportSurfaceModel = {
@@ -90,6 +91,11 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     url: mediaPreviewSourceUrl,
   })
   const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds
+  const rulerMediaDurationSeconds = selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds)
+  const rulerScaleMaxMinutes = React.useMemo(() => resolveVideoSequenceTimelineScaleMaxMinutes({
+    maxMinutes: transportSession.maxMinutes,
+    mediaDurationSeconds: rulerMediaDurationSeconds,
+  }), [rulerMediaDurationSeconds, transportSession.maxMinutes])
   const thumbnailSummary = useTimelineMediaReaderSummary({
     active: !!thumbnailSourceUrl,
     url: thumbnailSourceUrl,
@@ -134,6 +140,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     playing: transportSession.playing,
     positionMinutes: transportSession.positionMinutes,
     rulerContentRef,
+    scrubMaxMinutes: rulerScaleMaxMinutes,
     selectedRowKey: transportSession.selectedRowKey,
     setSelectedRowKey: transportSession.setSelectedRowKey,
     setTransportPlaybackPosition: transportSession.setTransportPlaybackPosition,
@@ -168,7 +175,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     dragPreview: transportInteractionModel.dragPreview,
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
-    mediaDurationSeconds: selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds),
+    mediaDurationSeconds: rulerMediaDurationSeconds,
     mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate),
     onDropMedia: transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,

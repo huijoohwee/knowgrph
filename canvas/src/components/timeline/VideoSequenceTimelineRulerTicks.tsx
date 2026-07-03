@@ -20,8 +20,7 @@ function resolveVideoSequenceTickMajor(tick: MermaidGanttTimelineTick): boolean 
   const match = String(tick.label || '').trim().match(/^(\d+):(\d{2})$/)
   if (/^\d+f$/i.test(String(tick.label || '').trim())) return true
   if (!match) return tick.percent <= 0 || tick.percent >= 100
-  const seconds = Math.max(0, Number(match[1]) * 60 + Number(match[2]))
-  return seconds % 10 === 0 || tick.percent <= 0 || tick.percent >= 100
+  return true
 }
 
 export function VideoSequenceTimelineRulerTicks({ displayTicks }: VideoSequenceTimelineRulerTicksProps) {

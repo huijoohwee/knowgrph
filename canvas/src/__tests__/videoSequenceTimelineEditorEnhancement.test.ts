@@ -45,10 +45,17 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'flexBasis: `${timelineContentZoom * 100}%`',
     'data-kg-video-sequence-content-zoom',
     'timeline-video-sequence-editor timeline-video-sequence-grid',
-    'timeline-video-sequence-surface timeline-video-sequence-surface--empty',
     'timeline-video-sequence-ruler-scroll timeline-video-sequence-ruler-surface',
-    'timeline-transport-track-clip timeline-transport-track-clip--lane-video timeline-video-sequence-empty-dropzone',
     'timeline-video-sequence-ruler-scroll-content',
+    'timeline-video-sequence-ruler-viewport',
+    'timeline-video-sequence-ruler-axis',
+    'data-kg-video-sequence-ruler-axis="1"',
+    'data-kg-video-sequence-ruler-body="1"',
+    'data-kg-video-sequence-ruler-playhead="1"',
+    'data-kg-video-sequence-ruler-playhead-marker="1"',
+    'timeline-video-sequence-ruler-playhead-marker',
+    'aria-label="Timeline playhead marker"',
+    'const bodyMinHeight = Math.max(1, minHeight - VIDEO_SEQUENCE_LANE_TOP_OFFSET_PX)',
     'timeline-video-sequence-ruler-append-space',
     'data-kg-video-sequence-append-space="1"',
     'resolveVideoSequenceSourceWindowLabel(thumbnailWindow)',
@@ -56,12 +63,19 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     if (!rulerText.includes(token)) throw new Error(`expected enhanced ruler token: ${token}`)
   }
   for (const token of [
+    'TimelineVideoSequenceEmptyState',
+    'timeline-video-sequence-surface--empty',
+    'timeline-video-sequence-empty-dropzone',
+    '<span className="sr-only">{scope.label}</span>',
+  ]) {
+    if (rulerText.includes(token)) throw new Error(`expected empty Timeline to reuse shared transport instead of stale ruler token: ${token}`)
+  }
+  for (const token of [
     'formatVideoSequenceTimeAxisLabel',
     "padStart(2, '0')",
     'resolveVideoSequenceTickMajor',
     'data-kg-video-sequence-major-tick',
     "/^\\d+f$/i",
-    'seconds % 10 === 0',
     '<time className="timeline-transport-ruler-tick-label"',
     'dateTime={resolveVideoSequenceTickDateTime(tick)}',
     'aria-hidden="true"',
@@ -74,7 +88,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'justify-content: flex-start',
     'font-variant-numeric: tabular-nums',
     '.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-line',
-    'height: 6px',
+    'height: 5px',
     '.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-label',
     '.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-append-space',
     'border-top: 1px dashed',
@@ -83,15 +97,40 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   for (const token of [
     '.timeline-video-sequence-grid',
+    '--kg-video-sequence-lane-sidebar-width: 112px',
+    'grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 112px) minmax(0, 1fr)',
+    'repeat-x 0 24px / 25% calc(100% - 24px)',
     '.timeline-video-sequence-ruler-scroll',
     'overscroll-behavior-x: contain',
     '.timeline-video-sequence-ruler-scroll-content',
+    '.timeline-video-sequence-ruler-viewport',
+    '.timeline-video-sequence-ruler-axis',
     '.timeline-video-sequence-ruler-content',
-    'border-top: 1px solid var(--kg-border',
+    'border-bottom: 1px solid rgb(226 232 240 / 1)',
+    'cursor: ew-resize',
+    'pointer-events: auto',
+    'touch-action: none',
+    'z-index: 7',
+    'z-index: 8',
+    'top: -24px',
+    'top: 50%',
+    'transform: translate(-50%, -50%)',
+    '.timeline-video-sequence-ruler-playhead-marker',
+    'padding-inline: 18px 12px',
+    'border-bottom: 1px solid rgb(203 213 225 / 0.34)',
+    'margin-top: 24px',
     '.timeline-video-sequence-ruler-surface',
-    '.timeline-video-sequence-empty-dropzone .timeline-transport-track-clip-label',
   ]) {
     if (!transportCssText.includes(token)) throw new Error(`expected shared empty/source timeline visual style: ${token}`)
+  }
+  if (transportCssText.includes('.timeline-video-sequence-empty-dropzone')) {
+    throw new Error('expected shared transport CSS to drop the old empty Timeline dropzone styling')
+  }
+  if (mermaidTransportCssText.includes('repeating-linear-gradient(90deg, transparent 0, transparent 39px')) {
+    throw new Error('expected BottomPanel timeline body to avoid dense stacked vertical grid layers')
+  }
+  if (mermaidTransportCssText.includes('repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--kg-video-sequence-lane-height')) {
+    throw new Error('expected BottomPanel timeline lane rail to avoid stacked repeated lane separators')
   }
   for (const token of [
     'VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_TARGET_PER_ZOOM',
@@ -105,6 +144,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MAX_PERCENT',
     'VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM',
     'VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES',
+    'VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES',
     'VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME',
     'VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX',
     'VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX',
@@ -133,15 +173,17 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (resolveVideoSequenceTimelineFrameRate(0) !== 24 || resolveVideoSequenceTimelineFrameRate(240) !== 120) {
     throw new Error('expected max-zoom frame ticks to use a bounded source frame-rate hint')
   }
-  const maxZoomFrameTicks = buildVideoSequenceTimelineZoomTicks({ displayTicks: [], frameRate: 24, maxMinutes: 30, mediaDurationSeconds: 30, timelineZoom: 6 })
-  if (maxZoomFrameTicks.slice(0, 7).map(tick => tick.label).join(',') !== '00:00,2f,4f,6f,8f,10f,12f') {
-    throw new Error(`expected max-zoom BottomPanel source timeline ticks to expose frame-step labels, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 6))}`)
+  const frameTickRate = 30
+  const expectedFrameLabels = ['00:00', ...Array.from({ length: 5 }, (_, index) => `${(index + 1) * 2}f`), '0:01']
+  const maxZoomFrameTicks = buildVideoSequenceTimelineZoomTicks({ displayTicks: [], frameRate: frameTickRate, maxMinutes: 30, mediaDurationSeconds: 30, timelineZoom: 6 })
+  if (maxZoomFrameTicks.filter(tick => tick.label).slice(0, expectedFrameLabels.length).map(tick => tick.label).join(',') !== expectedFrameLabels.join(',')) {
+    throw new Error(`expected max-zoom BottomPanel source timeline labels to use bounded frame anchors, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 80).map(tick => tick.label))}`)
   }
-  if (maxZoomFrameTicks.slice(7, 40).some(tick => tick.label && !/^\d+:\d{2}$/.test(tick.label))) {
-    throw new Error(`expected max-zoom frame labels not to repeat every second, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 40).map(tick => tick.label))}`)
+  if (maxZoomFrameTicks.some(tick => /^1[2-9]f$/i.test(tick.label))) {
+    throw new Error(`expected max-zoom frame ticks to avoid repeated midpoint frame-count labels, got ${JSON.stringify(maxZoomFrameTicks.slice(0, 80).map(tick => tick.label))}`)
   }
-  if (resolveVideoSequenceTimelineContentZoom({ frameRate: 24, mediaDurationSeconds: 30, timelineZoom: 6 }) <= 6) {
-    throw new Error('expected max-zoom frame ruler content to expand beyond the nominal zoom level for readable frame labels')
+  if (resolveVideoSequenceTimelineContentZoom({ frameRate: 30, mediaDurationSeconds: 30, timelineZoom: 6 }) !== 6) {
+    throw new Error('expected bounded max-zoom frame labels to avoid forced content over-expansion')
   }
 
   for (const token of [
@@ -180,12 +222,14 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]',
     'height: var(--kg-timeline-bar-height, 57px)',
     'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-timeline-bar-height, 57px)) / 2)',
-    'border-color: var(--kg-canvas-accent',
+    'border-color: rgb(15 23 42 / 0.34)',
     'inset: 2px 6px',
     'min-width: 18px',
     'filter: saturate(1.04) contrast(1.02)',
-    'background: linear-gradient(90deg, rgb(2 6 23 / 0.64), transparent 28%, transparent)',
-    '0 0 0 2px rgb(37 99 235 / 0.44)',
+    'background: transparent',
+    '0 0 0 1px rgb(37 99 235 / 0.32)',
+    'width: 3px',
+    'height: 18px',
     'linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg',
   ]) {
     if (!denseFbfCssText.includes(token)) throw new Error(`expected edit rail style: ${token}`)
@@ -264,7 +308,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll-content',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-tick:not([data-kg-video-sequence-major-tick="1"]) .timeline-transport-ruler-tick-label',
-    'repeating-linear-gradient(180deg',
+    'color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 62%, var(--kg-panel-bg, #fff))',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',

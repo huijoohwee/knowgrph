@@ -36,8 +36,8 @@
 .timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-line {
   top: 3px;
   bottom: auto;
-  height: 6px;
-  border-left: 1px solid color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 24%, transparent);
+  height: 5px;
+  border-left: 1px solid color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 18%, transparent);
 }
 
 .timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-label {

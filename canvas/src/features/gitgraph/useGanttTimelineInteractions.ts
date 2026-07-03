@@ -26,10 +26,22 @@ type GanttTimelineTransportRulerScrubState = {
   rectWidth: number
 }
 
+function resolveTimelineRulerScrubElement(eventTarget: EventTarget | null, currentTarget: HTMLElement): HTMLElement {
+  const target = eventTarget instanceof HTMLElement ? eventTarget : null
+  const scrubElement = target?.closest('[data-kg-gantt-timeline-ruler-content="1"],[data-kg-video-sequence-ruler-axis="1"]')
+  return scrubElement instanceof HTMLElement ? scrubElement : currentTarget
+}
+
+function isTimelinePlayheadScrubTarget(eventTarget: EventTarget | null): boolean {
+  const target = eventTarget instanceof HTMLElement ? eventTarget : null
+  return Boolean(target?.closest('[data-kg-gantt-timeline-playhead="1"],[data-kg-video-sequence-ruler-playhead-marker="1"]'))
+}
+
 export function useGanttTimelineInteractions(args: {
   markdownDocumentName: string
   markdownText: string
   maxMinutes: number
+  scrubMaxMinutes?: number
   resolveRowKeyAtPosition: (position: number) => string
   selectedRowKey: string
   setSelectedRowKey: (rowKey: string) => void
@@ -54,8 +66,8 @@ export function useGanttTimelineInteractions(args: {
   const resolveRulerScrubMinutes = React.useCallback((clientX: number, state: GanttTimelineTransportRulerScrubState) => {
     if (state.rectWidth <= 0) return 0
     const ratio = clampTimelineTransportValue((clientX - state.rectLeft) / state.rectWidth, 0, 1)
-    return ratio * args.maxMinutes
-  }, [args.maxMinutes])
+    return ratio * Math.max(args.maxMinutes, args.scrubMaxMinutes || 0)
+  }, [args.maxMinutes, args.scrubMaxMinutes])
 
   React.useEffect(() => {
     if (!dragState) return
@@ -137,7 +149,8 @@ export function useGanttTimelineInteractions(args: {
     if (event.button !== 0 || args.maxMinutes <= 0) return
     const target = event.target as HTMLElement | null
     if (target?.closest('button,[data-kg-gantt-timeline-track-span="1"]')) return
-    const rect = event.currentTarget.getBoundingClientRect()
+    const scrubElement = resolveTimelineRulerScrubElement(event.target, event.currentTarget)
+    const rect = scrubElement.getBoundingClientRect()
     if (rect.width <= 0) return
     event.preventDefault()
     event.stopPropagation()
@@ -158,6 +171,7 @@ export function useGanttTimelineInteractions(args: {
     mode: MermaidGanttBarDragMode,
   ) => {
     if (event.button !== 0 || args.maxMinutes <= 0) return
+    if (isTimelinePlayheadScrubTarget(event.target)) return
     const rulerElement = event.currentTarget.closest('[data-kg-gantt-timeline-ruler-content="1"]') as HTMLElement | null
     const rulerWidth = rulerElement?.getBoundingClientRect().width || 0
     if (rulerWidth <= 0) return

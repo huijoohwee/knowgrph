@@ -8,9 +8,10 @@ const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MIN_ZOOM = 2
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_PER_ZOOM_PERCENT = 40
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MAX_PERCENT = 160
 const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM = 6
-const VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES = 2
-const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME = 12
-const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX = 46
+const VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES = 1
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES = 2
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME = 10
+const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX = 12
 const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX = 960
 const VIDEO_SEQUENCE_TIMELINE_DEFAULT_FRAME_RATE = 24
 const VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS = 960
@@ -55,9 +56,7 @@ export function resolveVideoSequenceTimelineFrameRate(value: number): number {
 
 function resolveVideoSequenceTimelineFrameTickStepFrames(totalFrames: number): number {
   const safeTotalFrames = Math.max(0, Math.round(Number.isFinite(totalFrames) ? totalFrames : 0))
-  if (safeTotalFrames <= VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS * VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES) {
-    return VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES
-  }
+  if (safeTotalFrames <= VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS) return VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES
   const rawStep = Math.ceil(safeTotalFrames / VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS)
   return Math.max(VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES, rawStep + (rawStep % 2))
 }
@@ -69,13 +68,15 @@ function shouldUseVideoSequenceFrameTicks(args: {
   return args.timelineZoom >= VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM && args.mediaDurationSeconds > 0
 }
 
-function formatVideoSequenceTimelineFrameLabel(frame: number, frameRate: number, labelMaxFrame = VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME): string {
+function formatVideoSequenceTimelineFrameLabel(frame: number, frameRate: number): string {
   if (frame <= 0) return '00:00'
   const wholeSeconds = Math.floor(frame / frameRate)
   const frameInSecond = frame - wholeSeconds * frameRate
-  if (wholeSeconds > 0 || frameInSecond > labelMaxFrame) return ''
   if (frameInSecond === 0) return formatVideoSequenceTimelineSecondsOffset(wholeSeconds)
-  return `${frameInSecond}f`
+  if (frameInSecond <= VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME && frameInSecond % VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES === 0) {
+    return `${frameInSecond}f`
+  }
+  return ''
 }
 
 function buildVideoSequenceTimelineFrameTicks(args: {
@@ -113,7 +114,7 @@ export function resolveVideoSequenceTimelineContentZoom(args: {
   const mediaDurationSeconds = Number.isFinite(args.mediaDurationSeconds) && args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : 0
   if (!shouldUseVideoSequenceFrameTicks({ mediaDurationSeconds, timelineZoom })) return timelineZoom
   const frameRate = resolveVideoSequenceTimelineFrameRate(args.frameRate || 0)
-  const labelSpacingPercent = (VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES / Math.max(1, Math.round(mediaDurationSeconds * frameRate))) * 100
+  const labelSpacingPercent = (VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES / Math.max(1, Math.round(mediaDurationSeconds * frameRate))) * 100
   if (labelSpacingPercent <= 0) return timelineZoom
   const minimumContentScale = (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX * 100) / (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX * labelSpacingPercent)
   return Math.max(timelineZoom, Math.ceil(minimumContentScale))

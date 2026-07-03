@@ -127,6 +127,8 @@ export const VIDEO_SEQUENCE_TIMELINE_LANES: readonly VideoSequenceTimelineLane[]
   { id: 'audio', label: 'Audio' },
 ] as const
 
+const VIDEO_SEQUENCE_TIMELINE_EMPTY_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['video', 'image', 'scene', 'effect'] as const
+
 export const VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['mask', 'grade'] as const
 
 const VIDEO_SEQUENCE_TIMELINE_SCOPE_DEFS: readonly Pick<VideoSequenceTimelineScope, 'id' | 'label'>[] = [
@@ -360,7 +362,8 @@ export function resolveVisibleVideoSequenceTimelineLanes(
     ? VIDEO_SEQUENCE_TIMELINE_LANES.filter(lane => !disabledLaneIds.has(lane.id))
     : VIDEO_SEQUENCE_TIMELINE_LANES
   const visibleLanes = candidateLanes.filter(lane => activeLaneIds.has(lane.id))
-  return visibleLanes.length ? visibleLanes : candidateLanes
+  if (visibleLanes.length) return visibleLanes
+  return candidateLanes.filter(lane => VIDEO_SEQUENCE_TIMELINE_EMPTY_LANE_IDS.includes(lane.id))
 }
 
 export function resolveVisibleVideoSequenceTimelineDisplayLanes(

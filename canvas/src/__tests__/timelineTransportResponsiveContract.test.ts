@@ -52,7 +52,6 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
     'rgb(0 18 128 / 1)',
     '.timeline-transport-track-clip--lane-mask',
     '.timeline-transport-track-clip--lane-grade',
-    '.timeline-video-sequence-empty-dropzone',
     '--kg-main-toolbar-height: 38px',
     '--kg-timeline-toolbar-button-size: 28px',
     '--kg-timeline-bar-height: calc(var(--kg-main-toolbar-height) * 1.5)',
@@ -65,6 +64,9 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
   }
   if (transportText.includes('style={{ width: 90 }}')) {
     throw new Error('expected timeline transport component to avoid local fixed rate-select width literals')
+  }
+  if (cssText.includes('.timeline-video-sequence-empty-dropzone')) {
+    throw new Error('expected BottomPanel Timeline empty state to reuse the shared transport shell instead of old dropzone CSS')
   }
   const transportUtilsText = readUtf8('src/components/timeline/timelineTransport.ts')
   if (!transportUtilsText.includes('splitTimelineTransportCurrentTotalLabel')) {

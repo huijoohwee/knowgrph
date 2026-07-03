@@ -2,7 +2,7 @@
 
 .timeline-transport-shell--video-sequence {
   display: grid;
-  grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 72px) minmax(0, 1fr);
+  grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 112px) minmax(0, 1fr);
 }
 
 .timeline-transport-shell--video-sequence .timeline-player {
@@ -121,10 +121,7 @@
     inset 0 1px 0 rgb(255 255 255 / 0.36),
     0 0 0 2px rgb(37 99 235 / 0.48),
     0 3px 8px rgb(15 23 42 / var(--kg-motion-shadow-alpha, 0.22));
-  transform: translateX(var(--kg-motion-translate-x, 0px)) scale(var(--kg-motion-scale, 1));
-  transition:
-    box-shadow 140ms ease-out,
-    transform 140ms ease-out;
+  transition: box-shadow 140ms ease-out;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip-move {
@@ -552,7 +549,7 @@
   position: absolute;
   right: 0;
   left: 0;
-  top: calc(24px + (var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px);
+  top: calc((var(--kg-video-sequence-lane-count, 13) * var(--kg-video-sequence-lane-height, 61px)) + 2px);
   z-index: 1;
   display: grid;
   height: 24px;

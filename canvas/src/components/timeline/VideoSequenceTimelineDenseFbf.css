@@ -53,19 +53,18 @@
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
   height: var(--kg-timeline-bar-height, 57px);
   overflow: hidden;
-  border-radius: 6px;
-  box-shadow: var(--kg-compact-source-track-shadow, inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 -10px 20px rgb(15 23 42 / 0.18), 0 1px 2px rgb(76 82 183 / 0.16));
+  border-radius: 4px;
+  box-shadow: var(--kg-compact-source-track-shadow, inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1px 1px rgb(15 23 42 / 0.12));
   translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-timeline-bar-height, 57px)) / 2);
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
   overflow: hidden;
-  border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1));
-  background: linear-gradient(180deg, rgb(15 23 42 / 0.16), transparent 46%), rgb(3 7 18 / 0.78);
+  border-color: rgb(15 23 42 / 0.34);
+  background: rgb(3 7 18 / 0.66);
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.2),
-    inset 0 -12px 20px rgb(2 6 23 / 0.22),
-    0 1px 2px rgb(15 23 42 / 0.18);
+    inset 0 0 0 1px rgb(255 255 255 / 0.12),
+    0 1px 1px rgb(15 23 42 / 0.14);
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-fbf[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
@@ -82,9 +81,9 @@
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]:focus-within:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
   border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1));
   box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.36),
-    0 0 0 2px rgb(37 99 235 / 0.44),
-    0 4px 10px rgb(15 23 42 / 0.18);
+    inset 0 0 0 1px rgb(255 255 255 / 0.2),
+    0 0 0 1px rgb(37 99 235 / 0.32),
+    0 2px 5px rgb(15 23 42 / 0.14);
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"]::before,
@@ -101,7 +100,7 @@
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"] .timeline-transport-track-clip-move {
   inset: 0;
   padding: 4px 10px 0;
-  background: linear-gradient(90deg, rgb(2 6 23 / 0.64), transparent 28%, transparent);
+  background: transparent;
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-fbf[data-kg-compact-source-media="1"] .timeline-transport-track-clip-move {
@@ -237,7 +236,7 @@
   overflow: hidden;
   border-radius: 0;
   background: rgb(15 23 42 / 1);
-  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.16);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.08);
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-thumbnail img {
@@ -288,14 +287,14 @@
 }
 
 .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle-grip {
-  width: 4px;
-  height: 20px;
-  border-color: color-mix(in srgb, var(--kg-panel-bg, #fff) 88%, transparent);
+  width: 3px;
+  height: 18px;
+  border-color: color-mix(in srgb, var(--kg-panel-bg, #fff) 72%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg, #fff) 76%, var(--kg-canvas-accent, #2563eb) 24%), var(--kg-canvas-accent, rgb(37 99 235 / 1)));
+    linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg, #fff) 70%, var(--kg-canvas-accent, #2563eb) 30%), color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 82%, transparent));
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 36%, transparent),
-    0 1px 3px rgb(15 23 42 / 0.18);
+    0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 24%, transparent),
+    0 1px 2px rgb(15 23 42 / 0.14);
 }
 
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-thumbnail:hover .timeline-video-sequence-clip-thumbnail-preview,

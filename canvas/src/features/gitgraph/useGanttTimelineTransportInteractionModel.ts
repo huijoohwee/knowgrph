@@ -34,6 +34,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
   playing: boolean
   positionMinutes: number
   rulerContentRef: React.RefObject<HTMLElement | null>
+  scrubMaxMinutes?: number
   selectedRowKey: string
   setSelectedRowKey: (rowKey: string) => void
   setTransportPlaybackPosition: (position: number) => void
@@ -48,6 +49,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
     markdownDocumentName: args.markdownDocumentName,
     markdownText: args.markdownText,
     maxMinutes: args.maxMinutes,
+    scrubMaxMinutes: args.scrubMaxMinutes,
     resolveRowKeyAtPosition: position => resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position),
     selectedRowKey: args.selectedRowKey,
     setSelectedRowKey: args.setSelectedRowKey,
