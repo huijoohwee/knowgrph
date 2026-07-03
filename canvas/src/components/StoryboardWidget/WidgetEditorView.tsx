@@ -3,7 +3,6 @@ import React from 'react'
 import { WidgetEditorActionsToolbar, type WidgetEditorActionsToolbarProps } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { WidgetEditorPanel } from '@/components/StoryboardWidget/WidgetEditorPanel'
 import { FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
-import { UI_LABELS } from '@/lib/config'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
@@ -16,6 +15,8 @@ import { runKnowgrphMotion } from '@/lib/motion/knowgrphMotion'
 
 import {
   resolveStoryboardWidgetSurfacePointerPolicy,
+  resolveWidgetEditorSurfaceLabel,
+  type WidgetEditorSurfaceKind,
   WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
   WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX,
 } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
@@ -28,6 +29,7 @@ type RichMediaPanelToolbarProps = Pick<
 export function WidgetEditorView(args: {
   asideRef: React.RefObject<HTMLElement | null>
   storyboardWidgetSurfaceId?: string
+  editorSurfaceKind?: WidgetEditorSurfaceKind
   node: GraphNode
   pinnedInCanvas: boolean
   overlayZIndex: number
@@ -91,6 +93,7 @@ export function WidgetEditorView(args: {
   const {
     asideRef,
     storyboardWidgetSurfaceId,
+    editorSurfaceKind,
     node,
     pinnedInCanvas,
     overlayZIndex,
@@ -154,8 +157,7 @@ export function WidgetEditorView(args: {
   const pointerPolicy = resolveStoryboardWidgetSurfacePointerPolicy()
   const safeToolbarInlineShiftPx = Number.isFinite(toolbarInlineShiftPx) ? toolbarInlineShiftPx : 0
   const safeToolbarMaxWidthPx = Number.isFinite(toolbarMaxWidthPx) && toolbarMaxWidthPx > 0 ? toolbarMaxWidthPx : undefined
-  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
-  const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget
+  const editorSurfaceLabel = resolveWidgetEditorSurfaceLabel(editorSurfaceKind)
   const toolbarMotionRef = React.useRef<HTMLElement | null>(null)
 
   React.useEffect(() => {
@@ -213,7 +215,7 @@ export function WidgetEditorView(args: {
   return (
     <aside
       ref={asideRef}
-      aria-label={editorPanelLabel}
+      aria-label={editorSurfaceLabel}
       data-kg-widget={String(node.id || '')}
       data-kg-storyboard-widget-mode="1"
       data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId || undefined}
@@ -251,6 +253,7 @@ export function WidgetEditorView(args: {
         >
           <WidgetEditorActionsToolbar
             visible={toolbarVisible}
+            ariaLabel={editorSurfaceLabel}
             maxWidthPx={safeToolbarMaxWidthPx}
             iconSizeClass={getIconSizeClass(uiIconScale)}
             iconStrokeWidth={uiIconStrokeWidth}
@@ -282,6 +285,7 @@ export function WidgetEditorView(args: {
           <WidgetEditorPanel
             active={active}
             storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
+            editorSurfaceKind={editorSurfaceKind}
             node={node}
             graphMetaKind={graphMetaKind}
             minimized={minimized}

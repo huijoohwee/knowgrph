@@ -3,7 +3,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { UploadedMediaCard, UploadedMediaRow } from '@/features/command-menu/mediaCatalogUploadedItems'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
-import { clearMediaPointerDragPayload, MEDIA_POINTER_DRAG_DROP_EVENT, readMediaPointerDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { clearMediaPointerDragPayload, finishMediaPointerDragPayloadForEvent, MEDIA_POINTER_DRAG_DROP_EVENT, readMediaPointerDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 function createUploadedImageItem(): UploadedMediaPanelItem {
@@ -134,6 +134,39 @@ async function assertUploadedMediaSurfaceStartsPointerDrag(surface: 'card' | 'ro
     if (dropDetail.clientX !== 125 || dropDetail.clientY !== 135) {
       throw new Error(`expected uploaded media ${surface} drop detail to preserve last drag coordinates, got ${JSON.stringify(dropDetail)}`)
     }
+    dropDetail = null
+    await act(async () => {
+      thumbnailImage.dispatchEvent(new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        button: 0,
+        buttons: 1,
+        cancelable: true,
+        clientX: 35,
+        clientY: 45,
+      }))
+    })
+    dom.window.addEventListener(MEDIA_POINTER_DRAG_DROP_EVENT, event => {
+      dropDetail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
+    }, { once: true })
+    await act(async () => {
+      thumbnailImage.dispatchEvent(new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        button: 0,
+        buttons: 1,
+        cancelable: true,
+        clientX: 315,
+        clientY: 345,
+      }))
+      finishMediaPointerDragPayloadForEvent({
+        type: 'dragend',
+        clientX: 0,
+        clientY: 0,
+      })
+    })
+    if (!dropDetail) throw new Error(`expected uploaded media ${surface} native dragend to emit shared media drop detail`)
+    if (dropDetail.clientX !== 315 || dropDetail.clientY !== 345) {
+      throw new Error(`expected uploaded media ${surface} native dragend zero placeholder to resolve to tracked drop point, got ${JSON.stringify(dropDetail)}`)
+    }
   } finally {
     clearMediaPointerDragPayload()
     try {
@@ -161,13 +194,14 @@ export async function testUploadedMediaRowStartsSharedPointerDragPayload() {
     "window.removeEventListener('dragend', handleRelease, true)",
     "window.removeEventListener('dragover', rememberNativeDrag, true)",
     'export function finishMediaPointerDragPayloadAt(clientX: number, clientY: number): void',
+    'export function finishMediaPointerDragPayloadForEvent(event:',
   ]) {
     if (!mediaDragPayloadSource.includes(snippet)) {
       throw new Error(`expected shared media drag payload to bridge native dragend releases: ${snippet}`)
     }
   }
-  if (!mediaCatalogSharedSource.includes('finishMediaPointerDragPayloadAt(event.clientX, event.clientY)')) {
-    throw new Error('expected shared media catalog drag helper to finalize native dragend as a media drop')
+  if (!mediaCatalogSharedSource.includes('finishMediaPointerDragPayloadForEvent(event.nativeEvent)')) {
+    throw new Error('expected shared media catalog drag helper to finalize native dragend through the tracked release-point resolver')
   }
   if (!mediaCatalogUploadedItemsSource.includes('onDragEnd={finishMediaDrag}')) {
     throw new Error('expected uploaded media thumbnail image/control to finalize native dragend')

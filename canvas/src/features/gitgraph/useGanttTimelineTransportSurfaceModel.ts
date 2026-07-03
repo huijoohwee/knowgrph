@@ -19,7 +19,7 @@ import type { GanttTimelineTransportChromeModel } from './useGanttTimelineTransp
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
 import {
   VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
-  isVideoAgentCompactMediaSpan,
+  isCompactSourceMediaSpan,
   resolveVideoSequenceTimelineLane,
   resolveVisibleVideoSequenceTimelineLaneCount,
 } from '@/components/timeline/videoSequenceTimeline'
@@ -44,9 +44,9 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     code: args.code,
     disabledLaneIds,
   })
-  const compactVideoAgentTimeline = React.useMemo(() => (
+  const compactSourceTimeline = React.useMemo(() => (
     transportSession.timelineModel.taskSpans.length > 0
-    && transportSession.timelineModel.taskSpans.every(span => isVideoAgentCompactMediaSpan(span, resolveVideoSequenceTimelineLane(span)))
+    && transportSession.timelineModel.taskSpans.every(span => isCompactSourceMediaSpan(span, resolveVideoSequenceTimelineLane(span)))
   ), [transportSession.timelineModel.taskSpans])
   const rulerVisibleLaneCount = React.useMemo(() => (
     resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })
@@ -171,7 +171,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
     playheadPercent: transportInteractionModel.playheadPercent,
     positionMinutes: transportSession.positionMinutes,
-    scopes: compactVideoAgentTimeline ? [] : transportSession.monitorScopes,
+    scopes: compactSourceTimeline ? [] : transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
     sourceThumbnails: thumbnailSummary.thumbnails,
     sourceThumbnailWindows,

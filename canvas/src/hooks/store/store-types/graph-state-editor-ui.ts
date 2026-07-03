@@ -15,7 +15,7 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
-import type { CanvasStoryboardDisplayMode } from '@/lib/canvas/canvasStoryboardDisplayControls'
+import type { CanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -53,7 +53,7 @@ import type {
 
 export type StoryboardCardAspectMode = CanvasAspectRatioMode
 export type StoryboardBoardLayoutMode = CanvasBoardLayoutMode
-export type StoryboardDisplayMode = CanvasStoryboardDisplayMode
+export type StoryboardDisplayMode = CanvasCardWidgetDisplayMode
 
 export interface GraphStateEditorUi {
   codeHighlightDurationMs: number;

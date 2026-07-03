@@ -4,7 +4,7 @@ import { useRichMediaWidgetPreview } from '@/components/StoryboardWidget/useRich
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
-import { RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY } from '@/components/StoryboardWidget/richMediaOverlayToolbarProps'
+import { RICH_MEDIA_OVERLAY_ACTION_VISIBILITY } from '@/components/StoryboardWidget/richMediaOverlayToolbarProps'
 
 export function useWidgetRichMediaToolbar(args: {
   node: GraphNode
@@ -33,7 +33,7 @@ export function useWidgetRichMediaToolbar(args: {
   const richMediaPanelToolbarProps = React.useMemo(() => {
     if (!isRichMediaPanelWidget) return {}
     return {
-      actionVisibility: RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY,
+      actionVisibility: RICH_MEDIA_OVERLAY_ACTION_VISIBILITY,
       richMediaViewToggle: {
         visible: true,
         isKtvRows: hideFields,

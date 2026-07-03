@@ -12,6 +12,7 @@ import {
   MediaCandidatePreview,
   MediaCandidateThumb,
   MediaListThumbnailIconFrame,
+  finishMediaDrag,
   getCommandMenuMediaDescription,
   getCommandMenuMediaSourceLabel,
   isMediaRowControlTarget,
@@ -45,6 +46,7 @@ export function MediaCandidateRow({
       draggable={true}
       className={mediaListItemClassName()}
       onDragStart={event => onDragStart(event, item)}
+      onDragEnd={finishMediaDrag}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()
@@ -113,6 +115,7 @@ export function MediaCandidateCard({
       draggable={true}
       className={mediaCardClassName()}
       onDragStart={event => onDragStart(event, item)}
+      onDragEnd={finishMediaDrag}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()

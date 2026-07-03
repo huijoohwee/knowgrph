@@ -433,6 +433,7 @@ export function useStoryboardWidgetDropBridge(args: {
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt || (!hasFlowWidgetDragType(dt) && !hasMediaDragPayload(dt))) return
+      if (hasMediaDragPayload(dt) && !args.widgetDropBridgeOnly) return
       const rect = readDropRect()
       if (!rect) return
       const x = ev.clientX
@@ -449,6 +450,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const dt = ev.dataTransfer
       if (!dt) return
       if (hasMediaDragPayload(dt)) {
+        if (!args.widgetDropBridgeOnly) return
         const rect = readDropRect()
         if (!rect) return
         if (!appendMediaPanelFromDrop(ev, rect)) return
@@ -500,6 +502,7 @@ export function useStoryboardWidgetDropBridge(args: {
       }
     }
     const onMediaPointerDragDropCapture = (event: Event) => {
+      if (!args.widgetDropBridgeOnly) return
       const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
       if (!detail?.payload || !isMediaPointerDropDistanceAccepted(detail)) return
       if (isMediaPointerDragDropClaimed(detail)) return

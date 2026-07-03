@@ -35,11 +35,52 @@ import {
   updateMermaidGanttVideoSequenceClipTiming,
   updateMermaidGanttVideoSequenceClipGroupTiming,
 } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import {
+  normalizeVideoSequenceClipEditDeltaMinutes,
+  resolveVideoSequenceClipEditStepMinutes,
+} from '@/components/timeline/videoSequenceClipEdit'
 
 const root = process.cwd()
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(root, 'src', ...parts), 'utf8')
+}
+
+export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming() {
+  const code = [
+    'gantt',
+    '  title Video Sequence Timeline',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Source video',
+    '  Source video : clip_source, kgsrc_0_0_252, kgpos_0, 0.252m',
+  ].join('\n')
+  const span = buildMermaidGanttTimelineModel(code).taskSpans[0]
+  const editStep = resolveVideoSequenceClipEditStepMinutes(span)
+  const nudgeDelta = normalizeVideoSequenceClipEditDeltaMinutes(editStep, editStep)
+  const nudged = updateMermaidGanttVideoSequenceClipTiming({
+    code,
+    deltaMinutes: nudgeDelta,
+    mode: 'move',
+    rowLineIndex: 5,
+    syncMode: 'selected',
+  })
+  const trimmed = updateMermaidGanttVideoSequenceClipTiming({
+    code,
+    deltaMinutes: -nudgeDelta,
+    mode: 'resize-end',
+    rowLineIndex: 5,
+    syncMode: 'selected',
+  })
+  if (
+    editStep !== 1 / 60 ||
+    !nudged?.includes('kgpos_0_017') ||
+    !nudged.includes('0.252m') ||
+    !trimmed?.includes('0.235m') ||
+    trimmed.includes('1m')
+  ) {
+    throw new Error(`expected source clip edit tools to preserve fractional timing: ${JSON.stringify({ editStep, nudgeDelta, nudged, trimmed })}`)
+  }
 }
 
 export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {

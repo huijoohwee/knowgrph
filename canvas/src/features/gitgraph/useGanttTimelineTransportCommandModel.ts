@@ -5,6 +5,7 @@ import type { VideoSequenceExportPlan } from '@/components/timeline/videoSequenc
 export type GanttTimelineTransportCommandModel = {
   chromeModelCommands: Pick<
     ReturnType<typeof useGanttTimelineDocumentActions>,
+    | 'autoSnappingEnabled'
     | 'cancelEditedMediaExport'
     | 'exportSessionCollection'
     | 'exportingKind'
@@ -15,6 +16,7 @@ export type GanttTimelineTransportCommandModel = {
     | 'handleVideoSequenceClipEdit'
     | 'handleVideoSequenceTool'
     | 'latestRetryableExportSession'
+    | 'rippleEditingEnabled'
     | 'timingSyncMode'
   >
   handleCommittedDragUpdate: ReturnType<typeof useGanttTimelineDocumentActions>['handleCommittedDragUpdate']
@@ -47,6 +49,7 @@ export function useGanttTimelineTransportCommandModel(args: {
   return {
     chromeModelCommands: {
       cancelEditedMediaExport: documentActions.cancelEditedMediaExport,
+      autoSnappingEnabled: documentActions.autoSnappingEnabled,
       exportSessionCollection: documentActions.exportSessionCollection,
       exportingKind: documentActions.exportingKind,
       handleDownloadEditedMedia: documentActions.handleDownloadEditedMedia,
@@ -56,6 +59,7 @@ export function useGanttTimelineTransportCommandModel(args: {
       handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit,
       handleVideoSequenceTool: documentActions.handleVideoSequenceTool,
       latestRetryableExportSession: documentActions.latestRetryableExportSession,
+      rippleEditingEnabled: documentActions.rippleEditingEnabled,
       timingSyncMode: documentActions.timingSyncMode,
     },
     handleCommittedDragUpdate: documentActions.handleCommittedDragUpdate,

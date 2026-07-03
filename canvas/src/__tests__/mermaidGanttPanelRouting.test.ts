@@ -49,6 +49,24 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 const root = () => resolve(process.cwd(), 'src')
 const readSource = (...parts: string[]) => readFileSync(resolve(root(), ...parts), 'utf8')
 
+export function testTimelineBarClickRequiresDragIntentBeforePreview() {
+  const interactionsText = readSource('features', 'gitgraph', 'useGanttTimelineInteractions.ts')
+  const dragCommitGuardIndex = interactionsText.indexOf('if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return')
+  const dragPreviewUpdateIndex = interactionsText.indexOf('setDragPreview(nextPreview)')
+  const trackPointerStartIndex = interactionsText.indexOf('const handleTrackPointerStart')
+  const trackPointerStartEndIndex = interactionsText.indexOf('return {', trackPointerStartIndex)
+  const trackPointerStartText = interactionsText.slice(trackPointerStartIndex, trackPointerStartEndIndex)
+  if (
+    dragCommitGuardIndex < 0 ||
+    dragPreviewUpdateIndex < 0 ||
+    dragCommitGuardIndex > dragPreviewUpdateIndex ||
+    trackPointerStartText.includes('setDragPreview(') ||
+    trackPointerStartText.includes('setTransportPlaybackPosition(span.startMinutes)')
+  ) {
+    throw new Error('expected Timeline bar clicks to select without seeking or entering visual drag preview before drag intent')
+  }
+}
+
 export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter() {
   const markdown = [
     '---',
@@ -1386,7 +1404,8 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   }
   if (
     !timelineBottomText.includes('TimelineVideoSequenceEmptyState') ||
-    !timelineBottomText.includes('<TimelineVideoSequenceEmptyState compact={compact} />')
+    !timelineBottomText.includes('TimelineVideoSequenceEmptyDropState') ||
+    !timelineBottomText.includes('onDropMedia={rulerModel.onDropMedia}')
   ) {
     throw new Error('expected empty BottomPanel Timeline to render the shared video sequence editor shell instead of a blank Mermaid-only panel')
   }

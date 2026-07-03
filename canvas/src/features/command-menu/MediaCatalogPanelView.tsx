@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import { buildTimelineAnimationState } from '@/components/timeline/timelineAnimationEngine'
 import type { MediaCatalogLayout, MediaCatalogSourceMetadataItem, MediaPanelActionSpec, UploadedMediaDescriptionDrafts, UploadedMediaFieldDrafts } from './mediaCatalogTypes'
-import { getMediaNameSyncKey } from './mediaCatalogShared'
+import { getMediaNameSyncKey, type UploadedMediaDragMetadata } from './mediaCatalogShared'
 import { MediaActionCard, MediaActionRow, MediaCandidateCard, MediaCandidateRow, MediaSourceMetadataCard, MediaSourceMetadataRow } from './mediaCatalogCandidateItems'
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
@@ -42,7 +42,7 @@ type MediaCatalogPanelViewProps = {
   onDeleteUploadedMedia: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
   onDragCommandMenuMedia: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
-  onDragUploadedMedia: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
+  onDragUploadedMedia: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem, metadata?: UploadedMediaDragMetadata) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onGeneratePromptChange: (nextPrompt: string) => void
   onGeneratePromptSubmit: (nextPrompt: string, parameters?: MediaLightboxPromptParameters) => void | Promise<void>

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import {
   MediaThumbnailCaption,
   UploadedMediaPreview,
+  type UploadedMediaDragMetadata,
   buildUploadedMediaDragPayload,
   continueMediaMouseDrag,
   continueMediaPointerDrag,
@@ -65,7 +66,7 @@ export function UploadedMediaRow({
   infoLabel: string
   onDelete: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
-  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem, metadata?: UploadedMediaDragMetadata) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
@@ -80,6 +81,7 @@ export function UploadedMediaRow({
     kind: item.kind,
     url: item.linkUrl,
   })
+  const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)
   const commitName = (value: string) => {
     const nextName = String(value || '').trim()
     if (!nextName) {
@@ -96,7 +98,8 @@ export function UploadedMediaRow({
       tabIndex={0}
       draggable={true}
       className={mediaListItemClassName()}
-      onDragStart={event => onDragStart(event, item)}
+      onDragStart={event => onDragStart(event, item, generatedThumbnail)}
+      onDragEnd={finishMediaDrag}
       data-kg-media-upload-item={item.id}
       data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}
@@ -104,19 +107,19 @@ export function UploadedMediaRow({
       data-kg-media-list-row-layout="3-rows"
       onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
-        startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+        startMediaPointerDrag(event, buildDragPayload())
       }}
       onPointerMove={event => {
         if (isMediaRowControlTarget(event.target)) return
-        continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+        continueMediaPointerDrag(event, buildDragPayload())
       }}
       onMouseDown={event => {
         if (isMediaRowControlTarget(event.target)) return
-        startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+        startMediaMouseDrag(event, buildDragPayload())
       }}
       onMouseMove={event => {
         if (isMediaRowControlTarget(event.target)) return
-        continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+        continueMediaMouseDrag(event, buildDragPayload())
       }}
       onClick={event => {
         if (isMediaRowControlTarget(event.target)) return
@@ -137,11 +140,11 @@ export function UploadedMediaRow({
         data-kg-media-thumbnail-fullscreen={item.id}
         data-kg-media-draggable="1"
         data-kg-media-row-control="1"
-        onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
-        onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
-        onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
-        onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
-        onDragStart={event => onDragStart(event, item)}
+        onPointerDown={event => startMediaPointerDrag(event, buildDragPayload())}
+        onPointerMove={event => continueMediaPointerDrag(event, buildDragPayload())}
+        onMouseDown={event => startMediaMouseDrag(event, buildDragPayload())}
+        onMouseMove={event => continueMediaMouseDrag(event, buildDragPayload())}
+        onDragStart={event => onDragStart(event, item, generatedThumbnail)}
         onDragEnd={finishMediaDrag}
         onClick={event => {
           event.stopPropagation()
@@ -166,11 +169,11 @@ export function UploadedMediaRow({
               decoding="async"
               {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS}
               draggable={true}
-              onPointerDown={event => startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
-              onPointerMove={event => continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))}
-              onMouseDown={event => startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
-              onMouseMove={event => continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))}
-              onDragStart={event => onDragStart(event, item)}
+              onPointerDown={event => startMediaPointerDrag(event, buildDragPayload())}
+              onPointerMove={event => continueMediaPointerDrag(event, buildDragPayload())}
+              onMouseDown={event => startMediaMouseDrag(event, buildDragPayload())}
+              onMouseMove={event => continueMediaMouseDrag(event, buildDragPayload())}
+              onDragStart={event => onDragStart(event, item, generatedThumbnail)}
               onDragEnd={finishMediaDrag}
             />
             <MediaThumbnailCaption format={generatedThumbnail.format} rasterFormat={generatedThumbnail.rasterFormat} timestampSeconds={generatedThumbnail.timestampSeconds} />
@@ -292,7 +295,7 @@ export function UploadedMediaCard({
   infoLabel: string
   onDelete: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
-  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => void
+  onDragStart: (event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem, metadata?: UploadedMediaDragMetadata) => void
   onFieldChange: (item: UploadedMediaPanelItem, nextFieldText: string) => void
   onNameChange: (item: UploadedMediaPanelItem, nextName: string) => void
   onRename: (item: UploadedMediaPanelItem, nextName: string) => void
@@ -317,6 +320,7 @@ export function UploadedMediaCard({
       draggable={true}
       className={mediaCardClassName()}
       onDragStart={event => onDragStart(event, item)}
+      onDragEnd={finishMediaDrag}
       data-kg-media-upload-item={item.id}
       data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}

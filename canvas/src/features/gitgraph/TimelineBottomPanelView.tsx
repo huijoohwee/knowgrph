@@ -4,9 +4,28 @@ import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timelin
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
+import { useGanttTimelineTransportRouteModel } from './useGanttTimelineTransportRouteModel'
 import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 import { useMermaidTimelineDocument } from './useMermaidTimelineDocument'
+
+function TimelineVideoSequenceEmptyDropState({
+  code,
+  compact,
+}: {
+  code: string
+  compact: boolean
+}) {
+  const transportRouteModel = useGanttTimelineTransportRouteModel({ code, compact })
+  const rulerModel = transportRouteModel.surfaceModel.rulerModel.ruler
+  return (
+    <TimelineVideoSequenceEmptyState
+      compact={compact}
+      maxMinutes={Math.max(1, rulerModel.maxMinutes)}
+      onDropMedia={rulerModel.onDropMedia}
+    />
+  )
+}
 
 export function TimelineBottomPanelView({
   compact = false,
@@ -26,7 +45,7 @@ export function TimelineBottomPanelView({
     return <GanttTimelineTransportPanel code={ganttCode} compact={compact} />
   }
   if (!timelineCode) {
-    return <TimelineVideoSequenceEmptyState compact={compact} />
+    return <TimelineVideoSequenceEmptyDropState code={ganttCode} compact={compact} />
   }
   return (
     <MermaidDiagramPanelView

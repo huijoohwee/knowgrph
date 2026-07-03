@@ -33,6 +33,7 @@ import {
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import {
   getCachedStoryboardWidgetRenderGraph,
   getCachedStoryboardWidgetPlacementContext,
@@ -44,7 +45,6 @@ import {
   resolveOverlayOnlyActive,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceVisibility'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
-
 // #region debug-point A:overlay-surface-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopOverlaySurfaceDebug = (args: {
@@ -110,7 +110,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
   storyboardWidgetSurfaceId: string
   canEdit: boolean
   storyboardWidgetViewActive: boolean
-  storyboardWidgetFrontmatterGraphAvailable: boolean
+  storyboardWidgetFrontmatterGraphAvailable: boolean; editorSurfaceKind?: 'card' | 'widget'
   geospatialWidgetPanelMode?: boolean
   renderGraphDataOverride: GraphData | null
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
@@ -157,7 +157,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
     storyboardWidgetSurfaceId,
     canEdit,
     storyboardWidgetViewActive,
-    storyboardWidgetFrontmatterGraphAvailable,
+    storyboardWidgetFrontmatterGraphAvailable, editorSurfaceKind,
     geospatialWidgetPanelMode,
     renderGraphDataOverride: rawRenderGraphDataOverride,
     draftGraphDataRef,
@@ -719,9 +719,9 @@ export function useStoryboardWidgetOverlaySurface(args: {
       draftGraphDataRef,
       pendingOverlayNodeIdRef,
       pendingOverlayNode,
-      overlayEditorNodeIds,
+      overlayEditorNodeIds: editorSurfaceKind === 'card' ? overlayEditorNodeIds.filter(id => { const node = renderGraphNodeById.get(id); return !!node && !isStoryboardFixedCardOwnedNode(node) }) : overlayEditorNodeIds,
       connectedValuesByNodeId,
-      storyboardWidgetSurfaceId,
+      storyboardWidgetSurfaceId, editorSurfaceKind,
       renderGraphSemanticKey,
       canEdit,
       widgetRegistry,
@@ -763,7 +763,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
     convertNodeToLoopById,
     duplicateNodeById,
     draftGraphDataRef,
-    enableHandlesForAllInputs,
+    enableHandlesForAllInputs, editorSurfaceKind,
     finalizePendingEdge,
     storyboardWidgetSurfaceId,
     flowWidgetPinnedByNodeId,

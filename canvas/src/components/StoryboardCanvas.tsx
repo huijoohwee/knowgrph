@@ -63,7 +63,7 @@ import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardRefere
 import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
-import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, resolveMediaDragEventReleaseClientPoint, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
+import { MEDIA_POINTER_DRAG_DROP_EVENT, claimMediaPointerDragDrop, clearMediaPointerDragPayload, hasMediaDragPayload, isMediaDropClaimedByNestedTarget, isMediaPointerDragDropClaimed, readMediaDragPayload, readMediaPointerDragPayload, resolveMediaDragEventReleaseClientPoint, type MediaDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { useKanbanDragAndDrop } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
@@ -1756,7 +1756,7 @@ export default function StoryboardCanvas({
     if (typeof window === 'undefined') return
     const isCanvasMediaRelease = (clientX: number, clientY: number): boolean => {
       const canvasElement = boardScrollRef.current
-      if (!Number.isFinite(clientX) || !Number.isFinite(clientY) || !canvasElement) return false
+      if (!Number.isFinite(clientX) || !Number.isFinite(clientY) || !canvasElement || isMediaDropClaimedByNestedTarget(clientX, clientY)) return false
       const canvasRect = canvasElement.getBoundingClientRect()
       if (
         clientX < canvasRect.left ||

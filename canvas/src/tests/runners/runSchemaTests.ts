@@ -8,7 +8,7 @@ const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy
 const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
-const modCanvasViewStoryboardDisplayControls = () => import('@/__tests__/canvasViewStoryboardDisplayControls.test')
+const modCanvasViewCardWidgetDisplayControls = () => import('@/__tests__/canvasViewCardWidgetDisplayControls.test')
 const modXrAssetConversion = () => import('@/__tests__/xrAssetConversionHarness.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
 const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
@@ -203,9 +203,9 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasViewDisplayControls()
     await mod.testStoryboardMinimapDisplayControlIsDisabled()
   })
-  await execTest(results, 'canvas.viewSelection.storyboardCardWidgetDisplayControls', async () => {
-    const mod = await modCanvasViewStoryboardDisplayControls()
-    await mod.testStoryboardCardWidgetDisplayControlsUseSingleStoryboardRenderer()
+  await execTest(results, 'canvas.viewSelection.cardWidgetDisplayControls', async () => {
+    const mod = await modCanvasViewCardWidgetDisplayControls()
+    await mod.testCardWidgetDisplayControlsAreRendererNeutral()
   })
   await execTest(results, 'canvas.viewSelection.rendererActivates2dSurface', async () => {
     const mod = await modCanvas3dMode()

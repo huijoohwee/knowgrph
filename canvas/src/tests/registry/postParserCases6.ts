@@ -19,4 +19,5 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["strybldr.markdown.workspaceParserSkipsEmptyMarkerOnlyFrontmatterFlow","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrWorkspaceParserSkipsEmptyMarkerOnlyFrontmatterFlow"],
   ["strybldr.runAll.videoSourceWritesVideoAgentAnalysisPacket","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrRunAllVideoSourceWritesVideoAgentAnalysisPacket"],
   ["strybldr.runAll.videoSourceUsesWorkspaceImportUrlBridge","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrRunAllVideoSourceUsesWorkspaceImportUrlBridge"],
+  ["strybldr.runAll.videoSourceFallsBackToLaunchImportUrl","@/__tests__/strybldrWorkspaceParserFallback.test","testStrybldrRunAllVideoSourceFallsBackToLaunchImportUrl"],
 ]

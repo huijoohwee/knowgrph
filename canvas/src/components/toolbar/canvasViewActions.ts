@@ -19,11 +19,11 @@ import {
   toggleCanvasBoardLayoutMode,
 } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import {
-  CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
-  CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
-  readCanvasStoryboardDisplayMode,
-  type CanvasStoryboardDisplayMode,
-} from '@/lib/canvas/canvasStoryboardDisplayControls'
+  CANVAS_CARD_DISPLAY_CONTROL_ID,
+  CANVAS_WIDGET_DISPLAY_CONTROL_ID,
+  readCanvasCardWidgetDisplayMode,
+  type CanvasCardWidgetDisplayMode,
+} from '@/lib/canvas/canvasCardWidgetDisplayControls'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import {
   isFrontmatterOnlyCanvas2dRenderer,
@@ -65,8 +65,8 @@ type CanvasViewActionParams = {
   setAspectRatioMode?: (mode: CanvasAspectRatioMode) => void
   boardLayoutMode?: CanvasBoardLayoutMode
   setBoardLayoutMode?: (mode: CanvasBoardLayoutMode) => void
-  storyboardDisplayMode?: CanvasStoryboardDisplayMode
-  setStoryboardDisplayMode?: (mode: CanvasStoryboardDisplayMode) => void
+  storyboardDisplayMode?: CanvasCardWidgetDisplayMode
+  setStoryboardDisplayMode?: (mode: CanvasCardWidgetDisplayMode) => void
   setDocumentSemanticMode: (mode: 'document' | 'keyword') => void
   setFrontmatterModeEnabled: (enabled: boolean) => void
   setMultiDimTableModeEnabled: (enabled: boolean) => void
@@ -298,12 +298,11 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     setBoardLayoutMode?.(toggleCanvasBoardLayoutMode(boardLayoutMode))
     return
   }
-  if (id === CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID || id === CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID) {
+  if (id === CANVAS_CARD_DISPLAY_CONTROL_ID || id === CANVAS_WIDGET_DISPLAY_CONTROL_ID) {
     if (geospatialEnabled) return
-    const nextMode = readCanvasStoryboardDisplayMode(id === CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID ? 'widget' : 'card')
+    const nextMode = readCanvasCardWidgetDisplayMode(id === CANVAS_WIDGET_DISPLAY_CONTROL_ID ? 'widget' : 'card')
     if (canvasRenderMode !== '2d') setCanvasRenderMode('2d')
-    if (canvas2dRenderer !== 'storyboard') setCanvas2dRenderer('storyboard')
-    if (readCanvasStoryboardDisplayMode(storyboardDisplayMode) !== nextMode) setStoryboardDisplayMode?.(nextMode)
+    if (readCanvasCardWidgetDisplayMode(storyboardDisplayMode) !== nextMode) setStoryboardDisplayMode?.(nextMode)
     if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     return
   }

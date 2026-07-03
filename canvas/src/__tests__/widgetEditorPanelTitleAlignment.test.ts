@@ -2,8 +2,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { GraphNode } from '@/lib/graph/types'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
+import { resolveWidgetEditorSurfaceLabel } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+import { UI_LABELS } from '@/lib/config'
 import { FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.storyboard-widget'
 import {
   FLOW_GRABMAPS_DISCOVERY_FORM_ID,
@@ -26,15 +28,34 @@ const makeNode = (args: {
   } as unknown as GraphNode)
 
 export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes() {
+  const sharedSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/flowWidgetOverlayShared.ts'), 'utf8')
+  const wrapperSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared.tsx'), 'utf8')
+  const runtimeSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const overlayElementsSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceElements.tsx'), 'utf8')
   const panelSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorPanel.tsx'), 'utf8')
   const viewSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorView.tsx'), 'utf8')
+  const formSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorForm.tsx'), 'utf8')
   if (
-    !panelSource.includes("const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget")
-    || !panelSource.includes('ariaLabel={editorPanelLabel}')
-    || !viewSource.includes("const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget")
-    || !viewSource.includes('aria-label={editorPanelLabel}')
+    resolveWidgetEditorSurfaceLabel('card') !== UI_LABELS.storyboardCard
+    || resolveWidgetEditorSurfaceLabel('widget') !== UI_LABELS.flowWidget
+    || resolveWidgetEditorSurfaceLabel() !== UI_LABELS.flowWidget
+    || !sharedSource.includes("export type WidgetEditorSurfaceKind = 'card' | 'widget'")
+    || !wrapperSource.includes('editorSurfaceKind?: WidgetEditorSurfaceKind')
+    || !wrapperSource.includes('editorSurfaceKind={args.editorSurfaceKind}')
+    || !runtimeSource.includes("editorSurfaceKind: storyboardCardDisplayActive ? 'card' : 'widget'")
+    || !overlayElementsSource.includes('editorSurfaceKind={args.editorSurfaceKind}')
+    || !panelSource.includes('const editorSurfaceLabel = resolveWidgetEditorSurfaceLabel(editorSurfaceKind)')
+    || !panelSource.includes('ariaLabel={editorSurfaceLabel}')
+    || !panelSource.includes('actionsAriaLabel={editorSurfaceLabel}')
+    || !viewSource.includes('const editorSurfaceLabel = resolveWidgetEditorSurfaceLabel(editorSurfaceKind)')
+    || !viewSource.includes('aria-label={editorSurfaceLabel}')
+    || !viewSource.includes('ariaLabel={editorSurfaceLabel}')
+    || !viewSource.includes('editorSurfaceKind={editorSurfaceKind}')
+    || !formSource.includes('aria-label={UI_LABELS.flowWidgetForm}')
+    || !formSource.includes('Model for flow widget')
+    || formSource.includes('flow:card')
   ) {
-    throw new Error('expected frontmatter-flow Storyboard overlays and panels to expose Card as the accessible panel label')
+    throw new Error('expected Card display overlays to expose Card shell labels while default editor surfaces keep Widget labels')
   }
 
   const alpha = resolveWidgetNodeTitle({

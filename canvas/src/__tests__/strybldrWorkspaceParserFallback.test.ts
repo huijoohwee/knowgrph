@@ -1,6 +1,7 @@
 import { buildStrybldrVideoHandoffFromGraphData } from '@/features/strybldr/strybldrStoryboard'
 import { importStrybldrRunAllSource, STRYBLDR_RUN_ALL_SOURCE_IMPORT_OPTS } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
+import { readFileSync } from 'node:fs'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   parseWorkspaceFrontmatterFlowGraphDataCached,
@@ -162,4 +163,13 @@ export async function testStrybldrRunAllVideoSourceUsesWorkspaceImportUrlBridge(
     canvas2dRenderer: 'storyboard',
     documentSemanticMode: 'document',
   }), 'expected Run All import options to match Toolbar Launch Import URL storyboard document intake')
+}
+
+export function testStrybldrRunAllVideoSourceFallsBackToLaunchImportUrl() {
+  const toolbarText = readFileSync(new URL('../components/Toolbar.tsx', import.meta.url), 'utf8')
+  assert(toolbarText.includes("import { importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'"), 'expected Toolbar Run All to reuse Launch Import URL fallback owner')
+  assert(toolbarText.includes('workspaceBridge.importUrl ||'), 'expected Toolbar Run All to fall back when the workspace bridge importUrl is absent')
+  assert(toolbarText.includes('urlRaw: url'), 'expected Toolbar Run All fallback to pass the source URL into Launch Import URL fallback')
+  assert(toolbarText.includes("opts?.canvas2dRenderer === 'storyboard'"), 'expected Toolbar Run All fallback to preserve storyboard import renderer options')
+  assert(toolbarText.includes('documentSemanticMode: opts?.documentSemanticMode ?? null'), 'expected Toolbar Run All fallback to preserve document semantic import options')
 }

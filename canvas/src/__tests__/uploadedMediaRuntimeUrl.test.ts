@@ -15,6 +15,10 @@ function createSyncedUploadedMediaItem(): UploadedMediaPanelItem {
     linkUrl: `${publicUrl}?kg_media_token=stale-token`,
     contentType: 'video/mp4',
     sizeBytes: 4096,
+    displayHeight: 720,
+    displayWidth: 1280,
+    durationSeconds: 15,
+    frameRate: 24,
     status: 'synced',
     storage: {
       workspaceId: 'airvio',
@@ -28,7 +32,11 @@ function createSyncedUploadedMediaItem(): UploadedMediaPanelItem {
       contentHash: 'sha256:runtime-demo',
       contentType: 'video/mp4',
       provenance: {
+        displayHeight: 720,
+        displayWidth: 1280,
+        durationSeconds: 15,
         fileName: 'runtime-demo.mp4',
+        frameRate: 24,
         sizeBytes: 4096,
       },
       response: {
@@ -94,6 +102,41 @@ export function testUploadedMediaDragPayloadUsesFreshRuntimeUrl() {
     }
     if (payload.url.includes('stale-token')) {
       throw new Error(`expected drag payload to avoid stale token reuse, got ${payload.url}`)
+    }
+    if (
+      payload.byteSize !== 4096 ||
+      payload.displayHeight !== 720 ||
+      payload.displayWidth !== 1280 ||
+      payload.durationSeconds !== 15 ||
+      payload.frameRate !== 24 ||
+      payload.mimeHint !== 'video/mp4'
+    ) {
+      throw new Error(`expected drag payload to preserve source-backed video metadata, got ${JSON.stringify(payload)}`)
+    }
+    const readerOnlyPayload = buildUploadedMediaDragPayload({
+      ...item,
+      displayHeight: undefined,
+      displayWidth: undefined,
+      durationSeconds: undefined,
+      frameRate: undefined,
+      sizeBytes: 0,
+    }, {
+      averageVideoFrameRate: 23.976,
+      byteSize: 6632,
+      displayHeight: 720,
+      displayWidth: 1280,
+      durationSeconds: 15.09,
+      mimeType: 'video/mp4',
+    })
+    if (
+      readerOnlyPayload?.byteSize !== 6632 ||
+      readerOnlyPayload.displayHeight !== 720 ||
+      readerOnlyPayload.displayWidth !== 1280 ||
+      readerOnlyPayload.durationSeconds !== 15.09 ||
+      readerOnlyPayload.frameRate !== 23.976 ||
+      readerOnlyPayload.mimeHint !== 'video/mp4'
+    ) {
+      throw new Error(`expected drag payload to reuse thumbnail-reader metadata, got ${JSON.stringify(readerOnlyPayload)}`)
     }
   } finally {
     Date.now = originalNow

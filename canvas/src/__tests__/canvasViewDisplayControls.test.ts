@@ -93,7 +93,7 @@ export function testStoryboardMinimapDisplayControlIsDisabled() {
   ).find(option => option.id === 'control:menu')
   const minimapToggle = displayControls?.children?.find(child => child.id === 'control:minimap')
   if (!minimapToggle || minimapToggle.disabled !== true || minimapToggle.children?.length) {
-    throw new Error('Expected Storyboard Display Controls to expose Minimap as unsupported')
+    throw new Error('Expected Display Controls to expose Minimap as unsupported')
   }
 }
 

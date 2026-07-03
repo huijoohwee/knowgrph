@@ -11,29 +11,6 @@
   contain: layout paint;
 }
 
-.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll {
-  min-width: 0;
-  min-height: inherit;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
-  contain: layout paint;
-}
-
-.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll-content {
-  display: flex;
-  min-width: 100%;
-  align-items: stretch;
-}
-
-.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-content {
-  flex: 0 0 auto;
-  min-width: 100%;
-  border-top: 1px solid var(--kg-border, rgb(226 232 240 / 1));
-  contain: layout paint;
-}
-
 .timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-append-space {
   flex: 0 0 auto;
   border-top: 1px dashed color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);

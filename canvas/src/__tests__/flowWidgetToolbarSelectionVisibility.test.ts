@@ -49,7 +49,7 @@ export function testFlowWidgetToolbarVisibleWhenViewLockOn() {
   }
 }
 
-export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
+export function testRichMediaPanelActionsLiveInSharedFloatingToolbar() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx')
   const panelPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
   const innerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
@@ -75,7 +75,7 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
     throw new Error('expected WidgetEditor to wire the Rich Media Panel view toggle through the real outer widget floating toolbar')
   }
   if (!overlayText.includes('actionVisibility={isRichMediaPanelWidget ? richMediaPanelToolbarProps.actionVisibility : undefined}')) {
-    throw new Error('expected WidgetEditor to suppress stale Rich Media Panel bubble-toolbar actions through the shared view-switch mask')
+    throw new Error('expected WidgetEditor to route Rich Media Panel bubble-toolbar actions through the shared action mask')
   }
   for (const stale of [
     'richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}',
@@ -94,8 +94,8 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   if (!panelText.includes('widgetToolbarActive={false}')) {
     throw new Error('expected WidgetEditorPanel to keep the RichMediaPanel body free of duplicate in-body widget toolbar ownership')
   }
-  if (!overlayText.includes('actionVisibility: RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY')) {
-    throw new Error('expected Rich Media Panel widget toolbar props to consolidate onto the shared view-switch action mask')
+  if (!overlayText.includes('actionVisibility: RICH_MEDIA_OVERLAY_ACTION_VISIBILITY')) {
+    throw new Error('expected Rich Media Panel widget toolbar props to consolidate onto the shared action mask')
   }
   if (!toolbarText.includes('richMediaViewToggle?.visible')) {
     throw new Error('expected WidgetEditorActionsToolbar to render a Rich Media Panel view toggle')
@@ -112,7 +112,7 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
     'getRichMediaPanelMediaSelectorOptions',
   ]) {
     if (toolbarText.includes(stale)) {
-      throw new Error(`expected Rich Media Panel bubble toolbar to keep only the shared view switch, found stale control: ${stale}`)
+      throw new Error(`expected Rich Media Panel bubble toolbar to omit removed legacy control: ${stale}`)
     }
   }
   if (!toolbarText.includes('SplitSquareVertical')) {

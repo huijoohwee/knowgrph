@@ -15,11 +15,15 @@ export type VideoSequenceTimelineProjectionOptions = {
   sourceCoverageMode?: VideoSequenceTimelineSourceCoverageMode
 }
 
-const VIDEO_AGENT_COMPACT_TRACK_PATTERN = /\bvideo_agent_(?:source_video|frame_by_frame_boxes|source_audio)\b/
+const COMPACT_SOURCE_MEDIA_LABEL_BY_LANE: Readonly<Partial<Record<VideoSequenceTimelineLaneId, RegExp>>> = {
+  audio: /^source audio(?: waveform)?$/i,
+  fbf: /^frame[-\s]by[-\s]frame (?:boxes|annotation samples)(?: \(\d+\))?$/i,
+  video: /^source video$/i,
+}
 
-export function isVideoAgentCompactMediaSpan(span: MermaidGanttTimelineTaskSpan, lane: VideoSequenceTimelineLaneId): boolean {
-  if (lane !== 'video' && lane !== 'fbf' && lane !== 'audio') return false
-  return VIDEO_AGENT_COMPACT_TRACK_PATTERN.test(span.raw)
+export function isCompactSourceMediaSpan(span: MermaidGanttTimelineTaskSpan, lane: VideoSequenceTimelineLaneId): boolean {
+  const labelPattern = COMPACT_SOURCE_MEDIA_LABEL_BY_LANE[lane]
+  return !!labelPattern?.test(span.label.trim())
 }
 
 export type VideoSequenceTimelineTool = {

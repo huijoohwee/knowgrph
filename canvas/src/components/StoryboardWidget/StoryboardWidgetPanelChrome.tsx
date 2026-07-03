@@ -19,6 +19,7 @@ export function StoryboardWidgetPanelChromeHeader(props: {
   showPinToggle?: boolean
   showValidate?: boolean
   showMinimizeToggle?: boolean
+  actionsAriaLabel?: string
   pinned?: boolean
   microLabelClass?: string
   uiIconScale?: 'compact' | 'default'
@@ -43,6 +44,7 @@ export function StoryboardWidgetPanelChromeHeader(props: {
     showPinToggle = true,
     showValidate = true,
     showMinimizeToggle = true,
+    actionsAriaLabel,
     pinned = false,
     microLabelClass = '',
     uiIconScale,
@@ -138,7 +140,7 @@ export function StoryboardWidgetPanelChromeHeader(props: {
         </section>
 
         {hasHeaderActions ? (
-        <nav className="flex items-center gap-1" style={richMediaNavStyle} aria-label={UI_LABELS.flowWidget}>
+        <nav className="flex items-center gap-1" style={richMediaNavStyle} aria-label={actionsAriaLabel || UI_LABELS.flowWidget}>
           {hasValidateAction ? <IconButton
             title={UI_LABELS.flowWidgetValidate}
             tooltipContent={UI_LABELS.flowWidgetValidate}

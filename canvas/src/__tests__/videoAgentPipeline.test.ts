@@ -559,9 +559,9 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalys
   const rulerSourceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'VideoSequenceTimelineRuler.tsx'), 'utf8')
   const denseFbfCssText = readFileSync(resolve(process.cwd(), 'src', 'components', 'timeline', 'VideoSequenceTimelineDenseFbf.css'), 'utf8')
   if (
-    !rulerSourceText.includes("compactVideoAgentFrameSamples || (compactVideoAgentMedia && lane === 'audio') ? []")
+    !rulerSourceText.includes("compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? []")
     || !rulerSourceText.includes('<VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />')
-    || !denseFbfCssText.includes('timeline-transport-track-clip--lane-fbf[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-thumbnail-strip')
+    || !denseFbfCssText.includes('timeline-transport-track-clip--lane-fbf[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-thumbnail-strip')
     || !denseFbfCssText.includes('display: none;')
   ) {
     throw new Error('expected compact FBF BottomPanel transport to render the semantic rail instead of duplicating source thumbnails')

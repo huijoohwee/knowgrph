@@ -66,6 +66,7 @@ export function useGanttTimelineInteractions(args: {
         originClientX: dragState.originClientX,
         clientX: event.clientX,
       })
+      if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
       const deltaMinutes = Math.round(preview.deltaPx * dragState.minutesPerPixel)
       const nextPreview = resolveMermaidGanttTimelineDragPreviewSpan({
         allowTimelineExpansion: true,
@@ -164,11 +165,6 @@ export function useGanttTimelineInteractions(args: {
     event.stopPropagation()
     event.currentTarget.setPointerCapture?.(event.pointerId)
     args.setTransportPlaying(false)
-    setDragPreview({
-      durationMinutes: span.durationMinutes,
-      rowKey: span.rowKey,
-      startMinutes: span.startMinutes,
-    })
     setDragState({
       mode,
       pointerId: event.pointerId,
@@ -178,7 +174,6 @@ export function useGanttTimelineInteractions(args: {
       markdownText: args.markdownText,
       span,
     })
-    args.setTransportPlaybackPosition(span.startMinutes)
     if (args.selectedRowKey !== span.rowKey) args.setSelectedRowKey(span.rowKey)
   }, [args])
 

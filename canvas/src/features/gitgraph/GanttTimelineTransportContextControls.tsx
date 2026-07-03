@@ -20,6 +20,7 @@ export function GanttTimelineTransportContextControls(args: GanttTimelineTranspo
       <article
         className="timeline-transport-clip-context"
         aria-label="Selected video sequence clip"
+        title={selectedSpanLabel}
         data-kg-video-sequence-clip-context={selectedSpan ? 'selected' : 'empty'}
       >
         <span className="timeline-transport-clip-context-title">{selectedSpan?.label || 'Clip context'}</span>

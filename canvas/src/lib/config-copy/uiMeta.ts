@@ -197,6 +197,7 @@ export const UI_LABELS = {
   perfButtonLabel: 'Perf',
   statusBarAriaLabel: 'Status Bar',
 
+  storyboardCard: 'Card',
   flowWidget: 'Widget',
   flowWidgetForm: 'Widget form',
   flowWidgetNodeLegend: 'Node',

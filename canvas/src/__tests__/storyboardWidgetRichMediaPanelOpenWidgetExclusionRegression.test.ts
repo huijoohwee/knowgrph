@@ -95,6 +95,11 @@ export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicat
   if (runtimeText.includes('() => storyboardWidgetDisplayActive ? storyboardWidgetNodeIds : openWidgetNodeIds')) {
     throw new Error('expected Storyboard Widget runtime not to drop explicit open Rich Media widgets when Storyboard display mode owns fixed cards')
   }
+  if (!runtimeText.includes('if (storyboardCardDisplayActive) {')
+    && !runtimeText.includes('if (storyboardCardDisplayActive) return openWidgetNodeIds.map')
+    || !runtimeText.includes('!isStoryboardFixedCardOwnedNode(node)')) {
+    throw new Error('expected Storyboard Card display mode to suppress stale fixed-card widget shells while preserving explicit Rich Media panels')
+  }
   if (!runtimeText.includes('for (let i = 0; i < storyboardWidgetNodeIds.length; i += 1) pushId(storyboardWidgetNodeIds[i])')
     || !runtimeText.includes('for (let i = 0; i < openWidgetNodeIds.length; i += 1) pushId(openWidgetNodeIds[i])')) {
     throw new Error('expected Storyboard Widget runtime to merge fixed Storyboard widget ids with explicit open widget ids before duplicate suppression')

@@ -9,11 +9,27 @@ export type MediaDragPayload = {
   kind: 'image' | 'audio' | 'video'
   url: string
   label: string
+  byteSize?: number
+  displayHeight?: number
+  displayWidth?: number
+  durationSeconds?: number
+  frameRate?: number
+  mimeHint?: string
   thumbnailUrl?: string
   sourceKey?: string
 }
 
 const normalizeText = (value: unknown): string => String(value || '').trim()
+
+const readPositiveNumber = (value: unknown): number | undefined => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+const readNonNegativeInteger = (value: unknown): number | undefined => {
+  const parsed = Math.floor(Number(value))
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
+}
 
 type MediaDragWindow = Window & {
   __kgMediaPointerDragPayload?: MediaDragPayload
@@ -96,6 +112,12 @@ export function normalizeMediaDragPayload(value: unknown): MediaDragPayload | nu
     kind,
     url,
     label: normalizeText(record.label) || kind,
+    byteSize: readNonNegativeInteger(record.byteSize),
+    displayHeight: readPositiveNumber(record.displayHeight),
+    displayWidth: readPositiveNumber(record.displayWidth),
+    durationSeconds: readPositiveNumber(record.durationSeconds),
+    frameRate: readPositiveNumber(record.frameRate),
+    mimeHint: normalizeText(record.mimeHint) || undefined,
     thumbnailUrl: normalizeText(record.thumbnailUrl) || undefined,
     sourceKey: normalizeText(record.sourceKey) || undefined,
   }
@@ -159,6 +181,11 @@ export function resolveMediaDragEventReleaseClientPoint(event: Pick<DragEvent, '
   })
 }
 
+export function finishMediaPointerDragPayloadForEvent(event: Pick<DragEvent, 'type' | 'clientX' | 'clientY'>): void {
+  const release = resolveMediaDragEventReleaseClientPoint(event)
+  finishMediaPointerDragPayloadAt(release.clientX, release.clientY)
+}
+
 export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?: { clientX: number; clientY: number }): void {
   const normalized = normalizeMediaDragPayload(payload)
   if (!normalized || typeof window === 'undefined') return
@@ -210,8 +237,7 @@ export function beginMediaPointerDragPayload(payload: MediaDragPayload, origin?:
     window.dispatchEvent(new CustomEvent(MEDIA_POINTER_DRAG_PAYLOAD_CHANGE_EVENT))
   }
   const handleRelease = (event: PointerEvent | MouseEvent | DragEvent) => {
-    const release = resolveMediaDragEventReleaseClientPoint(event)
-    finishMediaPointerDragPayloadAt(release.clientX, release.clientY)
+    finishMediaPointerDragPayloadForEvent(event)
   }
   mediaWindow.__kgMediaPointerDragPayload = normalized
   mediaWindow.__kgMediaPointerDragClear = clear

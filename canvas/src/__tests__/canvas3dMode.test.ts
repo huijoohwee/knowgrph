@@ -700,10 +700,10 @@ export function testCanvasViewTimelineToggleUsesSharedViewModeOption() {
   const childIds = displayControls.children?.map(child => child.id).join('|')
   if (
     childIds !==
-      'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:snapGrid|control:timeline|control:flowchart|control:gitGraph|control:gantt|control:architecture|control:eventModeling'
+      'control:richMedia|control:nodeShape|control:clusterShape|control:portHandles|control:minimap|control:grid|control:snapGrid|control:aspectRatio|control:boardLayout|control:card|control:widget|control:timeline|control:flowchart|control:gitGraph|control:gantt|control:architecture|control:eventModeling'
   ) {
     throw new Error(
-      `Expected Minimap, Grid, Snap to Grid, Timeline, Flowchart, GitGraph, Gantt, Architecture, and Event Model to sit beside each other in Display Controls, got ${childIds}`,
+      `Expected Minimap, Grid, Snap to Grid, Card, Widget, Timeline, Flowchart, GitGraph, Gantt, Architecture, and Event Model to sit beside each other in Display Controls, got ${childIds}`,
     )
   }
   if (timelineToggle.children?.length) {

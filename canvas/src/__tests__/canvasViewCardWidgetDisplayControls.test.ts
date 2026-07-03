@@ -2,9 +2,9 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTriggerState } from '@/components/toolbar/canvasViewMenu'
 import { BLOCK_SCHEMA } from '@/__tests__/canvas3dMode.test'
 import {
-  CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
-  CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
-} from '@/lib/canvas/canvasStoryboardDisplayControls'
+  CANVAS_CARD_DISPLAY_CONTROL_ID,
+  CANVAS_WIDGET_DISPLAY_CONTROL_ID,
+} from '@/lib/canvas/canvasCardWidgetDisplayControls'
 
 const STORYBOARD_STATE = {
   canvas2dRenderer: 'storyboard',
@@ -55,7 +55,7 @@ const baseSelectionParams = (markCall: (name: string) => (...args: unknown[]) =>
   setMultiDimTableModeEnabled: markCall('multiTable') as any,
 })
 
-export function testStoryboardCardWidgetDisplayControlsUseSingleStoryboardRenderer() {
+export function testCardWidgetDisplayControlsAreRendererNeutral() {
   const rendererOptions = getCanvasViewRendererOptions()
   if (rendererOptions.filter(option => option.id === 'storyboard').length !== 1) {
     throw new Error('Expected one canonical Storyboard renderer option')
@@ -65,28 +65,64 @@ export function testStoryboardCardWidgetDisplayControlsUseSingleStoryboardRender
   }
 
   const displayControls = buildCanvasViewOptions(STORYBOARD_STATE, rendererOptions).find(option => option.id === 'control:menu')
-  const cardControl = displayControls?.children?.find(child => child.id === CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID)
-  const widgetControl = displayControls?.children?.find(child => child.id === CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID)
+  const cardControl = displayControls?.children?.find(child => child.id === CANVAS_CARD_DISPLAY_CONTROL_ID)
+  const widgetControl = displayControls?.children?.find(child => child.id === CANVAS_WIDGET_DISPLAY_CONTROL_ID)
   if (!cardControl || !widgetControl || cardControl.isActive !== true || widgetControl.isActive === true) {
-    throw new Error('Expected Storyboard Display Controls to expose active Card and inactive Widget modes')
+    throw new Error('Expected Display Controls to expose active Card and inactive Widget modes')
+  }
+  const d3DisplayControls = buildCanvasViewOptions(
+    {
+      ...STORYBOARD_STATE,
+      canvas2dRenderer: 'd3',
+      isD3Like2dLayoutToggle: true,
+    },
+    rendererOptions,
+  ).find(option => option.id === 'control:menu')
+  const d3CardControl = d3DisplayControls?.children?.find(child => child.id === CANVAS_CARD_DISPLAY_CONTROL_ID)
+  const d3WidgetControl = d3DisplayControls?.children?.find(child => child.id === CANVAS_WIDGET_DISPLAY_CONTROL_ID)
+  if (!d3CardControl || !d3WidgetControl || d3CardControl.isActive !== true || d3WidgetControl.isActive === true) {
+    throw new Error('Expected Display Controls to expose the same Card and Widget modes under every 2D renderer')
+  }
+  if (
+    cardControl.title !== 'Display: Card (Default)'
+    || cardControl.label !== 'Card'
+    || cardControl.description !== 'Card presentation'
+  ) {
+    throw new Error('Expected card display control to keep Card wording')
+  }
+  if (
+    widgetControl.title !== 'Display: Widget'
+    || widgetControl.label !== 'Widget'
+    || widgetControl.description !== 'Widget presentation'
+  ) {
+    throw new Error('Expected widget display control to keep Widget wording')
   }
 
   const widget = collectSelectionCalls()
   applyCanvasViewSelection({
-    id: CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
+    id: CANVAS_WIDGET_DISPLAY_CONTROL_ID,
     ...baseSelectionParams(widget.markCall),
   })
   if (widget.calls.join('|') !== 'storyboardDisplay:widget') {
-    throw new Error(`Expected Widget display control to keep Storyboard renderer and switch presentation only, got ${widget.calls.join('|')}`)
+    throw new Error(`Expected Widget display control to keep the current renderer and switch presentation only, got ${widget.calls.join('|')}`)
+  }
+  const d3Widget = collectSelectionCalls()
+  applyCanvasViewSelection({
+    id: CANVAS_WIDGET_DISPLAY_CONTROL_ID,
+    ...baseSelectionParams(d3Widget.markCall),
+    canvas2dRenderer: 'd3',
+  })
+  if (d3Widget.calls.join('|') !== 'storyboardDisplay:widget') {
+    throw new Error(`Expected Widget display control to avoid renderer rewrites under D3, got ${d3Widget.calls.join('|')}`)
   }
 
   const card = collectSelectionCalls()
   applyCanvasViewSelection({
-    id: CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
+    id: CANVAS_CARD_DISPLAY_CONTROL_ID,
     ...baseSelectionParams(card.markCall),
     storyboardDisplayMode: 'widget',
   })
   if (card.calls.join('|') !== 'storyboardDisplay:card') {
-    throw new Error(`Expected Card display control to keep Storyboard renderer and switch presentation only, got ${card.calls.join('|')}`)
+    throw new Error(`Expected Card display control to keep the current renderer and switch presentation only, got ${card.calls.join('|')}`)
   }
 }

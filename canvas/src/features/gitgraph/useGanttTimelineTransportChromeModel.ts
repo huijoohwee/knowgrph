@@ -1,6 +1,8 @@
 import React from 'react'
 import {
   buildVideoSequenceClipEditDetailsLabel,
+  normalizeVideoSequenceClipEditDeltaMinutes,
+  resolveVideoSequenceClipEditStepMinutes,
   type VideoSequenceClipEditAction,
 } from '@/components/timeline/videoSequenceClipEdit'
 import {
@@ -53,9 +55,10 @@ export type GanttTimelineTransportChromeModel = {
     }
     clipActionButtons: Array<{
       action: VideoSequenceClipEditAction
+      active?: boolean
       ariaLabel: string
       disabled: boolean
-      icon: 'nudge-back' | 'nudge-forward' | 'snap' | 'split' | 'trim-end-back' | 'trim-end-forward' | 'trim-start-back' | 'trim-start-forward'
+      icon: 'bookmark' | 'delete' | 'duplicate' | 'extract-audio' | 'nudge-back' | 'nudge-forward' | 'ripple' | 'snap' | 'snapping' | 'split' | 'split-right' | 'trim-end-back' | 'trim-end-forward' | 'trim-start-back' | 'trim-start-forward'
       key: VideoSequenceClipEditAction
       label: string
       onClick: () => void
@@ -94,6 +97,7 @@ export type GanttTimelineTransportChromeModel = {
 }
 
 export function useGanttTimelineTransportChromeModel(args: {
+  autoSnappingEnabled: boolean
   canFitTimeline: boolean
   canZoomIn: boolean
   canZoomOut: boolean
@@ -117,6 +121,7 @@ export function useGanttTimelineTransportChromeModel(args: {
   mediaDurationSeconds: number
   playheadMinutes: number
   selectedSpan: MermaidGanttTimelineTaskSpan | null
+  rippleEditingEnabled: boolean
   timelineZoom: number
   timelineZoomPercent: number
   timingSyncMode: MermaidGanttVideoSequenceTimingSyncMode
@@ -130,7 +135,11 @@ export function useGanttTimelineTransportChromeModel(args: {
     const audioExportDisabled = args.disabled || !args.exportSessionCollection.plan || !!args.exportPlanError || (exportBusy && !audioExportBusy)
     const selectedSpan = args.selectedSpan
     const clipActionDisabled = args.disabled || !selectedSpan
-    const roundedPlayheadDelta = selectedSpan ? Math.round(args.playheadMinutes - selectedSpan.startMinutes) : 0
+    const clipEditStepMinutes = resolveVideoSequenceClipEditStepMinutes(selectedSpan)
+    const selectedDurationMinutes = selectedSpan?.durationMinutes || 0
+    const roundedPlayheadDelta = selectedSpan
+      ? normalizeVideoSequenceClipEditDeltaMinutes(args.playheadMinutes - selectedSpan.startMinutes, clipEditStepMinutes)
+      : 0
     const playheadInsideSelection = Boolean(
       selectedSpan &&
         args.playheadMinutes > selectedSpan.startMinutes &&
@@ -182,64 +191,96 @@ export function useGanttTimelineTransportChromeModel(args: {
         },
         clipActionButtons: [
           {
+            action: 'add-bookmark',
+            ariaLabel: 'Add bookmark at the playhead',
+            disabled: clipActionDisabled,
+            icon: 'bookmark',
+            key: 'add-bookmark',
+            label: 'Bookmark',
+            onClick: () => args.handleVideoSequenceClipEdit('add-bookmark'),
+            title: 'Add bookmark at the playhead',
+          },
+          {
+            action: 'toggle-auto-snapping',
+            active: args.autoSnappingEnabled,
+            ariaLabel: args.autoSnappingEnabled ? 'Disable auto snapping' : 'Enable auto snapping',
+            disabled: args.disabled,
+            icon: 'snapping',
+            key: 'toggle-auto-snapping',
+            label: 'Snap',
+            onClick: () => args.handleVideoSequenceClipEdit('toggle-auto-snapping'),
+            title: args.autoSnappingEnabled ? 'Auto snapping on' : 'Auto snapping off',
+          },
+          {
+            action: 'toggle-ripple-editing',
+            active: args.rippleEditingEnabled,
+            ariaLabel: args.rippleEditingEnabled ? 'Disable ripple editing' : 'Enable ripple editing',
+            disabled: args.disabled,
+            icon: 'ripple',
+            key: 'toggle-ripple-editing',
+            label: 'Ripple',
+            onClick: () => args.handleVideoSequenceClipEdit('toggle-ripple-editing'),
+            title: args.rippleEditingEnabled ? 'Ripple editing on' : 'Ripple editing off',
+          },
+          {
             action: 'nudge-back',
-            ariaLabel: 'Move selected clip left by one tick',
+            ariaLabel: 'Move selected clip left by one edit step',
             disabled: clipActionDisabled || (selectedSpan?.startMinutes || 0) <= 0,
             icon: 'nudge-back',
             key: 'nudge-back',
             label: '-1',
             onClick: () => args.handleVideoSequenceClipEdit('nudge-back'),
-            title: 'Move selected clip left by one tick',
+            title: 'Move selected clip left by one edit step',
           },
           {
             action: 'nudge-forward',
-            ariaLabel: 'Move selected clip right by one tick',
+            ariaLabel: 'Move selected clip right by one edit step',
             disabled: clipActionDisabled,
             icon: 'nudge-forward',
             key: 'nudge-forward',
             label: '+1',
             onClick: () => args.handleVideoSequenceClipEdit('nudge-forward'),
-            title: 'Move selected clip right by one tick',
+            title: 'Move selected clip right by one edit step',
           },
           {
             action: 'trim-start-back',
-            ariaLabel: 'Extend selected clip start left by one tick',
+            ariaLabel: 'Extend selected clip start left by one edit step',
             disabled: clipActionDisabled || (selectedSpan?.startMinutes || 0) <= 0,
             icon: 'trim-start-back',
             key: 'trim-start-back',
             label: 'In -1',
             onClick: () => args.handleVideoSequenceClipEdit('trim-start-back'),
-            title: 'Extend selected clip start left by one tick',
+            title: 'Extend selected clip start left by one edit step',
           },
           {
             action: 'trim-start-forward',
-            ariaLabel: 'Trim selected clip start right by one tick',
-            disabled: clipActionDisabled || (selectedSpan?.durationMinutes || 0) <= 1,
+            ariaLabel: 'Trim selected clip start right by one edit step',
+            disabled: clipActionDisabled || selectedDurationMinutes <= clipEditStepMinutes,
             icon: 'trim-start-forward',
             key: 'trim-start-forward',
             label: 'In +1',
             onClick: () => args.handleVideoSequenceClipEdit('trim-start-forward'),
-            title: 'Trim selected clip start right by one tick',
+            title: 'Trim selected clip start right by one edit step',
           },
           {
             action: 'trim-end-back',
-            ariaLabel: 'Trim selected clip end left by one tick',
-            disabled: clipActionDisabled || (selectedSpan?.durationMinutes || 0) <= 1,
+            ariaLabel: 'Trim selected clip end left by one edit step',
+            disabled: clipActionDisabled || selectedDurationMinutes <= clipEditStepMinutes,
             icon: 'trim-end-back',
             key: 'trim-end-back',
             label: 'Out -1',
             onClick: () => args.handleVideoSequenceClipEdit('trim-end-back'),
-            title: 'Trim selected clip end left by one tick',
+            title: 'Trim selected clip end left by one edit step',
           },
           {
             action: 'trim-end-forward',
-            ariaLabel: 'Extend selected clip end right by one tick',
+            ariaLabel: 'Extend selected clip end right by one edit step',
             disabled: clipActionDisabled,
             icon: 'trim-end-forward',
             key: 'trim-end-forward',
             label: 'Out +1',
             onClick: () => args.handleVideoSequenceClipEdit('trim-end-forward'),
-            title: 'Extend selected clip end right by one tick',
+            title: 'Extend selected clip end right by one edit step',
           },
           {
             action: 'snap-to-playhead',
@@ -260,6 +301,46 @@ export function useGanttTimelineTransportChromeModel(args: {
             label: 'Split',
             onClick: () => args.handleVideoSequenceClipEdit('split-at-playhead'),
             title: 'Split selected clip group at the playhead',
+          },
+          {
+            action: 'split-right-at-playhead',
+            ariaLabel: 'Split right side of selected clip at the playhead',
+            disabled: clipActionDisabled || !playheadInsideSelection,
+            icon: 'split-right',
+            key: 'split-right-at-playhead',
+            label: 'Right',
+            onClick: () => args.handleVideoSequenceClipEdit('split-right-at-playhead'),
+            title: 'Split right side of selected clip at the playhead',
+          },
+          {
+            action: 'extract-audio',
+            ariaLabel: 'Extract selected clip audio to a source-backed audio lane',
+            disabled: clipActionDisabled,
+            icon: 'extract-audio',
+            key: 'extract-audio',
+            label: 'Audio',
+            onClick: () => args.handleVideoSequenceClipEdit('extract-audio'),
+            title: 'Extract selected clip audio to a source-backed audio lane',
+          },
+          {
+            action: 'duplicate-element',
+            ariaLabel: 'Duplicate selected clip element',
+            disabled: clipActionDisabled,
+            icon: 'duplicate',
+            key: 'duplicate-element',
+            label: 'Copy',
+            onClick: () => args.handleVideoSequenceClipEdit('duplicate-element'),
+            title: 'Duplicate selected clip element',
+          },
+          {
+            action: 'delete-element',
+            ariaLabel: 'Delete selected clip element',
+            disabled: clipActionDisabled,
+            icon: 'delete',
+            key: 'delete-element',
+            label: 'Delete',
+            onClick: () => args.handleVideoSequenceClipEdit('delete-element'),
+            title: 'Delete selected clip element',
           },
         ],
         actionButtons: [
@@ -346,6 +427,7 @@ export function useGanttTimelineTransportChromeModel(args: {
       },
     }
   }, [
+    args.autoSnappingEnabled,
     args.canFitTimeline,
     args.canZoomIn,
     args.canZoomOut,
@@ -373,6 +455,7 @@ export function useGanttTimelineTransportChromeModel(args: {
     args.maxMinutes,
     args.mediaDurationSeconds,
     args.playheadMinutes,
+    args.rippleEditingEnabled,
     args.selectedSpan,
     args.timelineZoom,
     args.timelineZoomPercent,

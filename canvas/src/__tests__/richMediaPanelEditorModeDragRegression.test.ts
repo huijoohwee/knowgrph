@@ -317,7 +317,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   if (sharedBubbleToolbarText.includes("'right-middle'") || sharedBubbleToolbarText.includes('absolute left-full top-1/2')) {
     throw new Error('expected the shared bubble-toolbar presentation helper to remove the stale generic Rich Media side placement')
   }
-  for (const snippet of ['RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY', 'run: false', 'updateKvEntry: false', 'clearOutput: false', 'help: false']) {
+  for (const snippet of ['RICH_MEDIA_OVERLAY_ACTION_VISIBILITY', 'run: false', 'updateKvEntry: false', 'clearOutput: false', 'help: false', 'openInSidepane: true', 'duplicate: true', 'remove: true']) {
     if (!sharedToolbarPropsText.includes(snippet)) {
       throw new Error(`expected shared Rich Media overlay toolbar props to suppress stale click-open actions through the view-switch mask: ${snippet}`)
     }
@@ -546,7 +546,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   for (const snippet of [
     'buildSharedRichMediaOverlayControlProps',
     'richMediaViewToggle',
-    'RICH_MEDIA_VIEW_SWITCH_ACTION_VISIBILITY',
+    'RICH_MEDIA_OVERLAY_ACTION_VISIBILITY',
     'onSwitchToKtvRows',
   ]) {
     if (!sharedToolbarPropsText.includes(snippet)) throw new Error(`expected shared Rich Media toolbar controls to retain only the view-switch contract: ${snippet}`)

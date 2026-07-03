@@ -3,7 +3,7 @@ import type { BottomSurfaceTab } from '@/hooks/store/store-types/core'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import type { CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
-import type { CanvasStoryboardDisplayMode } from '@/lib/canvas/canvasStoryboardDisplayControls'
+import type { CanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
 import type { CanvasSurfaceModeId } from '@/lib/canvas/canvas3dMode'
 import type { GraphSchema } from '@/lib/graph/schema'
 
@@ -34,8 +34,8 @@ export type CanvasViewOptionId =
   | 'control:snapGrid'
   | 'control:aspectRatio'
   | 'control:boardLayout'
-  | 'control:storyboardCard'
-  | 'control:storyboardWidget'
+  | 'control:card'
+  | 'control:widget'
   | 'control:timeline'
   | 'control:flowchart'
   | 'control:gitGraph'
@@ -81,7 +81,7 @@ export type CanvasViewModelState = {
   minimapCollapsed?: boolean
   aspectRatioMode?: CanvasAspectRatioMode
   boardLayoutMode?: CanvasBoardLayoutMode
-  storyboardDisplayMode?: CanvasStoryboardDisplayMode
+  storyboardDisplayMode?: CanvasCardWidgetDisplayMode
   geospatialEnabled: boolean
   layoutMode?: string
   schema: GraphSchema

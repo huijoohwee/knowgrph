@@ -73,6 +73,8 @@ export function RichMediaPanelDirectMediaSurface(args: {
           frameClassName="bg-transparent"
           contentFillsFrame
           transparentBackground
+          disablePan
+          lockViewportAtFitScale
           frameSelectionProps={model.directMediaPreviewSelectionProps}
         >
           {model.directVideoUsesInlinePreview ? (

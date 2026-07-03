@@ -1,6 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["ui.videoSequence.timelineBar.clickRequiresDragIntent","@/__tests__/mermaidGanttPanelRouting.test","testTimelineBarClickRequiresDragIntentBeforePreview"],
+  ["ui.videoSequence.timelineClipEdit.fractionalSourceTiming","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming"],
   ["ui.videoSequence.previewSync.sourceRanges","@/__tests__/videoSequencePreviewSyncRegression.test","testSelectedVideoPreviewSyncUsesStableSourceRanges"],
   ["ui.videoSequence.timeline.emptyBars","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequenceTimelineSkipsEmptyBarsAndLanes"],
   ["ui.videoSequence.previewSync.emptyGaps","@/__tests__/videoSequencePreviewSyncRegression.test","testVideoSequencePreviewSyncKeepsVideoGapsEmpty"],
@@ -11,6 +13,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["ui.videoSequence.timelineSurfaces.runtimeReady","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineSurfacesAreRuntimeReady"],
   ["ui.videoSequence.timelineEditor.enhancedBottomPanel","@/__tests__/videoSequenceTimelineEditorEnhancement.test","testVideoSequenceTimelineEditorEnhancementContracts"],
   ["ui.videoSequence.timeline.mediaDropSourceBacked","@/__tests__/videoSequenceTimelineMediaDrop.test","testVideoSequenceTimelineMediaDropAppendsSourceBackedClip"],
+  ["ui.videoSequence.timeline.mediaDropBootstrapsEmpty","@/__tests__/videoSequenceTimelineMediaDrop.test","testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline"],
   ["workspace.import.localFiles.videoStackedSequenceDocument","@/__tests__/videoSequenceTimelineImportProjection.test","testWorkspaceImportLocalMultipleVideosCreatesStackedVideoAudioSequenceDocument"],
   ["ui.videoSequence.localImport.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceLocalImportAvoidsSuccessfulFsProbeAbortAndMediaRemounts"],
   ["ui.videoSequence.export.stability","@/__tests__/videoSequenceLocalImportRegression.test","testVideoSequenceExportKeepsSuccessfulSourceProbesBound"],
@@ -46,6 +49,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["richMediaPanel.overlayPan.skipsProtectedTargets","@/__tests__/flowWidgetOutputRichMediaReuse.test","testRichMediaPanelOverlayPanSkipsResizeAndScrollTargets"],
   ["richMediaPanel.headerDrag.availableInPanMode","@/__tests__/flowWidgetOutputRichMediaReuse.test","testRichMediaPanelHeaderDragStaysAvailableInPanMode"],
   ["richMediaPanel.storyboardWidget.modifierWheelZoomKeepsInteractiveScroll","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelStoryboardWidgetModifierWheelZoomKeepsInteractiveScroll"],
+  ["richMediaPanel.directMedia.fixedPreview","@/__tests__/richMediaPanelFixedPreview.test","testRichMediaPanelDirectMediaPreviewIsFixed"],
   ["richMediaPanel.storyboardWidget.reusesSharedFloatingToolbarVariant","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVariant"],
   ["searchPanel.selection.requestsSharedSelectionZoom","@/__tests__/searchPanelSelectionFocus.test","testSearchPanelSelectionRequestsSharedSelectionZoom"],
   ["flow.seed.fallback.viewportInvariant","@/__tests__/flowFallbackSeedPositions.test","testFlowFallbackSeedPositionsAreViewportInvariant"],
@@ -71,6 +75,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["floatingPanel.media.uploadedRuntimeUrl.dragPayload","@/__tests__/uploadedMediaRuntimeUrl.test","testUploadedMediaDragPayloadUsesFreshRuntimeUrl"],
   ["floatingPanel.media.uploadedRowDragPayload","@/__tests__/uploadedMediaRowDragPayload.test","testUploadedMediaRowStartsSharedPointerDragPayload"],
   ["floatingPanel.media.uploadedCardDragPayload","@/__tests__/uploadedMediaRowDragPayload.test","testUploadedMediaCardStartsSharedPointerDragPayload"],
+  ["floatingPanel.media.storyboardCanvasNestedDropTargets","@/__tests__/storyboardCanvasMediaDropContract","testStoryboardCanvasMediaDropSkipsNestedDropTargets"],
   ["flow.widget.richMediaPanel.connectedTextOverridesStaleImage","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelConnectedTextOverridesStaleImageRenderState"],
   ["flow.widget.richMediaPanel.connectedVideoOverridesStaleText","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelConnectedVideoOverridesStaleTextRenderState"],
   ["flow.widget.richMediaPanel.outputMarkdownImageReusesSharedRendering","@/__tests__/richMediaPanelWidget.test","testRichMediaPanelReusesMarkdownImageRenderingFromOutputText"],

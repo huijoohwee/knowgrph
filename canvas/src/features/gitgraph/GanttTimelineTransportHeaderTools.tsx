@@ -1,4 +1,4 @@
-import { ChevronsLeft, ChevronsRight, Download, FileAudio, Link2, LocateFixed, Maximize2, MoreHorizontal, MoveHorizontal, RotateCcw, Scissors, SlidersHorizontal, StepBack, StepForward, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
+import { BookmarkPlus, ChevronsLeft, ChevronsRight, Copy, Download, FileAudio, Link2, LocateFixed, Magnet, Maximize2, MoreHorizontal, MoveHorizontal, MoveRight, RotateCcw, Scissors, SlidersHorizontal, StepBack, StepForward, Trash2, Unlink2, ZoomIn, ZoomOut } from 'lucide-react'
 import type React from 'react'
 import { TimelineVideoSequenceToolButton } from '@/components/timeline/VideoSequenceTimelineToolButton'
 import { type GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
@@ -6,6 +6,17 @@ import { type GanttTimelineTransportChromeModel } from './useGanttTimelineTransp
 export type GanttTimelineTransportHeaderToolsProps = {
   model: GanttTimelineTransportChromeModel['headerTools']
 }
+
+const PRIMARY_CLIP_EDIT_ACTIONS = new Set([
+  'split-at-playhead',
+  'split-right-at-playhead',
+  'extract-audio',
+  'duplicate-element',
+  'delete-element',
+  'add-bookmark',
+  'toggle-auto-snapping',
+  'toggle-ripple-editing',
+])
 
 function renderUtilityActionIcon(icon: GanttTimelineTransportChromeModel['headerTools']['actionButtons'][number]['icon']) {
   if (icon === 'audio') return <FileAudio className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
@@ -21,7 +32,14 @@ function renderZoomActionIcon(icon: GanttTimelineTransportChromeModel['headerToo
 }
 
 function renderClipActionIcon(icon: GanttTimelineTransportChromeModel['headerTools']['clipActionButtons'][number]['icon']) {
+  if (icon === 'bookmark') return <BookmarkPlus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'delete') return <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'duplicate') return <Copy className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'extract-audio') return <FileAudio className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'ripple') return <MoveRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'snapping') return <Magnet className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'split') return <Scissors className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'split-right') return <StepForward className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'nudge-back') return <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'nudge-forward') return <ChevronsRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'trim-start-back' || icon === 'trim-end-back') return <StepBack className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
@@ -31,6 +49,7 @@ function renderClipActionIcon(icon: GanttTimelineTransportChromeModel['headerToo
 
 export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHeaderToolsProps) {
   const zoomButtonByKey = new Map(args.model.zoomControls.actionButtons.map(button => [button.key, button]))
+  const primaryClipActionButtons = args.model.clipActionButtons.filter(button => PRIMARY_CLIP_EDIT_ACTIONS.has(button.action))
   const renderZoomButton = (key: GanttTimelineTransportChromeModel['headerTools']['zoomControls']['actionButtons'][number]['key']) => {
     const button = zoomButtonByKey.get(key)
     if (!button) return null
@@ -48,6 +67,25 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
       </button>
     )
   }
+  const renderClipActionButton = (
+    button: GanttTimelineTransportChromeModel['headerTools']['clipActionButtons'][number],
+    keyPrefix = '',
+  ) => (
+    <button
+      key={`${keyPrefix}${button.key}`}
+      type="button"
+      aria-label={button.ariaLabel}
+      aria-pressed={button.active ?? undefined}
+      title={button.title}
+      disabled={button.disabled}
+      data-kg-video-sequence-clip-edit={button.action}
+      data-kg-video-sequence-clip-edit-active={button.active ? '1' : undefined}
+      data-kg-video-sequence-primary-clip-edit={keyPrefix ? button.action : undefined}
+      onClick={button.onClick}
+    >
+      {renderClipActionIcon(button.icon)}
+    </button>
+  )
 
   return (
     <section className="timeline-transport-header-tools" aria-label="Timeline tools">
@@ -84,24 +122,15 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
             ))}
           </nav>
         </details>
+        <section className="timeline-video-sequence-primary-clip-actions" aria-label="Primary clip edit tools">
+          {primaryClipActionButtons.map(button => renderClipActionButton(button, 'primary-'))}
+        </section>
         <details className="timeline-tool-menu timeline-tool-menu--clip">
           <summary aria-label="Clip nudge and trim tools" title="Clip nudge and trim tools">
             <MoveHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
           </summary>
           <nav className="timeline-tool-menu-panel" aria-label="Clip nudge and trim tools">
-            {args.model.clipActionButtons.map(button => (
-              <button
-                key={button.key}
-                type="button"
-                aria-label={button.ariaLabel}
-                title={button.title}
-                disabled={button.disabled}
-                data-kg-video-sequence-clip-edit={button.action}
-                onClick={button.onClick}
-              >
-                {renderClipActionIcon(button.icon)}
-              </button>
-            ))}
+            {args.model.clipActionButtons.map(button => renderClipActionButton(button))}
           </nav>
         </details>
       </nav>

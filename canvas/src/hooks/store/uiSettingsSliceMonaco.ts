@@ -7,7 +7,7 @@ import type { UiStorageReaders } from './uiSliceStorage'
 import { TIMELINE_ENABLED_DEFAULT, resolveTimelineEnabled } from '@/lib/timeline/timelineVisibility'
 import { CANVAS_ASPECT_RATIO_MODE_DEFAULT, readCanvasAspectRatioMode, type CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { CANVAS_BOARD_LAYOUT_MODE_DEFAULT, readCanvasBoardLayoutMode, type CanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
-import { CANVAS_STORYBOARD_DISPLAY_MODE_DEFAULT, readCanvasStoryboardDisplayMode, type CanvasStoryboardDisplayMode } from '@/lib/canvas/canvasStoryboardDisplayControls'
+import { CANVAS_CARD_WIDGET_DISPLAY_MODE_DEFAULT, readCanvasCardWidgetDisplayMode, type CanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -46,9 +46,9 @@ export const createUiSettingsMonacoSlice = (set: SetGraph, readers: UiStorageRea
     writeLsString(LS_KEYS.strybldrStoryboardBoardLayoutMode, next)
     set({ strybldrStoryboardBoardLayoutMode: next })
   },
-  strybldrStoryboardDisplayMode: readCanvasStoryboardDisplayMode(readers.readLsString(LS_KEYS.strybldrStoryboardDisplayMode, CANVAS_STORYBOARD_DISPLAY_MODE_DEFAULT)),
-  setStrybldrStoryboardDisplayMode: (v: CanvasStoryboardDisplayMode) => {
-    const next = readCanvasStoryboardDisplayMode(v)
+  strybldrStoryboardDisplayMode: readCanvasCardWidgetDisplayMode(readers.readLsString(LS_KEYS.strybldrStoryboardDisplayMode, CANVAS_CARD_WIDGET_DISPLAY_MODE_DEFAULT)),
+  setStrybldrStoryboardDisplayMode: (v: CanvasCardWidgetDisplayMode) => {
+    const next = readCanvasCardWidgetDisplayMode(v)
     writeLsString(LS_KEYS.strybldrStoryboardDisplayMode, next)
     set({ strybldrStoryboardDisplayMode: next })
   },

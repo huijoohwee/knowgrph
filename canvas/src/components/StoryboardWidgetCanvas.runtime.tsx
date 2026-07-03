@@ -38,7 +38,7 @@ import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBas
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
-import { readCanvasStoryboardDisplayMode } from '@/lib/canvas/canvasStoryboardDisplayControls'
+import { readCanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
 
 // #region debug-point A:runtime-storyboard-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
@@ -103,7 +103,7 @@ export default function StoryboardWidgetCanvasRuntime(
     updateOpenWidgetNodeIds, updateUserSubgraph, upsertUiToast, workspaceMutationBlocked,
   } = useStoryboardWidgetRuntimeStoreState()
   const strybldrStoryboardDisplayMode = useGraphStore(s => s.strybldrStoryboardDisplayMode)
-  const storyboardDisplayMode = readCanvasStoryboardDisplayMode(strybldrStoryboardDisplayMode)
+  const storyboardDisplayMode = readCanvasCardWidgetDisplayMode(strybldrStoryboardDisplayMode)
   const storyboardCardDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'card'
   const storyboardWidgetDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'widget'
   const runWorkflowNodeRef = React.useRef<((nodeId: string) => Promise<void> | void) | null>(null)
@@ -289,6 +289,7 @@ export default function StoryboardWidgetCanvasRuntime(
       .filter(id => id && isStoryboardFixedCardOwnedNode(resolveGraphNodeByCanonicalId(storyboardCanvasGraphDataForDisplay, id) || nodeById.get(id)))
   }, [baseGraphDataRevision, draftGraphDataRevision, storyboardCanvasGraphDataForDisplay, storyboardWidgetDisplayActive, widgetRegistry])
   const overlayOpenWidgetNodeIds = React.useMemo(() => {
+    if (storyboardCardDisplayActive) return openWidgetNodeIds.map(id => String(id || '').trim()).filter((id, index, ids) => id && ids.indexOf(id) === index).filter(id => { const node = resolveGraphNodeByCanonicalId(storyboardCanvasGraphDataForDisplay, id); return !!node && !isStoryboardFixedCardOwnedNode(node) })
     if (!storyboardWidgetDisplayActive) return openWidgetNodeIds
     const next: string[] = []
     const seen = new Set<string>()
@@ -301,10 +302,8 @@ export default function StoryboardWidgetCanvasRuntime(
     for (let i = 0; i < storyboardWidgetNodeIds.length; i += 1) pushId(storyboardWidgetNodeIds[i])
     for (let i = 0; i < openWidgetNodeIds.length; i += 1) pushId(openWidgetNodeIds[i])
     return next
-  }, [openWidgetNodeIds, storyboardWidgetDisplayActive, storyboardWidgetNodeIds])
-  const overlayRenderGraphDataOverride = storyboardWidgetDisplayActive
-    ? storyboardCanvasGraphDataForDisplay
-    : renderGraphDataOverride
+  }, [openWidgetNodeIds, storyboardCardDisplayActive, storyboardCanvasGraphDataForDisplay, storyboardWidgetDisplayActive, storyboardWidgetNodeIds])
+  const overlayRenderGraphDataOverride = storyboardWidgetDisplayActive ? storyboardCanvasGraphDataForDisplay : renderGraphDataOverride
   const overlayTopologyLayoutSignature = React.useMemo(() => {
     const graphDataForOverlayRuntime =
       draftGraphData
@@ -632,7 +631,7 @@ export default function StoryboardWidgetCanvasRuntime(
     storyboardWidgetSurfaceId,
     canEdit,
     storyboardWidgetViewActive,
-    storyboardWidgetFrontmatterGraphAvailable,
+    storyboardWidgetFrontmatterGraphAvailable, editorSurfaceKind: storyboardCardDisplayActive ? 'card' : 'widget',
     geospatialWidgetPanelMode,
     renderGraphDataOverride: overlayRenderGraphDataOverride,
     draftGraphDataRef,
@@ -719,7 +718,11 @@ export default function StoryboardWidgetCanvasRuntime(
     pendingOverlayNodeIdRef.current = null
     setPendingOverlayNode(null)
   }, [baseGraphData, openWidgetNodeIds, pendingOverlayNode, selectedNodeId, storyboardCardsMode])
-  const storyboardCanvasGraphDataOverride = storyboardCardsMode ? (flowCanvasGraphDataWithPendingOverlays || storyboardCanvasGraphDataForDisplay) : flowCanvasGraphDataWithPendingOverlays
+  const storyboardCanvasGraphDataOverride = storyboardCardDisplayActive
+    ? storyboardCanvasGraphDataForDisplay
+    : storyboardCardsMode
+      ? (flowCanvasGraphDataWithPendingOverlays || storyboardCanvasGraphDataForDisplay)
+      : flowCanvasGraphDataWithPendingOverlays
   const storyboardRuntimeGraphSignature = React.useMemo(() => {
     return [
       String(storyboardCardsMode),

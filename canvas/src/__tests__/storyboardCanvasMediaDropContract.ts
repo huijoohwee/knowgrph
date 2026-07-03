@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 
 export function assertStoryboard2dMediaDropContract() {
+  const storyboardCanvasSource = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
   const storyboardWidgetSurfaceSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx', import.meta.url), 'utf8')
   const storyboardWidgetDropBridgeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts', import.meta.url), 'utf8')
   const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
@@ -17,6 +18,9 @@ export function assertStoryboard2dMediaDropContract() {
     'isMediaDropClaimedByNestedTarget',
     'if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false',
   ]) {
+    if (!storyboardCanvasSource.includes(snippet) && !storyboardCanvasSource.includes('|| isMediaDropClaimedByNestedTarget(clientX, clientY)')) {
+      throw new Error(`expected Storyboard canvas media release capture to skip nested media drop targets: ${snippet}`)
+    }
     if (!storyboardWidgetSurfaceSource.includes(snippet)) {
       throw new Error(`expected Storyboard Widget canvas drop owner to skip nested media drop targets: ${snippet}`)
     }
@@ -185,4 +189,8 @@ export function assertStoryboard2dMediaDropContract() {
   if (/<RichMediaPanel\b/.test(graphStoryboardCardOverlaySource)) {
     throw new Error('expected fixed Storyboard card media slots to render raw CardMediaPreview media, not RichMediaPanel chrome')
   }
+}
+
+export function testStoryboardCanvasMediaDropSkipsNestedDropTargets() {
+  assertStoryboard2dMediaDropContract()
 }

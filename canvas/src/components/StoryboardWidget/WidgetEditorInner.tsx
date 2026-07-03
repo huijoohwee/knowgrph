@@ -35,7 +35,7 @@ const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
   active,
-  storyboardWidgetSurfaceId,
+  storyboardWidgetSurfaceId, editorSurfaceKind,
   overlayCollectiveCount,
   node,
   viewportW,
@@ -546,7 +546,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
   const overlayElement = (
     <WidgetEditorView
       asideRef={placement.asideRef}
-      storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
+      storyboardWidgetSurfaceId={storyboardWidgetSurfaceId} editorSurfaceKind={editorSurfaceKind}
       node={node}
       pinnedInCanvas={pinnedInCanvas}
       overlayZIndex={overlayZIndex}

@@ -37,11 +37,11 @@ import {
   readCanvasBoardLayoutDisplayControlTitle,
 } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import {
-  CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
-  CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
-  readCanvasStoryboardDisplayControlActive,
-  readCanvasStoryboardDisplayControlTitle,
-} from '@/lib/canvas/canvasStoryboardDisplayControls'
+  CANVAS_CARD_DISPLAY_CONTROL_ID,
+  CANVAS_WIDGET_DISPLAY_CONTROL_ID,
+  readCanvasCardWidgetDisplayControlActive,
+  readCanvasCardWidgetDisplayControlTitle,
+} from '@/lib/canvas/canvasCardWidgetDisplayControls'
 import {
   getCanvasSurfaceModeDisabledCopy,
   getCanvasSurfaceModeSpec,
@@ -427,22 +427,22 @@ export const buildCanvasViewOptions = (
           isActive: readCanvasBoardLayoutDisplayControlActive(state.boardLayoutMode),
         },
         {
-          id: CANVAS_STORYBOARD_CARD_DISPLAY_CONTROL_ID,
-          title: readCanvasStoryboardDisplayControlTitle('card'),
+          id: CANVAS_CARD_DISPLAY_CONTROL_ID,
+          title: readCanvasCardWidgetDisplayControlTitle('card'),
           label: 'Card',
           Icon: PanelsTopLeft,
-          description: 'Storyboard card presentation',
-          isActive: readCanvasStoryboardDisplayControlActive(state.canvas2dRenderer, state.storyboardDisplayMode, 'card'),
+          description: 'Card presentation',
+          isActive: readCanvasCardWidgetDisplayControlActive(state.storyboardDisplayMode, 'card'),
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },
         {
-          id: CANVAS_STORYBOARD_WIDGET_DISPLAY_CONTROL_ID,
-          title: readCanvasStoryboardDisplayControlTitle('widget'),
+          id: CANVAS_WIDGET_DISPLAY_CONTROL_ID,
+          title: readCanvasCardWidgetDisplayControlTitle('widget'),
           label: 'Widget',
           Icon: Pencil,
-          description: 'Storyboard widget presentation',
-          isActive: readCanvasStoryboardDisplayControlActive(state.canvas2dRenderer, state.storyboardDisplayMode, 'widget'),
+          description: 'Widget presentation',
+          isActive: readCanvasCardWidgetDisplayControlActive(state.storyboardDisplayMode, 'widget'),
           disabled: state.geospatialEnabled,
           disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
         },

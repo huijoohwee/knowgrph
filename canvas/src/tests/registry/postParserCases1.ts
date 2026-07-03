@@ -618,7 +618,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["storyboardWidget.widget.toolbarViewportShiftKeepsActionsReachable","@/__tests__/storyboardWidgetToolbarRestore.test","testStoryboardWidgetToolbarViewportShiftKeepsActionsReachable"],
   ["storyboardWidget.widget.toolbarAutoShowsOnFirstSelectionTransition","@/__tests__/flowWidgetToolbarSelectionVisibility.test","testFlowWidgetToolbarAutoShowsOnFirstSelectionTransition"],
   ["storyboardWidget.widget.toolbarVisibleWhenViewLockOn","@/__tests__/flowWidgetToolbarSelectionVisibility.test","testFlowWidgetToolbarVisibleWhenViewLockOn"],
-  ["storyboardWidget.widget.richMediaPanel.viewToggleLivesInFloatingToolbarOnly","@/__tests__/flowWidgetToolbarSelectionVisibility.test","testRichMediaPanelViewToggleLivesInFloatingToolbarOnly"],
+  ["storyboardWidget.widget.richMediaPanel.actionsLiveInSharedFloatingToolbar","@/__tests__/flowWidgetToolbarSelectionVisibility.test","testRichMediaPanelActionsLiveInSharedFloatingToolbar"],
   ["markdown.frontmatterFlowGraph.flowDiagrams.dynamicRichMediaPanels","@/__tests__/markdownFrontmatterFlowDiagrams.test","testMarkdownFrontmatterFlowDiagramsDeriveDynamicRichMediaPanels"],
   ["markdown.frontmatterFlowGraph.flowDiagrams.largeMarkdownParserPath","@/__tests__/markdownFrontmatterFlowDiagrams.test","testMarkdownFrontmatterFlowDiagramsKeepLargeMarkdownOnFlowParserPath"],
   ["markdown.frontmatterFlowGraph.flowDiagrams.forbidsDemoHardcodes","@/__tests__/markdownFrontmatterFlowDiagrams.test","testMarkdownFrontmatterFlowDiagramsParserForbidsDemoHardcodes"],

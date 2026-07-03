@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import { UI_LABELS } from '@/lib/config'
 import { Z_INDEX_GRAPH_OVERLAY_BASE, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 
 export {
@@ -17,6 +18,7 @@ export type FlowWidgetOverlayProps = {
   visible?: boolean
   active: boolean
   storyboardWidgetSurfaceId?: string
+  editorSurfaceKind?: WidgetEditorSurfaceKind
   overlayCollectiveCount?: number
   node: GraphNode
   viewportW: number
@@ -52,6 +54,12 @@ export type FlowWidgetOverlayProps = {
   onUpdateKvEntry?: () => void
   onPinnedInCanvasChange?: (pinnedInCanvas: boolean) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
+}
+
+export type WidgetEditorSurfaceKind = 'card' | 'widget'
+
+export function resolveWidgetEditorSurfaceLabel(surfaceKind?: WidgetEditorSurfaceKind | null): string {
+  return surfaceKind === 'card' ? UI_LABELS.storyboardCard : UI_LABELS.flowWidget
 }
 
 export const FLOW_WIDGET_OVERLAY_Z_INDEX_BASE = Z_INDEX_GRAPH_OVERLAY_BASE

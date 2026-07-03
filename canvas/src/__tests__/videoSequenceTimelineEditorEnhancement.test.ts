@@ -18,6 +18,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const clipMetaCssText = readSource('components', 'timeline', 'VideoSequenceTimelineClipMeta.css')
   const denseFbfCssText = readSource('components', 'timeline', 'VideoSequenceTimelineDenseFbf.css')
   const mermaidTransportCssText = readSource('components', 'timeline', 'TimelineTransportControlsMermaidGantt.css')
+  const transportCssText = readSource('components', 'timeline', 'TimelineTransportControls.css')
   const timelineTransportText = readSource('components', 'timeline', 'timelineTransport.ts')
   const videoSequenceToolButtonText = readSource('components', 'timeline', 'VideoSequenceTimelineToolButton.tsx')
   const transportText = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
@@ -39,6 +40,10 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'buildVideoSequenceTimelineZoomTicks({ displayTicks, maxMinutes: timelineScaleMaxMinutes, mediaDurationSeconds, timelineZoom })',
     'resolveVideoSequenceTimelineScaleMaxMinutes({ maxMinutes, mediaDurationSeconds })',
     'resolveVideoSequenceTimelineAppendSpacePercent(timelineZoom)',
+    'timeline-video-sequence-editor timeline-video-sequence-grid',
+    'timeline-video-sequence-surface timeline-video-sequence-surface--empty',
+    'timeline-video-sequence-ruler-scroll timeline-video-sequence-ruler-surface',
+    'timeline-transport-track-clip timeline-transport-track-clip--lane-video timeline-video-sequence-empty-dropzone',
     'timeline-video-sequence-ruler-scroll-content',
     'timeline-video-sequence-ruler-append-space',
     'data-kg-video-sequence-append-space="1"',
@@ -57,20 +62,28 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   for (const token of [
     '.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick',
-    '.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll',
-    'overscroll-behavior-x: contain',
-    'contain: layout paint',
     'height: 24px',
     'justify-content: flex-start',
     'font-variant-numeric: tabular-nums',
     '.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-line',
     'height: 6px',
     '.timeline-transport-ruler--video-sequence .timeline-transport-ruler-tick-label',
-    '.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-scroll-content',
     '.timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-append-space',
     'border-top: 1px dashed',
   ]) {
     if (!rulerTimeAxisCssText.includes(token)) throw new Error(`expected lean time-axis style: ${token}`)
+  }
+  for (const token of [
+    '.timeline-video-sequence-grid',
+    '.timeline-video-sequence-ruler-scroll',
+    'overscroll-behavior-x: contain',
+    '.timeline-video-sequence-ruler-scroll-content',
+    '.timeline-video-sequence-ruler-content',
+    'border-top: 1px solid var(--kg-border',
+    '.timeline-video-sequence-ruler-surface',
+    '.timeline-video-sequence-empty-dropzone .timeline-transport-track-clip-label',
+  ]) {
+    if (!transportCssText.includes(token)) throw new Error(`expected shared empty/source timeline visual style: ${token}`)
   }
   for (const token of [
     'VIDEO_SEQUENCE_TIMELINE_ZOOM_TICK_TARGET_PER_ZOOM',
@@ -115,7 +128,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
 
   for (const token of [
-    '.timeline-transport-track-clip--lane-video[data-kg-video-agent-compact-media="1"]',
+    '.timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]',
     'height: var(--kg-timeline-bar-height, 57px)',
     'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-timeline-bar-height, 57px)) / 2)',
     'border-color: var(--kg-canvas-accent',
@@ -123,6 +136,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'min-width: 18px',
     'filter: saturate(1.04) contrast(1.02)',
     'background: linear-gradient(90deg, rgb(2 6 23 / 0.64), transparent 28%, transparent)',
+    '0 0 0 2px rgb(37 99 235 / 0.44)',
+    'linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg',
   ]) {
     if (!denseFbfCssText.includes(token)) throw new Error(`expected edit rail style: ${token}`)
   }
@@ -135,7 +150,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
 
   if (
     !denseFbfCssText.includes('[data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-meta') ||
-    !denseFbfCssText.includes('[data-kg-video-agent-compact-media="1"] .timeline-video-sequence-clip-meta')
+    !denseFbfCssText.includes('[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-meta')
   ) {
     throw new Error('expected dense and compact media lanes to suppress clip metadata')
   }
@@ -175,11 +190,16 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-player',
     'height: var(--kg-main-toolbar-height, 38px)',
     'flex: 0 0 var(--kg-timeline-toolbar-button-size, 28px)',
+    'isolation: isolate',
     'border-bottom: 1px solid var(--kg-border',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface',
+    'repeating-linear-gradient(180deg',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
     'flex-wrap: nowrap',

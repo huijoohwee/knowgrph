@@ -11,6 +11,10 @@ export type UploadedMediaPanelItem = {
   linkUrl: string
   contentType: string
   sizeBytes: number
+  displayHeight?: number
+  displayWidth?: number
+  durationSeconds?: number
+  frameRate?: number
   status: 'uploading' | 'synced' | 'local'
   storage: UploadedMediaStorageResult | null
   error: string | null
@@ -27,6 +31,11 @@ export const buildUploadedMediaPanelItemId = (storage: Pick<UploadedMediaStorage
 
 export const readUploadedMediaPanelDedupeKey = (item: UploadedMediaPanelItem): string =>
   String(item.storage?.contentHash || item.storage?.objectKey || item.id).trim()
+
+const readPositiveNumber = (value: unknown): number | undefined => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
 
 export function readUploadedMediaFileName(storage: UploadedMediaStorageResult): string {
   const fromProvenance = typeof storage.provenance?.fileName === 'string' ? storage.provenance.fileName.trim() : ''
@@ -88,6 +97,10 @@ export const readStoredUploadedMediaPanelItems = (): UploadedMediaPanelItem[] =>
         linkUrl: accessUrl,
         contentType: String(item.contentType || storage.contentType || 'application/octet-stream'),
         sizeBytes: Number(item.sizeBytes || 0),
+        displayHeight: readPositiveNumber(item.displayHeight || storage.provenance?.displayHeight || storage.provenance?.height),
+        displayWidth: readPositiveNumber(item.displayWidth || storage.provenance?.displayWidth || storage.provenance?.width),
+        durationSeconds: readPositiveNumber(item.durationSeconds || storage.provenance?.durationSeconds),
+        frameRate: readPositiveNumber(item.frameRate || storage.provenance?.frameRate),
         status: 'synced' as const,
         storage: { ...storage, accessUrl },
         error: null,
@@ -122,6 +135,10 @@ export const buildUploadedMediaPanelItemFromStorage = (storage: UploadedMediaSto
     linkUrl: accessUrl,
     contentType: storage.contentType,
     sizeBytes,
+    displayHeight: readPositiveNumber(storage.provenance?.displayHeight || storage.provenance?.height),
+    displayWidth: readPositiveNumber(storage.provenance?.displayWidth || storage.provenance?.width),
+    durationSeconds: readPositiveNumber(storage.provenance?.durationSeconds),
+    frameRate: readPositiveNumber(storage.provenance?.frameRate),
     status: 'synced',
     storage: { ...storage, accessUrl },
     error: null,

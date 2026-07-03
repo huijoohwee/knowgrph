@@ -21,7 +21,7 @@ import { buildVideoSequenceTimelineImportMarkdown } from '@/features/markdown-wo
 import { MediaCatalogPanelView } from './MediaCatalogPanelView'
 import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, MEDIA_NEW_ACTIONS, readStoredMediaCatalogLayout, readStoredMediaDescriptionDrafts, readStoredMediaFieldDrafts, writeStoredMediaCatalogLayout, writeStoredMediaDescriptionDrafts, writeStoredMediaFieldDrafts, type MediaCatalogLayout, type MediaCatalogSourceMetadataItem, type MediaPanelActionSpec, type UploadedMediaDescriptionDrafts, type UploadedMediaFieldDrafts } from './mediaCatalogTypes'
 import { buildUploadedMediaMarkdown } from './mediaCatalogUploadedItems'
-import { getUploadedMediaDescriptionKey, buildCommandMenuMediaDragPayload, buildUploadedMediaDragPayload, getMediaNameSyncKey, readRichMediaInsertUrl, startMediaDrag } from './mediaCatalogShared'
+import { getUploadedMediaDescriptionKey, buildCommandMenuMediaDragPayload, buildUploadedMediaDragPayload, getMediaNameSyncKey, readRichMediaInsertUrl, startMediaDrag, type UploadedMediaDragMetadata } from './mediaCatalogShared'
 import { buildProceduralMediaMarkdown, generateProceduralMediaArtifact, readProceduralMediaGenerationSettings, type ProceduralMediaArtifact } from './proceduralMediaGenerator'
 
 export function MediaCatalogPanel() {
@@ -269,6 +269,10 @@ export function MediaCatalogPanel() {
         linkUrl: localUrl,
         contentType: artifact.contentType,
         sizeBytes: artifact.sizeBytes,
+        displayHeight: artifact.height,
+        displayWidth: artifact.width,
+        durationSeconds: artifact.durationSeconds,
+        frameRate: artifact.frameRate,
         status: 'local',
         storage: null,
         error: null,
@@ -476,8 +480,8 @@ export function MediaCatalogPanel() {
   const handleDragCommandMenuMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => {
     startMediaDrag(event, buildCommandMenuMediaDragPayload(item))
   }, [])
-  const handleDragUploadedMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem) => {
-    startMediaDrag(event, buildUploadedMediaDragPayload(item))
+  const handleDragUploadedMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: UploadedMediaPanelItem, metadata?: UploadedMediaDragMetadata) => {
+    startMediaDrag(event, buildUploadedMediaDragPayload(item, metadata))
   }, [])
   const handleSelectMediaAction = React.useCallback((action: MediaPanelActionSpec) => {
     if (action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID) {

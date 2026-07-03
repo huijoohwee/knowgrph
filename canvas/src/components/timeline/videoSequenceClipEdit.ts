@@ -1,8 +1,15 @@
 import { formatVideoSequenceTimelineSecondsOffset } from './videoSequenceTimeline'
 
 export type VideoSequenceClipEditAction =
+  | 'add-bookmark'
+  | 'delete-element'
+  | 'duplicate-element'
+  | 'extract-audio'
   | 'nudge-back'
   | 'nudge-forward'
+  | 'toggle-auto-snapping'
+  | 'toggle-ripple-editing'
+  | 'split-right-at-playhead'
   | 'trim-start-back'
   | 'trim-start-forward'
   | 'trim-end-back'
@@ -14,7 +21,51 @@ export type VideoSequenceClipEditSpan = {
   durationMinutes: number
   endMinutes: number
   label: string
+  raw?: string
   startMinutes: number
+}
+
+const VIDEO_SEQUENCE_CLIP_EDIT_SECOND_STEP_MINUTES = 1 / 60
+const VIDEO_SEQUENCE_CLIP_EDIT_SNAP_THRESHOLD_MINUTES = 3 / 60
+
+const hasFractionalTimelineTiming = (span: VideoSequenceClipEditSpan): boolean => (
+  span.durationMinutes < 1 ||
+  /\b(?:kgpos_|kgsrc_|\d+\.\d+m\b)/i.test(`${span.label} ${span.raw || ''}`)
+)
+
+export function resolveVideoSequenceClipEditStepMinutes(span: VideoSequenceClipEditSpan | null | undefined): number {
+  return span && hasFractionalTimelineTiming(span) ? VIDEO_SEQUENCE_CLIP_EDIT_SECOND_STEP_MINUTES : 1
+}
+
+export function normalizeVideoSequenceClipEditDeltaMinutes(deltaMinutes: number, stepMinutes: number): number {
+  const delta = Number(deltaMinutes)
+  const step = Number(stepMinutes)
+  if (!Number.isFinite(delta) || !Number.isFinite(step) || step <= 0) return 0
+  if (step >= 1) return Math.round(delta)
+  return Number((Math.round(delta / step) * step).toFixed(3))
+}
+
+export function resolveVideoSequenceClipEditSnappedMinutes(args: {
+  enabled: boolean
+  positionMinutes: number
+  selectedSpan: VideoSequenceClipEditSpan | null | undefined
+  spans: readonly VideoSequenceClipEditSpan[]
+}): number {
+  const positionMinutes = Number(args.positionMinutes)
+  if (!args.enabled || !Number.isFinite(positionMinutes)) return positionMinutes
+  const selectedSpan = args.selectedSpan
+  const snapCandidates = args.spans
+    .flatMap(span => [span.startMinutes, span.endMinutes])
+    .concat(selectedSpan ? [selectedSpan.startMinutes, selectedSpan.endMinutes] : [])
+    .filter(candidate => Number.isFinite(candidate) && candidate >= 0)
+  const nearest = snapCandidates
+    .map(candidate => ({
+      distance: Math.abs(candidate - positionMinutes),
+      minutes: candidate,
+    }))
+    .filter(candidate => candidate.distance <= VIDEO_SEQUENCE_CLIP_EDIT_SNAP_THRESHOLD_MINUTES)
+    .sort((a, b) => a.distance - b.distance || a.minutes - b.minutes)[0]
+  return nearest ? Number(nearest.minutes.toFixed(3)) : positionMinutes
 }
 
 function formatClipEditTime(minutes: number, mediaDurationSeconds: number, maxMinutes: number): string {

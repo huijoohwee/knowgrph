@@ -9,8 +9,19 @@ export type MermaidGanttVideoSequenceMediaDropResult = {
 }
 
 const DEFAULT_DROP_DURATION_MINUTES = 1
+const DEFAULT_VIDEO_SEQUENCE_CODE = [
+  'gantt',
+  '  title Video Sequence',
+  '  dateFormat HH:mm',
+  '  axisFormat %H:%M',
+].join('\n')
 
 const cleanInline = (value: unknown): string => String(value || '').replace(/\s+/g, ' ').trim()
+
+const readPositiveNumber = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
 
 const sanitizeMermaidLabel = (value: unknown, fallback: string): string => {
   const label = cleanInline(value).replace(/[:|#]+/g, ' ').replace(/\s+/g, ' ').trim()
@@ -54,6 +65,8 @@ const buildMediaSourceId = (media: MediaDragPayload, frontmatterLines: readonly 
 }
 
 const inferMimeHint = (media: MediaDragPayload): string => {
+  const explicit = cleanInline(media.mimeHint)
+  if (explicit) return explicit
   const signature = `${media.label} ${media.url}`.toLowerCase()
   if (media.kind === 'audio') {
     if (/\.m4a\b/.test(signature)) return 'audio/mp4'
@@ -75,18 +88,89 @@ const inferMimeHint = (media: MediaDragPayload): string => {
 const buildSourceLines = (args: {
   id: string
   media: MediaDragPayload
-}): string[] => [
-  `  - id: ${yamlQuote(args.id)}`,
-  `    originalName: ${yamlQuote(cleanInline(args.media.label) || args.media.kind)}`,
-  `    relativePath: ${yamlQuote(cleanInline(args.media.label || args.media.url) || args.id)}`,
-  '    importMode: "url"',
-  `    sourceUrl: ${yamlQuote(args.media.url)}`,
-  `    mimeHint: ${yamlQuote(inferMimeHint(args.media))}`,
-]
+}): string[] => {
+  const lines = [
+    `  - id: ${yamlQuote(args.id)}`,
+    `    originalName: ${yamlQuote(cleanInline(args.media.label) || args.media.kind)}`,
+    `    relativePath: ${yamlQuote(cleanInline(args.media.label || args.media.url) || args.id)}`,
+    '    importMode: "url"',
+    `    sourceUrl: ${yamlQuote(args.media.url)}`,
+    `    mimeHint: ${yamlQuote(inferMimeHint(args.media))}`,
+  ]
+  const byteSize = Math.floor(Number(args.media.byteSize))
+  if (Number.isFinite(byteSize) && byteSize >= 0) lines.push(`    byteSize: ${byteSize}`)
+  const durationSeconds = readPositiveNumber(args.media.durationSeconds)
+  if (durationSeconds > 0) lines.push(`    durationSeconds: ${durationSeconds}`)
+  const frameRate = readPositiveNumber(args.media.frameRate)
+  if (frameRate > 0) lines.push(`    frameRate: ${frameRate}`)
+  const displayWidth = readPositiveNumber(args.media.displayWidth)
+  const displayHeight = readPositiveNumber(args.media.displayHeight)
+  if (displayWidth > 0 && displayHeight > 0) {
+    lines.push(`    displayWidth: ${Math.round(displayWidth)}`)
+    lines.push(`    displayHeight: ${Math.round(displayHeight)}`)
+  }
+  return lines
+}
 
 const findFrontmatterEndIndex = (lines: readonly string[]): number => {
   if (lines[0]?.trim() !== '---') return -1
   return lines.findIndex((line, index) => index > 0 && line.trim() === '---')
+}
+
+const readIndent = (line: string): number => (line.match(/^(\s*)/)?.[1] || '').length
+
+const hasRootKey = (lines: readonly string[], frontmatterEndIndex: number, key: string): boolean => {
+  const pattern = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`)
+  return lines.some((line, index) => index > 0 && index < frontmatterEndIndex && pattern.test(line))
+}
+
+const findFlowDiagramsValueIndex = (lines: readonly string[], frontmatterEndIndex: number, flowIndex: number): number => {
+  const flowIndent = readIndent(lines[flowIndex] || '')
+  for (let index = flowIndex + 1; index < frontmatterEndIndex; index += 1) {
+    const line = lines[index] || ''
+    if (line.trim() && readIndent(line) <= flowIndent) break
+    if (/^\s*value\s*:\s*$/.test(line)) return index
+  }
+  return -1
+}
+
+const buildVideoSequenceDiagramLines = (code: string, indent = '  '): string[] => [
+  `${indent}video_sequence:`,
+  `${indent}  key: video_sequence`,
+  `${indent}  type: mermaid_gantt`,
+  `${indent}  value: |-`,
+  ...String(code || DEFAULT_VIDEO_SEQUENCE_CODE).split('\n').map(line => `${indent}    ${line}`),
+]
+
+const insertVideoSequenceDiagramIntoFrontmatter = (args: {
+  lines: string[]
+  code: string
+}): string[] | null => {
+  const frontmatterEndIndex = findFrontmatterEndIndex(args.lines)
+  if (frontmatterEndIndex <= 0) return null
+  const nextLines = args.lines.slice()
+  let endIndex = frontmatterEndIndex
+  if (!hasRootKey(nextLines, endIndex, 'kgVideoSequenceTimeline')) {
+    const flowIndexForFlag = nextLines.findIndex((line, index) => index > 0 && index < endIndex && /^\s*flow_diagrams\s*:\s*$/.test(line))
+    nextLines.splice(flowIndexForFlag > 0 ? flowIndexForFlag : endIndex, 0, 'kgVideoSequenceTimeline: true')
+    endIndex += 1
+  }
+  const existingVideoSequenceIndex = nextLines.findIndex((line, index) => (
+    index > 0 && index < endIndex && /^\s*video_sequence\s*:\s*$/.test(line)
+  ))
+  if (existingVideoSequenceIndex > 0) return nextLines
+  const flowIndex = nextLines.findIndex((line, index) => index > 0 && index < endIndex && /^\s*flow_diagrams\s*:\s*$/.test(line))
+  if (flowIndex < 0) {
+    nextLines.splice(endIndex, 0, 'flow_diagrams:', ...buildVideoSequenceDiagramLines(args.code))
+    return nextLines
+  }
+  const valueIndex = findFlowDiagramsValueIndex(nextLines, endIndex, flowIndex)
+  if (valueIndex > 0) {
+    nextLines.splice(valueIndex + 1, 0, ...buildVideoSequenceDiagramLines(args.code, '    '))
+    return nextLines
+  }
+  nextLines.splice(flowIndex + 1, 0, ...buildVideoSequenceDiagramLines(args.code))
+  return nextLines
 }
 
 const appendSourceToFrontmatter = (args: {
@@ -125,13 +209,39 @@ const readCodeSectionRange = (lines: readonly string[], sectionLabel: string): {
   return { endIndex, startIndex }
 }
 
+const readCodeSectionRangeAny = (lines: readonly string[], sectionLabels: readonly string[]): { endIndex: number; startIndex: number } | null => {
+  for (const sectionLabel of sectionLabels) {
+    const range = readCodeSectionRange(lines, sectionLabel)
+    if (range) return range
+  }
+  return null
+}
+
 const mediaLane = (kind: MediaDragPayload['kind']): 'Audio' | 'Image' | 'Video' => {
   if (kind === 'audio') return 'Audio'
   if (kind === 'image') return 'Image'
   return 'Video'
 }
 
+const mediaSectionLabels = (lane: 'Audio' | 'Image' | 'Video'): readonly string[] => {
+  if (lane === 'Video') return ['Source video', 'Video']
+  if (lane === 'Audio') return ['Source audio', 'Audio']
+  return ['Image']
+}
+
+const hasMermaidGanttTaskLine = (code: string): boolean =>
+  String(code || '').split('\n').some(line => /^\s*[^:\n]+:\s*[^,\n]+,\s*.+/.test(line))
+
+const resolveDropDurationMinutes = (media: MediaDragPayload, overrideDurationMinutes?: number): number => {
+  const override = readPositiveNumber(overrideDurationMinutes)
+  if (override > 0) return Math.max(0.001, override)
+  const durationSeconds = readPositiveNumber(media.durationSeconds)
+  if (durationSeconds > 0 && media.kind !== 'image') return Math.max(0.001, durationSeconds / 60)
+  return DEFAULT_DROP_DURATION_MINUTES
+}
+
 const buildTaskLine = (args: {
+  importChrome: boolean
   durationMinutes: number
   media: MediaDragPayload
   sourceId: string
@@ -140,13 +250,16 @@ const buildTaskLine = (args: {
   const lane = mediaLane(args.media.kind)
   const labelSuffix = lane === 'Video' ? '' : ` ${lane.toLowerCase()}`
   const stableId = lane === 'Video' ? args.sourceId : `${args.sourceId}_${lane.toLowerCase()}`
-  const label = `${sanitizeMermaidLabel(args.media.label, lane)}${labelSuffix}`
+  const label = args.importChrome && lane === 'Video'
+    ? 'Source video'
+    : `${sanitizeMermaidLabel(args.media.label, lane)}${labelSuffix}`
   return `  ${label} : ${stableId}, ${normalizeSourceRangeToken(args.durationMinutes)}, ${normalizeClockToken(args.startMinutes)}, ${normalizeDurationToken(args.durationMinutes)}`
 }
 
 const appendTaskToCode = (args: {
   code: string
   durationMinutes: number
+  importChrome: boolean
   media: MediaDragPayload
   sourceId: string
   startMinutes: number
@@ -155,14 +268,14 @@ const appendTaskToCode = (args: {
   if (!lines.some(line => /^\s*gantt\s*$/i.test(line))) return null
   const lane = mediaLane(args.media.kind)
   const taskLine = buildTaskLine(args)
-  const existingSection = readCodeSectionRange(lines, lane)
+  const existingSection = readCodeSectionRangeAny(lines, mediaSectionLabels(lane))
   if (existingSection) {
     lines.splice(existingSection.endIndex, 0, taskLine)
     return { code: lines.join('\n'), line: taskLine, lineIndex: existingSection.endIndex }
   }
-  const audioSection = readCodeSectionRange(lines, 'Audio')
-  const videoSection = readCodeSectionRange(lines, 'Video')
-  const sectionLine = `  section ${lane}`
+  const audioSection = readCodeSectionRangeAny(lines, mediaSectionLabels('Audio'))
+  const videoSection = readCodeSectionRangeAny(lines, mediaSectionLabels('Video'))
+  const sectionLine = args.importChrome && lane === 'Video' ? '  section Source video' : `  section ${lane}`
   const insertIndex = lane === 'Audio'
     ? lines.length
     : audioSection?.startIndex ?? videoSection?.endIndex ?? lines.length
@@ -178,13 +291,16 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
   durationMinutes?: number
 }): MermaidGanttVideoSequenceMediaDropResult | null {
   const sourceId = buildMediaSourceId(args.media, String(args.markdownText || '').split('\n'))
-  const durationMinutes = Math.max(0.001, args.durationMinutes || DEFAULT_DROP_DURATION_MINUTES)
+  const durationMinutes = resolveDropDurationMinutes(args.media, args.durationMinutes)
+  const baseCode = String(args.code || '').trim() || DEFAULT_VIDEO_SEQUENCE_CODE
+  const importChrome = args.media.kind === 'video' && !hasMermaidGanttTaskLine(baseCode)
   const nextCode = appendTaskToCode({
-    code: args.code,
+    code: baseCode,
     durationMinutes,
+    importChrome,
     media: args.media,
     sourceId,
-    startMinutes: args.startMinutes,
+    startMinutes: importChrome ? 0 : args.startMinutes,
   })
   if (!nextCode) return null
   const linesWithSource = appendSourceToFrontmatter({
@@ -193,7 +309,11 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
     sourceId,
   })
   if (!linesWithSource) return null
-  const markdownText = replaceFirstMermaidGanttFrontmatterCode(linesWithSource.join('\n'), nextCode.code)
+  const markdownWithVideoSequenceDiagram =
+    replaceFirstMermaidGanttFrontmatterCode(linesWithSource.join('\n'), nextCode.code) ||
+    insertVideoSequenceDiagramIntoFrontmatter({ lines: linesWithSource, code: nextCode.code })?.join('\n') ||
+    null
+  const markdownText = markdownWithVideoSequenceDiagram
   if (!markdownText || markdownText === args.markdownText) return null
   return {
     markdownText,

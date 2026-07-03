@@ -178,6 +178,18 @@ function formatClockMinutes(value: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
+function formatFractionalMinutesToken(value: number): string {
+  const safe = Math.max(0, Number.isFinite(value) ? value : 0)
+  return String(Number(safe.toFixed(3)))
+}
+
+function formatPositionToken(value: number, existingToken: string): string {
+  if (/^kgpos_/i.test(String(existingToken || '').trim())) {
+    return `kgpos_${formatFractionalMinutesToken(value).replace(/\./g, '_')}`
+  }
+  return formatClockMinutes(value)
+}
+
 function readDurationMinutes(value: string): number | null {
   const match = /^(\d+(?:\.\d+)?)m$/i.exec(String(value || '').trim())
   if (!match) return null
@@ -186,7 +198,7 @@ function readDurationMinutes(value: string): number | null {
 }
 
 function formatDurationMinutes(value: number): string {
-  return `${Math.max(1, Math.round(value))}m`
+  return `${formatFractionalMinutesToken(Math.max(0.001, value))}m`
 }
 
 function readGanttTaskLabel(line: string): string {
@@ -493,7 +505,10 @@ export function updateMermaidGanttCodeRowTiming(args: {
   const lines = String(args.code || '').split('\n')
   const line = lines[args.rowLineIndex]
   if (typeof line !== 'string' || !line.includes(':')) return null
-  const deltaMinutes = Math.round(args.deltaMinutes)
+  const preserveFractionalTiming = /\b(?:kgpos_|kgsrc_|\d+\.\d+m\b)/i.test(line)
+  const deltaMinutes = preserveFractionalTiming
+    ? Number(Number(args.deltaMinutes).toFixed(3))
+    : Math.round(args.deltaMinutes)
   if (deltaMinutes === 0) return null
   const colonIndex = line.indexOf(':')
   const prefix = line.slice(0, colonIndex + 1)
@@ -533,9 +548,10 @@ export function updateMermaidGanttCodeRowTiming(args: {
       startMinutes: initialSourceRange.startMinutes,
     }
   }
-  if (nextDurationMinutes < 1) {
-    const durationFloorDelta = nextDurationMinutes - 1
-    nextDurationMinutes = 1
+  const minimumDurationMinutes = preserveFractionalTiming ? 0.001 : 1
+  if (nextDurationMinutes < minimumDurationMinutes) {
+    const durationFloorDelta = nextDurationMinutes - minimumDurationMinutes
+    nextDurationMinutes = minimumDurationMinutes
     if (args.mode === 'resize-start') nextStartMinutes += durationFloorDelta
   }
   nextSourceRange = {
@@ -559,7 +575,7 @@ export function updateMermaidGanttCodeRowTiming(args: {
   }
   if (timeTokenIndex >= 0) {
     const nextTimeTokenIndex = tokens.findIndex(token => readClockMinutes(token) != null)
-    tokens[nextTimeTokenIndex] = formatClockMinutes(nextStartMinutes)
+    tokens[nextTimeTokenIndex] = formatPositionToken(nextStartMinutes, tokens[nextTimeTokenIndex] || '')
   } else if (args.mode === 'resize-end') {
     tokens[tokens.length - 1] = formatDurationMinutes(nextDurationMinutes)
     lines[args.rowLineIndex] = `${prefix} ${tokens.join(', ')}`

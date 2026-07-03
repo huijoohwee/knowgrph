@@ -10,6 +10,7 @@ import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
+import type { WidgetEditorSurfaceKind } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import {
   deriveFrontmatterFlowOverlayNodeIds,
@@ -232,6 +233,7 @@ type StoryboardWidgetOverlayProps = {
   visible?: boolean
   active: boolean
   storyboardWidgetSurfaceId?: string
+  editorSurfaceKind?: WidgetEditorSurfaceKind
   overlayCollectiveCount?: number
   node: GraphNode
   graphMetaKind?: string | null
@@ -275,6 +277,7 @@ export const StoryboardWidgetOverlay = React.memo(function StoryboardWidgetOverl
       visible={args.visible}
       active={args.active}
       storyboardWidgetSurfaceId={args.storyboardWidgetSurfaceId}
+      editorSurfaceKind={args.editorSurfaceKind}
       overlayCollectiveCount={args.overlayCollectiveCount}
       node={args.node}
       graphMetaKind={args.graphMetaKind}

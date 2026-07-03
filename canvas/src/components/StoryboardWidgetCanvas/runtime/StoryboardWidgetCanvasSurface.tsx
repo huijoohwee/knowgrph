@@ -80,8 +80,10 @@ export default function StoryboardWidgetCanvasSurface(props: {
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
   const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
-  const storyboardCardsActive = props.storyboardCardsMode === true && canvas2dRenderer === 'storyboard'
-  const storyboardSharedSurfaceActive = (props.storyboardCardsMode === true || props.storyboardWidgetMode === true) && canvas2dRenderer === 'storyboard'
+  const storyboardSurfaceRouteActive = String(props.storyboardWidgetSurfaceId || '').trim() === 'storyboard' || canvas2dRenderer === 'storyboard'
+  const storyboardCardsActive = props.storyboardCardsMode === true && storyboardSurfaceRouteActive
+  const storyboardSharedSurfaceActive =
+    (props.storyboardCardsMode === true || props.storyboardWidgetMode === true) && storyboardSurfaceRouteActive
   const flowWidgetStateGraphKey = React.useMemo(
     () => resolveFlowWidgetStateGraphKey({ graphData: props.storyboardSourceGraphData || null }),
     [props.storyboardSourceGraphData],
@@ -192,12 +194,14 @@ export default function StoryboardWidgetCanvasSurface(props: {
     const sx = clientX - rect.left
     const sy = clientY - rect.top
     if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
+    const st = useGraphStore.getState()
+    const transform = props.getLiveZoomTransform() || getEffectiveZoomStateForKey({
+      zoomViewKey: props.zoomViewKeyRef.current,
+      zoomStateByKey: st.zoomStateByKey,
+      zoomState: st.zoomState,
+    })
     return screenToWorld({
-      transform: props.getLiveZoomTransform() || getEffectiveZoomStateForKey({
-        zoomViewKey: props.zoomViewKeyRef.current,
-        zoomStateByKey: useGraphStore.getState().zoomStateByKey,
-        zoomState: useGraphStore.getState().zoomState,
-      }),
+      transform,
       sx,
       sy,
     })

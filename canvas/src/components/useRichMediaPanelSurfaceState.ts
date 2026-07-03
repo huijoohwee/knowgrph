@@ -442,7 +442,7 @@ export function useRichMediaPanelSurfaceState(
   const directMediaPreviewClaimsPointerDown = !installOverlayPan && !directMediaPreviewUsesCollectivePan
   const directMediaPreviewMarksSelectableSurface = !directMediaPreviewUsesCollectivePan
   const directMediaPreviewSelectionProps = React.useMemo(() => resolveMediaPreviewSurfaceSelectionProps({
-    ariaLabel: `${mediaState.title} pan and zoom media preview`,
+    ariaLabel: `${mediaState.title} media preview`,
     claimPointerDown: directMediaPreviewClaimsPointerDown,
     selectableSurface: directMediaPreviewMarksSelectableSurface,
     enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',

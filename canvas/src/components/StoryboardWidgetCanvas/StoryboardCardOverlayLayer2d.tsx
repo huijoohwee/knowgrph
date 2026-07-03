@@ -22,6 +22,7 @@ import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS } from '@/lib/graph/keywordTerms'
 import { createUniqueId } from '@/lib/ids'
+import { UI_LABELS } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS } from '@/lib/render/richMediaPanelDefaults'
@@ -111,6 +112,7 @@ function StoryboardCardOverlayItem(props: {
     >
       <WidgetEditorActionsToolbar
         visible={selected}
+        ariaLabel={UI_LABELS.storyboardCard}
         {...toolbarProps}
         {...toolbarActionBindings}
       />
@@ -119,6 +121,7 @@ function StoryboardCardOverlayItem(props: {
         <StoryboardWidgetPanelChromeHeader
           active
           title={card.title}
+          actionsAriaLabel={UI_LABELS.storyboardCard}
           titleContent={<section className="flex min-w-0 items-center gap-2">
             <CardInlineTextEditor
               value={card.lane || 'Storyboard'}

@@ -7,7 +7,6 @@ import { StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget
 import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { UI_LABELS } from '@/lib/config'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -17,6 +16,8 @@ import {
   handleWidgetInnerPanelScrollCapture,
   handleWidgetInnerPanelWheelCapture,
   RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
+  resolveWidgetEditorSurfaceLabel,
+  type WidgetEditorSurfaceKind,
 } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/StoryboardWidget/beatByBeat'
 import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'
@@ -34,6 +35,7 @@ import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   active: boolean
   storyboardWidgetSurfaceId?: string
+  editorSurfaceKind?: WidgetEditorSurfaceKind
   node: GraphNode
   graphMetaKind?: string | null
   registryEntry: WidgetRegistryEntry | null
@@ -75,6 +77,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   const {
     active,
     storyboardWidgetSurfaceId,
+    editorSurfaceKind,
     node,
     graphMetaKind,
     registryEntry,
@@ -157,7 +160,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   const isFrontmatterFlow = React.useMemo(() => {
     return String(graphMetaKind || '').trim() === 'frontmatter-flow'
   }, [graphMetaKind])
-  const editorPanelLabel = isFrontmatterFlow ? 'Card' : UI_LABELS.flowWidget
+  const editorSurfaceLabel = resolveWidgetEditorSurfaceLabel(editorSurfaceKind)
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
   const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
@@ -189,7 +192,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
   return (
     <FloatingPanel
       as="section"
-      ariaLabel={editorPanelLabel}
+      ariaLabel={editorSurfaceLabel}
       className={getStoryboardWidgetPanelChromeClassName(panelTextClass)}
       onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitStoryboardWidgetInteractionFrame)}
       onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitStoryboardWidgetInteractionFrame)}
@@ -206,6 +209,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
         hideFields={hideFields}
         showFieldToggle={!isRichMediaPanelWidget}
         showPinToggle={showPinToggle}
+        actionsAriaLabel={editorSurfaceLabel}
         pinned={pinned}
         microLabelClass={microLabelClass}
         uiIconScale={uiIconScale}

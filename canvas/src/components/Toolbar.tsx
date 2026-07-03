@@ -18,6 +18,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { emitFloatingPanelOpen, emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
 import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { importStrybldrRunAllSource } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
 import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
@@ -107,9 +108,17 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
     setStrybldrToolbarRunAllRunning(true)
     try {
       const graphData = strybldrRunAllGraphData || useGraphStore.getState().graphData
+      const workspaceBridge = getMarkdownWorkspaceActionBridge()
       const sourceImport = await importStrybldrRunAllSource({
         graphData,
-        importUrl: getMarkdownWorkspaceActionBridge().importUrl,
+        importUrl: workspaceBridge.importUrl || ((url, opts) => importUrlFallback({
+          urlRaw: url,
+          canvas2dRenderer: opts?.canvas2dRenderer === 'storyboard' || opts?.canvas2dRenderer === 'design' || opts?.canvas2dRenderer === 'd3'
+            ? opts.canvas2dRenderer
+            : null,
+          documentSemanticMode: opts?.documentSemanticMode ?? null,
+          pushUiToast,
+        })),
       })
       const result = await createStrybldrLocalVideoArtifactFromGraphData(graphData)
       if ('reason' in result) {

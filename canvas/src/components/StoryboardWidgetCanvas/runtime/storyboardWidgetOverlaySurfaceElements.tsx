@@ -12,6 +12,7 @@ import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import type { WidgetEditorSurfaceKind } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { orderStoryboardWidgetOverlayNodeIdsByRenderGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayNodeOrder'
 import { resolveStoryboardWidgetAutoRunNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetAutoRunTargets'
 
@@ -58,6 +59,7 @@ export function buildOverlayEditorElements(args: {
   overlayEditorNodeIds: readonly string[]
   connectedValuesByNodeId: ReadonlyMap<string, FlowConnectedValuesBySchemaPath>
   storyboardWidgetSurfaceId: string
+  editorSurfaceKind?: WidgetEditorSurfaceKind
   renderGraphSemanticKey: string
   canEdit: boolean
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
@@ -171,6 +173,7 @@ export function buildOverlayEditorElements(args: {
         visible={args.overlayVisibilityActive}
         active={args.canEdit}
         storyboardWidgetSurfaceId={args.storyboardWidgetSurfaceId}
+        editorSurfaceKind={args.editorSurfaceKind}
         overlayCollectiveCount={orderedOverlayEditorNodeIds.length}
         node={renderNode}
         graphMetaKind={overlayGraphMetaKind}
