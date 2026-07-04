@@ -9,6 +9,7 @@ export type VideoSequenceClipEditAction =
   | 'nudge-forward'
   | 'toggle-auto-snapping'
   | 'toggle-ripple-editing'
+  | 'split-left-at-playhead'
   | 'split-right-at-playhead'
   | 'trim-start-back'
   | 'trim-start-forward'
@@ -27,6 +28,7 @@ export type VideoSequenceClipEditSpan = {
 
 const VIDEO_SEQUENCE_CLIP_EDIT_SECOND_STEP_MINUTES = 1 / 60
 const VIDEO_SEQUENCE_CLIP_EDIT_SNAP_THRESHOLD_MINUTES = 3 / 60
+const VIDEO_SEQUENCE_CLIP_EDIT_EDGE_EPSILON_MINUTES = 0.0005
 
 const hasFractionalTimelineTiming = (span: VideoSequenceClipEditSpan): boolean => (
   span.durationMinutes < 1 ||
@@ -71,6 +73,27 @@ export function resolveVideoSequenceClipEditSnappedMinutes(args: {
     .filter(candidate => candidate.distance <= VIDEO_SEQUENCE_CLIP_EDIT_SNAP_THRESHOLD_MINUTES)
     .sort((a, b) => a.distance - b.distance || a.minutes - b.minutes)[0]
   return nearest ? Number(nearest.minutes.toFixed(3)) : positionMinutes
+}
+
+export function resolveVideoSequenceClipEditSplitPointMinutes(args: {
+  autoSnappingEnabled: boolean
+  positionMinutes: number
+  selectedSpan: VideoSequenceClipEditSpan | null | undefined
+  spans: readonly VideoSequenceClipEditSpan[]
+}): number | null {
+  const selectedSpan = args.selectedSpan
+  const positionMinutes = Number(args.positionMinutes)
+  if (!selectedSpan || !Number.isFinite(positionMinutes)) return null
+  const splitPointMinutes = resolveVideoSequenceClipEditSnappedMinutes({
+    enabled: args.autoSnappingEnabled,
+    excludedSnapPositions: [selectedSpan.startMinutes, selectedSpan.endMinutes],
+    positionMinutes,
+    selectedSpan,
+    spans: args.spans,
+  })
+  if (splitPointMinutes <= selectedSpan.startMinutes + VIDEO_SEQUENCE_CLIP_EDIT_EDGE_EPSILON_MINUTES) return null
+  if (splitPointMinutes >= selectedSpan.endMinutes - VIDEO_SEQUENCE_CLIP_EDIT_EDGE_EPSILON_MINUTES) return null
+  return splitPointMinutes
 }
 
 function formatClipEditTime(minutes: number, mediaDurationSeconds: number, maxMinutes: number): string {

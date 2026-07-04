@@ -340,6 +340,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onToggleMediaPlayer: handleToggleMediaPlayer,
     playheadMinutes: transportSession.positionMinutes,
     selectedSpan: transportSession.selectedSpan,
+    spans: transportSession.timelineModel.taskSpans,
     timelineZoom: transportInteractionModel.timelineZoom,
     timelineZoomPercent: transportInteractionModel.timelineZoomPercent,
     toolStatus: transportSession.toolStatus,

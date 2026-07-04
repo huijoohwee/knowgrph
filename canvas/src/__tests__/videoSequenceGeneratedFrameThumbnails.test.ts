@@ -23,9 +23,28 @@ export function testVideoSequenceGeneratedFrameThumbnailsStayFrameByFrameOnly() 
   }
 }
 
-export function testVideoSequenceRulerDoesNotUseGeneratedFrameFallbackForSourceVideo() {
+export function testVideoSequenceRulerDoesNotUseGeneratedSourceVideoFallbackReels() {
   const rulerText = readFileSync(resolve(process.cwd(), 'src/components/timeline/VideoSequenceTimelineRuler.tsx'), 'utf8')
-  if (rulerText.includes('source-video-fallback') || rulerText.includes('showsGeneratedFrameContent || compactSourceVideo')) {
-    throw new Error('expected compact source video thumbnails to avoid generated frame fallback ownership')
+  const cssText = readFileSync(resolve(process.cwd(), 'src/components/timeline/VideoSequenceTimelineDenseFbf.css'), 'utf8')
+  const generatedText = readFileSync(resolve(process.cwd(), 'src/components/timeline/videoSequenceGeneratedFrameThumbnails.ts'), 'utf8')
+  if (
+    rulerText.includes('sourceVideoFallbackSamples') ||
+    rulerText.includes("origin: 'source-video'") ||
+    rulerText.includes("thumbnailOrigin = sourceVideoFallbackSamples.length ? 'source-video'") ||
+    generatedText.includes('buildSourceVideoThumbnailSvg') ||
+    generatedText.includes('>VID<') ||
+    generatedText.includes("'source-video'") ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-origin') ||
+    !rulerText.includes('data-kg-video-sequence-clip-thumbnail-reel') ||
+    !cssText.includes('[data-kg-video-sequence-clip-thumbnail-reel="1"]') ||
+    !cssText.includes('width: 6px;') ||
+    !cssText.includes('left: 0;') ||
+    !cssText.includes('right: 0;') ||
+    cssText.includes('width: min(34px, 38%)') ||
+    cssText.includes('left: -10px;') ||
+    cssText.includes('right: -10px;') ||
+    cssText.includes('background: color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 12%, transparent);')
+  ) {
+    throw new Error('expected compact source video rows to avoid generated VID fallback reels and keep edge handles off thumbnail cells')
   }
 }

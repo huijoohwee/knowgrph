@@ -9,6 +9,7 @@ export type GanttTimelineTransportHeaderToolsProps = {
 
 const PRIMARY_CLIP_EDIT_ACTIONS = new Set([
   'split-at-playhead',
+  'split-left-at-playhead',
   'split-right-at-playhead',
   'extract-audio',
   'duplicate-element',
@@ -39,6 +40,7 @@ function renderClipActionIcon(icon: GanttTimelineTransportChromeModel['headerToo
   if (icon === 'ripple') return <MoveRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'snapping') return <Magnet className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'split') return <Scissors className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+  if (icon === 'split-left') return <StepBack className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'split-right') return <StepForward className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'nudge-back') return <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
   if (icon === 'nudge-forward') return <ChevronsRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />

@@ -115,6 +115,23 @@ export function testUploadedMediaPanelItemRuntimeUrlRefreshesSyncedItemToken() {
   }
 }
 
+export function testUploadedMediaPanelItemRuntimeUrlIsStableWithinTokenTtl() {
+  const originalNow = Date.now
+  let nowMs = 1_700_000_000_000
+  Date.now = () => nowMs
+  try {
+    const item = createSyncedUploadedMediaItem()
+    const firstRuntimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
+    nowMs += 1_000
+    const secondRuntimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
+    if (secondRuntimeUrl !== firstRuntimeUrl) {
+      throw new Error(`expected media panel runtime URL to stay stable during render/probe loops, got ${firstRuntimeUrl} then ${secondRuntimeUrl}`)
+    }
+  } finally {
+    Date.now = originalNow
+  }
+}
+
 export function testUploadedMediaDragPayloadUsesFreshRuntimeUrl() {
   const originalNow = Date.now
   Date.now = () => 1_700_000_000_000

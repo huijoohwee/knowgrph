@@ -57,11 +57,11 @@ const formatTimelineClock = (minutesRaw: number): string => {
   return `${String(hours).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
 }
 
-const formatSourceRangeToken = (startMinutesRaw: number, endMinutesRaw: number): string => {
+const formatSourceRangeToken = (startSecondsRaw: number, endSecondsRaw: number): string => {
   const normalize = (value: number): string => String(Math.max(0, Number(value.toFixed(3)))).replace(/\./g, '_')
-  const startMinutes = Math.max(0, Number(startMinutesRaw) || 0)
-  const endMinutes = Math.max(startMinutes, Number(endMinutesRaw) || startMinutes)
-  return `kgsrc_${normalize(startMinutes)}_${normalize(endMinutes)}`
+  const startSeconds = Math.max(0, Number(startSecondsRaw) || 0)
+  const endSeconds = Math.max(startSeconds, Number(endSecondsRaw) || startSeconds)
+  return `kgsrc_${normalize(startSeconds)}_${normalize(endSeconds)}`
 }
 
 const buildClipId = (asset: VideoSequenceImportAsset, index: number): string => {
@@ -98,10 +98,13 @@ export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArra
   const clips = assets.map((asset, index) => ({
     asset,
     clipId: buildClipId(asset, index),
-    durationMinutes: VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES,
+    sourceDurationSeconds: readPositiveNumber(asset.durationSeconds) || VIDEO_SEQUENCE_DEFAULT_CLIP_DURATION_MINUTES * 60,
     index,
     label: sanitizeMermaidLabel(asset.originalName || asset.relativePath || asset.sourceUrl, `Video clip ${index + 1}`),
     startMinutes: index === 0 ? 0 : index * VIDEO_SEQUENCE_OVERLAY_STAGGER_MINUTES,
+  })).map(clip => ({
+    ...clip,
+    durationMinutes: clip.sourceDurationSeconds / 60,
   }))
   const sourceLines = clips.flatMap(clip => {
     const asset = clip.asset
@@ -138,9 +141,9 @@ export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArra
     '  dateFormat HH:mm',
     '  axisFormat %H:%M',
     '  section Video',
-    ...clips.map(clip => `  ${clip.label} : ${buildClipLaneId(clip.clipId, 'video')}, ${formatSourceRangeToken(0, clip.durationMinutes)}, ${formatTimelineClock(clip.startMinutes)}, ${clip.durationMinutes}m`),
+    ...clips.map(clip => `  ${clip.label} : ${buildClipLaneId(clip.clipId, 'video')}, ${formatSourceRangeToken(0, clip.sourceDurationSeconds)}, ${formatTimelineClock(clip.startMinutes)}, ${clip.durationMinutes}m`),
     '  section Audio',
-    ...clips.map(clip => `  ${clip.label} audio : ${buildClipLaneId(clip.clipId, 'audio')}, ${formatSourceRangeToken(0, clip.durationMinutes)}, ${formatTimelineClock(clip.startMinutes)}, ${clip.durationMinutes}m`),
+    ...clips.map(clip => `  ${clip.label} audio : ${buildClipLaneId(clip.clipId, 'audio')}, ${formatSourceRangeToken(0, clip.sourceDurationSeconds)}, ${formatTimelineClock(clip.startMinutes)}, ${clip.durationMinutes}m`),
   ]
   return [
     '---',

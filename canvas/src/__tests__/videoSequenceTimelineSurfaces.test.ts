@@ -11,7 +11,9 @@ import {
   resolveVideoSequenceTimelineMediaSeconds,
   resolveVideoSequenceTimelinePositionMinutes,
   resolveVideoSequenceTimelineUnitsPerMs,
+  resolveVideoSequenceTimelineDisplayLaneId,
   resolveVisibleVideoSequenceTimelineLaneCount,
+  resolveVisibleVideoSequenceTimelineDisplayLanes,
   resolveVisibleVideoSequenceTimelineLanes,
   type VideoSequenceTimelineSource,
 } from '@/components/timeline/videoSequenceTimeline'
@@ -28,6 +30,7 @@ import {
 import {
   buildMermaidGanttTimelineModel,
   insertMermaidGanttVideoSequenceOperationRow,
+  reorderMermaidGanttVideoSequenceClipDisplayLane,
   resolveMermaidGanttTimelineDragEffectiveDelta,
   resolveMermaidGanttTimelineDragPreviewSpan,
   splitMermaidGanttVideoSequenceClipAtOffset,
@@ -39,11 +42,48 @@ import {
   normalizeVideoSequenceClipEditDeltaMinutes,
   resolveVideoSequenceClipEditStepMinutes,
 } from '@/components/timeline/videoSequenceClipEdit'
+import { resolveVideoSequenceClipThumbnails } from '@/components/timeline/videoSequenceClipThumbnailSelection'
+import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
 
 const root = process.cwd()
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(root, 'src', ...parts), 'utf8')
+}
+
+function buildTestThumbnail(timestampSeconds: number, rasterDataUrl: string): TimelineMediaReaderThumbnail {
+  return {
+    dataUrl: rasterDataUrl,
+    format: 'png',
+    height: 90,
+    mimeType: 'image/png',
+    rasterDataUrl,
+    rasterFormat: 'png',
+    rasterMimeType: 'image/png',
+    timestampSeconds,
+    width: 160,
+  }
+}
+
+export function testVideoSequenceClipThumbnailsKeepNativeVideoFrameReel() {
+  const duplicateNativeFrames = [
+    buildTestThumbnail(0, 'data:image/png;base64,same-frame'),
+    buildTestThumbnail(1, 'data:image/png;base64,same-frame'),
+    buildTestThumbnail(2, 'data:image/png;base64,same-frame'),
+  ]
+  const distinctNativeFrames = [
+    buildTestThumbnail(0, 'data:image/png;base64,frame-a'),
+    buildTestThumbnail(1, 'data:image/png;base64,frame-b'),
+  ]
+  const span = buildMermaidGanttTimelineModel(['gantt', '  title Video Sequence Timeline', '  dateFormat HH:mm', '  section Source video', '  Source video : clip_source, kgsrc_0_3, kgpos_0, 3m'].join('\n')).taskSpans[0]
+  const sourceWindow = { sourceEndSeconds: 3, sourceStartSeconds: 0, timelineEndMinutes: 3, timelineStartMinutes: 0 }
+
+  const retainedDuplicates = resolveVideoSequenceClipThumbnails({ sourceThumbnails: duplicateNativeFrames, sourceWindow })
+  const retainedDistinctFrames = resolveVideoSequenceClipThumbnails({ sourceThumbnails: distinctNativeFrames, sourceWindow })
+
+  if (retainedDuplicates.length !== duplicateNativeFrames.length || retainedDistinctFrames.length !== distinctNativeFrames.length || !span) {
+    throw new Error('expected compact source video thumbnails to keep native frame reels even when sampled frames are visually similar')
+  }
 }
 
 export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming() {
@@ -79,6 +119,77 @@ export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming
     trimmed.includes('1m')
   ) {
     throw new Error(`expected source clip edit tools to preserve fractional timing: ${JSON.stringify({ editStep, nudgeDelta, pointerMoveDelta, pointerResizePreview, pointerResizeDelta, nudged, trimmed })}`)
+  }
+}
+
+export function testVideoSequenceDisplayLanesStayStableWhenClipMovesAcrossAnother() {
+  const code = [
+    'gantt',
+    '  title Video Sequence Timeline',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Source video',
+    '  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_seedance, kgsrc_0_0_86, kgpos_0, 0.86m',
+    '  港岛仿生局.mp4 : clip_harbor, kgsrc_0_0_25, kgpos_0_4, 0.25m',
+  ].join('\n')
+  const movedCode = updateMermaidGanttVideoSequenceClipTiming({
+    code,
+    deltaMinutes: -0.35,
+    mode: 'move',
+    rowLineIndex: 6,
+    syncMode: 'selected',
+  })
+  if (!movedCode) throw new Error('expected moved source video clip code')
+  const beforeSpans = buildMermaidGanttTimelineModel(code).taskSpans
+  const afterSpans = buildMermaidGanttTimelineModel(movedCode).taskSpans
+  const beforeHarbor = beforeSpans.find(span => span.label === '港岛仿生局.mp4')
+  const afterHarbor = afterSpans.find(span => span.label === '港岛仿生局.mp4')
+  if (!beforeHarbor || !afterHarbor) throw new Error('expected harbor clip before and after drag')
+  const beforeLane = resolveVideoSequenceTimelineDisplayLaneId(beforeHarbor, beforeSpans)
+  const afterLane = resolveVideoSequenceTimelineDisplayLaneId(afterHarbor, afterSpans)
+  if (
+    !beforeLane.startsWith('video:') ||
+    afterLane !== beforeLane ||
+    afterHarbor.startMinutes >= beforeHarbor.startMinutes
+  ) {
+    throw new Error(`expected horizontal clip drag to preserve source display lane, got ${JSON.stringify({ afterLane, afterHarbor, beforeLane, beforeHarbor, movedCode })}`)
+  }
+}
+
+export function testVideoSequenceClipVerticalDragReordersDisplayLane() {
+  const code = [
+    'gantt',
+    '  title Video Sequence Timeline',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Source video',
+    '  flower.mp4 : clip_flower, kgsrc_0_0_05, kgpos_0, 0.05m',
+    '  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_seedance, kgsrc_0_0_86, kgpos_0_22, 0.86m',
+  ].join('\n')
+  const beforeSpans = buildMermaidGanttTimelineModel(code).taskSpans
+  const seedanceBefore = beforeSpans.find(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4')
+  if (!seedanceBefore) throw new Error('expected seedance clip before reorder')
+  const beforeLane = resolveVideoSequenceTimelineDisplayLaneId(seedanceBefore, beforeSpans)
+  const beforeLaneLabel = resolveVisibleVideoSequenceTimelineDisplayLanes(beforeSpans).find(lane => lane.id === beforeLane)?.label
+  const reordered = reorderMermaidGanttVideoSequenceClipDisplayLane({
+    code,
+    displayLaneDelta: -1,
+    rowLineIndex: seedanceBefore.lineIndex,
+  })
+  if (!reordered) throw new Error('expected vertical drag to reorder display lane')
+  const afterSpans = buildMermaidGanttTimelineModel(reordered.code).taskSpans
+  const seedanceAfter = afterSpans.find(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4')
+  if (!seedanceAfter) throw new Error('expected seedance clip after reorder')
+  const afterLane = resolveVideoSequenceTimelineDisplayLaneId(seedanceAfter, afterSpans)
+  const afterLaneLabel = resolveVisibleVideoSequenceTimelineDisplayLanes(afterSpans).find(lane => lane.id === afterLane)?.label
+  if (
+    afterLane !== 'video:seedance_2_0_is_on_artlist_77fant935ie' ||
+    beforeLaneLabel !== 'V2' ||
+    afterLaneLabel !== 'V1' ||
+    reordered.lineIndex !== 5 ||
+    !reordered.code.includes('  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_seedance, kgsrc_0_0_86, kgpos_0_22, 0.86m\n  flower.mp4 : clip_flower')
+  ) {
+    throw new Error(`expected vertical clip drag to move Seedance to the upper display lane, got ${JSON.stringify({ afterLane, afterLaneLabel, afterSpans, beforeLane, beforeLaneLabel, reordered })}`)
   }
 }
 
@@ -128,8 +239,23 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     readSource('features', 'command-menu', 'mediaCatalogUploadedItems.tsx'),
   ].join('\n')
   const forbiddenExternalMediaToolkit = ['media', 'bunny'].join('')
-  const rulerText = [readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx'), readSource('components', 'timeline', 'VideoSequenceClipThumbnailStrip.tsx')].join('\n')
+  const rulerText = [
+    readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx'),
+    readSource('components', 'timeline', 'videoSequenceClipThumbnailSelection.ts'),
+    readSource('components', 'timeline', 'videoSequenceSourceThumbnailSet.ts'),
+    readSource('components', 'timeline', 'VideoSequenceClipThumbnailStrip.tsx'),
+  ].join('\n')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
+  if (
+    controlsCssText.includes('rgb(130 130 226 / 0.88)') ||
+    controlsCssText.includes('rgb(59 130 246 / 0.88)') ||
+    controlsCssText.includes('rgb(214 211 255 / 0.42)') ||
+    controlsCssText.includes('.timeline-transport-track-handle::after') ||
+    rulerCssText.includes('linear-gradient(180deg, rgb(96 165 250 / 0.82), rgb(37 99 235 / 0.84))') ||
+    rulerCssText.includes('rgb(37 99 235 / 0.7)')
+  ) {
+    throw new Error('expected video sequence timeline to remove legacy solid blue bars and visible resize grips')
+  }
   const transportPanelText = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const transportRouteModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportRouteModel.ts')
   const transportSurfaceModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
@@ -232,7 +358,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     rulerText.includes('Color grading controls') ||
     rulerText.includes('timeline-video-sequence-ruler-scope-header') ||
     rulerText.includes('<meter') ||
-    !rulerText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61') ||
+    !sequenceText.includes('VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61') ||
     !sequenceText.includes("VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['mask', 'grade']") || !sequenceText.includes("VIDEO_SEQUENCE_TIMELINE_EMPTY_LANE_IDS: readonly VideoSequenceTimelineLaneId[] = ['video', 'image', 'scene', 'effect']") ||
     !sequenceText.includes('disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]') ||
     !sequenceText.includes('const disabledLaneIds = new Set(options.disabledLaneIds || [])') ||
@@ -430,6 +556,10 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportChromeModelText.includes("action: 'trim-start-back'") ||
     !transportChromeModelText.includes("action: 'snap-to-playhead'") ||
     !transportChromeModelText.includes("action: 'split-at-playhead'") ||
+    !transportChromeModelText.includes("action: 'split-left-at-playhead'") ||
+    !transportChromeModelText.includes("action: 'split-right-at-playhead'") ||
+    !transportChromeModelText.includes("ariaLabel: 'Split left side of selected clip at the playhead'") ||
+    !transportChromeModelText.includes("ariaLabel: 'Split right side of selected clip at the playhead'") ||
     !transportChromeModelText.includes('handleToggleVideoSequenceTimingSyncMode') ||
     !transportChromeModelText.includes("timingSyncMode === 'grouped'") ||
     !transportChromeModelText.includes('VIDEO_SEQUENCE_TIMELINE_TOOLS.map') ||
@@ -770,12 +900,12 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !rulerText.includes("VIDEO_SEQUENCE_SOURCE_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['video', 'image', 'scene'])") ||
     !rulerText.includes("VIDEO_SEQUENCE_OPERATION_CONTENT_LANES = new Set<VideoSequenceTimelineLaneId>(['mask', 'grade', 'audio'])") ||
     !rulerText.includes('resolveVideoSequenceSpanThumbnailWindow') ||
-    rulerText.indexOf('const sourceRange = readMermaidGanttTaskSourceRangeMinutes(args.span.raw)') > rulerText.indexOf('const existingWindow = resolveVideoSequenceThumbnailWindow') ||
+    rulerText.indexOf('const existingWindow = resolveVideoSequenceThumbnailWindow') > rulerText.indexOf('const sourceRange = readMermaidGanttTaskSourceRangeSeconds(args.span.raw)') ||
     !rulerText.includes('if (sourceRange) {') ||
     !rulerText.includes('if (!sourceRange && !args.allowTimelineFallback) return null') ||
     !rulerText.includes('if (!window) return []') ||
     rulerText.includes('sort((left, right) => Math.abs(left.timestampSeconds') ||
-    !rulerText.includes('readMermaidGanttTaskSourceRangeMinutes(args.span.raw)') ||
+    !rulerText.includes('readMermaidGanttTaskSourceRangeSeconds(args.span.raw)') ||
     !rulerText.includes('allowTimelineFallback: VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) || showsGeneratedFrameContent') ||
     !rulerText.includes('resolveVideoSequenceThumbnailTimelinePosition') ||
     !rulerText.includes('thumbnailWindow') ||

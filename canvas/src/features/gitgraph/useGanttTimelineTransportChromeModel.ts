@@ -2,6 +2,7 @@ import React from 'react'
 import {
   buildVideoSequenceClipEditDetailsLabel,
   normalizeVideoSequenceClipEditDeltaMinutes,
+  resolveVideoSequenceClipEditSplitPointMinutes,
   resolveVideoSequenceClipEditStepMinutes,
   type VideoSequenceClipEditAction,
 } from '@/components/timeline/videoSequenceClipEdit'
@@ -65,7 +66,7 @@ export type GanttTimelineTransportChromeModel = {
       active?: boolean
       ariaLabel: string
       disabled: boolean
-      icon: 'bookmark' | 'delete' | 'duplicate' | 'extract-audio' | 'nudge-back' | 'nudge-forward' | 'ripple' | 'snap' | 'snapping' | 'split' | 'split-right' | 'trim-end-back' | 'trim-end-forward' | 'trim-start-back' | 'trim-start-forward'
+      icon: 'bookmark' | 'delete' | 'duplicate' | 'extract-audio' | 'nudge-back' | 'nudge-forward' | 'ripple' | 'snap' | 'snapping' | 'split' | 'split-left' | 'split-right' | 'trim-end-back' | 'trim-end-forward' | 'trim-start-back' | 'trim-start-forward'
       key: VideoSequenceClipEditAction
       label: string
       onClick: () => void
@@ -131,6 +132,7 @@ export function useGanttTimelineTransportChromeModel(args: {
   onToggleMediaPlayer: () => void
   playheadMinutes: number
   selectedSpan: MermaidGanttTimelineTaskSpan | null
+  spans: readonly MermaidGanttTimelineTaskSpan[]
   rippleEditingEnabled: boolean
   timelineZoom: number
   timelineZoomPercent: number
@@ -150,11 +152,13 @@ export function useGanttTimelineTransportChromeModel(args: {
     const roundedPlayheadDelta = selectedSpan
       ? normalizeVideoSequenceClipEditDeltaMinutes(args.playheadMinutes - selectedSpan.startMinutes, clipEditStepMinutes)
       : 0
-    const playheadInsideSelection = Boolean(
-      selectedSpan &&
-        args.playheadMinutes > selectedSpan.startMinutes &&
-        args.playheadMinutes < selectedSpan.endMinutes,
-    )
+    const splitPointMinutes = resolveVideoSequenceClipEditSplitPointMinutes({
+      autoSnappingEnabled: args.autoSnappingEnabled,
+      positionMinutes: args.playheadMinutes,
+      selectedSpan,
+      spans: args.spans,
+    })
+    const canSplitAtPlayhead = splitPointMinutes != null
 
     return {
       contextControls: {
@@ -312,7 +316,7 @@ export function useGanttTimelineTransportChromeModel(args: {
           {
             action: 'split-at-playhead',
             ariaLabel: 'Split selected clip group at the playhead',
-            disabled: clipActionDisabled || !playheadInsideSelection,
+            disabled: clipActionDisabled || !canSplitAtPlayhead,
             icon: 'split',
             key: 'split-at-playhead',
             label: 'Split',
@@ -320,9 +324,19 @@ export function useGanttTimelineTransportChromeModel(args: {
             title: 'Split selected clip group at the playhead',
           },
           {
+            action: 'split-left-at-playhead',
+            ariaLabel: 'Split left side of selected clip at the playhead',
+            disabled: clipActionDisabled || !canSplitAtPlayhead,
+            icon: 'split-left',
+            key: 'split-left-at-playhead',
+            label: 'Left',
+            onClick: () => args.handleVideoSequenceClipEdit('split-left-at-playhead'),
+            title: 'Split left side of selected clip at the playhead',
+          },
+          {
             action: 'split-right-at-playhead',
             ariaLabel: 'Split right side of selected clip at the playhead',
-            disabled: clipActionDisabled || !playheadInsideSelection,
+            disabled: clipActionDisabled || !canSplitAtPlayhead,
             icon: 'split-right',
             key: 'split-right-at-playhead',
             label: 'Right',

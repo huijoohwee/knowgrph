@@ -1,14 +1,17 @@
 import {
   buildMermaidGanttTimelineModel,
-  readMermaidGanttTaskSourceRangeMinutes,
+  readMermaidGanttTaskSourceRangeSeconds,
   type MermaidGanttTimelineTaskSpan,
   type MermaidGanttVideoSequenceTimingSyncMode,
 } from './mermaidGanttBarInteraction'
+import {
+  resolveMermaidGanttSourceRangeAtTimelineOffsetSeconds,
+  resolveMermaidGanttSourceRangeSplitSeconds,
+  type MermaidGanttSourceRangeSeconds,
+  upsertMermaidGanttSourceRangeToken,
+} from './mermaidGanttSourceRangeToken'
 
-type SourceRange = {
-  endMinutes: number
-  startMinutes: number
-}
+type SourceRange = MermaidGanttSourceRangeSeconds
 
 const clean = (value: unknown): string => String(value || '').trim()
 
@@ -33,11 +36,6 @@ const formatPositionToken = (value: number, existingToken: string): string => {
   return `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
 }
 const formatDurationToken = (value: number): string => `${formatMinuteToken(Math.max(0.001, value))}m`
-const formatSourceRangeToken = (range: SourceRange): string => {
-  const start = formatMinuteToken(range.startMinutes).replace(/\./g, '_')
-  const end = formatMinuteToken(Math.max(range.startMinutes, range.endMinutes)).replace(/\./g, '_')
-  return `kgsrc_${start}_${end}`
-}
 
 const readLabel = (line: string): string => line.slice(0, line.indexOf(':')).trim()
 const readIndent = (line: string): string => line.match(/^(\s*)/)?.[1] || ''
@@ -62,12 +60,7 @@ const withStableIdSuffix = (tokens: readonly string[], suffix: string): string[]
 }
 
 const upsertSourceRange = (tokens: readonly string[], range: SourceRange): string[] => {
-  const next = tokens.map(token => clean(token)).filter(Boolean)
-  const token = formatSourceRangeToken(range)
-  const sourceIndex = next.findIndex(isSourceRangeToken)
-  if (sourceIndex >= 0) next[sourceIndex] = token
-  else next.push(token)
-  return next
+  return upsertMermaidGanttSourceRangeToken(tokens.map(token => clean(token)).filter(Boolean), range)
 }
 
 const buildLine = (args: {
@@ -92,11 +85,25 @@ const buildLine = (args: {
 }
 
 const readSourceRange = (line: string, span: MermaidGanttTimelineTaskSpan): SourceRange => (
-  readMermaidGanttTaskSourceRangeMinutes(line) || {
-    endMinutes: span.startMinutes + span.durationMinutes,
-    startMinutes: span.startMinutes,
+  readMermaidGanttTaskSourceRangeSeconds(line) || {
+    endSeconds: span.startMinutes + span.durationMinutes,
+    startSeconds: span.startMinutes,
   }
 )
+
+const resolveSplitSourceRange = (args: {
+  sourceRange: SourceRange
+  span: MermaidGanttTimelineTaskSpan
+  splitOffsetMinutes: number
+  side: 'left' | 'right'
+}): SourceRange => {
+  return resolveMermaidGanttSourceRangeSplitSeconds({
+    side: args.side,
+    sourceRange: args.sourceRange,
+    timelineDurationMinutes: args.span.durationMinutes,
+    timelineOffsetMinutes: args.splitOffsetMinutes,
+  })
+}
 
 const readTargetLineIndexes = (args: {
   code: string
@@ -135,6 +142,82 @@ const mapTargetLines = (
   return changed ? lines.join('\n') : null
 }
 
+const mapTargetLineReplacements = (
+  code: string,
+  lineIndexes: readonly number[],
+  mapper: (line: string, span: MermaidGanttTimelineTaskSpan) => readonly string[] | null,
+): string | null => {
+  const lines = String(code || '').split('\n')
+  const spans = buildMermaidGanttTimelineModel(code).taskSpans
+  let changed = false
+  for (const lineIndex of lineIndexes.slice().sort((left, right) => right - left)) {
+    const line = lines[lineIndex]
+    const span = spans.find(item => item.lineIndex === lineIndex)
+    if (typeof line !== 'string' || !span) continue
+    const nextLines = mapper(line, span)
+    if (!nextLines?.length || (nextLines.length === 1 && nextLines[0] === line)) continue
+    lines.splice(lineIndex, 1, ...nextLines)
+    changed = true
+  }
+  return changed ? lines.join('\n') : null
+}
+
+export function splitMermaidGanttVideoSequenceClipPairAtOffset(args: {
+  code: string
+  rowLineIndex: number
+  splitOffsetMinutes: number
+  syncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): string | null {
+  const splitOffsetMinutes = Number(Number(args.splitOffsetMinutes).toFixed(3))
+  if (!Number.isFinite(splitOffsetMinutes) || splitOffsetMinutes <= 0) return null
+  const lineIndexes = readTargetLineIndexes(args)
+  return mapTargetLineReplacements(args.code, lineIndexes, (line, span) => {
+    if (splitOffsetMinutes >= span.durationMinutes) return null
+    const sourceRange = readSourceRange(line, span)
+    return [
+      buildLine({
+        durationMinutes: splitOffsetMinutes,
+        label: `${readLabel(line)} split left`,
+        line,
+        startMinutes: span.startMinutes,
+        sourceRange: resolveSplitSourceRange({ side: 'left', sourceRange, span, splitOffsetMinutes }),
+        suffix: 'split_left',
+      }),
+      buildLine({
+        durationMinutes: span.durationMinutes - splitOffsetMinutes,
+        label: `${readLabel(line)} split right`,
+        line,
+        startMinutes: span.startMinutes + splitOffsetMinutes,
+        sourceRange: resolveSplitSourceRange({ side: 'right', sourceRange, span, splitOffsetMinutes }),
+        suffix: 'split_right',
+      }),
+    ]
+  })
+}
+
+export function splitMermaidGanttVideoSequenceClipLeftAtOffset(args: {
+  code: string
+  rowLineIndex: number
+  splitOffsetMinutes: number
+  syncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): string | null {
+  const splitOffsetMinutes = Number(Number(args.splitOffsetMinutes).toFixed(3))
+  if (!Number.isFinite(splitOffsetMinutes) || splitOffsetMinutes <= 0) return null
+  const lineIndexes = readTargetLineIndexes(args)
+  return mapTargetLines(args.code, lineIndexes, (line, span) => {
+    if (splitOffsetMinutes >= span.durationMinutes) return null
+    const sourceRange = readSourceRange(line, span)
+    return buildLine({
+      durationMinutes: splitOffsetMinutes,
+      label: `${readLabel(line)} split left`,
+      line,
+      startMinutes: span.startMinutes,
+      sourceRange: resolveSplitSourceRange({ side: 'left', sourceRange, span, splitOffsetMinutes }),
+      suffix: 'split_left',
+    })
+  })
+}
+
 export function splitMermaidGanttVideoSequenceClipRightAtOffset(args: {
   code: string
   rowLineIndex: number
@@ -152,10 +235,7 @@ export function splitMermaidGanttVideoSequenceClipRightAtOffset(args: {
       label: `${readLabel(line)} split right`,
       line,
       startMinutes: span.startMinutes + splitOffsetMinutes,
-      sourceRange: {
-        endMinutes: sourceRange.endMinutes,
-        startMinutes: sourceRange.startMinutes + splitOffsetMinutes,
-      },
+      sourceRange: resolveSplitSourceRange({ side: 'right', sourceRange, span, splitOffsetMinutes }),
       suffix: 'split_right',
     })
   })
@@ -288,10 +368,17 @@ export function insertMermaidGanttVideoSequenceBookmark(args: {
     line,
     metaTokens: [stableId, 'vert'],
     startMinutes: positionMinutes,
-    sourceRange: {
-      endMinutes: positionMinutes,
-      startMinutes: positionMinutes,
-    },
+    sourceRange: (() => {
+      const sourcePositionSeconds = resolveMermaidGanttSourceRangeAtTimelineOffsetSeconds({
+        sourceRange: readSourceRange(line, span),
+        timelineDurationMinutes: span.durationMinutes,
+        timelineOffsetMinutes: positionMinutes - span.startMinutes,
+      })
+      return {
+        endSeconds: sourcePositionSeconds,
+        startSeconds: sourcePositionSeconds,
+      }
+    })(),
     suffix,
   })
   const lineIndex = args.rowLineIndex + 1

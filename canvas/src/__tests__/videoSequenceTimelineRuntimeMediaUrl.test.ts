@@ -16,3 +16,21 @@ export function testVideoSequenceTimelineSourceUrlUsesCurrentLocalOrigin() {
     ;(globalThis as { window?: unknown }).window = originalWindow
   }
 }
+
+export function testVideoSequenceTimelineSourceUrlIsStableWithinTokenTtl() {
+  const originalWindow = (globalThis as { window?: unknown }).window
+  const originalNow = Date.now
+  let nowMs = 1_700_000_000_000
+  ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5172' } }
+  Date.now = () => nowMs
+  try {
+    const source: VideoSequenceTimelineSource = { byteSize: 100, id: 'clip_opening', importMode: 'url', mimeHint: 'video/mp4', originalName: 'opening.mp4', relativePath: 'opening.mp4', sourceUrl: 'http://localhost:5173/api/storage/media/airvio/runs/upload-demo/video/opening.mp4?kg_media_token=stale', durationSeconds: 15, workspacePath: '' }
+    const firstRuntimeUrl = resolveTimelinePlanSourceUrl(source)
+    nowMs += 1_000
+    const secondRuntimeUrl = resolveTimelinePlanSourceUrl(source)
+    if (secondRuntimeUrl !== firstRuntimeUrl) throw new Error(`expected video-sequence source URL to stay stable during media-reader loops, got ${firstRuntimeUrl} then ${secondRuntimeUrl}`)
+  } finally {
+    Date.now = originalNow
+    ;(globalThis as { window?: unknown }).window = originalWindow
+  }
+}

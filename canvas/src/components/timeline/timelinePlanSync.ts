@@ -5,8 +5,8 @@ import {
 } from './videoSequenceTimeline'
 import { resolveVideoSequenceSourceRuntimeUrl } from './videoSequenceSourceRegistry'
 import { loadTimelineMediaReaderSummary } from './timelineMediaReader'
-import type { MermaidGanttSourceRangeMinutes, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
-import { buildMermaidGanttTimelineModel, readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import type { MermaidGanttSourceRangeSeconds, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { buildMermaidGanttTimelineModel, readMermaidGanttTaskSourceRangeSeconds } from '@/lib/mermaid/mermaidGanttBarInteraction'
 
 export type VideoSequenceExportSegment = {
   durationMinutes: number
@@ -46,7 +46,7 @@ export type TimelinePlanVideoMetadata = {
 type SourceSegmentDraft = {
   segmentKey: string
   sourceKey: string
-  sourceRangeMinutes: MermaidGanttSourceRangeMinutes | null
+  sourceRangeSeconds: MermaidGanttSourceRangeSeconds | null
   span: MermaidGanttTimelineTaskSpan
 }
 
@@ -190,7 +190,7 @@ const buildSourceSegmentsForLane = (
     out.push({
       segmentKey,
       sourceKey,
-      sourceRangeMinutes: readMermaidGanttTaskSourceRangeMinutes(span.raw),
+      sourceRangeSeconds: readMermaidGanttTaskSourceRangeSeconds(span.raw),
       span,
     })
   }
@@ -220,18 +220,18 @@ function buildVideoSequencePlanFromSegments(args: {
     .sort((a, b) => a.sourceKey.localeCompare(b.sourceKey) || a.span.lineIndex - b.span.lineIndex)
     .map((segment): SourceSegmentRange => {
       const duration = Math.max(0, segment.span.durationMinutes)
-      if (segment.sourceRangeMinutes) {
+      if (segment.sourceRangeSeconds) {
         const source = findSourceForSegment(args.sources, segment)
-        const durationMinutes = Math.max(
+        const durationSeconds = Math.max(
           0.0001,
           source?.durationSeconds || 0,
           args.durationMinutes,
-          segment.sourceRangeMinutes.endMinutes,
+          segment.sourceRangeSeconds.endSeconds,
         )
         return {
           ...segment,
-          sourceEndRatio: clamp(segment.sourceRangeMinutes.endMinutes / durationMinutes, 0, 1),
-          sourceStartRatio: clamp(segment.sourceRangeMinutes.startMinutes / durationMinutes, 0, 1),
+          sourceEndRatio: clamp(segment.sourceRangeSeconds.endSeconds / durationSeconds, 0, 1),
+          sourceStartRatio: clamp(segment.sourceRangeSeconds.startSeconds / durationSeconds, 0, 1),
         }
       }
       if (rangeMode === 'timeline') {

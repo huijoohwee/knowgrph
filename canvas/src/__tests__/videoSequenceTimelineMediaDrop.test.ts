@@ -1,5 +1,5 @@
 import { buildTimelinePreviewSyncPlan } from '@/components/timeline/timelinePlanSync'
-import { readVideoSequenceTimelineModelFromMarkdown } from '@/components/timeline/videoSequenceTimeline'
+import { readVideoSequenceTimelineModelFromMarkdown, resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
 import { appendMermaidGanttVideoSequenceMediaDrop } from '@/lib/mermaid/mermaidGanttVideoSequenceMediaDrop'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
@@ -41,7 +41,13 @@ export function testVideoSequenceTimelineMediaDropAppendsSourceBackedClip() {
     '',
   ].join('\n')
   const result = appendMermaidGanttVideoSequenceMediaDrop({
-    code: readVideoSequenceCode(markdownText),
+    code: [
+      'gantt',
+      '  title Project Schedule',
+      '  dateFormat HH:mm',
+      '  section Plan',
+      '  Keep me : sched_1, 00:00, 1m',
+    ].join('\n'),
     markdownText,
     media: {
       byteSize: 6632,
@@ -238,7 +244,7 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     },
     startMinutes: 0.37,
   })
-  if (!sourceBackedScaffoldResult) throw new Error('expected add from existing media card to replace the source-backed scaffold row')
+  if (!sourceBackedScaffoldResult) throw new Error('expected add from existing media card to append beside the source-backed scaffold row')
   const sourceBackedScaffoldCode = readVideoSequenceCode(sourceBackedScaffoldResult.markdownText)
   const sourceBackedScaffoldModel = readVideoSequenceTimelineModelFromMarkdown(sourceBackedScaffoldResult.markdownText)
   const sourceBackedScaffoldRows = buildMermaidGanttTimelineModel(sourceBackedScaffoldCode).taskSpans
@@ -246,12 +252,260 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     sourceBackedScaffoldModel?.sources.length !== 1 ||
     sourceBackedScaffoldModel.sources[0]?.id !== 'operator_source_video' ||
     sourceBackedScaffoldModel.sources[0]?.sourceUrl !== '/media/seedance.mp4' ||
-    sourceBackedScaffoldCode.includes('Source video : operator_source_video') ||
+    !sourceBackedScaffoldCode.includes('Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m') ||
     !sourceBackedScaffoldCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_867, kgpos_0_37, 0.867m') ||
-    sourceBackedScaffoldRows.length !== 1 ||
-    sourceBackedScaffoldRows[0]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
+    sourceBackedScaffoldRows.length !== 2 ||
+    sourceBackedScaffoldRows[0]?.label !== 'Source video' ||
+    sourceBackedScaffoldRows[1]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
   ) {
-    throw new Error(`expected existing source-backed scaffold add to replace the row instead of duplicating it, got ${JSON.stringify({ code: sourceBackedScaffoldCode, model: sourceBackedScaffoldModel, rows: sourceBackedScaffoldRows })}`)
+    throw new Error(`expected existing source-backed scaffold add to append without replacing the first media, got ${JSON.stringify({ code: sourceBackedScaffoldCode, model: sourceBackedScaffoldModel, rows: sourceBackedScaffoldRows })}`)
+  }
+}
+
+export function testVideoSequenceTimelineMediaDropAppendsSecondVideoWithoutReplacingFirst() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "clip_seedance"',
+    '    originalName: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    relativePath: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    importMode: "url"',
+    '    sourceUrl: "/media/seedance.mp4"',
+    '    mimeHint: "video/mp4"',
+    '    durationSeconds: 52',
+    '    frameRate: 24',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : clip_seedance, kgsrc_0_0_86, kgpos_0, 0.86m',
+    '---',
+    '',
+  ].join('\n')
+  const result = appendMermaidGanttVideoSequenceMediaDrop({
+    code: [
+      'gantt',
+      '  title Project Schedule',
+      '  dateFormat HH:mm',
+      '  section Plan',
+      '  Keep me : sched_1, 00:00, 1m',
+    ].join('\n'),
+    markdownText,
+    media: {
+      byteSize: 6632,
+      displayHeight: 720,
+      displayWidth: 1280,
+      durationSeconds: 15.09,
+      frameRate: 24,
+      kind: 'video',
+      label: '港岛仿生局.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'floating-panel-video',
+      url: '/media/harbor.mp4',
+    },
+    startMinutes: 0.4,
+  })
+  if (!result) throw new Error('expected second video media drop to append')
+  const nextCode = readVideoSequenceCode(result.markdownText)
+  const nextModel = readVideoSequenceTimelineModelFromMarkdown(result.markdownText)
+  const rows = buildMermaidGanttTimelineModel(nextCode).taskSpans
+  if (
+    nextModel?.sources.length !== 2 ||
+    !nextModel.sources.some(source => source.id === 'clip_seedance' && source.sourceUrl === '/media/seedance.mp4') ||
+    !nextModel.sources.some(source => source.sourceUrl === '/media/harbor.mp4' && source.originalName === '港岛仿生局.mp4') ||
+    !rows.some(span => span.label === 'Source video' && span.raw.includes('clip_seedance')) ||
+    !rows.some(span => span.label === '港岛仿生局.mp4') ||
+    rows.length !== 2 ||
+    !nextCode.includes('Source video : clip_seedance, kgsrc_0_0_86, kgpos_0, 0.86m') ||
+    !nextCode.includes('港岛仿生局.mp4 : clip_')
+  ) {
+    throw new Error(`expected second video drop to append without replacing the first clip, got ${JSON.stringify({ code: nextCode, model: nextModel, rows })}`)
+  }
+}
+
+export function testVideoSequenceTimelineMediaDropDoesNotReplaceSourceBackedStaleLabel() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: ""',
+    '    relativePath: ""',
+    '    importMode: "url"',
+    '    sourceUrl: ""',
+    '    mimeHint: "video/mp4"',
+    '    byteSize: 0',
+    '    durationSeconds: 0',
+    '    frameRate: 0',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m',
+    '---',
+    '',
+  ].join('\n')
+  const result = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(markdownText),
+    markdownText,
+    media: {
+      byteSize: 3691000,
+      durationSeconds: 52,
+      frameRate: 24,
+      kind: 'video',
+      label: 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/media/seedance.mp4',
+    },
+    startMinutes: 0.26,
+  })
+  if (!result) throw new Error('expected drop onto stale source-backed Source video row to append')
+  const nextCode = readVideoSequenceCode(result.markdownText)
+  const rows = buildMermaidGanttTimelineModel(nextCode).taskSpans
+  const model = readVideoSequenceTimelineModelFromMarkdown(result.markdownText)
+  if (
+    rows.length !== 2 ||
+    !rows.some(span => span.label === 'Source video' && span.raw.includes('operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m')) ||
+    !rows.some(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4' && span.raw.includes('kgpos_0_26')) ||
+    !model?.sources.some(source => source.sourceUrl === '/media/seedance.mp4') ||
+    !nextCode.includes('Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m')
+  ) {
+    throw new Error(`expected stale source-backed Source video row to survive second drop, got ${JSON.stringify({ code: nextCode, model, rows })}`)
+  }
+}
+
+export function testVideoSequenceTimelineMediaDropDoesNotReplaceRestartedSourceVideoBar() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: ""',
+    '    relativePath: ""',
+    '    importMode: "url"',
+    '    sourceUrl: ""',
+    '    mimeHint: "video/mp4"',
+    '    byteSize: 0',
+    '    durationSeconds: 0',
+    '    frameRate: 0',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgpos_0, 0.86m',
+    '---',
+    '',
+  ].join('\n')
+  const result = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(markdownText),
+    markdownText,
+    media: {
+      byteSize: 1102000,
+      durationSeconds: 0.28,
+      frameRate: 24,
+      kind: 'video',
+      label: 'flower.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/media/flower.mp4',
+    },
+    startMinutes: 0.31,
+  })
+  if (!result) throw new Error('expected flower drop onto restarted Source video bar to append')
+  const nextCode = readVideoSequenceCode(result.markdownText)
+  const rows = buildMermaidGanttTimelineModel(nextCode).taskSpans
+  const model = readVideoSequenceTimelineModelFromMarkdown(result.markdownText)
+  if (
+    rows.length !== 2 ||
+    !rows.some(span => span.label === 'Source video' && span.raw.includes('operator_source_video, kgpos_0, 0.86m')) ||
+    !rows.some(span => span.label === 'flower.mp4' && span.raw.includes('kgpos_0_31')) ||
+    !model?.sources.some(source => source.sourceUrl === '/media/flower.mp4') ||
+    !nextCode.includes('Source video : operator_source_video, kgpos_0, 0.86m')
+  ) {
+    throw new Error(`expected restarted Source video bar to survive flower drop, got ${JSON.stringify({ code: nextCode, model, rows })}`)
+  }
+}
+
+export function testVideoSequenceTimelineMediaDropTargetsVideoSequenceWhenEarlierGanttExists() {
+  const markdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    relativePath: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    importMode: "url"',
+    '    sourceUrl: "/media/seedance.mp4"',
+    '    mimeHint: "video/mp4"',
+    '    durationSeconds: 52',
+    '    frameRate: 24',
+    'flow_diagrams:',
+    '  project_schedule:',
+    '    key: project_schedule',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Project Schedule',
+    '        dateFormat HH:mm',
+    '        section Plan',
+    '        Keep me : sched_1, 00:00, 1m',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgpos_0, 0.86m',
+    '---',
+    '',
+  ].join('\n')
+  const result = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(markdownText),
+    markdownText,
+    media: {
+      byteSize: 1102000,
+      durationSeconds: 0.28,
+      frameRate: 24,
+      kind: 'video',
+      label: 'flower.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/media/flower.mp4',
+    },
+    startMinutes: 0.35,
+  })
+  if (!result) throw new Error('expected media drop to update video_sequence with earlier gantt present')
+  const nextCode = readVideoSequenceCode(result.markdownText)
+  if (
+    !result.markdownText.includes('Keep me : sched_1, 00:00, 1m') ||
+    !nextCode.includes('Source video : operator_source_video, kgpos_0, 0.86m') ||
+    !nextCode.includes('flower.mp4 : clip_') ||
+    !nextCode.includes('kgpos_0_35')
+  ) {
+    throw new Error(`expected video_sequence replacement to leave earlier gantt untouched, got ${JSON.stringify({ markdownText: result.markdownText, nextCode })}`)
   }
 }
 
@@ -333,6 +587,7 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
     !thumbnailCode.includes('Source video frame 0 01 image : clip_') ||
     !thumbnailCode.includes('kgpos_0_5') ||
     !thumbnailSpan ||
+    resolveVideoSequenceTimelineLane(thumbnailSpan) !== 'image' ||
     Math.abs(thumbnailSpan.durationMinutes - (1 / 24 / 60)) > 0.000001
   ) {
     throw new Error(`expected dropped timeline thumbnail to create a one-frame image clip, got ${JSON.stringify({ code: thumbnailCode, model: thumbnailModel, span: thumbnailSpan })}`)

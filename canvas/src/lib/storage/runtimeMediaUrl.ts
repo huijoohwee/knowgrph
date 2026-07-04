@@ -1,5 +1,13 @@
 const LOCAL_STORAGE_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const DEFAULT_MEDIA_TOKEN_TTL_MS = 15 * 60 * 1000
+const MEDIA_TOKEN_REFRESH_SKEW_MS = 30 * 1000
+
+type RuntimeMediaAccessUrlCacheEntry = {
+  expiresAt: number
+  url: string
+}
+
+const RUNTIME_MEDIA_ACCESS_URL_CACHE = new Map<string, RuntimeMediaAccessUrlCacheEntry>()
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -58,13 +66,27 @@ export function buildRuntimeStorageMediaAccessUrl(args: {
     if (!isStorageMediaPath(url.pathname)) return publicUrl
     const runId = normalizeString(args.runId) || readRunIdFromStorageMediaPath(url.pathname)
     if (!runId) return publicUrl
+    const ttlMs = Math.max(60_000, args.ttlMs ?? DEFAULT_MEDIA_TOKEN_TTL_MS)
+    const nowMs = Date.now()
+    const cacheKey = [
+      url.origin,
+      url.pathname,
+      url.hash,
+      runId,
+      ttlMs,
+    ].join('\n')
+    const cached = RUNTIME_MEDIA_ACCESS_URL_CACHE.get(cacheKey)
+    if (cached && cached.expiresAt - MEDIA_TOKEN_REFRESH_SKEW_MS > nowMs) return cached.url
+    const expiresAt = nowMs + ttlMs
     const authToken = encodeBase64Url(JSON.stringify({
       runId,
-      expiresAt: Date.now() + Math.max(60_000, args.ttlMs ?? DEFAULT_MEDIA_TOKEN_TTL_MS),
+      expiresAt,
     }))
     if (!authToken) return publicUrl
     url.searchParams.set('kg_media_token', authToken)
-    return url.toString()
+    const nextUrl = url.toString()
+    RUNTIME_MEDIA_ACCESS_URL_CACHE.set(cacheKey, { expiresAt, url: nextUrl })
+    return nextUrl
   } catch {
     return publicUrl
   }

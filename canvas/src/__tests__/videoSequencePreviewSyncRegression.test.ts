@@ -566,7 +566,7 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     !displayModelText.includes('sourceDurationSeconds') ||
     !surfaceModelText.includes('transportClockDisplayModel') ||
     !timelinePlanSyncText.includes('source?.durationSeconds || 0') ||
-    !timelinePlanSyncText.includes('segment.sourceRangeMinutes.endMinutes') ||
+    !timelinePlanSyncText.includes('segment.sourceRangeSeconds.endSeconds') ||
     !surfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
     !surfaceModelText.includes("if (selectedPreviewEmpty) return ''") ||
     surfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||

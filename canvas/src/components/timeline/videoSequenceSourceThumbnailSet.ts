@@ -10,9 +10,15 @@ const normalizeSourceThumbnailLabel = (value: unknown): string => String(value |
   .replace(/[^a-z0-9\u4e00-\u9fff]+/g, ' ')
   .trim()
 
+const isGenericSourcePlaceholderSpan = (span: MermaidGanttTimelineTaskSpan): boolean => {
+  const label = String(span.label || '').trim().toLowerCase()
+  return /^source\s+(?:image|scene|video)$/.test(label)
+}
+
 export const normalizeSourceThumbnailId = (value: unknown): string => String(value || '')
   .trim()
-  .replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=(?:_splice)*$|$)/gi, '')
+  .replace(/_(?:image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed)(?=(?:_splice|_split_left|_split_right|_copy)*$|$)/gi, '')
+  .replace(/(?:_(?:splice|split_left|split_right|copy))+$/gi, '')
 
 export function readVideoSequenceSpanStableSourceId(span: MermaidGanttTimelineTaskSpan): string {
   return normalizeSourceThumbnailId(readGanttTaskTokens(span.raw).find(token =>
@@ -35,6 +41,7 @@ export function resolveVideoSequenceSourceThumbnailSet(args: {
   const candidates = args.sets.filter(set => set.kind === expectedKind && (args.lane === 'audio' ? set.sourceAudioWaveformSamples.length || set.sourceThumbnails.length : set.sourceThumbnails.length || ((expectedKind === 'image' || expectedKind === 'video') && !!set.sourceUrl)))
   if (!candidates.length) return null
   const spanSourceId = readVideoSequenceSpanStableSourceId(args.span)
+  if (isGenericSourcePlaceholderSpan(args.span)) return null
   const idMatched = candidates.find(set => {
     const setSourceId = normalizeSourceThumbnailId(set.sourceId)
     return !!setSourceId && !!spanSourceId && setSourceId === spanSourceId

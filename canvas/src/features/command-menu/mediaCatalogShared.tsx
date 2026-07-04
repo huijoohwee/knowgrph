@@ -7,6 +7,7 @@ import { beginMediaPointerDragPayload, finishMediaPointerDragPayloadForEvent, wr
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import { isPreferredRasterImageFormat, readPreferredImageFormat } from '@/lib/media/mediaFormatPreference'
+import { buildRuntimeStorageMediaAccessUrl, normalizeRuntimeStorageMediaUrl } from '@/lib/storage/runtimeMediaUrl'
 import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 import { cn } from '@/lib/utils'
 import { LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS } from './mediaCatalogTypes'
@@ -19,22 +20,30 @@ export const isMediaRowControlTarget = (target: EventTarget | null): boolean => 
 export const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): boolean =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && !isMediaRowControlTarget(event.target)
 
-export const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
-  String(item.openUrl || item.src || item.thumbnailUrl || '').trim()
-
-const readRichMediaPreviewUrl = (item: CommandMenuRichMediaItem): string =>
-  String(item.src || item.openUrl || item.thumbnailUrl || '').trim()
-
 const isOpenableMediaHref = (value: string): boolean =>
   /^(https?:|blob:|data:|\/|\.\/|\.\.\/|docs\/)/i.test(value.trim())
 
-export function readRichMediaOpenHref(item: CommandMenuRichMediaItem): string {
-  const candidates = [item.openUrl, item.src, item.thumbnailUrl]
+const readFirstOpenableMediaHref = (candidates: ReadonlyArray<unknown>): string => {
   for (const candidate of candidates) {
     const href = String(candidate || '').trim()
-    if (href && isOpenableMediaHref(href)) return href
+    if (href && isOpenableMediaHref(href)) return buildRuntimeMediaHref(href)
   }
   return ''
+}
+
+const buildRuntimeMediaHref = (href: string): string => {
+  const normalized = normalizeRuntimeStorageMediaUrl(href)
+  return buildRuntimeStorageMediaAccessUrl({ publicUrl: normalized }) || normalized
+}
+
+export const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
+  readFirstOpenableMediaHref([item.openUrl, item.src, item.thumbnailUrl])
+
+export const readRichMediaPreviewUrl = (item: CommandMenuRichMediaItem): string =>
+  readFirstOpenableMediaHref([item.src, item.openUrl, item.thumbnailUrl])
+
+export function readRichMediaOpenHref(item: CommandMenuRichMediaItem): string {
+  return readFirstOpenableMediaHref([item.openUrl, item.src, item.thumbnailUrl])
 }
 
 export function getMediaNameSyncKey(item: CommandMenuRichMediaItem): string {
@@ -190,11 +199,15 @@ export function MediaCandidateThumb({
   item: CommandMenuRichMediaItem
   onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
 }) {
-  const explicitThumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const previewUrl = readRichMediaPreviewUrl(item)
+  const explicitThumbnail = readFirstOpenableMediaHref([
+    item.thumbnailUrl,
+    item.kind === 'image' ? previewUrl : '',
+  ])
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     explicitThumbnailUrl: explicitThumbnail,
     kind: item.kind,
-    url: readRichMediaPreviewUrl(item) || readRichMediaOpenHref(item),
+    url: previewUrl || readRichMediaOpenHref(item),
   })
   const thumbnail = generatedThumbnail.url
   const openHref = readRichMediaOpenHref(item)
@@ -248,11 +261,15 @@ export function MediaCandidatePreview({
   item: CommandMenuRichMediaItem
   onDragStart: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
 }) {
-  const explicitThumbnail = item.thumbnailUrl || (item.kind === 'image' ? item.src || item.openUrl || '' : '')
+  const previewUrl = readRichMediaPreviewUrl(item)
+  const explicitThumbnail = readFirstOpenableMediaHref([
+    item.thumbnailUrl,
+    item.kind === 'image' ? previewUrl : '',
+  ])
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     explicitThumbnailUrl: explicitThumbnail,
     kind: item.kind,
-    url: readRichMediaPreviewUrl(item) || readRichMediaOpenHref(item),
+    url: previewUrl || readRichMediaOpenHref(item),
   })
   const thumbnail = generatedThumbnail.url
   const Icon = resolveMediaKindOverlayIcon(item.kind)

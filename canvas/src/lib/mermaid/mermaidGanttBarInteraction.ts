@@ -9,6 +9,13 @@ import {
   readGanttTaskLabel,
   readGanttTaskTokens,
 } from './mermaidGanttTimelineModel'
+import {
+  isMermaidGanttSourceRangeToken,
+  readMermaidGanttLineSourceRange,
+  resolveMermaidGanttSourceRangeSplitSeconds,
+  type MermaidGanttSourceRangeSeconds,
+  upsertMermaidGanttSourceRangeToken,
+} from './mermaidGanttSourceRangeToken'
 
 export type MermaidGanttBarDragMode = 'move' | 'resize-start' | 'resize-end'
 
@@ -28,10 +35,7 @@ export type MermaidGanttTimelineTaskSpan = {
   startMinutes: number
 }
 
-export type MermaidGanttSourceRangeMinutes = {
-  endMinutes: number
-  startMinutes: number
-}
+export type { MermaidGanttSourceRangeSeconds } from './mermaidGanttSourceRangeToken'
 
 export type MermaidGanttTimelineDragPreview = {
   durationMinutes: number
@@ -83,58 +87,7 @@ function isLegacyVideoSequenceLaneToken(token: string): boolean {
   return /^(?:video|image|scene|mask|grade|effect|adjustment|transition|keyframe|filter|audio|speed|splice)$/i.test(String(token || '').trim())
 }
 
-function isMermaidGanttSourceRangeToken(token: string): boolean {
-  return /^kgsrc_\d+(?:_\d+)?_\d+(?:_\d+)?$/i.test(String(token || '').trim())
-}
-
-function readMermaidGanttSourceRangeToken(token: string): MermaidGanttSourceRangeMinutes | null {
-  const match = /^kgsrc_(\d+(?:_\d+)?)_(\d+(?:_\d+)?)$/i.exec(String(token || '').trim())
-  if (!match) return null
-  const startMinutes = Number(match[1]?.replace(/_/g, '.'))
-  const endMinutes = Number(match[2]?.replace(/_/g, '.'))
-  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) return null
-  if (endMinutes <= startMinutes) return null
-  return { startMinutes, endMinutes }
-}
-
-function formatMermaidGanttSourceRangeToken(range: MermaidGanttSourceRangeMinutes): string {
-  const normalize = (value: number): string => String(Math.max(0, Number(value.toFixed(3)))).replace(/\./g, '_')
-  return `kgsrc_${normalize(range.startMinutes)}_${normalize(Math.max(range.startMinutes, range.endMinutes))}`
-}
-
-function readMermaidGanttLineSourceRange(line: string): MermaidGanttSourceRangeMinutes | null {
-  for (const token of readGanttTaskTokens(line)) {
-    const range = readMermaidGanttSourceRangeToken(token)
-    if (range) return range
-  }
-  return null
-}
-
-function upsertMermaidGanttSourceRangeToken(
-  metaTokens: readonly string[],
-  range: MermaidGanttSourceRangeMinutes,
-): string[] {
-  const next = metaTokens.map(token => String(token || '').trim()).filter(Boolean)
-  const token = formatMermaidGanttSourceRangeToken(range)
-  const existingIndex = next.findIndex(isMermaidGanttSourceRangeToken)
-  if (existingIndex >= 0) {
-    next[existingIndex] = token
-    return next
-  }
-  const stableIdIndex = next.findIndex(token =>
-    !isMermaidGanttStatusToken(token)
-    && !isMermaidGanttSourceRangeToken(token)
-    && !/^after\b/i.test(token)
-    && !/^until\b/i.test(token),
-  )
-  if (stableIdIndex >= 0) {
-    next.splice(stableIdIndex + 1, 0, token)
-    return next
-  }
-  return [token, ...next]
-}
-
-export function readMermaidGanttTaskSourceRangeMinutes(line: string): MermaidGanttSourceRangeMinutes | null {
+export function readMermaidGanttTaskSourceRangeSeconds(line: string): MermaidGanttSourceRangeSeconds | null {
   return readMermaidGanttLineSourceRange(line)
 }
 
@@ -250,10 +203,11 @@ function buildGanttTaskLine(args: {
   indent: string
   label: string
   metaTokens: readonly string[]
+  positionToken?: string
 }): string {
   const timingTokens = [
     ...args.metaTokens,
-    formatClockMinutes(args.absoluteStartMinutes),
+    formatPositionToken(args.absoluteStartMinutes, args.positionToken || ''),
     formatDurationMinutes(args.durationMinutes),
   ]
   return `${args.indent}${args.label} : ${timingTokens.join(', ')}`
@@ -289,27 +243,18 @@ export function updateMermaidGanttCodeRowTiming(args: {
   if (startMinutes == null || durationMinutes == null) return null
   const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
   const initialSourceRange = readMermaidGanttLineSourceRange(line) || {
-    endMinutes: (timelineSpan?.startMinutes ?? 0) + durationMinutes,
-    startMinutes: timelineSpan?.startMinutes ?? 0,
+    endSeconds: (timelineSpan?.startMinutes ?? 0) + durationMinutes,
+    startSeconds: timelineSpan?.startMinutes ?? 0,
   }
   let nextStartMinutes = startMinutes
   let nextDurationMinutes = durationMinutes
-  let nextSourceRange = initialSourceRange
   if (args.mode === 'move') {
     nextStartMinutes = startMinutes + deltaMinutes
   } else if (args.mode === 'resize-start') {
     nextStartMinutes = startMinutes + deltaMinutes
     nextDurationMinutes = durationMinutes - deltaMinutes
-    nextSourceRange = {
-      endMinutes: initialSourceRange.endMinutes,
-      startMinutes: initialSourceRange.startMinutes + deltaMinutes,
-    }
   } else {
     nextDurationMinutes = durationMinutes + deltaMinutes
-    nextSourceRange = {
-      endMinutes: initialSourceRange.endMinutes + deltaMinutes,
-      startMinutes: initialSourceRange.startMinutes,
-    }
   }
   const minimumDurationMinutes = preserveFractionalTiming ? 0.001 : 1
   if (nextDurationMinutes < minimumDurationMinutes) {
@@ -317,17 +262,24 @@ export function updateMermaidGanttCodeRowTiming(args: {
     nextDurationMinutes = minimumDurationMinutes
     if (args.mode === 'resize-start') nextStartMinutes += durationFloorDelta
   }
-  nextSourceRange = {
-    endMinutes: Math.max(nextSourceRange.startMinutes + nextDurationMinutes, nextSourceRange.endMinutes),
-    startMinutes: Math.max(0, nextSourceRange.startMinutes),
-  }
   if (shouldWriteSourceRange && args.mode !== 'move') {
+    const sourceDurationSeconds = Math.max(0.0001, initialSourceRange.endSeconds - initialSourceRange.startSeconds)
+    const timelineDurationMinutes = Math.max(0.0001, durationMinutes)
+    const nextSourceRange = args.mode === 'resize-start'
+      ? {
+        endSeconds: initialSourceRange.endSeconds,
+        startSeconds: Math.max(0, initialSourceRange.startSeconds + sourceDurationSeconds * ((nextStartMinutes - startMinutes) / timelineDurationMinutes)),
+      }
+      : {
+        endSeconds: Math.max(
+          initialSourceRange.startSeconds + 0.0001,
+          initialSourceRange.endSeconds + sourceDurationSeconds * ((nextDurationMinutes - durationMinutes) / timelineDurationMinutes),
+        ),
+        startSeconds: Math.max(0, initialSourceRange.startSeconds),
+      }
     const nextMetaTokens = upsertMermaidGanttSourceRangeToken(
       readGanttTimingMetaTokens(tokens),
-      {
-        endMinutes: Math.max(0, nextSourceRange.startMinutes) + nextDurationMinutes,
-        startMinutes: Math.max(0, nextSourceRange.startMinutes),
-      },
+      nextSourceRange,
     )
     const nonTimingTokenCount = readGanttTimingMetaTokens(tokens).length
     if (nonTimingTokenCount > 0) {
@@ -356,7 +308,7 @@ function updateMermaidGanttCodeRowToTiming(args: {
   code: string
   durationMinutes: number
   rowLineIndex: number
-  sourceRange: MermaidGanttSourceRangeMinutes | null
+  sourceRange: MermaidGanttSourceRangeSeconds | null
 }): string | null {
   const lines = String(args.code || '').split('\n')
   const line = lines[args.rowLineIndex]
@@ -369,7 +321,7 @@ function updateMermaidGanttCodeRowToTiming(args: {
     indent: readGanttLineIndent(line),
     label: readGanttTaskLabel(line),
     metaTokens: shouldWriteSourceRange
-      ? upsertMermaidGanttSourceRangeToken(metaTokens, args.sourceRange as MermaidGanttSourceRangeMinutes)
+      ? upsertMermaidGanttSourceRangeToken(metaTokens, args.sourceRange as MermaidGanttSourceRangeSeconds)
       : metaTokens,
   })
   return lines.join('\n')
@@ -395,8 +347,8 @@ export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
   })
   if (selectedAbsoluteStartMinutes == null) return nextCode
   const selectedSourceRange = readMermaidGanttLineSourceRange(selectedLine) || {
-    endMinutes: selectedSpan.startMinutes + selectedSpan.durationMinutes,
-    startMinutes: selectedSpan.startMinutes,
+    endSeconds: selectedSpan.startMinutes + selectedSpan.durationMinutes,
+    startSeconds: selectedSpan.startMinutes,
   }
   let syncedCode = nextCode
   for (const lineIndex of groupLineIndexes) {
@@ -427,6 +379,47 @@ export function updateMermaidGanttVideoSequenceClipTiming(args: {
   return updateMermaidGanttCodeRowTiming(args)
 }
 
+function readMermaidGanttSectionRangeForLine(lines: readonly string[], rowLineIndex: number): { endIndex: number; startIndex: number } | null {
+  if (rowLineIndex < 0 || rowLineIndex >= lines.length) return null
+  let startIndex = rowLineIndex
+  while (startIndex >= 0 && !/^\s*section\s+/i.test(lines[startIndex] || '')) startIndex -= 1
+  if (startIndex < 0) return null
+  let endIndex = startIndex + 1
+  while (endIndex < lines.length && !/^\s*section\s+/i.test(lines[endIndex] || '')) endIndex += 1
+  return rowLineIndex > startIndex && rowLineIndex < endIndex ? { endIndex, startIndex } : null
+}
+
+export function reorderMermaidGanttVideoSequenceClipDisplayLane(args: {
+  code: string
+  displayLaneDelta: number
+  rowLineIndex: number
+}): { code: string; lineIndex: number } | null {
+  const lines = String(args.code || '').split('\n')
+  const line = lines[args.rowLineIndex]
+  if (typeof line !== 'string' || !line.includes(':')) return null
+  const displayLaneDelta = Math.trunc(Number(args.displayLaneDelta) || 0)
+  if (!displayLaneDelta) return null
+  const sectionRange = readMermaidGanttSectionRangeForLine(lines, args.rowLineIndex)
+  if (!sectionRange) return null
+  const model = buildMermaidGanttTimelineModel(args.code)
+  const sectionLineIndexes = model.taskSpans
+    .map(span => span.lineIndex)
+    .filter(lineIndex => lineIndex > sectionRange.startIndex && lineIndex < sectionRange.endIndex)
+    .sort((left, right) => left - right)
+  const currentOrderIndex = sectionLineIndexes.indexOf(args.rowLineIndex)
+  if (currentOrderIndex < 0) return null
+  const targetOrderIndex = Math.max(0, Math.min(sectionLineIndexes.length - 1, currentOrderIndex + displayLaneDelta))
+  if (targetOrderIndex === currentOrderIndex) return null
+  const [movedLine] = lines.splice(args.rowLineIndex, 1)
+  const targetLineIndexBeforeRemoval = sectionLineIndexes[targetOrderIndex]
+  const insertIndex = targetLineIndexBeforeRemoval
+  lines.splice(insertIndex, 0, movedLine as string)
+  return {
+    code: lines.join('\n'),
+    lineIndex: insertIndex,
+  }
+}
+
 export function splitMermaidGanttCodeRowAtOffset(args: {
   code: string
   rowLineIndex: number
@@ -437,17 +430,18 @@ export function splitMermaidGanttCodeRowAtOffset(args: {
   if (typeof line !== 'string' || !line.includes(':')) return null
   const span = buildMermaidGanttTimelineModel(args.code).taskSpans.find(item => item.lineIndex === args.rowLineIndex)
   if (!span) return null
-  const splitOffsetMinutes = Math.round(args.splitOffsetMinutes)
+  const splitOffsetMinutes = Number(Number(args.splitOffsetMinutes).toFixed(3))
   if (splitOffsetMinutes <= 0 || splitOffsetMinutes >= span.durationMinutes) return null
   const absoluteStartMinutes = readSpanAbsoluteStartMinutes({ code: args.code, line, span })
   if (absoluteStartMinutes == null) return null
   const label = readGanttTaskLabel(line)
   const tokens = readGanttTaskTokens(line)
+  const positionToken = tokens.find(token => readClockMinutes(token) != null) || ''
   const metaTokens = readGanttTimingMetaTokens(tokens)
   const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
   const sourceRange = readMermaidGanttLineSourceRange(line) || {
-    endMinutes: span.startMinutes + span.durationMinutes,
-    startMinutes: span.startMinutes,
+    endSeconds: span.startMinutes + span.durationMinutes,
+    startSeconds: span.startMinutes,
   }
   const indent = readGanttLineIndent(line)
   const firstLine = buildGanttTaskLine({
@@ -456,11 +450,14 @@ export function splitMermaidGanttCodeRowAtOffset(args: {
     indent,
     label,
     metaTokens: shouldWriteSourceRange
-      ? upsertMermaidGanttSourceRangeToken(metaTokens, {
-        endMinutes: sourceRange.startMinutes + splitOffsetMinutes,
-        startMinutes: sourceRange.startMinutes,
-      })
+      ? upsertMermaidGanttSourceRangeToken(metaTokens, resolveMermaidGanttSourceRangeSplitSeconds({
+        side: 'left',
+        sourceRange,
+        timelineDurationMinutes: span.durationMinutes,
+        timelineOffsetMinutes: splitOffsetMinutes,
+      }))
       : metaTokens,
+    positionToken,
   })
   const secondLine = buildGanttTaskLine({
     absoluteStartMinutes: absoluteStartMinutes + splitOffsetMinutes,
@@ -468,11 +465,14 @@ export function splitMermaidGanttCodeRowAtOffset(args: {
     indent,
     label: `${label} splice`,
     metaTokens: shouldWriteSourceRange
-      ? upsertMermaidGanttSourceRangeToken(appendGanttTaskIdSuffix(metaTokens, 'splice'), {
-        endMinutes: sourceRange.endMinutes,
-        startMinutes: sourceRange.startMinutes + splitOffsetMinutes,
-      })
+      ? upsertMermaidGanttSourceRangeToken(appendGanttTaskIdSuffix(metaTokens, 'splice'), resolveMermaidGanttSourceRangeSplitSeconds({
+        side: 'right',
+        sourceRange,
+        timelineDurationMinutes: span.durationMinutes,
+        timelineOffsetMinutes: splitOffsetMinutes,
+      }))
       : appendGanttTaskIdSuffix(metaTokens, 'splice'),
+    positionToken,
   })
   lines.splice(args.rowLineIndex, 1, firstLine, secondLine)
   return lines.join('\n')
@@ -535,8 +535,8 @@ export function insertMermaidGanttVideoSequenceOperationRow(args: {
   if (absoluteStartMinutes == null) return null
   const shouldWriteSourceRange = shouldWriteVideoSequenceSourceRange({ code: args.code, line })
   const sourceRange = readMermaidGanttLineSourceRange(line) || {
-    endMinutes: span.startMinutes + span.durationMinutes,
-    startMinutes: span.startMinutes,
+    endSeconds: span.startMinutes + span.durationMinutes,
+    startSeconds: span.startMinutes,
   }
   const label = `${readGanttTaskLabel(line)} ${args.operation}`
   const operationLine = buildGanttTaskLine({

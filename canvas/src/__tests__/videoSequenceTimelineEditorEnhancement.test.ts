@@ -55,6 +55,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'resolveVideoSequenceTimelineContentZoom({ frameRate: mediaFrameRate, mediaDurationSeconds, timelineZoom })',
     'resolveVideoSequenceTimelineWorkspaceLayout({ appendSpacePercent, timelineContentZoom })', 'width: `${workspaceLayout.workspaceWidthPercent}%`', 'flexBasis: `${workspaceLayout.viewportFlexPercent}%`',
     'sourceThumbnailSet?.sourceUrl',
+    'compactSourceMedia && !sourceThumbnailSet ? []',
+    'compactSourcePlaceholder ? null :',
     '(compactSourceImage || compactSourceVideo)',
     'data-kg-video-sequence-content-zoom',
     'timeline-video-sequence-editor timeline-video-sequence-grid',
@@ -74,6 +76,13 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'data-kg-video-sequence-append-space="1"',
     'resolveVideoSequenceSourceWindowLabel(thumbnailWindow)',
   ], 'expected enhanced ruler token')
+  const forbiddenPlaceholderThumbnailSelector = [
+    '[data-kg-compact-source-placeholder="1"]',
+    '.timeline-video-sequence-clip-thumbnail-strip',
+  ].join(' ')
+  if (denseFbfCssText.includes(forbiddenPlaceholderThumbnailSelector)) {
+    throw new Error('expected empty compact source placeholders to omit thumbnail strips instead of hiding them in CSS')
+  }
   expectSourceIncludes(rulerGeometryText, [
     'VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX = 14',
     'resolveVideoSequenceRulerInsetLeft',
@@ -292,7 +301,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'var(--kg-canvas-accent, #2563eb) 3%',
     'var(--kg-text-secondary, #64748b) 74%',
     '.timeline-transport-track-clip[data-kg-compact-source-placeholder="1"].timeline-transport-track-clip--selected',
-    '.timeline-transport-track-clip[data-kg-compact-source-placeholder="1"] .timeline-video-sequence-clip-thumbnail-strip',
     'top: calc(100% + 6px)',
     'overflow: visible',
     'transform-origin: top center',
@@ -306,12 +314,12 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'width: min(34px, 38%)',
     'cursor: ew-resize',
     'pointer-events: auto',
-    'transition: background-color 120ms ease-out, opacity 120ms ease-out',
+    'transition: none',
     '.timeline-transport-track-handle--end',
     'right: -5px',
     'padding-inline-end: 5px',
-    'background: color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 12%, transparent)',
-    'opacity: 0',
+    'background: transparent',
+    'opacity: 1',
     '.timeline-transport-track-handle-grip',
     'display: none',
   ], 'expected edit rail style')
@@ -323,6 +331,16 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   if (denseFbfCssText.includes('height: var(--kg-control-height,')) {
     throw new Error('expected compact timeline bar height to use the main-toolbar-derived timeline bar token')
+  }
+  if (
+    transportCssText.includes('rgb(130 130 226 / 0.88)') ||
+    transportCssText.includes('rgb(59 130 246 / 0.88)') ||
+    transportCssText.includes('rgb(214 211 255 / 0.42)') ||
+    transportCssText.includes('.timeline-transport-track-handle::after') ||
+    rulerCssText.includes('linear-gradient(180deg, rgb(96 165 250 / 0.82), rgb(37 99 235 / 0.84))') ||
+    rulerCssText.includes('rgb(37 99 235 / 0.7)')
+  ) {
+    throw new Error('expected Timeline transport CSS to remove legacy solid blue bars and visible resize grips')
   }
   if (denseFbfCssText.includes('background: rgb(2 6 23 / 0.58);')) {
     throw new Error('expected compact media bar labels to render as direct top-left text without a badge background')
@@ -448,7 +466,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-tick:not([data-kg-video-sequence-major-tick="1"]) .timeline-transport-ruler-tick-label',
     'color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 62%, var(--kg-panel-bg, #fff))',
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf)',
-    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-slot',

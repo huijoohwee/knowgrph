@@ -13,11 +13,13 @@ import {
   normalizeVideoSequenceClipEditDeltaMinutes,
   resolveVideoSequenceClipEditStepMinutes,
 } from '@/components/timeline/videoSequenceClipEdit'
+import { VIDEO_SEQUENCE_LANE_HEIGHT_PX } from '@/components/timeline/videoSequenceTimeline'
 
 export type GanttTimelineTransportDragState = {
   mode: MermaidGanttBarDragMode
   pointerId: number
   originClientX: number
+  originClientY: number
   minutesPerPixel: number
   stepMinutes: number
   markdownDocumentName: string | null
@@ -53,6 +55,7 @@ export function useGanttTimelineInteractions(args: {
   setTransportPlaybackPosition: (position: number) => void
   setTransportPlaying: (playing: boolean) => void
   onCommitDrag: (args: {
+    displayLaneDelta: number
     dragState: GanttTimelineTransportDragState
     effectiveDeltaMinutes: number
   }) => void
@@ -76,6 +79,14 @@ export function useGanttTimelineInteractions(args: {
 
   const dragScaleMaxMinutes = Math.max(args.maxMinutes, args.scrubMaxMinutes || 0)
 
+  const resolveDisplayLaneDelta = React.useCallback((clientY: number, state: GanttTimelineTransportDragState): number => {
+    const deltaY = Number(clientY) - state.originClientY
+    if (!Number.isFinite(deltaY)) return 0
+    const threshold = VIDEO_SEQUENCE_LANE_HEIGHT_PX / 2
+    if (Math.abs(deltaY) < threshold) return 0
+    return Math.trunc(deltaY / VIDEO_SEQUENCE_LANE_HEIGHT_PX)
+  }, [])
+
   React.useEffect(() => {
     if (!dragState) return
     const handlePointerMove = (event: PointerEvent) => {
@@ -85,7 +96,8 @@ export function useGanttTimelineInteractions(args: {
         originClientX: dragState.originClientX,
         clientX: event.clientX,
       })
-      if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
+      const displayLaneDelta = resolveDisplayLaneDelta(event.clientY, dragState)
+      if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx) && !displayLaneDelta) return
       const deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(preview.deltaPx * dragState.minutesPerPixel, dragState.stepMinutes)
       const nextPreview = resolveMermaidGanttTimelineDragPreviewSpan({
         allowTimelineExpansion: true,
@@ -105,9 +117,10 @@ export function useGanttTimelineInteractions(args: {
         originClientX: dragState.originClientX,
         clientX: event.clientX,
       })
+      const displayLaneDelta = resolveDisplayLaneDelta(event.clientY, dragState)
       setDragState(null)
       setDragPreview(null)
-      if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return
+      if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx) && !displayLaneDelta) return
       const deltaMinutes = normalizeVideoSequenceClipEditDeltaMinutes(preview.deltaPx * dragState.minutesPerPixel, dragState.stepMinutes)
       const effectiveDeltaMinutes = resolveMermaidGanttTimelineDragEffectiveDelta({
         allowTimelineExpansion: true,
@@ -117,8 +130,9 @@ export function useGanttTimelineInteractions(args: {
         stepMinutes: dragState.stepMinutes,
         span: dragState.span,
       })
-      if (effectiveDeltaMinutes === 0) return
+      if (effectiveDeltaMinutes === 0 && !displayLaneDelta) return
       args.onCommitDrag({
+        displayLaneDelta,
         dragState,
         effectiveDeltaMinutes,
       })
@@ -131,7 +145,7 @@ export function useGanttTimelineInteractions(args: {
       window.removeEventListener('pointerup', handlePointerEnd)
       window.removeEventListener('pointercancel', handlePointerEnd)
     }
-  }, [args, dragState])
+  }, [args, dragState, resolveDisplayLaneDelta])
 
   React.useEffect(() => {
     if (!rulerScrubState) return
@@ -194,6 +208,7 @@ export function useGanttTimelineInteractions(args: {
       mode,
       pointerId: event.pointerId,
       originClientX: event.clientX,
+      originClientY: event.clientY,
       minutesPerPixel: dragScaleMaxMinutes / rulerWidth,
       stepMinutes: resolveVideoSequenceClipEditStepMinutes(span),
       markdownDocumentName: args.markdownDocumentName,

@@ -48,7 +48,7 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
   for (const snippet of [
     '.timeline-transport-chrome--mermaid-gantt',
     'rgb(247 246 255 / 1) 12px',
-    'rgb(130 130 226 / 0.88)',
+    'rgb(248 250 252 / 0.72)',
     'rgb(0 18 128 / 1)',
     '.timeline-transport-track-clip--lane-mask',
     '.timeline-transport-track-clip--lane-grade',
@@ -67,6 +67,14 @@ export function testTimelineTransportRateSelectUsesSharedResponsiveCssOwner() {
   }
   if (cssText.includes('.timeline-video-sequence-empty-dropzone')) {
     throw new Error('expected BottomPanel Timeline empty state to reuse the shared transport shell instead of old dropzone CSS')
+  }
+  if (
+    cssText.includes('rgb(130 130 226 / 0.88)') ||
+    cssText.includes('rgb(59 130 246 / 0.88)') ||
+    cssText.includes('rgb(214 211 255 / 0.42)') ||
+    cssText.includes('.timeline-transport-track-handle::after')
+  ) {
+    throw new Error('expected shared transport timeline bars to avoid legacy solid fills and visible resize handles')
   }
   const transportUtilsText = readUtf8('src/components/timeline/timelineTransport.ts')
   if (!transportUtilsText.includes('splitTimelineTransportCurrentTotalLabel')) {

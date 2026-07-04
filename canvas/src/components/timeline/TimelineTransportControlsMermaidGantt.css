@@ -370,10 +370,6 @@
   box-shadow: none;
 }
 
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-handle-grip {
-  border-color: color-mix(in srgb, var(--kg-panel-bg, #fff) 88%, transparent);
-}
-
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle-grip,
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:hover .timeline-transport-track-handle-grip,
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:focus-visible .timeline-transport-track-handle-grip,

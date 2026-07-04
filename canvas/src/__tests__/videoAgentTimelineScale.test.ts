@@ -86,6 +86,10 @@ export function testSourceMediaTimelineChromeUsesSemanticLaneLabels() {
   if (!isCompactSourceMediaSpan(imageSpan, 'image')) {
     throw new Error('expected source image timeline clips to reuse shared compact source-media chrome')
   }
+  const sourceVideoFrameImageSpan = { ...spans[0], label: 'Source video frame 0 03 image', raw: 'Source video frame 0 03 image : clip_frame_image, kgsrc_0_0_001389, kgpos_0_37, 0.001389m' }
+  if (resolveVideoSequenceTimelineLane(sourceVideoFrameImageSpan) !== 'image') {
+    throw new Error('expected extracted source-video frame images to use the image lane, not the source-video lane')
+  }
 }
 
 export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline() {
@@ -326,7 +330,7 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     "const compactSourceVideo = compactSourceMedia && lane === 'video'",
     "const compactSourceFrameSamples = compactSourceMedia && lane === 'fbf'",
     'const semanticFrameSamples = compactSourceFrameSamples',
-    'showsGeneratedFrameContent || compactSourceVideo',
+    'const sourceVideoFallbackSamples = compactSourceVideo',
     "thumbnailSamples: compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? []",
     '<VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />',
     'data-kg-video-sequence-frame-sample-rail="semantic"',

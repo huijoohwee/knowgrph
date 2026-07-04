@@ -1,5 +1,5 @@
-import type { MermaidGanttSourceRangeMinutes, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
-import { readMermaidGanttTaskSourceRangeMinutes } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import type { MermaidGanttSourceRangeSeconds, MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readMermaidGanttTaskSourceRangeSeconds } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { clampTimelineTransportValue } from './timelineTransport'
 import { isLikelyAbsoluteFsPath, buildLocalFsFetchPath } from '@/lib/url'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
@@ -16,19 +16,21 @@ export type VideoSequenceTimelineProjectionOptions = {
   sourceCoverageMode?: VideoSequenceTimelineSourceCoverageMode
 }
 
+export const VIDEO_SEQUENCE_LANE_HEIGHT_PX = 61
+
 const COMPACT_SOURCE_MEDIA_LABEL_BY_LANE: Readonly<Partial<Record<VideoSequenceTimelineLaneId, RegExp>>> = {
   audio: /^source audio(?: waveform)?$/i,
   fbf: /^frame[-\s]by[-\s]frame (?:boxes|annotation samples)(?: \(\d+\))?$/i,
   image: /^(?:source image|.+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\s+image)?)$/i,
   scene: /^(?:source scene|.+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\s+scene)?)$/i,
-  video: /^(?:source video|.+\.(?:m4v|mov|mp4|webm)(?:\s+video)?)$/i,
+  video: /^(?:source video|.+\.(?:m4v|mov|mp4|webm)(?:\s+video)?)(?:\s+(?:splice|split left|split right|copy))*$/i,
 }
 
 const SOURCE_BACKED_MEDIA_LANES = new Set<VideoSequenceTimelineLaneId>(['audio', 'image', 'scene', 'video'])
 
 const isSourceBackedMediaSpan = (span: MermaidGanttTimelineTaskSpan, lane: VideoSequenceTimelineLaneId): boolean => (
   SOURCE_BACKED_MEDIA_LANES.has(lane)
-  && /:\s*clip_[^,\s]+\s*,/i.test(span.raw)
+  && /:\s*[^,\s]+\s*,/i.test(span.raw)
   && /(?:^|,\s*)kgsrc_\d+(?:_\d+)?_\d+(?:_\d+)?(?:\s*,|$)/i.test(span.raw)
 )
 
@@ -248,6 +250,7 @@ export function readVideoSequenceSourcePlayableUrl(source: VideoSequenceTimeline
 export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskSpan): VideoSequenceTimelineLaneId {
   const signature = `${span.label} ${span.raw}`.toLowerCase()
   if (/\baudio|sound|voice|music\b/.test(signature)) return 'audio'
+  if (/\bimage\b/.test(signature) && /\b(?:frame|still|photo|plate)\b/.test(signature)) return 'image'
   if (/\bsource[-_\s]?video\b/.test(signature) || /\bvideo_agent_source_video\b/.test(signature)) return 'video'
   if (/\bnested|composite|child timeline|timeline inside|inside timeline|timeline[-\s]?in[-\s]?fbf|fbf[-\s]?in[-\s]?timeline|timeline inside frame[-\s]?by[-\s]?frame|frame[-\s]?by[-\s]?frame inside timeline\b/.test(signature) || /_nested\b/.test(signature)) return 'nested'
   if (/\bfbf|frame[-\s]?by[-\s]?frame|cel|onion|onion skin\b/.test(signature) || /_fbf\b/.test(signature)) return 'fbf'
@@ -306,8 +309,7 @@ function buildVideoSequenceSourceTrackKeysByLane(
       .sort((left, right) => {
         const [, leftSpan] = left
         const [, rightSpan] = right
-        return leftSpan.startMinutes - rightSpan.startMinutes
-          || leftSpan.lineIndex - rightSpan.lineIndex
+        return leftSpan.lineIndex - rightSpan.lineIndex
           || left[0].localeCompare(right[0])
       })
       .map(([sourceTrackKey]) => sourceTrackKey)
@@ -336,20 +338,20 @@ const filterVideoSequenceSourceVideoScaffoldSpans = (
   return hasRealVideoMediaSpan ? spans.filter(span => resolveVideoSequenceTimelineLane(span) !== 'video' || !isVideoSequenceSourceVideoScaffoldSpan(span)) : spans
 }
 
-const readVideoSequenceSpanSourceRange = (span: MermaidGanttTimelineTaskSpan): MermaidGanttSourceRangeMinutes =>
-  readMermaidGanttTaskSourceRangeMinutes(span.raw) || { endMinutes: span.endMinutes, startMinutes: span.startMinutes }
+const readVideoSequenceSpanSourceRange = (span: MermaidGanttTimelineTaskSpan): MermaidGanttSourceRangeSeconds =>
+  readMermaidGanttTaskSourceRangeSeconds(span.raw) || { endSeconds: span.endMinutes, startSeconds: span.startMinutes }
 
 const isVideoSequenceSourceRangeCovered = (
-  range: MermaidGanttSourceRangeMinutes,
-  videoRanges: readonly MermaidGanttSourceRangeMinutes[],
+  range: MermaidGanttSourceRangeSeconds,
+  videoRanges: readonly MermaidGanttSourceRangeSeconds[],
 ): boolean => {
   const epsilon = 0.0001
-  let cursor = range.startMinutes
+  let cursor = range.startSeconds
   for (const videoRange of videoRanges) {
-    if (videoRange.endMinutes <= cursor + epsilon) continue
-    if (videoRange.startMinutes > cursor + epsilon) return false
-    cursor = Math.max(cursor, videoRange.endMinutes)
-    if (cursor >= range.endMinutes - epsilon) return true
+    if (videoRange.endSeconds <= cursor + epsilon) continue
+    if (videoRange.startSeconds > cursor + epsilon) return false
+    cursor = Math.max(cursor, videoRange.endSeconds)
+    if (cursor >= range.endSeconds - epsilon) return true
   }
   return false
 }
@@ -367,7 +369,7 @@ export function resolveRenderableVideoSequenceTimelineSpans(
   const videoRanges = baseSpans
     .filter(span => resolveVideoSequenceTimelineLane(span) === 'video')
     .map(readVideoSequenceSpanSourceRange)
-    .sort((left, right) => left.startMinutes - right.startMinutes || left.endMinutes - right.endMinutes)
+    .sort((left, right) => left.startSeconds - right.startSeconds || left.endSeconds - right.endSeconds)
   if (!videoRanges.length) return enabledBaseSpans
   return enabledBaseSpans.filter(span => {
     const lane = resolveVideoSequenceTimelineLane(span)

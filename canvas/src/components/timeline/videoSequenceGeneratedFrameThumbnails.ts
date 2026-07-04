@@ -61,6 +61,15 @@ const resolveGeneratedFrameTimestamp = (
   return sourceStart + sourceSpan * ratio
 }
 
+const resolveGeneratedFrameThumbnailCount = (
+  span: MermaidGanttTimelineTaskSpan,
+): number => {
+  return Math.min(
+    GENERATED_FRAME_THUMBNAIL_MAX_COUNT,
+    Math.max(1, Math.round(span.durationMinutes)),
+  )
+}
+
 const buildSourceFrameThumbnail = (args: {
   timestampSeconds: number
   url: string
@@ -114,10 +123,7 @@ export const buildVideoSequenceGeneratedFrameThumbnails = (args: {
       url: frameThumbnailUrl,
     })]
   }
-  const count = Math.min(
-    GENERATED_FRAME_THUMBNAIL_MAX_COUNT,
-    Math.max(1, Math.round(args.span.durationMinutes)),
-  )
+  const count = resolveGeneratedFrameThumbnailCount(args.span)
   const label = cleanFrameLabel(args.span)
   return Array.from({ length: count }, (_, index): TimelineMediaReaderThumbnail => {
     const timestampSeconds = resolveGeneratedFrameTimestamp(args.span, sourceWindow, index, count)

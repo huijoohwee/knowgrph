@@ -305,19 +305,17 @@
   min-width: 36px;
   height: 12px;
   overflow: hidden;
-  border: 1px solid rgb(76 82 183 / 0.88);
+  border: 1px solid rgb(100 116 139 / 0.48);
   border-radius: 2px;
-  background: rgb(130 130 226 / 0.88);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
-    0 1px 2px rgb(76 82 183 / 0.22);
+  background: rgb(248 250 252 / 0.72);
+  box-shadow: none;
   touch-action: none;
   user-select: none;
 }
 
 .timeline-transport-track-clip--lane-video {
-  border-color: rgb(37 99 235 / 0.88);
-  background: rgb(59 130 246 / 0.88);
+  border-color: rgb(37 99 235 / 0.52);
+  background: rgb(248 250 252 / 0.72);
 }
 
 .timeline-transport-track-clip--lane-mask {
@@ -336,20 +334,14 @@
 }
 
 .timeline-transport-track-clip--selected {
-  border-color: rgb(48 43 128 / 1);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.28),
-    0 0 0 2px rgb(37 99 235 / 0.38),
-    0 2px 5px rgb(48 43 128 / 0.24);
+  border-color: var(--kg-canvas-accent, rgb(37 99 235 / 1));
+  box-shadow: none;
 }
 
 .timeline-transport-track-clip--dragging {
   z-index: 2;
-  border-color: rgb(37 99 235 / 1);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    0 0 0 2px rgb(37 99 235 / 0.42),
-    0 3px 9px rgb(37 99 235 / 0.24);
+  border-color: var(--kg-canvas-accent, rgb(37 99 235 / 1));
+  box-shadow: none;
 }
 
 .timeline-transport-track-clip--milestone {
@@ -409,29 +401,18 @@
   width: 6px;
   height: 100%;
   border: 0;
-  background: rgb(214 211 255 / 0.42);
+  background: transparent;
+  color: transparent;
   cursor: ew-resize;
   padding: 0;
 }
 
 .timeline-transport-track-handle--start {
   left: 0;
-  border-right: 1px solid rgb(15 23 42 / 0.2);
 }
 
 .timeline-transport-track-handle--end {
   right: 0;
-  border-left: 1px solid rgb(15 23 42 / 0.2);
-}
-
-.timeline-transport-track-handle::after {
-  position: absolute;
-  inset-block: 3px;
-  left: 2px;
-  width: 1px;
-  border-radius: 999px;
-  background: rgb(49 46 129 / 0.46);
-  content: '';
 }
 
 .timeline-transport-track-clip--milestone .timeline-transport-track-handle {

@@ -70,6 +70,18 @@ const resolveStrybldrStarterTemplatePath = (): string => {
 
 const readStrybldrStarterTemplateText = (): string => fs.readFileSync(resolveStrybldrStarterTemplatePath(), 'utf8')
 
+const assertStrybldrStarterTemplateHasNoRepoHardcodedRuntimeMedia = (text: string): void => {
+  const forbiddenRuntimeMediaPatterns: Array<[RegExp, string]> = [
+    [/\bkg_media_token=/i, 'local media access tokens'],
+    [/\blocalhost:\d+\/api\/storage\/media\//i, 'localhost storage media URLs'],
+    [/\/api\/storage\/media\/[^ \n"'`]+\/runs\/upload-[^ \n"'`]+/i, 'persisted upload storage URLs'],
+    [/\bupload-[a-z0-9]{8,}/i, 'source-specific upload ids'],
+  ]
+  for (const [pattern, label] of forbiddenRuntimeMediaPatterns) {
+    assert(!pattern.test(text), `expected starter template not to store ${label}`)
+  }
+}
+
 const readStrybldrDemoText = (): string => {
   const demoPath = path.resolve(process.cwd(), '../..', 'huijoohwee/docs/knowgrph-strybldr-demo.md')
   return fs.readFileSync(demoPath, 'utf8')
@@ -231,6 +243,8 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   const frontmatter = extractYamlFrontmatterHeaderBlock(text)
   assert(frontmatter, 'expected starter template to keep byte-zero YAML frontmatter')
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgCanvas2dRenderer').trim() === 'storyboard', 'expected starter template to route to the shared Storyboard renderer')
+  assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'validation_input_forbid_hardcode_in_repo').trim() === 'true', 'expected starter template to declare hardcode-free validation input mode')
+  assertStrybldrStarterTemplateHasNoRepoHardcodedRuntimeMedia(text)
   assert(!text.includes('localhost:'), 'expected starter template not to store localhost media URLs')
   assert(!text.includes('kg_media_token='), 'expected starter template not to store local media access tokens')
   assert(!text.includes('upload-730fe6850f0fc26f'), 'expected starter template not to store copied upload ids')

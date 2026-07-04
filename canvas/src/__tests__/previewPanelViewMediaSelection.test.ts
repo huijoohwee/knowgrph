@@ -5,6 +5,7 @@ import type { GraphData } from '@/lib/graph/types'
 import PreviewPanelView from '@/features/panels/views/PreviewPanelView'
 import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
 import { dedupeCommandMenuRichMediaItems, type CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
+import { readRichMediaInsertUrl, readRichMediaPreviewUrl } from '@/features/command-menu/mediaCatalogShared'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -626,6 +627,41 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
   } finally {
     restoreDom()
     restoreWindow()
+  }
+}
+
+export function testPreviewPanelGraphMediaPreviewSkipsSemanticLabelSrc() {
+  const originalWindow = (globalThis as { window?: unknown }).window
+  const originalNow = Date.now
+  ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5175' } }
+  Date.now = () => 1_700_000_000_000
+  try {
+    const staleUrl = 'http://localhost:5173/api/storage/media/airvio/runs/upload-demo/image/strybldr-starter-source.png?kg_media_token=stale'
+    const item: CommandMenuRichMediaItem = {
+      key: 'graph-node-media:strybldr-source:image:Strybldr starter source',
+      kind: 'image',
+      source: 'graph',
+      startLine: 0,
+      label: 'Node media: Strybldr Starter Source',
+      panelTitle: 'Strybldr Starter Source',
+      src: 'Strybldr starter source',
+      openUrl: staleUrl,
+      nodeId: 'strybldr-source',
+    }
+    const previewUrl = readRichMediaPreviewUrl(item)
+    const insertUrl = readRichMediaInsertUrl(item)
+    if (!previewUrl.startsWith('http://localhost:5175/api/storage/media/airvio/runs/upload-demo/image/strybldr-starter-source.png?kg_media_token=')) {
+      throw new Error(`expected graph node media preview to ignore semantic label src and use current runtime URL, got ${previewUrl}`)
+    }
+    if (previewUrl.includes('localhost:5173') || previewUrl.includes('kg_media_token=stale')) {
+      throw new Error(`expected graph node media preview to refresh stale local storage URL, got ${previewUrl}`)
+    }
+    if (insertUrl !== previewUrl) {
+      throw new Error(`expected graph node media insert URL to share normalized preview URL, got ${insertUrl} vs ${previewUrl}`)
+    }
+  } finally {
+    Date.now = originalNow
+    ;(globalThis as { window?: unknown }).window = originalWindow
   }
 }
 
