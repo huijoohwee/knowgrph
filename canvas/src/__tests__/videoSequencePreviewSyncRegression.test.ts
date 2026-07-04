@@ -187,6 +187,14 @@ export function testVideoSequenceTimelineSkipsEmptyBarsAndLanes() {
   ) {
     throw new Error(`expected source-covered projection to hide invalid bridges while authored BottomPanel editing keeps lanes visible, got ${JSON.stringify({ editorLabels, editorLanes, renderableLabels, sourceGapLanes })}`)
   }
+
+  const sourceVideoDuplicateSpans = buildMermaidGanttTimelineModel([
+    'gantt', '  title Video Sequence', '  dateFormat HH:mm', '  axisFormat %H:%M', '  section Source video',
+    '  Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m', '  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_867, kgpos_0_37, 0.867m',
+  ].join('\n')).taskSpans
+  const sourceVideoDuplicateLabels = resolveRenderableVideoSequenceTimelineSpans(sourceVideoDuplicateSpans).map(span => span.label).join(' | ')
+  const sourceVideoDuplicateLanes = resolveVisibleVideoSequenceTimelineLanes(sourceVideoDuplicateSpans).map(lane => lane.id).join(' ')
+  if (sourceVideoDuplicateLabels.includes('Source video') || sourceVideoDuplicateLabels !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4' || sourceVideoDuplicateLanes !== 'video') throw new Error(`expected generic Source video scaffold to disappear when a real video media row exists, got ${JSON.stringify({ sourceVideoDuplicateLabels, sourceVideoDuplicateLanes })}`)
 }
 
 export function testVideoSequencePreviewSyncKeepsVideoGapsEmpty() {
@@ -574,7 +582,7 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     !surfaceModelText.includes('const mediaPreviewSourceUrl = React.useMemo') ||
     !surfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
     !surfaceModelText.includes('const timelinePlanSourceDurationSeconds = React.useMemo') ||
-    !surfaceModelText.includes('const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds') ||
+    !surfaceModelText.includes('const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds') || !surfaceModelText.includes('const rulerMediaDurationSeconds = transportSession.maxMinutes > 0 ? transportSession.maxMinutes * 60') ||
     !surfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds') ||
     !surfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') ||
     !surfaceModelText.includes('mediaReaderSummary: mediaPreviewSummary') ||

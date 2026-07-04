@@ -18,6 +18,7 @@ import {
   type KnowgrphMediaAssetPersistRequest,
   type KnowgrphMediaAssetPersistResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
+import { buildRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -34,17 +35,6 @@ const hashBlobSha256 = async (blob: Blob): Promise<string | null> => {
   }
 }
 
-const encodeBase64Url = (value: string): string => {
-  try {
-    const bytes = new TextEncoder().encode(value)
-    let binary = ''
-    for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i])
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-  } catch {
-    return ''
-  }
-}
-
 const readRuntimeUrlBase = (): string => {
   const origin = typeof window !== 'undefined' ? String(window.location?.origin || '').trim() : ''
   return origin || 'https://example.invalid'
@@ -58,18 +48,7 @@ export const buildUploadedMediaAccessUrl = (args: {
   const publicUrl = normalizeString(args.publicUrl)
   const runId = normalizeString(args.runId)
   if (!publicUrl || !runId) return publicUrl
-  const authToken = encodeBase64Url(JSON.stringify({
-    runId,
-    expiresAt: Date.now() + Math.max(60_000, args.ttlMs ?? 15 * 60 * 1000),
-  }))
-  if (!authToken) return publicUrl
-  try {
-    const url = new URL(publicUrl, readRuntimeUrlBase())
-    url.searchParams.set('kg_media_token', authToken)
-    return url.toString()
-  } catch {
-    return publicUrl
-  }
+  return buildRuntimeStorageMediaAccessUrl({ publicUrl, runId, ttlMs: args.ttlMs }) || publicUrl
 }
 
 const normalizeSlug = (value: string, fallback: string): string => {

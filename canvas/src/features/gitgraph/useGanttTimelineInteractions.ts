@@ -155,7 +155,8 @@ export function useGanttTimelineInteractions(args: {
   }, [handlePositionChange, resolveRulerScrubMinutes, rulerScrubState])
 
   const handleRulerPointerScrub = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    if (event.button !== 0 || args.maxMinutes <= 0) return
+    const primaryButtonActive = event.button === 0 || event.buttons === 1
+    if (!primaryButtonActive || args.maxMinutes <= 0) return
     const target = event.target as HTMLElement | null
     if (target?.closest('button,[data-kg-gantt-timeline-track-span="1"]')) return
     const scrubElement = resolveTimelineRulerScrubElement(event.target, event.currentTarget)
@@ -179,7 +180,8 @@ export function useGanttTimelineInteractions(args: {
     span: MermaidGanttTimelineTaskSpan,
     mode: MermaidGanttBarDragMode,
   ) => {
-    if (event.button !== 0 || args.maxMinutes <= 0) return
+    const primaryButtonActive = event.button === 0 || event.buttons === 1
+    if (!primaryButtonActive || args.maxMinutes <= 0) return
     if (isTimelinePlayheadScrubTarget(event.target)) return
     const rulerElement = event.currentTarget.closest('[data-kg-gantt-timeline-ruler-content="1"]') as HTMLElement | null
     const rulerWidth = rulerElement?.getBoundingClientRect().width || 0

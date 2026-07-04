@@ -47,6 +47,7 @@ export function normalizeVideoSequenceClipEditDeltaMinutes(deltaMinutes: number,
 
 export function resolveVideoSequenceClipEditSnappedMinutes(args: {
   enabled: boolean
+  excludedSnapPositions?: readonly number[]
   positionMinutes: number
   selectedSpan: VideoSequenceClipEditSpan | null | undefined
   spans: readonly VideoSequenceClipEditSpan[]
@@ -54,10 +55,14 @@ export function resolveVideoSequenceClipEditSnappedMinutes(args: {
   const positionMinutes = Number(args.positionMinutes)
   if (!args.enabled || !Number.isFinite(positionMinutes)) return positionMinutes
   const selectedSpan = args.selectedSpan
+  const excludedSnapPositions = (args.excludedSnapPositions || [])
+    .map(position => Number(position))
+    .filter(position => Number.isFinite(position))
   const snapCandidates = args.spans
     .flatMap(span => [span.startMinutes, span.endMinutes])
     .concat(selectedSpan ? [selectedSpan.startMinutes, selectedSpan.endMinutes] : [])
     .filter(candidate => Number.isFinite(candidate) && candidate >= 0)
+    .filter(candidate => !excludedSnapPositions.some(excluded => Math.abs(candidate - excluded) <= 0.0005))
   const nearest = snapCandidates
     .map(candidate => ({
       distance: Math.abs(candidate - positionMinutes),

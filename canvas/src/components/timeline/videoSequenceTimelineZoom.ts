@@ -9,12 +9,12 @@ const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_PER_ZOOM_PERCENT = 40
 const VIDEO_SEQUENCE_TIMELINE_APPEND_SPACE_MAX_PERCENT = 160
 const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM = 6
 const VIDEO_SEQUENCE_TIMELINE_FRAME_TICK_STEP_FRAMES = 1
-const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES = 2
-const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME = 10
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_TARGETS_PER_SECOND = 6
+const VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEPS = [1, 2, 5, 10, 15, 30] as const
 const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX = 12
 const VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX = 960
 export const VIDEO_SEQUENCE_TIMELINE_DEFAULT_FRAME_RATE = 24
-const VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS = 960
+const VIDEO_SEQUENCE_TIMELINE_MAX_FRAME_TICKS = 1800
 
 export function resolveVideoSequenceTimelineScaleDurationSeconds(durationSeconds: number): number {
   const duration = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0
@@ -68,12 +68,20 @@ function shouldUseVideoSequenceFrameTicks(args: {
   return args.timelineZoom >= VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_ZOOM && args.mediaDurationSeconds > 0
 }
 
+function resolveVideoSequenceTimelineFrameLabelStepFrames(frameRate: number): number {
+  const rawStepFrames = resolveVideoSequenceTimelineFrameRate(frameRate) / VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_TARGETS_PER_SECOND
+  return VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEPS.find(step => step >= rawStepFrames)
+    || VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEPS[VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEPS.length - 1]
+}
+
 function formatVideoSequenceTimelineFrameLabel(frame: number, frameRate: number): string {
   if (frame <= 0) return '00:00'
   const wholeSeconds = Math.floor(frame / frameRate)
   const frameInSecond = frame - wholeSeconds * frameRate
   if (frameInSecond === 0) return formatVideoSequenceTimelineSecondsOffset(wholeSeconds)
-  if (frameInSecond <= VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_MAX_FRAME && frameInSecond % VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES === 0) {
+  const labelStepFrames = resolveVideoSequenceTimelineFrameLabelStepFrames(frameRate)
+  const maxFrameLabel = frameRate - Math.ceil(labelStepFrames / 2)
+  if (frameInSecond <= maxFrameLabel && frameInSecond % labelStepFrames === 0) {
     return `${frameInSecond}f`
   }
   return ''
@@ -114,10 +122,28 @@ export function resolveVideoSequenceTimelineContentZoom(args: {
   const mediaDurationSeconds = Number.isFinite(args.mediaDurationSeconds) && args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : 0
   if (!shouldUseVideoSequenceFrameTicks({ mediaDurationSeconds, timelineZoom })) return timelineZoom
   const frameRate = resolveVideoSequenceTimelineFrameRate(args.frameRate || 0)
-  const labelSpacingPercent = (VIDEO_SEQUENCE_TIMELINE_FRAME_LABEL_STEP_FRAMES / Math.max(1, Math.round(mediaDurationSeconds * frameRate))) * 100
+  const labelSpacingPercent = (resolveVideoSequenceTimelineFrameLabelStepFrames(frameRate) / Math.max(1, Math.round(mediaDurationSeconds * frameRate))) * 100
   if (labelSpacingPercent <= 0) return timelineZoom
   const minimumContentScale = (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_MIN_LABEL_SPACING_PX * 100) / (VIDEO_SEQUENCE_TIMELINE_FRAME_RULER_REFERENCE_WIDTH_PX * labelSpacingPercent)
-  return Math.max(timelineZoom, Math.ceil(minimumContentScale))
+  return Math.max(timelineZoom + 1, Math.ceil(minimumContentScale))
+}
+
+export function resolveVideoSequenceTimelineWorkspaceLayout(args: {
+  appendSpacePercent: number
+  timelineContentZoom: number
+}): {
+  appendFlexPercent: number
+  viewportFlexPercent: number
+  workspaceWidthPercent: number
+} {
+  const timelineContentZoom = Number.isFinite(args.timelineContentZoom) && args.timelineContentZoom > 0 ? args.timelineContentZoom : 1
+  const appendSpaceScale = Number.isFinite(args.appendSpacePercent) && args.appendSpacePercent > 0 ? args.appendSpacePercent / 100 : 0
+  const workspaceScale = Math.max(1, timelineContentZoom + appendSpaceScale)
+  return {
+    appendFlexPercent: appendSpaceScale > 0 ? (appendSpaceScale / workspaceScale) * 100 : 0,
+    viewportFlexPercent: (timelineContentZoom / workspaceScale) * 100,
+    workspaceWidthPercent: workspaceScale * 100,
+  }
 }
 
 export function buildVideoSequenceTimelineZoomTicks(args: {

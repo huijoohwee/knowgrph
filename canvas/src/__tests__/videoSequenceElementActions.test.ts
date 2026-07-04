@@ -79,12 +79,20 @@ export function testVideoSequenceElementActionsStaySourceBacked() {
     selectedSpan: rippleModel.taskSpans[0],
     spans: rippleModel.taskSpans,
   })
+  const dragSnapped = resolveVideoSequenceClipEditSnappedMinutes({
+    enabled: true,
+    excludedSnapPositions: [rippleModel.taskSpans[0]?.startMinutes || 0, rippleModel.taskSpans[0]?.endMinutes || 0],
+    positionMinutes: 2.98,
+    selectedSpan: rippleModel.taskSpans[0],
+    spans: rippleModel.taskSpans,
+  })
 
   if (
     !rippleDeleted?.includes('Scene : clip_scene, kgsrc_4_7, kgpos_1, 3m') ||
     !rippleDeleted.includes('Outro : clip_outro, kgsrc_7_9, kgpos_4, 2m') ||
-    snapped !== 3
+    snapped !== 3 ||
+    dragSnapped !== 2.98
   ) {
-    throw new Error(`expected ripple delete and auto snapping: ${JSON.stringify({ rippleDeleted, snapped })}`)
+    throw new Error(`expected ripple delete and drag-aware auto snapping: ${JSON.stringify({ dragSnapped, rippleDeleted, snapped })}`)
   }
 }

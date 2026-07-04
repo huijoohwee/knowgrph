@@ -75,6 +75,27 @@ const readSourceEntryId = (line: string): string => {
   return cleanInline(match?.[1])
 }
 
+const unquoteYamlScalar = (value: string): string => {
+  const trimmed = cleanInline(value)
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
+const readSourceEntryScalar = (lines: readonly string[], key: string): string => {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`^\\s*${escapedKey}\\s*:\\s*(.*)\\s*$`)
+  for (const line of lines) {
+    const match = pattern.exec(line)
+    if (match) return unquoteYamlScalar(match[1] || '')
+  }
+  return ''
+}
+
 const readVideoSequenceSourceEntries = (
   lines: readonly string[],
   frontmatterEndIndex: number,
@@ -114,6 +135,29 @@ const readReusableBlankVideoSourceId = (lines: readonly string[]): string => {
       && /^\s*mimeHint\s*:\s*["']?video\//m.test(sourceText)
   })
   return blankVideoSource?.id || ''
+}
+
+const isSourceUrlMatch = (left: unknown, right: unknown): boolean => {
+  const normalize = (value: unknown) => cleanInline(value).replace(/^file:\/\//i, '').replace(/\/+$/g, '')
+  const normalizedLeft = normalize(left)
+  const normalizedRight = normalize(right)
+  return !!normalizedLeft && normalizedLeft === normalizedRight
+}
+
+const removeSourceEntryFromFrontmatter = (
+  lines: readonly string[],
+  sourceId: string,
+): string[] => {
+  const cleanSourceId = cleanInline(sourceId)
+  if (!cleanSourceId) return lines.slice()
+  const frontmatterEndIndex = findFrontmatterEndIndex(lines)
+  if (frontmatterEndIndex <= 0) return lines.slice()
+  const removeEntry = readVideoSequenceSourceEntries(lines, frontmatterEndIndex)
+    .find(entry => entry.id === cleanSourceId)
+  if (!removeEntry) return lines.slice()
+  const nextLines = lines.slice()
+  nextLines.splice(removeEntry.startIndex, removeEntry.endIndex - removeEntry.startIndex)
+  return nextLines
 }
 
 const inferMimeHint = (media: MediaDragPayload): string => {
@@ -227,26 +271,30 @@ const insertVideoSequenceDiagramIntoFrontmatter = (args: {
 
 const appendSourceToFrontmatter = (args: {
   lines: string[]
+  removeSourceId?: string
   sourceId: string
   media: MediaDragPayload
   replaceSourceId?: string
 }): string[] | null => {
-  const frontmatterEndIndex = findFrontmatterEndIndex(args.lines)
+  const sourceBaseLines = args.removeSourceId
+    ? removeSourceEntryFromFrontmatter(args.lines, args.removeSourceId)
+    : args.lines
+  const frontmatterEndIndex = findFrontmatterEndIndex(sourceBaseLines)
   if (frontmatterEndIndex <= 0) return null
   const sourceLines = buildSourceLines({ id: args.sourceId, media: args.media })
   if (args.replaceSourceId) {
-    const replaceEntry = readVideoSequenceSourceEntries(args.lines, frontmatterEndIndex)
+    const replaceEntry = readVideoSequenceSourceEntries(sourceBaseLines, frontmatterEndIndex)
       .find(entry => entry.id === args.replaceSourceId)
     if (replaceEntry) {
-      const nextLines = args.lines.slice()
+      const nextLines = sourceBaseLines.slice()
       nextLines.splice(replaceEntry.startIndex, replaceEntry.endIndex - replaceEntry.startIndex, ...sourceLines)
       return nextLines
     }
   }
-  const sourceKeyIndex = args.lines.findIndex((line, index) => (
+  const sourceKeyIndex = sourceBaseLines.findIndex((line, index) => (
     index > 0 && index < frontmatterEndIndex && /^\s*kgVideoSequenceSources\s*:\s*$/.test(line)
   ))
-  const nextLines = args.lines.slice()
+  const nextLines = sourceBaseLines.slice()
   if (sourceKeyIndex < 0) {
     const flowIndex = nextLines.findIndex((line, index) => index > 0 && index < frontmatterEndIndex && /^\s*flow_diagrams\s*:\s*$/.test(line))
     nextLines.splice(flowIndex > 0 ? flowIndex : frontmatterEndIndex, 0, 'kgVideoSequenceSources:', ...sourceLines)
@@ -294,6 +342,36 @@ const mediaSectionLabels = (lane: 'Audio' | 'Image' | 'Video'): readonly string[
 const hasMermaidGanttTaskLine = (code: string): boolean =>
   String(code || '').split('\n').some(line => /^\s*[^:\n]+:\s*[^,\n]+,\s*.+/.test(line))
 
+const isSourceVideoScaffoldTaskLine = (line: string, sourceId: string): boolean => {
+  const cleanSourceId = cleanInline(sourceId)
+  if (!cleanSourceId) return false
+  const escapedSourceId = cleanSourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^\\s*Source video\\s*:\\s*${escapedSourceId}(?:\\s*,|\\s*$)`, 'i').test(line)
+}
+
+const isBlankSourcePlaceholderTaskLine = (line: string, sourceId: string): boolean => (
+  isSourceVideoScaffoldTaskLine(line, sourceId)
+    && !/(?:^|,\s*)kgsrc_\d+(?:_\d+)?_\d+(?:_\d+)?(?:\s*,|$)/i.test(line)
+)
+
+const readReusableScaffoldVideoSourceId = (args: {
+  code: string
+  lines: readonly string[]
+  media: MediaDragPayload
+}): string => {
+  if (args.media.kind !== 'video') return ''
+  const frontmatterEndIndex = findFrontmatterEndIndex(args.lines)
+  if (frontmatterEndIndex <= 0) return ''
+  const codeLines = String(args.code || '').split('\n')
+  for (const entry of readVideoSequenceSourceEntries(args.lines, frontmatterEndIndex)) {
+    const sourceUrl = readSourceEntryScalar(entry.lines, 'sourceUrl')
+    const relativePath = readSourceEntryScalar(entry.lines, 'relativePath')
+    if (!isSourceUrlMatch(sourceUrl, args.media.url) && !isSourceUrlMatch(relativePath, args.media.url)) continue
+    if (codeLines.some(line => isSourceVideoScaffoldTaskLine(line, entry.id))) return entry.id
+  }
+  return ''
+}
+
 const resolveDropDurationMinutes = (media: MediaDragPayload, overrideDurationMinutes?: number): number => {
   const override = readPositiveNumber(overrideDurationMinutes)
   if (override > 0) return Math.max(MIN_DROP_DURATION_MINUTES, override)
@@ -313,9 +391,7 @@ const buildTaskLine = (args: {
   const lane = mediaLane(args.media.kind)
   const labelSuffix = lane === 'Video' ? '' : ` ${lane.toLowerCase()}`
   const stableId = lane === 'Video' ? args.sourceId : `${args.sourceId}_${lane.toLowerCase()}`
-  const label = args.importChrome && lane === 'Video'
-    ? 'Source video'
-    : `${sanitizeMermaidLabel(args.media.label, lane)}${labelSuffix}`
+  const label = `${sanitizeMermaidLabel(args.media.label, lane)}${labelSuffix}`
   return `  ${label} : ${stableId}, ${normalizeSourceRangeToken(args.durationMinutes)}, ${normalizeClockToken(args.startMinutes)}, ${normalizeDurationToken(args.durationMinutes)}`
 }
 
@@ -324,6 +400,7 @@ const appendTaskToCode = (args: {
   durationMinutes: number
   importChrome: boolean
   media: MediaDragPayload
+  removeSourceId?: string
   replaceSourceId?: string
   sourceId: string
   startMinutes: number
@@ -332,13 +409,18 @@ const appendTaskToCode = (args: {
   if (!lines.some(line => /^\s*gantt\s*$/i.test(line))) return null
   const lane = mediaLane(args.media.kind)
   const taskLine = buildTaskLine(args)
+  if (args.removeSourceId) {
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      if (isBlankSourcePlaceholderTaskLine(lines[index] || '', args.removeSourceId)) lines.splice(index, 1)
+    }
+  }
   const existingSection = readCodeSectionRangeAny(lines, mediaSectionLabels(lane))
   if (existingSection) {
     if (lane === 'Video' && args.replaceSourceId) {
       const replaceIndex = lines.findIndex((line, index) => (
         index > existingSection.startIndex &&
         index < existingSection.endIndex &&
-        new RegExp(`^\\s*Source video\\s*:\\s*${args.replaceSourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*,|\\s*$)`, 'i').test(line)
+        isSourceVideoScaffoldTaskLine(line, args.replaceSourceId || '')
       ))
       if (replaceIndex > existingSection.startIndex) {
         lines.splice(replaceIndex, 1, taskLine)
@@ -369,7 +451,13 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
   const reusableBlankVideoSourceId = args.media.kind === 'video'
     ? readReusableBlankVideoSourceId(markdownLines)
     : ''
-  const sourceId = reusableBlankVideoSourceId || buildMediaSourceId(args.media, markdownLines)
+  const reusableScaffoldVideoSourceId = reusableBlankVideoSourceId || readReusableScaffoldVideoSourceId({
+    code: String(args.code || '').trim() || DEFAULT_VIDEO_SEQUENCE_CODE,
+    lines: markdownLines,
+    media: args.media,
+  })
+  const removableBlankVideoSourceId = reusableBlankVideoSourceId || readReusableBlankVideoSourceId(markdownLines)
+  const sourceId = reusableScaffoldVideoSourceId || buildMediaSourceId(args.media, markdownLines)
   const durationMinutes = resolveDropDurationMinutes(args.media, args.durationMinutes)
   const baseCode = String(args.code || '').trim() || DEFAULT_VIDEO_SEQUENCE_CODE
   const importChrome = args.media.kind === 'video' && !hasMermaidGanttTaskLine(baseCode)
@@ -378,7 +466,8 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
     durationMinutes,
     importChrome,
     media: args.media,
-    replaceSourceId: reusableBlankVideoSourceId,
+    removeSourceId: args.media.kind === 'video' ? '' : removableBlankVideoSourceId,
+    replaceSourceId: reusableScaffoldVideoSourceId,
     sourceId,
     startMinutes: importChrome ? 0 : args.startMinutes,
   })
@@ -386,7 +475,8 @@ export function appendMermaidGanttVideoSequenceMediaDrop(args: {
   const linesWithSource = appendSourceToFrontmatter({
     lines: markdownLines,
     media: args.media,
-    replaceSourceId: reusableBlankVideoSourceId,
+    removeSourceId: args.media.kind === 'video' ? '' : removableBlankVideoSourceId,
+    replaceSourceId: reusableScaffoldVideoSourceId,
     sourceId,
   })
   if (!linesWithSource) return null

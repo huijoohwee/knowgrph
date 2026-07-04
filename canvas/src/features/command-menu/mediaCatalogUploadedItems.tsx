@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
-import { readUploadedMediaFileName, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import { readUploadedMediaFileName, readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
@@ -75,11 +75,12 @@ export function UploadedMediaRow({
 }) {
   const [editingName, setEditingName] = React.useState(false)
   const Icon = resolveMediaKindOverlayIcon(item.kind)
+  const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     contentType: item.contentType,
-    explicitThumbnailUrl: item.kind === 'image' ? item.linkUrl : '',
+    explicitThumbnailUrl: item.kind === 'image' ? runtimeUrl : '',
     kind: item.kind,
-    url: item.linkUrl,
+    url: runtimeUrl,
   })
   const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)
   const commitName = (value: string) => {
@@ -154,8 +155,8 @@ export function UploadedMediaRow({
       >
         <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
         <MediaInfoOverlay label={infoLabel} appearance="hover" />
-        <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
-        <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
+        <MediaOpenLinkOverlay href={runtimeUrl} appearance="hover" />
+        <MediaDownloadOverlay href={runtimeUrl} kind={item.kind} appearance="hover" />
         {generatedThumbnail.url ? (
           <>
             <img
@@ -304,6 +305,14 @@ export function UploadedMediaCard({
   onPreview: (item: UploadedMediaPanelItem) => void
 }) {
   const [editingName, setEditingName] = React.useState(false)
+  const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
+  const generatedThumbnail = useNativeVideoMediaThumbnail({
+    contentType: item.contentType,
+    explicitThumbnailUrl: item.kind === 'image' ? runtimeUrl : '',
+    kind: item.kind,
+    url: runtimeUrl,
+  })
+  const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)
   const commitName = (value: string) => {
     const nextName = String(value || '').trim()
     if (!nextName) {
@@ -320,7 +329,7 @@ export function UploadedMediaCard({
       tabIndex={0}
       draggable={true}
       className={mediaCardClassName()}
-      onDragStart={event => onDragStart(event, item)}
+      onDragStart={event => onDragStart(event, item, generatedThumbnail)}
       onDragEnd={finishMediaDrag}
       data-kg-media-drag-affordance="frame"
       data-kg-media-upload-item={item.id}
@@ -329,19 +338,19 @@ export function UploadedMediaCard({
       data-kg-media-upload-status={item.status}
       onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
-        startMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+        startMediaPointerDrag(event, buildDragPayload())
       }}
       onPointerMove={event => {
         if (isMediaRowControlTarget(event.target)) return
-        continueMediaPointerDrag(event, buildUploadedMediaDragPayload(item))
+        continueMediaPointerDrag(event, buildDragPayload())
       }}
       onMouseDown={event => {
         if (isMediaRowControlTarget(event.target)) return
-        startMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+        startMediaMouseDrag(event, buildDragPayload())
       }}
       onMouseMove={event => {
         if (isMediaRowControlTarget(event.target)) return
-        continueMediaMouseDrag(event, buildUploadedMediaDragPayload(item))
+        continueMediaMouseDrag(event, buildDragPayload())
       }}
       onClick={event => {
         if (isMediaRowControlTarget(event.target)) return

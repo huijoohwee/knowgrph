@@ -25,9 +25,7 @@ import {
   useTimelineDocumentMutationStoreBinding,
   useTimelineDocumentSnapshotReader,
 } from '@/components/timeline/timelineSurfaceBindings'
-import {
-  useTimelineTransportTimingSyncStoreBinding,
-} from '@/components/timeline/timelineTransport'
+import { useTimelineTransportTimingSyncStoreBinding } from '@/components/timeline/timelineTransport'
 import {
   VIDEO_SEQUENCE_TIMELINE_OPERATION_TOOL_IDS,
   resolveVideoSequenceTimelineLane,
@@ -553,6 +551,7 @@ export function useGanttTimelineDocumentActions(args: {
       : input.dragState.span.startMinutes + input.effectiveDeltaMinutes
     const snappedTargetMinutes = resolveVideoSequenceClipEditSnappedMinutes({
       enabled: autoSnappingEnabled,
+      excludedSnapPositions: [input.dragState.span.startMinutes, input.dragState.span.endMinutes],
       positionMinutes: rawTargetMinutes,
       selectedSpan: input.dragState.span,
       spans: timelineModel.taskSpans,

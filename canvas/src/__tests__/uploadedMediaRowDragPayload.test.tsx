@@ -210,8 +210,32 @@ export async function testUploadedMediaRowStartsSharedPointerDragPayload() {
   if (!mediaCatalogUploadedItemsSource.includes('onDragEnd={finishMediaDrag}')) {
     throw new Error('expected uploaded media thumbnail image/control to finalize native dragend')
   }
+  for (const snippet of [
+    'readUploadedMediaPanelItemRuntimeUrl',
+    'const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)',
+    "explicitThumbnailUrl: item.kind === 'image' ? runtimeUrl : ''",
+    'url: runtimeUrl',
+    '<MediaOpenLinkOverlay href={runtimeUrl}',
+    '<MediaDownloadOverlay href={runtimeUrl}',
+  ]) {
+    if (!`${mediaCatalogSharedSource}\n${mediaCatalogUploadedItemsSource}`.includes(snippet)) {
+      throw new Error(`expected uploaded media preview surfaces to use fresh runtime URLs: ${snippet}`)
+    }
+  }
 }
 
 export async function testUploadedMediaCardStartsSharedPointerDragPayload() {
   await assertUploadedMediaSurfaceStartsPointerDrag('card')
+  const mediaCatalogUploadedItemsSource = readFileSync(new URL('../features/command-menu/mediaCatalogUploadedItems.tsx', import.meta.url), 'utf8')
+  for (const snippet of [
+    'const generatedThumbnail = useNativeVideoMediaThumbnail({',
+    'const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)',
+    'onDragStart={event => onDragStart(event, item, generatedThumbnail)}',
+    'startMediaPointerDrag(event, buildDragPayload())',
+    'continueMediaPointerDrag(event, buildDragPayload())',
+  ]) {
+    if (!mediaCatalogUploadedItemsSource.includes(snippet)) {
+      throw new Error(`expected uploaded media card drag path to reuse native video thumbnail metadata: ${snippet}`)
+    }
+  }
 }

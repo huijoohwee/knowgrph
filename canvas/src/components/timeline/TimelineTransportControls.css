@@ -735,6 +735,8 @@
   flex: 1 1 auto;
   align-items: center;
   justify-content: flex-end;
+  container-name: timeline-player-toolbar;
+  container-type: inline-size;
 }
 
 .timeline-player-context {
@@ -901,16 +903,17 @@
 .timeline-video-sequence-ruler-scroll {
   min-width: 0;
   min-height: inherit;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
   contain: layout paint;
 }
 
 .timeline-video-sequence-ruler-scroll-content {
   display: flex;
   min-width: 100%;
+  min-height: 100%;
   align-items: stretch;
 }
 
@@ -942,10 +945,7 @@
   margin-top: 0;
   width: 100%;
   min-width: 100%;
-  max-height: calc(100% - 24px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+  overflow: visible;
   contain: layout paint;
 }
 

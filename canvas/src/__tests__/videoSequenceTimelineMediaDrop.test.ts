@@ -130,7 +130,7 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     !result.markdownText.includes('type: mermaid_gantt') ||
     !nextCode.includes('gantt') ||
     !nextCode.includes('section Source video') ||
-    !nextCode.includes('Source video : clip_') ||
+    !nextCode.includes('港岛仿生局.mp4 : clip_') ||
     !nextCode.includes('kgsrc_0_0_25') ||
     !nextCode.includes('kgpos_0') ||
     !droppedSegment ||
@@ -194,6 +194,64 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     starterPlaceholderRows[0]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
   ) {
     throw new Error(`expected first real video drop to consume starter placeholder instead of duplicating bars, got ${JSON.stringify({ code: starterPlaceholderCode, model: starterPlaceholderModel, rows: starterPlaceholderRows })}`)
+  }
+
+  const sourceBackedScaffoldMarkdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    relativePath: "Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4"',
+    '    importMode: "url"',
+    '    sourceUrl: "/media/seedance.mp4"',
+    '    mimeHint: "video/mp4"',
+    '    byteSize: 3691000',
+    '    durationSeconds: 52',
+    '    frameRate: 24',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m',
+    '---',
+    '',
+  ].join('\n')
+  const sourceBackedScaffoldResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(sourceBackedScaffoldMarkdownText),
+    markdownText: sourceBackedScaffoldMarkdownText,
+    media: {
+      byteSize: 3691000,
+      durationSeconds: 52,
+      frameRate: 24,
+      kind: 'video',
+      label: 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/media/seedance.mp4',
+    },
+    startMinutes: 0.37,
+  })
+  if (!sourceBackedScaffoldResult) throw new Error('expected add from existing media card to replace the source-backed scaffold row')
+  const sourceBackedScaffoldCode = readVideoSequenceCode(sourceBackedScaffoldResult.markdownText)
+  const sourceBackedScaffoldModel = readVideoSequenceTimelineModelFromMarkdown(sourceBackedScaffoldResult.markdownText)
+  const sourceBackedScaffoldRows = buildMermaidGanttTimelineModel(sourceBackedScaffoldCode).taskSpans
+  if (
+    sourceBackedScaffoldModel?.sources.length !== 1 ||
+    sourceBackedScaffoldModel.sources[0]?.id !== 'operator_source_video' ||
+    sourceBackedScaffoldModel.sources[0]?.sourceUrl !== '/media/seedance.mp4' ||
+    sourceBackedScaffoldCode.includes('Source video : operator_source_video') ||
+    !sourceBackedScaffoldCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_867, kgpos_0_37, 0.867m') ||
+    sourceBackedScaffoldRows.length !== 1 ||
+    sourceBackedScaffoldRows[0]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
+  ) {
+    throw new Error(`expected existing source-backed scaffold add to replace the row instead of duplicating it, got ${JSON.stringify({ code: sourceBackedScaffoldCode, model: sourceBackedScaffoldModel, rows: sourceBackedScaffoldRows })}`)
   }
 }
 
@@ -282,6 +340,123 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
 }
 
 export function testVideoSequenceTimelineMediaDropRoutesFloatingPanelKinds() {
+  const starterPlaceholderMarkdownText = [
+    '---',
+    'kgVideoSequenceTimeline: true',
+    'kgVideoSequenceSources:',
+    '  - id: "operator_source_video"',
+    '    originalName: ""',
+    '    relativePath: ""',
+    '    importMode: "url"',
+    '    sourceUrl: ""',
+    '    mimeHint: "video/mp4"',
+    '    byteSize: 0',
+    '    durationSeconds: 0',
+    '    frameRate: 0',
+    'flow_diagrams:',
+    '  video_sequence:',
+    '    key: video_sequence',
+    '    type: mermaid_gantt',
+    '    value: |-',
+    '      gantt',
+    '        title Video Sequence',
+    '        dateFormat HH:mm',
+    '        axisFormat %H:%M',
+    '        section Source video',
+    '        Source video : operator_source_video, kgpos_0, 1m',
+    '---',
+    '',
+  ].join('\n')
+  const imageOnPlaceholderResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(starterPlaceholderMarkdownText),
+    markdownText: starterPlaceholderMarkdownText,
+    media: {
+      byteSize: 1102,
+      displayHeight: 720,
+      displayWidth: 1280,
+      frameRate: 24,
+      kind: 'image',
+      label: 'flower.png',
+      mimeHint: 'image/png',
+      sourceKey: 'floating-panel-image',
+      url: '/media/flower.png',
+    },
+    startMinutes: 0.1,
+  })
+  if (!imageOnPlaceholderResult) throw new Error('expected FloatingPanel image payload to consume the starter source placeholder')
+  const imageOnPlaceholderCode = readVideoSequenceCode(imageOnPlaceholderResult.markdownText)
+  const imageOnPlaceholderModel = readVideoSequenceTimelineModelFromMarkdown(imageOnPlaceholderResult.markdownText)
+  const imageOnPlaceholderRows = buildMermaidGanttTimelineModel(imageOnPlaceholderCode).taskSpans
+  if (
+    imageOnPlaceholderModel?.sources.length !== 1 ||
+    imageOnPlaceholderModel.sources[0]?.sourceUrl !== '/media/flower.png' ||
+    imageOnPlaceholderModel.sources.some(source => source.id === 'operator_source_video') ||
+    imageOnPlaceholderCode.includes('Source video : operator_source_video, kgpos_0, 1m') ||
+    imageOnPlaceholderRows.some(span => span.label === 'Source video') ||
+    !imageOnPlaceholderRows.some(span => span.label === 'flower.png image')
+  ) {
+    throw new Error(`expected first image add to remove the empty source-video placeholder, got ${JSON.stringify({ code: imageOnPlaceholderCode, model: imageOnPlaceholderModel, rows: imageOnPlaceholderRows })}`)
+  }
+  const audioOnPlaceholderResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(starterPlaceholderMarkdownText),
+    markdownText: starterPlaceholderMarkdownText,
+    media: {
+      byteSize: 4096,
+      durationSeconds: 6,
+      kind: 'audio',
+      label: 'voice.m4a',
+      mimeHint: 'audio/mp4',
+      sourceKey: 'floating-panel-audio',
+      url: '/media/voice.m4a',
+    },
+    startMinutes: 0.2,
+  })
+  if (!audioOnPlaceholderResult) throw new Error('expected FloatingPanel audio payload to consume the starter source placeholder')
+  const audioOnPlaceholderCode = readVideoSequenceCode(audioOnPlaceholderResult.markdownText)
+  const audioOnPlaceholderModel = readVideoSequenceTimelineModelFromMarkdown(audioOnPlaceholderResult.markdownText)
+  const audioOnPlaceholderRows = buildMermaidGanttTimelineModel(audioOnPlaceholderCode).taskSpans
+  if (
+    audioOnPlaceholderModel?.sources.length !== 1 ||
+    audioOnPlaceholderModel.sources[0]?.sourceUrl !== '/media/voice.m4a' ||
+    audioOnPlaceholderModel.sources.some(source => source.id === 'operator_source_video') ||
+    audioOnPlaceholderCode.includes('Source video : operator_source_video, kgpos_0, 1m') ||
+    audioOnPlaceholderRows.some(span => span.label === 'Source video') ||
+    !audioOnPlaceholderRows.some(span => span.label === 'voice.m4a audio')
+  ) {
+    throw new Error(`expected first audio add to remove the empty source-video placeholder, got ${JSON.stringify({ code: audioOnPlaceholderCode, model: audioOnPlaceholderModel, rows: audioOnPlaceholderRows })}`)
+  }
+  const videoOnPlaceholderResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: readVideoSequenceCode(starterPlaceholderMarkdownText),
+    markdownText: starterPlaceholderMarkdownText,
+    media: {
+      byteSize: 6632,
+      displayHeight: 720,
+      displayWidth: 1280,
+      durationSeconds: 15.09,
+      frameRate: 24,
+      kind: 'video',
+      label: '港岛仿生局.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'floating-panel-video',
+      url: '/media/harbor.mp4',
+    },
+    startMinutes: 0.3,
+  })
+  if (!videoOnPlaceholderResult) throw new Error('expected FloatingPanel video payload to replace the starter source placeholder')
+  const videoOnPlaceholderCode = readVideoSequenceCode(videoOnPlaceholderResult.markdownText)
+  const videoOnPlaceholderModel = readVideoSequenceTimelineModelFromMarkdown(videoOnPlaceholderResult.markdownText)
+  const videoOnPlaceholderRows = buildMermaidGanttTimelineModel(videoOnPlaceholderCode).taskSpans
+  if (
+    videoOnPlaceholderModel?.sources.length !== 1 ||
+    videoOnPlaceholderModel.sources[0]?.id !== 'operator_source_video' ||
+    videoOnPlaceholderModel.sources[0]?.sourceUrl !== '/media/harbor.mp4' ||
+    videoOnPlaceholderCode.includes('Source video : operator_source_video, kgpos_0, 1m') ||
+    videoOnPlaceholderRows.some(span => span.label === 'Source video') ||
+    !videoOnPlaceholderRows.some(span => span.label === '港岛仿生局.mp4')
+  ) {
+    throw new Error(`expected first video add to replace the empty source-video placeholder, got ${JSON.stringify({ code: videoOnPlaceholderCode, model: videoOnPlaceholderModel, rows: videoOnPlaceholderRows })}`)
+  }
+
   const markdownText = [
     '---',
     'kgVideoSequenceTimeline: true',

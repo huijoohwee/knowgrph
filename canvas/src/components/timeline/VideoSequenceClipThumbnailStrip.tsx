@@ -1,5 +1,6 @@
 import React from 'react'
 import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
+import type { VideoSequenceGeneratedFrameThumbnailOrigin } from './videoSequenceGeneratedFrameThumbnails'
 import { formatVideoSequenceTimelineSecondsOffset } from './videoSequenceTimeline'
 import type { MermaidGanttTimelineTaskSpan } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR, MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR } from '@/lib/media/mediaFormatPreference'
@@ -8,6 +9,18 @@ import { beginMediaPointerDragPayload, finishMediaPointerDragPayloadForEvent, wr
 type VideoSequenceClipThumbnailWindow = {
   sourceEndSeconds: number
   sourceStartSeconds: number
+}
+
+const THUMBNAIL_MOVE_DRAG_THRESHOLD_PX = 4
+
+type ThumbnailMoveIntent = {
+  clientX: number
+  clientY: number
+  pointerId: number
+}
+
+export function resolveVideoSequenceThumbnailRenderUrl(thumbnail: TimelineMediaReaderThumbnail): string {
+  return thumbnail.rasterDataUrl || thumbnail.dataUrl
 }
 
 function resolveVideoSequenceThumbnailTimelinePosition(args: {
@@ -28,34 +41,37 @@ function buildVideoSequenceThumbnailDragPayload(args: {
   thumbnail: TimelineMediaReaderThumbnail
 }): MediaDragPayload {
   const timestampLabel = formatVideoSequenceTimelineSecondsOffset(args.thumbnail.timestampSeconds)
+  const renderUrl = resolveVideoSequenceThumbnailRenderUrl(args.thumbnail)
   return {
     kind: 'image',
-    url: args.thumbnail.dataUrl,
+    url: renderUrl,
     label: `${args.span.label} frame ${timestampLabel}`,
     displayHeight: args.thumbnail.height,
     displayWidth: args.thumbnail.width,
     mimeHint: `image/${args.thumbnail.rasterFormat || args.thumbnail.format || 'png'}`,
     sourceKey: `${args.span.rowKey}:${Math.max(0, Math.round(args.thumbnail.timestampSeconds * 1_000_000))}`,
-    thumbnailUrl: args.thumbnail.dataUrl,
+    thumbnailUrl: renderUrl,
   }
 }
 
 export function VideoSequenceClipThumbnailStrip({
-  generated,
   onSelectRowPosition,
   onMovePointerStart,
   span,
   thumbnailWindow,
+  thumbnailOrigin,
   thumbnails,
 }: {
-  generated: boolean
   onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
   onMovePointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan) => void
   span: MermaidGanttTimelineTaskSpan
   thumbnailWindow: VideoSequenceClipThumbnailWindow | null
+  thumbnailOrigin?: VideoSequenceGeneratedFrameThumbnailOrigin
   thumbnails: readonly TimelineMediaReaderThumbnail[]
 }) {
   const [activeThumbnailIndex, setActiveThumbnailIndex] = React.useState<number | null>(null)
+  const moveIntentRef = React.useRef<ThumbnailMoveIntent | null>(null)
+  const suppressClickRef = React.useRef(false)
   if (!thumbnails.length) return null
   const sourceStart = thumbnails[0]?.timestampSeconds
   const sourceEnd = thumbnails[thumbnails.length - 1]?.timestampSeconds
@@ -69,7 +85,7 @@ export function VideoSequenceClipThumbnailStrip({
       aria-label={`${span.label} generated thumbnails`}
       data-kg-video-sequence-clip-thumbnail-strip="1"
       data-kg-video-sequence-clip-thumbnail-count={thumbnails.length}
-      data-kg-video-sequence-clip-thumbnail-generated={generated ? 'frame-by-frame' : undefined}
+      data-kg-video-sequence-clip-thumbnail-generated={thumbnailOrigin}
       data-kg-video-sequence-clip-thumbnail-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
       data-kg-video-sequence-clip-thumbnail-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
       data-kg-video-sequence-clip-thumbnail-source-start={sourceStart}
@@ -94,15 +110,39 @@ export function VideoSequenceClipThumbnailStrip({
           data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
           onFocus={() => setActiveThumbnailIndex(thumbnailIndex)}
           onMouseEnter={() => setActiveThumbnailIndex(thumbnailIndex)}
-          onClick={event => {
-            event.stopPropagation()
-            onSelectRowPosition(span.rowKey, resolveVideoSequenceThumbnailTimelinePosition({ span, thumbnail, window: thumbnailWindow }))
-          }}
           onPointerDown={event => {
+            if (event.button !== 0) return
+            event.stopPropagation()
+            suppressClickRef.current = false
+            moveIntentRef.current = { clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId }
+            event.currentTarget.setPointerCapture?.(event.pointerId)
+          }}
+          onPointerMove={event => {
+            const moveIntent = moveIntentRef.current
+            if (!moveIntent || moveIntent.pointerId !== event.pointerId || event.buttons !== 1) return
+            const deltaX = event.clientX - moveIntent.clientX
+            const deltaY = event.clientY - moveIntent.clientY
+            if (Math.hypot(deltaX, deltaY) < THUMBNAIL_MOVE_DRAG_THRESHOLD_PX) return
+            suppressClickRef.current = true
+            moveIntentRef.current = null
             onMovePointerStart(event, span)
           }}
+          onPointerUp={event => {
+            if (moveIntentRef.current?.pointerId === event.pointerId) moveIntentRef.current = null
+          }}
+          onPointerCancel={event => {
+            if (moveIntentRef.current?.pointerId === event.pointerId) moveIntentRef.current = null
+          }}
+          onClick={event => {
+            event.stopPropagation()
+            if (suppressClickRef.current) {
+              suppressClickRef.current = false
+              return
+            }
+            onSelectRowPosition(span.rowKey, resolveVideoSequenceThumbnailTimelinePosition({ span, thumbnail, window: thumbnailWindow }))
+          }}
         >
-          <img alt="" decoding="async" draggable={false} height={thumbnail.height} loading="lazy" src={thumbnail.dataUrl} width={thumbnail.width} />
+          <img alt="" decoding="async" draggable={false} height={thumbnail.height} loading="lazy" src={resolveVideoSequenceThumbnailRenderUrl(thumbnail)} width={thumbnail.width} />
           <span
             className="timeline-video-sequence-clip-thumbnail-drag-affordance"
             aria-hidden="true"
@@ -145,7 +185,7 @@ export function VideoSequenceClipThumbnailStrip({
           data-kg-video-sequence-clip-thumbnail-preview="1"
           style={activePreviewStyle}
         >
-          <img alt="" decoding="async" draggable={false} height={activeThumbnail.height} loading="lazy" src={activeThumbnail.dataUrl} width={activeThumbnail.width} />
+          <img alt="" decoding="async" draggable={false} height={activeThumbnail.height} loading="lazy" src={resolveVideoSequenceThumbnailRenderUrl(activeThumbnail)} width={activeThumbnail.width} />
           <span
             className="timeline-video-sequence-clip-thumbnail-preview-caption"
             data-kg-video-sequence-clip-thumbnail-preview-caption={`${formatVideoSequenceTimelineSecondsOffset(activeThumbnail.timestampSeconds)} ${activeThumbnail.format}/${activeThumbnail.rasterFormat}`}

@@ -175,7 +175,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     url: mediaPreviewSourceUrl,
   })
   const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds
-  const rulerMediaDurationSeconds = selectedPreviewEmpty ? transportSession.mediaDurationSeconds : (displaySourceDurationSeconds || transportSession.mediaDurationSeconds)
+  const rulerMediaDurationSeconds = transportSession.maxMinutes > 0 ? transportSession.maxMinutes * 60 : (transportSession.mediaDurationSeconds || displaySourceDurationSeconds)
   const rulerScaleMaxMinutes = React.useMemo(() => resolveVideoSequenceTimelineScaleMaxMinutes({
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: rulerMediaDurationSeconds,
@@ -214,11 +214,12 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       const summary = sourceThumbnailSummaries[item.src]
       const durationSeconds = Number(item.source.durationSeconds) > 0 ? Number(item.source.durationSeconds) : Number(summary?.durationSeconds || 0)
       const thumbnails = summary?.thumbnails || []
-      if (!thumbnails.length && !summary?.audioWaveformSamples.length && item.kind !== 'image') return []
+      if (!thumbnails.length && !summary?.audioWaveformSamples.length && item.kind !== 'image' && item.kind !== 'video') return []
       return [{
         kind: item.kind,
         label: item.label,
         sourceAudioWaveformSamples: summary?.audioWaveformSamples || [],
+        sourceId: item.source.id,
         sourceThumbnailWindows: thumbnailPlan.segments
           .filter(segment => resolveTimelinePlanSourceUrl(segment.source) === item.src)
           .map(segment => ({
@@ -231,7 +232,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
         sourceUrl: item.src,
       }]
     })
-    if (thumbnailSourceUrl && thumbnailSummary.audioWaveformSamples.length && !collected.some(set => set.sourceUrl === thumbnailSourceUrl)) collected.push({ kind: 'video', label: 'Source video', sourceAudioWaveformSamples: thumbnailSummary.audioWaveformSamples, sourceThumbnailWindows, sourceThumbnails: thumbnailSummary.thumbnails, sourceUrl: thumbnailSourceUrl })
+    if (thumbnailSourceUrl && thumbnailSummary.audioWaveformSamples.length && !collected.some(set => set.sourceUrl === thumbnailSourceUrl)) collected.push({ kind: 'video', label: 'Source video', sourceAudioWaveformSamples: thumbnailSummary.audioWaveformSamples, sourceId: '', sourceThumbnailWindows, sourceThumbnails: thumbnailSummary.thumbnails, sourceUrl: thumbnailSourceUrl })
     return collected
   }, [sourceThumbnailItems, sourceThumbnailSummaries, sourceThumbnailWindows, thumbnailSourceUrl, thumbnailSummary.audioWaveformSamples, thumbnailSummary.thumbnails, transportSession.exportPlan, transportSession.thumbnailPlan])
   const transportClockDisplayModel = useGanttTimelineDisplayModel({

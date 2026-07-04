@@ -73,6 +73,31 @@ export function testUploadedMediaStorageRuntimeUrlRefreshesStaleToken() {
   }
 }
 
+export function testUploadedMediaStorageRuntimeUrlUsesCurrentLocalOrigin() {
+  const originalWindow = (globalThis as { window?: unknown }).window
+  const originalNow = Date.now
+  ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5172' } }
+  Date.now = () => 1_700_000_000_000
+  try {
+    const item = createSyncedUploadedMediaItem()
+    const staleDevPublicUrl = 'http://localhost:5173/api/storage/media/airvio/runs/upload-demo/video/runtime-demo.mp4'
+    const runtimeUrl = readUploadedMediaStorageRuntimeUrl({
+      accessUrl: `${staleDevPublicUrl}?kg_media_token=stale-token`,
+      publicUrl: staleDevPublicUrl,
+      runId: item.storage?.runId || 'upload-demo',
+    })
+    if (!runtimeUrl.startsWith('http://localhost:5172/api/storage/media/airvio/runs/upload-demo/video/runtime-demo.mp4?kg_media_token=')) {
+      throw new Error(`expected stale local storage media URL to use current runtime origin, got ${runtimeUrl}`)
+    }
+    if (runtimeUrl.includes('localhost:5173') || runtimeUrl.includes('stale-token')) {
+      throw new Error(`expected local runtime URL to replace stale origin and token, got ${runtimeUrl}`)
+    }
+  } finally {
+    Date.now = originalNow
+    ;(globalThis as { window?: unknown }).window = originalWindow
+  }
+}
+
 export function testUploadedMediaPanelItemRuntimeUrlRefreshesSyncedItemToken() {
   const originalNow = Date.now
   Date.now = () => 1_700_000_000_000

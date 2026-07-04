@@ -80,43 +80,51 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
       disabled={button.disabled}
       data-kg-video-sequence-clip-edit={button.action}
       data-kg-video-sequence-clip-edit-active={button.active ? '1' : undefined}
-      data-kg-video-sequence-primary-clip-edit={keyPrefix ? button.action : undefined}
+      data-kg-video-sequence-primary-clip-edit={keyPrefix === 'primary-' ? button.action : undefined}
       onClick={button.onClick}
     >
       {renderClipActionIcon(button.icon)}
+    </button>
+  )
+  const renderMediaPlayerButton = (keyPrefix = '') => (
+    <button
+      key={`${keyPrefix}media-player`}
+      type="button"
+      aria-label={args.model.mediaPlayerButton.ariaLabel}
+      aria-pressed={args.model.mediaPlayerButton.active}
+      title={args.model.mediaPlayerButton.title}
+      disabled={args.model.mediaPlayerButton.disabled}
+      data-kg-video-sequence-tool="media-player"
+      data-kg-video-sequence-media-player-toggle="1"
+      data-kg-video-sequence-tool-active={args.model.mediaPlayerButton.active ? '1' : undefined}
+      onClick={args.model.mediaPlayerButton.onClick}
+    >
+      <MonitorPlay className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+    </button>
+  )
+  const renderTimingSyncButton = (keyPrefix = '') => (
+    <button
+      key={`${keyPrefix}timing-sync`}
+      type="button"
+      aria-label={args.model.syncModeButton.ariaLabel}
+      title={args.model.syncModeButton.title}
+      disabled={args.model.syncModeButton.disabled}
+      data-kg-video-sequence-tool="timing-sync"
+      data-kg-video-sequence-timing-sync={args.model.syncModeButton.mode}
+      data-kg-video-sequence-tool-active={args.model.syncModeButton.active ? '1' : undefined}
+      onClick={args.model.syncModeButton.onClick}
+    >
+      {args.model.syncModeButton.mode === 'grouped'
+        ? <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
+        : <Unlink2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />}
     </button>
   )
 
   return (
     <section className="timeline-transport-header-tools" aria-label="Timeline tools">
       <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
-        <button
-          type="button"
-          aria-label={args.model.mediaPlayerButton.ariaLabel}
-          aria-pressed={args.model.mediaPlayerButton.active}
-          title={args.model.mediaPlayerButton.title}
-          disabled={args.model.mediaPlayerButton.disabled}
-          data-kg-video-sequence-tool="media-player"
-          data-kg-video-sequence-media-player-toggle="1"
-          data-kg-video-sequence-tool-active={args.model.mediaPlayerButton.active ? '1' : undefined}
-          onClick={args.model.mediaPlayerButton.onClick}
-        >
-          <MonitorPlay className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-        </button>
-        <button
-          type="button"
-          aria-label={args.model.syncModeButton.ariaLabel}
-          title={args.model.syncModeButton.title}
-          disabled={args.model.syncModeButton.disabled}
-          data-kg-video-sequence-tool="timing-sync"
-          data-kg-video-sequence-timing-sync={args.model.syncModeButton.mode}
-          data-kg-video-sequence-tool-active={args.model.syncModeButton.active ? '1' : undefined}
-          onClick={args.model.syncModeButton.onClick}
-        >
-          {args.model.syncModeButton.mode === 'grouped'
-            ? <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-            : <Unlink2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />}
-        </button>
+        {renderMediaPlayerButton()}
+        {renderTimingSyncButton()}
         <details className="timeline-tool-menu timeline-tool-menu--edit">
           <summary aria-label="Video sequence edit tools" title="Video sequence edit tools">
             <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
@@ -172,6 +180,32 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
           <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
         </summary>
         <nav className="timeline-transport-chrome-actions timeline-tool-menu-panel" aria-label="Gantt timeline tools">
+          <section className="timeline-overflow-action-group timeline-overflow-action-group--transport" aria-label="Collapsed transport tools">
+            {renderMediaPlayerButton('overflow-')}
+            {renderTimingSyncButton('overflow-')}
+          </section>
+          <section className="timeline-overflow-action-group timeline-overflow-action-group--edit" aria-label="Collapsed edit tools">
+            {args.model.toolButtons.map(tool => (
+              <TimelineVideoSequenceToolButton
+                key={`overflow-tool-${tool.id}`}
+                id={tool.id}
+                label={tool.label}
+                title={tool.title}
+                active={tool.active}
+                disabled={tool.disabled}
+                onClick={tool.onClick}
+              />
+            ))}
+          </section>
+          <section className="timeline-overflow-action-group timeline-overflow-action-group--clip-primary" aria-label="Collapsed primary clip tools">
+            {primaryClipActionButtons.map(button => renderClipActionButton(button, 'overflow-primary-'))}
+          </section>
+          <section className="timeline-overflow-action-group timeline-overflow-action-group--clip" aria-label="Collapsed clip tools">
+            {args.model.clipActionButtons.map(button => renderClipActionButton(button, 'overflow-'))}
+          </section>
+          <section className="timeline-overflow-action-group timeline-overflow-action-group--zoom" aria-label="Collapsed zoom tools">
+            {args.model.zoomControls.actionButtons.map(button => renderZoomButton(button.key))}
+          </section>
           {args.model.actionButtons.map(button => (
             <button
               key={button.key}

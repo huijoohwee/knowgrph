@@ -398,11 +398,35 @@
 
 .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle {
   display: flex;
-  width: 10px;
+  top: -3px;
+  bottom: -3px;
+  z-index: 14;
+  width: min(34px, 38%);
+  height: auto;
   background: transparent;
   box-shadow: none;
+  cursor: ew-resize;
   opacity: 0;
   outline: 0;
+  pointer-events: auto;
+  transition: background-color 120ms ease-out, opacity 120ms ease-out;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle--start {
+  left: -5px;
+  padding-inline-start: 5px;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle--end {
+  right: -5px;
+  padding-inline-end: 5px;
+}
+
+.timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:hover,
+.timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:focus-visible,
+.timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"][data-kg-video-sequence-active-resize-mode] .timeline-transport-track-handle {
+  background: color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 12%, transparent);
+  opacity: 1;
 }
 
 .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle-grip,

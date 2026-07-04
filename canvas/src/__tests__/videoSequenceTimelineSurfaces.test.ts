@@ -73,7 +73,7 @@ export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming
     pointerMoveDelta !== 0.017 ||
     Math.abs(pointerResizePreview.durationMinutes - 0.269) > 0.0001 ||
     Math.abs(pointerResizeDelta - 0.017) > 0.0001 ||
-    !nudged?.includes('kgpos_0_017') ||
+    !nudged?.includes('kgpos_0_017') || !nudged.includes('kgsrc_0_0_252') ||
     !nudged.includes('0.252m') ||
     !trimmed?.includes('0.235m') ||
     trimmed.includes('1m')

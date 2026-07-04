@@ -179,6 +179,32 @@ export function testVideoSequenceBottomPanelExpandsMultipleVideoSourcesIntoDispl
   }
 }
 
+export function testVideoSequenceBottomPanelKeepsExistingVideoLaneOrderWhenLaterSourceIsInsertedEarlierInCode() {
+  const code = `gantt
+  title Video Sequence Timeline
+  dateFormat HH:mm
+  axisFormat %H:%M
+  section Source video
+  港岛仿生局.mp4 : clip_harbor, kgsrc_0_0_252, kgpos_0_337, 0.252m
+  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_seedance, kgsrc_0_0_863, kgpos_0, 0.863m`
+  const model = buildMermaidGanttTimelineModel(code)
+  const harborSpan = model.taskSpans.find(span => span.label === '港岛仿生局.mp4')
+  const seedanceSpan = model.taskSpans.find(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4')
+  const displayLanes = resolveVisibleVideoSequenceTimelineDisplayLanes(model.taskSpans, {
+    disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
+  })
+  if (
+    !harborSpan ||
+    !seedanceSpan ||
+    resolveVideoSequenceTimelineDisplayLaneId(seedanceSpan, model.taskSpans, { disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS }) !== 'video:seedance_2_0_is_on_artlist_77fant935ie' ||
+    resolveVideoSequenceTimelineDisplayLaneId(harborSpan, model.taskSpans, { disabledLaneIds: VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS }) !== 'video:港岛仿生局' ||
+    displayLanes.map(lane => lane.id).join(',') !== 'video:seedance_2_0_is_on_artlist_77fant935ie,video:港岛仿生局,video:append:3' ||
+    displayLanes.map(lane => lane.label).join(',') !== 'V1,V2,V3'
+  ) {
+    throw new Error(`expected BottomPanel Timeline to keep the earliest-starting source on V1 even when a later source is inserted earlier in code: ${JSON.stringify({ displayLanes, harborSpan, seedanceSpan })}`)
+  }
+}
+
 export function testVideoSequenceBottomPanelExpandsMultipleImageSourcesIntoDisplayLanes() {
   const code = `gantt
   title Video Sequence Timeline
@@ -275,6 +301,7 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
 
 export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const sourceThumbnailSetText = readSource('components', 'timeline', 'videoSequenceSourceThumbnailSet.ts')
   const frameSampleRailText = readSource('components', 'timeline', 'VideoSequenceFrameSampleRail.tsx')
   const mediaReaderText = readSource('components', 'timeline', 'timelineMediaReader.ts')
   const timelinePlanSyncText = readSource('components', 'timeline', 'timelinePlanSync.ts')
@@ -334,6 +361,10 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     'background: var(--kg-panel-bg-hover',
     'COMPACT_SOURCE_MEDIA_LABEL_BY_LANE',
     'sourceThumbnailSets',
+    'sourceId: string',
+    'readVideoSequenceSpanStableSourceId',
+    'normalizeSourceThumbnailId',
+    'set.sourceId',
     'stillImageSamples',
     "item.kind !== 'image'",
     'buildVideoSequenceSourceImageThumbnail',
@@ -341,6 +372,7 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     'sourceThumbnailSet.sourceThumbnails.length ? sourceThumbnailSet.sourceThumbnails.slice(0, 1) : buildVideoSequenceSourceImageThumbnail(sourceThumbnailSet)',
     'resolveVideoSequenceSourceThumbnailSet',
     'findSourceForSegment',
+    'data:(?:audio|image|video)',
     "buildSourceSegmentsForLane(model.taskSpans, 'image')",
     "buildSourceSegmentsForLane(model.taskSpans, 'scene')",
     "lane === 'image' || lane === 'scene' ? 'image'",
@@ -355,7 +387,7 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-video-sequence-clip-timecode',
     '.timeline-video-sequence-clip-meta',
   ]) {
-    if (!`${rulerText}\n${frameSampleRailText}\n${mediaReaderText}\n${surfaceModelText}\n${sequenceTimelineText}\n${timelinePlanSyncText}\n${cssText}`.includes(token)) {
+    if (!`${rulerText}\n${sourceThumbnailSetText}\n${frameSampleRailText}\n${mediaReaderText}\n${surfaceModelText}\n${sequenceTimelineText}\n${timelinePlanSyncText}\n${cssText}`.includes(token)) {
       throw new Error(`expected dense FBF no-overlap guard token: ${token}`)
     }
   }

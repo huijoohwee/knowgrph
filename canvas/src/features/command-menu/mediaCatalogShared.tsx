@@ -312,11 +312,12 @@ export function UploadedMediaPreview({
   onPreview: (item: UploadedMediaPanelItem) => void
 }) {
   const Icon = resolveMediaKindOverlayIcon(item.kind)
+  const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     contentType: item.contentType,
-    explicitThumbnailUrl: item.kind === 'image' ? item.linkUrl : '',
+    explicitThumbnailUrl: item.kind === 'image' ? runtimeUrl : '',
     kind: item.kind,
-    url: item.linkUrl,
+    url: runtimeUrl,
   })
   const generatedInfoLabel = [infoLabel, generatedThumbnail.metadataLabel].filter(Boolean).join(' | ')
   const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)
@@ -343,8 +344,8 @@ export function UploadedMediaPreview({
     >
       <MediaKindOverlay Icon={Icon} label={item.kind} appearance="hover" />
       <MediaInfoOverlay label={generatedInfoLabel} appearance="hover" />
-      <MediaOpenLinkOverlay href={item.linkUrl} appearance="hover" />
-      <MediaDownloadOverlay href={item.linkUrl} kind={item.kind} appearance="hover" />
+      <MediaOpenLinkOverlay href={runtimeUrl} appearance="hover" />
+      <MediaDownloadOverlay href={runtimeUrl} kind={item.kind} appearance="hover" />
       {generatedThumbnail.url ? (
         <>
           <img

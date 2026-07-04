@@ -88,7 +88,9 @@
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-header-tools {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
   flex-wrap: nowrap;
   justify-content: flex-start;
   gap: 3px;
@@ -96,6 +98,7 @@
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip {
+  min-width: 0;
   flex: 0 0 auto;
   gap: 2px;
   padding-inline: 4px;
@@ -109,6 +112,7 @@
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls {
   display: inline-flex;
   min-width: 0;
+  flex: 0 1 auto;
   height: 22px;
   align-items: center;
   gap: 1px;
@@ -116,6 +120,17 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu--utilities .timeline-tool-menu-panel {
+  max-width: min(72vw, 28rem);
+  flex-wrap: wrap;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group {
+  display: none;
+  align-items: center;
+  gap: 4px;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip button,
@@ -184,10 +199,49 @@
   display: none;
 }
 
+@container timeline-player-toolbar (max-width: 500px) {
+  .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-primary-clip-actions {
+    display: none;
+  }
+
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--clip-primary {
+    display: inline-flex;
+  }
+}
+
+@container timeline-player-toolbar (max-width: 420px) {
+  .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls > button,
+  .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-label {
+    display: none;
+  }
+
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--zoom {
+    display: inline-flex;
+  }
+}
+
+@container timeline-player-toolbar (max-width: 360px) {
+  .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-tool-strip,
+  .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls {
+    display: none;
+  }
+
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--clip-primary {
+    display: none;
+  }
+
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--transport,
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--edit,
+  .timeline-transport-chrome--mermaid-gantt .timeline-overflow-action-group--clip {
+    display: inline-flex;
+  }
+}
+
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-slot {
   display: flex;
-  flex: 0 0 auto;
-  min-height: 0;
+  flex: 1 1 160px;
+  min-height: 120px;
+  align-items: stretch;
   justify-content: center;
   border-bottom: 1px solid var(--kg-border, rgb(226 232 240 / 1));
   background:
@@ -198,17 +252,17 @@
 
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player {
   display: flex;
-  width: min(100%, 720px);
+  width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
   justify-content: center;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-frame {
-  width: min(100%, 640px);
-  height: clamp(120px, 22vh, 240px);
-  max-height: 240px;
+  width: 100%;
+  height: 100%;
   min-height: 104px;
-  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 82%, var(--kg-text-primary, #111827) 8%);
   border-radius: 6px;
@@ -258,10 +312,13 @@
 
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-editor,
 .timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-grid,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll-content,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content {
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll {
   height: 100%;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-scroll-content,
+.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-viewport {
+  min-height: 100%;
 }
 
 .timeline-video-sequence-lane-sidebar {

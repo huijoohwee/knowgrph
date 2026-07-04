@@ -321,7 +321,7 @@ export function updateMermaidGanttCodeRowTiming(args: {
     endMinutes: Math.max(nextSourceRange.startMinutes + nextDurationMinutes, nextSourceRange.endMinutes),
     startMinutes: Math.max(0, nextSourceRange.startMinutes),
   }
-  if (shouldWriteSourceRange) {
+  if (shouldWriteSourceRange && args.mode !== 'move') {
     const nextMetaTokens = upsertMermaidGanttSourceRangeToken(
       readGanttTimingMetaTokens(tokens),
       {
