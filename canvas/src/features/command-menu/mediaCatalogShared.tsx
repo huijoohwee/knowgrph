@@ -22,6 +22,9 @@ export const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElemen
 export const readRichMediaInsertUrl = (item: CommandMenuRichMediaItem): string =>
   String(item.openUrl || item.src || item.thumbnailUrl || '').trim()
 
+const readRichMediaPreviewUrl = (item: CommandMenuRichMediaItem): string =>
+  String(item.src || item.openUrl || item.thumbnailUrl || '').trim()
+
 const isOpenableMediaHref = (value: string): boolean =>
   /^(https?:|blob:|data:|\/|\.\/|\.\.\/|docs\/)/i.test(value.trim())
 
@@ -191,7 +194,7 @@ export function MediaCandidateThumb({
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     explicitThumbnailUrl: explicitThumbnail,
     kind: item.kind,
-    url: readRichMediaInsertUrl(item) || readRichMediaOpenHref(item),
+    url: readRichMediaPreviewUrl(item) || readRichMediaOpenHref(item),
   })
   const thumbnail = generatedThumbnail.url
   const openHref = readRichMediaOpenHref(item)
@@ -249,7 +252,7 @@ export function MediaCandidatePreview({
   const generatedThumbnail = useNativeVideoMediaThumbnail({
     explicitThumbnailUrl: explicitThumbnail,
     kind: item.kind,
-    url: readRichMediaInsertUrl(item) || readRichMediaOpenHref(item),
+    url: readRichMediaPreviewUrl(item) || readRichMediaOpenHref(item),
   })
   const thumbnail = generatedThumbnail.url
   const Icon = resolveMediaKindOverlayIcon(item.kind)

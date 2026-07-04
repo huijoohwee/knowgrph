@@ -205,6 +205,7 @@ export function useGanttTimelineInteractions(args: {
 
   return {
     dragPreview,
+    draggingMode: dragState?.mode || null,
     draggingRowKey: dragState?.span.rowKey || '',
     handlePositionChange,
     handleRulerPointerScrub,

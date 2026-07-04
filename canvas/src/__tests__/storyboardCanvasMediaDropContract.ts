@@ -47,11 +47,27 @@ export function assertStoryboard2dMediaDropContract() {
     }
   }
   for (const snippet of [
+    'const viewportEl = resolveCanvasViewportMeasureElement(args.rootRef.current)',
+    'if (viewportEl) return viewportEl.getBoundingClientRect()',
+  ]) {
+    if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget drop bridge to prefer the canonical viewport measure element before fallback media-drop surfaces: ${snippet}`)
+    }
+  }
+  for (const snippet of [
     "document.querySelectorAll<HTMLElement>('[data-kg-storyboard-widget-surface-root]')",
     'if (activeSurface) return activeSurface.getBoundingClientRect()',
   ]) {
     if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
-      throw new Error(`expected bridge-only media drops to resolve against the active renderer surface before falling back to the window: ${snippet}`)
+      throw new Error(`expected bridge-only media drops to retain renderer-surface fallback when the canonical viewport measure element is unavailable: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    "import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'",
+    'disableAutoZoomModesForUserGesture(useGraphStore.getState())',
+  ]) {
+    if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
+      throw new Error(`expected Storyboard Widget drop bridge to neutralize auto-zoom selection before drop-created nodes mutate selection: ${snippet}`)
     }
   }
   if (!flowCanvasGraphStateSource.includes("...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot)")) {
@@ -105,6 +121,10 @@ export function assertStoryboard2dMediaDropContract() {
     'applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: \'block\', scale: nextBox.scale })',
     'readSnapGridConfigFromSchema',
     'snapPanelTopLeftToGrid',
+    'preserveWorldTopLeft: !!projectedWorldBox && !!topLeftNow',
+    'const snappedPos = p.preserveWorldTopLeft ? pos : snapPanelTopLeftToGrid(pos)',
+    'const collisionPreferred = preferred.filter(item => !item.preserveWorldTopLeft)',
+    "...preferred.filter(item => item.preserveWorldTopLeft)",
     'const snappedWorldTopLeft = snapPointToGrid(worldTopLeft, snapGrid)',
     'const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h, scale: Math.max(0.001, Number(p.scale) || 1) }',
   ]) {

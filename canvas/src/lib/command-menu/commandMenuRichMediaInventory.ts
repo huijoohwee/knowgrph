@@ -39,6 +39,8 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
+import { buildRenderableMediaThumbnailUrl } from '@/lib/graph/mediaUrlKind'
+import { applyImageLikeProxySrc } from '@/lib/url'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -192,10 +194,14 @@ function readYoutubeVideoId(url: string): string {
   return ''
 }
 
-function resolveRichMediaThumbnailUrl(item: Pick<CommandMenuRichMediaItem, 'kind' | 'src' | 'openUrl'>): string | undefined {
-  if (item.kind === 'image') return item.src || item.openUrl || undefined
+export function resolveRichMediaThumbnailUrl(item: Pick<CommandMenuRichMediaItem, 'kind' | 'src' | 'openUrl'>): string | undefined {
+  const mediaUrl = String(item.src || item.openUrl || '').trim()
+  if (!mediaUrl) return undefined
+  const providerThumbnail = buildRenderableMediaThumbnailUrl(mediaUrl)
+  if (providerThumbnail) return applyImageLikeProxySrc(providerThumbnail) || providerThumbnail
   const youtubeId = readYoutubeVideoId(item.openUrl || item.src || '')
-  if (youtubeId) return `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+  if (youtubeId) return applyImageLikeProxySrc(`https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`)
+  if (item.kind === 'image') return applyImageLikeProxySrc(mediaUrl) || mediaUrl
   return undefined
 }
 

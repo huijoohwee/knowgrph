@@ -20,6 +20,7 @@ import {
   mediaListItemClassName,
   mediaListThumbnailFrameClassName,
   shouldHandleMediaRowPointer,
+  useNativeVideoMediaThumbnail,
 } from './mediaCatalogShared'
 
 export function MediaCandidateRow({
@@ -299,13 +300,19 @@ const sourceMetadataAttrs = (item: MediaCatalogSourceMetadataItem): React.HTMLAt
 
 function MediaSourceMetadataThumbnail({ item, rounded = true }: { item: MediaCatalogSourceMetadataItem; rounded?: boolean }) {
   const thumbnail = item.summary.thumbnails[0] || null
+  const fallbackThumbnail = useNativeVideoMediaThumbnail({
+    explicitThumbnailUrl: thumbnail?.dataUrl || '',
+    kind: 'video',
+    url: item.sourceUrl,
+  })
+  const thumbnailUrl = thumbnail?.dataUrl || fallbackThumbnail.url
   const metadataAttrs = sourceMetadataAttrs(item)
-  if (thumbnail) {
+  if (thumbnailUrl) {
     return (
       <span className={rounded ? mediaListThumbnailFrameClassName('items-center justify-center') : 'block h-full w-full'} data-kg-media-source-metadata-thumbnail="1">
         <MediaKindOverlay Icon={Video} label="video" appearance="hover" />
         <MediaInfoOverlay label={buildSourceMetadataTags(item).join(' | ') || item.sourceUrl} appearance="hover" />
-        <img src={thumbnail.dataUrl} alt="" className={cn('h-full w-full object-cover', rounded && 'rounded')} data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={thumbnail.format} data-kg-command-menu-media-thumbnail-raster-format={thumbnail.rasterFormat} data-kg-command-menu-media-thumbnail-time={thumbnail.timestampSeconds} {...(metadataAttrs as React.ImgHTMLAttributes<HTMLImageElement>)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
+        <img src={thumbnailUrl} alt="" className={cn('h-full w-full object-cover', rounded && 'rounded')} data-kg-command-menu-media-thumbnail="1" data-kg-command-menu-media-thumbnail-format={thumbnail?.format || fallbackThumbnail.format || undefined} data-kg-command-menu-media-thumbnail-raster-format={thumbnail?.rasterFormat || fallbackThumbnail.rasterFormat || undefined} data-kg-command-menu-media-thumbnail-time={thumbnail?.timestampSeconds ?? fallbackThumbnail.timestampSeconds ?? undefined} {...(metadataAttrs as React.ImgHTMLAttributes<HTMLImageElement>)} loading="lazy" decoding="async" {...LOW_PRIORITY_MEDIA_THUMBNAIL_IMAGE_PROPS} draggable={false} />
       </span>
     )
   }

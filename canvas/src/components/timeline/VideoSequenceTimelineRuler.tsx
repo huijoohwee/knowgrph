@@ -168,10 +168,13 @@ function buildVideoSequenceClipMediaCache(args: {
 
 function resolveActiveVideoSequenceResizeMode(args: {
   dragging: boolean
+  draggingMode: MermaidGanttBarDragMode | null
   previewSpan: MermaidGanttTimelineDragPreview | null
   span: MermaidGanttTimelineTaskSpan
 }): Extract<MermaidGanttBarDragMode, 'resize-start' | 'resize-end'> | null {
-  if (!args.dragging || !args.previewSpan) return null
+  if (!args.dragging) return null
+  if (args.draggingMode === 'resize-start' || args.draggingMode === 'resize-end') return args.draggingMode
+  if (!args.previewSpan) return null
   if (args.previewSpan.rowKey !== args.span.rowKey) return null
   if (args.previewSpan.startMinutes !== args.span.startMinutes) return 'resize-start'
   if (args.previewSpan.durationMinutes !== args.span.durationMinutes) return 'resize-end'
@@ -191,6 +194,7 @@ export function VideoSequenceTimelineRuler({
   viewportRef,
   displayTicks,
   dragPreview,
+  draggingMode,
   draggingRowKey,
   maxMinutes,
   mediaDurationSeconds = 0,
@@ -214,6 +218,7 @@ export function VideoSequenceTimelineRuler({
   viewportRef: React.RefObject<HTMLElement | null>
   displayTicks: readonly MermaidGanttTimelineTick[]
   dragPreview: MermaidGanttTimelineDragPreview | null
+  draggingMode: MermaidGanttBarDragMode | null
   draggingRowKey: string
   maxMinutes: number
   mediaDurationSeconds?: number
@@ -370,7 +375,7 @@ export function VideoSequenceTimelineRuler({
           const laneIndex = visibleLaneIndexById.get(displayLaneId) ?? visibleLaneIndexById.get(lane) ?? 0
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
-          const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, previewSpan, span })
+          const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, draggingMode, previewSpan, span })
           const cueSamples = showMediaCues
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
@@ -420,6 +425,7 @@ export function VideoSequenceTimelineRuler({
               }}
               aria-label={`${span.label} timeline clip`}
               data-kg-gantt-timeline-track-span="1"
+              data-kg-video-sequence-drag-mode={dragging ? draggingMode || undefined : undefined}
               data-kg-gantt-timeline-track-dragging={dragging ? '1' : undefined}
               data-kg-gantt-timeline-track-row-key={span.rowKey}
               data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
@@ -448,7 +454,7 @@ export function VideoSequenceTimelineRuler({
               data-kg-video-sequence-motion-work-area={`${animationState.workArea.start}-${animationState.workArea.end}`}
               title={span.label}
             >
-              <VideoSequenceClipThumbnailStrip onMovePointerStart={(event, targetSpan) => onTrackPointerStart(event, targetSpan, 'move')} onSelectRowPosition={onSelectRowPosition} span={span} thumbnailOrigin={thumbnailOrigin} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
+              <VideoSequenceClipThumbnailStrip onMovePointerStart={(event, targetSpan) => onTrackPointerStart(event, targetSpan, 'move')} onSelectRowPosition={onSelectRowPosition} span={span} suppressPreview={activeResizeMode !== null} thumbnailOrigin={thumbnailOrigin} thumbnailWindow={thumbnailWindow} thumbnails={thumbnailSamples} />
               <VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />
               {frameSamples.length ? (
                 <section className="timeline-video-sequence-clip-frame-strip" aria-hidden="true" data-kg-video-sequence-clip-frames="1">

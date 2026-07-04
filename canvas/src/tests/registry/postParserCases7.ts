@@ -20,4 +20,6 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["visualAnnotation.runAll.sequence","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunAllSequenceIncludesAnnotationNodes"],
   ["visualAnnotation.runAll.typedFrontmatterRouting","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationRunAllRoutesTypedFrontmatterNodes"],
   ["workspace.import.localFolder.spatialCaptureFileset","@/__tests__/workspaceImportSpatialCaptureFileset.test","testWorkspaceImportLocalFolderSpatialCaptureFilesetCreatesRenderableXrManifest"],
+  ["url.commandMenuMediaThumbnail.prefersRenderableImageSrc","@/__tests__/mediaUrlCoercion.test","testCommandMenuMediaThumbnailResolverPrefersRenderableImageSrc"],
+  ["url.commandMenuMediaThumbnail.fileVideoNativeReader","@/__tests__/mediaUrlCoercion.test","testCommandMenuMediaThumbnailResolverLeavesFileVideosForNativeReader"],
 ]

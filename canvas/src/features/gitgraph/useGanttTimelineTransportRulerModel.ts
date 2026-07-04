@@ -24,6 +24,7 @@ export type GanttTimelineTransportRulerModel = {
     viewportRef: React.RefObject<HTMLElement | null>
     displayTicks: readonly MermaidGanttTimelineTick[]
     dragPreview: MermaidGanttTimelineDragPreview | null
+    draggingMode: MermaidGanttBarDragMode | null
     draggingRowKey: string
     maxMinutes: number
     mediaDurationSeconds: number
@@ -51,6 +52,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   viewportRef: React.RefObject<HTMLElement | null>
   displayTicks: readonly MermaidGanttTimelineTick[]
   dragPreview: MermaidGanttTimelineDragPreview | null
+  draggingMode: MermaidGanttBarDragMode | null
   draggingRowKey: string
   maxMinutes: number
   mediaDurationSeconds: number
@@ -96,6 +98,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       displayTicks: args.displayTicks,
       disabledLaneIds: args.disabledLaneIds,
       dragPreview: args.dragPreview,
+      draggingMode: args.draggingMode,
       draggingRowKey: args.draggingRowKey,
       maxMinutes: args.maxMinutes,
       mediaDurationSeconds: args.mediaDurationSeconds,
@@ -121,6 +124,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.displayTicks,
     args.disabledLaneIds,
     args.dragPreview,
+    args.draggingMode,
     args.draggingRowKey,
     args.maxMinutes,
     args.mediaDurationSeconds,

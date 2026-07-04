@@ -42,7 +42,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const shellText = readSource('features', 'gitgraph', 'GanttTimelineTransportShell.tsx')
   const editRailCssText = `${denseFbfCssText}\n${rulerCssText}`
   expectSourceIncludes(rulerText, [
-    'data-kg-video-sequence-active-track',
+    'data-kg-video-sequence-active-track', 'data-kg-video-sequence-drag-mode={dragging ? draggingMode',
     'data-kg-compact-source-placeholder={compactSourcePlaceholder ?',
     'data-kg-video-sequence-source-window',
     'VideoSequenceTimelineClipMeta',
@@ -218,7 +218,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'timeline-video-sequence-clip-thumbnail-drag-affordance',
     'data-kg-video-sequence-clip-thumbnail-drag-affordance="1"',
     'data-kg-video-sequence-clip-thumbnail-drag-kind="image"',
-    'onMovePointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan) => void',
+    'onMovePointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan) => void', 'suppressPreview?: boolean',
     'const [activeThumbnailIndex, setActiveThumbnailIndex] = React.useState<number | null>(null)',
     'THUMBNAIL_MOVE_DRAG_THRESHOLD_PX',
     'moveIntentRef',
@@ -227,8 +227,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'suppressClickRef.current',
     'timeline-video-sequence-clip-thumbnail-strip-preview',
     '--kg-video-sequence-clip-thumbnail-preview-left',
-    'data-kg-video-sequence-clip-thumbnail-preview-active',
-    'onMouseEnter={() => setActiveThumbnailIndex(thumbnailIndex)}',
+    'data-kg-video-sequence-clip-thumbnail-preview-active', 'data-kg-video-sequence-clip-thumbnail-preview-suppressed', 'if (!suppressPreview) setActiveThumbnailIndex(thumbnailIndex)',
     'data-kg-video-sequence-clip-thumbnail-caption-format',
     'data-kg-video-sequence-clip-thumbnail-caption-time',
     'data-kg-video-sequence-clip-thumbnail-preview-caption',
@@ -236,6 +235,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (clipThumbnailStripText.includes('onPointerDown={event => onMovePointerStart(event, span)}')) throw new Error('expected thumbnail frame clicks to avoid delegating pointer-down into whole-bar move drag')
   if (!rulerText.includes("onMovePointerStart={(event, targetSpan) => onTrackPointerStart(event, targetSpan, 'move')}")) throw new Error('expected compact source thumbnail pointer-down to delegate to the whole-bar move handler')
   expectSourceIncludes(transportInteractionsText, ['const primaryButtonActive = event.button === 0 || event.buttons === 1', 'if (!primaryButtonActive || args.maxMinutes <= 0) return'], 'expected thumbnail move promotion to start whole-bar drag from active pointermove events')
+  expectSourceIncludes(transportInteractionModelText, ["draggingMode: ReturnType<typeof useGanttTimelineInteractions>['draggingMode']", 'draggingMode: interactions.draggingMode'], 'expected transport interactions to expose active drag mode for resize-safe compact thumbnails')
   if (clipThumbnailStripText.includes('{thumbnail.format}/{thumbnail.rasterFormat}</span>') || clipThumbnailStripText.includes('{formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}')) throw new Error('expected thumbnail metadata to stay out of visible ruler text')
 
   expectSourceIncludes(clipMetaText, [
@@ -270,6 +270,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'z-index: 12',
     'overflow: visible',
     'inset: 0',
+    'pointer-events: none',
     'flex: 1 1 0',
     'min-width: 0',
     'filter: saturate(1.04) contrast(1.02)',
@@ -300,8 +301,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'left: var(--kg-video-sequence-clip-thumbnail-preview-left, 50%)',
     'inset: 0',
     '.timeline-transport-track-handle',
-    'top: -3px',
-    'bottom: -3px',
+    'top: 3px', 'left: 8px', 'top: -3px', 'bottom: -3px', 'data-kg-video-sequence-drag-mode="resize-start"', 'data-kg-video-sequence-clip-thumbnail-preview-suppressed="1"',
     'z-index: 14',
     'width: min(34px, 38%)',
     'cursor: ew-resize',

@@ -58,6 +58,7 @@ export function VideoSequenceClipThumbnailStrip({
   onSelectRowPosition,
   onMovePointerStart,
   span,
+  suppressPreview = false,
   thumbnailWindow,
   thumbnailOrigin,
   thumbnails,
@@ -65,6 +66,7 @@ export function VideoSequenceClipThumbnailStrip({
   onSelectRowPosition: (rowKey: string, positionMinutes: number) => void
   onMovePointerStart: (event: React.PointerEvent<HTMLElement>, span: MermaidGanttTimelineTaskSpan) => void
   span: MermaidGanttTimelineTaskSpan
+  suppressPreview?: boolean
   thumbnailWindow: VideoSequenceClipThumbnailWindow | null
   thumbnailOrigin?: VideoSequenceGeneratedFrameThumbnailOrigin
   thumbnails: readonly TimelineMediaReaderThumbnail[]
@@ -75,8 +77,8 @@ export function VideoSequenceClipThumbnailStrip({
   if (!thumbnails.length) return null
   const sourceStart = thumbnails[0]?.timestampSeconds
   const sourceEnd = thumbnails[thumbnails.length - 1]?.timestampSeconds
-  const activeThumbnail = activeThumbnailIndex == null ? null : thumbnails[activeThumbnailIndex] ?? null
-  const activePreviewStyle = activeThumbnailIndex == null
+  const activeThumbnail = suppressPreview || activeThumbnailIndex == null ? null : thumbnails[activeThumbnailIndex] ?? null
+  const activePreviewStyle = suppressPreview || activeThumbnailIndex == null
     ? undefined
     : { '--kg-video-sequence-clip-thumbnail-preview-left': `${((activeThumbnailIndex + 0.5) / thumbnails.length) * 100}%` } as React.CSSProperties
   return (
@@ -91,6 +93,7 @@ export function VideoSequenceClipThumbnailStrip({
       data-kg-video-sequence-clip-thumbnail-source-start={sourceStart}
       data-kg-video-sequence-clip-thumbnail-source-end={sourceEnd}
       data-kg-video-sequence-clip-thumbnail-preview-active={activeThumbnail ? '1' : undefined}
+      data-kg-video-sequence-clip-thumbnail-preview-suppressed={suppressPreview ? '1' : undefined}
       onBlur={event => {
         if (!event.currentTarget.contains(event.relatedTarget)) setActiveThumbnailIndex(null)
       }}
@@ -109,10 +112,13 @@ export function VideoSequenceClipThumbnailStrip({
           data-kg-video-sequence-clip-thumbnail-raster-format={thumbnail.rasterFormat}
           data-kg-video-sequence-clip-thumbnail-time={thumbnail.timestampSeconds}
           onFocus={() => setActiveThumbnailIndex(thumbnailIndex)}
-          onMouseEnter={() => setActiveThumbnailIndex(thumbnailIndex)}
+          onMouseEnter={() => {
+            if (!suppressPreview) setActiveThumbnailIndex(thumbnailIndex)
+          }}
           onPointerDown={event => {
             if (event.button !== 0) return
             event.stopPropagation()
+            if (suppressPreview) return
             suppressClickRef.current = false
             moveIntentRef.current = { clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId }
             event.currentTarget.setPointerCapture?.(event.pointerId)

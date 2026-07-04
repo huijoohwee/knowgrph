@@ -590,8 +590,16 @@ export function useWidgetPlacementRuntime(args: {
     const liveX = live && Number.isFinite(live.x) ? (live.x as number) : null; const liveY = live && Number.isFinite(live.y) ? (live.y as number) : null
     const nx = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null; const ny = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
     const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)
-    if (liveX != null && liveY != null) lastGoodWorldPosRef.current = { x: liveX, y: liveY }
-    else if (nx != null && ny != null) lastGoodWorldPosRef.current = { x: nx, y: ny }
+    const storyboardRichMediaGraphWorldPreferred = String(storyboardWidgetSurfaceId || '').trim() === 'storyboard' && !!richMediaFrameSize && nx != null && ny != null
+    const preferredAuthoritativeWorldPos =
+      storyboardRichMediaGraphWorldPreferred
+        ? { x: nx, y: ny }
+        : (liveX != null && liveY != null)
+          ? { x: liveX, y: liveY }
+          : (nx != null && ny != null)
+            ? { x: nx, y: ny }
+            : null
+    if (preferredAuthoritativeWorldPos) lastGoodWorldPosRef.current = preferredAuthoritativeWorldPos
     const world = lastGoodWorldPosRef.current || { x: 0, y: 0 }
     const { sx: screenX, sy: screenY } = worldToScreen({ transform: placementTransform, x: world.x, y: world.y })
     const port = schemaRef.current?.behavior?.portHandles || null
@@ -651,6 +659,9 @@ export function useWidgetPlacementRuntime(args: {
     const floatingWorld = worldDragOverride || effectiveStoredWorld
     const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: placementTransform, x: floatingWorld.x, y: floatingWorld.y }) : null
     const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos ? { top: screenY + frameHeight * (1 - panelScale) / 2, left: screenX + frameWidth * (1 - panelScale) / 2 } : { top: screenY, left: screenX }
+    const richMediaAuthoritativeTopLeftScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos
+      ? { top: screenY, left: screenX }
+      : richMediaAuthoritativeScreenBase
     const useFrontmatterInitialBalancedBase = frontmatterManagedNode && floatingUsesScreenAuthority && !hasAuthoritativeNodeWorldPos && !lastAppliedRef.current
     const frontmatterScreenAuthorityBase = (() => {
       const layoutBase = screenAuthorityLayoutZoomBaseRef.current
@@ -679,7 +690,7 @@ export function useWidgetPlacementRuntime(args: {
             ? { top: floatingWorldScreen.sy, left: floatingWorldScreen.sx }
             : floatingUsesScreenAuthority
               ? (hasAuthoritativeNodeWorldPos
-                  ? richMediaAuthoritativeScreenBase
+                  ? richMediaAuthoritativeTopLeftScreenBase
                   : useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos
                   ? frontmatterBalancedFallbackPos
                   : frontmatterScreenAuthorityBase)
@@ -701,6 +712,7 @@ export function useWidgetPlacementRuntime(args: {
     const screenAuthorityZoomLayoutActive = frontmatterManagedNode
       && floatingRef.current
       && floatingUsesScreenAuthority
+      && !(richMediaFrameSize && hasAuthoritativeNodeWorldPos)
     const posBase = (() => {
       if (!screenAuthorityZoomLayoutActive) {
         screenAuthorityLayoutZoomBaseRef.current = null

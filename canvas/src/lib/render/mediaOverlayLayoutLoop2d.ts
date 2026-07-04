@@ -187,7 +187,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const keepIds = new Set<string>()
     const missingCenterIds: string[] = []
 
-    const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement }> = []
+    const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement; preserveWorldTopLeft?: boolean }> = []
     const manualPlacement = args.manualPlacement === true
     let fallbackPreferredCount = 0
 
@@ -213,7 +213,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       if (!center) {
         missingCenterIds.push(id)
         if (manualPlacement && viewportClampEnabled && args.items.length > 1) {
-          preferred.push({ id, left: layoutViewport.left, top: layoutViewport.top, w, h, scale: 1, el })
+          preferred.push({ id, left: layoutViewport.left, top: layoutViewport.top, w, h, scale: 1, el, preserveWorldTopLeft: false })
           fallbackPreferredCount += 1
         }
         continue
@@ -270,6 +270,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
         h,
         scale: projectedWorldBox ? projectedWorldBox.scale : 1,
         el,
+        preserveWorldTopLeft: !!projectedWorldBox && !!topLeftNow,
       })
     }
 
@@ -338,7 +339,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
         top: t.applyY(snappedWorldTopLeft.y),
       }
     }
-    const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement }>()
+    const preferredById = new Map<string, { id: string; left: number; top: number; w: number; h: number; scale?: number; el: HTMLElement; preserveWorldTopLeft?: boolean }>()
     for (let i = 0; i < preferred.length; i += 1) {
       const p = preferred[i]!
       preferredById.set(p.id, p)
@@ -352,21 +353,27 @@ export function startMediaOverlayLayoutLoop2d(args: {
       }
     }
 
-    if (collisionEnabled && schema && preferred.length > 1) {
+    const collisionPreferred = preferred.filter(item => !item.preserveWorldTopLeft)
+    if (collisionEnabled && schema && collisionPreferred.length > 1) {
       const derivedGap = Math.max(
         0,
         Math.round(
           computeBalancedSpreadSpacingPx({
             baseGapPx: Math.max(6, useSizing.metrics.padding + useSizing.metrics.borderW),
             zoomK: rawK,
-            count: preferred.length,
+            count: collisionPreferred.length,
           }),
         ),
       )
       const gapPx = typeof args.collision?.gapPx === 'number' && Number.isFinite(args.collision.gapPx) ? Math.max(0, Math.floor(args.collision.gapPx)) : derivedGap
-      const externalObstacles = typeof args.getCollisionObstacles === 'function' ? args.getCollisionObstacles() : []
-      const boxes = preferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
-      const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
+      const externalObstacles = [
+        ...(typeof args.getCollisionObstacles === 'function' ? args.getCollisionObstacles() : []),
+        ...preferred
+          .filter(item => item.preserveWorldTopLeft)
+          .map(item => ({ id: item.id, left: item.left, top: item.top, width: item.w, height: item.h })),
+      ]
+      const boxes = collisionPreferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
+      const clusterItems = collisionPreferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
       const hasVerticalCluster = isVerticalOverlayCluster({ items: clusterItems, gapPx })
       const hasHorizontalStrip = isHorizontalOverlayStrip({ items: clusterItems, gapPx })
       const hasOverlappingBoxes = hasOverlaps(boxes, gapPx)
@@ -383,15 +390,15 @@ export function startMediaOverlayLayoutLoop2d(args: {
           }
           let sumW = 0
           let sumH = 0
-          for (let i = 0; i < preferred.length; i += 1) {
-            const p = preferred[i]!
+          for (let i = 0; i < collisionPreferred.length; i += 1) {
+            const p = collisionPreferred[i]!
             sumW += p.w
             sumH += p.h
           }
-          const avgW = Math.max(1, sumW / Math.max(1, preferred.length))
-          const avgH = Math.max(1, sumH / Math.max(1, preferred.length))
+          const avgW = Math.max(1, sumW / Math.max(1, collisionPreferred.length))
+          const avgH = Math.max(1, sumH / Math.max(1, collisionPreferred.length))
           const layout = computeBalancedSpreadLayout({
-            count: preferred.length,
+            count: collisionPreferred.length,
             viewportW: layoutViewport.width,
             viewportH: layoutViewport.height,
             cellW: Math.max(1, avgW + gapPx),
@@ -404,7 +411,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
             marginBottomPx: spreadMargins.bottom,
             snapPx: 1,
           })
-          const ordered = [...preferred].sort((a, b) => a.id.localeCompare(b.id))
+          const ordered = [...collisionPreferred].sort((a, b) => a.id.localeCompare(b.id))
           return ordered.map((item, index) => {
             const cell = layout.cells[index]
             return cell
@@ -412,7 +419,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
               : { id: item.id, left: item.left, top: item.top, w: item.w, h: item.h }
           })
         })()
-        const seedItems = verticalSeed || preferred.map(p => ({ id: p.id, left: p.left, top: p.top, w: p.w, h: p.h }))
+        const seedItems = verticalSeed || collisionPreferred.map(p => ({ id: p.id, left: p.left, top: p.top, w: p.w, h: p.h }))
         const strength = typeof args.collision?.strength === 'number' && Number.isFinite(args.collision.strength) ? Math.max(0, args.collision.strength) : 0.82
         const iterations = typeof args.collision?.iterations === 'number' && Number.isFinite(args.collision.iterations) ? Math.max(1, Math.floor(args.collision.iterations)) : 10
         const steps = typeof args.collision?.steps === 'number' && Number.isFinite(args.collision.steps) ? Math.max(1, Math.floor(args.collision.steps)) : 12
@@ -462,7 +469,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const pos = nextById.get(p.id) || { left: p.left, top: p.top }
       applyMediaPanelCssVars(p.el, useSizing.vars)
       applyMediaEagerLoadingOnce(p.el)
-      const snappedPos = snapPanelTopLeftToGrid(pos)
+      const snappedPos = p.preserveWorldTopLeft ? pos : snapPanelTopLeftToGrid(pos)
       const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h, scale: Math.max(0.001, Number(p.scale) || 1) }
       const prevBox = lastAppliedBoxById.get(p.id) || null
       const boxChanged = !prevBox

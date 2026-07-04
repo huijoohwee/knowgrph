@@ -13,6 +13,7 @@ export type GanttTimelineTransportInteractionModel = {
   canZoomOut: boolean
   centerTimelinePlayhead: () => void
   dragPreview: ReturnType<typeof useGanttTimelineInteractions>['dragPreview']
+  draggingMode: ReturnType<typeof useGanttTimelineInteractions>['draggingMode']
   draggingRowKey: string
   handleFitTimeline: () => void
   handlePositionChange: (value: number) => void
@@ -80,6 +81,7 @@ export function useGanttTimelineTransportInteractionModel(args: {
     canZoomOut: transportView.canZoomOut,
     centerTimelinePlayhead: transportView.centerTimelinePlayhead,
     dragPreview: interactions.dragPreview,
+    draggingMode: interactions.draggingMode,
     draggingRowKey: interactions.draggingRowKey,
     handleFitTimeline: transportView.handleFitTimeline,
     handlePositionChange: interactions.handlePositionChange,

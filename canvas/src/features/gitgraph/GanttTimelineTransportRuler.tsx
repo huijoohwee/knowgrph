@@ -13,6 +13,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       disabledLaneIds={args.model.disabledLaneIds}
       displayTicks={args.model.displayTicks}
       dragPreview={args.model.dragPreview}
+      draggingMode={args.model.draggingMode}
       draggingRowKey={args.model.draggingRowKey}
       maxMinutes={args.model.maxMinutes}
       mediaDurationSeconds={args.model.mediaDurationSeconds}

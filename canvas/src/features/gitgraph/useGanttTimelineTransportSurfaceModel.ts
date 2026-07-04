@@ -351,6 +351,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     displayTicks: transportClockDisplayModel.displayTicks,
     disabledLaneIds,
     dragPreview: transportInteractionModel.dragPreview,
+    draggingMode: transportInteractionModel.draggingMode,
     draggingRowKey: transportInteractionModel.draggingRowKey,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: rulerMediaDurationSeconds,

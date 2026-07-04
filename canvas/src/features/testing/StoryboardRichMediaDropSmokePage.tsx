@@ -215,6 +215,7 @@ export function StoryboardRichMediaDropSmokePage() {
 
   const baselineSnapshotRef = React.useRef<SmokeBaselineSnapshot | null>(null)
   const [baselineRevision, setBaselineRevision] = React.useState(0)
+  const [baselineProjectionReady, setBaselineProjectionReady] = React.useState(false)
   const initializedRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -256,9 +257,36 @@ export function StoryboardRichMediaDropSmokePage() {
     const snapshot = buildSmokeBaselineSnapshot(nodeById)
     if (snapshot) {
       baselineSnapshotRef.current = snapshot
+      setBaselineProjectionReady(false)
       setBaselineRevision(revision => revision + 1)
     }
   }, [nodeById])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (!baselineSnapshotRef.current) return
+    if (baselineProjectionReady) return
+    let cancelled = false
+    let rafId = 0
+    const check = () => {
+      if (cancelled) return
+      const shell = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id="existing-rich-media"]'))
+        .find(element => {
+          const rect = element.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0
+        }) || null
+      if (shell) {
+        setBaselineProjectionReady(true)
+        return
+      }
+      rafId = window.requestAnimationFrame(check)
+    }
+    rafId = window.requestAnimationFrame(check)
+    return () => {
+      cancelled = true
+      if (rafId) window.cancelAnimationFrame(rafId)
+    }
+  }, [baselineProjectionReady, baselineRevision])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -319,7 +347,7 @@ export function StoryboardRichMediaDropSmokePage() {
   )
 
   const smokeState = React.useMemo(() => ({
-    baselineReady: !!baselineSnapshotRef.current,
+    baselineReady: !!baselineSnapshotRef.current && baselineProjectionReady,
     dropCount: droppedNodeIds.length,
     droppedKinds,
     droppedNodeIds,
@@ -331,7 +359,7 @@ export function StoryboardRichMediaDropSmokePage() {
     openWidgetNodeIds: Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds.map(id => String(id || '').trim()).filter(Boolean) : [],
     selectedNodeId,
     shiftedNodeIds: shiftedExistingNodeIds,
-  }), [baselineRevision, droppedKinds, droppedNodeIds, lifecycleStage, markdownDocumentName, nodeById, openWidgetNodeIds, selectedNodeId, shiftedExistingNodeIds])
+  }), [baselineProjectionReady, baselineRevision, droppedKinds, droppedNodeIds, lifecycleStage, markdownDocumentName, nodeById, openWidgetNodeIds, selectedNodeId, shiftedExistingNodeIds])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return

@@ -1,5 +1,6 @@
 import { coerceMediaUrl } from '@/lib/url'
 import { normalizeImportName } from '@/features/toolbar/ingestUtils'
+import { resolveRichMediaThumbnailUrl } from '@/lib/command-menu/commandMenuRichMediaInventory'
 
 export const testCoerceMediaUrlAcceptsSafeRelative = () => {
   const cases = ['assets/x.png', './assets/x.png', '../assets/x.png', 'images/x.svg', 'video/x.mp4']
@@ -26,4 +27,23 @@ export const testNormalizeImportNameDerivesJsonNameFromUrlAndFormat = () => {
 
   const c = normalizeImportName('not a url', 'remote.json', 'json', 'json')
   if (c !== 'remote.json') throw new Error(`expected fallback name, got ${c}`)
+}
+
+export const testCommandMenuMediaThumbnailResolverPrefersRenderableImageSrc = () => {
+  const src = '/__codebase_asset?path=docs%2Fsource-brief.svg'
+  const out = resolveRichMediaThumbnailUrl({
+    kind: 'image',
+    openUrl: 'source-brief.svg',
+    src,
+  })
+  if (out !== src) throw new Error(`expected command menu media thumbnail to prefer renderable src, got ${out}`)
+}
+
+export const testCommandMenuMediaThumbnailResolverLeavesFileVideosForNativeReader = () => {
+  const out = resolveRichMediaThumbnailUrl({
+    kind: 'video',
+    openUrl: 'source-video.mp4',
+    src: '/__codebase_asset?path=docs%2Fsource-video.mp4',
+  })
+  if (out !== undefined) throw new Error(`expected file video thumbnail to remain native-reader owned, got ${out}`)
 }
