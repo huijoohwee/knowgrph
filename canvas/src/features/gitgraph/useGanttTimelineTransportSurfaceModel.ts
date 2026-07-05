@@ -308,6 +308,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     setTransportPlaying: transportSession.setTransportPlaying,
   })
   const transportInteractionModel = useGanttTimelineTransportInteractionModel({
+    autoSnappingEnabled: transportCommandModel.chromeModelCommands.autoSnappingEnabled,
     disabled: transportSession.disabled,
     markdownDocumentName: transportSession.markdownDocumentName,
     markdownText: transportSession.markdownText,

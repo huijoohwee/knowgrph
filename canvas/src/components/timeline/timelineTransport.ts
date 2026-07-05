@@ -122,7 +122,11 @@ export type TimelineTransportStoreBinding = {
 export type TimelineTransportTimingSyncMode = 'grouped' | 'selected'
 
 export type TimelineTransportTimingSyncStoreBinding = {
+  autoSnappingEnabled: boolean
+  rippleEditingEnabled: boolean
   timingSyncMode: TimelineTransportTimingSyncMode
+  setTimelineTransportAutoSnappingEnabled: (enabled: boolean) => void
+  setTimelineTransportRippleEditingEnabled: (enabled: boolean) => void
   setTimelineTransportTimingSyncMode: (mode: TimelineTransportTimingSyncMode) => void
 }
 
@@ -171,7 +175,11 @@ export function useTimelineTransportStoreBinding(): TimelineTransportStoreBindin
 export function useTimelineTransportTimingSyncStoreBinding(): TimelineTransportTimingSyncStoreBinding {
   return useGraphStore(
     useShallow(state => ({
+      autoSnappingEnabled: state.timelineTransportAutoSnappingEnabled !== false,
+      rippleEditingEnabled: state.timelineTransportRippleEditingEnabled === true,
       timingSyncMode: state.timelineTransportTimingSyncMode === 'selected' ? 'selected' : 'grouped',
+      setTimelineTransportAutoSnappingEnabled: state.setTimelineTransportAutoSnappingEnabled,
+      setTimelineTransportRippleEditingEnabled: state.setTimelineTransportRippleEditingEnabled,
       setTimelineTransportTimingSyncMode: state.setTimelineTransportTimingSyncMode,
     })),
   )

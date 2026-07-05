@@ -57,6 +57,7 @@ export const STAGE_ID = Object.freeze({
   RESEARCH: "research",
   STORYBOARD: "storyboard",
   RENDER: "render",
+  EDIT: "edit",
   PUBLISH: "publish",
   CHECKOUT: "checkout",
 });
@@ -85,6 +86,7 @@ export const APPROVAL_GATE_ID = Object.freeze({
   CLOUD_DEPLOY: "cloud-deploy",
   PAID_MODEL_CALL: "paid-model-call",
   RENDER_ACTION: "render-action",
+  EDIT_MANIFEST_ASSEMBLY: "edit-manifest-assembly",
   PAYMENT_ACTION: "payment-action",
   AUTHENTICATED_BROWSER: "authenticated-browser",
 });

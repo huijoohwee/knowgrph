@@ -24,7 +24,7 @@ import { buildWeakSignalHalt } from "./weak-signal-halt.js";
 import { normalizeApprovals, buildApprovalGates, hasGate } from "./approvals.js";
 import { normalizeSourceCards, buildMarketRadar } from "./evidence.js";
 import { buildShotPlan, buildStoryboardMarkdown } from "./storyboard.js";
-import { buildStage, buildDryRunPlanArtifact } from "./stages.js";
+import { buildDryRunPlanArtifact } from "./stages.js";
 import { buildDemoPack } from "./demo-pack.js";
 import { buildFailureHandling } from "./failure-handling.js";
 import { normalizeCumulativeSpendUsd, budgetCapExceeded } from "./budget.js";
@@ -35,6 +35,9 @@ import {
   MODEL_BEARING_STAGE_IDS,
 } from "./cost-log.js";
 import { buildLedgerReconciliation } from "./reconciliation.js";
+import { buildEditStage } from "./editing-harness.js";
+import { checkNarrativeCoherence } from "./storyboard-harness.js";
+import { executeVideoAgentStages } from "./video-agent-execution.js";
 
 export function runVideoRemix(args = {}) {
   // Director input-validation gate (spec task 2.5 / R2.1, R2.2 / Property 4):
@@ -69,22 +72,6 @@ export function runVideoRemix(args = {}) {
   const canvasDocumentMarkdown = buildStoryboardMarkdown({ runId, referenceUrl, brief, shots: plannedShots });
   const failureHandling = buildFailureHandling(args, maxIterations);
   const injectedFailure = failureHandling.failures.length > 0;
-  // Fail-closed-on-exhaustion (spec task 2.7 / R5.4 / Property 8 — exhaustion
-  // half). Only retries that ACTUALLY exhausted (reached maxIterations) fail
-  // closed: Run_State `blocked` + a canonical failure record
-  // `{ stageId, finalRetryCount, reason }` on `failures[]`. A non-exhausted
-  // retry stays `running` with no premature record. Reuses
-  // `buildExhaustionFailureRecord` for one canonical field set.
-  const exhaustionFailures = failureHandling.failures
-    .filter((failure) => failure.exhausted)
-    .map((failure) => buildExhaustionFailureRecord(failure));
-  const retriesExhausted = exhaustionFailures.length > 0;
-
-  // Total-provider-unavailability projection (spec task 2.8 / R5.5). Affected
-  // harness returned a degraded error naming the providers; Director fails
-  // closed to `blocked` WITHOUT consuming retries. Projected into the SAME
-  // canonical `failures[]` shape with sibling reason `provider_unavailable_
-  // degraded`; `finalRetryCount` equals the CURRENT retryCount (no increment).
   const providerUnavailabilityEntries = failureHandling.failures.filter(
     (failure) => failure.providerUnavailability,
   );
@@ -96,16 +83,10 @@ export function runVideoRemix(args = {}) {
     }),
   );
   const providersUnavailable = providerUnavailabilityFailures.length > 0;
-  // Structured degraded errors naming the unavailable providers (R5.5).
   const providerUnavailabilityErrors = providerUnavailabilityEntries.map(
     (failure) => failure.degradedError,
   );
 
-  // Budget-cap enforcement (spec task 2.9 / R4.6 / Property 9). Cumulative spend
-  // is driven by an injectable, timer-free signal so a run can reach/exceed the
-  // cap WITHOUT any real provider call. An omitted (0) cap can never be exceeded
-  // (`budgetCapExceeded` guards `cap > 0`). Enforced in Live_Mode only — dry-run
-  // performs zero paid actions (Property 3), so its cumulative spend stays 0.
   const simulatedSpendUsd = normalizeCumulativeSpendUsd(args.simulatedSpendUsd, 0);
   const cumulativeSpendUsd = simulatedSpendUsd;
   const budgetExceeded = liveRequested && budgetCapExceeded(cumulativeSpendUsd, budgetUsd);
@@ -119,43 +100,37 @@ export function runVideoRemix(args = {}) {
   else if (liveRequested && (!renderApproved || !paymentApproved || !deployApproved)) state = "approval_required";
   else if (liveRequested) state = "complete";
 
-  const assets = liveRequested && state === "complete"
-    ? plannedShots.map((shot) => ({
-      shotId: shot.shotId,
-      assetUrl: `https://airvio.co/knowgrph/assets/media/${runId}/${shot.shotId}.mp4`,
-      storageUri: `r2://knowgrph-media/${runId}/${shot.shotId}.mp4`,
-      ledgerEventId: `ledger-${runId}-${shot.shotId}`,
-      costCents: 0,
-    }))
-    : [];
-  const checkout = liveRequested && state === "complete"
+  const videoAgentStages = executeVideoAgentStages({
+    liveRequested,
+    state,
+    renderApproved,
+    plannedShots,
+    runId,
+    nowMs: Date.parse(nowIso),
+    budgetUsd,
+    renderDeps: args.renderDeps,
+    mediaPersister: args.mediaPersister,
+    maxIterations,
+  });
+  const finalFailureHandling = videoAgentStages.executionFailure
+    ? { ...failureHandling, failures: [...failureHandling.failures, videoAgentStages.executionFailure] }
+    : failureHandling;
+  const exhaustionFailures = finalFailureHandling.failures
+    .filter((failure) => failure.exhausted)
+    .map((failure) => buildExhaustionFailureRecord(failure));
+  const retriesExhausted = exhaustionFailures.length > 0;
+  if (videoAgentStages.executionFailure && state !== RUN_STATE_BUDGET_EXCEEDED) state = RUN_STATE_BLOCKED;
+  const assets = videoAgentStages.assets;
+  const editResult = videoAgentStages.editResult;
+  const checkout = liveRequested && state === "complete" && !editResult.blocksPublish
     ? { sessionId: `cs_test_${slugify(runId, "run")}`, payoutSettled: paymentApproved }
     : { sessionId: "", payoutSettled: false };
-  // Skeleton publish stage (spec task 2.1): establishes the canonical
-  // research -> storyboard -> render -> publish -> checkout ordering (R4.1 /
-  // Property 7) in the durable Run_Manifest. Publish is gated by `cloud-deploy`
-  // and, in this skeleton, mirrors the gated render/checkout shape. Full
-  // Commerce_Harness publish wiring (asset publication, reachable URLs) lands
-  // in spec task 3.14; keep this minimal.
-  const publishedUrls = liveRequested && state === "complete"
-    ? assets.map((asset) => asset.assetUrl)
+  const publishedUrls = liveRequested && state === "complete" && !editResult.blocksPublish
+    ? videoAgentStages.publishedUrls
     : [];
-  // Demo_Pack `urls[]` (task 2.13 / R3.2 / Property 22) is assembled in
-  // demo-pack.js from the endpoint hints below; the runtime no longer builds
-  // them inline. At a terminal Run_State it emits >=1 Frontend + >=1 Agent_Api.
-
-  // Spend accounting (spec task 2.4 / R2.6, R4.4 / Property 3). estimatedCostUsd
-  // keeps its R2.4 semantics: planned model cost, accounted only when the
-  // paid-model-call gate is approved and research is not weak.
   const plannedModelEstimateUsd = paidApproved && !weakSignal ? Math.min(budgetUsd, 0.03) : 0;
-  const providerSpendCents = assets.reduce((total, asset) => total + asset.costCents, 0);
+  const providerSpendCents = videoAgentStages.providerSpendCents;
 
-  // Ledger-vs-meters reconciliation (spec task 2.12 / R10.4, R10.5 / Property
-  // 21). Derive Credit_Ledger events from render assets and reconcile their
-  // summed costCents against the meters-side provider spend within ±0.01 USD
-  // (integer cents). Deviation > tolerance -> flag + both records preserved
-  // unchanged. `simulatedMetersProviderSpendCents` (live only) can simulate a
-  // diverging meters reading with no real provider call. See reconciliation.js.
   const ledgerReconciliation = buildLedgerReconciliation({
     assets,
     metersProviderSpendCents: providerSpendCents,
@@ -163,13 +138,6 @@ export function runVideoRemix(args = {}) {
     simulatedMetersProviderSpendCents: liveRequested ? args.simulatedMetersProviderSpendCents : undefined,
   });
 
-  // ---------------------------------------------------------------------------
-  // Cost_Log aggregation (spec task 2.10 / R2.4, R10.3 / Property 20).
-  // ---------------------------------------------------------------------------
-  // Emit EXACTLY one per-model-bearing-stage Cost_Log (research + storyboard),
-  // each carrying `{ stageId, estimatedCostUsd, actualCostUsd }` (R2.4), then
-  // aggregate into Budget_Meters in the SAME synchronous pass (R10.3, see
-  // cost-log.js). Model-call actual cost is an injectable, timer-free signal.
   const modelActualCostUsd = liveRequested ? normalizeMoney(args.modelActualCostUsd, 0) : 0;
   const costLogAccounting = buildCostLogAccounting({
     plannedEstimateUsd: plannedModelEstimateUsd,
@@ -178,18 +146,9 @@ export function runVideoRemix(args = {}) {
   const costLogs = costLogAccounting.costLogs;
   const costLogAggregate = costLogAccounting.aggregate;
   const costLogByStage = costLogAccounting.byStage;
-  // Derived from the aggregated Cost_Logs (still 0 when no model stage is
-  // accounted: R2.3 live-without-approvals; R2.6 dry-run).
   const estimatedCostUsd = costLogAccounting.estimatedCostUsd;
   const costLogAggregationOk = costLogAccounting.aggregationOk;
 
-  // ---------------------------------------------------------------------------
-  // Budget_Meters update timing (spec task 2.11 / R2.5).
-  // ---------------------------------------------------------------------------
-  // Recompute cumulative estimated/actual spend from the run's recorded spend
-  // events (model Cost_Logs + render provider spend + injectable cumulative-
-  // spend signal) in the SAME synchronous pass (structural "within 2s", see
-  // budget-meters.js). `actualCostUsd` is DERIVED, so it equals the event sum.
   const budgetMetersUpdate = buildBudgetMetersUpdate({
     modelCostLogs: costLogs,
     renderProviderSpendUsd: liveRequested ? providerSpendCents / 100 : 0,
@@ -201,15 +160,12 @@ export function runVideoRemix(args = {}) {
     estimatedCostUsd === budgetMetersUpdate.cumulativeEstimatedCostUsd &&
     actualCostUsd === budgetMetersUpdate.cumulativeActualCostUsd;
 
-  // Per-stage execution flags. A spend-bearing stage "executed" (performed a
-  // paid action) only in Live_Mode once its spend boundary was authorized; in
-  // every other case it resolves to a plan artifact. These mirror the
-  // paid-provider-call counter derivation below so the two stay consistent.
   const modelStagesExecuted = liveRequested && paidApproved && !weakSignal;
   const stageExecuted = {
     research: modelStagesExecuted,
     storyboard: modelStagesExecuted,
     render: assets.length > 0,
+    edit: editResult.status === "complete",
     publish: publishedUrls.length > 0,
     checkout: Boolean(checkout.sessionId),
   };
@@ -219,11 +175,6 @@ export function runVideoRemix(args = {}) {
       ? Number(Math.min(budgetUsd, PLANNED_MODEL_COST_USD).toFixed(2))
       : 0;
 
-  // Build a spend-bearing stage, attaching a Dry_Run plan artifact whenever the
-  // stage did not execute (R2.6 / R4.4 / Property 3). When the stage genuinely
-  // executed a paid action in Live_Mode, `artifact` is null and `executed` is
-  // true. `reason` distinguishes a dry-run resolution from an
-  // approval_required resolution so R4.4 is observable on the manifest.
   const buildSpendBearingStage = (id, status, details = {}) => {
     const executed = Boolean(stageExecuted[id]);
     const artifact = executed
@@ -252,7 +203,11 @@ export function runVideoRemix(args = {}) {
   // begin — and marked `budget_held`. The model stages (research/storyboard)
   // that already executed keep their completed status (their spend is what
   // tripped the cap); the downstream render/publish/checkout stages are held.
-  const renderStatus = assets.length
+  const renderStatus = videoAgentStages.renderResult?.status === "failed"
+    ? "failed"
+    : videoAgentStages.renderResult?.status === "rejected"
+      ? "rejected"
+      : assets.length
     ? "complete"
     : budgetExceeded
       ? STAGE_STATUS_BUDGET_HELD
@@ -261,17 +216,24 @@ export function runVideoRemix(args = {}) {
     ? "complete"
     : budgetExceeded
       ? STAGE_STATUS_BUDGET_HELD
+      : editResult.blocksPublish && liveRequested && renderApproved
+        ? "blocked"
       : (deployApproved ? "dry_run_ready" : "approval_required");
   const checkoutStatus = checkout.sessionId
     ? "complete"
     : budgetExceeded
       ? STAGE_STATUS_BUDGET_HELD
+      : editResult.blocksPublish && liveRequested && paymentApproved
+        ? "blocked"
       : (paymentApproved ? "dry_run_ready" : "approval_required");
 
   const stages = [
-    buildStage("ingest", "complete", { referenceUrl, budgetUsd }),
     buildSpendBearingStage("research", researchStatus, { sourceCount: sources.length, costLog: costLogByStage.research, weakSignal: weakSignalHalt.weakSignal, awaitingApprovalToContinue: weakSignalHalt.awaitingApprovalToContinue, continuationGateId: weakSignalHalt.gateId }),
-    buildSpendBearingStage("storyboard", storyboardStatus, { shotCount: plannedShots.length, costLog: costLogByStage.storyboard }),    buildSpendBearingStage("render", renderStatus, { assetCount: assets.length }),
+    buildSpendBearingStage("storyboard", storyboardStatus, { shotCount: plannedShots.length, costLog: costLogByStage.storyboard, narrativeCoherence: checkNarrativeCoherence(plannedShots) }),
+    buildSpendBearingStage("render", renderStatus, { assetCount: assets.length }),
+    budgetExceeded
+      ? { ...buildEditStage("edit", editResult), status: STAGE_STATUS_BUDGET_HELD }
+      : buildEditStage("edit", editResult),
     buildSpendBearingStage("publish", publishStatus, { publishedCount: publishedUrls.length }),
     buildSpendBearingStage("checkout", checkoutStatus),
   ];
@@ -288,7 +250,7 @@ export function runVideoRemix(args = {}) {
   const paidModelProviderCalls = liveRequested && paidApproved && !weakSignal
     ? MODEL_BEARING_PAID_STAGES
     : 0;
-  const renderProviderCalls = assets.length;
+  const renderProviderCalls = videoAgentStages.renderProviderCalls;
   const paymentProviderCalls = checkout.payoutSettled ? 1 : 0;
   const paidProviderCalls = paidModelProviderCalls + renderProviderCalls + paymentProviderCalls;
 
@@ -368,10 +330,12 @@ export function runVideoRemix(args = {}) {
         })),
       },
       plannedShots,
+      narrativeCoherence: checkNarrativeCoherence(plannedShots),
     },
     render: { assets },
+    edit: editResult,
     commerce: { publish: { publishedUrls }, checkout },
-    failureHandling,
+    failureHandling: finalFailureHandling,
     // R5.4 / task 2.7: failure records appended on retry exhaustion (fail
     // closed). R5.5 / task 2.8: provider-unavailability degraded failures append
     // to the SAME canonical `failures[]` (sibling reason, finalRetryCount ==
@@ -388,6 +352,13 @@ export function runVideoRemix(args = {}) {
     // R2.4 / R10.3 / Property 20: one Cost_Log per model-bearing stage, also
     // attached to its Stage; aggregated into `budgetMeters.costLogAggregate`.
     costLogs,
+    videoAgent: {
+      costLogs: videoAgentStages.videoAccounting.costLogs,
+      costLogValidationFailures: videoAgentStages.videoAccounting.costLogValidationFailures,
+      creditLedgerEvents: videoAgentStages.videoAccounting.creditLedgerEvents,
+      creditLedgerValidationFailures: videoAgentStages.videoAccounting.creditLedgerValidationFailures,
+      editManifestPersistCallCount: videoAgentStages.manifestPersistCallCount,
+    },
     // R10.5 / Property 21 (task 2.12): reconciliation discrepancy flags (design
     // data model `reconciliationFlags: string[]`). Empty when consistent within
     // ±0.01 USD; one note on deviation, both records preserved. R5.6 appends here too.
@@ -423,7 +394,7 @@ export function runVideoRemix(args = {}) {
       // R5.4 (converse): a non-exhausted bounded retry appends NO failure record.
       noPrematureFailureRecord:
         exhaustionFailures.length ===
-        failureHandling.failures.filter((failure) => failure.exhausted).length,
+        finalFailureHandling.failures.filter((failure) => failure.exhausted).length,
       // R5.5 / task 2.8: total provider unavailability fails closed — `blocked`,
       // a structured degraded error naming the unavailable providers, and a
       // failure record whose finalRetryCount equals the CURRENT retryCount (no
@@ -457,7 +428,7 @@ export function runVideoRemix(args = {}) {
           renderProviderCalls === 0 &&
           paymentProviderCalls === 0 &&
           stages
-            .filter((stage) => ["render", "publish", "checkout"].includes(stage.id))
+            .filter((stage) => ["render", "edit", "publish", "checkout"].includes(stage.id))
             .every((stage) => stage.status === STAGE_STATUS_BUDGET_HELD)),
       // R2.4 / R10.3 / Property 20: one Cost_Log per model-bearing stage and the
       // Budget_Meters aggregate equals the sums of those entries — recomputed in
@@ -477,6 +448,14 @@ export function runVideoRemix(args = {}) {
       // R10.4 / R10.5 / Property 21 (task 2.12): ledger sum equals meters
       // provider spend within ±0.01 USD, or a flag was raised, both preserved.
       creditLedgerConsistentOrReconciliationFlagged: ledgerReconciliation.guardrailOk,
+      videoAgentCostLogsValidate:
+        videoAgentStages.videoAccounting.costLogValidationFailures.length === 0,
+      videoAgentCreditLedgerEventsValidate:
+        videoAgentStages.videoAccounting.creditLedgerValidationFailures.length === 0,
+      editManifestPersistedExactlyOnce:
+        editResult.status !== "complete" || videoAgentStages.manifestPersistCallCount === 1,
+      editBlocksPublish:
+        !editResult.blocksPublish || publishedUrls.length === 0,
       // R4.5 / task 3.4 / Property 11: weak-signal research HALTS before storyboard.
       weakSignalHaltsBeforeStoryboard: weakSignalHaltOk,
     },
@@ -510,7 +489,7 @@ export function runVideoRemix(args = {}) {
         { id: "research_sources_sufficient_when_complete", ok: state !== "complete" || sources.length >= REQUIRED_RESEARCH_SOURCE_COUNT || weakSignalHalt.continuationApproved },
         { id: "storyboard_nodes_match_shots", ok: plannedShots.length === shotCount },
         { id: "payout_requires_payment_gate", ok: !checkout.payoutSettled || paymentApproved },
-        { id: "failure_retry_bounded", ok: failureHandling.failures.every((failure) => failure.retryCount <= maxIterations) },
+        { id: "failure_retry_bounded", ok: finalFailureHandling.failures.every((failure) => failure.retryCount <= maxIterations) },
         // R5.4 / task 2.7: retry exhaustion fails closed to `blocked` with a
         // record whose finalRetryCount equals maxIterations. Vacuous otherwise.
         {
@@ -530,7 +509,7 @@ export function runVideoRemix(args = {}) {
           id: "no_premature_failure_record",
           ok:
             exhaustionFailures.length ===
-            failureHandling.failures.filter((failure) => failure.exhausted).length,
+            finalFailureHandling.failures.filter((failure) => failure.exhausted).length,
         },
         // R5.5 / task 2.8: total provider unavailability degrades closed —
         // `blocked`, a degraded error naming the providers, and a record whose
@@ -564,7 +543,7 @@ export function runVideoRemix(args = {}) {
               renderProviderCalls === 0 &&
               paymentProviderCalls === 0 &&
               stages
-                .filter((stage) => ["render", "publish", "checkout"].includes(stage.id))
+                .filter((stage) => ["render", "edit", "publish", "checkout"].includes(stage.id))
                 .every((stage) => stage.status === STAGE_STATUS_BUDGET_HELD)),
         },
         // R2.4 / R10.3 / Property 20: one Cost_Log per model-bearing stage; the
@@ -590,6 +569,22 @@ export function runVideoRemix(args = {}) {
         // R10.4 / R10.5 / Property 21 (task 2.12): ledger sum equals meters
         // provider spend within ±0.01 USD, or a discrepancy is flagged.
         ledgerReconciliation.validationCheck,
+        {
+          id: "video_agent_cost_logs_validate",
+          ok: videoAgentStages.videoAccounting.costLogValidationFailures.length === 0,
+        },
+        {
+          id: "video_agent_credit_ledger_events_validate",
+          ok: videoAgentStages.videoAccounting.creditLedgerValidationFailures.length === 0,
+        },
+        {
+          id: "edit_manifest_persisted_exactly_once",
+          ok: editResult.status !== "complete" || videoAgentStages.manifestPersistCallCount === 1,
+        },
+        {
+          id: "edit_result_blocks_publish",
+          ok: !editResult.blocksPublish || publishedUrls.length === 0,
+        },
         { id: "weak_signal_halts_before_storyboard", ok: weakSignalHaltOk }, // R4.5 / task 3.4 / Property 11
       ],
     },

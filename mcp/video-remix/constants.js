@@ -124,6 +124,7 @@ const PLANNED_MODEL_COST_USD = 0.03;
 const APPROVAL_GATES = Object.freeze([
   { id: "paid-model-call", actionKind: "paid_call", risk: "Exa, BytePlus, PixVerse, or provider token/API spend" },
   { id: "render-action", actionKind: "media_render", risk: "BytePlus/PixVerse render queue spend" },
+  { id: "edit-manifest-assembly", actionKind: "zero_spend_edit", risk: "none - zero-spend Edit_Manifest assembly, never gates execution" },
   { id: "payment-action", actionKind: "payment", risk: "Stripe checkout, settlement, refund, or payout mutation" },
   { id: "cloud-deploy", actionKind: "deploy", risk: "AWS, Vercel, or Cloudflare resource mutation" },
   { id: "consumer-repo-write", actionKind: "file_write", risk: "consumer repository mutation" },

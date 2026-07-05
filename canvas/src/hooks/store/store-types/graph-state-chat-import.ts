@@ -203,8 +203,12 @@ export interface GraphStateChatImport {
   timelineTransportPlaying: boolean;
   timelineTransportPlaybackRate: number;
   timelineTransportTimingSyncMode: TimelineTransportTimingSyncMode;
+  timelineTransportAutoSnappingEnabled: boolean;
+  timelineTransportRippleEditingEnabled: boolean;
   setTimelineTransportState: (update: TimelineTransportStateUpdate) => void;
   setTimelineTransportTimingSyncMode: (mode: TimelineTransportTimingSyncMode) => void;
+  setTimelineTransportAutoSnappingEnabled: (enabled: boolean) => void;
+  setTimelineTransportRippleEditingEnabled: (enabled: boolean) => void;
   gitGraphSelectedCommandLineIndex: number | null;
   setGitGraphSelectedCommandLineIndex: (lineIndex: number | null) => void;
   chatExchangeLogs: ChatExchangeLogEntry[];

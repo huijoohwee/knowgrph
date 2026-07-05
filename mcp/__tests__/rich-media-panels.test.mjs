@@ -192,7 +192,7 @@ test("resolveReplay makes ZERO model/gateway/provider calls (R4.3, structural)",
   const fakeGateway = { call() { modelCalls += 1; } };
   const w = createImagePanelWidget(makeArtifactArgs());
   const result = await resolveReplay({ widget: w, requesterId: "user-1", method: "embed" }, alwaysGrantEntitlement);
-  fakeGateway.call; // reference unused gateway — just proving we never wired it
+  fakeGateway.call; // keep the zero-call gateway sentinel reachable for the structural assertion
   assert.equal(modelCalls, 0, "no model/gateway calls should occur on replay");
   assert.equal(result.ok, true);
 });

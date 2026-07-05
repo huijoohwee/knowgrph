@@ -5,9 +5,9 @@
 // share for `tools/call`, guaranteeing the gate-enforcement invariant cannot
 // drift between the two surfaces.
 
-import { runVideoRemix } from "../../../../mcp/video-remix-runtime.js";
+import { runVideoRemixAsync } from "../../../../mcp/video-remix-runtime.js";
 import {
-  executeKnowgrphMcpTool,
+  executeKnowgrphMcpToolAsync,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
 } from "../tool-registry.mjs";
 import {
@@ -46,9 +46,10 @@ import {
 export async function executeAndPersistDirector({
   namespace,
   args,
+  runtimeDeps = {},
   emitDiagnostic = defaultPersistenceDiagnosticEmitter,
 }) {
-  const runtimeResult = runVideoRemix(args ?? {});
+  const runtimeResult = await runVideoRemixAsync(args ?? {}, runtimeDeps);
   const payload = runtimeResult.payload;
   let persistenceRecord = null;
   let persistenceError = null;
@@ -192,6 +193,7 @@ async function persistDirectorManifestThroughNamespace(
  *   emitPersistenceDiagnostic?: (d: object) => void,
  *   readBackPathPrefix?: string,
  *   resolveLiveArgs?: (toolName: string, args: object) => Promise<object>|object,
+ *   runtimeDeps?: object,
  * }} options
  */
 export async function dispatchKnowgrphMcpToolCall({
@@ -202,6 +204,7 @@ export async function dispatchKnowgrphMcpToolCall({
   emitPersistenceDiagnostic = defaultPersistenceDiagnosticEmitter,
   readBackPathPrefix = RUN_MANIFEST_READBACK_PATH_PREFIX,
   resolveLiveArgs,
+  runtimeDeps = {},
 } = {}) {
   // Env-gated live/mock pre-resolution (task 12.5). Default is the identity
   // function, so behavior is UNCHANGED unless the Worker injects a resolver
@@ -217,7 +220,7 @@ export async function dispatchKnowgrphMcpToolCall({
     }
   }
 
-  const result = executeKnowgrphMcpTool(toolName, effectiveArgs);
+  const result = await executeKnowgrphMcpToolAsync(toolName, effectiveArgs, runtimeDeps);
   const structured = result.structuredContent;
 
   const isDirectorRunWithId =

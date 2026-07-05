@@ -29,6 +29,13 @@ import {
   createStrytreeRenderQueueClient,
   createStripeCommerceClients,
 } from "./live-stage-clients.js";
+import { createAiGatewayClient } from "./ai-gateway-client.js";
+import {
+  createBytePlusVideoProvider,
+  DEFAULT_SHOT_SPEND_CENTS,
+  PROVIDER_BYTEPLUS_QUEUE,
+} from "./render-providers.js";
+import { createMediaPersister } from "./media-persist.js";
 
 const DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
@@ -42,6 +49,48 @@ function isTruthyFlag(value) {
 function cleanEnv(value) {
   const v = typeof value === "string" ? value.trim() : "";
   return v.length > 0 ? v : undefined;
+}
+
+export function adaptBytePlusVideoProviderToRenderClient(videoProvider, options = {}) {
+  if (!videoProvider || typeof videoProvider.dispatch !== "function") {
+    throw new TypeError("adaptBytePlusVideoProviderToRenderClient: videoProvider must implement { dispatch }");
+  }
+  const dispatchLog = [];
+  return {
+    isDeterministicMock: false,
+    provider: videoProvider.provider || PROVIDER_BYTEPLUS_QUEUE,
+    requiresAsyncHarness: true,
+    dispatchLog,
+    async dispatch({ shot, runId } = {}) {
+      const shotId = cleanEnv(shot?.shotId || shot?.id);
+      const prompt = typeof shot?.prompt === "string" ? shot.prompt : "";
+      if (shot?.unplanned === true) {
+        const event = { type: "unplannedShotDispatch", runId, shotId, prompt };
+        dispatchLog.push(event);
+        if (typeof options.onUnplannedShotDispatch === "function") {
+          options.onUnplannedShotDispatch(event);
+        }
+      }
+      const result = await videoProvider.dispatch({
+        runId,
+        stageId: "render",
+        shotId,
+        prompt,
+        model: shot?.model,
+      });
+      if (!result?.ok) {
+        throw new Error(cleanEnv(result?.error) || cleanEnv(result?.code) || "byteplus_video_dispatch_failed");
+      }
+      return {
+        assetUrl: result.durableR2Url,
+        durableR2Url: result.durableR2Url,
+        objectKey: result.objectKey,
+        bucket: result.bucket,
+        provider: result.provider || PROVIDER_BYTEPLUS_QUEUE,
+        costCents: DEFAULT_SHOT_SPEND_CENTS,
+      };
+    },
+  };
 }
 
 /**
@@ -58,6 +107,8 @@ function cleanEnv(value) {
  * @param {object} [deps]
  * @param {typeof fetch} [deps.fetchImpl] fetch implementation injected into live
  *   clients (default global `fetch`); tests pass a fake.
+ * @param {object} [deps.mediaPersister] existing media persister for render outputs.
+ * @param {object} [deps.r2Client] existing R2 binding used to construct the media persister.
  * @returns {{ live: boolean, mode: "live"|"mock", exaClient: object|null,
  *   storyboardClient: null, renderClient: null, commerceClient: null }}
  */
@@ -99,21 +150,42 @@ export function resolveStageClients(env = {}, deps = {}) {
       })
     : null;
 
-  // Render live client (task 12.4) — Strytree/BytePlus queue. SCAFFOLD:
-  // `requiresAsyncHarness` — runRenderHarness must go async before this is
-  // consumed. Surfaced inertly; constructed only when its endpoint is set.
-  const renderUrl = cleanEnv(source.STRYTREE_RENDER_URL);
-  const renderClient = renderUrl
-    ? createStrytreeRenderQueueClient({
-        fetchImpl: deps.fetchImpl,
-        endpoint: renderUrl,
-        apiKey: cleanEnv(source.STRYTREE_API_KEY),
-      })
-    : null;
+  let renderClient = null;
+  const renderProvider = cleanEnv(source.RENDER_PROVIDER)?.toLowerCase();
+  if (renderProvider === "strytree") {
+    const renderUrl = cleanEnv(source.STRYTREE_RENDER_URL);
+    renderClient = renderUrl
+      ? createStrytreeRenderQueueClient({
+          fetchImpl: deps.fetchImpl,
+          endpoint: renderUrl,
+          apiKey: cleanEnv(source.STRYTREE_API_KEY),
+        })
+      : null;
+  } else {
+    const aiGatewayVideoUrl = cleanEnv(source.AI_GATEWAY_VIDEO_URL);
+    const bytePlusKey = cleanEnv(source.BYTEPLUS_API_KEY) || cleanEnv(source.AI_GATEWAY_TOKEN);
+    if (aiGatewayVideoUrl && bytePlusKey) {
+      const mediaPersister = deps.mediaPersister || (
+        deps.r2Client
+          ? createMediaPersister({ r2Client: deps.r2Client, bucket: cleanEnv(source.KNOWGRPH_MEDIA_BUCKET) })
+          : null
+      );
+      renderClient = mediaPersister
+        ? adaptBytePlusVideoProviderToRenderClient(createBytePlusVideoProvider({
+            aiGatewayClient: createAiGatewayClient({
+              fetchImpl: deps.fetchImpl,
+              gatewayBaseUrl: aiGatewayVideoUrl,
+              accountId: cleanEnv(source.CLOUDFLARE_ACCOUNT_ID),
+            }),
+            mediaPersister,
+            provider: PROVIDER_BYTEPLUS_QUEUE,
+          }))
+        : null;
+    }
+  }
 
-  // Commerce live clients (task 12.4) — Stripe via the payment worker. SCAFFOLD:
-  // `requiresAsyncHarness` — runCheckout/runPublish must go async before these
-  // are consumed. Surfaced inertly; constructed only when its endpoint is set.
+  // Commerce live clients — Stripe via the payment worker. Constructed only
+  // when its endpoint is set and consumed by the async Director path.
   const paymentUrl = cleanEnv(source.KNOWGRPH_PAYMENT_URL);
   const commerceClient = paymentUrl
     ? createStripeCommerceClients({
@@ -127,8 +199,8 @@ export function resolveStageClients(env = {}, deps = {}) {
     live: true,
     mode: "live",
     exaClient,
-    // task 12.4 — storyboard is wireable now (async seam); render + commerce are
-    // scaffolds pending an async-harness follow-up (each flags requiresAsyncHarness).
+    // Async Director seams consume the live storyboard/render/commerce clients
+    // when the matching configuration is present.
     storyboardClient,
     renderClient,
     commerceClient,

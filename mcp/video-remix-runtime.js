@@ -100,10 +100,26 @@ export {
   collectEvidenceSourceIds,
   validateStoryboardInput,
   createDeterministicStoryboardClient,
+  DEFAULT_TOKEN_BUDGET_CEILING,
+  checkNarrativeCoherence,
+  wrapChatClientWithTokenCeiling,
   validateKgcComputingFlowV1,
   emitValidatedStoryboard,
   runStoryboardHarness,
 } from "./video-remix/storyboard-harness.js";
+
+export {
+  EDIT_STAGE_ID,
+  EDIT_GATE_ID,
+  EditManifestValidationError,
+  buildEditManifest,
+  validateEditManifestTrims,
+  assertEditManifestTrims,
+  composeEditedVideoReference,
+  runEditingHarness,
+  runEditingHarnessSync,
+  buildEditStage,
+} from "./video-remix/editing-harness.js";
 
 export {
   FALLBACK_SHOT_COUNT,
@@ -208,6 +224,7 @@ export {
 } from "./video-remix/director-gates.js";
 
 export {
+  runVideoRemixAsync,
   executeLiveStages,
   plannedShotsFromManifest,
 } from "./video-remix/director-live-run.js";

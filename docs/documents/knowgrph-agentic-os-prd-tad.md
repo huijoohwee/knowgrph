@@ -3,14 +3,15 @@ title: "Knowgrph — Agentic OS PRD/TAD"
 id: "md:knowgrph-agentic-os-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-02"
-updated: "2026-07-03"
-version: "0.4.1"
+updated: "2026-07-05"
+version: "0.5.0"
 status: "runtime-ready"
 readiness:
   agentic_os: "implemented — knowgrph.os.status (local + Cloudflare McpAgent)"
   ai_agent: "implemented — four-surface MCP + harness contracts"
   mcp_gateway: "implemented — discovery-first federation (no new proxy tier)"
   follow_on: "spec-complete — see knowgrph-agentic-os-follow-on-prd-tad.md"
+  video_agent: "runtime-ready — Video_Remix Director render/edit enhancement"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -54,9 +55,7 @@ source_references:
 # Knowgrph — Agentic OS PRD/TAD
 
 SSOT upstream: `.kiro/specs/knowgrph-agentic-os/requirements.md` (EARS acceptance criteria, Glossary, MoSCoW) and `.kiro/specs/knowgrph-agentic-os/design.md` (components, data models, correctness properties). This document weaves both into the combined PRD/TAD form established by `knowgrph-tech-stack-document.md`, and **consolidates** the former `knowgrph-mcp-agentic-canvas-os-prd-tad.md` (v0.3.1): the Video_Remix Director connector content from that document is retained here as a native-in-repo harness aggregated by the Agentic OS, while its Vercel product tier, AWS Agent-API fallback, and AWS AgentCore wrapper lane are **removed from the runtime topology** per ADR-3.
-
 ## Overview
-
 `knowgrph` already runs nine independent AI/automation harnesses — FloatingPanel Chat → KGC, the AI Agents Memory Layer, the Visual Annotation Engine, the HTML Video Renderer, the Video Intelligence pipeline (VideoDB Director MCP), the SuperAgent Harness, the AI Showrunner, the `knowgrph.video_remix.run` Director (research → storyboard → render → commerce, formerly specified in the Agentic Canvas OS PRD/TAD), and the Swarm Prediction Engine — each with its own run-state shape, its own tool surface, and its own circuit-breaker. The **knowgrph Agentic OS** is a thin, OS-level unification layer over these *already-existing* harnesses: the smallest set of cross-harness primitives (process visibility, capability discovery, cost/token accounting, approval-gate consistency, circuit-breaker observability) that lets an Operator or an External_Agent reason about *all* running knowgrph agent work through one surface — the **Os_Status_Tool** (`knowgrph.os.status`) — instead of learning each harness's bespoke shape individually.
 
 Every capability is **read-only aggregation at call time**. The Agentic OS introduces zero new persistent datastore, zero new runtime process, and zero new dependency by default (Requirement 7). It does not modify, weaken, or duplicate the existing R11 Spend_Isolation_Boundary or the Approval_Gate_Invariant (Property 1) established in `knowgrph-acos-mcp-connector`.
@@ -67,6 +66,7 @@ Every capability is **read-only aggregation at call time**. The Agentic OS intro
 
 **AI Agent readiness**: Any stdio-capable, HTTP MCP, or WebMCP host can operate Knowgrph harnesses today. Local stdio exposes the richest tool surface (pipelines, SuperAgent, Video Remix Director, browser bridge, memory, OS status). Deployed agents use Pages HTTP MCP for read-only Source Files retrieval and the control-plane Worker for approval-gated Director runs. The Agentic OS layer gives agents a single onboarding call (`capabilities`) instead of learning each harness catalog independently.
 
+**Video_Agent companion (runtime-ready)**: the Video_Remix Director now includes live BytePlus render resolution, narrative coherence/token ceiling guards, and a zero-spend Editing_Stage that emits a single `Edited_Video_Reference`; see [`knowgrph-agentic-os-video-agent-prd-tad.companion.md`](knowgrph-agentic-os-video-agent-prd-tad.companion.md).
 ## Four-Lens Overview
 
 | Lens | Applied Constraint (this feature) | Key Decision |
@@ -79,7 +79,6 @@ Every capability is **read-only aggregation at call time**. The Agentic OS intro
 ## PRD
 
 ### Problem Statement
-
 An Operator today must individually query each of three run-lifecycle sources (Showrunner `Pipeline_Run`, Video_Remix `Run_Manifest`, SuperAgent `state.json`) to answer "what is running right now?" — a 3–5 minute manual process across bespoke tool shapes. An External_Agent must separately call `knowgrph.vdeoxpln.list`, the local MCP tool catalog, and the Cloudflare `McpAgent` `tools/list` to discover the full set of callable capabilities. Cost/token spend and approval-gate state are similarly fragmented across harness-specific emission points. The opportunity is a single, read-only, zero-cost aggregation surface — not a rebuild of any harness's internals.
 
 Additionally, the former Agentic Canvas OS PRD/TAD spread the product runtime across three vendors (Cloudflare control plane + Vercel product tier + AWS fallback/AgentCore tier), creating a documentation-vs-runtime drift risk, a per-vendor ops audit burden, and two keyless-forwarder tiers whose only role was stack-mandate compliance. With that mandate expired, the fragmentation is pure cost: the pain is three deploy pipelines, three secret-audit surfaces, and topology docs that must reconcile three vendors for one product. The opportunity is consolidation to the native-in-repo Cloudflare + local stack that already carries 100% of the intelligence and spend-bearing paths (ADR-3).
@@ -186,9 +185,9 @@ The Os_Status_Tool exposes five read views — `process_list`, `capabilities`, `
 
 `contracts/cost-log.schema.js`, `contracts/approval.schema.js`, `contracts/run-manifest.schema.js`, `contracts/credit-ledger.schema.js`, `mcp/local-tool-contract.js`, `mcp/server.js`, `mcp/showrunner-runtime.js`, `mcp/video-remix-runtime.js`, `knowgrph_parser/superagent_harness.py`, `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`, the Cloudflare `McpAgent` worker (`cloudflare/workers/knowgrph-mcp`) — all existing and unmodified by this spec except for the additive tool-descriptor and catalog-entry changes described in the TAD. No AWS, Vercel, or Supabase dependency exists or is introduced.
 
-### Open Questions — Resolved Decisions
+### Resolved Decisions
 
-| # | Open Question (requirements.md) | Resolution (this document) |
+| # | Prior decision point (requirements.md) | Resolution (this document) |
 |---|---|---|
 | 1 | SuperAgent multi-run directory enumeration convention | Enumerate subdirectories of `data/superagent-runs/` (the existing `default_output_dir()` convention) that contain a readable `state.json`; no new index file. See ADR-2 discussion and TAD Component Specifications › Process_Registry. |
 | 2 | Single combined tool vs four separate tools | **Single combined tool**, `knowgrph.os.status`, with a `view` argument. See **ADR-1**. |
@@ -767,8 +766,9 @@ The Agentic OS ships as an in-repo code change to `mcp/os-status-runtime.js`, `m
 | Reused source | SuperAgent run state | `knowgrph_parser/superagent_harness.py`, `data/superagent-runs/*/state.json` | Unmodified (read-only source) |
 | Reused source | Vdeoxpln_Registry | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Unmodified (read-only source) |
 | Follow-on | HITL Gate Service (durable Worker store) | `mcp/video-remix/approval-token-issuer.js` + KV adapter (proposed ADR-FO-1) | **Local implemented**; Worker persistence in [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) Track A |
-| Follow-on | Live stage harness wiring | `mcp/video-remix/live-clients.js`, stage harnesses | **Exa/storyboard wireable**; render/commerce async scaffold — Track B |
+| Follow-on | Live stage harness wiring | `mcp/video-remix/live-clients.js`, stage harnesses | **Runtime-ready local async seams**; Exa/storyboard/render/commerce clients are env-gated, with Worker live proof remaining operator-deploy gated — Track B |
 | Follow-on | Agentic Canvas OS dashboard UI | `knowgrph.agentic_canvas_os.plan`, companion lanes | **Dry-run implemented**; Canvas Storyboard render — Track C |
+| Companion | Video_Agent (Director render/edit enhancement) | `mcp/video-remix/live-clients.js`, `mcp/video-remix/editing-harness.js`, `mcp/video-remix/video-agent-execution.js` | **Runtime-ready**; live BytePlus resolution, Editing_Stage, Cost_Log/Credit_Ledger checks, and 21-property suite implemented |
 | Removed (ADR-3) | AWS AgentCore forwarder | `aws/agentcore` (archival reference only) | Removed from runtime topology |
 | Removed (ADR-3) | AWS Agent-API fallback | `aws/agent-api` (archival reference only) | Removed from runtime topology |
 | Removed (ADR-3) | Vercel frontend + serverless Agent-API | external repo `agentic-canvas-os` | Removed from runtime topology |
@@ -847,4 +847,4 @@ See [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-p
 | No topology overwrite without version note | Topology bumped v2.0.0 → v2.1.0 with explicit version notes recording MCP Gateway federation (ADR-4) and ADR-3 removals; prior versions archived in git history |
 | No fifth proxy gateway tier | MCP Gateway is discovery-first federation over four existing surfaces (ADR-4); forbid building a unified proxy that duplicates `mcp/server.js` dispatch |
 
-*Content synthesized from `.kiro/specs/knowgrph-agentic-os/requirements.md`, `.kiro/specs/knowgrph-agentic-os/design.md`, and the superseded `knowgrph-mcp-agentic-canvas-os-prd-tad.md`, following [PRD & TAD Guidelines v1.3.0](https://huijoohwee.github.io/guidelines/prd-tad-guidelines.md). v0.4.1 links follow-on Tracks A/B/C to [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) with accurate local implementation status.*
+*Content synthesized from `.kiro/specs/knowgrph-agentic-os/requirements.md`, `.kiro/specs/knowgrph-agentic-os/design.md`, the superseded Agentic Canvas OS PRD/TAD, and the Video_Agent companion; v0.5.0 records runtime-ready Video_Agent local implementation.*

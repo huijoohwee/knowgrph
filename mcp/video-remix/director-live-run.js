@@ -26,7 +26,16 @@ import {
   enforceDirectorRenderGate,
   enforceDirectorCheckoutGate,
 } from "./director-gates.js";
-import { resolveGateClientDeps } from "./live-clients.js";
+import { RUN_STATE_BLOCKED, MODEL_BEARING_PAID_STAGES } from "./constants.js";
+import { buildBudgetMetersUpdate } from "./budget-meters.js";
+import { buildDemoPack } from "./demo-pack.js";
+import { buildRunText, slugify } from "./helpers.js";
+import { buildEditStage } from "./editing-harness.js";
+import { buildLedgerReconciliation } from "./reconciliation.js";
+import { buildExhaustionFailureRecord } from "./retry.js";
+import { resolveGateClientDeps, resolveStageClients } from "./live-clients.js";
+import { runVideoRemix } from "./run-video-remix.js";
+import { executeVideoAgentStagesAsync } from "./video-agent-execution.js";
 
 /**
  * Derive the planned shots the render stage dispatches from a Run_Manifest's
@@ -50,6 +59,166 @@ export function plannedShotsFromManifest(manifest) {
   return nodes
     .map((node) => ({ shotId: String(node.id ?? ""), prompt: String(node.label ?? "") }))
     .filter((s) => s.shotId);
+}
+
+function approvedGate(manifest, gateId) {
+  return Array.isArray(manifest?.approvalGates) &&
+    manifest.approvalGates.some((gate) => gate?.id === gateId && gate?.approvalState === "approved");
+}
+
+function updateCheck(manifest, id, ok) {
+  const checks = Array.isArray(manifest?.validation?.checks) ? manifest.validation.checks : [];
+  const existing = checks.find((entry) => entry.id === id);
+  if (existing) existing.ok = Boolean(ok);
+  else checks.push({ id, ok: Boolean(ok) });
+  if (manifest.validation) manifest.validation.checks = checks;
+}
+
+function replaceStage(manifest, id, patch) {
+  manifest.stages = (Array.isArray(manifest.stages) ? manifest.stages : []).map((stage) =>
+    stage?.id === id ? { ...stage, ...patch } : stage,
+  );
+}
+
+function mergeVideoAgentResult(manifest, video, args = {}) {
+  const executionFailure = video.executionFailure;
+  if (executionFailure) manifest.state = RUN_STATE_BLOCKED;
+
+  const editResult = video.editResult;
+  const publishedUrls = manifest.state === "complete" && !editResult.blocksPublish ? video.publishedUrls : [];
+  const checkout = manifest.state === "complete" && !editResult.blocksPublish
+    ? {
+        sessionId: manifest.commerce?.checkout?.sessionId || `cs_test_${slugify(manifest.runId, "run")}`,
+        payoutSettled: manifest.commerce?.checkout?.payoutSettled || approvedGate(manifest, "payment-action"),
+      }
+    : { sessionId: "", payoutSettled: false };
+
+  manifest.render = { assets: video.assets };
+  manifest.edit = editResult;
+  manifest.commerce = { publish: { publishedUrls }, checkout };
+
+  replaceStage(manifest, "render", {
+    status: video.renderResult?.status === "complete" && video.assets.length ? "complete" : video.renderResult?.status || "blocked",
+    executed: video.assets.length > 0,
+    artifact: video.assets.length > 0 ? null : undefined,
+    assetCount: video.assets.length,
+  });
+  replaceStage(manifest, "edit", buildEditStage("edit", editResult));
+  replaceStage(manifest, "publish", { status: publishedUrls.length ? "complete" : "blocked", executed: publishedUrls.length > 0, publishedCount: publishedUrls.length });
+  replaceStage(manifest, "checkout", { status: checkout.sessionId ? "complete" : "blocked", executed: Boolean(checkout.sessionId) });
+
+  const failures = Array.isArray(manifest.failureHandling?.failures) ? manifest.failureHandling.failures : [];
+  manifest.failureHandling = { ...(manifest.failureHandling || {}), failures: executionFailure ? [...failures, executionFailure] : failures };
+  const exhaustionFailures = manifest.failureHandling.failures
+    .filter((failure) => failure.exhausted)
+    .map((failure) => buildExhaustionFailureRecord(failure));
+  const providerFailures = (Array.isArray(manifest.failures) ? manifest.failures : [])
+    .filter((failure) => failure.reason === "provider_unavailable_degraded");
+  manifest.failures = [...exhaustionFailures, ...providerFailures];
+
+  const budgetUpdate = buildBudgetMetersUpdate({
+    modelCostLogs: manifest.costLogs,
+    renderProviderSpendUsd: video.providerSpendCents / 100,
+    cumulativeSpendUsd: Number(manifest.budgetMeters?.cumulativeSpendUsd) || 0,
+  });
+  const modelCalls = approvedGate(manifest, "paid-model-call") && !manifest.weakSignalHalt?.halted
+    ? MODEL_BEARING_PAID_STAGES
+    : 0;
+  manifest.budgetMeters = {
+    ...manifest.budgetMeters,
+    actualCostUsd: budgetUpdate.cumulativeActualCostUsd,
+    spendEvents: budgetUpdate.spendEvents,
+    spendEventCount: budgetUpdate.spendEventCount,
+    budgetMetersUpdatedSynchronously: budgetUpdate.updatedSynchronously,
+    providerSpendCents: video.providerSpendCents,
+    paidProviderCalls: modelCalls + video.renderProviderCalls + (checkout.payoutSettled ? 1 : 0),
+  };
+
+  const reconciliation = buildLedgerReconciliation({ assets: video.assets, metersProviderSpendCents: video.providerSpendCents, runId: manifest.runId });
+  manifest.budgetMeters.reconciliation = reconciliation.summary;
+  manifest.reconciliationFlags = reconciliation.flags;
+  manifest.videoAgent = {
+    costLogs: video.videoAccounting.costLogs,
+    costLogValidationFailures: video.videoAccounting.costLogValidationFailures,
+    creditLedgerEvents: video.videoAccounting.creditLedgerEvents,
+    creditLedgerValidationFailures: video.videoAccounting.creditLedgerValidationFailures,
+    editManifestPersistCallCount: video.manifestPersistCallCount,
+  };
+  manifest.demoPack = buildDemoPack({
+    state: manifest.state,
+    sources: manifest.evidencePack?.sources,
+    assets: video.assets,
+    checkout,
+    deployApproved: approvedGate(manifest, "cloud-deploy"),
+    frontendUrl: args.frontendUrl,
+    agentApiUrl: args.agentApiUrl,
+    backendHealthUrl: args.backendHealthUrl,
+    healthAttempts: args.healthAttempts,
+  });
+
+  manifest.guardrails.failsClosedOnRetryExhaustion = !exhaustionFailures.length || manifest.state === RUN_STATE_BLOCKED;
+  manifest.guardrails.noPrematureFailureRecord = exhaustionFailures.length === manifest.failureHandling.failures.filter((failure) => failure.exhausted).length;
+  manifest.guardrails.budgetMetersUpdatedSynchronously = budgetUpdate.updatedSynchronously;
+  manifest.guardrails.creditLedgerConsistentOrReconciliationFlagged = reconciliation.guardrailOk;
+  manifest.guardrails.videoAgentCostLogsValidate = video.videoAccounting.costLogValidationFailures.length === 0;
+  manifest.guardrails.videoAgentCreditLedgerEventsValidate = video.videoAccounting.creditLedgerValidationFailures.length === 0;
+  manifest.guardrails.editManifestPersistedExactlyOnce = editResult.status !== "complete" || video.manifestPersistCallCount === 1;
+  manifest.guardrails.editBlocksPublish = !editResult.blocksPublish || publishedUrls.length === 0;
+
+  updateCheck(manifest, "failure_retry_bounded", manifest.failureHandling.failures.every((failure) => failure.retryCount <= manifest.maxIterations));
+  updateCheck(manifest, "exhaustion_fails_closed_with_record", !exhaustionFailures.length || manifest.state === RUN_STATE_BLOCKED);
+  updateCheck(manifest, "no_premature_failure_record", manifest.guardrails.noPrematureFailureRecord);
+  updateCheck(manifest, "budget_meters_reflect_cumulative_spend_events", budgetUpdate.updatedSynchronously);
+  updateCheck(manifest, reconciliation.validationCheck.id, reconciliation.validationCheck.ok);
+  updateCheck(manifest, "video_agent_cost_logs_validate", manifest.guardrails.videoAgentCostLogsValidate);
+  updateCheck(manifest, "video_agent_credit_ledger_events_validate", manifest.guardrails.videoAgentCreditLedgerEventsValidate);
+  updateCheck(manifest, "edit_manifest_persisted_exactly_once", manifest.guardrails.editManifestPersistedExactlyOnce);
+  updateCheck(manifest, "edit_result_blocks_publish", manifest.guardrails.editBlocksPublish);
+  manifest.validation.ok = ["complete", "approval_required", "dry_run_ready", "blocked", "budget_exceeded"].includes(manifest.state);
+}
+
+export async function runVideoRemixAsync(args = {}, deps = {}) {
+  const mediaPersister = deps.mediaPersister || args.mediaPersister;
+  const clients = deps.clients || resolveStageClients(deps.env || args.env || {}, {
+    fetchImpl: deps.fetchImpl,
+    mediaPersister,
+    r2Client: deps.r2Client,
+  });
+  const { renderDeps } = resolveGateClientDeps(clients, { runId: args.runId });
+  if (!renderDeps.queueClient) return runVideoRemix(args);
+
+  const result = runVideoRemix({ ...args, renderDeps: undefined, mediaPersister });
+  const payload = result.payload;
+  if (!(payload.mode === "live" && payload.state === "complete" && approvedGate(payload, "render-action"))) {
+    return result;
+  }
+
+  const video = await executeVideoAgentStagesAsync({
+    liveRequested: true,
+    state: payload.state,
+    renderApproved: true,
+    plannedShots: payload.storyboard.plannedShots,
+    runId: payload.runId,
+    nowMs: Date.now(),
+    budgetUsd: payload.budgetMeters.budgetUsd,
+    renderDeps,
+    mediaPersister,
+    maxIterations: payload.maxIterations,
+  });
+  mergeVideoAgentResult(payload, video, args);
+  return {
+    payload,
+    text: buildRunText({
+      runId: payload.runId,
+      mode: payload.mode,
+      state: payload.state,
+      sources: payload.evidencePack?.sources,
+      approvalGates: payload.approvalGates,
+      budgetMeters: payload.budgetMeters,
+      budgetExceeded: payload.budgetMeters?.budgetExceeded,
+      weakSignalHalt: payload.weakSignalHalt,
+    }),
+  };
 }
 
 /**

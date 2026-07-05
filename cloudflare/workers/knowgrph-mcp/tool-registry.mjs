@@ -9,12 +9,13 @@
 //     invocation of an approval-gated stage tool before approval is withheld
 //     and leaves Run_Manifest state unchanged (Property 1 / R14.6).
 //
-// Director semantics for `knowgrph.video_remix.run` are reused unchanged from
-// `mcp/video-remix-runtime.js` (reuse-not-rebuild). Stage tools are stubs that
-// honour the gate boundary; their full harness wiring lands in spec tasks
-// 3.1+ for research/storyboard/render and the commerce harness work.
+// Director semantics for `knowgrph.video_remix.run` are reused from
+// `mcp/video-remix-runtime.js` (reuse-not-rebuild). Direct stage tools only
+// enforce their McpAgent gate boundary, then hand execution back to the
+// Director-owned pipeline so sequencing, retry, and manifest writes stay in one
+// source owner.
 
-import { runVideoRemix } from "../../../mcp/video-remix-runtime.js";
+import { runVideoRemix, runVideoRemixAsync } from "../../../mcp/video-remix-runtime.js";
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
@@ -518,7 +519,8 @@ function buildApprovalRequiredEnvelope({ toolName, gateId, reason }) {
  * Stage-tool calls return an `approval_required` envelope when the
  * corresponding `paid-model-call` / `render-action` / `cloud-deploy` /
  * `payment-action` gate is not approved in `args.approvals[]` (Property 1 /
- * R14.6). Stage harness implementations land in spec tasks 3.1+.
+ * R14.6). Approved direct stage calls stay deferred: the Director owns full
+ * sequencing, retry, and harness execution.
  */
 export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
   const args = rawArgs && typeof rawArgs === "object" ? rawArgs : {};
@@ -559,9 +561,8 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
   }
 
   // Approved at the McpAgent boundary: defer to the Director, which owns
-  // sequencing, retry, and the actual harness wiring (spec tasks 2.x and 3.x).
-  // Until those land, surface a deferred-to-Director envelope so callers know
-  // the boundary check passed but the harness implementation is pending.
+  // sequencing, retry, and harness execution. Direct stage tools never mutate
+  // Run_Manifest state outside the Director-owned pipeline.
   const envelope = {
     status: "deferred_to_director",
     ok: true,
@@ -569,11 +570,24 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
     paidProviderCalls: 0,
     runManifestStateChanged: false,
     note:
-      "Approval_Token accepted at the McpAgent boundary. Stage harness wiring is implemented in spec tasks 3.1+; invoke `knowgrph.video_remix.run` to drive the full pipeline.",
+      "Approval_Token accepted at the McpAgent boundary. Invoke `knowgrph.video_remix.run` to execute the Director-owned full pipeline.",
   };
   return {
     ok: true,
     structuredContent: envelope,
     text: envelope.note,
   };
+}
+
+export async function executeKnowgrphMcpToolAsync(toolName, rawArgs = {}, deps = {}) {
+  const args = rawArgs && typeof rawArgs === "object" ? rawArgs : {};
+  if (toolName === KNOWGRPH_MCP_DIRECTOR_TOOL_NAME) {
+    const result = await runVideoRemixAsync(args, deps);
+    return {
+      ok: result.payload?.validation?.ok !== false,
+      structuredContent: result.payload,
+      text: result.text,
+    };
+  }
+  return executeKnowgrphMcpTool(toolName, args);
 }

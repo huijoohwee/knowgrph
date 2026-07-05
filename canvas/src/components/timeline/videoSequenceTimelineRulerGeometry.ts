@@ -1,5 +1,14 @@
 export const VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX = 14
 
+export function resolveVideoSequenceRulerInsetPixelMetrics(width: number): { insetLeftPx: number; widthPx: number } {
+  const safeWidth = Number.isFinite(width) && width > 0 ? width : 0
+  const insetLeftPx = Math.min(VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX, safeWidth / 2)
+  return {
+    insetLeftPx,
+    widthPx: Math.max(1, safeWidth - insetLeftPx * 2),
+  }
+}
+
 export function resolveVideoSequenceRulerInsetLeft(percent: number): string {
   return `calc(${VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX}px + (100% - ${VIDEO_SEQUENCE_RULER_AXIS_EDGE_INSET_PX * 2}px) * ${percent / 100})`
 }

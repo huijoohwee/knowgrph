@@ -3,6 +3,7 @@ import type { TimelineMediaReaderThumbnail } from './timelineMediaReader'
 import { buildTimelineAnimationState } from './timelineAnimationEngine'
 import { VideoSequenceFrameSampleRail } from './VideoSequenceFrameSampleRail'
 import { VideoSequenceClipThumbnailStrip } from './VideoSequenceClipThumbnailStrip'
+import { VideoSequenceAudioDbControl } from './VideoSequenceAudioDbControl'
 import { buildVideoSequenceGeneratedFrameThumbnails, type VideoSequenceGeneratedFrameThumbnailOrigin } from './videoSequenceGeneratedFrameThumbnails'
 import { VideoSequenceTimelineClipMeta, resolveVideoSequenceSourceWindowLabel } from './VideoSequenceTimelineClipMeta'
 import { VideoSequenceTimelineRulerTicks } from './VideoSequenceTimelineRulerTicks'
@@ -482,6 +483,7 @@ export function VideoSequenceTimelineRuler({
                   ))}
                 </section>
               ) : null}
+              {lane === 'audio' && !verticalMarker ? <VideoSequenceAudioDbControl label={span.label} rowKey={span.rowKey} /> : null}
               {keyframeSamples.length ? (
                 <section className="timeline-video-sequence-keyframe-strip" aria-label={`${span.label} keyframes`} data-kg-video-sequence-keyframes="1">
                   {keyframeSamples.map(keyframe => (

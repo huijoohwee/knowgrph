@@ -13,6 +13,8 @@ import {
 
 type SourceRange = MermaidGanttSourceRangeSeconds
 
+const VIDEO_SEQUENCE_POSITION_ZERO_EPSILON_MINUTES = 1 / 60
+
 const clean = (value: unknown): string => String(value || '').trim()
 
 const parseClockMinutes = (value: string): number | null => {
@@ -31,7 +33,8 @@ const parseClockMinutes = (value: string): number | null => {
 
 const formatMinuteToken = (value: number): string => String(Number(Math.max(0, value).toFixed(3)))
 const formatPositionToken = (value: number, existingToken: string): string => {
-  if (/^kgpos_/i.test(clean(existingToken))) return `kgpos_${formatMinuteToken(value).replace(/\./g, '_')}`
+  const positionMinutes = Math.abs(value) <= VIDEO_SEQUENCE_POSITION_ZERO_EPSILON_MINUTES ? 0 : value
+  if (/^kgpos_/i.test(clean(existingToken))) return `kgpos_${formatMinuteToken(positionMinutes).replace(/\./g, '_')}`
   const totalMinutes = Math.max(0, Math.round(value))
   return `${String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
 }
@@ -339,6 +342,46 @@ export function deleteMermaidGanttVideoSequenceClipWithRipple(args: {
     nextLines.push(line)
   }
   const next = nextLines.join('\n')
+  return changed && next !== args.code ? next : null
+}
+
+export function rippleMermaidGanttVideoSequenceTimelineFromBoundary(args: {
+  boundaryMinutes: number
+  code: string
+  deltaMinutes: number
+  excludedLineIndexes?: readonly number[]
+  rowLineIndex: number
+  syncMode: MermaidGanttVideoSequenceTimingSyncMode
+}): string | null {
+  const boundaryMinutes = Number(args.boundaryMinutes)
+  const deltaMinutes = Number(Number(args.deltaMinutes).toFixed(3))
+  if (!Number.isFinite(boundaryMinutes) || !Number.isFinite(deltaMinutes) || Math.abs(deltaMinutes) < 0.0005) return null
+  const lines = String(args.code || '').split('\n')
+  const model = buildMermaidGanttTimelineModel(args.code)
+  const excludedLineIndexes = new Set([
+    ...readTargetLineIndexes(args),
+    ...(args.excludedLineIndexes || []),
+  ])
+  let changed = false
+  const spanByLineIndex = new Map(model.taskSpans.map(span => [span.lineIndex, span]))
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    if (excludedLineIndexes.has(lineIndex)) continue
+    const span = spanByLineIndex.get(lineIndex)
+    const line = lines[lineIndex]
+    if (!span || typeof line !== 'string') continue
+    if (span.startMinutes < boundaryMinutes - 0.001) continue
+    const nextLine = buildLine({
+      durationMinutes: span.durationMinutes,
+      label: readLabel(line),
+      line,
+      startMinutes: span.startMinutes + deltaMinutes,
+      sourceRange: readSourceRange(line, span),
+    })
+    if (nextLine === line) continue
+    lines[lineIndex] = nextLine
+    changed = true
+  }
+  const next = lines.join('\n')
   return changed && next !== args.code ? next : null
 }
 

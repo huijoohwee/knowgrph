@@ -31,8 +31,8 @@ KNOWGRPH_LIVE_CLIENTS = "0"
 # a SECRET via `wrangler secret put <NAME>`). Absent → that stage uses its mock.
 #   Storyboard (USABLE NOW): AI_GATEWAY_CHAT_URL + BYTEPLUS_API_KEY (or AI_GATEWAY_TOKEN),
 #     optional BYTEPLUS_CHAT_MODEL (default "skylark-chat").
-#   Render (SCAFFOLD — needs async render harness, task 12.4a): STRYTREE_RENDER_URL + STRYTREE_API_KEY.
-#   Commerce (SCAFFOLD — needs async commerce harness, task 12.4a): KNOWGRPH_PAYMENT_URL + KNOWGRPH_PAYMENT_API_KEY.
+#   Render: AI_GATEWAY_VIDEO_URL + BYTEPLUS_API_KEY (default) or RENDER_PROVIDER=strytree + STRYTREE_RENDER_URL + STRYTREE_API_KEY.
+#   Commerce: KNOWGRPH_PAYMENT_URL + KNOWGRPH_PAYMENT_API_KEY.
 
 # Streamable HTTP transport endpoint per Requirement R14.1.
 [[routes]]

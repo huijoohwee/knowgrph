@@ -28,6 +28,7 @@ export type GanttTimelineTransportInteractionModel = {
 }
 
 export function useGanttTimelineTransportInteractionModel(args: {
+  autoSnappingEnabled: boolean
   disabled: boolean
   markdownDocumentName: string
   markdownText: string
@@ -47,15 +48,18 @@ export function useGanttTimelineTransportInteractionModel(args: {
   }) => void
 }): GanttTimelineTransportInteractionModel {
   const interactions = useGanttTimelineInteractions({
+    autoSnappingEnabled: args.autoSnappingEnabled,
     markdownDocumentName: args.markdownDocumentName,
     markdownText: args.markdownText,
     maxMinutes: args.maxMinutes,
+    positionMinutes: args.positionMinutes,
     scrubMaxMinutes: args.scrubMaxMinutes,
     resolveRowKeyAtPosition: position => resolveMermaidGanttTimelineRowKeyAtPosition(args.timelineModel, position),
     selectedRowKey: args.selectedRowKey,
     setSelectedRowKey: args.setSelectedRowKey,
     setTransportPlaybackPosition: args.setTransportPlaybackPosition,
     setTransportPlaying: args.setTransportPlaying,
+    spans: args.timelineModel.taskSpans,
     onCommitDrag: args.onCommitDrag,
   })
   const transportView = useGanttTimelineTransportView({

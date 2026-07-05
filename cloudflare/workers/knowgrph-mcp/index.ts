@@ -55,6 +55,19 @@ export interface KnowgrphMcpEnv {
   KNOWGRPH_LIVE_CLIENTS?: string;
   EXA_API_KEY?: string;
   EXA_MCP_ENDPOINT?: string;
+  AI_GATEWAY_CHAT_URL?: string;
+  AI_GATEWAY_VIDEO_URL?: string;
+  AI_GATEWAY_TOKEN?: string;
+  BYTEPLUS_API_KEY?: string;
+  BYTEPLUS_CHAT_MODEL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  RENDER_PROVIDER?: string;
+  STRYTREE_RENDER_URL?: string;
+  STRYTREE_API_KEY?: string;
+  KNOWGRPH_PAYMENT_URL?: string;
+  KNOWGRPH_PAYMENT_API_KEY?: string;
+  KNOWGRPH_MEDIA_BUCKET?: string;
+  KNOWGRPH_MEDIA_R2?: R2Bucket;
   // Injectable observability sinks (default to console-backed emitters).
   // `emitPersistenceDiagnostic` is consumed by the RunManifestStore DO
   // (R14.3); `emitStageTransitionDiagnostic` is consumed here on each Director
@@ -294,6 +307,23 @@ async function dispatchToolCall(
   args: ToolHandlerArgs,
   env: KnowgrphMcpEnv,
 ): Promise<ToolCallResult> {
+  const liveClients = resolveStageClients({
+    KNOWGRPH_LIVE_CLIENTS: env?.KNOWGRPH_LIVE_CLIENTS,
+    EXA_API_KEY: env?.EXA_API_KEY,
+    EXA_MCP_ENDPOINT: env?.EXA_MCP_ENDPOINT,
+    AI_GATEWAY_CHAT_URL: env?.AI_GATEWAY_CHAT_URL,
+    AI_GATEWAY_VIDEO_URL: env?.AI_GATEWAY_VIDEO_URL,
+    AI_GATEWAY_TOKEN: env?.AI_GATEWAY_TOKEN,
+    BYTEPLUS_API_KEY: env?.BYTEPLUS_API_KEY,
+    BYTEPLUS_CHAT_MODEL: env?.BYTEPLUS_CHAT_MODEL,
+    CLOUDFLARE_ACCOUNT_ID: env?.CLOUDFLARE_ACCOUNT_ID,
+    RENDER_PROVIDER: env?.RENDER_PROVIDER,
+    STRYTREE_RENDER_URL: env?.STRYTREE_RENDER_URL,
+    STRYTREE_API_KEY: env?.STRYTREE_API_KEY,
+    KNOWGRPH_PAYMENT_URL: env?.KNOWGRPH_PAYMENT_URL,
+    KNOWGRPH_PAYMENT_API_KEY: env?.KNOWGRPH_PAYMENT_API_KEY,
+    KNOWGRPH_MEDIA_BUCKET: env?.KNOWGRPH_MEDIA_BUCKET,
+  }, { r2Client: env?.KNOWGRPH_MEDIA_R2 });
   // Single shared dispatch path (run-manifest-store.mjs) used by both the
   // Worker and the Node unit tests so the gate-enforcement + gated-persistence
   // invariants cannot drift between surfaces. Director runs emit stage
@@ -319,12 +349,9 @@ async function dispatchToolCall(
     // live Exa client before execution; otherwise this is a no-op identity and
     // the Director runs against deterministic mocks.
     resolveLiveArgs: createLiveArgsResolver(
-      resolveStageClients({
-        KNOWGRPH_LIVE_CLIENTS: env?.KNOWGRPH_LIVE_CLIENTS,
-        EXA_API_KEY: env?.EXA_API_KEY,
-        EXA_MCP_ENDPOINT: env?.EXA_MCP_ENDPOINT,
-      }),
+      liveClients,
     ),
+    runtimeDeps: { clients: liveClients },
   });
 
   return {

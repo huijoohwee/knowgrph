@@ -11,7 +11,7 @@
 // ZERO live network calls (reuse-not-rebuild: the live module already owns the
 // real dispatch/storage/ledger logic).
 //
-// IMPORTANT: all existing exports are preserved for backward compatibility:
+// IMPORTANT: these exports remain the shared render-provider surface:
 //   createDeterministicRenderQueueClient, createDeterministicMockProviderClient,
 //   createDeterministicLedgerClient, selectRenderProvider, renderJobId,
 //   renderLedgerEventId, mediaObjectKey, buildMediaAssetReference, etc.
@@ -25,10 +25,10 @@ import {
   buildDurableR2Url,
 } from "../../contracts/media-artifact.schema.js";
 
-// R2 media object-key prefix — matches the legacy `completeGenerationJobSuccess`
+// R2 media object-key prefix — matches the established `completeGenerationJobSuccess`
 // key shape `strytree/generation/<jobId>/video.json` in strytreeApi.ts so an
-// asset reference produced by the OLD helpers is resolvable under the media
-// bucket once the live R2 binding is wired in task 9.2. NEW code uses the
+// asset reference produced by the existing helpers is resolvable under the media
+// bucket. Runtime code uses the
 // canonical key scheme from the contract via buildDurableR2Url.
 export const MEDIA_BUCKET_PREFIX = "strytree/generation";
 
@@ -50,12 +50,12 @@ export const PROVIDER_MOCK = "mock";
 export const DEFAULT_SHOT_SPEND_CENTS = 12;
 
 /**
- * Build the canonical R2 media object key for a render job (backward compat).
+ * Build the canonical R2 media object key for a render job.
  * Mirrors the live `videoObjectKey` shape in strytreeApi.ts:
  *   `strytree/generation/<jobId>/video.json`
  *
- * NEW code should use `buildDurableR2Url` from the contract directly. This
- * helper is kept for backward compatibility with the render harness tests.
+ * Runtime code should use `buildDurableR2Url` from the contract directly. This
+ * helper remains the render-harness test key-shape oracle.
  *
  * @param {string} jobId
  * @returns {string}
@@ -159,8 +159,7 @@ export function createDeterministicRenderQueueClient(options = {}) {
  * `asyncDispatch` method that persists deterministic bytes to the mock R2 and
  * returns the resulting `durableR2Url`, so async offline runs produce STABLE
  * Durable_R2_URL references (R8.8). The sync `dispatch` always returns the
- * legacy `r2://` asset URL for backward compatibility with the sync
- * `runRenderHarness` path.
+   * deterministic `r2://` asset URL used by the sync `runRenderHarness` path.
  *
  * @param {object} [options]
  * @param {string} [options.bucket]               - media bucket name.
@@ -216,7 +215,7 @@ export function createDeterministicMockProviderClient(options = {}) {
       };
     }
 
-    // No persister — fall back to the legacy r2:// asset URL (same as sync dispatch).
+    // No persister — use the deterministic r2:// asset URL from sync dispatch.
     return dispatch({ shot, runId });
   }
 
@@ -423,14 +422,14 @@ export function createBytePlusVideoProvider({ aiGatewayClient, mediaPersister, b
         return { ok: false, error: pollResult.error, code: pollResult.code ?? (pollResult.timedOut ? "video_poll_timeout" : "video_task_failed") };
       }
 
-      // 3. Retrieve bytes from ephemeral URL or treat as stub bytes (offline).
+      // 3. Retrieve bytes from ephemeral URL or use deterministic offline bytes.
       // The ephemeral URL is discarded after persist; only durableR2Url is kept (R3.5).
       const ephemeralUrl = pollResult.ephemeralUrl;
       let bytes;
       if (ephemeralUrl) {
         // Store the ephemeral URL reference as UTF-8 bytes — the live path
         // downloads the actual video bytes via the injected fetch; offline mocks
-        // return a stable stub string so the content hash is deterministic (R8.8).
+        // return stable text so the content hash is deterministic (R8.8).
         bytes = new TextEncoder().encode(ephemeralUrl);
       } else {
         bytes = new TextEncoder().encode(`video:${runId}:${stageId}:${shotId}`);

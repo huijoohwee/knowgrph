@@ -1,4 +1,5 @@
 import React from 'react'
+import { resolveVideoSequenceRulerInsetPixelMetrics } from './videoSequenceTimelineRulerGeometry'
 import {
   MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE,
   MEDIA_POINTER_DRAG_DROP_EVENT,
@@ -28,7 +29,8 @@ export function useVideoSequenceTimelineMediaDropTarget(args: {
     const element = args.contentRef.current || args.targetRef.current
     const rect = element?.getBoundingClientRect()
     if (!rect || rect.width <= 0 || !Number.isFinite(clientX)) return 0
-    const ratio = (clientX - rect.left) / rect.width
+    const insetMetrics = resolveVideoSequenceRulerInsetPixelMetrics(rect.width)
+    const ratio = (clientX - rect.left - insetMetrics.insetLeftPx) / insetMetrics.widthPx
     return Math.max(0, Math.min(Math.max(0, args.maxMinutes), ratio * Math.max(0, args.maxMinutes)))
   }, [args.contentRef, args.maxMinutes, args.targetRef])
 

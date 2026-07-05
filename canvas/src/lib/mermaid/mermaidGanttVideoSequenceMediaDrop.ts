@@ -37,7 +37,7 @@ const formatFractionalMinuteToken = (minutes: number): string => {
 }
 
 const normalizeClockToken = (minutes: number): string => {
-  const safe = Math.max(0, Number.isFinite(minutes) ? minutes : 0)
+  const safe = Math.max(0, Number.isFinite(minutes) && Math.abs(minutes) > 1 / 60 ? minutes : 0)
   return `kgpos_${String(Number(safe.toFixed(3))).replace(/\./g, '_')}`
 }
 

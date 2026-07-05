@@ -1,7 +1,5 @@
-// Tests for the LIVE stage clients (task 12.4): BytePlus storyboard (usable now,
-// wired through the async runStoryboardHarness), and the Strytree render +
-// Stripe commerce SCAFFOLDS (correct seam shape, fail-closed). ZERO live calls —
-// a fake `fetch` backs every client.
+// Tests for the LIVE stage clients: BytePlus storyboard, Strytree render, and
+// Stripe commerce. ZERO live calls — a fake `fetch` backs every client.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -51,7 +49,7 @@ test("parseStoryboardCompletion: maps choices[0].message.content JSON to shots",
   assert.deepEqual(shots[0].sourceCardIds, ["s-1"]);
 });
 
-// ── Storyboard live client (USABLE NOW via async harness) ───────────────────
+// ── Storyboard live client ──────────────────────────────────────────────────
 
 test("createByteplusStoryboardClient: posts a chat completion and returns shots", async () => {
   const calls = [];
@@ -137,14 +135,14 @@ test("runStoryboardHarness falls back to a single node when the live client fail
   assert.equal(result.flow.nodes.length, 1, "single-node fallback (R7.5)");
 });
 
-// ── Render scaffold (correct seam shape, fail-closed) ───────────────────────
+// ── Render live-client seam (correct shape, fail-closed) ────────────────────
 
-test("createStrytreeRenderQueueClient: dispatches and maps an asset (scaffold)", async () => {
+test("createStrytreeRenderQueueClient: dispatches and maps an asset", async () => {
   const client = createStrytreeRenderQueueClient({
     fetchImpl: async () => jsonResponse({ assetUrl: "https://r2/asset.mp4", costCents: 42, provider: "byteplus-video" }),
     endpoint: "https://pay/render",
   });
-  assert.equal(client.requiresAsyncHarness, true, "flags the async-harness follow-up");
+  assert.equal(client.requiresAsyncHarness, true, "marks async-only dispatch");
   const out = await client.dispatch({ shot: { shotId: "shot-1", prompt: "p" }, runId: "run-1" });
   assert.equal(out.assetUrl, "https://r2/asset.mp4");
   assert.equal(out.costCents, 42);
@@ -161,9 +159,9 @@ test("createStrytreeRenderQueueClient: throws on a no-asset response (→ R8.6 f
   );
 });
 
-// ── Commerce scaffold (correct seam shape, fail-closed) ─────────────────────
+// ── Commerce live-client seam (correct shape, fail-closed) ──────────────────
 
-test("createStripeCommerceClients: creates a session, settles, and publishes (scaffold)", async () => {
+test("createStripeCommerceClients: creates a session, settles, and publishes", async () => {
   const clients = createStripeCommerceClients({
     fetchImpl: async (url) => {
       if (url.endsWith("/checkout/session")) return jsonResponse({ id: "cs_live_1", amount_total: 500, currency: "usd" });
@@ -204,6 +202,7 @@ test("resolveStageClients: populates storyboard/render/commerce slots when endpo
     {
       KNOWGRPH_LIVE_CLIENTS: "1",
       AI_GATEWAY_CHAT_URL: "https://gw/chat/completions",
+      RENDER_PROVIDER: "strytree",
       STRYTREE_RENDER_URL: "https://pay/render",
       KNOWGRPH_PAYMENT_URL: "https://pay.example",
     },

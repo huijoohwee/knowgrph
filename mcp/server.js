@@ -15,7 +15,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { runVideoRemix } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js";
+import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js";
 import { callBrowserApiRuntime } from "./browser-api-runtime.js";
 import {
   addMemoryLayerMemory,
@@ -534,7 +534,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun) {
-      const result = runVideoRemix(args);
+      const result = await runVideoRemixAsync(args, { env: process.env });
       return {
         content: [{ type: "text", text: truncate(result.text) }],
         structuredContent: result.payload,

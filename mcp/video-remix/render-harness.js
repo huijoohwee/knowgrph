@@ -171,8 +171,8 @@ function buildTokenRejection(verification) {
     gateId: verification.gateId,
     reason: verification.reason,
     // Canonical rejection error (shared with the gate guard + commerce harness)
-    // naming the failed approval check; keeps the render-specific code + message
-    // for backward compatibility while reusing the one canonical builder.
+    // naming the failed approval check; the render-specific code and message
+    // stay owned here while the envelope shape comes from one builder.
     error: buildApprovalRejectionError(verification, {
       code: "render_approval_token_failed",
       message: `Render Approval_Token failed verification (${verification.reason}); no provider dispatch performed.`,
@@ -218,8 +218,8 @@ function resolveShotOutcome(outcomes, shotId) {
  *   for the 5s deadline assertion (default 0 — synchronous).
  * @param {object}  [deps.outcomes]              - per-shot failure/spend overrides.
  * @param {Function} [deps.provenanceBuilder]   - `(shot, runId, dispatchResult) => ProvenanceChain|null`
- *   called per shot; attaches `provenance` to the asset record (R6.1, R6.3).
- *   Omitted for backward compatibility.
+   *   called per shot; attaches `provenance` to the asset record (R6.1, R6.3).
+   *   Omit when no provenance chain is available.
  * @param {boolean} [deps.failIfProvenanceIncomplete] - when true (default false),
  *   a missing or incomplete provenance chain fails the shot (R6.6).
  * @returns {{ status, assets, ledgerEvents, ... }} the render result envelope.

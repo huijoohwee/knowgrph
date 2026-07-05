@@ -83,6 +83,7 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
       data-kg-video-sequence-clip-edit={button.action}
       data-kg-video-sequence-clip-edit-active={button.active ? '1' : undefined}
       data-kg-video-sequence-primary-clip-edit={keyPrefix === 'primary-' ? button.action : undefined}
+      data-kg-video-sequence-tool-active={button.active ? '1' : undefined}
       onClick={button.onClick}
     >
       {renderClipActionIcon(button.icon)}

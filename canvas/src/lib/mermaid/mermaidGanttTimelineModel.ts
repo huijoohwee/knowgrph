@@ -9,6 +9,8 @@ type GanttTimeParts = {
   minutes: number
 }
 
+const MERMAID_GANTT_POSITION_ZERO_EPSILON_MINUTES = 1 / 60
+
 function parseGanttClockTime(value: string): GanttTimeParts | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim())
   if (!match) return null
@@ -41,7 +43,8 @@ export function formatFractionalMinutesToken(value: number): string {
 
 export function formatPositionToken(value: number, existingToken: string): string {
   if (/^kgpos_/i.test(String(existingToken || '').trim())) {
-    return `kgpos_${formatFractionalMinutesToken(value).replace(/\./g, '_')}`
+    const positionMinutes = Math.abs(value) <= MERMAID_GANTT_POSITION_ZERO_EPSILON_MINUTES ? 0 : value
+    return `kgpos_${formatFractionalMinutesToken(positionMinutes).replace(/\./g, '_')}`
   }
   return formatClockMinutes(value)
 }

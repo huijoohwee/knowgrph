@@ -147,7 +147,7 @@ export const createUiInitialState = (
     timelineTransportPosition: 0,
     timelineTransportPlaying: false,
     timelineTransportPlaybackRate: 1,
-    timelineTransportTimingSyncMode: 'grouped' as GraphState['timelineTransportTimingSyncMode'],
+    timelineTransportTimingSyncMode: 'grouped' as GraphState['timelineTransportTimingSyncMode'], timelineTransportAutoSnappingEnabled: true, timelineTransportRippleEditingEnabled: false,
     setTimelineTransportState: (update: GraphState['setTimelineTransportState'] extends (arg: infer Arg) => void ? Arg : never) => set(state => {
         const documentKey = Object.prototype.hasOwnProperty.call(update || {}, 'documentKey')
           ? String(update?.documentKey || '').trim()
@@ -172,10 +172,10 @@ export const createUiInitialState = (
         return next as Partial<GraphState>
       }),
     setTimelineTransportTimingSyncMode: mode => set(state => {
-        const nextMode = mode === 'selected' ? 'selected' : 'grouped'
-        return state.timelineTransportTimingSyncMode === nextMode ? {} : ({ timelineTransportTimingSyncMode: nextMode } as Partial<GraphState>)
+        const nextMode = mode === 'selected' ? 'selected' : 'grouped'; return state.timelineTransportTimingSyncMode === nextMode ? {} : ({ timelineTransportTimingSyncMode: nextMode } as Partial<GraphState>)
       }),
-
+    setTimelineTransportAutoSnappingEnabled: enabled => set(state => state.timelineTransportAutoSnappingEnabled === enabled ? {} : ({ timelineTransportAutoSnappingEnabled: enabled } as Partial<GraphState>)),
+    setTimelineTransportRippleEditingEnabled: enabled => set(state => state.timelineTransportRippleEditingEnabled === enabled ? {} : ({ timelineTransportRippleEditingEnabled: enabled } as Partial<GraphState>)),
     storyboardWidgetSelectedPortRowKey: '',
     setStoryboardWidgetSelectedPortRowKey: (rowKey: string | null) =>
       set(state => {

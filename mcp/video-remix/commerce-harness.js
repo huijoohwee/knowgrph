@@ -170,8 +170,8 @@ function buildGateRejection(verification) {
     gateApproved: false,
     reason: verification.reason,
     // Canonical rejection error (shared with the gate guard + render harness)
-    // naming the failed approval check; keeps the payment-specific code +
-    // message for backward compatibility while reusing the one canonical builder.
+    // naming the failed approval check; the payment-specific code and message
+    // stay owned here while the envelope shape comes from one builder.
     error: buildApprovalRejectionError(verification, {
       code: "payment_approval_gate_not_approved",
       message:

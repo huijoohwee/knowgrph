@@ -1,53 +1,16 @@
-// Storyboard_Harness for the video-remix Director runtime
-// (knowgrph-acos-mcp-connector spec, task 3.5 / R7.1 / Property 12 —
-// production side).
-//
-// Responsibility (single): given an approved brief + an Evidence_Pack (and an
-// optional shot count), emit a Kgc_Document `{ canvasDocumentMarkdown,
-// flow:{nodes[],edges[]} }` that validates against the `kgc-computing-flow/v1`
-// schema and carries a NON-EMPTY `flow.nodes[]` (R7.1). The shot-plan reasoning
-// is sourced from the BytePlus chat model routed through the Cloudflare AI
-// Gateway — but BOTH the chat model and the gateway are reached through an
-// INJECTABLE client seam so the local runtime makes ZERO live network/model
-// calls. The default client is a deterministic, in-memory mock so unit/property
-// tests stay network-free. Live wiring + AI Gateway routing is integration task
-// 9.2.
-//
-// Reuse-not-rebuild: the canvas markdown is emitted by
-// `buildStoryboardMarkdown` and the structured graph by `buildStoryboardFlow`
-// (both in `storyboard.js`), driven by the shot plan from `buildShotPlan`. This
-// module does NOT re-implement the markdown emitter; it only wires the reasoning
-// seam, enforces the input/output contract, and self-validates the emitted
-// Kgc_Document against `kgc-computing-flow/v1`.
-//
-// Boundary notes (do not overstep adjacent tasks):
-//   * Exact-one-node-per-shot count enforcement (N in [1,500]) +
-//     reject-on-invalid-schema (task 3.6 / R7.2 / R7.4 / Property 12):
-//     IMPLEMENTED via the exported `emitValidatedStoryboard` /
-//     `validateKgcComputingFlowV1` gate (no nodes emitted on a validation/count
-//     failure).
-//   * Reasoning-failure single-node FALLBACK (task 3.7 / R7.5 / Property 14):
-//     IMPLEMENTED. When the injected chat client THROWS or its result SIGNALS
-//     failure, the harness emits a single-node Kgc_Document that still validates
-//     and round-trips (`fallbackSubstituted:true`). Builder + round-trip helper
-//     live in the cohesive `storyboard-fallback.js` module.
-//   * Source referential integrity (task 3.8 / R6.3 / R6.6 / Property 10):
-//     IMPLEMENTED. `runStoryboardHarness` runs the produced claims through the
-//     cohesive `storyboard-references.js` gate (`checkSourceReferentialIntegrity`,
-//     built on `collectEvidenceSourceIds`). A claim referencing a `sourceId` NOT
-//     in the Evidence_Pack is REJECTED with status `unresolved_source` + a typed
-//     `StoryboardUnresolvedSourceError` and NO `flow.nodes[]`. DISTINCT from the
-//     R7.4 schema reject and R7.5 fallback.
-//   * The `paid-model-call` approval gate is enforced at the McpAgent boundary
-//     / Director (reuse-not-rebuild). The harness produces a storyboard GIVEN a
-//     chat client; it performs no gate check itself.
-//
-// Pure / SDK-agnostic apart from the injected client: importable by both the
-// Node tests and the Cloudflare Worker bundle.
+// Storyboard_Harness: validates and emits KGC storyboard documents from an
+// approved brief plus Evidence_Pack through an injectable chat-client seam.
 
 import { cleanString } from "./helpers.js";
 import { DEFAULT_SHOT_COUNT } from "./constants.js";
-import { buildShotPlan, buildStoryboardMarkdown, buildStoryboardFlow } from "./storyboard.js";
+import {
+  buildShotPlan,
+  buildStoryboardMarkdown,
+  buildStoryboardFlow,
+  DEFAULT_TOKEN_BUDGET_CEILING,
+  checkNarrativeCoherence,
+  wrapChatClientWithTokenCeiling,
+} from "./storyboard.js";
 import {
   FALLBACK_SHOT_COUNT,
   buildFallbackStoryboardDocument,
@@ -72,6 +35,7 @@ export const STORYBOARD_MIN_SHOTS = 1;
 export const STORYBOARD_MAX_SHOTS = 500;
 export const STORYBOARD_DEFAULT_SHOT_COUNT = DEFAULT_SHOT_COUNT;
 export const STORYBOARD_BRIEF_MAX_LENGTH = 5000;
+export { DEFAULT_TOKEN_BUDGET_CEILING, checkNarrativeCoherence, wrapChatClientWithTokenCeiling };
 
 const STORYBOARD_STATUS_COMPLETE = "complete";
 // Terminal status for the R7.4 reject path: the produced Kgc_Document failed
@@ -465,7 +429,21 @@ function buildStoryboardFallbackResult({ brief, sourceIds, sourceCount, runId, r
 export async function runStoryboardHarness(input, deps = {}) {
   const { brief, evidencePack, sourceIds, sourceCount, shotCount } = validateStoryboardInput(input);
 
-  const chatClient = deps.chatClient || createDeterministicStoryboardClient();
+  let degradedMode = null;
+  const chatClient = wrapChatClientWithTokenCeiling(
+    deps.chatClient || createDeterministicStoryboardClient(),
+    {
+      ceiling: deps.tokenBudgetCeiling ?? DEFAULT_TOKEN_BUDGET_CEILING,
+      onDegrade: (event) => {
+        degradedMode = {
+          degraded: true,
+          reason: "token_budget_ceiling",
+          plannedShotCountAtDegradation: event.plannedShotCountAtDegradation,
+        };
+        if (typeof deps.onDegrade === "function") deps.onDegrade(degradedMode);
+      },
+    },
+  );
   const usedDeterministicClient = Boolean(chatClient.isDeterministicMock);
   // The local runtime makes no live calls, so the deterministic default path
   // records zero paid-provider calls. A caller wiring a live client accounts
@@ -586,6 +564,8 @@ export async function runStoryboardHarness(input, deps = {}) {
     shotCount: plannedShots.length,
     // Source ids referenced by the claims; all verified in-pack by the 3.8 gate.
     sourceReferences: sourceIds,
+    narrativeCoherence: checkNarrativeCoherence(plannedShots),
+    degradedMode,
     // Reasoning-failure fallback is task 3.7; never substituted here.
     fallbackSubstituted: false,
     schemaValid: emission.schemaValid,

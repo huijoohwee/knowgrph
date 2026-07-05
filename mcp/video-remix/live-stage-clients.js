@@ -184,7 +184,7 @@ export function createByteplusStoryboardClient(opts = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Render — Strytree/BytePlus queue (SCAFFOLD: needs async render harness)
+// Render — Strytree/BytePlus queue consumed by the async render harness.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -248,7 +248,7 @@ export function createStrytreeRenderQueueClient(opts = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Commerce — Stripe via the payment worker (SCAFFOLD: needs async commerce harness)
+// Commerce — Stripe via the payment worker
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

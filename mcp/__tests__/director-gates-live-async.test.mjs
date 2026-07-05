@@ -162,6 +162,7 @@ test("resolveGateClientDeps injects live render/commerce clients into deps", () 
   const clients = resolveStageClients(
     {
       KNOWGRPH_LIVE_CLIENTS: "1",
+      RENDER_PROVIDER: "strytree",
       STRYTREE_RENDER_URL: "https://pay/render",
       KNOWGRPH_PAYMENT_URL: "https://pay.example",
     },
