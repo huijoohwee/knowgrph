@@ -550,12 +550,12 @@ function Minimap() {
   }
 
   return (
-    <aside className="relative group" aria-label="Minimap">
+    <aside className="relative isolate group kg-minimap-root" aria-label="Minimap" data-kg-minimap-root="1" data-kg-css-inspector-selectable="minimap">
       <section
-        className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow backdrop-blur-sm`}
-        style={{ opacity: minimapOpacity }}
+        className={`relative overflow-hidden rounded border kg-minimap-surface ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow backdrop-blur-sm`}
+        style={{ opacity: minimapOpacity }} data-kg-css-inspector-selectable="minimap-surface"
       >
-        <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="relative block">
+        <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="relative block kg-minimap-svg" data-kg-minimap-surface="1" data-kg-minimap-svg="1">
           <rect x={0} y={0} width={miniW} height={miniH} fill="#f8fafc" />
           {edgesPathD && (
             <path d={edgesPathD} stroke="#94a3b8" strokeWidth={1} strokeOpacity={0.6} fill="none" pointerEvents="none" shapeRendering="crispEdges" />

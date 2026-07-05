@@ -14,7 +14,7 @@ import { beginOverlayPanelPositionDrag } from '@/lib/ui/overlayPanelDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { GanttTimelineTransportPlaybackRuntime } from '@/features/gitgraph/GanttTimelineTransportPlaybackRuntime'
-import { ChartGantt, Columns2, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
+import { ChartGantt, Columns2, Cuboid, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
 
 type TimelineBottomPanelPosition = { top: number; left: number }
@@ -29,6 +29,7 @@ type TimelineBottomPanelView =
   | 'gitGraph'
   | 'gantt'
   | 'architecture'
+  | 'xr'
   | 'eventModeling'
 
 const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
@@ -39,30 +40,15 @@ const TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX = 672
 const TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX = 384
 const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX = 320
 const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX = 112
-const GitGraphBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })),
-)
-const FlowchartBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/FlowchartBottomPanelView').then(mod => ({ default: mod.FlowchartBottomPanelView })),
-)
-const GanttBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })),
-)
-const TimelineBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/TimelineBottomPanelView').then(mod => ({ default: mod.TimelineBottomPanelView })),
-)
-const DesignTimelineBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/design/DesignTimelineBottomPanelView').then(mod => ({ default: mod.DesignTimelineBottomPanelView })),
-)
-const ArchitectureBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/ArchitectureBottomPanelView').then(mod => ({ default: mod.ArchitectureBottomPanelView })),
-)
-const EventModelingBottomPanelViewLazy = React.lazy(() =>
-  import('@/features/gitgraph/EventModelingBottomPanelView').then(mod => ({ default: mod.EventModelingBottomPanelView })),
-)
-const DocumentVersionGitGraphPanelLazy = React.lazy(() =>
-  import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })),
-)
+const GitGraphBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })))
+const FlowchartBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartBottomPanelView').then(mod => ({ default: mod.FlowchartBottomPanelView })))
+const GanttBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })))
+const TimelineBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/TimelineBottomPanelView').then(mod => ({ default: mod.TimelineBottomPanelView })))
+const XrPanelViewLazy = React.lazy(() => import('@/features/three/XrPanelView').then(mod => ({ default: mod.XrPanelView })))
+const DesignTimelineBottomPanelViewLazy = React.lazy(() => import('@/features/design/DesignTimelineBottomPanelView').then(mod => ({ default: mod.DesignTimelineBottomPanelView })))
+const ArchitectureBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/ArchitectureBottomPanelView').then(mod => ({ default: mod.ArchitectureBottomPanelView })))
+const EventModelingBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingBottomPanelView').then(mod => ({ default: mod.EventModelingBottomPanelView })))
+const DocumentVersionGitGraphPanelLazy = React.lazy(() => import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })))
 
 type TimelineLayerRect = Pick<DOMRect, 'left' | 'right' | 'width'>
 
@@ -269,6 +255,7 @@ export function StrybldrTimelineBottomPanel({
   const mermaidGitGraphRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gitGraph'
   const mermaidGanttRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const mermaidTimelineRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const xrRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'xr'
   const mermaidArchitectureRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'architecture'
   const mermaidEventModelingRequested = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
   const bottomSurfaceDiagramRequested =
@@ -277,6 +264,7 @@ export function StrybldrTimelineBottomPanel({
     mermaidGitGraphRequested ||
     mermaidGanttRequested ||
     mermaidTimelineRequested ||
+    xrRequested ||
     mermaidArchitectureRequested ||
     mermaidEventModelingRequested
   const showTimelineView = React.useCallback(() => {
@@ -308,6 +296,7 @@ export function StrybldrTimelineBottomPanel({
     setBottomSurfaceTab('gantt')
     setBottomSurfaceCollapsed(false)
   }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+  const showXrView = React.useCallback(() => { setView('xr'); setBottomSurfaceTab('xr'); setBottomSurfaceCollapsed(false) }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
   const showArchitectureView = React.useCallback(() => {
     setView('architecture')
     setBottomSurfaceTab('architecture')
@@ -387,7 +376,7 @@ export function StrybldrTimelineBottomPanel({
   }
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'designTimeline' || view === 'architecture' || view === 'eventModeling'
+    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'designTimeline' || view === 'xr' || view === 'architecture' || view === 'eventModeling'
       ? pinned
         ? expandedPinnedHeightStyle
         : expandedUnpinnedHeightStyle
@@ -546,6 +535,12 @@ export function StrybldrTimelineBottomPanel({
                 <ChartGantt className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
               </IconButton>
               <IconButton
+                className={cn('App-toolbar__btn', view === 'xr' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`)}
+                title="XR" showTooltip aria-pressed={view === 'xr'} onClick={showXrView} data-kg-strybldr-bottom-timeline-xr-toggle="1"
+              >
+                <Cuboid className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+              <IconButton
                 className={cn(
                   'App-toolbar__btn',
                   view === 'architecture'
@@ -621,6 +616,8 @@ export function StrybldrTimelineBottomPanel({
                 <React.Suspense fallback={null}>
                   <DesignTimelineBottomPanelViewLazy compact />
                 </React.Suspense>
+              ) : view === 'xr' ? (
+                <React.Suspense fallback={null}><XrPanelViewLazy surface="bottomPanel" /></React.Suspense>
               ) : view === 'architecture' ? (
                 <React.Suspense fallback={null}>
                   <ArchitectureBottomPanelViewLazy compact />

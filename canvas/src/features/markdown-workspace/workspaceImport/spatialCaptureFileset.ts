@@ -1,6 +1,18 @@
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export type SpatialCaptureFilesetRole = 'point-cloud-ply' | 'gaussian-splat-spz' | 'panorama-image' | 'collider-glb'
+export type SpatialCaptureStandaloneFormat = 'ply' | 'spz'
+
+export type StandaloneSpatialCaptureManifest = {
+  format: SpatialCaptureStandaloneFormat
+  sourceName: string
+  sourceKind: string
+  sourceIdentity: string
+  pendingLocalImport: boolean
+  pendingLocalPath: WorkspacePath | ''
+  renderCacheKey: string
+}
 
 export type SpatialCaptureFilesetFile = {
   file: File
@@ -88,6 +100,44 @@ export function isSpatialCaptureImportName(name: string, mimeHint?: string | nul
   return classifySpatialCaptureFilesetRole(name, mimeHint) !== null
 }
 
+export function resolveSpatialCaptureStandaloneFormat(name: string, mimeHint?: string | null): SpatialCaptureStandaloneFormat | null {
+  const role = classifySpatialCaptureFilesetRole(name, mimeHint)
+  if (role === 'point-cloud-ply') return 'ply'
+  if (role === 'gaussian-splat-spz') return 'spz'
+  return null
+}
+
+export function isSpatialCaptureStandaloneFile(name: string, mimeHint?: string | null): boolean {
+  return resolveSpatialCaptureStandaloneFormat(name, mimeHint) !== null
+}
+
+export function isStandaloneSpatialCaptureManifestText(text: string): boolean {
+  return parseStandaloneSpatialCaptureManifest(text) !== null
+}
+
+function readManifestValue(raw: string, key: string): string {
+  return String(raw.match(new RegExp(`^${key}:\\s*['"]?([^'"\\n#]+)`, 'im'))?.[1] || '').trim()
+}
+
+export function parseStandaloneSpatialCaptureManifest(text: string): StandaloneSpatialCaptureManifest | null {
+  const raw = String(text || '')
+  const format = readManifestValue(raw, 'kgSpatialCaptureFormat').toLowerCase()
+  if (format !== 'ply' && format !== 'spz') return null
+  const fileset = readManifestValue(raw, 'kgSpatialCaptureFileset').toLowerCase()
+  if (fileset === 'true') return null
+  const assetFormat = readManifestValue(raw, 'kgAssetFormat').toLowerCase()
+  if (assetFormat !== format && assetFormat !== '') return null
+  return {
+    format,
+    sourceName: readManifestValue(raw, 'kgSpatialCaptureSourceName') || readManifestValue(raw, 'kgAssetName') || `spatial-capture.${format}`,
+    sourceKind: readManifestValue(raw, 'kgSpatialCaptureSourceKind'),
+    sourceIdentity: readManifestValue(raw, 'kgSpatialCaptureSourceIdentity'),
+    pendingLocalImport: readManifestValue(raw, 'kgSpatialCapturePendingLocalImport').toLowerCase() === 'true',
+    pendingLocalPath: readManifestValue(raw, 'kgSpatialCapturePendingLocalPath') as WorkspacePath | '',
+    renderCacheKey: readManifestValue(raw, 'kgXrRenderCacheKey') || readManifestValue(raw, 'kgXrIngestionCacheKey'),
+  }
+}
+
 export function resolveSpatialCaptureFilesets(files: ReadonlyArray<File>): SpatialCaptureFileset[] {
   const groups = new Map<string, SpatialCaptureFilesetFile[]>()
   for (const file of files) {
@@ -138,12 +188,95 @@ export function deriveSpatialCaptureManifestName(fileset: Pick<SpatialCaptureFil
   return `${sanitizeManifestStem(fileset.baseName)}.spatial-capture.md`
 }
 
+export function deriveSpatialCaptureStandaloneManifestName(name: string): string {
+  return `${sanitizeManifestStem(stripExtension(name))}.spatial-capture.md`
+}
+
 function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
 function formatRoleLine(file: SpatialCaptureFilesetFile): string {
   return `- ${file.role}: ${file.originalName} (${file.byteSize} bytes)`
+}
+
+function buildSpatialCaptureCacheKey(args: {
+  format: SpatialCaptureStandaloneFormat
+  sourceKind: 'local' | 'url'
+  sourceIdentity: string
+  byteSize?: number | null
+}): string {
+  return buildScopedGraphSemanticKey('xr-spatial-capture-import', {
+    graphSemanticKey: [
+      args.format,
+      args.sourceKind,
+      String(args.sourceIdentity || '').trim(),
+      Math.max(0, Number(args.byteSize || 0)),
+    ].join('|'),
+  })
+}
+
+export function buildSpatialCaptureStandaloneManifestMarkdown(args: {
+  originalName: string
+  format: SpatialCaptureStandaloneFormat
+  sourceKind: 'local' | 'url'
+  sourceIdentity: string
+  byteSize?: number | null
+  mimeHint?: string | null
+  pendingLocalPath?: WorkspacePath | null
+}): string {
+  const originalName = String(args.originalName || '').trim() || `spatial-capture.${args.format}`
+  const sourceIdentity = String(args.sourceIdentity || originalName).trim()
+  const byteSize = Math.max(0, Number(args.byteSize || 0))
+  const cacheKey = buildSpatialCaptureCacheKey({
+    format: args.format,
+    sourceKind: args.sourceKind,
+    sourceIdentity,
+    byteSize,
+  })
+  const formatLabel = args.format === 'ply' ? 'PLY point cloud' : 'SPZ gaussian splat'
+  return [
+    '---',
+    'kgAssetType: "model"',
+    `kgAssetFormat: ${yamlQuote(args.format)}`,
+    `kgAssetName: ${yamlQuote(originalName)}`,
+    `kgAssetSource: ${yamlQuote(args.sourceKind)}`,
+    ...(args.mimeHint ? [`kgAssetMimeType: ${yamlQuote(args.mimeHint)}`] : []),
+    ...(byteSize > 0 ? [`kgAssetBytes: ${byteSize}`] : []),
+    'kgSpatialCaptureFileset: false',
+    `kgSpatialCaptureFormat: ${yamlQuote(args.format)}`,
+    `kgSpatialCaptureSourceKind: ${yamlQuote(args.sourceKind)}`,
+    `kgSpatialCaptureSourceName: ${yamlQuote(originalName)}`,
+    `kgSpatialCaptureSourceIdentity: ${yamlQuote(sourceIdentity)}`,
+    ...(args.sourceKind === 'local' && args.pendingLocalPath ? [
+      'kgSpatialCapturePendingLocalImport: true',
+      `kgSpatialCapturePendingLocalPath: ${yamlQuote(args.pendingLocalPath)}`,
+    ] : []),
+    `kgSpatialCaptureTotalBytes: ${byteSize}`,
+    ...(args.format === 'ply' ? [`kgSpatialCapturePointCloudBytes: ${byteSize}`] : []),
+    ...(args.format === 'spz' ? [`kgSpatialCaptureGaussianSplatBytes: ${byteSize}`] : []),
+    'kgSpatialCaptureCoordinateSystem: "right-handed-y-up"',
+    'kgSpatialCaptureMovementPlane: "x/z"',
+    'kgXrIngestionPipeline: "source-manifest"',
+    `kgXrIngestionCacheKey: ${yamlQuote(cacheKey)}`,
+    `kgXrRenderCacheKey: ${yamlQuote(cacheKey)}`,
+    'kgXrIngestionStreaming: true',
+    'kgCanvasSurfaceMode: "xr"',
+    'kgCanvasRenderMode: "3d"',
+    'kgCanvas3dMode: "xr"',
+    '---',
+    '',
+    `# ${stripExtension(originalName) || 'Spatial capture'}`,
+    '',
+    `Imported ${formatLabel} source manifest.`,
+    '',
+    '## Render contract',
+    '',
+    `- ${formatLabel} remains source-owned and is not embedded in this document.`,
+    '- XR rendering uses manifest cache keys to avoid re-reading source payloads during panel switches.',
+    '- Coordinates are interpreted as right-handed Y-up with X/Z as the ground plane.',
+    '',
+  ].join('\n')
 }
 
 export function buildSpatialCaptureFilesetManifestMarkdown(args: {

@@ -123,6 +123,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const mermaidGanttBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'gantt'
   const designTimelineBottomPanelVisible = canvas2dRenderer === 'design' && bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
   const mermaidTimelineBottomPanelVisible = !designTimelineBottomPanelVisible && bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'timeline'
+  const xrBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'xr'
   const mermaidArchitectureBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'architecture'
   const mermaidEventModelingBottomPanelVisible = bottomSurfaceCollapsed !== true && bottomSurfaceTab === 'eventModeling'
   const { paywallEnabled, floatingPanelOpen, floatingPanelView } = useGraphStore(
@@ -160,12 +161,21 @@ export function CanvasViewport(props: CanvasViewportProps) {
     mermaidGitGraphBottomPanelVisible ||
     mermaidGanttBottomPanelVisible ||
     mermaidTimelineBottomPanelVisible ||
+    xrBottomPanelVisible ||
     mermaidArchitectureBottomPanelVisible ||
     mermaidEventModelingBottomPanelVisible ||
     designTimelineBottomPanelVisible ||
     strybldrTimelineBottomPanelVisible
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
+  const minimapOverlayVisible = !documentSwitchBlocksCanvas
+    && !geospatialOverlayOwnsViewport
+    && !isNarrowViewport
+    && (
+      (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
+      || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
+    )
+  const minimapOverlaySurface = activeSurface === '3d' ? '3d' : '2d'
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
 
@@ -250,10 +260,14 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 <LaunchSpotlightLazy />
               </React.Suspense>
             ) : null}
-            {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && activeSurface === '2d' && !isNarrowViewport && supportsCanvas2dMinimap(canvas2dRenderer) ? (
+            {minimapOverlayVisible ? (
               <aside
-                className={`${layout === 'pane' ? 'absolute kg-canvas-minimap-overlay--pane' : 'fixed'} ${UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME} ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto`}
+                className={`${layout === 'pane' ? 'absolute kg-canvas-minimap-overlay--pane' : 'fixed'} ${UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME} ${workspaceEditorOverlayOpen ? 'z-[420]' : 'z-[201]'} pointer-events-auto isolate`}
                 aria-label="Minimap Overlay"
+                data-kg-minimap-overlay="1"
+                data-kg-css-inspector-selectable="minimap-overlay"
+                data-kg-minimap-overlay-placement="bottom-left"
+                data-kg-minimap-overlay-surface={minimapOverlaySurface}
               >
                 <MinimapLazy />
               </aside>
@@ -270,15 +284,17 @@ export function CanvasViewport(props: CanvasViewportProps) {
                         ? 'designTimeline'
                         : mermaidTimelineBottomPanelVisible
                           ? 'timeline'
-                          : mermaidGanttBottomPanelVisible
-                            ? 'gantt'
-                            : mermaidGitGraphBottomPanelVisible
-                              ? 'gitGraph'
-                              : mermaidFlowchartBottomPanelVisible
-                                ? 'flowchart'
-                                : documentVersionGraphBottomPanelVisible
-                                  ? 'documentVersionGraph'
-                                  : 'strybldrTimeline'
+                          : xrBottomPanelVisible
+                            ? 'xr'
+                            : mermaidGanttBottomPanelVisible
+                              ? 'gantt'
+                              : mermaidGitGraphBottomPanelVisible
+                                ? 'gitGraph'
+                                : mermaidFlowchartBottomPanelVisible
+                                  ? 'flowchart'
+                                  : documentVersionGraphBottomPanelVisible
+                                    ? 'documentVersionGraph'
+                                    : 'strybldrTimeline'
                 }
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />

@@ -6,6 +6,9 @@ const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStab
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
+const modCanvasXrPanelSurfaces = () => import('@/__tests__/canvasXrPanelSurfaces.test')
+const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
+const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modCanvasViewCardWidgetDisplayControls = () => import('@/__tests__/canvasViewCardWidgetDisplayControls.test')
@@ -74,6 +77,62 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.physicsPlaygroundModel', async () => {
     const mod = await modCanvasXrPhysicsPlayground()
     await mod.testXrPhysicsPlaygroundUsesNativeBoundedInteractionModel()
+  })
+  await execTest(results, 'canvas.xrMode.panelSurfaces', async () => {
+    const mod = await modCanvasXrPanelSurfaces()
+    await mod.testXrModeMountsSharedBottomAndFloatingPanels()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.localPlyManifestCache', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyLocalUsesSourceManifestCache()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.localPlyRuntimePendingPayload', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyLocalRuntimeLoadsPendingPayload()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.localPlyRuntimeBrowserCache', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyLocalRuntimeLoadsBrowserCacheFallback()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.localPlyRuntimeOperatorSourceRoot', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyLocalRuntimeLoadsOperatorSourceRoot()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.urlPlyManifestCache', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyUrlUsesCachedManifestWithoutPayloadFetch()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.noLegacyModelExports', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyDoesNotAdvertiseGltfGlbExports()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.spatialRendererNoGraphFallback', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGraphFallback()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.runtimeCacheBudget', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyRuntimeCachesBudgetedLoads()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.noValidationAssetHardcodes', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyManifestForbidsValidationAssetHardcodes()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.plyParserGeometryColor', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
+    await mod.testWorkspaceImportXrStandalonePlyParserPreservesGeometryAndColor()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.plyParserFidelityDefaults', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
+    await mod.testWorkspaceImportXrStandalonePlyParserHandlesEndianSamplingAndPartialGaussianRows()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.runtimeCacheDedupPrune', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
+    await mod.testWorkspaceImportXrStandalonePlyRuntimeDedupesAndBoundsParsedLoadCache()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.workerParserTransfer', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
+    await mod.testWorkspaceImportXrStandalonePlyRuntimeUsesTransferBackedWorkerParser()
   })
   await execTest(results, 'canvas.viewSelection.shared3dSurfaceModeOwner', async () => {
     const mod = await modCanvas3dMode()

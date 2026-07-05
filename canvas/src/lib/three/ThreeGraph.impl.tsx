@@ -19,6 +19,8 @@ import { useThreeRichMediaOverlayController } from '@/lib/three/useThreeRichMedi
 import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { shouldRenderCanvasAppliedModelAsset } from '@/lib/three/modelAssetActivePathGuard'
+import { parseStandaloneSpatialCaptureManifest } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
+import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureManifestStage'
 
 const SceneLazy = React.lazy(() =>
   import('@/features/three/Scene').then(mod => ({
@@ -85,6 +87,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
   const glbAsset = useMemo(() => parseGlbAssetDocument(canvasMarkdownDocument.text), [canvasMarkdownDocument.text])
+  const spatialCaptureManifest = useMemo(() => parseStandaloneSpatialCaptureManifest(canvasMarkdownDocument.text), [canvasMarkdownDocument.text])
   const shouldRenderGlbAsset = useMemo(
     () => shouldRenderCanvasAppliedModelAsset({
       explorerActivePath,
@@ -97,19 +100,46 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     () => (glbAsset && shouldRenderGlbAsset ? buildGlbAssetRenderKey(glbAsset, canvasMarkdownDocument.semanticKey) : ''),
     [canvasMarkdownDocument.semanticKey, glbAsset, shouldRenderGlbAsset],
   )
+  const spatialCaptureRenderKey = useMemo(() => {
+    if (!spatialCaptureManifest) return ''
+    return [
+      'spatial-capture-render',
+      canvasMarkdownDocument.semanticKey,
+      spatialCaptureManifest.format,
+      spatialCaptureManifest.renderCacheKey,
+      spatialCaptureManifest.pendingLocalPath,
+      spatialCaptureManifest.sourceKind,
+      spatialCaptureManifest.sourceIdentity,
+    ].join('|')
+  }, [canvasMarkdownDocument.semanticKey, spatialCaptureManifest])
   const [glbAssetFit, setGlbAssetFit] = useState<GlbFit | null>(null)
+  const [spatialCaptureFit, setSpatialCaptureFit] = useState<GlbFit | null>(null)
+  const [spatialRuntimeStatus, setSpatialRuntimeStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle')
   useEffect(() => {
     setGlbAssetFit(null)
   }, [glbAssetRenderKey])
+  useEffect(() => {
+    setSpatialCaptureFit(null)
+  }, [spatialCaptureRenderKey])
+  useEffect(() => {
+    if (!spatialCaptureManifest) setSpatialRuntimeStatus('idle')
+  }, [spatialCaptureManifest])
+  const handleSpatialLoadStateChange = useCallback((state: { status: 'loading' | 'ready' | 'empty' | 'error' }) => {
+    setSpatialRuntimeStatus(state.status)
+  }, [])
+  const handleSpatialCaptureFitChange = useCallback((fit: GlbFit | null) => {
+    setSpatialCaptureFit(fit)
+  }, [])
   const handleGlbAssetFitChange = useCallback((fit: GlbFit | null) => {
     setGlbAssetFit(fit)
   }, [])
   const sceneGraph = useMemo(() => {
     if (glbAsset) return null
+    if (spatialCaptureManifest) return null
     const g = renderGraph as GraphData | null
     if (!g) return null
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
-  }, [glbAsset, renderGraph])
+  }, [glbAsset, renderGraph, spatialCaptureManifest])
   const sceneGraphForRender = useMemo<GraphData | null>(() => {
     if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) return null
     return Array.isArray(sceneGraph.edges)
@@ -118,7 +148,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   }, [sceneGraph])
   const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
-  const hasRenderableScene = hasGraph || hasGlbAsset
+  const hasSpatialCaptureManifest = !!spatialCaptureManifest
+  const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
     hasGraph ? sceneGraphForRender!.nodes : [],
@@ -348,13 +379,21 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               onFitChange={handleGlbAssetFitChange}
             />
           ) : null}
+          {spatialCaptureManifest ? (
+            <SpatialCaptureManifestStage
+              manifest={spatialCaptureManifest}
+              paused={paused}
+              onLoadStateChange={handleSpatialLoadStateChange}
+              onFitChange={handleSpatialCaptureFitChange}
+            />
+          ) : null}
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}
             paused={paused}
             mode={mode}
-            modelAssetRenderKey={glbAssetRenderKey}
-            modelAssetFit={glbAssetFit}
+            modelAssetRenderKey={spatialCaptureRenderKey || glbAssetRenderKey}
+            modelAssetFit={spatialCaptureRenderKey ? spatialCaptureFit : glbAssetFit}
             onControlsChange={() => {
               try {
                 scheduleRef.current?.()
@@ -366,7 +405,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           <OverlayFrameSync enabled={active} scheduleRef={scheduleRef} />
         </React.Suspense>
       </Canvas>
-      <CanvasXrEntryPanel active={active && mode === 'xr'} rendererRef={threeGlRef} />
+      <CanvasXrEntryPanel
+        active={active && mode === 'xr'}
+        rendererRef={threeGlRef}
+        surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}
+        spatialRuntimeStatus={spatialRuntimeStatus}
+      />
       {overlayLayer}
       <GraphHoverTooltip
         hoverInfo={hoverInfo}

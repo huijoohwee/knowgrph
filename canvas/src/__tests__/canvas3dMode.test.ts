@@ -485,7 +485,7 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   if (!controls.includes("const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)")) {
     throw new Error('Expected model-asset sessions to avoid graph-biased orbit clamping')
   }
-  if (!controls.includes('readModelAssetCameraPose(modelAssetFit)') || !controls.includes('camera.position.set(pose.position[0], pose.position[1], pose.position[2])')) {
+  if (!controls.includes('applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })') || !controls.includes('camera.position.set(pose.position[0], pose.position[1], pose.position[2])')) {
     throw new Error('Expected GLB/GLTF model switches to reset camera XYZ from loaded model bounds')
   }
   if (controls.includes('if (paused || viewPinned || !key) return')) {

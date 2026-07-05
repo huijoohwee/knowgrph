@@ -38,18 +38,9 @@ import { WORKSPACE_WEBPAGE_MARKDOWN_IMPORT_MAX_CHARS, WORKSPACE_WEBPAGE_MARKDOWN
 import { shouldSkipUnifiedMarkdownConversion } from '@/lib/websites/webpageMarkdownConversionBudget'
 import { isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
-import {
-  GLB_ASSET_MIME_TYPE,
-  GLTF_ASSET_MIME_TYPE,
-  buildGlbAssetMarkdown,
-  buildGltfAssetMarkdown,
-  deriveModelWorkspaceDocumentNameFromUrl,
-} from './glbAsset'
-import {
-  buildCorpusMediaMetadataMarkdown,
-  buildCorpusMediaWorkspaceDocumentName,
-  inferCorpusMediaKind,
-} from '@/features/queryable-corpus/corpusGraph'
+import { GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE, buildGlbAssetMarkdown, buildGltfAssetMarkdown, deriveModelWorkspaceDocumentNameFromUrl } from './glbAsset'
+import { buildSpatialCaptureUrlContent } from './urlSpatialCaptureContent'
+import { buildCorpusMediaMetadataMarkdown, buildCorpusMediaWorkspaceDocumentName, inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 import {
   autoTuneFromHtml,
   deriveFallbackExtFromNormalizedLower,
@@ -226,6 +217,12 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
             buffer: payload as ArrayBuffer,
           }),
     }
+  }
+
+  const spatialCaptureContent = buildSpatialCaptureUrlContent({ normalizedUrl, sourceUrl: localFsFetchPath && isFileUrl ? normalizedUrl.replace(/^file:\/\//i, '') : normalizedUrl })
+  if (spatialCaptureContent) {
+    opts?.onProgress?.(100)
+    return spatialCaptureContent
   }
 
   const twitterStatus = (() => {

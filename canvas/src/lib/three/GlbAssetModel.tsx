@@ -8,6 +8,8 @@ import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export type GlbFit = {
+  cameraProfile?: 'spatial-capture'
+  cameraTarget?: [number, number, number]
   position: [number, number, number]
   scale: number
   floorY: number

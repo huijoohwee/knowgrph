@@ -12,91 +12,11 @@ import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraC
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 import type { Canvas3dModeId } from '@/lib/config'
 import { isD3Like2dRenderer } from '@/lib/config.render'
+import { easeOutCubic01 } from '@/lib/canvas/zoom-smoothing'
+import { readModelAssetCameraPose, type ModelAssetCameraFit } from './modelAssetCameraPose'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
 
-function clamp(value: number, min: number, max: number): number {
-  if (value < min) return min
-  if (value > max) return max
-  return value
-}
-
-type ModelAssetCameraFit = {
-  preserveFlatFacing?: boolean
-  flatAxis?: 'x' | 'y' | 'z' | null
-  stageSpan?: number
-  scaledSize?: [number, number, number]
-}
-
-function readModelAssetCameraPose(fit?: ModelAssetCameraFit | null): {
-  position: [number, number, number]
-  target: [number, number, number]
-  up: [number, number, number]
-  near: number
-  far: number
-} {
-  const scaledSize = Array.isArray(fit?.scaledSize) ? fit.scaledSize : [0, 0, 0]
-  const maxScaledDim = Math.max(
-    Math.abs(Number(scaledSize[0] || 0)),
-    Math.abs(Number(scaledSize[1] || 0)),
-    Math.abs(Number(scaledSize[2] || 0)),
-    Math.abs(Number(fit?.stageSpan || 0)) * 0.36,
-    92,
-  )
-  const span = clamp(maxScaledDim, 32, 900)
-  const near = Math.max(0.01, span / 5000)
-  const far = Math.max(5000, span * 50)
-  const lateralSpan = Math.max(Math.abs(Number(scaledSize[0] || 0)), Math.abs(Number(scaledSize[2] || 0)))
-  const verticalSpan = Math.abs(Number(scaledSize[1] || 0))
-  if (fit?.preserveFlatFacing) {
-    if (fit.flatAxis === 'y') {
-      return {
-        position: [0, span * 2.65, span * 0.02],
-        target: [0, 0, 0],
-        up: [0, 0, -1],
-        near,
-        far,
-      }
-    }
-    if (fit.flatAxis === 'x') {
-      return {
-        position: [span * 2.8, 0, 0],
-        target: [0, 0, 0],
-        up: [0, 1, 0],
-        near,
-        far,
-      }
-    }
-    return {
-      position: [0, 0, span * 2.8],
-      target: [0, 0, 0],
-      up: [0, 1, 0],
-      near,
-      far,
-    }
-  }
-  if (lateralSpan > 0 && verticalSpan <= lateralSpan * 0.22) {
-    return {
-      position: [0, span * 2.65, span * 0.02],
-      target: [0, clamp(verticalSpan * 0.12, 0, span * 0.08), 0],
-      up: [0, 0, -1],
-      near,
-      far,
-    }
-  }
-  return {
-    position: [span * 1.56, Math.max(72, span * 1.08), span * 2.05],
-    target: [0, clamp(Math.abs(Number(scaledSize[1] || 0)) * 0.18, 0, span * 0.1), 0],
-    up: [0, 1, 0],
-    near,
-    far,
-  }
-}
-
-const easeOutCubic = (t: number): number => {
-  const p = clamp(t, 0, 1)
-  const u = 1 - p
-  return 1 - u * u * u
-}
+function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)) }
 
 export function Controls({
   schema,
@@ -216,7 +136,7 @@ export function Controls({
         const elapsedMs = now - voxelIntro.startAtMs - voxelIntro.delayMs
         const durMs = Math.max(80, voxelIntro.durationMs)
         const t = elapsedMs <= 0 ? 0 : elapsedMs / durMs
-        const k = easeOutCubic(t)
+        const k = easeOutCubic01(t)
         const inv = 1 - k
         const px = voxelIntro.from.px * inv + voxelIntro.to.px * k
         const py = voxelIntro.from.py * inv + voxelIntro.to.py * k
@@ -422,8 +342,8 @@ export function Controls({
     const d3Like = isD3Like2dRenderer(canvas2dRenderer)
     const layoutMode = schema.layout?.mode
     const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
-    const voxelMode = mode === 'voxel'
     const modelAssetMode = !!String(modelAssetRenderKey || '').trim()
+    const voxelMode = mode === 'voxel'
     const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)
     const orbitProfile = voxelMode
       ? {
@@ -501,23 +421,13 @@ export function Controls({
   }, [camera, canvas2dRenderer, controls, mode, modelAssetRenderKey, schema, viewPinned])
   React.useEffect(() => {
     const key = String(modelAssetRenderKey || '').trim()
-    if (paused || !key) return
+    if (!key || !modelAssetFit) return
     try {
-      const pose = readModelAssetCameraPose(modelAssetFit)
-      camera.up.set(pose.up[0], pose.up[1], pose.up[2])
-      camera.position.set(pose.position[0], pose.position[1], pose.position[2])
-      controls.target.set(pose.target[0], pose.target[1], pose.target[2])
-      perspectiveCamera.fov = 50
-      perspectiveCamera.zoom = 1
-      perspectiveCamera.near = pose.near
-      perspectiveCamera.far = pose.far
-      perspectiveCamera.updateProjectionMatrix()
-      camera.lookAt(controls.target)
-      controls.update()
+      applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
     } catch {
       void 0
     }
-  }, [camera, controls, modelAssetFit, modelAssetRenderKey, paused, perspectiveCamera])
+  }, [controls, modelAssetFit, modelAssetRenderKey, perspectiveCamera])
   React.useEffect(() => {
     const wasMode = previousModeRef.current
     previousModeRef.current = mode
@@ -626,13 +536,22 @@ export function Controls({
     if (paused) return
     const req = threeCameraRequest
     if (!req) return
-    if (viewPinned && req.type !== 'in' && req.type !== 'out') {
+    const modelAssetMode = !!String(modelAssetRenderKey || '').trim()
+    if (viewPinned && !modelAssetMode && req.type !== 'in' && req.type !== 'out') {
       useGraphStore.getState().clearThreeCameraRequest()
       return
     }
     const t0 = selectionPerfStart()
     if (req.type === 'in' || req.type === 'out') {
       applyZoomStep(controls, perspectiveCamera, req.type)
+      useGraphStore.getState().clearThreeCameraRequest()
+      selectionPerfEnd('three', t0)
+      return
+    }
+    if (modelAssetMode && modelAssetFit) {
+      if (req.type === 'fit' || req.type === 'reset') {
+        applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
+      }
       useGraphStore.getState().clearThreeCameraRequest()
       selectionPerfEnd('three', t0)
       return
@@ -669,11 +588,35 @@ export function Controls({
     })
     useGraphStore.getState().clearThreeCameraRequest()
     selectionPerfEnd('three', t0)
-  }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
+  }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled, modelAssetFit, modelAssetRenderKey])
   React.useEffect(() => {
     return () => {
       try { controls.dispose() } catch { void 0 }
     }
   }, [controls])
   return null
+}
+
+function applyModelAssetCameraPose({
+  camera,
+  controls,
+  fit,
+  perspectiveCamera,
+}: {
+  camera: PerspectiveCamera
+  controls: OrbitControls
+  fit: ModelAssetCameraFit
+  perspectiveCamera: PerspectiveCamera
+}) {
+  const pose = readModelAssetCameraPose(fit)
+  camera.up.set(pose.up[0], pose.up[1], pose.up[2])
+  camera.position.set(pose.position[0], pose.position[1], pose.position[2])
+  controls.target.set(pose.target[0], pose.target[1], pose.target[2])
+  perspectiveCamera.fov = 50
+  perspectiveCamera.zoom = 1
+  perspectiveCamera.near = pose.near
+  perspectiveCamera.far = pose.far
+  perspectiveCamera.updateProjectionMatrix()
+  camera.lookAt(controls.target)
+  controls.update()
 }

@@ -141,6 +141,8 @@ export function ToolbarMenuLauncher({
                   ? 'gantt'
                   : tab === 'timeline'
                     ? 'timeline'
+                    : tab === 'xr'
+                      ? 'xr'
                     : tab === 'architecture'
                       ? 'architecture'
                       : tab === 'eventModeling'

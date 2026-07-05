@@ -90,7 +90,7 @@ export function inferCorpusMediaKind(nameRaw: string, mimeHintRaw?: string | nul
   if (ext === '.pdf') return 'paper'
   if (ext === '.md' || ext === '.markdown' || ext === '.txt' || ext === '.html' || ext === '.htm' || ext === '.yaml' || ext === '.yml') return 'doc'
   if (ext === '.csv' || ext === '.json' || ext === '.jsonc' || ext === '.jsonld' || ext === '.geojson' || ext === '.toml' || ext === '.tf' || ext === '.tfvars') return 'data'
-  if (ext === '.gltf' || ext === '.glb') return 'model'
+  if (ext === '.gltf' || ext === '.glb' || ext === '.ply' || ext === '.spz') return 'model'
   if (IMAGE_EXTENSIONS.has(ext) || mimeHint.startsWith('image/')) return 'image'
   if (VIDEO_EXTENSIONS.has(ext) || mimeHint.startsWith('video/')) return 'video'
   return 'unknown'

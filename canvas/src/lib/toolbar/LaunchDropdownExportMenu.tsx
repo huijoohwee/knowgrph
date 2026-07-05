@@ -42,6 +42,9 @@ const EXPORT_ACTION_KEYS: readonly ExportMenuActionKey[] = [
 export const hasLaunchDropdownExportActions = (actions: LaunchDropdownExportActions): boolean =>
   EXPORT_ACTION_KEYS.some(key => typeof actions[key] === 'function')
 
+export const resolveLaunchDropdownVisibleExportItems = (actions: LaunchDropdownExportActions) =>
+  NON_PDF_EXPORT_ITEMS.filter(item => typeof actions[item.id] === 'function')
+
 export function LaunchDropdownExportMenu({
   canExport,
   exportActions,
@@ -56,6 +59,7 @@ export function LaunchDropdownExportMenu({
   runExportAction,
 }: LaunchDropdownExportMenuProps) {
   const canExportPdf = Boolean(exportActions.pdfPortrait || exportActions.pdfLandscape)
+  const visibleExportItems = React.useMemo(() => resolveLaunchDropdownVisibleExportItems(exportActions), [exportActions])
   const exportMenuClass = 'kg-launch-menu-children kg-click-expand-menu-children mt-1 m-0 flex flex-col list-none'
   const pdfExportMenuClass = 'kg-launch-menu-children kg-click-expand-menu-children mt-1 m-0 flex flex-col list-none'
   const exportMenuId = React.useId()
@@ -82,7 +86,7 @@ export function LaunchDropdownExportMenu({
         </button>
         {exportMenuOpen ? (
           <menu id={exportMenuId} className={exportMenuClass} aria-label="Export">
-            {NON_PDF_EXPORT_ITEMS.map(item => (
+            {visibleExportItems.map(item => (
               <li key={item.id} className="list-none">
                 <button
                   type="button"

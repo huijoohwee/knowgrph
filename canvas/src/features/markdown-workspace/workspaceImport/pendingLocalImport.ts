@@ -4,12 +4,15 @@ import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import { buildModelAssetMarkdownFromFile } from './glbAsset'
 import { clearPendingGlbAsset, setPendingGlbAsset } from '@/lib/assets/glbAssetRuntime'
+import { clearPendingSpatialCaptureAsset, setPendingSpatialCaptureAsset } from '@/lib/assets/spatialCaptureAssetRuntime'
 
 type PendingLocalImportItem =
   | { kind: 'text'; file: File; originalName: string }
   | { kind: 'pdf'; file: File; originalName: string }
   | { kind: 'glb'; file: File; originalName: string }
   | { kind: 'gltf'; file: File; originalName: string }
+  | { kind: 'ply'; file: File; originalName: string }
+  | { kind: 'spz'; file: File; originalName: string }
 
 const pendingLocalImportsByPath = new Map<string, PendingLocalImportItem>()
 
@@ -105,6 +108,8 @@ export function setPendingLocalImport(path: WorkspacePath, item: PendingLocalImp
   pendingLocalImportsByPath.set(key, item)
   if (item.kind === 'glb' || item.kind === 'gltf') {
     setPendingGlbAsset(key, item.file, item.originalName, item.kind)
+  } else if (item.kind === 'ply' || item.kind === 'spz') {
+    setPendingSpatialCaptureAsset(key, item.file, item.originalName, item.kind)
   }
 }
 
@@ -112,6 +117,7 @@ export function clearPendingLocalImport(path: WorkspacePath): void {
   const key = normalizeWorkspacePath(path)
   pendingLocalImportsByPath.delete(key)
   clearPendingGlbAsset(key)
+  clearPendingSpatialCaptureAsset(key)
 }
 
 export function peekPendingWorkspaceLocalImport(path: WorkspacePath): PendingLocalImportItem | null {
@@ -155,6 +161,8 @@ export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
       clearPendingGlbAsset(key)
       return { kind: pending.kind, text }
     }
+
+    if (pending.kind === 'ply' || pending.kind === 'spz') return null
 
     const text = await pending.file.text()
     await args.fs.writeFileText(key, text)

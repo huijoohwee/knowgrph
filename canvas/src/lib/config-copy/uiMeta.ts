@@ -91,6 +91,7 @@ export const UI_LABELS = {
   gitGraph: 'GitGraph',
   gantt: 'Gantt-Timeline',
   timeline: 'Timeline',
+  xr: 'XR',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',

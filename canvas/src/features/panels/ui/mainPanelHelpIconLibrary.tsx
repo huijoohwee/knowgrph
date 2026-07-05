@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Command as CommandIcon, Copy, CreditCard, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Command as CommandIcon, Copy, CreditCard, Cuboid, Eraser, Film, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, ImageIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
   Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
   Workflow,
@@ -72,6 +72,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.gitGraph',
   'floatingPanel.gantt',
   'floatingPanel.timeline',
+  'floatingPanel.xr',
   'floatingPanel.architecture',
   'floatingPanel.eventModeling',
   'floatingPanel.strybldr',
@@ -370,31 +371,12 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Flowchart',
     Icon: LayoutGrid,
   },
-  'floatingPanel.gitGraph': {
-    category: 'FloatingPanel surface',
-    label: 'GitGraph',
-    Icon: GitBranch,
-  },
-  'floatingPanel.gantt': {
-    category: 'FloatingPanel surface',
-    label: 'Gantt',
-    Icon: ChartGantt,
-  },
-  'floatingPanel.timeline': {
-    category: 'FloatingPanel surface',
-    label: 'Timeline',
-    Icon: HistoryIcon,
-  },
-  'floatingPanel.architecture': {
-    category: 'FloatingPanel surface',
-    label: 'Architecture',
-    Icon: Network,
-  },
-  'floatingPanel.eventModeling': {
-    category: 'FloatingPanel surface',
-    label: 'Event Model',
-    Icon: Workflow,
-  },
+  'floatingPanel.gitGraph': { category: 'FloatingPanel surface', label: 'GitGraph', Icon: GitBranch },
+  'floatingPanel.gantt': { category: 'FloatingPanel surface', label: 'Gantt', Icon: ChartGantt },
+  'floatingPanel.timeline': { category: 'FloatingPanel surface', label: 'Timeline', Icon: HistoryIcon },
+  'floatingPanel.xr': { category: 'FloatingPanel surface', label: 'XR', Icon: Cuboid },
+  'floatingPanel.architecture': { category: 'FloatingPanel surface', label: 'Architecture', Icon: Network },
+  'floatingPanel.eventModeling': { category: 'FloatingPanel surface', label: 'Event Model', Icon: Workflow },
   'floatingPanel.strybldr': {
     category: 'FloatingPanel surface',
     label: 'Strybldr',
@@ -535,6 +517,7 @@ export type FloatingPanelTypeIconView =
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
+  | 'xr'
   | 'architecture'
   | 'eventModeling'
   | 'strybldr'
@@ -555,6 +538,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   gitGraph: 'floatingPanel.gitGraph',
   gantt: 'floatingPanel.gantt',
   timeline: 'floatingPanel.timeline',
+  xr: 'floatingPanel.xr',
   architecture: 'floatingPanel.architecture',
   eventModeling: 'floatingPanel.eventModeling',
   strybldr: 'floatingPanel.strybldr',

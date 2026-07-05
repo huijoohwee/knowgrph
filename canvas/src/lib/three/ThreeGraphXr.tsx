@@ -7,6 +7,13 @@ import {
   subscribeXrPhysicsPlaygroundControls,
 } from '@/features/three/xrPhysicsPlaygroundControls'
 import { XR_PHYSICS_CONTROLLER_MODES, type XrPhysicsControllerMode } from '@/features/three/xrPhysicsPlaygroundModel'
+import {
+  readSpatialCaptureTool,
+  readSpatialCaptureToolLabel,
+  subscribeSpatialCaptureTool,
+} from '@/features/three/xrSpatialCaptureTools'
+import type { SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
+import { MinimapSpatialViewCube } from '@/features/minimap/MinimapSpatialViewCube'
 import { UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   XR_SESSION_MODE_ORDER,
@@ -47,14 +54,19 @@ type NavigatorWithXr = Navigator & {
 export function CanvasXrEntryPanel({
   active,
   rendererRef,
+  surfaceKind = 'graph',
+  spatialRuntimeStatus = 'idle',
 }: {
   active: boolean
   rendererRef: React.MutableRefObject<WebGLRenderer | null>
+  surfaceKind?: 'graph' | 'spatial-capture'
+  spatialRuntimeStatus?: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 }) {
   const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'active' | 'error'>('checking')
   const [sessionMode, setSessionMode] = React.useState<XrSessionMode>('immersive-ar')
   const [sessionSupport, setSessionSupport] = React.useState<XrSessionSupport>({})
   const [physicsMode, setPhysicsMode] = React.useState<XrPhysicsControllerMode>(readXrPhysicsPlaygroundControls().activeMode || 'roll')
+  const [spatialTool, setSpatialToolState] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const sessionRef = React.useRef<XrSessionLike | null>(null)
   const sessionModeRef = React.useRef<XrSessionMode>(sessionMode)
 
@@ -63,11 +75,16 @@ export function CanvasXrEntryPanel({
   }, [sessionMode])
 
   React.useEffect(() => {
-    if (!active) return undefined
+    if (!active || surfaceKind !== 'graph') return undefined
     return subscribeXrPhysicsPlaygroundControls(controls => {
       setPhysicsMode(controls.activeMode || 'roll')
     })
-  }, [active])
+  }, [active, surfaceKind])
+
+  React.useEffect(() => {
+    if (!active || surfaceKind !== 'spatial-capture') return undefined
+    return subscribeSpatialCaptureTool(setSpatialToolState)
+  }, [active, surfaceKind])
 
   React.useEffect(() => {
     const renderer = rendererRef.current
@@ -162,6 +179,31 @@ export function CanvasXrEntryPanel({
   }, [rendererRef, sessionMode])
 
   if (!active) return null
+  if (surfaceKind === 'spatial-capture') {
+    const activeSpatialToolLabel = readSpatialCaptureToolLabel(spatialTool)
+    return (
+      <>
+        <section
+          aria-label="XR spatial capture orientation"
+          data-kg-canvas-xr-mode="1"
+          data-kg-canvas-xr-surface-kind="spatial-capture"
+          data-kg-canvas-xr-status={status}
+          data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}
+          className="absolute left-1/2 top-14 z-[90] -translate-x-1/2 rounded-md bg-slate-900/82 px-4 py-1 text-xs font-medium text-slate-100 shadow-sm backdrop-blur"
+        >
+          <output>{activeSpatialToolLabel}</output>
+        </section>
+        <aside
+          aria-label="XR minimap overlay"
+          className="absolute z-[90] pointer-events-auto kg-canvas-minimap-overlay"
+          data-kg-canvas-xr-minimap-overlay="1"
+          data-kg-minimap-overlay-placement="bottom-left"
+        >
+          <MinimapSpatialViewCube />
+        </aside>
+      </>
+    )
+  }
   const canStart = status === 'supported' || status === 'active' || status === 'error'
   const bothModesSupported = sessionSupport['immersive-ar'] === true && sessionSupport['immersive-vr'] === true
   const label = status === 'active' ? 'Exit XR' : status === 'supported' ? 'Enter XR' : status === 'error' ? 'Retry XR' : status === 'unsupported' ? 'XR unavailable' : 'XR check'

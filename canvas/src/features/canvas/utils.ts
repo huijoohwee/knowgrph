@@ -33,6 +33,7 @@ export type FloatingPanelOpenEventDetail = {
     | 'gitGraph'
     | 'gantt'
     | 'timeline'
+    | 'xr'
     | 'architecture'
     | 'eventModeling'
     | 'strybldr'

@@ -2,6 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/types'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { isStandaloneSpatialCaptureManifestText } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
 
 type UseWorkspaceExportBridgeArgs = {
   activeDocumentKey: string
@@ -41,6 +42,11 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     () => String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)),
     [activeText, markdownEditText, viewerTextOverride],
   )
+  const activeExportText = React.useMemo(
+    () => String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText),
+    [activeText, viewerTextOverride],
+  )
+  const exportModelSceneActions = !isStandaloneSpatialCaptureManifestText(activeExportText)
 
   const flushGraphWritebackForExport = React.useCallback(() => {
     try {
@@ -211,8 +217,10 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         workspaceFileJsonLd: () => void handleExportWorkspaceFile(),
         markdown: () => void handleExportMarkdown(),
         png: () => void handleExportPng(),
-        gltf: () => void handleExportGltf(),
-        glb: () => void handleExportGlb(),
+        ...(exportModelSceneActions ? {
+          gltf: () => void handleExportGltf(),
+          glb: () => void handleExportGlb(),
+        } : {}),
         htmlWorkspace: () => void handleExportHtmlWorkspace(),
         htmlViewer: () => void handleExportHtmlViewer(),
         htmlCanvas: () => void handleExportHtmlCanvas(),
@@ -226,6 +234,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     [
       handleExportGlb,
       handleExportGltf,
+      exportModelSceneActions,
       handleExportHtmlCanvas,
       handleExportHtmlWorkspace,
       handleExportHtmlViewer,

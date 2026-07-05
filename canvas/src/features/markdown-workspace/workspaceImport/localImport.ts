@@ -2,9 +2,6 @@ import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES, WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES } from '@/lib/config'
-import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
-import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import {
   buildPendingLocalImportStub,
@@ -14,12 +11,11 @@ import {
 } from './pendingLocalImport'
 import { isCsvJsonConvertibleImportName, materializeCsvJsonImportArtifacts } from './csvJsonConversion'
 import { buildModelAssetMarkdownFromFile, deriveModelWorkspaceDocumentName } from './glbAsset'
-import { importTextFileOrWorkspaceJsonLd, isWorkspaceJsonLdName } from './workspaceFileJsonLd'
+import { importTextFileOrWorkspaceJsonLd } from './workspaceFileJsonLd'
 import type { WorkspaceImportResult } from './types'
 import {
   buildCorpusMediaMetadataMarkdown,
   buildCorpusMediaWorkspaceDocumentName,
-  inferCorpusMediaKind,
   type CorpusSourceUnit,
 } from '@/features/queryable-corpus/corpusGraph'
 import { buildCorpusWorkspaceImportResult, createCorpusSourceUnitRecorder } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
@@ -31,140 +27,18 @@ import {
 } from './videoSequenceTimelineImport'
 import { ensureFolderRel } from './localImportFolderPaths'
 import { materializeSpatialCaptureFilesetImports } from './spatialCaptureFilesetImport'
+import { importPdfFile } from './localImportPdf'
+import { deriveSpatialCaptureStandaloneManifestName, resolveSpatialCaptureStandaloneFormat } from './spatialCaptureFileset'
 import { getModelAssetFormat, isCorpusMediaImportFile, isLocalTextWorkspaceImportName, isPdfFile, isSupportedWorkspaceImportFile, toFileArray } from './localImportFormats'
-
-function recordCorpusSourceUnit(
-  recordSourceUnit: ReturnType<typeof createCorpusSourceUnitRecorder>,
-  args: { path: WorkspacePath; relativePath: string; originalName: string; text: string; file: File; status: CorpusSourceUnit['status'] },
-): void {
-  recordSourceUnit({
-    path: args.path,
-    relativePath: args.relativePath,
-    originalName: args.originalName,
-    text: args.text,
-    mimeHint: args.file.type,
-    byteSize: args.file.size,
-    status: args.status,
-  })
-}
-
-function pushLocalVideoSequenceImportAsset(
-  assets: VideoSequenceImportAsset[],
-  args: {
-    workspacePath: WorkspacePath
-    relativePath: string
-    originalName: string
-    file: File
-    importMode: VideoSequenceImportAsset['importMode']
-  },
-): void {
-  if (inferCorpusMediaKind(args.originalName || args.relativePath, args.file.type) !== 'video') return
-  assets.push({
-    workspacePath: args.workspacePath,
-    relativePath: args.relativePath,
-    originalName: args.originalName,
-    mimeHint: args.file.type,
-    byteSize: args.file.size,
-    importMode: args.importMode,
-  })
-}
-
-async function pruneVideoSequenceSourceDocuments(args: {
-  fs: WorkspaceFs
-  createdPaths: WorkspacePath[]
-  sources: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>
-  assets: VideoSequenceImportAsset[]
-}): Promise<WorkspacePath[]> {
-  const sourcePaths = new Set(
-    args.assets
-      .map(asset => normalizeWorkspacePath(asset.workspacePath || ''))
-      .filter(path => path && /\.source\.md$/i.test(path)),
-  )
-  if (sourcePaths.size === 0) return []
-  const removed: WorkspacePath[] = []
-  for (const path of sourcePaths) {
-    await args.fs.deleteEntry(path).catch(() => void 0)
-    removed.push(path)
-  }
-  const keepCreated = args.createdPaths.filter(path => !sourcePaths.has(normalizeWorkspacePath(path)))
-  args.createdPaths.splice(0, args.createdPaths.length, ...keepCreated)
-  const keepSources = args.sources.filter(item => !sourcePaths.has(normalizeWorkspacePath(item.path)))
-  args.sources.splice(0, args.sources.length, ...keepSources)
-  return removed
-}
-
-function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
-  const s = String(raw || '')
-  const needle = 'data:image/'
-  const base64Needle = ';base64,'
-  let index = 0
-  let changed = false
-  let out = ''
-  while (index < s.length) {
-    const start = s.indexOf(needle, index)
-    if (start < 0) {
-      out += s.slice(index)
-      break
-    }
-    const base64Pos = s.indexOf(base64Needle, start)
-    if (base64Pos < 0) {
-      out += s.slice(index)
-      break
-    }
-    out += s.slice(index, start)
-    const afterBase64 = base64Pos + base64Needle.length
-    const maxScan = Math.min(s.length, afterBase64 + 2_000_000)
-    let end = afterBase64
-    for (; end < maxScan; end += 1) {
-      const ch = s.charCodeAt(end)
-      if (ch === 41 || ch === 34 || ch === 39 || ch === 32 || ch === 10 || ch === 13 || ch === 9) break
-    }
-    changed = true
-    out += 'data:image/omitted;base64,'
-    index = end
-  }
-  return { text: out, changed }
-}
-
-function yamlQuote(value: string): string {
-  return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
-function buildPdfWorkspaceFrontmatter(args: { docId: string; outputDirRel: string }): string {
-  return `---\nkgPdfWorkspaceDocId: ${yamlQuote(args.docId)}\nkgPdfWorkspaceOutputDirRel: ${yamlQuote(args.outputDirRel)}\n---\n\n`
-}
-
-async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
-  const outputDirRel = readPdfWorkspaceOutputDirRel()
-  const imported = await importPdfToWorkspace({ file: args.file, outputDirRel })
-  if (!imported) throw new Error('PDF import failed')
-  if (imported.ok !== true) throw new Error(imported.error || 'PDF import failed')
-  const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, outputDirRel })
-  if (!fetched) throw new Error('PDF import failed')
-  if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
-  const markdownRaw = String(fetched.markdown || '')
-  const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
-  const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
-  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, outputDirRel })}${notice}${stripped.text}`
-  const name = deriveMarkdownNameFromPdfFilename(String(imported.name || 'document.md'))
-  return args.fs.createFile({ parentPath: args.parentPath, name, text })
-}
-
-function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
-  if (isPdfFile(file)) return false
-  if (isCorpusMediaImportFile(file)) return false
-  if (isWorkspaceJsonLdName(nameRaw)) return false
-  const lower = String(nameRaw || '').toLowerCase()
-  if (lower.endsWith('.csv') || lower.endsWith('.tsv') || lower.endsWith('.tab')) return false
-  const size = Math.max(0, Number(file?.size || 0))
-  if (getModelAssetFormat(file)) return size >= WORKSPACE_IMPORT_DEFER_LOCAL_MODEL_BYTES
-  return size >= WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES
-}
-
-function shouldMaterializeFolderTextForCorpus(nameRaw: string, mimeHint?: string | null): boolean {
-  const mediaKind = inferCorpusMediaKind(nameRaw, mimeHint)
-  return mediaKind === 'code' || mediaKind === 'sql' || mediaKind === 'script' || mediaKind === 'data'
-}
+import {
+  buildLocalSpatialCaptureManifest,
+  pruneVideoSequenceSourceDocuments,
+  pushLocalVideoSequenceImportAsset,
+  recordCorpusSourceUnit,
+  setPendingSpatialCaptureLocalImport,
+  shouldDeferLargeLocalFileImport,
+  shouldMaterializeFolderTextForCorpus,
+} from './localImportShared'
 
 async function persistLocalCsvJsonArtifacts(args: {
   fs: WorkspaceFs
@@ -262,9 +136,12 @@ export async function importWorkspaceLocalFiles(args: {
         })
         continue
       }
+      const spatialCaptureFormat = resolveSpatialCaptureStandaloneFormat(nameRaw, file.type)
       const modelFormat = getModelAssetFormat(file)
       const mediaMetadata = isCorpusMediaImportFile(file)
-      const importName = mediaMetadata
+      const importName = spatialCaptureFormat
+        ? deriveSpatialCaptureStandaloneManifestName(nameRaw)
+        : mediaMetadata
         ? buildCorpusMediaWorkspaceDocumentName(nameRaw)
         : modelFormat ? deriveModelWorkspaceDocumentName(nameRaw, modelFormat) : nameRaw
       const desiredPath = normalizeWorkspacePath(`${parentPath}/${importName}`)
@@ -277,7 +154,16 @@ export async function importWorkspaceLocalFiles(args: {
       ) {
         const existingText = await args.fs.readFileText(desiredPath)
         if (typeof existingText === 'string' && !isPendingLocalImportStubText(existingText)) {
-          const nextText = shouldDeferLargeLocalFileImport(file, nameRaw)
+          const nextText = spatialCaptureFormat
+            ? buildLocalSpatialCaptureManifest({
+                originalName: nameRaw,
+                format: spatialCaptureFormat,
+                sourceIdentity: nameRaw,
+                pendingLocalPath: desiredPath,
+                byteSize: file.size,
+                mimeHint: file.type,
+              })
+            : shouldDeferLargeLocalFileImport(file, nameRaw)
             ? buildPendingLocalImportStub({
                 kind: modelFormat || 'text',
                 originalName: nameRaw,
@@ -295,6 +181,7 @@ export async function importWorkspaceLocalFiles(args: {
                 })
               : modelFormat ? await buildModelAssetMarkdownFromFile(file, modelFormat) : await file.text()
           if (existingText === nextText) {
+            if (spatialCaptureFormat) setPendingSpatialCaptureLocalImport(desiredPath, file, nameRaw, spatialCaptureFormat)
             createdPaths.push(desiredPath)
             sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
             recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: existingText, file, status: 'cached' })
@@ -308,15 +195,32 @@ export async function importWorkspaceLocalFiles(args: {
             continue
           }
           await args.fs.writeFileText(desiredPath, nextText)
-          if (shouldDeferLargeLocalFileImport(file, nameRaw)) setPendingLocalImport(desiredPath, { kind: modelFormat || 'text', file, originalName: nameRaw })
+          if (spatialCaptureFormat) setPendingSpatialCaptureLocalImport(desiredPath, file, nameRaw, spatialCaptureFormat)
+          else if (shouldDeferLargeLocalFileImport(file, nameRaw)) setPendingLocalImport(desiredPath, { kind: modelFormat || 'text', file, originalName: nameRaw })
           else clearPendingLocalImport(desiredPath)
           createdPaths.push(desiredPath)
           sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
-          recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: nextText, file, status: shouldDeferLargeLocalFileImport(file, nameRaw) ? 'pending' : mediaMetadata ? 'unsupported' : 'parsed' })
+          recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: nextText, file, status: spatialCaptureFormat || shouldDeferLargeLocalFileImport(file, nameRaw) ? 'pending' : mediaMetadata ? 'unsupported' : 'parsed' })
           pushLocalVideoSequenceImportAsset(videoSequenceAssets, { workspacePath: desiredPath, relativePath: nameRaw, originalName: nameRaw, file, importMode: 'file' })
           continue
         }
         if (typeof existingText === 'string' && isPendingLocalImportStubText(existingText)) {
+          if (spatialCaptureFormat) {
+            const manifestText = buildLocalSpatialCaptureManifest({
+              originalName: nameRaw,
+              format: spatialCaptureFormat,
+              sourceIdentity: nameRaw,
+              pendingLocalPath: desiredPath,
+              byteSize: file.size,
+              mimeHint: file.type,
+            })
+            await args.fs.writeFileText(desiredPath, manifestText)
+            setPendingSpatialCaptureLocalImport(desiredPath, file, nameRaw, spatialCaptureFormat)
+            createdPaths.push(desiredPath)
+            sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+            recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: nameRaw, originalName: nameRaw, text: manifestText, file, status: 'pending' })
+            continue
+          }
           if (shouldDeferLargeLocalFileImport(file, nameRaw)) {
             const kind = modelFormat || 'text'
             await args.fs.writeFileText(desiredPath, buildPendingLocalImportStub({
@@ -376,7 +280,20 @@ export async function importWorkspaceLocalFiles(args: {
 
       let unitText = ''
       let unitStatus: CorpusSourceUnit['status'] = 'parsed'
-      const createdPath = shouldDeferLargeLocalFileImport(file, nameRaw)
+      const createdPath = spatialCaptureFormat
+        ? await args.fs.createFile({
+            parentPath,
+            name: importName,
+            text: (unitText = buildLocalSpatialCaptureManifest({
+              originalName: nameRaw,
+              format: spatialCaptureFormat,
+              sourceIdentity: nameRaw,
+              pendingLocalPath: desiredPath,
+              byteSize: file.size,
+              mimeHint: file.type,
+            })),
+          })
+        : shouldDeferLargeLocalFileImport(file, nameRaw)
         ? await (async () => {
             const stubText = buildPendingLocalImportStub({
               kind: modelFormat || 'text',
@@ -433,6 +350,21 @@ export async function importWorkspaceLocalFiles(args: {
               },
             })
       const normalized = normalizeWorkspacePath(createdPath)
+      if (spatialCaptureFormat) {
+        if (normalized !== desiredPath) {
+          unitText = buildLocalSpatialCaptureManifest({
+            originalName: nameRaw,
+            format: spatialCaptureFormat,
+            sourceIdentity: nameRaw,
+            pendingLocalPath: normalized,
+            byteSize: file.size,
+            mimeHint: file.type,
+          })
+          await args.fs.writeFileText(normalized, unitText)
+        }
+        unitStatus = 'pending'
+        setPendingSpatialCaptureLocalImport(normalized, file, nameRaw, spatialCaptureFormat)
+      }
       if (mediaMetadata) unitStatus = 'unsupported'
       if (isPdfFile(file) && !unitText) {
         unitText = String((await args.fs.readFileText(normalized).catch(() => '')) || '')
@@ -554,10 +486,13 @@ export async function importWorkspaceLocalFolder(args: {
 
     const parts = relPath.split('/').filter(Boolean)
     const isXrImageAsset = isXrImageAssetFile(file)
+    const rawRelName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
+    const spatialCaptureFormat = isXrImageAsset ? null : resolveSpatialCaptureStandaloneFormat(rawRelName, file.type)
     const modelFormat = getModelAssetFormat(file)
     const mediaMetadata = isCorpusMediaImportFile(file)
-    const rawRelName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
-    const relName = mediaMetadata
+    const relName = spatialCaptureFormat
+      ? deriveSpatialCaptureStandaloneManifestName(rawRelName)
+      : mediaMetadata
       ? buildCorpusMediaWorkspaceDocumentName(rawRelName)
       : modelFormat ? deriveModelWorkspaceDocumentName(rawRelName, modelFormat) : rawRelName
     const relDir = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
@@ -588,7 +523,17 @@ export async function importWorkspaceLocalFolder(args: {
         && !deferLocalImport
         && isLocalTextWorkspaceImportName(rawRelName)
         && shouldMaterializeFolderTextForCorpus(rawRelName, file.type)
-      if (mediaMetadata) {
+      if (spatialCaptureFormat) {
+        unitText = buildLocalSpatialCaptureManifest({
+          originalName: rawRelName,
+          format: spatialCaptureFormat,
+          sourceIdentity: relPath || rawRelName,
+          pendingLocalPath: desiredPath,
+          byteSize: file.size,
+          mimeHint: file.type,
+        })
+        unitStatus = 'pending'
+      } else if (mediaMetadata) {
         unitText = buildCorpusMediaMetadataMarkdown({
           originalName: rawRelName,
           mimeHint: file.type,
@@ -612,6 +557,7 @@ export async function importWorkspaceLocalFolder(args: {
       if (unitText) {
         const existingText = await args.fs.readFileText(desiredPath).catch(() => null)
         if (existingText === unitText) {
+          if (spatialCaptureFormat) setPendingSpatialCaptureLocalImport(desiredPath, file, rawRelName, spatialCaptureFormat)
           createdPaths.push(desiredPath)
           sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
           recordCorpusSourceUnit(recordSourceUnit, { path: desiredPath, relativePath: relPath || rawRelName, originalName: rawRelName, text: existingText, file, status: 'cached' })
@@ -625,7 +571,13 @@ export async function importWorkspaceLocalFolder(args: {
           continue
         }
       }
-      const createdPath = mediaMetadata
+      const createdPath = spatialCaptureFormat
+        ? await args.fs.createFile({
+            parentPath,
+            name: relName,
+            text: unitText,
+          })
+        : mediaMetadata
         ? await args.fs.createFile({
             parentPath,
             name: relName,
@@ -670,6 +622,20 @@ export async function importWorkspaceLocalFolder(args: {
           })()
 
       const normalized = normalizeWorkspacePath(createdPath)
+      if (spatialCaptureFormat) {
+        if (normalized !== desiredPath) {
+          unitText = buildLocalSpatialCaptureManifest({
+            originalName: rawRelName,
+            format: spatialCaptureFormat,
+            sourceIdentity: relPath || rawRelName,
+            pendingLocalPath: normalized,
+            byteSize: file.size,
+            mimeHint: file.type,
+          })
+          await args.fs.writeFileText(normalized, unitText)
+        }
+        setPendingSpatialCaptureLocalImport(normalized, file, rawRelName, spatialCaptureFormat)
+      }
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
       recordCorpusSourceUnit(recordSourceUnit, { path: normalized, relativePath: relPath || rawRelName, originalName: rawRelName, text: unitText || String((await args.fs.readFileText(normalized).catch(() => '')) || ''), file, status: unitStatus })

@@ -47,6 +47,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
       raw === 'gitGraph' ||
       raw === 'gantt' ||
       raw === 'timeline' ||
+      raw === 'xr' ||
       raw === 'architecture' ||
       raw === 'eventModeling'
       ? raw
@@ -68,6 +69,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
       raw === 'gitGraph' ||
       raw === 'gantt' ||
       raw === 'timeline' ||
+      raw === 'xr' ||
       raw === 'architecture' ||
       raw === 'eventModeling' ||
       raw === 'strybldr' ||
