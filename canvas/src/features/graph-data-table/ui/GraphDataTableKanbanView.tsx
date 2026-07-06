@@ -22,6 +22,7 @@ import { getKanbanCardDragVisualState, getKanbanLaneDragVisualState } from '@/fe
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
 import { buildCardParagraphEntries } from '@/lib/cards/cardParagraphs'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
 import {
   UI_RESPONSIVE_DATA_VIEW_KANBAN_CARD_LIST_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_KANBAN_STATUS_ROW_CLASSNAME,
@@ -382,6 +383,7 @@ export const GraphDataTableKanbanView = React.memo(function GraphDataTableKanban
                 })
                 const cardDragProps = kanbanDrag.createCardDragProps({ rowId: row.id, groupKey: lane.id })
                 const cardDropProps = kanbanDrag.createCardDropProps({ rowId: row.id, groupKey: lane.id })
+                const rowInlineMediaCommandContext = buildInlineMediaCommandContextFromRecord(row)
                 return (
                   <li key={row.id} className="list-none">
                     <article
@@ -482,6 +484,8 @@ export const GraphDataTableKanbanView = React.memo(function GraphDataTableKanban
                                   placeholder={`Add ${entry.label.toLowerCase()}`}
                                   canEdit={!!props.onUpdateCell}
                                   multiline
+                                  markdownPreview="auto"
+                                  markdownCommandContextText={rowInlineMediaCommandContext}
                                   rows={3}
                                   onCommit={nextValue => {
                                     if (!props.onUpdateCell) return

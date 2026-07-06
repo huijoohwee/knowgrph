@@ -18,10 +18,12 @@ import {
   CHAT_PROVIDER_OPENAI,
   CHAT_PROVIDER_OPTIONS,
   CHAT_PROVIDER_QWEN,
+  CHAT_PROVIDER_SEALION,
   CHAT_QWEN_CHINA_BEIJING_HOST,
   CHAT_QWEN_HONG_KONG_HOST,
   CHAT_QWEN_SINGAPORE_HOST,
   CHAT_QWEN_US_VIRGINIA_HOST,
+  CHAT_SEALION_HOST,
   CHAT_BYTEPLUS_AP_SOUTHEAST_HOST,
   CHAT_BYTEPLUS_EU_WEST_HOST,
   type ChatProviderId,
@@ -41,6 +43,9 @@ const isTrustedMiroMindHost = (hostname: string): boolean =>
 
 const isTrustedAgnesHost = (hostname: string): boolean =>
   String(hostname || '').toLowerCase() === CHAT_AGNES_HOST
+
+const isTrustedSealionHost = (hostname: string): boolean =>
+  String(hostname || '').toLowerCase() === CHAT_SEALION_HOST
 
 const isTrustedQwenHost = (hostname: string): boolean => {
   const host = String(hostname || '').toLowerCase()
@@ -75,6 +80,7 @@ export function inferChatProviderFromEndpointUrl(value: unknown, fallbackProvide
     if (isTrustedOpenAiHost(hostname)) return CHAT_PROVIDER_OPENAI
     if (isTrustedMiroMindHost(hostname)) return CHAT_PROVIDER_MIROMIND
     if (isTrustedAgnesHost(hostname)) return CHAT_PROVIDER_AGNES
+    if (isTrustedSealionHost(hostname)) return CHAT_PROVIDER_SEALION
     if (isTrustedQwenHost(hostname)) return CHAT_PROVIDER_QWEN
     if (isTrustedGoogleCloudHost(hostname)) return CHAT_PROVIDER_GOOGLE_CLOUD
     if (isTrustedBytePlusHost(hostname)) return CHAT_PROVIDER_BYTEPLUS
@@ -97,6 +103,8 @@ const CHAT_PROVIDER_BY_MODEL_PREFIX: Array<[RegExp, ChatProviderId]> = [
   [/^gpt-/i, CHAT_PROVIDER_OPENAI],
   [/^miro/i, CHAT_PROVIDER_MIROMIND],
   [/^agnes/i, CHAT_PROVIDER_AGNES],
+  [/^(?:aisingapore\/)?(?:gemma|qwen|llama|apertus)-sea-lion/i, CHAT_PROVIDER_SEALION],
+  [/^sea-lion/i, CHAT_PROVIDER_SEALION],
   [/^qwen\//i, CHAT_PROVIDER_LM_STUDIO],
   [/^qwen(?:-|3)/i, CHAT_PROVIDER_QWEN],
   [/^google\/gemini-/i, CHAT_PROVIDER_GOOGLE_CLOUD],

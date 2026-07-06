@@ -115,6 +115,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const [glbAssetFit, setGlbAssetFit] = useState<GlbFit | null>(null)
   const [spatialCaptureFit, setSpatialCaptureFit] = useState<GlbFit | null>(null)
   const [spatialRuntimeStatus, setSpatialRuntimeStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle')
+  const [spatialRuntimeFidelity, setSpatialRuntimeFidelity] = useState<'idle' | 'preview' | 'full'>('idle')
   useEffect(() => {
     setGlbAssetFit(null)
   }, [glbAssetRenderKey])
@@ -122,10 +123,14 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     setSpatialCaptureFit(null)
   }, [spatialCaptureRenderKey])
   useEffect(() => {
-    if (!spatialCaptureManifest) setSpatialRuntimeStatus('idle')
+    if (!spatialCaptureManifest) {
+      setSpatialRuntimeStatus('idle')
+      setSpatialRuntimeFidelity('idle')
+    }
   }, [spatialCaptureManifest])
-  const handleSpatialLoadStateChange = useCallback((state: { status: 'loading' | 'ready' | 'empty' | 'error' }) => {
+  const handleSpatialLoadStateChange = useCallback((state: { load?: { fidelity?: 'preview' | 'full' }; status: 'loading' | 'ready' | 'empty' | 'error' }) => {
     setSpatialRuntimeStatus(state.status)
+    setSpatialRuntimeFidelity(state.status === 'ready' ? state.load?.fidelity || 'full' : 'idle')
   }, [])
   const handleSpatialCaptureFitChange = useCallback((fit: GlbFit | null) => {
     setSpatialCaptureFit(fit)
@@ -410,6 +415,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         rendererRef={threeGlRef}
         surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}
         spatialRuntimeStatus={spatialRuntimeStatus}
+        spatialRuntimeFidelity={spatialRuntimeFidelity}
       />
       {overlayLayer}
       <GraphHoverTooltip

@@ -1,4 +1,5 @@
 import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, buildKnowgrphAgentReadyToolContracts, KNOWGRPH_AGENT_READY_TOOL_IDS } from "./knowgrphAgentReadyToolContract.mjs"; import { hashSignatureParts } from "../../../../grph-shared/dist/hash/signature.js";
+import { buildVdeoxplnToolPromptLines, buildVdeoxplnToolRoutingAliases } from "./knowgrphVdeoxplnRoutingTools.mjs";
 export const KNOWGRPH_VDEOXPLN_CONTRACT_VERSION = "knowgrph-vdeoxpln/v0.1";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   search: KNOWGRPH_AGENT_READY_TOOL_IDS.search,
@@ -12,6 +13,7 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   browserApiRun: "knowgrph.browser_api.run",
   htmlVideoRender: "knowgrph.html_video.render", annotateImage: "knowgrph.annotate.image", annotateVideoFrame: "knowgrph.annotate.video_frame",
   memoryAdd: "knowgrph.memory.add", memorySearch: "knowgrph.memory.search", memoryAssemblePrompt: "knowgrph.memory.assemble_prompt",
+  sealionDetectLanguageVariant: "sealion.detect_language_variant", sealionTranslateLocalize: "sealion.translate_localize", sealionSafetyCheck: "sealion.safety_check",
   showrunnerStartRun: "knowgrph.showrunner.start_run", showrunnerRunStatus: "knowgrph.showrunner.run_status", showrunnerPostChoice: "knowgrph.showrunner.post_choice", showrunnerSubmitCritique: "knowgrph.showrunner.submit_critique", showrunnerApproveStage: "knowgrph.showrunner.approve_stage", showrunnerGetArtifact: "knowgrph.showrunner.get_artifact",
   vdeoxplnList: "knowgrph.vdeoxpln.list",
 });
@@ -183,12 +185,12 @@ const RAW_VDEOXPLN = Object.freeze([
   {
     id: KNOWGRPH_VDEOXPLN_IDS.localMcp,
     title: "Knowgrph Local MCP",
-    purpose: "Expose local UI launch, pipeline, GraphRAG, superagent, Agentic Canvas OS planning, video-remix run planning, browser bridge, and vdeoxpln inspection tools through the stdio MCP server.",
+    purpose: "Expose local UI launch, pipeline, GraphRAG, superagent, Agentic Canvas OS planning, video-remix run planning, browser bridge, SEA-LION sidecar, and vdeoxpln inspection tools through the stdio MCP server.",
     scope: "local-stdio",
     mutation: "local-confirmed",
-    triggers: ["local mcp", "launch canvas", "run pipeline", "graphrag", "superagent", "agentic canvas os", "video remix", "browser api", "list vdeoxpln"],
-    inputs: ["local root", "workspace file", "graph data", "pipeline config", "reference URL", "source cards", "browser API runtime"],
-    outputs: ["local tool result", "pipeline artifact", "superagent report", "agentic canvas os dashboard plan", "video remix run manifest", "vdeoxpln registry snapshot"],
+    triggers: ["local mcp", "launch canvas", "run pipeline", "graphrag", "superagent", "agentic canvas os", "video remix", "browser api", "sealion sidecar", "list vdeoxpln"],
+    inputs: ["local root", "workspace file", "graph data", "pipeline config", "reference URL", "source cards", "browser API runtime", "Southeast Asian language text"],
+    outputs: ["local tool result", "pipeline artifact", "superagent report", "agentic canvas os dashboard plan", "video remix run manifest", "SEA-LION sidecar result", "vdeoxpln registry snapshot"],
     owners: [
       "mcp/local-tool-contract.js",
       "mcp/server.js",
@@ -202,23 +204,13 @@ const RAW_VDEOXPLN = Object.freeze([
     tools: {
       published: [],
       browserLocal: [],
-      local: [
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
-        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
-      ],
+      local: [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList],
     },
     workflow: [
       "List local tools from the shared local MCP contract.",
       "Run only path-guarded local-root operations.",
       "Run video-remix orchestration as an approval-gated local manifest before any paid provider call.",
+      "Forward SEA-LION regional language, localization, and safety calls to the hosted sidecar with server-owned auth.",
       "Summarize artifacts and registry metadata in the MCP result.",
     ],
     aiPolicy: {
@@ -602,6 +594,8 @@ const scoreVdeoxplnForRouting = (vdeoxpln, signalText, signalTokens) => {
   addMatches("trigger", vdeoxpln.triggers, 6);
   addMatches("input", vdeoxpln.inputs, 3);
   addMatches("output", vdeoxpln.outputs, 4);
+  addMatches("tool", buildVdeoxplnToolRoutingAliases(vdeoxpln.tools), 8);
+  addMatches("profile", [vdeoxpln.id, String(vdeoxpln.id || "").replace(/^knowgrph-/, ""), vdeoxpln.title], 7);
   if (String(vdeoxpln.artifactPolicy?.graphMaterialization || "none") !== "none") {
     if (signalTokens.has("graph") || signalTokens.has("canvas") || signalTokens.has("kgc")) {
       score += 4;
@@ -773,6 +767,8 @@ export const buildKnowgrphVdeoxplnChatSystemPrompt = (plan) => {
     `- AI max attempts: ${String(plan.selectedVdeoxpln.aiPolicy?.maxAttempts ?? 0)}`,
     `- AI token budget: ${String(plan.selectedVdeoxpln.aiPolicy?.tokenBudget ?? 0)}`,
     `- AI fallback: ${plan.selectedVdeoxpln.aiPolicy?.fallback || "Return deterministic errors without model calls."}`,
+    ...buildVdeoxplnToolPromptLines(plan.selectedVdeoxpln.tools),
+    "Invoke only tools exposed by the active request or connected runtime. If a selected tool is unavailable, return its exact name and required inputs as a handoff instead of claiming execution.",
     "Use deterministic source, validation, and canvas owners for exact graph state. Use provider output only for the AI-assisted stage already routed through this FloatingPanel Chat harness.",
     "Do not infer vdeoxpln selection from route names, file names, absolute paths, demo fixtures, or compatibility aliases.",
     "Stages:",

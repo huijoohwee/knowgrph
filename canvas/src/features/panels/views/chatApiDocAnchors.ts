@@ -30,6 +30,10 @@ export function getAgnesApiRowAnchorId(rowKey: string): string {
   return buildSettingsRowAnchorId('agnes-chat-api-row', rowKey)
 }
 
+export function getSealionApiRowAnchorId(rowKey: string): string {
+  return buildSettingsRowAnchorId('sealion-chat-api-row', rowKey)
+}
+
 export function getMiroMindApiRowAnchorId(rowKey: string): string {
   return buildSettingsRowAnchorId('miromind-chat-api-row', rowKey)
 }

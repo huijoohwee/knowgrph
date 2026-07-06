@@ -229,7 +229,12 @@ export async function testMarkdownPreviewViewerMediaDefaultsToInlineChip() {
     const root = createRoot(container as unknown as HTMLElement)
 
     const markdownText = [
+      '---',
+      'mediaUrl: https://example.com/storyboard-beats.png',
+      '---',
+      '',
       '1. Approve the storyboard cards before any paid or mutating provider call.',
+      'Use {{mediaUrl}} as the source preview.',
       '',
       '![buddydrone.jpg](https://example.com/buddydrone.jpg)',
       '',
@@ -270,6 +275,16 @@ export async function testMarkdownPreviewViewerMediaDefaultsToInlineChip() {
     if (!mediaChip) throw new Error(`expected default Viewer media to render as inline chip, html=${container.innerHTML}`)
     if (!String(mediaChip.textContent || '').includes('buddydrone.jpg')) {
       throw new Error(`expected Viewer media chip to preserve media label, got ${JSON.stringify(mediaChip.textContent)}`)
+    }
+    const mediaChipThumbnail = mediaChip.querySelector('[data-kg-inline-command-thumbnail="image"] img') as HTMLImageElement | null
+    if (!mediaChipThumbnail) throw new Error(`expected Viewer media chip to reuse shared inline mini thumbnail, html=${container.innerHTML}`)
+    if (!String(mediaChipThumbnail.getAttribute('src') || '').includes('buddydrone.jpg')) {
+      throw new Error(`expected Viewer media chip thumbnail to use resolved media URL, got ${JSON.stringify(mediaChipThumbnail.getAttribute('src'))}`)
+    }
+    const mediaVariableChip = container.querySelector('a[data-kg-var-key="mediaUrl"] [data-kg-inline-command-thumbnail="image"] img') as HTMLImageElement | null
+    if (!mediaVariableChip) throw new Error(`expected mediaUrl variable chip to reuse shared inline mini thumbnail, html=${container.innerHTML}`)
+    if (mediaVariableChip.getAttribute('src') !== 'https://example.com/storyboard-beats.png') {
+      throw new Error(`expected mediaUrl variable thumbnail to use resolved media URL, got ${JSON.stringify(mediaVariableChip.getAttribute('src'))}`)
     }
     const download = container.querySelector('a[download][aria-label="Download media"]')
     if (download) throw new Error(`expected default Viewer chip media to omit full-media download chrome, html=${container.innerHTML}`)

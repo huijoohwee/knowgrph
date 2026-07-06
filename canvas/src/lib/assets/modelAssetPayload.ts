@@ -8,6 +8,41 @@ export type ModelAssetRenderPayload = {
   byteLength: number
 }
 
+const MODEL_ASSET_RENDER_PAYLOAD_CACHE_LIMIT = 3
+const modelAssetRenderPayloadCache = new Map<string, Promise<ModelAssetRenderPayload>>()
+
+function buildModelAssetPayloadCacheKey(asset: GlbAssetDocument): string {
+  return [
+    asset.format,
+    asset.name,
+    asset.mimeType,
+    asset.byteLength ?? '',
+    asset.pendingLocalImportPath || '',
+    asset.sourceUrl || '',
+    asset.dataUrl ? asset.dataUrl.length : '',
+    asset.validMagic === false ? 'magic:0' : asset.validMagic === true ? 'magic:1' : '',
+    asset.validContainer === false ? 'container:0' : asset.validContainer === true ? 'container:1' : '',
+    asset.validJson === false ? 'json:0' : asset.validJson === true ? 'json:1' : '',
+    asset.validGltfAsset === false ? 'gltf:0' : asset.validGltfAsset === true ? 'gltf:1' : '',
+  ].join('|')
+}
+
+function readCachedModelAssetPayload(cacheKey: string): Promise<ModelAssetRenderPayload> | null {
+  const cached = modelAssetRenderPayloadCache.get(cacheKey)
+  if (!cached) return null
+  modelAssetRenderPayloadCache.delete(cacheKey)
+  modelAssetRenderPayloadCache.set(cacheKey, cached)
+  return cached
+}
+
+function pruneModelAssetPayloadCache(activeCacheKey: string): void {
+  while (modelAssetRenderPayloadCache.size > MODEL_ASSET_RENDER_PAYLOAD_CACHE_LIMIT) {
+    const nextKey = modelAssetRenderPayloadCache.keys().next().value
+    if (!nextKey || nextKey === activeCacheKey) break
+    modelAssetRenderPayloadCache.delete(nextKey)
+  }
+}
+
 function decodeBase64DataUrl(dataUrl: string): Uint8Array | null {
   const comma = dataUrl.indexOf(',')
   if (comma < 0) return null
@@ -25,6 +60,11 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const out = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(out).set(bytes)
   return out
+}
+
+function readDirectLoaderInput(value: unknown): string | ArrayBuffer | null {
+  const direct = (value as { loaderInput?: unknown } | null)?.loaderInput
+  return typeof direct === 'string' || direct instanceof ArrayBuffer ? direct : null
 }
 
 export function deriveModelAssetResourceBasePath(sourceUrl: string | undefined): string {
@@ -48,7 +88,7 @@ export function deriveModelAssetResourceBasePath(sourceUrl: string | undefined):
   }
 }
 
-export async function loadModelAssetRenderPayload(asset: GlbAssetDocument): Promise<ModelAssetRenderPayload> {
+async function loadModelAssetRenderPayloadUncached(asset: GlbAssetDocument): Promise<ModelAssetRenderPayload> {
   if (asset.format === 'glb' && asset.validMagic === false) throw new Error('Invalid GLB magic')
   if (asset.format === 'glb' && asset.validContainer === false) throw new Error('Invalid GLB container')
   if (asset.format === 'gltf' && asset.validJson === false) throw new Error('Invalid GLTF JSON')
@@ -72,6 +112,16 @@ export async function loadModelAssetRenderPayload(asset: GlbAssetDocument): Prom
   if (asset.format === 'gltf' && resolved.validJson === false) throw new Error('Invalid GLTF JSON')
   if (resolved.validGltfAsset === false) throw new Error('Invalid glTF asset version')
 
+  const directLoaderInput = readDirectLoaderInput(resolved)
+  if (directLoaderInput) {
+    return {
+      format: asset.format,
+      loaderInput: directLoaderInput,
+      basePath: asset.format === 'gltf' ? deriveModelAssetResourceBasePath(asset.sourceUrl) : '',
+      byteLength: Math.max(0, Number(resolved.byteLength || 0)),
+    }
+  }
+
   const bytes = decodeBase64DataUrl(resolved.dataUrl)
   if (!bytes) throw new Error('Invalid model data URL')
 
@@ -83,4 +133,21 @@ export async function loadModelAssetRenderPayload(asset: GlbAssetDocument): Prom
     basePath: asset.format === 'gltf' ? deriveModelAssetResourceBasePath(asset.sourceUrl) : '',
     byteLength: Math.max(0, Number(resolved.byteLength || bytes.byteLength || 0)),
   }
+}
+
+export async function loadModelAssetRenderPayload(asset: GlbAssetDocument): Promise<ModelAssetRenderPayload> {
+  const cacheKey = buildModelAssetPayloadCacheKey(asset)
+  const cached = readCachedModelAssetPayload(cacheKey)
+  if (cached) return cached
+  const task = loadModelAssetRenderPayloadUncached(asset)
+  task.catch(() => {
+    if (modelAssetRenderPayloadCache.get(cacheKey) === task) modelAssetRenderPayloadCache.delete(cacheKey)
+  })
+  modelAssetRenderPayloadCache.set(cacheKey, task)
+  pruneModelAssetPayloadCache(cacheKey)
+  return task
+}
+
+export function resetModelAssetRenderPayloadCacheForTests(): void {
+  modelAssetRenderPayloadCache.clear()
 }

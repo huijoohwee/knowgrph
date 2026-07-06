@@ -4,8 +4,6 @@ import type { TokensTable } from '@/features/markdown/ui/MarkdownTokens'
 
 const PIPE_TABLE_LINE_RE = /^\s*\|.*\|\s*$/
 const PIPE_TABLE_SEPARATOR_RE = /^\s*\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/
-const YAML_METADATA_TRAILING_COLUMNS = ['Key', 'Type', 'Value', 'Summary', 'Output', 'Action', 'Reference Pack', 'Source Value', 'Level', 'Content', 'Line', 'Indent'] as const
-
 export type YamlMetadataTableProjection = {
   lines: string[]
   sourceLineByRowIndex: number[]
@@ -145,6 +143,8 @@ const formatTypedInlineValue = (value: string, type: string, originalRawValue = 
   return yamlQuote(next)
 }
 
+const isYamlBlockScalarMarker = (value: string): boolean => /^[|>][+-]?$/.test(String(value || '').trim())
+
 export const readYamlKeyValue = (line: string): { key: string; value: string; indent: number } | null => {
   const raw = String(line || '')
   const match = raw.match(/^(\s*)(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_.:-]*))\s*:\s*(.*)$/)
@@ -221,6 +221,13 @@ type YamlMetadataRow = {
 
 const normalizeSemanticKey = (value: string): string => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 
+const readYamlTypeValueColumnName = (type: string): string => {
+  const normalized = normalizeSemanticKey(type)
+  if (!normalized || normalized === 'blank' || normalized === 'map') return ''
+  const label = normalized.split('_').filter(Boolean).map(part => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`).join(' ')
+  return label ? `${label} Value` : ''
+}
+
 const readYamlRowSemanticColumns = (args: {
   key: string
   levels: readonly string[]
@@ -279,6 +286,8 @@ export const buildYamlMetadataTableMarkdown = (args: {
 }): YamlMetadataTableProjection => {
   const sourceLines = splitSourceLines(args.text)
   const stack: { indent: number; key: string; path: string }[] = []
+  const typeByPath = new Map<string, string>()
+  const blockScalarValuePaths = new Set<string>()
   const rowModels: YamlMetadataRow[] = sourceLines.map((line, index) => {
     const parsed = readYamlKeyValue(line)
     const listValue = readYamlListValue(line)
@@ -287,6 +296,26 @@ export const buildYamlMetadataTableMarkdown = (args: {
     const parentPath = stack[stack.length - 1]?.path || ''
     const level = Math.max(0, stack.length)
     const parentLevels = parentPath ? parentPath.split('.') : []
+    const blockValuePath = parentPath && blockScalarValuePaths.has(parentPath) ? parentPath : ''
+    if (blockValuePath) {
+      const blockValueType = typeByPath.get(blockValuePath.split('.').slice(0, -1).join('.')) || ''
+      const blockValue = stripLineIndent(line)
+      return {
+        levels: parentLevels,
+        key: 'value',
+        type: blockValueType || 'blank',
+        value: blockValue,
+        summary: '',
+        output: '',
+        action: '',
+        referencePack: '',
+        sourceValue: blockValue,
+        content: blockValue,
+        level,
+        line: args.startLine + index,
+        indent,
+      }
+    }
     if (parsed) {
       const typed = readTypedInlineValue(parsed.value)
       const rowKey = typed?.key || parsed.key
@@ -294,11 +323,14 @@ export const buildYamlMetadataTableMarkdown = (args: {
       const levels = [...parentLevels, rowKey]
       const value = typed?.value ?? parsed.value ?? ''
       const sourceValue = parsed.value || ''
+      if (parsed.key === 'type' && parentPath && value) typeByPath.set(parentPath, value)
+      if (parsed.key === 'value' && isYamlBlockScalarMarker(parsed.value)) blockScalarValuePaths.add(path)
       stack.push({ indent, key: parsed.key, path })
+      const inheritedValueType = parsed.key === 'value' && parentPath ? typeByPath.get(parentPath) : ''
       return {
         levels,
         key: rowKey,
-        type: typed?.type || (parsed.value ? 'scalar' : 'map'),
+        type: typed?.type || inheritedValueType || (parsed.value ? 'scalar' : 'map'),
         value,
         ...readYamlRowSemanticColumns({ key: rowKey, levels, value, sourceValue }),
         sourceValue,
@@ -352,11 +384,13 @@ export const buildYamlMetadataTableMarkdown = (args: {
   })
   const maxLevel = Math.max(0, ...rowModels.map(row => Math.max(0, row.levels.length - 1)))
   const levelColumns = Array.from({ length: maxLevel + 1 }).map((_, index) => `L${index}`)
+  const typeValueColumns = Array.from(new Set(rowModels.map(row => (row.value ? readYamlTypeValueColumnName(row.type) : '')).filter(Boolean)))
   const rows = rowModels.map(row => [
     ...Array.from({ length: levelColumns.length }).map((_, index) => row.levels[index] || ''),
     row.key,
     row.type,
     row.value,
+    ...typeValueColumns.map(column => column === readYamlTypeValueColumnName(row.type) ? row.value : ''),
     row.summary,
     row.output,
     row.action,
@@ -368,7 +402,7 @@ export const buildYamlMetadataTableMarkdown = (args: {
     String(row.indent),
   ])
   return {
-    lines: buildSerializedTableMarkdownLines({ heading: 'Markdown YAML Frontmatter', header: [...levelColumns, ...YAML_METADATA_TRAILING_COLUMNS], rows }),
+    lines: buildSerializedTableMarkdownLines({ heading: 'Markdown YAML Frontmatter', header: [...levelColumns, 'Key', 'Type', 'Value', ...typeValueColumns, 'Summary', 'Output', 'Action', 'Reference Pack', 'Source Value', 'Level', 'Content', 'Line', 'Indent'], rows }),
     sourceLineByRowIndex: sourceLines.map((_, index) => args.startLine + index),
   }
 }
@@ -424,7 +458,8 @@ export const applyYamlMetadataTableReplacement = (args: {
   const contentIndex = table?.header.indexOf('Content') ?? -1
   const lineIndex = table?.header.indexOf('Line') ?? -1
   const indentIndex = table?.header.indexOf('Indent') ?? -1
-  if (rows.length < 1 || keyIndex < 0 || typeIndex < 0 || valueIndex < 0 || contentIndex < 0 || lineIndex < 0 || indentIndex < 0) return null
+  const hasAnyTypeValueColumn = table?.header.some(name => name !== 'Source Value' && name !== 'Value' && /^.+ Value$/.test(name)) ?? false
+  if (rows.length < 1 || keyIndex < 0 || typeIndex < 0 || (valueIndex < 0 && !hasAnyTypeValueColumn) || contentIndex < 0 || lineIndex < 0 || indentIndex < 0) return null
   rows.forEach((row, rowIndex) => {
     const parsedLine = Number.parseInt(String(row[lineIndex] || '').trim(), 10)
     const sourceLine = Number.isFinite(parsedLine) ? parsedLine : args.sourceLineByRowIndex?.[rowIndex]
@@ -435,7 +470,8 @@ export const applyYamlMetadataTableReplacement = (args: {
     const originalListValue = readYamlListValue(originalLine)
     const nextKey = String(row[keyIndex] || '').trim()
     const nextType = String(row[typeIndex] || '').trim()
-    const nextValue = String(row[valueIndex] || '')
+    const typeValueIndex = table?.header.indexOf(readYamlTypeValueColumnName(nextType)) ?? -1
+    const nextValue = String(typeValueIndex >= 0 ? row[typeValueIndex] : valueIndex >= 0 ? row[valueIndex] : '')
     if (originalParsed && originalParsed.value && nextKey) {
       const sourceKey = readYamlSourceKey(originalLine) || nextKey
       const typed = readTypedInlineValue(originalParsed.value)
@@ -463,7 +499,9 @@ export const applyYamlMetadataTableReplacement = (args: {
       sourceLines[sourceLine - 1] = `${' '.repeat(indent)}- ${yamlQuote(nextScalar)}`
       return
     }
-    sourceLines[sourceLine - 1] = `${' '.repeat(indent)}${String(row[contentIndex] || '')}`
+    const sourceContent = stripLineIndent(originalLine)
+    const contentCell = String(row[contentIndex] || '')
+    sourceLines[sourceLine - 1] = `${' '.repeat(indent)}${nextValue && nextValue !== sourceContent ? nextValue : contentCell}`
   })
   return sourceLines.join('\n')
 }

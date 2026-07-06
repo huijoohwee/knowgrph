@@ -18,8 +18,6 @@ import type {
 } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
 import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
-import { MarkdownPreviewGallery } from '@/features/markdown/ui/MarkdownPreviewGallery'
-import { MarkdownPreviewPresentation, SlidesSidebar } from '@/features/markdown/ui/MarkdownPreviewPresentation'
 import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
 import { MarkdownInlineSelectionActionsContext } from '@/lib/markdown-core/ui/markdownInlineSelectionActions'
 import type { SsotSurface } from 'grph-shared/ssot/types'
@@ -30,6 +28,9 @@ import { useMarkdownPreviewEvents } from '@/features/markdown/ui/useMarkdownPrev
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const MarkdownPreviewGallery = React.lazy(() => import('@/features/markdown/ui/MarkdownPreviewGallery').then(mod => ({ default: mod.MarkdownPreviewGallery })))
+const MarkdownPreviewPresentation = React.lazy(() => import('@/features/markdown/ui/MarkdownPreviewPresentation').then(mod => ({ default: mod.MarkdownPreviewPresentation })))
 
 export type MarkdownPreviewPresentationApi = {
   prev: () => void
@@ -460,83 +461,81 @@ const MarkdownPreview = React.forwardRef<HTMLElement, MarkdownPreviewProps>(func
   if (viewMode === 'gallery') {
     return (
       <section className={`flex-1 min-h-0 flex flex-col overflow-hidden ${uiPanelTextFontClass} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}>
-        <MarkdownPreviewGallery
-          slides={slides}
-          orderedSlideIndices={orderedSlideIndices}
-          activeSlideId={activeSlideId}
-          slideOrder={slideOrder}
-          slideCount={slides.length}
-          activeSlideHeading={activeSlideHeading}
-          showSlideThumbnails={true}
-          onActiveSlideIndexChange={setActiveSlideIndex}
-          onSlideOrderChange={setSlideOrder}
-          renderSlidePreview={renderSlidePreview}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-          zoomScale={galleryZoomScale}
-          onSlideDoubleClick={(idx) => {
-             const pos = orderedSlideIndices.indexOf(idx)
-             if (pos >= 0) setActiveSlideIndex(pos)
-             if (onShowInPresentation) onShowInPresentation(slides[idx]?.startLine || 0)
-          }}
-          onSlideContextMenu={handleSlideContextMenu}
-        />
+        <React.Suspense fallback={null}>
+          <MarkdownPreviewGallery
+            slides={slides}
+            orderedSlideIndices={orderedSlideIndices}
+            activeSlideId={activeSlideId}
+            slideOrder={slideOrder}
+            slideCount={slides.length}
+            activeSlideHeading={activeSlideHeading}
+            showSlideThumbnails={true}
+            onActiveSlideIndexChange={setActiveSlideIndex}
+            onSlideOrderChange={setSlideOrder}
+            renderSlidePreview={renderSlidePreview}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            zoomScale={galleryZoomScale}
+            onSlideDoubleClick={(idx) => { const pos = orderedSlideIndices.indexOf(idx); if (pos >= 0) setActiveSlideIndex(pos); if (onShowInPresentation) onShowInPresentation(slides[idx]?.startLine || 0) }}
+            onSlideContextMenu={handleSlideContextMenu}
+          />
+        </React.Suspense>
       </section>
     )
   }
 
   if (markdownPresentationMode || viewMode === 'presentation') {
     return (
-      <>
-        <MarkdownPreviewPresentation
-          rootRef={setRootRef}
-          onClick={handleClick}
-          onMouseUp={handleMouseUp}
-          onContextMenu={handleContextMenu}
-          onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
-          headMeta={headMeta as Record<string, unknown>}
-          slides={slides as never}
-          activeSlideId={activeSlideId}
-          orderedSlideIndices={orderedSlideIndices}
-          setActiveSlideIndex={setActiveSlideIndex}
-          slideOrder={slideOrder}
-          setSlideOrder={setSlideOrder}
-          activeFragmentConfig={activeFragmentConfig}
-          activeFragmentStep={activeFragmentStep}
-          markdownWordWrap={markdownWordWrap}
-          markdownTextHighlight={markdownTextHighlight}
-          selectionKind={selectionKind || null}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-          previewOverlayScope={previewOverlayScope}
-          previewOverlayPortalTarget={previewOverlayPortalTarget || null}
-          highlightedLineRange={highlightedLineRange}
-          activeDocumentPath={activeDocumentPath}
-          mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
-          rootThemeMode={rootThemeMode}
-          effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
-          effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
-          onPreviewClick={onPreviewClick}
-          onShowInEditor={onShowInEditor}
-          selectionToolbar={selectionToolbarNode}
-          onSlideContextMenu={handleSlideContextMenu}
-          fullDocTokens={tokens}
-          showSidebar={showSidebar || false}
-          showSlidesSidebar={showSlidesSidebar}
-          setShowSlidesSidebar={setShowSlidesSidebar}
-          sidebarPosition={sidebarPosition}
-          onTocSelect={onTocSelect}
-          onTocDoubleClick={onTocDoubleClick}
-          onTocReorder={onTocReorder}
-          collapsedIds={collapsedIds}
-          onToggleCollapse={onToggleCollapse}
-          onExpandAll={onExpandAll}
-          onCollapseAll={onCollapseAll}
-          sourceFiles={sourceFiles}
-          onSourceFileSelect={onSourceFileSelect}
-          sourceFilesPanelIntegration={sourceFilesPanelIntegration}
-          geoDatasetIntegration={geoDatasetIntegration}
-        />
-      </>
+      <React.Suspense fallback={null}>
+          <MarkdownPreviewPresentation
+            rootRef={setRootRef}
+            onClick={handleClick}
+            onMouseUp={handleMouseUp}
+            onContextMenu={handleContextMenu}
+            onRegisterFullscreenHandler={handleRegisterFullscreenHandler}
+            headMeta={headMeta as Record<string, unknown>}
+            slides={slides as never}
+            activeSlideId={activeSlideId}
+            orderedSlideIndices={orderedSlideIndices}
+            setActiveSlideIndex={setActiveSlideIndex}
+            slideOrder={slideOrder}
+            setSlideOrder={setSlideOrder}
+            activeFragmentConfig={activeFragmentConfig}
+            activeFragmentStep={activeFragmentStep}
+            markdownWordWrap={markdownWordWrap}
+            markdownTextHighlight={markdownTextHighlight}
+            selectionKind={selectionKind || null}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+            previewOverlayScope={previewOverlayScope}
+            previewOverlayPortalTarget={previewOverlayPortalTarget || null}
+            highlightedLineRange={highlightedLineRange}
+            activeDocumentPath={activeDocumentPath}
+            mermaidFrontmatterConfig={mermaidFrontmatterConfig as Record<string, unknown> | null}
+            rootThemeMode={rootThemeMode}
+            effectiveHighlightBackgroundColor={effectiveHighlightBackgroundColor}
+            effectiveHighlightUnderlineColor={effectiveHighlightUnderlineColor}
+            onPreviewClick={onPreviewClick}
+            onShowInEditor={onShowInEditor}
+            selectionToolbar={selectionToolbarNode}
+            onSlideContextMenu={handleSlideContextMenu}
+            fullDocTokens={tokens}
+            showSidebar={showSidebar || false}
+            showSlidesSidebar={showSlidesSidebar}
+            setShowSlidesSidebar={setShowSlidesSidebar}
+            sidebarPosition={sidebarPosition}
+            onTocSelect={onTocSelect}
+            onTocDoubleClick={onTocDoubleClick}
+            onTocReorder={onTocReorder}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={onToggleCollapse}
+            onExpandAll={onExpandAll}
+            onCollapseAll={onCollapseAll}
+            sourceFiles={sourceFiles}
+            onSourceFileSelect={onSourceFileSelect}
+            sourceFilesPanelIntegration={sourceFilesPanelIntegration}
+            geoDatasetIntegration={geoDatasetIntegration}
+          />
+      </React.Suspense>
     )
   }
 

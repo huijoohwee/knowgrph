@@ -23,6 +23,8 @@ type PlainTextInputEditorProps = {
   step?: number | string
   autoComplete?: string
   ariaLabel?: string
+  ariaControls?: string
+  ariaExpanded?: boolean
   onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onSelect?: React.ReactEventHandler<HTMLInputElement | HTMLTextAreaElement>
@@ -50,6 +52,8 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
   step,
   autoComplete,
   ariaLabel,
+  ariaControls,
+  ariaExpanded,
   onBlur,
   onKeyDown,
   onSelect,
@@ -71,6 +75,8 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
         rows={rows}
         spellCheck={spellCheck}
         aria-label={ariaLabel}
+        aria-controls={ariaControls}
+        aria-expanded={ariaExpanded}
         autoComplete={autoComplete}
         autoCorrect="off"
         autoCapitalize="off"
@@ -107,6 +113,8 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
       max={max}
       step={step}
       aria-label={ariaLabel}
+      aria-controls={ariaControls}
+      aria-expanded={ariaExpanded}
       autoComplete={autoComplete}
       autoCorrect="off"
       autoCapitalize="off"

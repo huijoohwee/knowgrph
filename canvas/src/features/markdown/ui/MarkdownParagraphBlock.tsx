@@ -657,7 +657,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
         markdownPresentationMode: opts.markdownPresentationMode,
         markdownCardPreviewMode: opts.markdownCardPreviewMode,
-        markdownViewerMediaMode: opts.markdownViewerMediaMode,
+        markdownViewerMediaMode: opts.markdownViewerMediaMode, markdownVariablePreviewByKey: opts.markdownVariablePreviewByKey,
         fragmentOptions:
           opts.markdownPresentationMode && fragmentsEnabled
             ? {

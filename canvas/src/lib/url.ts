@@ -93,10 +93,22 @@ export function isLikelyAbsoluteFsPath(value: unknown): boolean {
   return /^\/(Users|home|private|var|tmp|Volumes)\//.test(raw)
 }
 
-export function buildLocalFsFetchPath(value: unknown): string | null {
+function normalizeLocalFsFetchPath(value: unknown): string {
   const raw = typeof value === 'string' ? (unwrapUserProvidedText(value) || value.trim()) : ''
-  if (!isLikelyAbsoluteFsPath(raw)) return null
+  const candidate = raw.replace(/^file:\/\//i, '').split(/[?#]/)[0] || ''
+  return isLikelyAbsoluteFsPath(candidate) ? candidate : ''
+}
+
+export function buildLocalFsFetchPath(value: unknown): string | null {
+  const raw = normalizeLocalFsFetchPath(value)
+  if (!raw) return null
   return `/@fs${encodeURI(raw)}`
+}
+
+export function buildLocalFsRangeFetchPath(value: unknown): string | null {
+  const raw = normalizeLocalFsFetchPath(value)
+  if (!raw) return null
+  return `/__kg_local_file?path=${encodeURIComponent(raw)}`
 }
 
 export function isYouTubeUrl(value: unknown): boolean {

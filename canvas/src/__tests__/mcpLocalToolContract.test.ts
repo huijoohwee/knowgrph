@@ -128,7 +128,12 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateImage,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateVideoFrame,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt,
@@ -138,6 +143,7 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerSubmitCritique,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerApproveStage,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerGetArtifact,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
   ]
 
@@ -215,6 +221,24 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   const browserApiTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun)
   if (!browserApiTool) throw new Error('expected browser API runtime tool')
   assertAnnotations(browserApiTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false })
+  const sealionTools = [
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize,
+    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck,
+  ].map(name => tools.find(tool => tool.name === name))
+  for (const sealionTool of sealionTools) {
+    if (!sealionTool) throw new Error('expected SEA-LION sidecar local MCP tool')
+    assertAnnotations(sealionTool, { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+    if (!String(sealionTool.description || '').includes('SEA-LION sidecar')) {
+      throw new Error(`expected SEA-LION MCP tool to describe sidecar scope, got ${JSON.stringify(sealionTool.description)}`)
+    }
+    if (sealionTool.outputSchema?.type !== 'object' || !sealionTool.outputSchema.required?.includes('result')) {
+      throw new Error(`expected SEA-LION MCP tool to expose hosted sidecar result schema, got ${JSON.stringify(sealionTool.outputSchema)}`)
+    }
+  }
+  if (!sealionTools[0]?.inputSchema.properties?.text || !sealionTools[1]?.inputSchema.properties?.target_language || !sealionTools[2]?.inputSchema.properties?.mode) {
+    throw new Error(`expected SEA-LION MCP tool schemas to mirror upstream signatures, got ${JSON.stringify(sealionTools.map(tool => tool?.inputSchema.properties))}`)
+  }
 
   const memoryAddTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd)
   if (!memoryAddTool) throw new Error('expected memory add tool')

@@ -65,12 +65,11 @@ import {
 import { defaultDelimitedTextDelimiterForName } from '@/lib/delimited-text/delimitedText'
 import { parseDelimitedTextWithWorkerFallback } from '@/lib/delimited-text/delimitedTextWorkerBridge'
 import { isMarkdownWorkspaceDelimitedTextPath } from '../types'
-
+import { readStructuredSourceDataViewPresentation } from './workspaceStructuredSourceDataViewPresentation'
 const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
   async (): Promise<{ default: typeof import('./MarkdownWorkspaceHtmlViewerPane')['MarkdownWorkspaceHtmlViewerPane'] }> =>
     import('./MarkdownWorkspaceHtmlViewerPane').then(mod => ({ default: mod.MarkdownWorkspaceHtmlViewerPane })),
 )
-
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban' | 'geospatial'
 
@@ -316,7 +315,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     return applyWorkspaceDataViewQuery({ view: base, viewConfig, state: headerState })
   }, [headerState.searchQuery, headerState.sortMode, headerState.visibleGroups, selected, viewConfig])
 
-  const visibleColumnIds = viewConfig?.visibleColumnIds ?? null
+  const structuredSourcePresentation = React.useMemo(() => (selected?.structuredSource === true ? readStructuredSourceDataViewPresentation(selected.view, viewConfig) : null), [selected, viewConfig])
+  const visibleColumnIds = viewConfig?.visibleColumnIds ?? structuredSourcePresentation?.visibleColumnIds ?? null
   const columnTypesById = viewConfig?.columnTypesById ?? null
 
   const onUpdateCell = React.useCallback(
@@ -751,8 +751,8 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             view={displayedView || selected.view}
             visibleColumnIds={visibleColumnIds}
             columnTypesById={columnTypesById}
-            rowHeightPreset={viewConfig?.rowHeightPreset}
-            fieldLineMode={viewConfig?.fieldLineMode}
+            rowHeightPreset={structuredSourcePresentation?.rowHeightPreset ?? viewConfig?.rowHeightPreset}
+            fieldLineMode={structuredSourcePresentation?.fieldLineMode ?? viewConfig?.fieldLineMode}
             canMutate={canMutate}
             canConfigure={true}
             onUpdateCell={onUpdateCell}

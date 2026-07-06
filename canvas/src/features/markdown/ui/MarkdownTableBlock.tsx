@@ -153,6 +153,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       markdownPresentationMode: opts.markdownPresentationMode,
                       markdownCardPreviewMode: opts.markdownCardPreviewMode,
                       markdownViewerMediaMode: opts.markdownViewerMediaMode,
+                      markdownVariablePreviewByKey: opts.markdownVariablePreviewByKey,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -182,6 +183,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         markdownPresentationMode: opts.markdownPresentationMode,
                         markdownCardPreviewMode: opts.markdownCardPreviewMode,
                         markdownViewerMediaMode: opts.markdownViewerMediaMode,
+                        markdownVariablePreviewByKey: opts.markdownVariablePreviewByKey,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {
@@ -270,6 +272,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                       markdownPresentationMode: opts.markdownPresentationMode,
                       markdownCardPreviewMode: opts.markdownCardPreviewMode,
                       markdownViewerMediaMode: opts.markdownViewerMediaMode,
+                      markdownVariablePreviewByKey: opts.markdownVariablePreviewByKey,
                       fragmentOptions:
                         opts.markdownPresentationMode && fragmentsEnabled
                           ? {
@@ -299,6 +302,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
                         markdownPresentationMode: opts.markdownPresentationMode,
                         markdownCardPreviewMode: opts.markdownCardPreviewMode,
                         markdownViewerMediaMode: opts.markdownViewerMediaMode,
+                        markdownVariablePreviewByKey: opts.markdownVariablePreviewByKey,
                         fragmentOptions:
                           opts.markdownPresentationMode && fragmentsEnabled
                             ? {

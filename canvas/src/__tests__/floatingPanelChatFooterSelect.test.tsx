@@ -2,8 +2,12 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
+import {
+  buildFloatingPanelChatWorkspaceContextCacheKey,
+  createFloatingPanelChatContextItems,
+} from '@/features/chat/floatingPanelChat/floatingPanelChatSurfaceState'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
-import { FloatingPanelChatFooter } from '@/features/chat/FloatingPanelChatSections'
+import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from '@/features/chat/FloatingPanelChatSections'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -242,6 +246,169 @@ export async function testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIco
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+  }
+}
+
+export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOwned() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const quickActionPrompts: string[] = []
+
+  function Harness() {
+    const [input, setInput] = React.useState('')
+    return (
+      <React.Fragment>
+        <FloatingPanelChatMessagesSection
+          messages={[]}
+          isLoading={false}
+          historyKey="kg:test"
+          contextItems={[
+            { id: 'scope', label: 'Scope', value: 'hybrid', tone: 'success' },
+            { id: 'sources', label: 'Sources', value: '3', tone: 'success' },
+            { id: 'workspace', label: 'Workspace', value: 'brief.md', tone: 'info' },
+            { id: 'memory', label: 'Memory', value: 'ready', tone: 'neutral' },
+          ]}
+          uiPanelTextFontClass="text-sm"
+          uiPanelKeyValueTextSizeClass="text-xs"
+          uiPanelMicroLabelTextSizeClass="text-xs"
+          setMessages={() => undefined}
+        />
+        <FloatingPanelChatFooter
+          input={input}
+          setInput={setInput}
+          isLoading={false}
+          errorText={null}
+          connectivity="unknown"
+          connectivityDetail={null}
+          currentNode={null}
+          modelId="gpt-5-nano"
+          modelOptions={['gpt-5-nano']}
+          onModelChanged={() => undefined}
+          uiPanelTextFontClass="text-sm"
+          uiPanelMicroLabelTextSizeClass="text-xs"
+          isSubmitDisabled={!input.trim()}
+          onSubmit={event => event.preventDefault()}
+          onStop={() => undefined}
+          quickActions={[
+            {
+              id: 'trace-pipeline',
+              label: 'Trace pipeline',
+              prompt: 'Trace the current document from ingestion to parsing to canvas rendering.',
+            },
+          ]}
+          onQuickAction={prompt => {
+            quickActionPrompts.push(prompt)
+            setInput(prompt)
+          }}
+        />
+      </React.Fragment>
+    )
+  }
+
+  try {
+    await mountReactRoot(root, React.createElement(Harness), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    const contextRail = container.querySelector('[data-kg-chat-context-rail="true"]') as HTMLElement | null
+    if (!contextRail) throw new Error('expected FloatingPanel chat to render a stable context rail')
+    if (contextRail.getAttribute('aria-label') !== 'Chat context') {
+      throw new Error(`expected context rail to expose a semantic label, got ${contextRail.getAttribute('aria-label')}`)
+    }
+    const contextList = contextRail.querySelector('ul') as HTMLElement | null
+    if (!contextList || !contextList.className.includes('grid-cols-2')) {
+      throw new Error(`expected context rail to use a compact two-column grid, got ${contextList?.className || 'missing list'}`)
+    }
+    const contextChips = Array.from(container.querySelectorAll('[data-kg-chat-context-chip="true"]'))
+    if (contextChips.length !== 4) throw new Error(`expected four context chips, got ${contextChips.length}`)
+    const railText = String(contextRail.textContent || '')
+    for (const snippet of ['Scope: hybrid', 'Sources: 3', 'Workspace: brief.md', 'Memory: ready']) {
+      if (!railText.includes(snippet)) {
+        throw new Error(`expected context rail to include ${snippet}, got ${JSON.stringify(railText)}`)
+      }
+    }
+    const workspaceChip = container.querySelector('[data-kg-chat-context-id="workspace"]') as HTMLElement | null
+    if (!workspaceChip?.getAttribute('title')?.includes('Workspace: brief.md')) {
+      throw new Error(`expected workspace context chip to preserve the full value in title, got ${workspaceChip?.getAttribute('title')}`)
+    }
+    const workspaceValue = workspaceChip.querySelector('[data-kg-chat-context-chip-value="true"]') as HTMLElement | null
+    if (!workspaceValue || !workspaceValue.className.includes('truncate')) {
+      throw new Error('expected workspace context chip value to truncate instead of overflowing the floating panel')
+    }
+
+    const actionGroup = container.querySelector('[data-kg-chat-quick-actions="true"]') as HTMLElement | null
+    if (!actionGroup || !actionGroup.className.includes('grid-cols-2')) {
+      throw new Error(`expected quick actions to use a compact two-column grid, got ${actionGroup?.className || 'missing actions'}`)
+    }
+    const action = container.querySelector('[data-kg-chat-quick-action-id="trace-pipeline"]') as HTMLButtonElement | null
+    if (!action) throw new Error('expected FloatingPanel chat footer to render quick prompt actions')
+    await act(async () => {
+      action.click()
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    if (quickActionPrompts[0] !== 'Trace the current document from ingestion to parsing to canvas rendering.') {
+      throw new Error(`expected quick action to publish its prompt through state, got ${JSON.stringify(quickActionPrompts)}`)
+    }
+    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    if (!input) throw new Error('expected FloatingPanel chat input to expose the stable data hook')
+    if (input.getAttribute('aria-label') !== 'Ask a question about the current graph or selection.') {
+      throw new Error(`expected chat input to expose the shared placeholder as its aria label, got ${input.getAttribute('aria-label')}`)
+    }
+    if (!String(input.value || '').includes('Trace the current document')) {
+      throw new Error(`expected quick action to populate chat input, got ${JSON.stringify(input.value)}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export function testFloatingPanelChatWorkspaceContextCacheKeyIsScopeAware() {
+  const selectionKey = buildFloatingPanelChatWorkspaceContextCacheKey({
+    chatContextScope: 'selection',
+    markdownDocumentName: 'brief-a.md',
+    docLocationRevision: 1,
+    markdownText: '# A',
+    sourceFilesSignature: 'sources-a',
+  })
+  if (selectionKey !== '') {
+    throw new Error(`expected selection-only chat to disable workspace context cache key, got ${JSON.stringify(selectionKey)}`)
+  }
+
+  const workspaceKeyA = buildFloatingPanelChatWorkspaceContextCacheKey({
+    chatContextScope: 'workspace',
+    markdownDocumentName: 'brief-a.md',
+    docLocationRevision: 1,
+    markdownText: '# A',
+    sourceFilesSignature: 'sources-a',
+  })
+  const workspaceKeyB = buildFloatingPanelChatWorkspaceContextCacheKey({
+    chatContextScope: 'workspace',
+    markdownDocumentName: 'brief-a.md',
+    docLocationRevision: 1,
+    markdownText: '# A',
+    sourceFilesSignature: 'sources-b',
+  })
+  if (!workspaceKeyA || !workspaceKeyB || workspaceKeyA === workspaceKeyB) {
+    throw new Error('expected workspace-scope chat to key cache by source/workspace signatures')
+  }
+
+  const contextItems = createFloatingPanelChatContextItems({
+    chatContextScope: 'selection',
+    enabledSourceFileCount: 2,
+    activeWorkspaceLabel: 'brief-a.md',
+    currentNode: null,
+    messageCount: 0,
+    workspaceContextCacheStatus: 'disabled',
+  })
+  const cacheChip = contextItems.find(item => item.id === 'context-cache')
+  if (!cacheChip || cacheChip.value !== 'selection-only') {
+    throw new Error(`expected context rail cache chip to report selection-only status, got ${JSON.stringify(cacheChip)}`)
   }
 }
 

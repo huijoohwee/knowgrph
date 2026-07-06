@@ -12,7 +12,7 @@
 @import './styles/storyboard-widget-manager-responsive.css';
 @import './styles/design-system-responsive.css';
 @import './styles/page-responsive.css';
-@import './styles/markdown-media-responsive.css';
+@import './styles/markdown-media-responsive.css'; @import './styles/markdown-data-view-table.css';
 @import './styles/aie-book-demo-responsive.css';
 @tailwind base;
 @tailwind components;

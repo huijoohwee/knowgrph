@@ -8,6 +8,7 @@ import { OPENAI_IMAGES_API_DOC_AREA } from './openaiImagesApiDocs'
 import { DEERFLOW_API_DOC_AREA } from './deerflowApiDocs'
 import { MIROMIND_API_DOC_AREA } from './miromindApiDocs'
 import { AGNES_API_DOC_AREA } from './agnesApiDocs'
+import { SEALION_API_DOC_AREA } from './sealionApiDocs'
 import { QWEN_API_DOC_AREA } from './qwenApiDocs'
 import { GOOGLE_CLOUD_API_DOC_AREA } from './googleCloudApiDocs'
 import { STRIPE_PAYMENT_API_DOC_AREA } from './stripePaymentApiDocs'
@@ -38,6 +39,7 @@ import { LARK_APP_MCP_DOC_AREA } from './larkAppMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
 import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
+import { SEALION_MCP_DOC_AREA } from './sealionMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { VIDEODB_MCP_DOC_AREA } from './videodbMcpApiDocs'
 import { OPERATOR_DEPLOY_MCP_DOC_AREA } from '@/features/settings/operatorDeploySsot'
@@ -94,6 +96,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   FEISHU_BASE_MCP_DOC_AREA,
   LARK_APP_MCP_DOC_AREA,
   STRIPE_MCP_DOC_AREA,
+  SEALION_MCP_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_AREA,
   OPERATOR_DEPLOY_MCP_DOC_AREA,
   VIDEODB_MCP_DOC_AREA,
@@ -119,6 +122,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   VIDEODB_API_DOC_AREA,
   MIROMIND_API_DOC_AREA,
   AGNES_API_DOC_AREA,
+  SEALION_API_DOC_AREA,
   QWEN_API_DOC_AREA,
   GOOGLE_CLOUD_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
@@ -164,6 +168,7 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === VIDEODB_API_DOC_AREA
     || area === MIROMIND_API_DOC_AREA
     || area === AGNES_API_DOC_AREA
+    || area === SEALION_API_DOC_AREA
     || area === QWEN_API_DOC_AREA
     || area === GOOGLE_CLOUD_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
@@ -210,6 +215,7 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === STRIPE_MCP_DOC_AREA) return true
   if (area === PIXVERSE_MCP_DOC_AREA) return true
   if (area === MIROMIND_MCP_DOC_AREA) return true
+  if (area === SEALION_MCP_DOC_AREA) return true
   if (area === KNOWGRPH_VDEOXPLN_DOC_AREA) return true
   if (area === OPERATOR_DEPLOY_MCP_DOC_AREA) return true
   if (area === VIDEODB_MCP_DOC_AREA) return true

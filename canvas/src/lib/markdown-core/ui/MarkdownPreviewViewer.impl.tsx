@@ -39,13 +39,13 @@ import {
   getMarkdownPreviewScrollStyle,
 } from './markdownPreviewViewerMode'
 import { useTextSelectionMatchHighlights } from '@/lib/ui/textSelectionMatchHighlights'
+import { buildMarkdownVariablePreviewByKey } from './markdownInlineVariableMediaPreview'
 import {
   buildSemanticTextHighlightOverlayStyle,
   getSemanticHighlightSurfaceAttributes,
   getSemanticHighlightSurfaceClassName,
   SEMANTIC_HIGHLIGHT_SURFACES,
 } from '@/lib/ui/semanticHighlight'
-
 const MARKDOWN_INLINE_EMBED_MAX_CHARS = 120_000
 const MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS = 120_000
 const MARKDOWN_MERMAID_DEFER_DOC_CHARS = 90_000
@@ -221,11 +221,9 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     if (typeof sourceMarkdownText !== 'string' || !sourceMarkdownText) return []
     return sourceMarkdownText.split(/\r?\n/)
   }, [sourceMarkdownText, viewerInlineEditingEnabled])
-  const variableSsotEntries = React.useMemo(() => {
-    if (typeof sourceMarkdownText !== 'string' || !sourceMarkdownText) return []
-    if (sourceMarkdownText.length > MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS) return []
-    return collectMarkdownVariableSsotEntries(sourceMarkdownText)
-  }, [sourceMarkdownText])
+  const { entries: variableSsotEntries, previewByKey: markdownVariablePreviewByKey } = React.useMemo(() => (
+    typeof sourceMarkdownText !== 'string' || !sourceMarkdownText || sourceMarkdownText.length > MARKDOWN_VARIABLE_SSOT_SCAN_MAX_CHARS ? { entries: [], previewByKey: {} } : { entries: collectMarkdownVariableSsotEntries(sourceMarkdownText), previewByKey: buildMarkdownVariablePreviewByKey(sourceMarkdownText) }
+  ), [sourceMarkdownText])
   const frontmatterMeta = React.useMemo(() => {
     if (!frontmatterMetaProp || typeof frontmatterMetaProp !== 'object' || Array.isArray(frontmatterMetaProp)) {
       return {} as Record<string, unknown>
@@ -522,6 +520,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         markdownLargeDocumentMode={markdownLargeDocumentMode}
         markdownCardPreviewMode={markdownCardPreviewMode}
         markdownViewerMediaMode={markdownViewerMediaMode}
+        markdownVariablePreviewByKey={markdownVariablePreviewByKey}
       />
     ),
     [
@@ -563,6 +562,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       markdownLargeDocumentMode,
       markdownCardPreviewMode,
       markdownViewerMediaMode,
+      markdownVariablePreviewByKey,
     ],
   )
 

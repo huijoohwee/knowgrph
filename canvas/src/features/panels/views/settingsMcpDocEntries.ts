@@ -87,6 +87,13 @@ import {
   getMiroMindMcpApiRowAnchorId,
 } from './miromindMcpApiDocs'
 import {
+  SEALION_MCP_DOC_AREA,
+  SEALION_MCP_DOC_ENTRIES,
+  SEALION_MCP_REMOTE_CONFIG_KEY,
+  buildSealionMcpRemoteConfigJson,
+  getSealionMcpApiRowAnchorId,
+} from './sealionMcpApiDocs'
+import {
   KNOWGRPH_VDEOXPLN_DOC_AREA,
   KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
   getKnowgrphVdeoxplnRowAnchorId,
@@ -129,6 +136,7 @@ export function buildMcpDocEntries(
     ...STRIPE_MCP_DOC_ENTRIES,
     ...PIXVERSE_MCP_DOC_ENTRIES,
     ...MIROMIND_MCP_DOC_ENTRIES,
+    ...SEALION_MCP_DOC_ENTRIES,
     ...KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
     ...OPERATOR_DEPLOY_MCP_DOC_ENTRIES,
     ...VIDEODB_MCP_DOC_ENTRIES,
@@ -165,6 +173,8 @@ export function buildMcpVirtualEntry(
         ? getPixVerseMcpApiRowAnchorId(entry.meta.key)
       : area === MIROMIND_MCP_DOC_AREA
         ? getMiroMindMcpApiRowAnchorId(entry.meta.key)
+      : area === SEALION_MCP_DOC_AREA
+        ? getSealionMcpApiRowAnchorId(entry.meta.key)
       : area === KNOWGRPH_VDEOXPLN_DOC_AREA
         ? getKnowgrphVdeoxplnRowAnchorId(entry.meta.key)
       : area === OPERATOR_DEPLOY_MCP_DOC_AREA
@@ -204,6 +214,8 @@ export function buildMcpVirtualEntry(
                   ? buildLarkAppRemoteMcpConfigJson()
                 : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
                   ? buildPixVerseLocalMcpConfigJson(values)
+                  : entry.meta.key === SEALION_MCP_REMOTE_CONFIG_KEY
+                    ? buildSealionMcpRemoteConfigJson()
                   : entry.meta.key === VIDEODB_MCP_UVX_CONFIG_KEY
                     ? buildVideodbUvxMcpConfigJson(values)
                     : entry.meta.key === VIDEODB_MCP_PIPX_CONFIG_KEY

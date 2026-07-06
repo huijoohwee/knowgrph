@@ -15,6 +15,9 @@ import {
   CHAT_QWEN_BASE,
   CHAT_QWEN_ENDPOINT_URL,
   CHAT_QWEN_MODEL_OPTIONS,
+  CHAT_SEALION_BASE,
+  CHAT_SEALION_ENDPOINT_URL,
+  CHAT_SEALION_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_AGNES,
   CHAT_PROVIDER_BYTEPLUS,
@@ -23,6 +26,7 @@ import {
   CHAT_PROVIDER_MIROMIND,
   CHAT_PROVIDER_OPENAI,
   CHAT_PROVIDER_QWEN,
+  CHAT_PROVIDER_SEALION,
   buildChatProxyHeaders,
   getChatModelOptions,
   getChatProviderLabel,
@@ -88,6 +92,18 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   const agnesRegion = getChatProviderRegionLabel(CHAT_PROVIDER_AGNES, CHAT_AGNES_ENDPOINT_URL)
   const agnesLabel = getChatProviderLabel(CHAT_PROVIDER_AGNES)
   const agnesModelOptions = getChatModelOptions(CHAT_PROVIDER_AGNES)
+  const sealionHeaders = buildChatProxyHeaders({
+    provider: CHAT_PROVIDER_SEALION,
+    apiKey: 'sealion-secret',
+    endpointUrl: CHAT_SEALION_ENDPOINT_URL,
+    clientRequestId: 'kg-sealion-test-123',
+  })
+  const sealionRequest = resolveChatEndpointForRequest(CHAT_SEALION_ENDPOINT_URL)
+  const sealionBaseRequest = resolveChatEndpointForRequest(CHAT_SEALION_BASE)
+  const sealionModels = resolveChatEndpointForModels(CHAT_SEALION_ENDPOINT_URL)
+  const sealionRegion = getChatProviderRegionLabel(CHAT_PROVIDER_SEALION, CHAT_SEALION_ENDPOINT_URL)
+  const sealionLabel = getChatProviderLabel(CHAT_PROVIDER_SEALION)
+  const sealionModelOptions = getChatModelOptions(CHAT_PROVIDER_SEALION)
   const qwenHeaders = buildChatProxyHeaders({
     provider: CHAT_PROVIDER_QWEN,
     apiKey: 'qwen-secret',
@@ -160,6 +176,18 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesHeaders['X-Client-Request-Id'] !== 'kg-agnes-test-123') {
     throw new Error(`expected Agnes client request id header, got ${JSON.stringify(agnesHeaders)}`)
   }
+  if (sealionHeaders['X-KG-Chat-Provider'] !== CHAT_PROVIDER_SEALION) {
+    throw new Error(`expected SEA-LION provider header, got ${JSON.stringify(sealionHeaders)}`)
+  }
+  if (sealionHeaders['X-KG-Chat-Upstream'] !== CHAT_SEALION_BASE) {
+    throw new Error(`expected SEA-LION upstream header, got ${JSON.stringify(sealionHeaders)}`)
+  }
+  if (sealionHeaders['X-KG-Chat-Api-Key'] !== 'sealion-secret') {
+    throw new Error(`expected SEA-LION API key header, got ${JSON.stringify(sealionHeaders)}`)
+  }
+  if (sealionHeaders['X-Client-Request-Id'] !== 'kg-sealion-test-123') {
+    throw new Error(`expected SEA-LION client request id header, got ${JSON.stringify(sealionHeaders)}`)
+  }
   if (qwenHeaders['X-KG-Chat-Provider'] !== CHAT_PROVIDER_QWEN) {
     throw new Error(`expected Qwen provider header, got ${JSON.stringify(qwenHeaders)}`)
   }
@@ -202,6 +230,15 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesModels !== '/__chat_proxy/v1/models') {
     throw new Error(`unexpected Agnes models path: ${JSON.stringify(agnesModels)}`)
   }
+  if (sealionRequest !== '/__chat_proxy/v1/chat/completions') {
+    throw new Error(`unexpected SEA-LION request path: ${JSON.stringify(sealionRequest)}`)
+  }
+  if (sealionBaseRequest !== '/__chat_proxy/v1/chat/completions') {
+    throw new Error(`unexpected SEA-LION base request path: ${JSON.stringify(sealionBaseRequest)}`)
+  }
+  if (sealionModels !== '/__chat_proxy/v1/models') {
+    throw new Error(`unexpected SEA-LION models path: ${JSON.stringify(sealionModels)}`)
+  }
   if (qwenRequest !== '/__chat_proxy/compatible-mode/v1/chat/completions') {
     throw new Error(`unexpected Qwen request path: ${JSON.stringify(qwenRequest)}`)
   }
@@ -238,6 +275,9 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesRegion !== 'Global') {
     throw new Error(`unexpected Agnes region label: ${JSON.stringify(agnesRegion)}`)
   }
+  if (sealionRegion !== 'Singapore') {
+    throw new Error(`unexpected SEA-LION region label: ${JSON.stringify(sealionRegion)}`)
+  }
   if (qwenRegion !== 'Singapore') {
     throw new Error(`unexpected Qwen region label: ${JSON.stringify(qwenRegion)}`)
   }
@@ -253,6 +293,9 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (agnesLabel !== 'Agnes AI API') {
     throw new Error(`unexpected Agnes label: ${JSON.stringify(agnesLabel)}`)
   }
+  if (sealionLabel !== 'AI Singapore SEA-LION API') {
+    throw new Error(`unexpected SEA-LION label: ${JSON.stringify(sealionLabel)}`)
+  }
   if (qwenLabel !== 'Qwen API') {
     throw new Error(`unexpected Qwen label: ${JSON.stringify(qwenLabel)}`)
   }
@@ -267,6 +310,14 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   }
   if (agnesModelOptions[0] !== 'agnes-2.0-flash' || agnesModelOptions.length !== 1) {
     throw new Error(`unexpected Agnes model options: ${JSON.stringify(agnesModelOptions)}`)
+  }
+  if (
+    sealionModelOptions[0] !== CHAT_SEALION_MODEL_OPTIONS[0]
+    || !sealionModelOptions.includes('aisingapore/Gemma-SEA-LION-v4.5-E2B-IT')
+    || !sealionModelOptions.includes('aisingapore/Llama-SEA-LION-v3.5-70B-R')
+    || !sealionModelOptions.includes('aisingapore/SEA-Guard')
+  ) {
+    throw new Error(`unexpected SEA-LION model options: ${JSON.stringify(sealionModelOptions)}`)
   }
   if (
     qwenModelOptions[0] !== CHAT_QWEN_MODEL_OPTIONS[0]
@@ -291,6 +342,7 @@ export function testSharedChatModelCatalogReusesMainPanelIntegrationsOptions() {
     CHAT_OPENAI_MODEL_OPTIONS[2],
     CHAT_OPENAI_MODEL_OPTIONS[4],
     'qwen-plus',
+    CHAT_SEALION_MODEL_OPTIONS[0],
     'qwen3-max',
     'qwen-flash',
     'google/gemini-2.0-flash-001',
@@ -323,6 +375,17 @@ export function testChatModelSelectionDerivesProviderAndEndpoint() {
   const endpointProvider = inferChatProviderFromEndpointUrl(CHAT_QWEN_ENDPOINT_URL, CHAT_PROVIDER_OPENAI)
   if (endpointProvider !== CHAT_PROVIDER_QWEN) {
     throw new Error(`expected Qwen endpoint selection to derive provider ${CHAT_PROVIDER_QWEN}, got ${JSON.stringify(endpointProvider)}`)
+  }
+  const sealionSelection = resolveChatModelSelectionValues({
+    currentEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+    currentProvider: CHAT_PROVIDER_OPENAI,
+    model: CHAT_SEALION_MODEL_OPTIONS[0],
+  })
+  if (sealionSelection.chatProvider !== CHAT_PROVIDER_SEALION) {
+    throw new Error(`expected SEA-LION model selection to derive provider ${CHAT_PROVIDER_SEALION}, got ${JSON.stringify(sealionSelection)}`)
+  }
+  if (sealionSelection.chatEndpointUrl !== CHAT_SEALION_ENDPOINT_URL) {
+    throw new Error(`expected SEA-LION model selection to reset endpoint to ${CHAT_SEALION_ENDPOINT_URL}, got ${JSON.stringify(sealionSelection)}`)
   }
 
   const localProvider = inferChatProviderFromModelId(CHAT_LOCAL_DEFAULT_MODEL, CHAT_PROVIDER_OPENAI)

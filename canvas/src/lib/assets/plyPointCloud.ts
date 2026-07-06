@@ -30,9 +30,18 @@ type PlyHeader = {
   bodyOffset: number
 }
 
+export type PlyPointCloudBinaryLayout = {
+  bodyOffset: number
+  format: Exclude<PlyFormat, 'ascii'>
+  headerBytes: Uint8Array
+  rowBytes: number
+  sourcePointCount: number
+}
+
 const PLY_END_HEADER = new TextEncoder().encode('end_header')
 const GAUSSIAN_SPLAT_SH_C0 = 0.28209479177387814
 const GAUSSIAN_SPLAT_DEFAULT_LOG_SCALE_Z = Math.log(1e-6)
+const PROGRESSIVE_SOURCE_ORDER_MIN_POINTS = 100_000
 
 const TYPE_BYTES: Record<string, number> = {
   char: 1,
@@ -186,18 +195,30 @@ function normalizeGaussianSplatScale(value: number): number {
   return Math.max(0.000001, Math.min(4, Math.exp(Math.max(-14, Math.min(4, Number.isFinite(value) ? value : -8)))))
 }
 
-function normalizeQuaternion(w: number, x: number, y: number, z: number): [number, number, number, number] {
-  const length = Math.hypot(w, x, y, z)
-  if (!(length > 1e-6)) return [1, 0, 0, 0]
-  return [w / length, x / length, y / length, z / length]
+function writeProjectedPlyPosition(out: Float32Array, offset: number, x: number, y: number, z: number): void {
+  out[offset] = -x
+  out[offset + 1] = -y
+  out[offset + 2] = z
 }
 
-function projectPlyPosition(x: number, y: number, z: number): [number, number, number] {
-  return [-x, -y, z]
-}
-
-function projectPlyQuaternion(w: number, x: number, y: number, z: number): [number, number, number, number] {
-  return normalizeQuaternion(-z, -y, x, w)
+function writeProjectedPlyQuaternion(out: Float32Array, offset: number, w: number, x: number, y: number, z: number): void {
+  const projectedW = -z
+  const projectedX = -y
+  const projectedY = x
+  const projectedZ = w
+  const length = Math.hypot(projectedW, projectedX, projectedY, projectedZ)
+  if (!(length > 1e-6)) {
+    out[offset] = 0
+    out[offset + 1] = 0
+    out[offset + 2] = 0
+    out[offset + 3] = 1
+    return
+  }
+  const invLength = 1 / length
+  out[offset] = projectedX * invLength
+  out[offset + 1] = projectedY * invLength
+  out[offset + 2] = projectedZ * invLength
+  out[offset + 3] = projectedW * invLength
 }
 
 function resolveSamplePointCount(sourcePointCount: number, maxPoints: number): number {
@@ -210,10 +231,91 @@ function resolveSampleVertexIndex(sampleIndex: number, samplePointCount: number,
   return Math.min(sourcePointCount - 1, Math.round((sampleIndex * (sourcePointCount - 1)) / (samplePointCount - 1)))
 }
 
+function greatestCommonDivisor(a: number, b: number): number {
+  let x = Math.abs(Math.floor(a))
+  let y = Math.abs(Math.floor(b))
+  while (y > 0) {
+    const next = x % y
+    x = y
+    y = next
+  }
+  return Math.max(1, x)
+}
+
+function resolveProgressiveSourceStride(sourcePointCount: number): number {
+  if (sourcePointCount <= 2) return 1
+  let stride = Math.max(1, Math.floor(sourcePointCount * 0.61803398875))
+  if (stride % 2 === 0) stride += 1
+  while (stride < sourcePointCount && greatestCommonDivisor(stride, sourcePointCount) !== 1) {
+    stride += 2
+  }
+  return stride < sourcePointCount ? stride : 1
+}
+
+function buildVertexIndexResolver(samplePointCount: number, sourcePointCount: number): (sampleIndex: number) => number {
+  if (samplePointCount < sourcePointCount) {
+    return sampleIndex => resolveSampleVertexIndex(sampleIndex, samplePointCount, sourcePointCount)
+  }
+  if (sourcePointCount < PROGRESSIVE_SOURCE_ORDER_MIN_POINTS) return sampleIndex => sampleIndex
+  const stride = resolveProgressiveSourceStride(sourcePointCount)
+  return sampleIndex => (sampleIndex * stride) % sourcePointCount
+}
+
 function readAsciiNumber(parts: string[], index: number, fallback: number): number {
   if (index < 0) return fallback
   const value = Number(parts[index])
   return Number.isFinite(value) ? value : fallback
+}
+
+function resolvePlyRowBytes(properties: PlyProperty[]): number {
+  let rowBytes = 0
+  for (const prop of properties) {
+    if (prop.list) return 0
+    rowBytes += TYPE_BYTES[prop.type] || 4
+  }
+  return rowBytes
+}
+
+function replaceHeaderVertexCount(headerBytes: Uint8Array, pointCount: number): Uint8Array {
+  const text = new TextDecoder().decode(headerBytes)
+  const next = text.replace(/^element\s+vertex\s+\d+/im, `element vertex ${Math.max(0, Math.floor(pointCount))}`)
+  return new TextEncoder().encode(next)
+}
+
+export function readPlyPointCloudBinaryLayout(buffer: ArrayBuffer | Uint8Array): PlyPointCloudBinaryLayout | null {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
+  const header = parseHeader(bytes)
+  if (header.format === 'ascii') return null
+  const rowBytes = resolvePlyRowBytes(header.properties)
+  if (rowBytes <= 0) return null
+  return {
+    bodyOffset: header.bodyOffset,
+    format: header.format,
+    headerBytes: bytes.slice(0, header.bodyOffset),
+    rowBytes,
+    sourcePointCount: header.vertexCount,
+  }
+}
+
+export function buildPlyPointCloudPreviewBuffer(args: {
+  headerBytes: Uint8Array
+  rowChunks: Uint8Array[]
+  rowBytes: number
+}): Uint8Array | null {
+  const rowBytes = Math.max(1, Math.floor(args.rowBytes))
+  const rowCount = args.rowChunks.reduce((sum, chunk) => sum + Math.floor(chunk.byteLength / rowBytes), 0)
+  if (rowCount <= 0) return null
+  const headerBytes = replaceHeaderVertexCount(args.headerBytes, rowCount)
+  const out = new Uint8Array(headerBytes.byteLength + rowCount * rowBytes)
+  out.set(headerBytes, 0)
+  let cursor = headerBytes.byteLength
+  for (const chunk of args.rowChunks) {
+    const aligned = chunk.byteLength - (chunk.byteLength % rowBytes)
+    if (aligned <= 0) continue
+    out.set(chunk.subarray(0, aligned), cursor)
+    cursor += aligned
+  }
+  return cursor === out.byteLength ? out : out.slice(0, cursor)
 }
 
 export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints = 2_000_000): PlyPointCloud {
@@ -249,6 +351,7 @@ export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints =
   const opacities = isGaussianSplat ? new Float32Array(pointCount) : null
   const splatScales = isGaussianSplat ? new Float32Array(pointCount * 3) : null
   const splatRotations = isGaussianSplat ? new Float32Array(pointCount * 4) : null
+  const resolveVertexIndex = buildVertexIndexResolver(pointCount, header.vertexCount)
   const bounds: PlyPointCloud['bounds'] = {
     min: [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
     max: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
@@ -261,17 +364,15 @@ export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints =
     const text = new TextDecoder().decode(bytes.subarray(header.bodyOffset))
     const lines = text.split(/\r?\n/)
     for (let sampleIndex = 0; sampleIndex < pointCount; sampleIndex += 1) {
-      const vertexIndex = resolveSampleVertexIndex(sampleIndex, pointCount, header.vertexCount)
+      const vertexIndex = resolveVertexIndex(sampleIndex)
       const parts = String(lines[vertexIndex] || '').trim().split(/\s+/)
       const x = readAsciiNumber(parts, xIndex, Number.NaN)
       const y = readAsciiNumber(parts, yIndex, Number.NaN)
       const z = readAsciiNumber(parts, zIndex, Number.NaN)
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue
-      const [px, py, pz] = projectPlyPosition(x, y, z)
-      positions[written * 3] = px
-      positions[written * 3 + 1] = py
-      positions[written * 3 + 2] = pz
-      updateBounds(bounds, px, py, pz)
+      const positionOffset = written * 3
+      writeProjectedPlyPosition(positions, positionOffset, x, y, z)
+      updateBounds(bounds, positions[positionOffset], positions[positionOffset + 1], positions[positionOffset + 2])
       if (colors) {
         colors[written * 3] = hasRgbColor ? normalizeColor(readAsciiNumber(parts, redIndex, 255), header.properties[redIndex] || null) : normalizeGaussianSplatColor(readAsciiNumber(parts, fDcRedIndex, 0))
         colors[written * 3 + 1] = hasRgbColor ? normalizeColor(readAsciiNumber(parts, greenIndex, 255), header.properties[greenIndex] || null) : normalizeGaussianSplatColor(readAsciiNumber(parts, fDcGreenIndex, 0))
@@ -287,13 +388,14 @@ export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints =
         splatScales[written * 3 + 2] = normalizeGaussianSplatScale(scaleZ)
       }
       if (splatRotations) {
-        const [rotW, rotX, rotY, rotZ] = projectPlyQuaternion(
+        writeProjectedPlyQuaternion(
+          splatRotations,
+          written * 4,
           readAsciiNumber(parts, rotWIndex, 1),
           readAsciiNumber(parts, rotXIndex, 0),
           readAsciiNumber(parts, rotYIndex, 0),
           readAsciiNumber(parts, rotZIndex, 0),
         )
-        splatRotations.set([rotX, rotY, rotZ, rotW], written * 4)
       }
       written += 1
     }
@@ -308,17 +410,15 @@ export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints =
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
     const littleEndian = header.format === 'binary_little_endian'
     for (let sampleIndex = 0; sampleIndex < pointCount; sampleIndex += 1) {
-      const vertexIndex = resolveSampleVertexIndex(sampleIndex, pointCount, header.vertexCount)
+      const vertexIndex = resolveVertexIndex(sampleIndex)
       const rowOffset = header.bodyOffset + vertexIndex * rowBytes
       const x = readBinaryValue(view, rowOffset + offsets[xIndex], header.properties[xIndex].type, littleEndian)
       const y = readBinaryValue(view, rowOffset + offsets[yIndex], header.properties[yIndex].type, littleEndian)
       const z = readBinaryValue(view, rowOffset + offsets[zIndex], header.properties[zIndex].type, littleEndian)
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue
-      const [px, py, pz] = projectPlyPosition(x, y, z)
-      positions[written * 3] = px
-      positions[written * 3 + 1] = py
-      positions[written * 3 + 2] = pz
-      updateBounds(bounds, px, py, pz)
+      const positionOffset = written * 3
+      writeProjectedPlyPosition(positions, positionOffset, x, y, z)
+      updateBounds(bounds, positions[positionOffset], positions[positionOffset + 1], positions[positionOffset + 2])
       if (colors) {
         colors[written * 3] = hasRgbColor
           ? normalizeColor(readBinaryValue(view, rowOffset + offsets[redIndex], header.properties[redIndex].type, littleEndian), header.properties[redIndex] || null)
@@ -340,13 +440,14 @@ export function parsePlyPointCloud(buffer: ArrayBuffer | Uint8Array, maxPoints =
         splatScales[written * 3 + 2] = normalizeGaussianSplatScale(scaleZ)
       }
       if (splatRotations) {
-        const [rotW, rotX, rotY, rotZ] = projectPlyQuaternion(
+        writeProjectedPlyQuaternion(
+          splatRotations,
+          written * 4,
           hasGaussianSplatRotation ? readBinaryValue(view, rowOffset + offsets[rotWIndex], header.properties[rotWIndex].type, littleEndian) : 1,
           hasGaussianSplatRotation ? readBinaryValue(view, rowOffset + offsets[rotXIndex], header.properties[rotXIndex].type, littleEndian) : 0,
           hasGaussianSplatRotation ? readBinaryValue(view, rowOffset + offsets[rotYIndex], header.properties[rotYIndex].type, littleEndian) : 0,
           hasGaussianSplatRotation ? readBinaryValue(view, rowOffset + offsets[rotZIndex], header.properties[rotZIndex].type, littleEndian) : 0,
         )
-        splatRotations.set([rotX, rotY, rotZ, rotW], written * 4)
       }
       written += 1
     }

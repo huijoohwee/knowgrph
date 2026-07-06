@@ -29,6 +29,8 @@ import {
 import { uiToolbarRowScrollClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { setWorkspaceDataViewFloatingDensity, type WorkspaceDataViewFloatingBinding, type WorkspaceDataViewSettingsPanelKey } from './workspaceDataViewFloatingStore'
 import { WorkspaceDataViewNewRecordButton } from './WorkspaceDataViewNewRecordButton'
+import { coerceStructuredSourceValueColumnMode, type WorkspaceStructuredSourceValueColumnMode } from './workspaceDataViewConfig'
+import { hasStructuredSourceValueColumnMode } from './workspaceStructuredSourceDataViewPresentation'
 
 type WorkspaceDataViewSettingsPanelProps = Omit<WorkspaceDataViewFloatingBinding, 'registrationId'> & {
   title?: string
@@ -56,6 +58,11 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
   const groupByColumnName = props.columns.find(column => column.id === props.viewConfig.groupByColumnId)?.name || 'None'
   const sortColumnName = currentSortRule ? (props.columns.find(column => column.id === currentSortRule.columnId)?.name || currentSortRule.columnId) : 'None'
   const orientation = props.viewConfig.orientation === 'columns' ? 'columns' : 'rows'
+  const structuredSourceValueColumnMode = coerceStructuredSourceValueColumnMode(props.viewConfig.structuredSourceValueColumnMode)
+  const canChooseStructuredSourceValueColumnMode = React.useMemo(
+    () => hasStructuredSourceValueColumnMode(props.columns),
+    [props.columns],
+  )
   const rowHeightPreset = props.viewConfig.rowHeightPreset === 'compact' ? 'compact' : 'comfortable'
   const fieldLineMode = props.viewConfig.fieldLineMode === 'double' ? 'double' : 'single'
   const setOrientationFromWorkbench = React.useCallback((nextOrientation: 'rows' | 'columns') => {
@@ -65,6 +72,14 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
       orientation: nextOrientation,
     })
   }, [orientation, props])
+  const setStructuredSourceValueColumnMode = React.useCallback((nextMode: WorkspaceStructuredSourceValueColumnMode) => {
+    if (structuredSourceValueColumnMode === nextMode) return
+    props.setViewConfig({
+      ...props.viewConfig,
+      structuredSourceValueColumnMode: nextMode,
+      visibleColumnIds: null,
+    })
+  }, [props, structuredSourceValueColumnMode])
 
   const buildCollapsedState = React.useCallback(
     (expandedPanel?: WorkspaceDataViewSettingsPanelKey | null): Record<WorkspaceDataViewSettingsPanelKey, boolean> => ({
@@ -236,6 +251,23 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
               <section className={['text-[11px]', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="View query summary">
                 {`Projection: ${orientation === 'columns' ? 'columns as records' : 'rows as records'}`}
               </section>
+              {canChooseStructuredSourceValueColumnMode ? (
+                <PanelField
+                  label="Value columns"
+                  variant="section"
+                  className={UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME}
+                  labelClassName={UI_TEXT_TRUNCATE}
+                >
+                  <PanelSelect
+                    className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
+                    value={structuredSourceValueColumnMode}
+                    onChange={event => setStructuredSourceValueColumnMode(event.target.value === 'type-generic' ? 'type-generic' : 'type-specific')}
+                  >
+                    <option value="type-specific">Type-specific value columns</option>
+                    <option value="type-generic">Type-generic Value column</option>
+                  </PanelSelect>
+                </PanelField>
+              ) : null}
               {props.canMutate && props.onNewRecord ? (
                 <WorkspaceDataViewNewRecordButton
                   className="w-full justify-center"

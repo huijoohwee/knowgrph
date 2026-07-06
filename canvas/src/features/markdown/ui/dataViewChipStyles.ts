@@ -27,7 +27,7 @@ const fixedChipClasses: Record<string, string> = {
   '3': UI_THEME_TOKENS.status.pink,
 }
 
-const DATA_VIEW_CHIP_BASE_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} px-2 py-0.5 rounded border font-medium`
+const DATA_VIEW_CHIP_BASE_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} min-w-0 max-w-full overflow-hidden px-2 py-0.5 rounded border font-medium`
 
 export const DATA_VIEW_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} text-[10px] leading-[15px]`
 

@@ -55,11 +55,13 @@ export function CanvasXrEntryPanel({
   active,
   rendererRef,
   surfaceKind = 'graph',
+  spatialRuntimeFidelity = 'idle',
   spatialRuntimeStatus = 'idle',
 }: {
   active: boolean
   rendererRef: React.MutableRefObject<WebGLRenderer | null>
   surfaceKind?: 'graph' | 'spatial-capture'
+  spatialRuntimeFidelity?: 'idle' | 'preview' | 'full'
   spatialRuntimeStatus?: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 }) {
   const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'active' | 'error'>('checking')
@@ -188,6 +190,7 @@ export function CanvasXrEntryPanel({
           data-kg-canvas-xr-mode="1"
           data-kg-canvas-xr-surface-kind="spatial-capture"
           data-kg-canvas-xr-status={status}
+          data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}
           data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}
           className="absolute left-1/2 top-14 z-[90] -translate-x-1/2 rounded-md bg-slate-900/82 px-4 py-1 text-xs font-medium text-slate-100 shadow-sm backdrop-blur"
         >

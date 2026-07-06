@@ -17,7 +17,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const threeSizingAndWidthControlsText = readUtf8('src/features/panels/views/shared/ThreeSizingAndWidthControls.tsx')
   const threeViewBackgroundFogSectionText = readUtf8('src/features/panels/views/ThreeViewBackgroundFogSection.tsx')
   const threeViewStarfieldSectionText = readUtf8('src/features/panels/views/ThreeViewStarfieldSection.tsx')
-  const strybldrPanelText = readUtf8('src/features/strybldr/StrybldrFloatingPanelView.tsx')
+  const strybldrPanelText = `${readUtf8('src/features/strybldr/StrybldrFloatingPanelView.tsx')}\n${readUtf8('src/features/strybldr/StrybldrCardEditorSection.tsx')}`
   const strybldrCameraPanelText = readUtf8('src/features/strybldr/StrybldrCameraPanel.tsx')
   const strybldrCameraFloatingText = readUtf8('src/features/strybldr/StrybldrCameraFloatingPanelView.tsx')
   const dataViewSettingsText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPanel.tsx')
@@ -281,10 +281,10 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   }
 
   if (
-    !strybldrPanelText.includes("from '@/lib/ui/panelFormControls'") ||
+    !strybldrPanelText.includes("from '@/lib/ui/panelFormControls'") || !strybldrPanelText.includes("from './StrybldrCardEditorSection'") ||
     !strybldrPanelText.includes('PanelField') ||
     !strybldrPanelText.includes('PanelTextInput') ||
-    !strybldrPanelText.includes('PanelTextarea') ||
+    !strybldrPanelText.includes('CardInlineTextEditor') ||
     !strybldrPanelText.includes('PanelSelect') ||
     strybldrPanelText.includes('className="mt-1 min-h-')
   ) {

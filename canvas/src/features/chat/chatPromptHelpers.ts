@@ -190,6 +190,17 @@ type WorkspaceContextCacheEntry = {
 const workspaceContextCache = new Map<string, WorkspaceContextCacheEntry>()
 const workspaceContextInFlight = new Map<string, Promise<string | null>>()
 
+export type WorkspaceContextCacheStatus = 'disabled' | 'ready' | 'hot' | 'loading'
+
+export const resolveWorkspaceContextCacheStatus = (cacheKey: unknown): WorkspaceContextCacheStatus => {
+  const key = String(cacheKey || '').trim()
+  if (!key) return 'disabled'
+  if (workspaceContextInFlight.has(key)) return 'loading'
+  const cached = workspaceContextCache.get(key)
+  if (cached && Date.now() - cached.tsMs <= CHAT_WORKSPACE_CONTEXT_CACHE_TTL_MS) return 'hot'
+  return 'ready'
+}
+
 const clipChatContextText = (raw: unknown, maxChars: number): string => {
   const text = typeof raw === 'string' ? raw : ''
   if (!text.trim()) return ''

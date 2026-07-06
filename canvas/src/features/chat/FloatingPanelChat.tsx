@@ -7,7 +7,10 @@ import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsi
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
-import type { ChatMessage, StreamingAssistantState } from './FloatingPanelChatSections'
+import type {
+  ChatMessage,
+  StreamingAssistantState,
+} from './FloatingPanelChatSections'
 import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './FloatingPanelChatSections'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
@@ -46,7 +49,7 @@ import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/mark
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { coerceHttpUrl } from '@/lib/url'
+import { parseChatIngestUrlCommand } from '@/features/chat/chatCommandRegistry'
 import {
   clearLocalChatPipelineSurfaceSnapshot,
   publishLocalChatPipelineSurfaceSnapshot,
@@ -73,6 +76,7 @@ import {
   parseChatSkillSlashInvocation,
 } from './chatSkillRegistry'
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
+import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSurfaceModel'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -483,36 +487,6 @@ export default function FloatingPanelChat() {
     return resolveSharedChatModelSelect({ chatModel, chatProvider })
   }, [chatModel, chatProvider])
 
-  const sourceFilesSignature = React.useMemo(() => {
-    const compact = Array.isArray(sourceFiles)
-      ? sourceFiles
-        .slice(0, 64)
-        .map(file => ({
-          id: String(file?.id || ''),
-          name: String(file?.name || ''),
-          enabled: file?.enabled !== false,
-          status: String(file?.status || ''),
-          textLength: typeof file?.text === 'string' ? file.text.length : 0,
-          parsedTextHash: String(file?.parsedTextHash || ''),
-        }))
-      : []
-    return hashArrayOfObjectsSignature(compact, { maxItems: 64, maxKeysPerItem: 6 })
-  }, [sourceFiles])
-
-  const workspaceContextCacheKey = React.useMemo(() => {
-    const markdownHead = typeof markdownText === 'string' ? markdownText.slice(0, 180) : ''
-    const markdownTail = typeof markdownText === 'string' ? markdownText.slice(-180) : ''
-    return hashSignatureParts([
-      'chat:workspace-context',
-      markdownDocumentName || '',
-      docLocationRevision,
-      typeof markdownText === 'string' ? markdownText.length : 0,
-      markdownHead,
-      markdownTail,
-      sourceFilesSignature,
-    ])
-  }, [docLocationRevision, markdownDocumentName, markdownText, sourceFilesSignature])
-
   const clearCurrentHistory = React.useCallback(() => {
     setMessages([])
     putChatHistoryCache(historyKey, [])
@@ -613,6 +587,18 @@ export default function FloatingPanelChat() {
     if (!selectedNodeId) return null
     return graphLookup?.nodeById.get(selectedNodeId) || null
   }, [graphLookup, selectedNodeId])
+
+  const {
+    appendPrompt: appendChatPrompt,
+    contextItems: chatContextItems,
+    pipelineStages: chatPipelineStages,
+    quickActions: chatQuickActions,
+    workspaceContextCacheKey,
+  } = useFloatingPanelChatSurfaceModel({
+    chatContextScope, markdownDocumentName, markdownText, docLocationRevision, sourceFiles,
+    graphData, workspaceViewMode, chatKnowgrphWorkspacePath, chatHistoryWorkspacePath,
+    currentNode, messageCount: messages.length, isLoading, setInput,
+  })
 
   React.useEffect(() => {
     if (lastLoadedHistoryKeyRef.current === historyKey) return
@@ -872,20 +858,8 @@ export default function FloatingPanelChat() {
     setStreamingInsights,
   })
 
-  const parseDeerFlowIngestCommand = React.useCallback((raw: string): { url: string } | null => {
-    const text = String(raw || '').trim()
-    if (!text) return null
-    const match = text.match(/^(?:\/)?(?:deerflow|deerflow-import|ingest|ingest-url)\s+(.+)$/i)
-    if (!match || !match[1]) return null
-    const urlRaw = String(match[1] || '').trim()
-    if (!urlRaw) return null
-    const url = coerceHttpUrl(urlRaw) || urlRaw
-    if (!/^https?:\/\//i.test(url)) return null
-    return { url }
-  }, [])
-
   const handleSubmitWithCommands = React.useCallback<React.FormEventHandler<HTMLFormElement>>((e) => {
-    const cmd = parseDeerFlowIngestCommand(input)
+    const cmd = parseChatIngestUrlCommand(input)
     if (!cmd) {
       handleSubmit(e)
       return
@@ -920,7 +894,7 @@ export default function FloatingPanelChat() {
         setMessages(prev => [...prev, { id: `cmd-error-${Date.now().toString(36)}`, role: 'assistant', content: message || 'Import failed.' }])
       }
     })()
-  }, [handleSubmit, input, isLoading, parseDeerFlowIngestCommand, pushUiToast])
+  }, [handleSubmit, input, isLoading, pushUiToast])
 
   return (
     <section className="h-full flex flex-col">
@@ -929,6 +903,9 @@ export default function FloatingPanelChat() {
           messages={messages}
           isLoading={isLoading}
           historyKey={historyKey}
+          contextItems={chatContextItems}
+          pipelineStages={chatPipelineStages}
+          onPipelineStageAction={appendChatPrompt}
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
           uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
@@ -968,6 +945,9 @@ export default function FloatingPanelChat() {
         showNewChatButton={chatStorageTarget === 'chatKnowgrph'}
         isNewChatDisabled={isLoading}
         onNewChat={handleNewChat}
+        quickActions={chatQuickActions}
+        onQuickAction={appendChatPrompt}
+        markdownText={markdownText}
       />
     </section>
   )

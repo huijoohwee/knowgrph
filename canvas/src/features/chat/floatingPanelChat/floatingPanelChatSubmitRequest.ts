@@ -39,6 +39,7 @@ import {
   buildKnowgrphVdeoxplnChatSystemPrompt,
   buildKnowgrphVdeoxplnRoutingPlan,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
+import { buildChatInvocationSystemPrompt } from '../chatInvocationRegistry'
 
 export type ChatSubmitMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
@@ -158,6 +159,12 @@ export const buildChatSubmitRequestContext = async (args: {
   if (args.submitArgs.chatSystemPrompt && typeof args.submitArgs.chatSystemPrompt === 'string' && args.submitArgs.chatSystemPrompt.trim()) {
     systemMessages.push({ role: 'system', content: args.submitArgs.chatSystemPrompt })
   }
+  const invocationPrompt = buildChatInvocationSystemPrompt({
+    userQuery,
+    chatProvider: args.submitArgs.chatProvider,
+    chatModel: args.submitArgs.chatModel,
+  })
+  if (invocationPrompt) systemMessages.push({ role: 'system', content: invocationPrompt })
   if (args.submitArgs.chatStorageTarget === 'chatKnowgrph') {
     const skill = resolveChatSkillOption(args.submitArgs.chatSkillId)
     if (skill?.systemPrompt.trim()) systemMessages.push({ role: 'system', content: skill.systemPrompt })

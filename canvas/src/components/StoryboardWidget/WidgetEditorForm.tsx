@@ -1,24 +1,16 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
-import {
-  resolveMediaPreviewSurfaceCardProps,
-  resolveMediaPreviewSurfaceSelectionProps,
-} from '@/lib/cards/mediaPreviewSurfaceSelection'
+import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
+import { resolveMediaPreviewSurfaceCardProps, resolveMediaPreviewSurfaceSelectionProps } from '@/lib/cards/mediaPreviewSurfaceSelection'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import {
-  UI_COPY,
-  UI_LABELS,
-} from '@/lib/config'
+import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import {
-  UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
-} from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -300,6 +292,10 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
     }
   }
   const propertiesSnapshot = propertiesSnapshotRef.current.value
+  const propertiesInlineMediaCommandContext = React.useMemo(
+    () => buildInlineMediaCommandContextFromRecord(propertiesSnapshot),
+    [propertiesSnapshot],
+  )
   const nodeTypeId = pickString(node.type).trim()
   const nodeHelperSignature = React.useMemo(() => {
     return hashSignatureParts([
@@ -894,6 +890,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
               value={flowDataDraft}
               active={active}
               multiline
+              markdownCommandContextText={propertiesInlineMediaCommandContext}
               className={flowEnvelopeValueBoxClass}
               onCommit={next => {
                 const raw = String(next ?? '')
@@ -931,6 +928,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
               value={flowCompute}
               active={active}
               multiline
+              markdownCommandContextText={propertiesInlineMediaCommandContext}
               className={flowEnvelopeValueBoxClass}
               onCommit={next => onPatchProperties({ 'flow:compute': next || undefined })}
             />
@@ -958,6 +956,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
             value={rowSpec.valueText}
             active={active}
             multiline
+            markdownCommandContextText={propertiesInlineMediaCommandContext}
             className={flowEnvelopeValueBoxClass}
             onCommit={next => {
               if (!fieldSchemaPath) return
@@ -988,6 +987,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
     keyLabelClass,
     onPatchProperties,
     onSetProperties,
+    propertiesInlineMediaCommandContext,
     propertiesSnapshot,
   ])
 

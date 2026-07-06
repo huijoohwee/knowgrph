@@ -1025,8 +1025,8 @@ export const testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile = () 
 export const testLaunchDropdownFilePickerClosesAfterSelectionNotBefore = () => {
   const dropdownPath = path.resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
   const text = readUtf8(dropdownPath)
-  if (!text.includes('if (typeof bridge.importLocalFiles === \'function\') bridge.importLocalFiles(files)\n          else void importLocalFilesFallback(files)\n          onClose()')) {
-    throw new Error('Expected local file picker flow to close dropdown after file selection is handled')
+  if (!text.includes('runLaunchImportLocalFiles({') || !text.includes('fallback: importLocalFilesFallback') || !text.includes('onClose()')) {
+    throw new Error('Expected local file picker flow to dispatch import and close dropdown after file selection is handled')
   }
   if (text.includes('openFilePicker(fileInputRef.current)\n                onClose()')) {
     throw new Error('Expected local file picker button to avoid closing dropdown before native file selection returns')

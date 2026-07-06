@@ -18,6 +18,7 @@ import {
 import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBridge'
 import { LaunchDropdownImportUrlItem } from './LaunchDropdownImportUrlItem'
 import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
+import { runLaunchImportLocalFiles } from './launchImportDispatch'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
@@ -176,8 +177,11 @@ export function LaunchDropdown({
         onChange={e => {
           const files = e.target.files
           const launchBridge = getMarkdownWorkspaceActionBridge()
-          if (typeof launchBridge.importLocalFiles === 'function') launchBridge.importLocalFiles(files)
-          else void importLocalFilesFallback(files ? Array.from(files) : [])
+          void runLaunchImportLocalFiles({
+            files,
+            bridge: launchBridge,
+            fallback: importLocalFilesFallback,
+          })
           onClose()
           try {
             e.currentTarget.value = ''

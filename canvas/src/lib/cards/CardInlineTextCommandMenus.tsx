@@ -24,20 +24,22 @@ import {
   applyCommandMenuMediaNameDraftsToInlineCandidates,
   useCommandMenuMediaNameDrafts,
 } from '@/lib/command-menu/commandMenuMediaNameSync'
-import { listUploadedMediaFromKnowgrphStorage } from '@/lib/storage/uploadedMediaStorage'
 import {
-  buildUploadedMediaPanelItemFromStorage,
-  mergeUploadedMediaPanelItems,
-  readUploadedMediaPanelItemRuntimeUrl,
+  buildInlineCommandActionMenuItem,
+  buildInlineKeywordCommandMenuItem,
+  buildInlineMediaCommandMenuItem,
+  buildInlineVariableBrowseMenuItem,
+} from '@/lib/command-menu/inlineCommandMenuItems'
+import { useUploadedMediaInlineCommandCandidates } from '@/lib/command-menu/inlineUploadedMediaCandidates'
+import {
   readUploadedMediaStorageRuntimeUrl,
   readStoredUploadedMediaPanelItems,
-  UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT,
-  writeStoredUploadedMediaPanelItems,
   type UploadedMediaPanelItem,
 } from '@/lib/storage/uploadedMediaPanelItems'
 import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { readCardInlineMediaCommandDuplicateNeedle } from '@/lib/cards/cardInlineTextEditorUtils'
 
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 
@@ -145,19 +147,6 @@ function insertMarkdownBlockRange(args: {
   return { text: next, cursor: before.length + prefix.length + block.length }
 }
 
-function readMediaCommandDuplicateNeedle(url: string): string {
-  const raw = String(url || '').trim()
-  if (!raw) return ''
-  try {
-    const parsed = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid')
-    parsed.searchParams.delete('kg_media_token')
-    const pathAndQuery = `${parsed.pathname}${parsed.search}`
-    return parsed.origin === 'https://example.invalid' ? pathAndQuery : `${parsed.origin}${pathAndQuery}`
-  } catch {
-    return raw.split('?kg_media_token=')[0]?.trim() || raw
-  }
-}
-
 function replaceCurrentLine(args: {
   input: HTMLInputElement | HTMLTextAreaElement | null
   draft: string
@@ -177,63 +166,6 @@ function replaceCurrentLine(args: {
   replaceDraftRange({ ...args, start: lineStart, end: lineEnd, replacement: `${args.prefix}${content}` })
 }
 
-function buildUploadedMediaInlineCommandCandidate(item: UploadedMediaPanelItem): InlineMediaCommandCandidate | null {
-  if (item.status !== 'synced' || !item.storage) return null
-  const url = readUploadedMediaPanelItemRuntimeUrl(item)
-  if (!url) return null
-  const sourceKey = String(item.storage.contentHash || item.storage.objectKey || item.id).trim()
-  return {
-    id: `uploaded-${item.id}`,
-    kind: item.kind,
-    url,
-    thumbnailUrl: item.kind === 'image' ? url : undefined,
-    label: item.name,
-    sourceKey,
-    description: 'Uploaded media from Cloudflare storage',
-    keywords: [item.kind, item.name, sourceKey, url].filter(Boolean),
-  }
-}
-
-function useUploadedMediaInlineCommandCandidates(): InlineMediaCommandCandidate[] {
-  const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
-
-  React.useEffect(() => {
-    let cancelled = false
-    setUploadedMediaItems(readStoredUploadedMediaPanelItems())
-    listUploadedMediaFromKnowgrphStorage().then(storageItems => {
-      if (cancelled) return
-      const cloudflareItems = storageItems
-        .map(buildUploadedMediaPanelItemFromStorage)
-        .filter((item): item is UploadedMediaPanelItem => !!item)
-      setUploadedMediaItems(prev => {
-        const next = mergeUploadedMediaPanelItems([...cloudflareItems, ...readStoredUploadedMediaPanelItems(), ...prev])
-        writeStoredUploadedMediaPanelItems(next)
-        return next
-      })
-    }).catch(() => {
-      void 0
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-  React.useEffect(() => {
-    const onItemsChanged = () => setUploadedMediaItems(readStoredUploadedMediaPanelItems())
-    window.addEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
-    return () => {
-      window.removeEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, onItemsChanged)
-    }
-  }, [])
-
-  return React.useMemo(
-    () => uploadedMediaItems.flatMap(item => {
-      const candidate = buildUploadedMediaInlineCommandCandidate(item)
-      return candidate ? [candidate] : []
-    }),
-    [uploadedMediaItems],
-  )
-}
-
 export function CardInlineTextCommandMenus(props: {
   commandMode: CardInlineTextCommandMenuMode | null
   commandQuery: string
@@ -248,6 +180,7 @@ export function CardInlineTextCommandMenus(props: {
   setDraft: (next: string) => void
   onCommandDraftChange?: (next: string) => void
   onCommandDraftApplied?: (next: string) => void
+  onMediaCommandSelect?: (candidate: InlineMediaCommandCandidate) => void
 }) {
   const {
     closeCommandMenu,
@@ -259,6 +192,7 @@ export function CardInlineTextCommandMenus(props: {
     inputRef,
     onCommandDraftChange,
     onCommandDraftApplied,
+    onMediaCommandSelect,
     openCommandMenu,
     setCommandMode,
     setCommandQuery,
@@ -340,7 +274,8 @@ export function CardInlineTextCommandMenus(props: {
 
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
-    const duplicateNeedle = readMediaCommandDuplicateNeedle(candidate.url)
+    if (candidate.url) onMediaCommandSelect?.(candidate)
+    const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
     if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
       setCommandMode(null)
       setCommandQuery('')
@@ -375,7 +310,7 @@ export function CardInlineTextCommandMenus(props: {
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-  }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
+  }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
 
   const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
     const results = await uploadFilesToUploadedMediaPanel({
@@ -415,12 +350,8 @@ export function CardInlineTextCommandMenus(props: {
     }
     return INLINE_SLASH_COMMAND_ACTIONS
       .filter(action => action.id !== 'heading')
-      .map(action => ({
-        id: action.id,
-        label: action.label,
-        group: action.group,
-        description: action.description,
-        keywords: [...action.keywords],
+      .map(action => buildInlineCommandActionMenuItem({
+        action,
         onSelect: () => {
           const prefix = prefixById[action.id]
           if (prefix) {
@@ -468,25 +399,16 @@ export function CardInlineTextCommandMenus(props: {
     ], mediaNameDrafts).slice(0, 12)
     const mediaCandidateItems = mediaCandidates
       .filter(candidate => !queryKey || candidate.label.toLowerCase().includes(queryKey.toLowerCase()) || candidate.url.toLowerCase().includes(queryKey.toLowerCase()))
-      .map(candidate => ({
-        id: candidate.id,
-        label: candidate.label,
-        group: 'Insert media',
-        description: candidate.description,
-        keywords: candidate.keywords,
-        thumbnailKind: candidate.kind,
-        thumbnailUrl: candidate.thumbnailUrl,
+      .map(candidate => buildInlineMediaCommandMenuItem({
+        candidate,
         onSelect: () => insertMediaCommand(candidate, { closeAfterApply: true }),
       }))
     const suggestionItems = collectMarkdownVariableBrowseRows({ draftText: draft })
       .filter(row => !queryKey || row.key.toLowerCase().includes(queryKey.toLowerCase()))
       .slice(0, 8)
-      .map(row => ({
-        id: `var-${row.key}`,
-        label: row.key,
-        group: 'Variables',
-        description: `${row.value || 'Reference variable'}${row.source === 'frontmatter' ? ' from frontmatter' : row.source === 'inline' ? ' from inline content' : ''}`,
-        keywords: [row.value, row.source].filter(Boolean) as string[],
+      .map(row => buildInlineVariableBrowseMenuItem({
+        row,
+        idPrefix: 'var-',
         onSelect: () => replaceCommandSelection(buildMarkdownVariableToken({ mode: 'ref', key: row.key })),
       }))
     const canRef = isInlineVariableKey(parsed.key)
@@ -500,54 +422,78 @@ export function CardInlineTextCommandMenus(props: {
       const action = actionById[actionId]
       const kind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[actionId]
       const fallbackCandidate = mediaCandidates.find(candidate => candidate.kind === kind)
-      return {
-        id: action.id,
-        label: action.label,
-        group: action.group,
-        description: fallbackCandidate?.description || action.description,
-        keywords: [kind, ...action.keywords].filter(Boolean) as string[],
-        thumbnailKind: fallbackCandidate?.kind,
-        thumbnailUrl: fallbackCandidate?.thumbnailUrl,
+      if (fallbackCandidate) return buildInlineMediaCommandMenuItem({
+        candidate: {
+          ...fallbackCandidate,
+          id: action.id,
+          label: action.label,
+          description: fallbackCandidate.description || action.description,
+          keywords: [kind, ...action.keywords, ...fallbackCandidate.keywords].filter(Boolean) as string[],
+        },
         onSelect: () => {
-          insertMediaCommand(fallbackCandidate || {
+          insertMediaCommand(fallbackCandidate, { closeAfterApply: true })
+        },
+      })
+      return buildInlineCommandActionMenuItem({
+        action,
+        keywords: [kind, ...action.keywords].filter(Boolean) as string[],
+        onSelect: () => {
+          insertMediaCommand({
             id: action.id,
             kind,
             url: '',
             label: '',
             description: action.description,
             keywords: [...action.keywords],
-          }, { closeAfterApply: !!fallbackCandidate?.url })
+          }, { closeAfterApply: false })
         },
-      }
+      })
     })
     const mediaActions = (['image-reference', 'audio-reference', 'video-reference'] as const).map((actionId: InlineVariableCommandId) => {
       const action = actionById[actionId]
       const key = INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID[actionId]
-      return {
-        id: action.id,
-        label: action.label,
-        group: action.group,
-        description: action.description,
-        keywords: [key, ...action.keywords].filter(Boolean) as string[],
+      return buildInlineCommandActionMenuItem({
+        action,
+        keywords: [key, ...action.keywords],
         onSelect: () => replaceCommandSelection(buildMarkdownVariableToken({ mode: 'ref', key }) || ''),
-      }
+      })
     })
     const uploadMediaAction = actionById[INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID]
     return [
-      {
-        id: uploadMediaAction.id,
-        label: uploadMediaAction.label,
-        group: uploadMediaAction.group,
-        description: uploadMediaAction.description,
-        keywords: [...uploadMediaAction.keywords],
+      buildInlineCommandActionMenuItem({
+        action: uploadMediaAction,
         onSelect: () => uploadInputRef.current?.click(),
-      },
+      }),
       ...mediaCandidateItems,
       ...mediaInsertActions,
       ...suggestionItems,
-      { id: insertReference.id, label: insertReference.label, group: insertReference.group, description: insertReference.description, keywords: [parsed.key, ...insertReference.keywords].filter(Boolean) as string[], disabled: !canRef, onSelect: () => { const token = buildMarkdownVariableToken({ mode: 'ref', key: parsed.key }); if (token) replaceCommandSelection(token) } },
-      { id: inlineDeclaration.id, label: inlineDeclaration.label, group: inlineDeclaration.group, description: inlineDeclaration.description, keywords: [parsed.key, ...inlineDeclaration.keywords].filter(Boolean) as string[], disabled: !canCreate, onSelect: () => { const token = buildMarkdownVariableToken({ mode: 'create', key: parsed.key, value: parsed.value }); if (token) replaceCommandSelection(token) } },
-      { id: fallbackReference.id, label: fallbackReference.label, group: fallbackReference.group, description: fallbackReference.description, keywords: [parsed.key, ...fallbackReference.keywords].filter(Boolean) as string[], disabled: !canFallback, onSelect: () => { const token = buildMarkdownVariableToken({ mode: 'fallback', key: parsed.key, fallback: parsed.fallback }); if (token) replaceCommandSelection(token) } },
+      buildInlineCommandActionMenuItem({
+        action: insertReference,
+        keywords: [parsed.key, ...insertReference.keywords],
+        disabled: !canRef,
+        onSelect: () => {
+          const token = buildMarkdownVariableToken({ mode: 'ref', key: parsed.key })
+          if (token) replaceCommandSelection(token)
+        },
+      }),
+      buildInlineCommandActionMenuItem({
+        action: inlineDeclaration,
+        keywords: [parsed.key, ...inlineDeclaration.keywords],
+        disabled: !canCreate,
+        onSelect: () => {
+          const token = buildMarkdownVariableToken({ mode: 'create', key: parsed.key, value: parsed.value })
+          if (token) replaceCommandSelection(token)
+        },
+      }),
+      buildInlineCommandActionMenuItem({
+        action: fallbackReference,
+        keywords: [parsed.key, ...fallbackReference.keywords],
+        disabled: !canFallback,
+        onSelect: () => {
+          const token = buildMarkdownVariableToken({ mode: 'fallback', key: parsed.key, fallback: parsed.fallback })
+          if (token) replaceCommandSelection(token)
+        },
+      }),
       ...mediaActions,
     ]
   }, [commandContextText, commandQuery, draft, insertMediaCommand, mediaNameDrafts, replaceCommandSelection, uploadedMediaCommandCandidates])
@@ -555,16 +501,12 @@ export function CardInlineTextCommandMenus(props: {
   const keywordCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     return collectInlineKeywordCommandCandidates({
       draftText: [commandContextText, draft].filter(Boolean).join('\n'),
-    }).map(candidate => ({
-      id: candidate.id,
-      label: candidate.label,
-      group: candidate.group,
-      description: candidate.description,
-      keywords: candidate.keywords,
-      onSelect: () => replaceCommandSelection(candidate.token || buildInlineKeywordToken(candidate.label)),
+    }).map(candidate => buildInlineKeywordCommandMenuItem({
+      candidate,
+      replacement: candidate.token || buildInlineKeywordToken(candidate.label),
+      onSelect: replaceCommandSelection,
     }))
   }, [commandContextText, draft, replaceCommandSelection])
-
   const commandMenuConfig = commandMode === 'slash'
     ? {
         ariaLabel: 'Card slash commands',

@@ -3,8 +3,8 @@ title: "Knowgrph — AI Agents Universal Memory Layer PRD/TAD"
 id: "md:knowgrph-ai-agents-memory-layer-prd-tad"
 author: "airvio / joohwee"
 date: "2026-06-13"
-updated: "2026-06-13"
-version: "0.2.0"
+updated: "2026-07-06"
+version: "0.3.0"
 status: "implemented-dev-runtime"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -93,6 +93,7 @@ Knowgrph agents otherwise start cold each session. Users repeat preferences, pro
 | Dev runtime | Local JSON add/search/assemble harness | `mcp/memory-layer-runtime.js` | Implemented |
 | Local MCP | Tool descriptors and server handlers | `mcp/local-tool-contract.js`, `mcp/server.js` | Implemented |
 | Agent registry | `knowgrph-memory-layer` vdeoxpln entry | `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs` | Implemented |
+| Chat invocation | `#memory.search`, `#memory.add`, `#memory.assemble` discovery and fail-closed external-runtime prompt | `canvas/src/features/chat/chatInvocationRegistry.ts`, `floatingPanelChatSubmitRequest.ts` | Implemented |
 | Docs | PRD/TAD and MCP README | this file, `mcp/README.md` | Implemented |
 
 ### Local MCP Tools
@@ -106,6 +107,8 @@ Knowgrph agents otherwise start cold each session. Users repeat preferences, pro
 ### Scope and Config
 
 All scope values are runtime inputs. Missing scope fails fast. The local store is configured by `KNOWGRPH_MEMORY_STORE_PATH`; the default Dev path is `data/memory-layer/local-memory-store.json`.
+
+FloatingPanel Chat `#memory.*` directives select the canonical memory vdeoxpln and name the exact MCP tool for an external AI/LLM/agent runtime. The request system context requires explicit scope and permits execution only when that tool is present in the request tool set or connected MCP runtime; otherwise the model returns a tool handoff instead of claiming execution.
 
 Provider-mode env names are documented in the shared contract:
 

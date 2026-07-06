@@ -17,7 +17,6 @@ export function assertStoryboard2dMediaDropContract() {
 
   for (const snippet of [
     'isMediaDropClaimedByNestedTarget',
-    'if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return false',
   ]) {
     if (!storyboardCanvasSource.includes(snippet) && !storyboardCanvasSource.includes('|| isMediaDropClaimedByNestedTarget(clientX, clientY)')) {
       throw new Error(`expected Storyboard canvas media release capture to skip nested media drop targets: ${snippet}`)
@@ -28,6 +27,12 @@ export function assertStoryboard2dMediaDropContract() {
     if (!storyboardWidgetDropBridgeSource.includes(snippet)) {
       throw new Error(`expected Storyboard Widget drop bridge to skip nested media drop targets: ${snippet}`)
     }
+  }
+  if (!storyboardCanvasSource.includes('|| isMediaDropClaimedByNestedTarget(clientX, clientY)')) {
+    throw new Error('expected Storyboard canvas media release capture to skip nested media drop targets before claiming canvas media drops')
+  }
+  if (!storyboardWidgetDropBridgeSource.includes("if (isMediaDropClaimedByNestedTarget(clientX, clientY)) return 'rejected'")) {
+    throw new Error('expected Storyboard Widget drop bridge deferred media drops to reject registered nested media drop targets')
   }
   for (const snippet of [
     'document.querySelectorAll(`[${MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE}="1"]`)',
@@ -124,7 +129,7 @@ export function assertStoryboard2dMediaDropContract() {
     'preserveWorldTopLeft: !!projectedWorldBox && !!topLeftNow',
     'const snappedPos = p.preserveWorldTopLeft ? pos : snapPanelTopLeftToGrid(pos)',
     'const collisionPreferred = preferred.filter(item => !item.preserveWorldTopLeft)',
-    "...preferred.filter(item => item.preserveWorldTopLeft)",
+    '.filter(item => item.preserveWorldTopLeft)',
     'const snappedWorldTopLeft = snapPointToGrid(worldTopLeft, snapGrid)',
     'const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h, scale: Math.max(0.001, Number(p.scale) || 1) }',
   ]) {
@@ -187,6 +192,23 @@ export function assertStoryboard2dMediaDropContract() {
     'setPendingMediaByCardId',
     'pendingMedia={pendingMediaByCardId[card.id] || null}',
     'const displayMedia = pendingMedia || card.media',
+    'buildStoryboardInlineMediaCommandContext',
+    'markdownCommandContextText={storyboardCommandContextText}',
+    'buildInlineMediaCommandChipMarkdown',
+    'const summaryDisplayValue = buildStoryboardSummaryDisplayValue',
+    'value={summaryDisplayValue}',
+    'buildInlineMediaCommandDragPayload',
+    'const applyInlineMediaCommandToCard = React.useCallback',
+    'onDropMedia(card, payload)',
+    'onMediaCommandSelect={applyInlineMediaCommandToCard}',
+    'const readLatestNode = React.useCallback',
+    'const latestGraphData = useGraphStore.getState().graphData',
+    'openOnPointerDown',
+    'data-kg-storyboard-card-text-column="1"',
+    'onPointerDownCapture={requestSummaryEditFromTextColumn}',
+    'event.preventDefault()',
+    'editRequestKey={summaryEditRequestKey}',
+    'select-none',
     'MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE',
     'MEDIA_POINTER_DRAG_DROP_EVENT',
     'readMediaDragPayload',
@@ -196,7 +218,10 @@ export function assertStoryboard2dMediaDropContract() {
     "document.addEventListener('dragover', handleDocumentDragOver, true)",
     "document.addEventListener('drop', handleDocumentDrop, true)",
     'data-kg-storyboard-card-media-drop="1"',
+    'data-kg-storyboard-card-media-chip="1"',
     "[MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE]: '1'",
+    'InlineMediaCommandThumbnail',
+    'variant="inline"',
     'mediaThumbnailDataAttr',
     'onDropMedia',
     'setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })',

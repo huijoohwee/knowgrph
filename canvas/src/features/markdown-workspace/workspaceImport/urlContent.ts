@@ -39,7 +39,7 @@ import { shouldSkipUnifiedMarkdownConversion } from '@/lib/websites/webpageMarkd
 import { isShareUrlArtifactEligible } from '@/features/chat/shareUrlArtifacts'
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { GLB_ASSET_MIME_TYPE, GLTF_ASSET_MIME_TYPE, buildGlbAssetMarkdown, buildGltfAssetMarkdown, deriveModelWorkspaceDocumentNameFromUrl } from './glbAsset'
-import { buildSpatialCaptureUrlContent } from './urlSpatialCaptureContent'
+import { resolveSpatialCaptureUrlContentForImport } from './urlSpatialCaptureImportProbe'
 import { buildCorpusMediaMetadataMarkdown, buildCorpusMediaWorkspaceDocumentName, inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 import {
   autoTuneFromHtml,
@@ -219,7 +219,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     }
   }
 
-  const spatialCaptureContent = buildSpatialCaptureUrlContent({ normalizedUrl, sourceUrl: localFsFetchPath && isFileUrl ? normalizedUrl.replace(/^file:\/\//i, '') : normalizedUrl })
+  const spatialCaptureContent = await resolveSpatialCaptureUrlContentForImport({ normalizedUrl, sourceUrl: localFsFetchPath && isFileUrl ? normalizedUrl.replace(/^file:\/\//i, '') : normalizedUrl, headFetchPath: isHttpUrl || directFetchPath || localFsFetchPath ? localFsFetchPath || directFetchPath || resolveBinaryDownloadProxyUrl(normalizedUrl) : '' })
   if (spatialCaptureContent) {
     opts?.onProgress?.(100)
     return spatialCaptureContent

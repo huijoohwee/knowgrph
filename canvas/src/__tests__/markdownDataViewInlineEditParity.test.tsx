@@ -167,6 +167,117 @@ export async function testMarkdownDataViewColumnsOrientationRendersMarkdownImage
   }
 }
 
+export async function testMarkdownDataViewTableRendersNestedMarkdownTablesInsideCells() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const nestedValue = [
+      '| Shot | Media |',
+      '| --- | --- |',
+      '| Source | imageUrl |',
+      '| Runtime | videoUrl |',
+    ].join('\n')
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Name', kind: 'text' },
+        { id: 'c2', name: 'Nested', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['Alpha', nestedValue] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate={false}
+        onUpdateCell={() => {}}
+      />,
+    )
+    await tick()
+    await tick()
+
+    const nestedTable = dom.window.document.querySelector('table[aria-label="Nested table cell"]')
+    if (!(nestedTable instanceof dom.window.HTMLTableElement)) {
+      throw new Error('expected nested Markdown table cell to render a semantic nested table')
+    }
+    if (!String(nestedTable.textContent || '').includes('Runtime') || !String(nestedTable.textContent || '').includes('videoUrl')) {
+      throw new Error(`expected nested table content to render inside the cell, got ${nestedTable.textContent}`)
+    }
+    if (String(container.textContent || '').includes('| --- | --- |')) {
+      throw new Error('expected nested table delimiter source not to leak into the rendered cell')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownDataViewTableRendersInlineMediaCellsWithRichMediaPanel() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const mediaUrl = 'https://media.example.test/runtime/table-frame.mp4'
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Name', kind: 'text' },
+        { id: 'c2', name: 'mediaUrl', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['Alpha', `mediaUrl: ${mediaUrl}`] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate={false}
+        onUpdateCell={() => {}}
+      />,
+    )
+    await tick()
+    await tick()
+
+    const mediaCell = dom.window.document.querySelector('[data-kg-markdown-data-view-rich-media-cell="1"]')
+    if (!(mediaCell instanceof dom.window.HTMLElement)) {
+      throw new Error('expected media table cell to render the shared RichMediaPanel wrapper')
+    }
+    const panel = mediaCell.querySelector('[data-kg-rich-media-panel="1"]')
+    if (!(panel instanceof dom.window.HTMLElement)) {
+      throw new Error('expected media table cell to mount RichMediaPanel')
+    }
+    const video = mediaCell.querySelector('video[data-kg-card-media-kind="video"]') as HTMLVideoElement | null
+    if (!video) throw new Error('expected RichMediaPanel table cell to render a video media surface')
+    const videoSrc = String(video.getAttribute('src') || '')
+    const proxiedUrl = new dom.window.URL(videoSrc, 'http://localhost')
+    const resolvedMediaUrl = proxiedUrl.pathname === '/__fetch_remote'
+      ? String(proxiedUrl.searchParams.get('url') || '')
+      : videoSrc
+    if (resolvedMediaUrl !== mediaUrl) {
+      throw new Error(`expected video cell to preserve media URL through RichMediaPanel, got ${videoSrc}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
 export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPreviewAndEditFullValue() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
@@ -216,15 +327,15 @@ export async function testMarkdownDataViewInlineEditLongTextCellsRenderBoundedPr
     await tick()
     await tick()
 
-    const editor = longCell.querySelector('[contenteditable="true"]') as HTMLElement | null
-    if (!editor) throw new Error('expected full-value inline editor for long text cell')
-    if (String(editor.textContent || '') !== longValue) {
+    const editor = longCell.querySelector('textarea[aria-label="Edit Description"]') as HTMLTextAreaElement | null
+    if (!editor) throw new Error('expected shared textarea editor for long text cell')
+    if (String(editor.value || '') !== longValue) {
       throw new Error('expected long text cell editor to receive the full underlying value')
     }
 
-    editor.textContent = `${longValue} updated`
-    editor.dispatchEvent(new dom.window.Event('input', { bubbles: true, cancelable: true }))
-    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
+    editor.value = `${longValue} updated`
+    editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ' updated' }))
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', ctrlKey: true }))
     await tick()
     await tick()
 
@@ -344,13 +455,12 @@ export async function testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAn
       throw new Error('expected td surface classes to remain stable when entering edit')
     }
 
-    const editor = targetTd.querySelector('[contenteditable="true"]') as HTMLElement | null
-    if (!editor) throw new Error('expected inline contentEditable editor')
-    if (editor.tagName !== 'SPAN') throw new Error(`expected editor span, got ${editor.tagName}`)
+    const editor = targetTd.querySelector('textarea[aria-label="Edit Name"]') as HTMLTextAreaElement | null
+    if (!editor) throw new Error('expected shared textarea inline editor')
 
-    editor.textContent = 'Alpha updated'
-    editor.dispatchEvent(new dom.window.Event('input', { bubbles: true, cancelable: true }))
-    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
+    editor.value = 'Alpha updated'
+    editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ' updated' }))
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', ctrlKey: true }))
     await tick()
     await tick()
 
@@ -358,6 +468,75 @@ export async function testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAn
     if (!last) throw new Error('expected an update commit')
     if (last.rowId !== 'r1' || last.columnId !== 'c1' || last.nextValue !== 'Alpha updated') {
       throw new Error(`unexpected commit payload: ${JSON.stringify(last)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownDataViewTableInlineEditorReusesSharedAtMediaCommands() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const view: MarkdownDataView = {
+      columns: [
+        { id: 'c1', name: 'Name', kind: 'text' },
+        { id: 'c2', name: 'Media', kind: 'text' },
+      ],
+      rows: [
+        { id: 'r1', cells: ['Alpha', 'videoUrl: https://media.example.test/runtime/table-frame.mp4'] },
+      ],
+      titleColumnId: 'c1',
+      groupByColumnId: null,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownDataViewTableView
+        view={view}
+        canMutate
+        onUpdateCell={() => {}}
+      />,
+    )
+    await tick()
+    await tick()
+
+    const alphaCell = (Array.from(dom.window.document.querySelectorAll('tbody td')) as HTMLTableCellElement[])
+      .find(td => String(td.textContent || '').includes('Alpha')) || null
+    if (!alphaCell) throw new Error('expected editable Alpha cell')
+    alphaCell.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    await tick()
+    await tick()
+
+    const editor = alphaCell.querySelector('textarea[aria-label="Edit Name"]') as HTMLTextAreaElement | null
+    if (!editor) throw new Error('expected shared textarea editor for data-view table cell')
+    editor.focus()
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      code: 'Digit2',
+      key: '2',
+      shiftKey: true,
+    }))
+    await tick()
+    await tick()
+
+    const menu = dom.window.document.querySelector('section[aria-label="Card variable commands"]')
+    if (!(menu instanceof dom.window.HTMLElement)) {
+      throw new Error('expected Workspace data-view table cell to open shared @ variable commands')
+    }
+    const mediaCommand = (Array.from(menu.querySelectorAll('button')) as HTMLButtonElement[]).find(button => {
+      const text = String(button.textContent || '')
+      return text.includes('Video: table-frame.mp4') && text.includes('https://media.example.test/runtime/table-frame.mp4')
+    })
+    if (!(mediaCommand instanceof dom.window.HTMLButtonElement)) {
+      throw new Error(`expected row media URL to appear in shared @ media commands, got ${menu.textContent}`)
     }
 
     root.unmount()

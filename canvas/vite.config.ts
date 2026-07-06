@@ -26,6 +26,7 @@ import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/s
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
+import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
@@ -66,6 +67,7 @@ const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_MIROMIND_HOST = 'api.miromind.ai'
 const CHAT_PROXY_AGNES_HOST = 'apihub.agnes-ai.com'
+const CHAT_PROXY_SEALION_HOST = 'api.sea-lion.ai'
 const CHAT_PROXY_QWEN_SINGAPORE_HOST = 'dashscope-intl.aliyuncs.com'
 const CHAT_PROXY_QWEN_US_VIRGINIA_HOST = 'dashscope-us.aliyuncs.com'
 const CHAT_PROXY_QWEN_CHINA_BEIJING_HOST = 'dashscope.aliyuncs.com'
@@ -106,14 +108,14 @@ const isGoogleCloudChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_GO
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
 const toLogSafeText = (value: unknown): string => {
@@ -1333,10 +1335,12 @@ function createCodebaseAssetHandler(): import('vite').Connect.NextHandleFunction
 const codebaseFileDevPlugin = {
   name: 'knowgrph-codebase-file-dev',
   configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(createLocalFileRangeHandler({ workspaceRoot }))
     server.middlewares.use(createCodebaseFileHandler())
     server.middlewares.use(createCodebaseAssetHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(createLocalFileRangeHandler({ workspaceRoot }))
     server.middlewares.use(createCodebaseFileHandler())
     server.middlewares.use(createCodebaseAssetHandler())
   },
@@ -2056,6 +2060,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusProviderSelected = providerHeader === 'byteplus-modelark'
     const miromindProviderSelected = providerHeader === 'miromind'
     const agnesProviderSelected = providerHeader === 'agnes-ai'
+    const sealionProviderSelected = providerHeader === 'sealion'
     const qwenProviderSelected = providerHeader === 'qwen'
     const googleCloudProviderSelected = providerHeader === 'google-cloud'
     if (localGatewayOnly && providerHeader === 'openai') {
@@ -2075,6 +2080,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
       if (miromindProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_MIROMIND_HOST}`
       if (agnesProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_AGNES_HOST}`
+      if (sealionProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_SEALION_HOST}`
       if (qwenProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_QWEN_SINGAPORE_HOST}`
       if (googleCloudProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_GOOGLE_CLOUD_US_CENTRAL1_HOST}`
       if (providerHeader === 'openai') return 'https://api.openai.com'
@@ -2114,12 +2120,14 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const requiresMiroMindKey = !localGatewayOnly && (miromindProviderSelected || upstreamHostname === CHAT_PROXY_MIROMIND_HOST)
     const requiresAgnesKey = !localGatewayOnly && (agnesProviderSelected || upstreamHostname === CHAT_PROXY_AGNES_HOST)
+    const requiresSealionKey = !localGatewayOnly && (sealionProviderSelected || upstreamHostname === CHAT_PROXY_SEALION_HOST)
     const requiresQwenKey = !localGatewayOnly && qwenUpstreamSelected
     const requiresGoogleCloudKey = !localGatewayOnly && googleCloudUpstreamSelected
     const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
     const envMiroMindApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY || '').trim()
     const envAgnesApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_AGNES_API_KEY || process.env.AGNES_API_KEY || '').trim()
+    const envSealionApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_SEALION_API_KEY || '').trim()
     const envQwenApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_QWEN_API_KEY || process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY || '').trim()
     const envGoogleCloudApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_GOOGLE_CLOUD_ACCESS_TOKEN || process.env.GOOGLE_CLOUD_ACCESS_TOKEN || process.env.VERTEX_AI_ACCESS_TOKEN || process.env.GOOGLE_OAUTH_ACCESS_TOKEN || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
@@ -2127,6 +2135,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
     const miromindApiKey = (headerProviderApiKey || envMiroMindApiKey).slice(0, 512)
     const agnesApiKey = (headerProviderApiKey || envAgnesApiKey).slice(0, 512)
+    const sealionApiKey = (headerProviderApiKey || envSealionApiKey).slice(0, 512)
     const qwenApiKey = (headerProviderApiKey || envQwenApiKey).slice(0, 512)
     const googleCloudApiKey = (headerProviderApiKey || envGoogleCloudApiKey).slice(0, 4096)
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
@@ -2134,56 +2143,37 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       ? bytePlusApiKey
       : requiresAgnesKey
         ? agnesApiKey
-        : requiresQwenKey
-          ? qwenApiKey
-          : requiresGoogleCloudKey
-            ? googleCloudApiKey
-            : requiresMiroMindKey
-              ? miromindApiKey
-              : openAiApiKey
+        : requiresSealionKey
+          ? sealionApiKey
+          : requiresQwenKey
+            ? qwenApiKey
+            : requiresGoogleCloudKey
+              ? googleCloudApiKey
+              : requiresMiroMindKey
+                ? miromindApiKey
+                : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({
-        ok: false,
-        error: 'Missing OpenAI API key for chat proxy upstream. Set Settings → Chat auth to BYOK, or export OPENAI_API_KEY and restart the dev server.',
-      }))
+      writeJson(res, 401, { ok: false, error: 'Missing OpenAI API key for chat proxy upstream. Set Settings → Chat auth to BYOK, or export OPENAI_API_KEY and restart the dev server.' })
       return
     }
     if (requiresMiroMindKey && !providerApiKey) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({
-        ok: false,
-        error: 'Missing MiroMind API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export MIROMIND_API_KEY and restart the dev server.',
-      }))
+      writeJson(res, 401, { ok: false, error: 'Missing MiroMind API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export MIROMIND_API_KEY and restart the dev server.' })
       return
     }
     if (requiresAgnesKey && !providerApiKey) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({
-        ok: false,
-        error: 'Missing Agnes API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export AGNES_API_KEY and restart the dev server.',
-      }))
+      writeJson(res, 401, { ok: false, error: 'Missing Agnes API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export AGNES_API_KEY and restart the dev server.' })
+      return
+    }
+    if (requiresSealionKey && !providerApiKey) {
+      writeJson(res, 401, { ok: false, error: 'Missing SEA-LION API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export KNOWGRPH_CHAT_PROXY_SEALION_API_KEY and restart the dev server.' })
       return
     }
     if (requiresQwenKey && !providerApiKey) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({
-        ok: false,
-        error: 'Missing Qwen API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export DASHSCOPE_API_KEY and restart the dev server.',
-      }))
+      writeJson(res, 401, { ok: false, error: 'Missing Qwen API key for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export DASHSCOPE_API_KEY and restart the dev server.' })
       return
     }
     if (requiresGoogleCloudKey && !providerApiKey) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({
-        ok: false,
-        error: 'Missing Google Cloud access token for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export GOOGLE_CLOUD_ACCESS_TOKEN and restart the dev server.',
-      }))
+      writeJson(res, 401, { ok: false, error: 'Missing Google Cloud access token for chat proxy upstream. Set Settings -> Chat auth to BYOK, or export GOOGLE_CLOUD_ACCESS_TOKEN and restart the dev server.' })
       return
     }
     if (requiresBytePlusKey && !providerApiKey) {
@@ -2299,7 +2289,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
-      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresQwenKey || requiresGoogleCloudKey || requiresBytePlusKey) {
+      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresSealionKey || requiresQwenKey || requiresGoogleCloudKey || requiresBytePlusKey) {
         headers.set('Authorization', `Bearer ${providerApiKey}`)
       }
       const clientRequestId = readSingleHeader(req.headers['x-client-request-id']).slice(0, 512)

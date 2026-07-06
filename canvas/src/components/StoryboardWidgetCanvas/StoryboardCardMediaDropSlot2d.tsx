@@ -1,5 +1,11 @@
 import React from 'react'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
+import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import {
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import {
   MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE,
   MEDIA_POINTER_DRAG_DROP_EVENT,
@@ -14,7 +20,7 @@ import {
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 import { cn } from '@/lib/utils'
-import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import type { StoryboardCardMedia, StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 
 type StoryboardCardMediaDropSlot2dProps = {
   card: StoryboardCardModel
@@ -22,9 +28,27 @@ type StoryboardCardMediaDropSlot2dProps = {
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
 }
 
+const toInlineMediaKind2d = (kind: StoryboardCardMedia['kind'] | null | undefined): InlineMediaKind | null => {
+  if (kind === 'image' || kind === 'svg') return 'image'
+  if (kind === 'audio' || kind === 'video') return kind
+  return null
+}
+
+const readMediaFileLabel2d = (url: string, fallback: string): string => {
+  const raw = String(url || '').split(/[?#]/)[0]?.split('/').filter(Boolean).pop() || ''
+  try {
+    return decodeURIComponent(raw).trim() || fallback
+  } catch {
+    return raw || fallback
+  }
+}
+
 export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia }: StoryboardCardMediaDropSlot2dProps) {
   const mediaUrl = displayMedia?.url || displayMedia?.thumbnailUrl || ''
   const mediaPoster = displayMedia?.thumbnailUrl || undefined
+  const inlineMediaKind = toInlineMediaKind2d(displayMedia?.kind)
+  const mediaChipLabel = inlineMediaKind ? readMediaFileLabel2d(displayMedia?.sourceUrl || mediaUrl, card.title || 'Media') : ''
+  const mediaChipThumbnailUrl = inlineMediaKind === 'image' ? mediaUrl : mediaPoster
   const mediaDropRef = React.useRef<HTMLElement | null>(null)
   const handleMediaDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (!hasMediaDragPayload(event.dataTransfer) && !readMediaPointerDragPayload()) return
@@ -108,7 +132,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
   return (
     <figure
       ref={mediaDropRef}
-      className={cn('m-0 flex min-h-0 min-w-0 items-center justify-center overflow-hidden rounded border bg-[color:var(--kg-input-bg)]')}
+      className={cn('relative m-0 flex min-h-0 min-w-0 items-center justify-center overflow-hidden rounded border bg-[color:var(--kg-input-bg)]')}
       {...{ [MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE]: '1' }}
       data-kg-storyboard-card-media-drop="1"
       data-kg-storyboard-card-id={card.id}
@@ -133,9 +157,18 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
           mediaClassName="h-full w-full"
           mediaThumbnailDataAttr
         />
-      ) : (
+      ) : null}
+      {mediaUrl && inlineMediaKind ? (
+        <figcaption className="pointer-events-none absolute bottom-1 left-1 right-1 z-10 flex min-w-0">
+          <span className={`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} max-w-full bg-[color:var(--kg-panel-bg)]/90 shadow-sm backdrop-blur`} data-kg-storyboard-card-media-chip="1">
+            <InlineMediaCommandThumbnail kind={inlineMediaKind} thumbnailUrl={mediaChipThumbnailUrl} variant="inline" />
+            <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{mediaChipLabel}</span>
+          </span>
+        </figcaption>
+      ) : null}
+      {!mediaUrl ? (
         <span className="text-[18px] font-semibold text-[color:var(--kg-text-tertiary)]">+</span>
-      )}
+      ) : null}
     </figure>
   )
 }

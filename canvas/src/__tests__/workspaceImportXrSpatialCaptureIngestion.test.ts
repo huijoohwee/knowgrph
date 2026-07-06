@@ -11,12 +11,10 @@ import { resolveXrPanelSourceProfile } from '@/features/three/xrPanelModel'
 import { inferCorpusMediaKind } from '@/features/queryable-corpus/corpusGraph'
 import { resolveLaunchDropdownVisibleExportItems } from '@/lib/toolbar/LaunchDropdownExportMenu'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-
 const createBinaryFile = (name: string, bytes: Uint8Array, type = 'application/octet-stream') => {
   const blob = new Blob([bytes], { type })
   return new File([blob], name, { type })
 }
-
 function createAsciiPlyBytes(): Uint8Array {
   return new TextEncoder().encode([
     'ply',
@@ -35,7 +33,6 @@ function createAsciiPlyBytes(): Uint8Array {
     '',
   ].join('\n'))
 }
-
 function createBinaryLittleEndianRgbPlyBytes(): Uint8Array {
   const header = new TextEncoder().encode([
     'ply',
@@ -69,7 +66,6 @@ function createBinaryLittleEndianRgbPlyBytes(): Uint8Array {
   }
   return out
 }
-
 function assertSpatialManifest(text: string, format: 'ply' | 'spz') {
   for (const expected of [
     `kgAssetFormat: "${format}"`,
@@ -189,7 +185,7 @@ export async function testWorkspaceImportXrStandalonePlyLocalRuntimeLoadsOperato
     dom.window.localStorage.setItem('kgSpatialCaptureSourceRoots', JSON.stringify(['/tmp/kg-spatial-capture-root']))
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       fetchedPath = String(input)
-      if (fetchedPath !== '/@fs/tmp/kg-spatial-capture-root/scan-neutral.ply') {
+      if (!fetchedPath.startsWith('/__kg_local_file?path=') || new URL(fetchedPath, 'http://local.test').searchParams.get('path') !== '/tmp/kg-spatial-capture-root/scan-neutral.ply') {
         return new Response('', { status: 404 })
       }
       return new Response(createAsciiPlyBytes(), { status: 200, headers: { 'content-type': 'model/ply' } })
@@ -277,7 +273,7 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
   const minimapSpatialViewCube = readFileSync(resolve(process.cwd(), 'src', 'features', 'minimap', 'MinimapSpatialViewCube.tsx'), 'utf8')
   const controls = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'Controls.tsx'), 'utf8')
   const modelAssetCameraPose = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'modelAssetCameraPose.ts'), 'utf8')
-  const stage = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'SpatialCaptureManifestStage.tsx'), 'utf8')
+  const stage = [readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'SpatialCaptureManifestStage.tsx'), 'utf8'), readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'spatialCaptureGeometryRuntime.ts'), 'utf8')].join('\n')
   const gaussianMaterial = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'spatialCaptureGaussianMaterial.ts'), 'utf8')
   for (const marker of [
     'parseStandaloneSpatialCaptureManifest(canvasMarkdownDocument.text)',
@@ -286,6 +282,7 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
     '<SpatialCaptureManifestStage',
     "surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}",
     'spatialRuntimeStatus={spatialRuntimeStatus}',
+    'spatialRuntimeFidelity={spatialRuntimeFidelity}',
     'const spatialCaptureRenderKey = useMemo',
     'handleSpatialCaptureFitChange',
     'modelAssetRenderKey={spatialCaptureRenderKey || glbAssetRenderKey}',
@@ -296,13 +293,11 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
 	  for (const marker of [
 	    "surfaceKind === 'spatial-capture'",
 	    'data-kg-canvas-xr-surface-kind="spatial-capture"',
-	    'data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}',
-	    'XR spatial capture orientation',
-	    'readSpatialCaptureToolLabel(spatialTool)',
+	    'data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}', 'data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}',
+	    'XR spatial capture orientation', 'readSpatialCaptureToolLabel(spatialTool)',
 	    'const [spatialTool, setSpatialToolState]',
 	    'subscribeSpatialCaptureTool(setSpatialToolState)',
-	    'data-kg-canvas-xr-minimap-overlay="1"',
-	    '<MinimapSpatialViewCube />',
+	    'data-kg-canvas-xr-minimap-overlay="1"', '<MinimapSpatialViewCube />',
 	  ]) {
 	    if (!threeGraphXr.includes(marker)) throw new Error(`expected XR entry panel to expose spatial-capture HUD marker ${marker}`)
 	  }
@@ -343,16 +338,19 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
   }
   for (const marker of [
     'loadSpatialCapturePointCloud(manifest)',
+    'await waitForSpatialCapturePreviewFirstPaint()',
     'kg_spatial_capture_gaussian_splats',
     'kg_spatial_capture_manifest_',
     '<mesh',
     'buildGaussianSplatGeometry',
-    'reorderFloatAttribute',
-    'const initialOrder = buildInitialDepthSortedIndex(load.pointCloud.positions, fit)',
-    'const centers = reorderFloatAttribute(load.pointCloud.positions, 3, initialOrder)',
+    'resolveWritableReorderAttribute',
+    'sliceSpatialCaptureFloatAttribute', 'syncSpatialCaptureGeometryAttributeViews(geometry, load, boundedCount)', 'geometry.userData.kgSpatialCaptureAttributeCount',
+    'gaussianSortScratchByGeometry',
     'THREE.InstancedBufferGeometry',
     'THREE.InstancedBufferAttribute',
-    'geometry.instanceCount = load.pointCloud.pointCount',
+    'const initialCount = resolveSpatialCaptureInitialInstanceCount(load)', 'geometry.instanceCount = initialCount',
+    'advanceSpatialCaptureProgressiveCount(geometry, state.load)',
+    'readSpatialCaptureGeometryCount(geometry, state.load) < state.load.pointCloud.pointCount',
     'THREE.NormalBlending',
     'SPATIAL_CAPTURE_BACKGROUND',
     'SPATIAL_CAPTURE_GRID_MAJOR',
@@ -368,32 +366,30 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
     'SPATIAL_CAPTURE_SORT_INTERVAL_MS',
     'buildDepthSortedIndex',
     'dotSortDirection',
-    'buildInitialDepthSortedIndex',
-    'resolveSpatialCaptureInitialSortDirection',
     'resolveCameraSortDirection',
     'updateGaussianSplatGeometrySort',
+    "state.load.pointCloud.kind !== 'gaussian-splat'\n      || paused\n      || !(geometry instanceof THREE.InstancedBufferGeometry)",
     'writeReorderedFloatAttribute',
     'attribute.needsUpdate = true',
     'useFrame(({ clock }) =>',
-    'readModelAssetCameraPose(fit)',
     'normalizeSortDirection',
     'useThree',
     'buildGaussianSplatMaterial',
-	    'buildSpatialCaptureFit',
-	    "cameraProfile: 'spatial-capture'",
-	    'onFitChange?.(fit)',
-	    'fit.stageSpan / fit.scale',
-	    'subscribeSpatialCaptureTool(setSpatialTool)',
-	    'subscribeSpatialCaptureAxis(setSpatialAxis)',
-	    'kg_spatial_capture_sphere_select_volume',
-	    'ringGeometry args={[radius * 0.994, radius, 144]}',
-	    'kg_spatial_capture_box_select_volume',
-	    'resolveAxisCameraPosition(spatialAxis, fit)',
-	    'camera.lookAt(0, 0, 0)',
-	  ]) {
+    'buildSpatialCaptureFit',
+    "cameraProfile: 'spatial-capture'",
+    'onFitChange?.(fit)',
+    'fit.stageSpan / fit.scale',
+    'subscribeSpatialCaptureTool(setSpatialTool)',
+    'subscribeSpatialCaptureAxis(setSpatialAxis)',
+    'kg_spatial_capture_sphere_select_volume',
+    'ringGeometry args={[radius * 0.994, radius, 144]}',
+    'kg_spatial_capture_box_select_volume',
+    'resolveAxisCameraPosition(spatialAxis, fit)',
+    'camera.lookAt(0, 0, 0)',
+  ]) {
     if (!stage.includes(marker)) throw new Error(`expected parsed spatial capture stage marker ${marker}`)
   }
-	  for (const forbidden of ['buildSpatialCapturePreviewGeometry', '<pointsMaterial', 'wireframe transparent opacity={0.72}']) {
+  for (const forbidden of ['buildSpatialCapturePreviewGeometry', '<pointsMaterial', 'wireframe transparent opacity={0.72}']) {
     if (stage.includes(forbidden)) {
       throw new Error(`expected spatial capture stage to avoid low-fidelity fallback marker ${forbidden}`)
     }
@@ -458,18 +454,24 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
 }
 
 export function testWorkspaceImportXrStandalonePlyRuntimeCachesBudgetedLoads() {
-  const runtime = readFileSync(resolve(process.cwd(), 'src', 'lib', 'assets', 'spatialCaptureAssetRuntime.ts'), 'utf8')
+  const runtime = [readFileSync(resolve(process.cwd(), 'src', 'lib', 'assets', 'spatialCaptureAssetRuntime.ts'), 'utf8'), readFileSync(resolve(process.cwd(), 'src', 'lib', 'assets', 'spatialCapturePreviewRange.ts'), 'utf8')].join('\n')
   for (const marker of [
     'resolveSpatialCapturePointBudget',
     'DEFAULT_SPATIAL_CAPTURE_POINT_BUDGET',
+    'DEFAULT_SPATIAL_CAPTURE_PARSE_POINT_LIMIT',
     'LOW_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET',
     'HIGH_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET',
+    'resolveSpatialCaptureParsePointLimit',
     'DEFAULT_SPATIAL_CAPTURE_LOAD_CACHE_ENTRIES',
     'resolveSpatialCaptureLoadCacheEntries',
-    'readCachedSpatialCaptureLoad',
-    'pruneSpatialCaptureLoadCache',
+    'readCachedSpatialCaptureLoad', 'sourceBuffersByKey',
+    'loadSpatialCapturePointCloudPreview', 'resolveSpatialCapturePreviewPointBudget',
+    'SPATIAL_CAPTURE_PREVIEW_HEADER_BYTES', 'SPATIAL_CAPTURE_PREVIEW_RANGE_CHUNKS',
+    'readSpatialCapturePreviewBuffer(manifest, maxPoints)', 'fetchByteRange(target.path, 0, SPATIAL_CAPTURE_PREVIEW_HEADER_BYTES - 1)',
+    'buildPreviewRowRanges(layout, maxPoints)', 'readBinaryLayoutOrNull(header.buffer)',
+    'parsePlyPointCloud(sourceBuffer.buffer, maxPoints)', 'pruneSpatialCaptureLoadCache', 'pruneSpatialCaptureSourceBufferCache',
     'yieldBeforeHeavyPointCloudParse',
-    'pointBudget: maxPoints',
+    'pointBudget,',
     'task.catch(() =>',
     'pointCloudLoadsByKey.delete(cacheKey)',
     'SPATIAL_CAPTURE_BROWSER_CACHE_NAME',
@@ -486,7 +488,6 @@ export function testWorkspaceImportXrStandalonePlyRuntimeCachesBudgetedLoads() {
     throw new Error('expected spatial capture runtime to avoid hardcoded validation asset paths')
   }
 }
-
 export function testWorkspaceImportXrStandalonePlyManifestForbidsValidationAssetHardcodes() {
   const sourceFiles = [
     readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'workspaceImport', 'spatialCaptureFileset.ts'), 'utf8'),
@@ -508,7 +509,6 @@ export function testWorkspaceImportXrStandalonePlyManifestForbidsValidationAsset
     throw new Error('expected spatial capture flow to stay manifest/cache-key owned')
   }
 }
-
 export function testWorkspaceImportXrStandalonePlyParserPreservesGeometryAndColor() {
   const ply = [
     'ply',
@@ -581,7 +581,7 @@ export function testWorkspaceImportXrStandalonePlyParserPreservesGeometryAndColo
     throw new Error(`expected binary RGB PLY to avoid Gaussian-only attributes, got ${JSON.stringify({ colors: binaryCloud.colors ? Array.from(binaryCloud.colors) : null, scales: !!binaryCloud.splatScales, opacities: !!binaryCloud.opacities })}`)
   }
   const source = readFileSync(resolve(process.cwd(), 'src', 'lib', 'assets', 'plyPointCloud.ts'), 'utf8')
-  for (const marker of ['normalizeGaussianSplatScale', 'splatScales', 'splatRotations', 'normalizeQuaternion', 'projectPlyPosition', 'projectPlyQuaternion']) {
+  for (const marker of ['normalizeGaussianSplatScale', 'splatScales', 'splatRotations', 'writeProjectedPlyPosition', 'writeProjectedPlyQuaternion', 'positionOffset']) {
     if (!source.includes(marker)) throw new Error(`expected Gaussian splat PLY parser footprint marker ${marker}`)
   }
   const staleMarker = (...parts: string[]) => parts.join('')

@@ -1,22 +1,16 @@
 import React from 'react'
-
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import {
-  UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME,
-  UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME,
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME,
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME,
-} from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_CARD_MULTILINE_EDITOR_CLASSNAME, UI_RESPONSIVE_CARD_TITLE_EDITOR_CLASSNAME, UI_RESPONSIVE_PANEL_CODE_EDITOR_COMPACT_FRAME_CLASSNAME, UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME, UI_RESPONSIVE_PANEL_CODE_EDITOR_LARGE_FRAME_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { UserSubgraph } from '@/lib/graph/subgraphs'
 import { subgraphGroupId } from '@/lib/graph/subgraphs'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
 import {
   GRAPH_NODE_CARD_TEXT_FIELDS,
   buildGraphNodeCanonicalTextPatch,
@@ -119,6 +113,10 @@ export default function StoryboardWidgetInspector({
   const [newSubgraphLabel, setNewSubgraphLabel] = React.useState('')
   const [newSubgraphKind, setNewSubgraphKind] = React.useState<'subgraph' | 'cluster'>('subgraph')
   const selectedNodeProperties = React.useMemo(() => readGraphNodeProperties(selectedNode), [selectedNode])
+  const selectedNodeInlineMediaCommandContext = React.useMemo(
+    () => buildInlineMediaCommandContextFromRecord(selectedNode),
+    [selectedNode],
+  )
   const selectedNodeCardTitle = React.useMemo(() => readGraphNodeCardTitle(selectedNode), [selectedNode])
   const selectedNodeCardFields = React.useMemo(
     () => GRAPH_NODE_CARD_TEXT_FIELDS.map(field => ({
@@ -178,6 +176,8 @@ export default function StoryboardWidgetInspector({
                     canEdit={canEditSelectedNodeCard}
                     editActivation="click"
                     multiline
+                    markdownPreview="auto"
+                    markdownCommandContextText={selectedNodeInlineMediaCommandContext}
                     rows={3}
                     onCommit={nextValue => {
                       onPatchSelectedNodeProperties(

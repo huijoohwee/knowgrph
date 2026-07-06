@@ -36,15 +36,14 @@ function renderCardPreviewInlineMediaPill(args: {
   fallbackLabel: string
   fullMedia?: React.ReactElement | null
   inlineMediaChipMode?: boolean
+  thumbnailKind?: 'image' | 'audio' | 'video'; thumbnailUrl?: string
   toggleEnabled?: boolean
 }): React.ReactElement {
   if (args.inlineMediaChipMode !== true) return args.child
   return (
     <CardPreviewInlineMediaPill
-      label={args.label}
-      fallbackLabel={args.fallbackLabel}
-      fullMedia={args.fullMedia}
-      toggleEnabled={args.toggleEnabled}
+      label={args.label} fallbackLabel={args.fallbackLabel} fullMedia={args.fullMedia}
+      thumbnailKind={args.thumbnailKind} thumbnailUrl={args.thumbnailUrl} toggleEnabled={args.toggleEnabled}
     >
       {args.child}
     </CardPreviewInlineMediaPill>
@@ -322,11 +321,11 @@ export const renderSafeHtmlBlockImpl = (
         return (
           <span key={key} className={inlineMediaChipMode ? 'relative inline-block group align-baseline' : 'relative inline-block group align-middle'}>
             {renderCardPreviewInlineMediaPill({
-              child: media,
-              label,
+              child: media, label,
               fallbackLabel: 'Image',
               fullMedia,
               inlineMediaChipMode,
+              thumbnailKind: 'image', thumbnailUrl: src,
               toggleEnabled: inlineMediaToggleEnabled,
             })}
             {renderDownloadControl(srcCandidate, 'image', `${key}-download`, inlineMediaChipMode)}
@@ -362,11 +361,11 @@ export const renderSafeHtmlBlockImpl = (
         return (
           <span key={key} className={inlineMediaChipMode ? 'relative inline-block group align-baseline' : 'relative inline-block group align-middle'}>
             {renderCardPreviewInlineMediaPill({
-              child: picture,
-              label,
+              child: picture, label,
               fallbackLabel: 'Image',
               fullMedia: fullPicture,
               inlineMediaChipMode,
+              thumbnailKind: 'image', thumbnailUrl: imgResolved,
               toggleEnabled: inlineMediaToggleEnabled,
             })}
             {renderDownloadControl(imgCandidate, 'image', `${key}-download`, inlineMediaChipMode)}
@@ -407,11 +406,11 @@ export const renderSafeHtmlBlockImpl = (
             return (
               <React.Fragment key={key}>
                 {renderCardPreviewInlineMediaPill({
-                  child: media,
-                  label,
+                  child: media, label,
                   fallbackLabel: 'Audio',
                   fullMedia,
                   inlineMediaChipMode,
+                  thumbnailKind: 'audio',
                   toggleEnabled: inlineMediaToggleEnabled,
                 })}
               </React.Fragment>
@@ -473,6 +472,7 @@ export const renderSafeHtmlBlockImpl = (
               fallbackLabel: 'Video',
               fullMedia,
               inlineMediaChipMode,
+              thumbnailKind: 'video', thumbnailUrl: poster,
               toggleEnabled: inlineMediaToggleEnabled,
             })}
             {renderDownloadControl(sourceCandidate, 'video', `${key}-download`, inlineMediaChipMode)}

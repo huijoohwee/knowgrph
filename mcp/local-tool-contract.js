@@ -69,14 +69,7 @@ const SHOWRUNNER_TOOL_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
-const SHOWRUNNER_RUN_ID_INPUT_SCHEMA = Object.freeze({
-  type: "object",
-  additionalProperties: false,
-  required: ["run_id"],
-  properties: {
-    run_id: { type: "string" },
-  },
-});
+const SHOWRUNNER_RUN_ID_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["run_id"], properties: { run_id: { type: "string" } } });
 
 const HTML_VIDEO_RENDER_INPUT_SCHEMA = Object.freeze({
   type: "object",
@@ -120,7 +113,12 @@ const ANNOTATION_TASK_IDS = Object.freeze(["caption", "detailed_caption", "more_
 const ANNOTATION_TASKS_SCHEMA = Object.freeze({ type: "array", items: { type: "string", enum: ANNOTATION_TASK_IDS }, minItems: 1, maxItems: 6 });
 const ANNOTATE_IMAGE_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["asset_url", "tasks"], properties: { asset_url: { type: "string", minLength: 1, maxLength: 2048 }, tasks: ANNOTATION_TASKS_SCHEMA, model_hint: { type: "string", maxLength: 255 } } });
 const ANNOTATE_VIDEO_FRAME_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["asset_url", "tasks", "frame_timestamp_ms"], properties: { asset_url: { type: "string", minLength: 1, maxLength: 2048 }, tasks: ANNOTATION_TASKS_SCHEMA, frame_timestamp_ms: { type: "integer", minimum: 0 }, model_hint: { type: "string", maxLength: 255 } } });
-const ANNOTATE_OUTPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["ok", "annotation_id", "asset_url", "model_id", "schema_version", "tasks"], properties: { ok: { type: "boolean" }, annotation_id: { type: "string" }, asset_url: { type: "string" }, model_id: { type: "string" }, schema_version: { type: "string" }, tasks: { type: "object", additionalProperties: true }, error: { type: "object", required: ["code", "message"], properties: { code: { type: "string" }, message: { type: "string" } } } } }); const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
+const ANNOTATE_OUTPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["ok", "annotation_id", "asset_url", "model_id", "schema_version", "tasks"], properties: { ok: { type: "boolean" }, annotation_id: { type: "string" }, asset_url: { type: "string" }, model_id: { type: "string" }, schema_version: { type: "string" }, tasks: { type: "object", additionalProperties: true }, error: { type: "object", required: ["code", "message"], properties: { code: { type: "string" }, message: { type: "string" } } } } });
+const SEALION_TEXT_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["text"], properties: { text: { type: "string", minLength: 1, description: "Text to analyze for language, variant, register, and code-switching." } } });
+const SEALION_TRANSLATE_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["text", "target_language"], properties: { text: { type: "string", minLength: 1 }, target_language: { type: "string", minLength: 1 }, source_language: { type: "string", default: "auto" }, target_region: { type: "string" }, tone: { type: "string", enum: ["neutral", "formal", "informal", "public_service", "marketing", "legal", "friendly", "urgent"], default: "neutral" }, reading_level: { type: "string", enum: ["plain", "standard", "advanced"], default: "standard" } } });
+const SEALION_SAFETY_INPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: false, required: ["mode"], properties: { mode: { type: "string", enum: ["prompt_only", "prompt_response", "response_only"] }, prompt: { type: "string" }, response: { type: "string" } } });
+const SEALION_TOOL_OUTPUT_SCHEMA = Object.freeze({ type: "object", additionalProperties: true, required: ["ok", "tool", "result"], properties: { ok: { type: "boolean" }, tool: { type: "string" }, upstreamUrl: { type: "string" }, result: { type: "object", additionalProperties: true } } });
+const PUBLISHED_SOURCE_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 }).filter((tool) =>
   [
@@ -128,7 +126,6 @@ const ANNOTATE_OUTPUT_SCHEMA = Object.freeze({ type: "object", additionalPropert
     KNOWGRPH_AGENT_READY_TOOL_IDS.fetch,
   ].includes(tool.name)
 );
-
 const READ_ONLY_TOOL_ANNOTATIONS = Object.freeze({
   readOnlyHint: true,
   destructiveHint: false,
@@ -404,6 +401,9 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       },
     }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults(BROWSER_API_TOOL, BROWSER_API_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({ name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant, description: "Use this when a local MCP host needs SEA-LION sidecar language, regional variant, register, and code-switching detection before routing Southeast Asian language work.", outputSchema: SEALION_TOOL_OUTPUT_SCHEMA, inputSchema: SEALION_TEXT_INPUT_SCHEMA }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({ name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize, description: "Use this when a local MCP host needs SEA-LION sidecar translation plus Southeast Asian localization notes from the hosted API.", outputSchema: SEALION_TOOL_OUTPUT_SCHEMA, inputSchema: SEALION_TRANSLATE_INPUT_SCHEMA }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({ name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck, description: "Use this when a local MCP host needs SEA-LION sidecar advisory SEA-Guard safety classification for Southeast Asian language or culture-sensitive content.", outputSchema: SEALION_TOOL_OUTPUT_SCHEMA, inputSchema: SEALION_SAFETY_INPUT_SCHEMA }, LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender,
       description:

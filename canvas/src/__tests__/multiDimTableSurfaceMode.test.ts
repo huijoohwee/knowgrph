@@ -5,7 +5,12 @@ import {
   buildStructuredSourceDataViewProjection,
   buildMarkdownPipeTableFromStructuredSourceMetadata,
 } from '@/features/markdown-workspace/main/viewer/sourceStructuredDataViewTable'
-import { coerceWorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
+import { coerceStructuredSourceValueColumnMode, coerceWorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
+import {
+  readStructuredSourceDefaultVisibleColumnIds,
+  readStructuredSourceFieldLineMode,
+  readStructuredSourceRowHeightPreset,
+} from '@/features/markdown-workspace/main/viewer/workspaceStructuredSourceDataViewPresentation'
 
 const readQuotedYamlValue = (line: string): string =>
   String(line || '')
@@ -25,8 +30,10 @@ export function testMultiDimTableSurfacePreservesWorkspaceModeOwners() {
   const workspacePath = path.resolve(process.cwd(), 'src', 'lib', ['graph', '-', 'table'].join(''), 'ui', removedWorkspaceFilename)
   const surfacePath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'MultiDimTableSurface.tsx')
   const workspaceModePath = path.resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceEditorMode.ts')
+  const canvasSourcePath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'workspaceDataViewCanvasSource.ts')
   const surfaceText = fs.readFileSync(surfacePath, { encoding: 'utf8' })
   const workspaceModeText = fs.readFileSync(workspaceModePath, { encoding: 'utf8' })
+  const canvasSourceText = fs.readFileSync(canvasSourcePath, { encoding: 'utf8' })
 
   if (fs.existsSync(workspacePath)) {
     throw new Error('expected removed legacy table workspace runtime to stay deleted')
@@ -37,19 +44,22 @@ export function testMultiDimTableSurfacePreservesWorkspaceModeOwners() {
   if (!surfaceText.includes('replaceMarkdownLineRange') || !surfaceText.includes('setMarkdownDocument') || !surfaceText.includes('writeWorkspaceSourceTextIfPresent')) {
     throw new Error('expected MultiDimTableSurface inline edits to reuse shared Markdown viewer mutation utilities')
   }
-  if (!surfaceText.includes('resolvePreferredComposedSourceRawText') || !surfaceText.includes('readComposedSourceFilePath')) {
-    throw new Error('expected MultiDimTableSurface to read refreshed Source Files text through the shared composed-source owner')
+  if (!surfaceText.includes("useCanvasWorkspaceDataViewSource('multi-dimensional-table.md')")) {
+    throw new Error('expected MultiDimTableSurface to delegate source-file reading to the shared canvas data-view source hook')
+  }
+  if (!canvasSourceText.includes('resolvePreferredComposedSourceRawText') || !canvasSourceText.includes('readComposedSourceFilePath')) {
+    throw new Error('expected canvas workspace data-view source hook to read refreshed Source Files text through the shared composed-source owner')
   }
   if (
     forbiddenFallbackTokens.some(token => surfaceText.includes(token))
   ) {
     throw new Error('expected MultiDimTableSurface to avoid graph-data table fallback/backfill coupling')
   }
-  if (!surfaceText.includes('buildStructuredSourceDataViewProjection') || !surfaceText.includes('applyStructuredSourceDataViewReplacement')) {
-    throw new Error('expected MultiDimTableSurface to render and edit source-structured tables through the shared Viewer mutation path')
+  if (!canvasSourceText.includes('buildStructuredSourceDataViewProjection') || !surfaceText.includes('applyStructuredSourceDataViewReplacement')) {
+    throw new Error('expected shared canvas data-view source and MultiDimTableSurface to render and edit source-structured tables through the shared Viewer mutation path')
   }
-  if (!surfaceText.includes('sourceStructuredProjection?.markdownText')) {
-    throw new Error('expected MultiDimTableSurface to keep source-structured Markdown tables as the rendered surface owner')
+  if (!canvasSourceText.includes('sourceStructuredProjection?.markdownText')) {
+    throw new Error('expected canvas data-view source hook to keep source-structured Markdown tables as the rendered surface owner')
   }
   if (!surfaceText.includes('disableViewerMutations={!canMutate}') || surfaceText.includes('disableViewerMutations={true}')) {
     throw new Error('expected MultiDimTableSurface to keep Markdown-backed data views editable')
@@ -75,8 +85,82 @@ export function testMultiDimTableSurfacePreservesWorkspaceModeOwners() {
   if (!derivedViewerText.includes('renderAllRows={selected.structuredSource === true}')) {
     throw new Error('expected derived viewer to render source-structured Multi-dimensional Table rows without progressive row hiding')
   }
+  if (!derivedViewerText.includes('readStructuredSourceDataViewPresentation(selected.view, viewConfig)') || !derivedViewerText.includes('viewConfig?.visibleColumnIds ?? structuredSourcePresentation?.visibleColumnIds')) {
+    throw new Error('expected derived viewer to use shared structured-source presentation defaults before falling back to full field inventory')
+  }
+  if (!derivedViewerText.includes('rowHeightPreset={structuredSourcePresentation?.rowHeightPreset ?? viewConfig?.rowHeightPreset}') || !derivedViewerText.includes('fieldLineMode={structuredSourcePresentation?.fieldLineMode ?? viewConfig?.fieldLineMode}')) {
+    throw new Error('expected derived viewer to use readable structured-source density defaults without overriding user settings')
+  }
   if (!dataViewTableText.includes('renderAllRows?: boolean') || !dataViewTableText.includes('props.renderAllRows ? view.rows : view.rows.slice')) {
     throw new Error('expected MarkdownDataViewTableView to preserve default progressive rendering behind a source-table opt-in')
+  }
+}
+
+export function testMultiDimTableStructuredSourcePresentationDefaults() {
+  const frontmatterColumns = [
+    'L0',
+    'L1',
+    'L2',
+    'L3',
+    'L4',
+    'Key',
+    'Type',
+    'Value',
+    'Scalar Value',
+    'List Value',
+    'Summary',
+    'Output',
+    'Action',
+    'Reference Pack',
+    'Source Value',
+    'Level',
+    'Content',
+    'Line',
+    'Indent',
+  ].map((name, index) => ({ id: `col_${index}`, name, kind: 'text' as const }))
+  const frontmatterView = {
+    columns: frontmatterColumns,
+    rows: [
+      {
+        id: 'row_0',
+        cells: frontmatterColumns.map(column => column.name === 'Key' ? 'title' : column.name === 'Value' ? 'Runnable Demo' : ''),
+      },
+    ],
+    titleColumnId: 'col_5',
+    groupByColumnId: null,
+  }
+  const frontmatterVisible = readStructuredSourceDefaultVisibleColumnIds(frontmatterView)
+  const visibleFrontmatterNames = (frontmatterVisible || []).map(id => frontmatterColumns.find(column => column.id === id)?.name).filter(Boolean)
+  const expectedFrontmatterNames = ['Key', 'Type', 'Scalar Value', 'List Value', 'Summary', 'Output', 'Action', 'Reference Pack', 'Content', 'Line']
+  if (visibleFrontmatterNames.join('|') !== expectedFrontmatterNames.join('|')) {
+    throw new Error(`expected structured source frontmatter defaults to prioritize semantic/source columns, got ${visibleFrontmatterNames.join(', ')}`)
+  }
+  const frontmatterGenericVisible = readStructuredSourceDefaultVisibleColumnIds(frontmatterView, 'type-generic')
+  const visibleFrontmatterGenericNames = (frontmatterGenericVisible || []).map(id => frontmatterColumns.find(column => column.id === id)?.name).filter(Boolean)
+  const expectedFrontmatterGenericNames = ['Key', 'Type', 'Value', 'Summary', 'Output', 'Action', 'Reference Pack', 'Content', 'Line']
+  if (visibleFrontmatterGenericNames.join('|') !== expectedFrontmatterGenericNames.join('|')) {
+    throw new Error(`expected structured source frontmatter generic value mode to use canonical Value, got ${visibleFrontmatterGenericNames.join(', ')}`)
+  }
+
+  const bodyColumns = ['Content', 'Line', 'Indent'].map((name, index) => ({ id: `body_${index}`, name, kind: 'text' as const }))
+  const bodyVisible = readStructuredSourceDefaultVisibleColumnIds({
+    columns: bodyColumns,
+    rows: [{ id: 'row_0', cells: ['# Title', '12', '0'] }],
+    titleColumnId: 'body_0',
+    groupByColumnId: null,
+  })
+  const visibleBodyNames = (bodyVisible || []).map(id => bodyColumns.find(column => column.id === id)?.name).filter(Boolean)
+  if (visibleBodyNames.join('|') !== 'Content|Line|Indent') {
+    throw new Error(`expected Markdown Body defaults to keep content and source-line metadata visible, got ${visibleBodyNames.join(', ')}`)
+  }
+  if (readStructuredSourceRowHeightPreset(undefined) !== 'comfortable' || readStructuredSourceRowHeightPreset('compact') !== 'compact') {
+    throw new Error('expected structured source row-height defaults to be readable while preserving explicit compact setting')
+  }
+  if (readStructuredSourceFieldLineMode(undefined) !== 'double' || readStructuredSourceFieldLineMode('single') !== 'single') {
+    throw new Error('expected structured source field-line defaults to show two-line previews while preserving explicit single-line setting')
+  }
+  if (coerceStructuredSourceValueColumnMode(undefined) !== 'type-specific' || coerceStructuredSourceValueColumnMode('type-generic') !== 'type-generic') {
+    throw new Error('expected structured source value-column mode to default to type-specific and preserve explicit generic mode')
   }
 }
 
@@ -119,22 +203,22 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
   if (table.includes('| Line | Indent | Content |')) {
     throw new Error(`expected structured source tables to present source content before line metadata, got:\n${table}`)
   }
-  if (!table.includes('| L0 | L1 | L2 | L3 | L4 | Key | Type | Value | Summary | Output | Action | Reference Pack | Source Value | Level | Content | Line | Indent |') || !table.includes('| date |  |  |  |  | date | scalar | 2026-06-13 |  |  |  |  | 2026-06-13 | L0 | date: "2026-06-13" | 4 | 0 |')) {
-    throw new Error(`expected structured source metadata table to expose frontmatter as key/value rows, got:\n${table}`)
+  if (!table.includes('| L0 | L1 | L2 | L3 | L4 | Key | Type | Value | Scalar Value | List Value | String Value | Summary | Output | Action | Reference Pack | Source Value | Level | Content | Line | Indent |') || !table.includes('| date |  |  |  |  | date | scalar | 2026-06-13 | 2026-06-13 |  |  |')) {
+    throw new Error(`expected structured source metadata table to expose frontmatter as typed key/value rows, got:\n${table}`)
   }
-  if (!table.includes(`| ${nestedKey} |  |  |  |  | ${nestedKey} | map |  |  |  |  |  |  | L0 | ${nestedKey}: | 5 | 0 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard |  |  |  |  | ${nestedPrefix}: Storyboard | L1 | - "${nestedPrefix}: Storyboard" | 6 | 2 |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard Widget |  |  |  |  | ${nestedPrefix}: Storyboard Widget | L1 | - "${nestedPrefix}: Storyboard Widget" | 7 | 2 |`)) {
+  if (!table.includes(`| ${nestedKey} |  |  |  |  | ${nestedKey} | map |  |  |  |  |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard |  | Storyboard |`) || !table.includes(`| ${nestedKey} | ${nestedPrefix} |  |  |  | ${nestedPrefix} | list | Storyboard Widget |  | Storyboard Widget |`)) {
     throw new Error(`expected structured source metadata table to expose nested YAML list values as hierarchy rows, got:\n${table}`)
   }
-  if (!table.includes('| surfaces |  |  |  |  | surfaces | map |  |  |  |  |  |  | L0 | surfaces: | 8 | 0 |') || !table.includes('| surfaces | 2D Renderer |  |  |  | 2D Renderer | list | Storyboard |  |  |  |  | 2D Renderer: Storyboard | L1 | - "2D Renderer: Storyboard" | 9 | 2 |')) {
+  if (!table.includes('| surfaces |  |  |  |  | surfaces | map |  |  |  |  |') || !table.includes('| surfaces | 2D Renderer |  |  |  | 2D Renderer | list | Storyboard |  | Storyboard |')) {
     throw new Error(`expected structured source metadata table to preserve structural YAML source lines, got:\n${table}`)
   }
-  if (!table.includes('| flow | nodes | id |  |  | id | string | typed_node |  |  |  |  | {key: id, type: string, value: "typed_node"} | L2 | - id: {key: id, type: string, value: "typed_node"} | 13 | 4 |') || !table.includes('| flow | nodes | id | properties | lane | lane | scalar | Storyboard |  |  |  |  | Storyboard | L4 | lane: "Storyboard" | 17 | 8 |')) {
+  if (!table.includes('| flow | nodes | id |  |  | id | string | typed_node |  |  | typed_node |') || !table.includes('| flow | nodes | id | properties | lane | lane | scalar | Storyboard | Storyboard |')) {
     throw new Error(`expected YAML list-map rows to preserve native - key: value hierarchy, got:\n${table}`)
   }
-  if (!table.includes('| flow | nodes | id |  |  | id | string | typed_node |  |  |  |  | {key: id, type: string, value: "typed_node"} | L2 | - id: {key: id, type: string, value: "typed_node"} | 13 | 4 |')) {
+  if (!table.includes('| flow | nodes | id |  |  | id | string | typed_node |  |  | typed_node |')) {
     throw new Error(`expected YAML list-map rows with typed inline maps to be visible as native source rows, got:\n${table}`)
   }
-  if (!table.includes('| flow | nodes | id | properties | kgc:readingSummary | kgc:readingSummary | scalar | Opening summary | Opening summary |  |  |  | Opening summary | L4 | "kgc:readingSummary": "Opening summary" | 18 | 8 |') || !table.includes('| flow | nodes | id | properties | action | action | scalar | Review source |  |  | Review source |  | Review source | L4 | action: "Review source" | 19 | 8 |')) {
+  if (!table.includes('| flow | nodes | id | properties | kgc:readingSummary | kgc:readingSummary | scalar | Opening summary | Opening summary |  |  | Opening summary |') || !table.includes('| flow | nodes | id | properties | action | action | scalar | Review source | Review source |  |  |  |  | Review source |')) {
     throw new Error(`expected structured source metadata table to derive Summary and Action columns from YAML-native fields, got:\n${table}`)
   }
   if (!table.includes('## Markdown YAML Frontmatter') || table.includes('## Storyboard Cards')) {
@@ -233,23 +317,33 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
 }
 
 export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource() {
-  const sourcePath = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-strybldr-demo.md')
+  const sourcePath = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-strybldr-starter-template.md')
   const sourceText = fs.readFileSync(sourcePath, { encoding: 'utf8' })
   const validationKey = 'validation_input_forbid_hardcode_in_repo'
   const storyboardKey = 'strybldr_storyboard'
   const sourceLines = sourceText.replace(/\r\n/g, '\n').split('\n')
   const validationLine = sourceLines.findIndex(line => line.trim().startsWith(`${validationKey}:`)) + 1
   const storyboardLine = sourceLines.findIndex(line => line.trim() === `${storyboardKey}:`) + 1
+  const semanticIdentityLine = sourceLines.findIndex(line => line.trim().startsWith('semanticIdentity:')) + 1
+  const sourceUrlLineIndex = sourceLines.findIndex(line => line.trim().startsWith('source_url:'))
+  const sourceUrlLine = sourceUrlLineIndex >= 0 ? sourceLines[sourceUrlLineIndex] : ''
+  const sourceUrlLineNumber = sourceUrlLineIndex + 1
+  const ganttLine = sourceLines.findIndex(line => line.trim() === 'gantt') + 1
+  const ganttTaskLine = sourceLines.findIndex(line => line.trim().startsWith('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 :')) + 1
   const frontmatterEndLine = sourceLines.findIndex((line, index) => index > 0 && line.trim() === '---') + 1
 
   if (!sourceText.startsWith('---\n')) {
     throw new Error('expected Strybldr validation source doc to keep byte-zero YAML frontmatter')
   }
-  if (validationLine < 1 || storyboardLine < 1 || frontmatterEndLine < 1) {
-    throw new Error('expected Strybldr validation source doc to expose validation and storyboard YAML frontmatter keys')
+  if (validationLine < 1 || storyboardLine < 1 || semanticIdentityLine < 1 || sourceUrlLineNumber < 1 || ganttLine < 1 || ganttTaskLine < 1 || frontmatterEndLine < 1) {
+    throw new Error('expected Strybldr starter validation source doc to expose validation, semantic, source-url, storyboard, and typed block-scalar YAML frontmatter keys')
   }
   if (sourceLines[storyboardLine - 1]?.includes('|')) {
     throw new Error('expected Strybldr validation source doc to use YAML-native storyboard frontmatter, not a JSON literal block')
+  }
+  const authoredSourceUrl = readQuotedYamlValue(sourceUrlLine)
+  if (/https?:\/\//i.test(authoredSourceUrl)) {
+    throw new Error('expected Strybldr starter validation source_url to stay operator-supplied instead of hardcoded in repo')
   }
 
   const projection = buildStructuredSourceDataViewProjection(sourceText)
@@ -270,40 +364,65 @@ export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource
   if (projection.markdownText.includes('## Storyboard Cards')) {
     throw new Error('expected Multi-dimensional Table projection to omit Storyboard Cards table')
   }
-  if (!projection.markdownText.includes(`| ${validationKey} |  |  |  |  | ${validationKey} | scalar | true |  |  |  |  | true | L0 | ${validationKey}: "true" | ${validationLine} | 0 |`)) {
+  if (!projection.markdownText.includes(`${validationKey} | scalar | true`) || !projection.markdownText.includes(`| ${validationKey}: "true" | ${validationLine} | 0 |`)) {
     throw new Error(`expected YAML Frontmatter table to reflect the validation guard source line, got:\n${projection.markdownText.slice(0, 2000)}`)
   }
-  if (!projection.markdownText.includes(`| ${storyboardKey} |  |  |  |  | ${storyboardKey} | map |  |  |  |  |  |  | L0 | ${storyboardKey}: | ${storyboardLine} | 0 |`)) {
+  if (!projection.markdownText.includes(`${storyboardKey} | map`) || !projection.markdownText.includes(`| ${storyboardKey}: | ${storyboardLine} | 0 |`)) {
     throw new Error('expected YAML Frontmatter table to reflect YAML-native Strybldr storyboard root')
   }
-  if (!projection.markdownText.includes('| flow | direction |  |  |  | direction | string | LR |  |  |  |  | {key: direction, type: string, value: "LR"} | L1 | direction: {key: direction, type: string, value: "LR"} | 182 | 2 |')) {
-    throw new Error('expected YAML Frontmatter table to show typed inline flow.direction maps as semantic and source-value cells')
+  if (!projection.markdownText.includes('| kgSharedRendererContract | semanticIdentity |') || !projection.markdownText.includes(`| semanticIdentity: "buildScopedGraphSemanticKey" | ${semanticIdentityLine} | 2 |`)) {
+    throw new Error('expected YAML Frontmatter table to surface the shared semantic-key contract without renderer-local aliases')
   }
-  if (!projection.markdownText.includes('| flow | nodes | id |  |  | id | string | strybldr_flow_source |  |  |  |  | {key: id, type: string, value: "strybldr_flow_source"} | L2 | - id: {key: id, type: string, value: "strybldr_flow_source"} | 186 | 4 |')) {
-    throw new Error('expected YAML Frontmatter table to show typed native flow.nodes list-map ids without quoted scalar fallback')
+  if (!projection.markdownText.includes('| starter_inputs | source_url |') || !projection.markdownText.includes(`| source_url: "" | ${sourceUrlLineNumber} | 2 |`)) {
+    throw new Error('expected YAML Frontmatter table to preserve blank operator-supplied starter source_url')
   }
-  if (!projection.markdownText.includes('| flow | nodes | id | properties | kgc:readingSummary | kgc:readingSummary | string |')) {
-    throw new Error('expected YAML Frontmatter table to expose Strybldr reading summaries in the Summary column')
+  if (!projection.markdownText.includes('Mermaid Gantt Value') || !projection.markdownText.includes(`| flow_diagrams | value | video_sequence | value | value | mermaid_gantt | gantt |  |  | gantt |`) || !projection.markdownText.includes(`| gantt | L4 | gantt | ${ganttLine} | 8 |`)) {
+    throw new Error('expected YAML Frontmatter nested typed block scalar rows to keep payload text in the matching type-specific value column')
   }
-  const sourceUrlLine = sourceLines.find(line => /^\s*source_url:\s*["']?https:\/\/www\.youtube\.com\/watch\?v=/i.test(line.trim())) || ''
-  const validationSourceUrl = readQuotedYamlValue(sourceUrlLine)
-  if (!validationSourceUrl) throw new Error('expected Strybldr validation source doc to carry a source_url')
-  if (!projection.markdownText.includes('| flow | nodes | id | properties | outputSrcDoc | outputSrcDoc | html_srcdoc | <!doctype html') || !projection.markdownText.includes(`| source_url | scalar | ${validationSourceUrl} |`)) {
-    throw new Error('expected YAML Frontmatter table to expose Output and Reference Pack columns from validation source fields')
+  if (!projection.markdownText.includes(`| value | mermaid_gantt | Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video`) || !projection.markdownText.includes(`| ${ganttTaskLine} | 10 |`)) {
+    throw new Error('expected YAML Frontmatter block scalar lines that look like key/value rows to remain in the matching type-specific value column')
   }
-  const nextTypedListMap = applyStructuredSourceDataViewReplacement({
+  const nextValidation = applyStructuredSourceDataViewReplacement({
     sourceText,
     projection,
     startLine: metadataReplacement.generatedStartLine,
     endLine: metadataReplacement.generatedEndLine,
     replacementLines: [
-      '| L0 | L1 | L2 | L3 | L4 | Key | Type | Value | Level | Content | Line | Indent |',
-      '| -- | -- | -- | -- | -- | --- | ---- | ----- | ----- | ------- | ---- | ------ |',
-      '| flow | nodes | id |  |  | id | string | strybldr_flow_source_edited | L2 | - id: {key: id, type: string, value: "strybldr_flow_source"} | 186 | 4 |',
+      '| Key | Type | Value | Content | Line | Indent |',
+      '| --- | ---- | ----- | ------- | ---- | ------ |',
+      `| ${validationKey} | scalar | false | ${validationKey}: "true" | ${validationLine} | 0 |`,
     ],
   })
-  if (!nextTypedListMap?.includes('    - id: {key: id, type: string, value: "strybldr_flow_source_edited"}') || nextTypedListMap.includes('    - id: "strybldr_flow_source_edited"')) {
-    throw new Error(`expected typed YAML list-map edit to preserve {key,type,value} syntax, got:\n${nextTypedListMap}`)
+  if (!nextValidation?.includes(`${validationKey}: "false"`)) {
+    throw new Error(`expected starter validation guard edit to write back through the source-line map, got:\n${nextValidation}`)
+  }
+  const nextGanttValue = applyStructuredSourceDataViewReplacement({
+    sourceText,
+    projection,
+    startLine: metadataReplacement.generatedStartLine,
+    endLine: metadataReplacement.generatedEndLine,
+    replacementLines: [
+      '| Key | Type | Value | Content | Line | Indent |',
+      '| --- | ---- | ----- | ------- | ---- | ------ |',
+      `| value | mermaid_gantt | gantt updated | gantt | ${ganttLine} | 8 |`,
+    ],
+  })
+  if (!nextGanttValue?.includes('        gantt updated')) {
+    throw new Error(`expected typed block-scalar Value cell edits to write back through the source-line map, got:\n${nextGanttValue}`)
+  }
+  const nextGanttTypedValue = applyStructuredSourceDataViewReplacement({
+    sourceText,
+    projection,
+    startLine: metadataReplacement.generatedStartLine,
+    endLine: metadataReplacement.generatedEndLine,
+    replacementLines: [
+      '| Key | Type | Mermaid Gantt Value | Content | Line | Indent |',
+      '| --- | ---- | ------------------- | ------- | ---- | ------ |',
+      `| value | mermaid_gantt | gantt typed updated | gantt | ${ganttLine} | 8 |`,
+    ],
+  })
+  if (!nextGanttTypedValue?.includes('        gantt typed updated')) {
+    throw new Error(`expected typed block-scalar type-specific value edits to write back through the source-line map, got:\n${nextGanttTypedValue}`)
   }
   if (projection.markdownText.includes('| strybldr_storyboard | workflow | stages | stages |') || projection.markdownText.includes('| strybldr_storyboard | workflow | fork | branches | branches |')) {
     throw new Error('expected YAML Frontmatter list paths to avoid duplicated parent keys')
@@ -360,14 +479,23 @@ export function testMultiDimTableSupportsRowsColumnsPivot() {
   const headerPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewHeader.tsx')
   const derivedViewerPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'MarkdownWorkspaceDerivedViewer.tsx')
   const tableViewPath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
+  const columnsTableViewPath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewColumnsTableView.tsx')
+  const chipStylesPath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'dataViewChipStyles.ts')
+  const columnSizingPath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'markdownDataViewColumnSizing.ts')
   const configPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'workspaceDataViewConfig.ts')
   const headerText = fs.readFileSync(headerPath, { encoding: 'utf8' })
   const derivedViewerText = fs.readFileSync(derivedViewerPath, { encoding: 'utf8' })
   const tableViewText = fs.readFileSync(tableViewPath, { encoding: 'utf8' })
+  const columnsTableViewText = fs.readFileSync(columnsTableViewPath, { encoding: 'utf8' })
+  const chipStylesText = fs.readFileSync(chipStylesPath, { encoding: 'utf8' })
+  const columnSizingText = fs.readFileSync(columnSizingPath, { encoding: 'utf8' })
   const configText = fs.readFileSync(configPath, { encoding: 'utf8' })
 
   if (!configText.includes("export type WorkspaceDataViewOrientation = 'rows' | 'columns'") || !configText.includes("orientation: 'rows'")) {
     throw new Error('expected data-view config to persist a rows/columns orientation without a renderer-local flag')
+  }
+  if (!configText.includes("WorkspaceStructuredSourceValueColumnMode = 'type-specific' | 'type-generic'") || !configText.includes("structuredSourceValueColumnMode: 'type-specific'")) {
+    throw new Error('expected data-view config to persist structured-source value-column presentation mode')
   }
   const coerced = coerceWorkspaceDataViewConfig({
     v: 2,
@@ -380,9 +508,13 @@ export function testMultiDimTableSupportsRowsColumnsPivot() {
     filterGroups: [{ id: 'g0', rules: [] }],
     sortRules: [],
     orientation: 'columns',
+    structuredSourceValueColumnMode: 'type-generic',
   })
   if (coerced?.orientation !== 'columns') {
     throw new Error('expected persisted data-view config to coerce columns pivot orientation')
+  }
+  if (coerced?.structuredSourceValueColumnMode !== 'type-generic') {
+    throw new Error('expected persisted data-view config to coerce structured-source generic value mode')
   }
   const fallback = coerceWorkspaceDataViewConfig({
     v: 2,
@@ -395,9 +527,13 @@ export function testMultiDimTableSupportsRowsColumnsPivot() {
     filterGroups: [{ id: 'g0', rules: [] }],
     sortRules: [],
     orientation: 'legacy-pivot',
+    structuredSourceValueColumnMode: 'legacy-value-mode',
   })
   if (fallback?.orientation !== 'rows') {
     throw new Error('expected invalid pivot orientation to normalize to row-record mode')
+  }
+  if (fallback?.structuredSourceValueColumnMode !== 'type-specific') {
+    throw new Error('expected invalid structured-source value mode to normalize to type-specific columns')
   }
   if (!headerText.includes('ArrowLeftRight') || !headerText.includes("orientation === 'columns' ? 'rows' : 'columns'") || !headerText.includes('Pivot: columns as records')) {
     throw new Error('expected data-view header to expose a shared rows/columns pivot toggle')
@@ -405,7 +541,21 @@ export function testMultiDimTableSupportsRowsColumnsPivot() {
   if (!derivedViewerText.includes("orientation={viewConfig?.orientation === 'columns' ? 'columns' : 'rows'}")) {
     throw new Error('expected MarkdownWorkspaceDerivedViewer to pass persisted pivot orientation to the table renderer')
   }
-  if (!tableViewText.includes("orientation?: 'rows' | 'columns'") || !tableViewText.includes("if (orientation === 'columns')") || !tableViewText.includes('Show ${Math.min(hiddenRowCount, MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT)} more columns')) {
-    throw new Error('expected MarkdownDataViewTableView to render row-column pivot mode through the shared table renderer')
+  if (!tableViewText.includes("orientation?: 'rows' | 'columns'") || !tableViewText.includes("if (orientation === 'columns')") || !tableViewText.includes('MarkdownDataViewColumnsTableView') || !tableViewText.includes('MarkdownDataViewColumnResizeHandle') || !tableViewText.includes('<colgroup>') || !tableViewText.includes('readMarkdownDataViewDefaultColumnWidth') || !tableViewText.includes('style={{ width: rowRecordTableWidth }}') || !tableViewText.includes('overflow-hidden border-b') || !tableViewText.includes('border-separate border-spacing-0') || !tableViewText.includes('sticky top-0 z-30 isolate') || !tableViewText.includes('relative z-[31]')) {
+    throw new Error('expected MarkdownDataViewTableView to render row-column pivot mode and resize columns through the shared table renderer')
+  }
+  if (!columnSizingText.includes('MARKDOWN_DATA_VIEW_DEFAULT_COLUMN_WIDTH_PX = 192') || !columnSizingText.includes("normalized === 'Value' || /^.+ Value$/.test(normalized)") || !columnSizingText.includes('return 184')) {
+    throw new Error('expected Markdown data-view column sizing to keep type-specific value columns compact by default')
+  }
+  if (!columnsTableViewText.includes('Show ${Math.min(props.hiddenRowCount, MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT)} more columns') || !columnsTableViewText.includes('MarkdownDataViewColumnResizeHandle') || !columnsTableViewText.includes('<colgroup>') || !columnsTableViewText.includes('style={{ width: tableWidth }}') || !columnsTableViewText.includes('overflow-hidden border-b') || !columnsTableViewText.includes('border-separate border-spacing-0') || !columnsTableViewText.includes('sticky top-0 z-30 isolate') || !columnsTableViewText.includes('relative z-[31]')) {
+    throw new Error('expected extracted MarkdownDataViewColumnsTableView to keep column-record pivot resize behavior')
+  }
+  if (!chipStylesText.includes('min-w-0 max-w-full overflow-hidden')) {
+    throw new Error('expected data-view chips to ellipsize inside fixed-width columns instead of stretching column width')
+  }
+  const resizeHandlePath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewColumnResizeHandle.tsx')
+  const resizeHandleText = fs.readFileSync(resizeHandlePath, { encoding: 'utf8' })
+  if (!resizeHandleText.includes('bindResizeSeparatorDragRuntime') || !resizeHandleText.includes("cursor: 'col-resize'") || !resizeHandleText.includes('data-kg-markdown-data-view-column-resize')) {
+    throw new Error('expected Markdown data-view column resize to reuse the shared resize separator drag runtime')
   }
 }

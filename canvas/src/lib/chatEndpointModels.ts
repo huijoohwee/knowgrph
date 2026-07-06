@@ -37,6 +37,12 @@ export const CHAT_OPENAI_MODEL_OPTIONS = [
 ] as const
 export const CHAT_MIROMIND_MODEL_OPTIONS = ['mirothinker-1-7-deepresearch-mini', 'mirothinker-1-7-deepresearch'] as const
 export const CHAT_AGNES_MODEL_OPTIONS = ['agnes-2.0-flash'] as const
+export const CHAT_SEALION_MODEL_OPTIONS = [
+  'aisingapore/Qwen-SEA-LION-v4.5-27B-IT',
+  'aisingapore/Gemma-SEA-LION-v4.5-E2B-IT',
+  'aisingapore/Llama-SEA-LION-v3.5-70B-R',
+  'aisingapore/SEA-Guard',
+] as const
 export const CHAT_QWEN_MODEL_OPTIONS = [
   'qwen-plus',
   'qwen-plus-latest',
@@ -85,6 +91,7 @@ export const CHAT_SHARED_MODEL_CATALOG_OPTIONS = [
   ...CHAT_OPENAI_MODEL_OPTIONS,
   ...CHAT_MIROMIND_MODEL_OPTIONS,
   ...CHAT_AGNES_MODEL_OPTIONS,
+  ...CHAT_SEALION_MODEL_OPTIONS,
   ...CHAT_QWEN_MODEL_OPTIONS,
   ...CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   ...CHAT_BYTEPLUS_MODEL_OPTIONS,
@@ -95,6 +102,12 @@ export const CHAT_MODEL_ID_BY_INPUT_VARIANT: Record<string, string> = {
   'gpt-5 mini': 'gpt-5-mini',
   'gpt-4.1 nano': 'gpt-4.1-nano',
   'gpt-4.1 mini': 'gpt-4.1-mini',
+  'sealion qwen v4.5': 'aisingapore/Qwen-SEA-LION-v4.5-27B-IT',
+  'sea-lion qwen v4.5': 'aisingapore/Qwen-SEA-LION-v4.5-27B-IT',
+  'sealion gemma v4.5 e2b': 'aisingapore/Gemma-SEA-LION-v4.5-E2B-IT',
+  'sea-lion gemma v4.5 e2b': 'aisingapore/Gemma-SEA-LION-v4.5-E2B-IT',
+  'sealion guard': 'aisingapore/SEA-Guard',
+  'sea-guard': 'aisingapore/SEA-Guard',
   'seedream-4.0': 'seedream-4-0-250828',
   'seedream-4.5': 'seedream-4-5-251128',
   'seedream-5.0': 'seedream-5-0-260128',

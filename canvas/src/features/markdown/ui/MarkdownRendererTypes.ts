@@ -15,6 +15,7 @@ export type InlineRenderOpts = {
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
+  markdownVariablePreviewByKey?: Record<string, { value: string | null }>
   markdownLargeDocumentMode?: boolean
   markdownCardPreviewMode?: boolean
   markdownViewerMediaMode?: MarkdownViewerMediaMode

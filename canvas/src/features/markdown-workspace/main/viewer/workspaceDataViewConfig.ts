@@ -14,29 +14,16 @@ import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type WorkspaceDataViewLayout = 'kanban' | 'table'
 export type WorkspaceDataViewOrientation = 'rows' | 'columns'
+export type WorkspaceStructuredSourceValueColumnMode = 'type-specific' | 'type-generic'
 
 export type WorkspaceDataViewFilterOp = 'contains' | 'equals' | 'includes'
 
-export type WorkspaceDataViewFilterRule = {
-  id: string
-  columnId: string
-  columnKind: MarkdownDataViewColumnKind
-  op: WorkspaceDataViewFilterOp
-  value: string
-}
-
-export type WorkspaceDataViewFilterGroup = {
-  id: string
-  rules: WorkspaceDataViewFilterRule[]
-}
+export type WorkspaceDataViewFilterRule = { id: string; columnId: string; columnKind: MarkdownDataViewColumnKind; op: WorkspaceDataViewFilterOp; value: string }
+export type WorkspaceDataViewFilterGroup = { id: string; rules: WorkspaceDataViewFilterRule[] }
 
 export type WorkspaceDataViewSortDirection = 'asc' | 'desc'
 
-export type WorkspaceDataViewSortRule = {
-  id: string
-  columnId: string
-  direction: WorkspaceDataViewSortDirection
-}
+export type WorkspaceDataViewSortRule = { id: string; columnId: string; direction: WorkspaceDataViewSortDirection }
 
 export type WorkspaceDataViewGraphColumnRole =
   | 'none'
@@ -58,6 +45,7 @@ export type WorkspaceDataViewViewV2 = {
   filterGroups: WorkspaceDataViewFilterGroup[]
   sortRules: WorkspaceDataViewSortRule[]
   orientation?: WorkspaceDataViewOrientation
+  structuredSourceValueColumnMode?: WorkspaceStructuredSourceValueColumnMode
   rowHeightPreset?: DataViewRowHeightPreset
   fieldLineMode?: DataViewFieldLineMode
   graphEnabled?: boolean
@@ -316,6 +304,7 @@ const DEFAULT_VIEW: WorkspaceDataViewViewV2 = {
   filterGroups: [{ id: 'g0', rules: [] }],
   sortRules: [],
   orientation: 'rows',
+  structuredSourceValueColumnMode: 'type-specific',
   rowHeightPreset: 'comfortable',
   fieldLineMode: 'single',
 }
@@ -337,6 +326,10 @@ function normalizeWorkspaceDataViewLayout(v: unknown): WorkspaceDataViewLayout {
 
 function normalizeWorkspaceDataViewOrientation(v: unknown): WorkspaceDataViewOrientation {
   return String(v || '').trim() === 'columns' ? 'columns' : 'rows'
+}
+
+export function coerceStructuredSourceValueColumnMode(v: unknown): WorkspaceStructuredSourceValueColumnMode {
+  return String(v || '').trim() === 'type-generic' ? 'type-generic' : 'type-specific'
 }
 
 function normalizeFilterOp(v: unknown): WorkspaceDataViewFilterOp {
@@ -435,6 +428,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
     const sortRulesRaw = Array.isArray(raw.sortRules) ? raw.sortRules : []
     const sortRules = sortRulesRaw.map(coerceSortRule).filter((x): x is WorkspaceDataViewSortRule => !!x)
     const orientation = normalizeWorkspaceDataViewOrientation(raw.orientation)
+    const structuredSourceValueColumnMode = coerceStructuredSourceValueColumnMode(raw.structuredSourceValueColumnMode)
     const rowHeightPreset = coerceDataViewRowHeightPreset(raw.rowHeightPreset)
     const fieldLineMode = coerceDataViewFieldLineMode(raw.fieldLineMode)
 
@@ -458,6 +452,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
       filterGroups: normalizedGroups,
       sortRules,
       orientation,
+      structuredSourceValueColumnMode,
       rowHeightPreset,
       fieldLineMode,
       graphEnabled,

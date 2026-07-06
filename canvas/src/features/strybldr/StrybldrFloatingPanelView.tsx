@@ -1,9 +1,9 @@
 import React from 'react'
-import { Check, Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, Wand2 } from 'lucide-react'
+import { Clapperboard, Film, Heart, LocateFixed, Lock, Play, RefreshCw, Wand2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { PanelField, PanelSelect, PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
+import { PanelSelect } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME, UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
@@ -28,6 +28,7 @@ import {
   unlockStrytreeNodeAction,
   type StrytreeWorkflowResult,
 } from './strytreeWorkflow'
+import { StrybldrCardEditorSection } from './StrybldrCardEditorSection'
 
 const readString = (value: unknown): string => String(value ?? '').trim()
 const LOCAL_ANALYSIS_SOURCE_TIMEOUT_MS = 12000
@@ -696,71 +697,14 @@ export function StrybldrFloatingPanelView({
               </section>
             ) : null}
             {selectedCard ? (
-              <section className={cn('space-y-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.headerBg)} aria-label="Strybldr card editor">
-                <section className="flex items-center gap-2">
-                  <PanelSelect
-                    className="min-w-0 flex-1"
-                    value={selectedCard.id}
-                    aria-label="Strybldr card"
-                    onChange={e => setSelectedCardId(e.target.value)}
-                  >
-                    {editableCards.map(card => (
-                      <option key={card.id} value={card.id}>
-                        {card.lane}: {card.title}
-                      </option>
-                    ))}
-                  </PanelSelect>
-                  <button
-                    type="button"
-                    className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-                    title="Save card update"
-                    onClick={saveSelectedCardUpdate}
-                  >
-                    <Check className="h-4 w-4" strokeWidth={1.7} aria-hidden={true} />
-                  </button>
-                </section>
-                <PanelField label="Title">
-                  <PanelTextInput
-                    className="mt-1"
-                    value={draft.title}
-                    aria-label="Strybldr card title"
-                    onChange={e => setDraft(cur => ({ ...cur, title: e.target.value }))}
-                  />
-                </PanelField>
-                <PanelField label="Summary">
-                  <PanelTextarea
-                    className="mt-1"
-                    value={draft.summary}
-                    aria-label="Strybldr card summary"
-                    onChange={e => setDraft(cur => ({ ...cur, summary: e.target.value }))}
-                  />
-                </PanelField>
-                <PanelField label="Action">
-                  <PanelTextarea
-                    className="mt-1"
-                    value={draft.action}
-                    aria-label="Strybldr card action"
-                    onChange={e => setDraft(cur => ({ ...cur, action: e.target.value }))}
-                  />
-                </PanelField>
-                <PanelField label="Prompt">
-                  <PanelTextarea
-                    className="mt-1"
-                    value={draft.prompt}
-                    aria-label="Strybldr card prompt"
-                    onChange={e => setDraft(cur => ({ ...cur, prompt: e.target.value }))}
-                  />
-                </PanelField>
-                <PanelField label="Order">
-                  <PanelTextInput
-                    type="number"
-                    className="mt-1"
-                    value={draft.order}
-                    aria-label="Strybldr card order"
-                    onChange={e => setDraft(cur => ({ ...cur, order: e.target.value }))}
-                  />
-                </PanelField>
-              </section>
+              <StrybldrCardEditorSection
+                draft={draft}
+                editableCards={editableCards}
+                selectedCard={selectedCard}
+                onDraftChange={setDraft}
+                onSave={saveSelectedCardUpdate}
+                onSelectedCardIdChange={setSelectedCardId}
+              />
             ) : null}
             {board.lanes.map(lane => (
               <section key={lane.id} className="space-y-1" aria-label={lane.label}>

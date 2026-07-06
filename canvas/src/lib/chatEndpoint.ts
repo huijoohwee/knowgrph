@@ -1,6 +1,7 @@
 import { coerceHttpUrl } from '@/lib/url'
 import {
   CHAT_AGNES_MODEL_OPTIONS,
+  CHAT_SEALION_MODEL_OPTIONS,
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_MODEL_OPTIONS,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/chatEndpointModels'
 export {
   CHAT_AGNES_MODEL_OPTIONS,
+  CHAT_SEALION_MODEL_OPTIONS,
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_MODEL_OPTIONS,
@@ -59,6 +61,7 @@ export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 export const CHAT_OPENAI_HOST = 'api.openai.com'
 export const CHAT_MIROMIND_HOST = 'api.miromind.ai'
 export const CHAT_AGNES_HOST = 'apihub.agnes-ai.com'
+export const CHAT_SEALION_HOST = 'api.sea-lion.ai'
 export const CHAT_QWEN_SINGAPORE_HOST = 'dashscope-intl.aliyuncs.com'
 export const CHAT_QWEN_US_VIRGINIA_HOST = 'dashscope-us.aliyuncs.com'
 export const CHAT_QWEN_CHINA_BEIJING_HOST = 'dashscope.aliyuncs.com'
@@ -74,6 +77,7 @@ export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}
 export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
 export const CHAT_MIROMIND_BASE = `https://${CHAT_MIROMIND_HOST}`
 export const CHAT_AGNES_BASE = `https://${CHAT_AGNES_HOST}`
+export const CHAT_SEALION_BASE = `https://${CHAT_SEALION_HOST}`
 export const CHAT_QWEN_BASE = `https://${CHAT_QWEN_SINGAPORE_HOST}`
 export const CHAT_QWEN_US_VIRGINIA_BASE = `https://${CHAT_QWEN_US_VIRGINIA_HOST}`
 export const CHAT_QWEN_CHINA_BEIJING_BASE = `https://${CHAT_QWEN_CHINA_BEIJING_HOST}`
@@ -97,6 +101,7 @@ export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}
 export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_RESPONSES_PATH}`
 export const CHAT_MIROMIND_ENDPOINT_URL = `${CHAT_MIROMIND_BASE}${CHAT_COMPLETIONS_PATH}`
 export const CHAT_AGNES_ENDPOINT_URL = `${CHAT_AGNES_BASE}${CHAT_COMPLETIONS_PATH}`
+export const CHAT_SEALION_ENDPOINT_URL = `${CHAT_SEALION_BASE}${CHAT_COMPLETIONS_PATH}`
 export const CHAT_QWEN_ENDPOINT_URL = `${CHAT_QWEN_BASE}${CHAT_QWEN_CHAT_COMPLETIONS_PATH}`
 export const CHAT_QWEN_ENDPOINT_OPTIONS = [
   CHAT_QWEN_ENDPOINT_URL,
@@ -115,13 +120,14 @@ export const CHAT_DEERFLOW_ENDPOINT_URL = `${CHAT_DEERFLOW_LOCAL_BASE}${CHAT_DEE
 export const CHAT_PROVIDER_OPENAI = 'openai'
 export const CHAT_PROVIDER_MIROMIND = 'miromind'
 export const CHAT_PROVIDER_AGNES = 'agnes-ai'
+export const CHAT_PROVIDER_SEALION = 'sealion'
 export const CHAT_PROVIDER_QWEN = 'qwen'
 export const CHAT_PROVIDER_GOOGLE_CLOUD = 'google-cloud'
 export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_DEERFLOW = 'deerflow'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_GEMINI = 'gemini'
-export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_AGNES, CHAT_PROVIDER_QWEN, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
+export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_AGNES, CHAT_PROVIDER_SEALION, CHAT_PROVIDER_QWEN, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_DEERFLOW, CHAT_PROVIDER_LM_STUDIO, CHAT_PROVIDER_GEMINI] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_OPENAI_ENDPOINT_URL
@@ -130,6 +136,7 @@ const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
   [CHAT_PROVIDER_MIROMIND]: 'MiroMind API',
   [CHAT_PROVIDER_AGNES]: 'Agnes AI API',
+  [CHAT_PROVIDER_SEALION]: 'AI Singapore SEA-LION API',
   [CHAT_PROVIDER_QWEN]: 'Qwen API',
   [CHAT_PROVIDER_GOOGLE_CLOUD]: 'Google Cloud Vertex AI',
   [CHAT_PROVIDER_OPENAI]: 'OpenAI',
@@ -142,6 +149,7 @@ export const chatProviderRequiresApiKey = (provider: unknown): boolean => {
   return normalizedProvider === CHAT_PROVIDER_OPENAI
     || normalizedProvider === CHAT_PROVIDER_MIROMIND
     || normalizedProvider === CHAT_PROVIDER_AGNES
+    || normalizedProvider === CHAT_PROVIDER_SEALION
     || normalizedProvider === CHAT_PROVIDER_QWEN
     || normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD
     || normalizedProvider === CHAT_PROVIDER_BYTEPLUS
@@ -153,51 +161,16 @@ const toCleanInput = (value: unknown): string => {
   return value.trim()
 }
 
-const isLocalHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
-}
-
-const isTrustedOpenAiHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_OPENAI_HOST
-}
-
-const isTrustedMiroMindHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_MIROMIND_HOST
-}
-
-const isTrustedAgnesHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_AGNES_HOST
-}
-
-const isTrustedQwenHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_QWEN_SINGAPORE_HOST
-    || host === CHAT_QWEN_US_VIRGINIA_HOST
-    || host === CHAT_QWEN_CHINA_BEIJING_HOST
-    || host === CHAT_QWEN_HONG_KONG_HOST
-}
-
-const isTrustedGoogleCloudHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_GOOGLE_CLOUD_GLOBAL_HOST
-    || host === CHAT_GOOGLE_CLOUD_US_CENTRAL1_HOST
-    || host === CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST
-    || host === CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST
-}
-
-const isTrustedBytePlusHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_BYTEPLUS_AP_SOUTHEAST_HOST || host === CHAT_BYTEPLUS_EU_WEST_HOST
-}
-
-const isTrustedGeminiHost = (hostname: string): boolean => {
-  const host = String(hostname || '').toLowerCase()
-  return host === CHAT_GEMINI_HOST
-}
+const hostMatches = (hostname: string, hosts: readonly string[]): boolean => hosts.includes(String(hostname || '').toLowerCase())
+const isLocalHost = (hostname: string): boolean => hostMatches(hostname, ['localhost', '127.0.0.1', '0.0.0.0'])
+const isTrustedOpenAiHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_OPENAI_HOST])
+const isTrustedMiroMindHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_MIROMIND_HOST])
+const isTrustedAgnesHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_AGNES_HOST])
+const isTrustedSealionHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_SEALION_HOST])
+const isTrustedQwenHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_QWEN_SINGAPORE_HOST, CHAT_QWEN_US_VIRGINIA_HOST, CHAT_QWEN_CHINA_BEIJING_HOST, CHAT_QWEN_HONG_KONG_HOST])
+const isTrustedGoogleCloudHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_GOOGLE_CLOUD_GLOBAL_HOST, CHAT_GOOGLE_CLOUD_US_CENTRAL1_HOST, CHAT_GOOGLE_CLOUD_EUROPE_WEST4_HOST, CHAT_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST])
+const isTrustedBytePlusHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_BYTEPLUS_EU_WEST_HOST])
+const isTrustedGeminiHost = (hostname: string): boolean => hostMatches(hostname, [CHAT_GEMINI_HOST])
 
 const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
   const normalizedProvider = normalizeChatProviderId(provider)
@@ -205,6 +178,7 @@ const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_LOCAL_BASE
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_BASE
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_BASE
+  if (normalizedProvider === CHAT_PROVIDER_SEALION) return CHAT_SEALION_BASE
   if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_BASE
   if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_US_CENTRAL1_BASE
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_BASE
@@ -218,6 +192,7 @@ const getProviderDefaultEndpointUrl = (provider: unknown): string => {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_SEALION) return CHAT_SEALION_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_ENDPOINT_URL
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_ENDPOINT_URL
@@ -382,6 +357,7 @@ export function normalizeChatProviderId(value: unknown): ChatProviderId {
   if (raw === CHAT_PROVIDER_DEERFLOW || raw === 'deer-flow' || raw === 'deerflow-gateway') return CHAT_PROVIDER_DEERFLOW
   if (raw === CHAT_PROVIDER_MIROMIND || raw === 'miro-mind' || raw === 'miromind-api') return CHAT_PROVIDER_MIROMIND
   if (raw === CHAT_PROVIDER_AGNES || raw === 'agnes' || raw === 'agnes-ai-api') return CHAT_PROVIDER_AGNES
+  if (raw === CHAT_PROVIDER_SEALION || raw === 'sea-lion' || raw === 'sea lion' || raw === 'aisingapore' || raw === 'ai-singapore' || raw === 'ai singapore') return CHAT_PROVIDER_SEALION
   if (raw === CHAT_PROVIDER_QWEN || raw === 'dashscope' || raw === 'model-studio' || raw === 'modelstudio' || raw === 'qwen-api' || raw === 'qwen-modelstudio' || raw === 'alibaba-qwen') return CHAT_PROVIDER_QWEN
   if (raw === CHAT_PROVIDER_GOOGLE_CLOUD || raw === 'google cloud' || raw === 'googlecloud' || raw === 'gcp' || raw === 'vertex' || raw === 'vertex-ai' || raw === 'vertexai' || raw === 'google-vertex' || raw === 'google-vertex-ai') return CHAT_PROVIDER_GOOGLE_CLOUD
   if (raw === CHAT_PROVIDER_OPENAI) return CHAT_PROVIDER_OPENAI
@@ -396,6 +372,7 @@ export function getChatModelOptions(provider: unknown): readonly string[] {
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return CHAT_DEERFLOW_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return CHAT_MIROMIND_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return CHAT_AGNES_MODEL_OPTIONS
+  if (normalizedProvider === CHAT_PROVIDER_SEALION) return CHAT_SEALION_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_QWEN) return CHAT_QWEN_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) return CHAT_GOOGLE_CLOUD_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return CHAT_LOCAL_MODEL_OPTIONS
@@ -432,6 +409,7 @@ export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unkn
   if (normalizedProvider === CHAT_PROVIDER_DEERFLOW) return 'Local'
   if (normalizedProvider === CHAT_PROVIDER_MIROMIND) return 'Global'
   if (normalizedProvider === CHAT_PROVIDER_AGNES) return 'Global'
+  if (normalizedProvider === CHAT_PROVIDER_SEALION) return 'Singapore'
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return 'Local'
   if (normalizedProvider === CHAT_PROVIDER_GOOGLE_CLOUD) {
     const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
@@ -573,7 +551,7 @@ export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown
   if (!absolute) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedSealionHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
       if (isTrustedQwenHost(parsed.hostname)) {
         parsed.pathname = normalizeQwenBaseRequestPath(parsed.pathname)
       }
@@ -601,7 +579,7 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedMiroMindHost(parsed.hostname) || isTrustedAgnesHost(parsed.hostname) || isTrustedSealionHost(parsed.hostname) || isTrustedQwenHost(parsed.hostname) || isTrustedGoogleCloudHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname) || isTrustedGeminiHost(parsed.hostname)) {
       if (isTrustedBytePlusHost(parsed.hostname)) {
         if (parsed.pathname === '/' || parsed.pathname === '') {
           parsed.pathname = CHAT_BYTEPLUS_COMPLETIONS_PATH
@@ -619,6 +597,9 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
         parsed.pathname = CHAT_COMPLETIONS_PATH
       }
       if (isTrustedAgnesHost(parsed.hostname) && (parsed.pathname === '/' || parsed.pathname === '')) {
+        parsed.pathname = CHAT_COMPLETIONS_PATH
+      }
+      if (isTrustedSealionHost(parsed.hostname) && (parsed.pathname === '/' || parsed.pathname === '')) {
         parsed.pathname = CHAT_COMPLETIONS_PATH
       }
       return toProxyPathFromLocalUrl(parsed)
@@ -678,6 +659,9 @@ export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknow
     if (normalizedProvider === CHAT_PROVIDER_AGNES) {
       return isTrustedAgnesHost(parsed.hostname) ? parsed.origin : null
     }
+    if (normalizedProvider === CHAT_PROVIDER_SEALION) {
+      return isTrustedSealionHost(parsed.hostname) ? parsed.origin : null
+    }
     if (normalizedProvider === CHAT_PROVIDER_QWEN) {
       return isTrustedQwenHost(parsed.hostname) ? parsed.origin : null
     }
@@ -736,6 +720,9 @@ export function getChatRecommendedModelHint(provider: unknown): string {
   }
   if (normalizedProvider === CHAT_PROVIDER_AGNES) {
     return `Use ${CHAT_AGNES_MODEL_OPTIONS[0]}; requests stay on the shared chat-completions transport and stream SSE JSON chunks through the canonical markdown/frontmatter pipeline.`
+  }
+  if (normalizedProvider === CHAT_PROVIDER_SEALION) {
+    return `Use ${CHAT_SEALION_MODEL_OPTIONS[0]} for Southeast Asian multilingual/cultural tasks; requests stay on the shared OpenAI-compatible chat path.`
   }
   if (normalizedProvider === CHAT_PROVIDER_QWEN) {
     return `Use ${CHAT_QWEN_MODEL_OPTIONS[0]}, ${CHAT_QWEN_MODEL_OPTIONS[2]}, or ${CHAT_QWEN_MODEL_OPTIONS[4]}; Qwen runs through Alibaba Cloud Model Studio's OpenAI-compatible chat-completions endpoint.`

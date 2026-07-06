@@ -1,8 +1,8 @@
 import React from 'react'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import {
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   hasCardMarkdownPreviewSyntax,
@@ -110,14 +110,10 @@ function CardMarkdownPreviewInlineMediaChip({ media }: { media: CardMarkdownPrev
         event.preventDefault()
       }}
     >
-      <CardMediaPreview
+      <InlineMediaCommandThumbnail
         kind={media.kind}
-        url={media.url}
-        title={media.label}
-        interactive={false}
-        fit="cover"
-        mediaThumbnailDataAttr
-        mediaClassName={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME}
+        thumbnailUrl={media.kind === 'image' ? media.url : undefined}
+        variant="inline"
       />
       <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{media.label}</span>
     </a>

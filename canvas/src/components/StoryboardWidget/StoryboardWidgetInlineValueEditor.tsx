@@ -18,6 +18,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
   className?: string
   displayClassName?: string
   editorClassName?: string
+  markdownCommandContextText?: string
   onCommit: (nextValue: string) => void
 }) {
   const {
@@ -31,6 +32,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
     className,
     displayClassName,
     editorClassName,
+    markdownCommandContextText,
     onCommit,
   } = props
   const baseDisplayClass = cn(
@@ -58,6 +60,8 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
       canEdit
       editActivation="click"
       multiline={multiline}
+      markdownPreview={multiline ? 'auto' : undefined}
+      markdownCommandContextText={markdownCommandContextText}
       rows={rows}
       displayClassName={baseDisplayClass}
       editorClassName={baseEditorClass}

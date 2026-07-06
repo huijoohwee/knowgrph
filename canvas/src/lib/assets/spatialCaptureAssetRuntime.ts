@@ -1,7 +1,8 @@
 import type { StandaloneSpatialCaptureManifest, SpatialCaptureStandaloneFormat } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
 import { resolveBinaryDownloadProxyUrl } from '@/lib/chatEndpoint'
-import { buildLocalFsFetchPath } from '@/lib/url'
+import { buildLocalFsFetchPath, buildLocalFsRangeFetchPath } from '@/lib/url'
 import { parsePlyPointCloud, type PlyPointCloud } from './plyPointCloud'
+import { readFetchTargetRangePreviewBuffer, readFileRangePreviewBuffer, type SpatialCapturePreviewBufferLoad } from './spatialCapturePreviewRange'
 
 type PendingSpatialCaptureAsset = {
   file: File
@@ -10,6 +11,7 @@ type PendingSpatialCaptureAsset = {
 }
 
 export type SpatialCapturePointCloudLoad = {
+  fidelity: 'preview' | 'full'
   pointCloud: PlyPointCloud
   source: 'pending-local' | 'browser-cache' | 'local-source' | 'url'
   byteLength: number
@@ -21,11 +23,24 @@ type SpatialCaptureFetchTarget = {
   source: SpatialCapturePointCloudLoad['source']
 }
 
+type SpatialCaptureSourceBufferLoad = {
+  buffer: ArrayBuffer
+  byteLength: number
+  source: SpatialCapturePointCloudLoad['source']
+}
+
 const pendingSpatialCaptureAssetsByPath = new Map<string, PendingSpatialCaptureAsset>()
+const sourceBuffersByKey = new Map<string, Promise<SpatialCaptureSourceBufferLoad | null>>()
 const pointCloudLoadsByKey = new Map<string, Promise<SpatialCapturePointCloudLoad | null>>()
-const DEFAULT_SPATIAL_CAPTURE_POINT_BUDGET = 2_800_000
-const HIGH_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET = 4_200_000
-const LOW_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET = 1_400_000
+const DEFAULT_SPATIAL_CAPTURE_POINT_BUDGET = 900_000
+const HIGH_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET = 1_600_000
+const LOW_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET = 420_000
+const DEFAULT_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET = 220_000
+const HIGH_MEMORY_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET = 360_000
+const LOW_MEMORY_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET = 120_000
+const DEFAULT_SPATIAL_CAPTURE_PARSE_POINT_LIMIT = 2_400_000
+const HIGH_MEMORY_SPATIAL_CAPTURE_PARSE_POINT_LIMIT = 3_200_000
+const LOW_MEMORY_SPATIAL_CAPTURE_PARSE_POINT_LIMIT = 2_100_000
 const DEFAULT_SPATIAL_CAPTURE_LOAD_CACHE_ENTRIES = 2
 const HIGH_MEMORY_SPATIAL_CAPTURE_LOAD_CACHE_ENTRIES = 3
 const LOW_MEMORY_SPATIAL_CAPTURE_LOAD_CACHE_ENTRIES = 1
@@ -206,7 +221,7 @@ function resolveOperatorSourceRootFetchTargets(manifest: StandaloneSpatialCaptur
   const targets: SpatialCaptureFetchTarget[] = []
   for (const root of readOperatorSpatialCaptureSourceRoots()) {
     for (const candidate of candidates) {
-      const fetchPath = buildLocalFsFetchPath(`${root}/${candidate}`)
+      const fetchPath = buildLocalFsRangeFetchPath(`${root}/${candidate}`) || buildLocalFsFetchPath(`${root}/${candidate}`)
       if (!fetchPath || seen.has(fetchPath)) continue
       seen.add(fetchPath)
       targets.push({ path: fetchPath, source: 'local-source' })
@@ -241,7 +256,7 @@ function resolveSpatialCaptureFetchTargets(manifest: StandaloneSpatialCaptureMan
   if (!source) return resolveOperatorSourceRootFetchTargets(manifest)
   if (manifest.sourceKind === 'local') {
     const withoutFileProtocol = source.replace(/^file:\/\//i, '')
-    const directLocalPath = buildLocalFsFetchPath(withoutFileProtocol) || buildLocalFsFetchPath(source)
+    const directLocalPath = buildLocalFsRangeFetchPath(withoutFileProtocol) || buildLocalFsRangeFetchPath(source) || buildLocalFsFetchPath(withoutFileProtocol) || buildLocalFsFetchPath(source)
     return directLocalPath
       ? [{ path: directLocalPath, source: 'local-source' }]
       : resolveOperatorSourceRootFetchTargets(manifest)
@@ -251,23 +266,26 @@ function resolveSpatialCaptureFetchTargets(manifest: StandaloneSpatialCaptureMan
     return [{ path: source, source: 'url' }]
   }
   const withoutFileProtocol = source.replace(/^file:\/\//i, '')
-  const localPath = buildLocalFsFetchPath(withoutFileProtocol) || buildLocalFsFetchPath(source)
+  const localPath = buildLocalFsRangeFetchPath(withoutFileProtocol) || buildLocalFsRangeFetchPath(source) || buildLocalFsFetchPath(withoutFileProtocol) || buildLocalFsFetchPath(source)
   if (localPath) return [{ path: localPath, source: 'local-source' }]
   if (/^https?:\/\//i.test(source)) return [{ path: resolveBinaryDownloadProxyUrl(source), source: 'url' }]
   if (source.startsWith('/')) return [{ path: source, source: 'url' }]
   return []
 }
 
-function buildLoadCacheKey(manifest: StandaloneSpatialCaptureManifest, maxPoints: number): string {
+function buildManifestCacheKey(manifest: StandaloneSpatialCaptureManifest, ...segments: Array<number | string | undefined>): string {
   return [
     manifest.format,
     manifest.renderCacheKey,
     manifest.pendingLocalPath,
     manifest.sourceKind,
     manifest.sourceIdentity,
-    maxPoints,
+    ...segments,
   ].join('|')
 }
+
+function buildLoadCacheKey(manifest: StandaloneSpatialCaptureManifest, maxPoints: number, pointBudget: number): string { return buildManifestCacheKey(manifest, maxPoints, pointBudget) }
+function buildSourceBufferCacheKey(manifest: StandaloneSpatialCaptureManifest): string { return buildManifestCacheKey(manifest) }
 
 function readDeviceMemoryGb(): number {
   const nav = typeof navigator !== 'undefined' ? navigator as Navigator & { deviceMemory?: unknown } : null
@@ -275,11 +293,29 @@ function readDeviceMemoryGb(): number {
   return Number.isFinite(raw) ? raw : 0
 }
 
+function readHardwareConcurrency(): number {
+  const nav = typeof navigator !== 'undefined' ? navigator as Navigator & { hardwareConcurrency?: unknown } : null
+  const raw = Number(nav?.hardwareConcurrency)
+  return Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}
+
 export function resolveSpatialCapturePointBudget(): number {
+  return resolveAdaptiveSpatialCaptureBudget(LOW_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET, DEFAULT_SPATIAL_CAPTURE_POINT_BUDGET, HIGH_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET)
+}
+export function resolveSpatialCapturePreviewPointBudget(): number {
+  return resolveAdaptiveSpatialCaptureBudget(LOW_MEMORY_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET, DEFAULT_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET, HIGH_MEMORY_SPATIAL_CAPTURE_PREVIEW_POINT_BUDGET)
+}
+export function resolveSpatialCaptureParsePointLimit(): number {
+  return resolveAdaptiveSpatialCaptureBudget(LOW_MEMORY_SPATIAL_CAPTURE_PARSE_POINT_LIMIT, DEFAULT_SPATIAL_CAPTURE_PARSE_POINT_LIMIT, HIGH_MEMORY_SPATIAL_CAPTURE_PARSE_POINT_LIMIT)
+}
+
+function resolveAdaptiveSpatialCaptureBudget(low: number, fallback: number, high: number): number {
   const memoryGb = readDeviceMemoryGb()
-  if (memoryGb > 0 && memoryGb <= 4) return LOW_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET
-  if (memoryGb >= 12) return HIGH_MEMORY_SPATIAL_CAPTURE_POINT_BUDGET
-  return DEFAULT_SPATIAL_CAPTURE_POINT_BUDGET
+  const cores = readHardwareConcurrency()
+  if (cores > 0 && cores <= 4) return low
+  if (memoryGb > 0 && memoryGb <= 4) return low
+  if (memoryGb >= 12 && cores >= 8) return high
+  return fallback
 }
 
 function resolveSpatialCaptureLoadCacheEntries(): number {
@@ -297,14 +333,17 @@ function readCachedSpatialCaptureLoad(cacheKey: string): Promise<SpatialCaptureP
   return cached
 }
 
-function pruneSpatialCaptureLoadCache(activeCacheKey: string): void {
+function pruneCache<T>(cache: Map<string, T>, activeCacheKey: string): void {
   const maxEntries = Math.max(1, resolveSpatialCaptureLoadCacheEntries())
-  while (pointCloudLoadsByKey.size > maxEntries) {
-    const nextKey = pointCloudLoadsByKey.keys().next().value
+  while (cache.size > maxEntries) {
+    const nextKey = cache.keys().next().value
     if (!nextKey || nextKey === activeCacheKey) break
-    pointCloudLoadsByKey.delete(nextKey)
+    cache.delete(nextKey)
   }
 }
+
+function pruneSpatialCaptureLoadCache(activeCacheKey: string): void { pruneCache(pointCloudLoadsByKey, activeCacheKey) }
+function pruneSpatialCaptureSourceBufferCache(activeCacheKey: string): void { pruneCache(sourceBuffersByKey, activeCacheKey) }
 
 async function yieldBeforeHeavyPointCloudParse(): Promise<void> {
   await new Promise<void>(resolve => {
@@ -389,64 +428,157 @@ async function parseSpatialCapturePointCloud(buffer: ArrayBuffer, maxPoints: num
   return parsePlyPointCloud(buffer, maxPoints)
 }
 
-export async function loadSpatialCapturePointCloud(
+function patchPreviewSourcePointCount(pointCloud: PlyPointCloud, sourcePointCount: number): PlyPointCloud {
+  return {
+    ...pointCloud,
+    sourcePointCount: Math.max(pointCloud.sourcePointCount, Math.floor(sourcePointCount)),
+  }
+}
+
+function buildSpatialCapturePointCloudLoad(args: {
+  byteLength: number
+  fidelity: SpatialCapturePointCloudLoad['fidelity']
+  pointBudget: number
+  pointCloud: PlyPointCloud
+  source: SpatialCapturePointCloudLoad['source']
+}): SpatialCapturePointCloudLoad {
+  return {
+    fidelity: args.fidelity,
+    pointCloud: args.pointCloud,
+    source: args.source,
+    byteLength: args.byteLength,
+    pointBudget: Math.min(args.pointCloud.pointCount, Math.max(1, Math.floor(args.pointBudget))),
+  }
+}
+
+async function readSpatialCapturePreviewBuffer(manifest: StandaloneSpatialCaptureManifest, maxPoints: number): Promise<SpatialCapturePreviewBufferLoad | null> {
+  const pendingPath = normalizePendingPath(manifest.pendingLocalPath)
+  const pending = pendingPath ? pendingSpatialCaptureAssetsByPath.get(pendingPath) : null
+  if (pending && pending.format === 'ply') return readFileRangePreviewBuffer(pending.file, 'pending-local', maxPoints)
+  for (const target of resolveSpatialCaptureFetchTargets(manifest)) {
+    try {
+      const preview = await readFetchTargetRangePreviewBuffer(target, maxPoints)
+      if (preview) {
+        if (preview.sourcePointCount <= 0) {
+          sourceBuffersByKey.set(buildSourceBufferCacheKey(manifest), Promise.resolve({
+            buffer: preview.buffer,
+            byteLength: preview.byteLength,
+            source: preview.source,
+          }))
+        }
+        return preview
+      }
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+async function readSpatialCaptureSourceBuffer(manifest: StandaloneSpatialCaptureManifest): Promise<SpatialCaptureSourceBufferLoad | null> {
+  const pendingPath = normalizePendingPath(manifest.pendingLocalPath)
+  const pending = pendingPath ? pendingSpatialCaptureAssetsByPath.get(pendingPath) : null
+  if (pending && pending.format === 'ply') {
+    const buffer = await pending.file.arrayBuffer()
+    return { buffer, byteLength: buffer.byteLength, source: 'pending-local' }
+  }
+  const cachedBuffer = await readBrowserPayloadCache(manifest)
+  if (cachedBuffer) return { buffer: cachedBuffer, byteLength: cachedBuffer.byteLength, source: 'browser-cache' }
+  const fetchTargets = resolveSpatialCaptureFetchTargets(manifest)
+  if (!fetchTargets.length) return null
+  let lastError: unknown = null
+  for (const target of fetchTargets) {
+    try {
+      const response = await fetch(target.path, { headers: { Accept: 'model/ply,application/octet-stream,*/*' } })
+      if (!response.ok) {
+        lastError = new Error(`PLY source fetch failed (${response.status})`)
+        continue
+      }
+      const buffer = await response.arrayBuffer()
+      return { buffer, byteLength: buffer.byteLength, source: target.source }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  if (lastError instanceof Error) throw lastError
+  throw new Error('PLY source fetch failed')
+}
+
+async function loadSpatialCaptureSourceBuffer(manifest: StandaloneSpatialCaptureManifest): Promise<SpatialCaptureSourceBufferLoad | null> {
+  const cacheKey = buildSourceBufferCacheKey(manifest)
+  const cached = sourceBuffersByKey.get(cacheKey)
+  if (cached) return cached
+  const task = readSpatialCaptureSourceBuffer(manifest)
+  task.catch(() => {
+    if (sourceBuffersByKey.get(cacheKey) === task) sourceBuffersByKey.delete(cacheKey)
+  })
+  sourceBuffersByKey.set(cacheKey, task)
+  pruneSpatialCaptureSourceBufferCache(cacheKey)
+  return task
+}
+
+export async function loadSpatialCapturePointCloudPreview(
   manifest: StandaloneSpatialCaptureManifest,
-  maxPoints = resolveSpatialCapturePointBudget(),
+  maxPoints = resolveSpatialCapturePreviewPointBudget(),
 ): Promise<SpatialCapturePointCloudLoad | null> {
   if (manifest.format !== 'ply') return null
-  const cacheKey = buildLoadCacheKey(manifest, maxPoints)
+  const pointBudget = resolveSpatialCapturePointBudget()
+  const cacheKey = buildLoadCacheKey(manifest, maxPoints, pointBudget)
   const cached = readCachedSpatialCaptureLoad(cacheKey)
   if (cached) return cached
   const task = (async () => {
-    const pendingPath = normalizePendingPath(manifest.pendingLocalPath)
-    const pending = pendingPath ? pendingSpatialCaptureAssetsByPath.get(pendingPath) : null
-    if (pending && pending.format === 'ply') {
-      const buffer = await pending.file.arrayBuffer()
-      const byteLength = buffer.byteLength
+    const previewBuffer = await readSpatialCapturePreviewBuffer(manifest, maxPoints)
+    if (previewBuffer) {
       await yieldBeforeHeavyPointCloudParse()
-      return {
-        pointCloud: await parseSpatialCapturePointCloud(buffer, maxPoints),
-        source: 'pending-local' as const,
-        byteLength,
-        pointBudget: maxPoints,
-      }
+      return buildSpatialCapturePointCloudLoad({
+        byteLength: previewBuffer.byteLength,
+        fidelity: 'preview',
+        pointCloud: patchPreviewSourcePointCount(parsePlyPointCloud(previewBuffer.buffer, maxPoints), previewBuffer.sourcePointCount),
+        pointBudget,
+        source: previewBuffer.source,
+      })
     }
-    const cachedBuffer = await readBrowserPayloadCache(manifest)
-    if (cachedBuffer) {
-      const byteLength = cachedBuffer.byteLength
-      await yieldBeforeHeavyPointCloudParse()
-      return {
-        pointCloud: await parseSpatialCapturePointCloud(cachedBuffer, maxPoints),
-        source: 'browser-cache' as const,
-        byteLength,
-        pointBudget: maxPoints,
-      }
-    }
-    const fetchTargets = resolveSpatialCaptureFetchTargets(manifest)
-    if (!fetchTargets.length) return null
-    let lastError: unknown = null
-    for (const target of fetchTargets) {
-      try {
-        const response = await fetch(target.path, { headers: { Accept: 'model/ply,application/octet-stream,*/*' } })
-        if (!response.ok) {
-          lastError = new Error(`PLY source fetch failed (${response.status})`)
-          continue
-        }
-        const buffer = await response.arrayBuffer()
-        const byteLength = buffer.byteLength
-        await yieldBeforeHeavyPointCloudParse()
-        return {
-          pointCloud: await parseSpatialCapturePointCloud(buffer, maxPoints),
-          source: target.source,
-          byteLength,
-          pointBudget: maxPoints,
-        }
-      } catch (error) {
-        lastError = error
-      }
-    }
-    if (lastError instanceof Error) throw lastError
-    throw new Error('PLY source fetch failed')
+    const sourceBuffer = await loadSpatialCaptureSourceBuffer(manifest)
+    if (!sourceBuffer) return null
+    await yieldBeforeHeavyPointCloudParse()
+    return buildSpatialCapturePointCloudLoad({
+      byteLength: sourceBuffer.byteLength,
+      fidelity: 'preview',
+      pointCloud: parsePlyPointCloud(sourceBuffer.buffer, maxPoints),
+      pointBudget,
+      source: sourceBuffer.source,
+    })
+  })()
+  task.catch(() => {
+    if (pointCloudLoadsByKey.get(cacheKey) === task) pointCloudLoadsByKey.delete(cacheKey)
+  })
+  pointCloudLoadsByKey.set(cacheKey, task)
+  pruneSpatialCaptureLoadCache(cacheKey)
+  return task
+}
+
+export async function loadSpatialCapturePointCloud(
+  manifest: StandaloneSpatialCaptureManifest,
+  maxPoints = resolveSpatialCaptureParsePointLimit(),
+): Promise<SpatialCapturePointCloudLoad | null> {
+  if (manifest.format !== 'ply') return null
+  const pointBudget = resolveSpatialCapturePointBudget()
+  const cacheKey = buildLoadCacheKey(manifest, maxPoints, pointBudget)
+  const cached = readCachedSpatialCaptureLoad(cacheKey)
+  if (cached) return cached
+  const task = (async () => {
+    const sourceBufferCacheKey = buildSourceBufferCacheKey(manifest)
+    const sourceBuffer = await loadSpatialCaptureSourceBuffer(manifest)
+    if (!sourceBuffer) return null
+    sourceBuffersByKey.delete(sourceBufferCacheKey)
+    await yieldBeforeHeavyPointCloudParse()
+    return buildSpatialCapturePointCloudLoad({
+      byteLength: sourceBuffer.byteLength,
+      fidelity: 'full',
+      pointCloud: await parseSpatialCapturePointCloud(sourceBuffer.buffer, maxPoints),
+      pointBudget,
+      source: sourceBuffer.source,
+    })
   })()
   task.catch(() => {
     if (pointCloudLoadsByKey.get(cacheKey) === task) pointCloudLoadsByKey.delete(cacheKey)
@@ -458,6 +590,7 @@ export async function loadSpatialCapturePointCloud(
 
 export function resetSpatialCaptureAssetRuntimeForTests(): void {
   pendingSpatialCaptureAssetsByPath.clear()
+  sourceBuffersByKey.clear()
   pointCloudLoadsByKey.clear()
   plyParseWorker?.terminate()
   plyParseWorker = null

@@ -2,15 +2,16 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import type { GraphNode } from '@/lib/graph/types'
+import type { UiSectionChipStatusTone } from '@/lib/ui/sectionChipChrome'
 import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
-  UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
+import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
+import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -22,8 +23,41 @@ export type StreamingAssistantState = {
   finishReason?: string | null
   modelId?: string | null
 }
+export type FloatingPanelChatContextItem = {
+  id: string
+  label: string
+  value: string
+  tone?: 'success' | 'info' | 'warning' | 'error' | 'neutral'
+}
+export type FloatingPanelChatQuickAction = {
+  id: string
+  label: string
+  prompt: string
+  disabled?: boolean
+}
+export type FloatingPanelChatPipelineStage = {
+  id: 'ingest' | 'parse' | 'render'
+  label: string
+  detail: string
+  status: 'waiting' | 'active' | 'ready' | 'error'
+  prompt: string
+}
 
 const WORKSPACE_LINK_RE = /\[([^\]]+)\]\(((?:workspace:)?\/[^\s)]+\.md)\)/g
+
+const getFloatingPanelChatContextChipClassName = (
+  tone: UiSectionChipStatusTone = 'neutral',
+  className?: string,
+): string => [
+  'inline-flex w-full min-w-0 items-center gap-1 rounded border px-2 py-1 leading-none',
+  UI_THEME_TOKENS.status[tone],
+  className || '',
+].filter(Boolean).join(' ')
+
+const getFloatingPanelChatContextItemClassName = (id: string): string => {
+  if (id === 'workspace' || id === 'selection') return 'min-w-0 col-span-2'
+  return 'min-w-0'
+}
 
 const normalizeChatWorkspaceLinkPath = (raw: string): string => {
   const text = String(raw || '').trim()
@@ -168,6 +202,9 @@ type MessagesSectionProps = {
   messages: ChatMessage[]
   isLoading: boolean
   historyKey: string
+  contextItems?: FloatingPanelChatContextItem[]
+  pipelineStages?: FloatingPanelChatPipelineStage[]
+  onPipelineStageAction?: (prompt: string) => void
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -183,6 +220,9 @@ export function FloatingPanelChatMessagesSection({
   messages,
   isLoading,
   historyKey,
+  contextItems = [],
+  pipelineStages = [],
+  onPipelineStageAction,
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   uiPanelMicroLabelTextSizeClass,
@@ -209,7 +249,7 @@ export function FloatingPanelChatMessagesSection({
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       />
 
-      <section className="flex items-center justify-between">
+      <header className="flex items-center justify-between">
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
         </section>
@@ -230,7 +270,69 @@ export function FloatingPanelChatMessagesSection({
         >
           {UI_LABELS.clear}
         </button>
-      </section>
+      </header>
+
+      {contextItems.length > 0 ? (
+        <section
+          aria-label="Chat context"
+          data-kg-chat-context-rail="true"
+          className={[
+            'rounded border px-2 py-1.5',
+            UI_THEME_TOKENS.panel.border,
+            UI_THEME_TOKENS.panel.bg,
+          ].join(' ')}
+        >
+          <ul className="grid grid-cols-2 gap-1.5">
+            {contextItems.map(item => (
+              <li key={item.id} className={getFloatingPanelChatContextItemClassName(item.id)}>
+                <span
+                  data-kg-chat-context-chip="true"
+                  data-kg-chat-context-id={item.id}
+                  title={`${item.label}: ${item.value}`}
+                  className={getFloatingPanelChatContextChipClassName(item.tone || 'neutral', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass].join(' '))}
+                >
+                  <span className="shrink-0 font-medium">{item.label}:</span>
+                  {' '}
+                  <span data-kg-chat-context-chip-value="true" className="min-w-0 truncate">
+                    {item.value}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {pipelineStages.length > 0 ? (
+        <nav aria-label="Document pipeline" data-kg-chat-pipeline="true">
+          <ol className="grid grid-cols-3 gap-1.5">
+            {pipelineStages.map(stage => {
+              const tone: UiSectionChipStatusTone = stage.status === 'ready'
+                ? 'success'
+                : stage.status === 'active'
+                  ? 'info'
+                  : stage.status === 'error'
+                    ? 'error'
+                    : 'neutral'
+              return (
+                <li key={stage.id} className="min-w-0">
+                  <button
+                    type="button"
+                    data-kg-chat-pipeline-stage={stage.id}
+                    data-status={stage.status}
+                    title={`${stage.label}: ${stage.detail}`}
+                    className={getFloatingPanelChatContextChipClassName(tone, [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'flex-col items-start gap-0.5 text-left'].join(' '))}
+                    onClick={() => onPipelineStageAction?.(stage.prompt)}
+                  >
+                    <span className="font-medium">{stage.label}</span>
+                    <span className="w-full truncate opacity-80">{stage.detail}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+      ) : null}
 
       {messages.length === 0 && (
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
@@ -288,6 +390,9 @@ type FooterProps = {
   showNewChatButton?: boolean
   isNewChatDisabled?: boolean
   onNewChat?: () => void
+  quickActions?: FloatingPanelChatQuickAction[]
+  onQuickAction?: (prompt: string) => void
+  markdownText?: string | null
 }
 
 export function FloatingPanelChatFooter({
@@ -313,6 +418,9 @@ export function FloatingPanelChatFooter({
   showNewChatButton,
   isNewChatDisabled,
   onNewChat,
+  quickActions = [],
+  onQuickAction,
+  markdownText,
 }: FooterProps) {
   return (
     <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
@@ -381,24 +489,42 @@ export function FloatingPanelChatFooter({
         disabled={isLoading}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       />
-      <form onSubmit={onSubmit} className="space-y-2">
-        <section className={`border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
-          <PlainTextInputEditor
-            value={input}
-            onChange={setInput}
-            multiline
-            className="w-full h-full border-0 rounded-none bg-transparent"
-            inputClassName={uiPanelTextFontClass}
-          />
+      {quickActions.length > 0 ? (
+        <section aria-label="Chat prompt actions" data-kg-chat-quick-actions="true" className="grid grid-cols-2 gap-1.5">
+          {quickActions.map(action => (
+            <button
+              key={action.id}
+              type="button"
+              data-kg-chat-quick-action="true"
+              data-kg-chat-quick-action-id={action.id}
+              className={getUiSectionActionClassName('secondary', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'min-w-0 justify-center truncate disabled:opacity-50'].join(' '))}
+              disabled={isLoading || action.disabled}
+              onClick={() => onQuickAction?.(action.prompt)}
+              title={action.label}
+            >
+              {action.label}
+            </button>
+          ))}
         </section>
+      ) : null}
+      <form onSubmit={onSubmit} className="space-y-2">
+        <FloatingPanelChatComposer
+          input={input}
+          setInput={setInput}
+          markdownText={markdownText}
+          isLoading={isLoading}
+          isSubmitDisabled={isSubmitDisabled}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          placeholder={UI_COPY.chatInputPlaceholder}
+        />
 
-        <section className={`flex items-center ${currentNode ? 'justify-between' : 'justify-end'}`}>
+        <section className={`flex items-center gap-2 ${currentNode ? 'justify-between' : 'justify-end'}`}>
           {currentNode ? (
-            <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+            <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary, 'min-w-0 truncate'].join(' ')}>
               {UI_COPY.chatUsingSelectedNodeContextStatus(currentNode.label, currentNode.type)}
             </section>
           ) : null}
-          <section className="flex items-center gap-2">
+          <section className="flex shrink-0 items-center gap-2">
             {showNewChatButton && (
               <button
                 type="button"

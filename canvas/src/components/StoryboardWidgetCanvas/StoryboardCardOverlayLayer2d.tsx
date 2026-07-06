@@ -10,7 +10,7 @@ import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useSto
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
-import { buildStoryboardBoardModel, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -20,6 +20,8 @@ import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplay
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
+import { buildInlineMediaCommandChipMarkdown, buildInlineMediaCommandDragPayload } from '@/lib/command-menu/inlineMediaCommandDragPayload'
+import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS } from '@/lib/graph/keywordTerms'
 import { createUniqueId } from '@/lib/ids'
 import { UI_LABELS } from '@/lib/config'
@@ -43,6 +45,29 @@ const buildCardRows = (card: StoryboardCardModel): string[] => {
   return [primary, secondary].filter(Boolean).slice(0, 2)
 }
 
+const readStoryboardMediaChipMarkdown = (media: StoryboardCardModel['media']): string => {
+  if (!media?.url) return ''
+  const kind = media.kind === 'svg' ? 'image' : media.kind
+  if (kind !== 'image' && kind !== 'audio' && kind !== 'video') return ''
+  return buildInlineMediaCommandChipMarkdown({
+    id: String(media.sourceUrl || media.url),
+    kind,
+    url: media.url,
+    thumbnailUrl: media.thumbnailUrl || undefined,
+    label: String(media.sourceUrl || media.url).split(/[?#]/)[0]?.split('/').filter(Boolean).pop() || kind,
+    sourceKey: media.sourceUrl || media.url,
+    description: media.sourceUrl || media.url,
+    keywords: [kind, media.sourceUrl || media.url].filter(Boolean),
+  })
+}
+
+const buildStoryboardSummaryDisplayValue = (summary: string, media: StoryboardCardModel['media']): string => {
+  const text = String(summary || '').trim()
+  const mediaChip = readStoryboardMediaChipMarkdown(media)
+  if (!mediaChip || text.includes(media?.url || '')) return text
+  return text ? `${text}\n${mediaChip}` : mediaChip
+}
+
 const ignoreStoryboardCardAction = () => void 0
 
 function StoryboardCardOverlayItem(props: {
@@ -61,6 +86,23 @@ function StoryboardCardOverlayItem(props: {
   const { width, height } = readCardSize(node)
   const rows = buildCardRows(card)
   const displayMedia = pendingMedia || card.media
+  const summaryDisplayValue = buildStoryboardSummaryDisplayValue(rows[0] || card.slugline || '', displayMedia)
+  const [summaryEditRequestKey, setSummaryEditRequestKey] = React.useState(0)
+  const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(
+    displayMedia === card.media ? card : { ...card, media: displayMedia },
+  )
+  const applyInlineMediaCommandToCard = React.useCallback((candidate: InlineMediaCommandCandidate) => {
+    const payload = buildInlineMediaCommandDragPayload(candidate)
+    if (!payload) return
+    onDropMedia(card, payload)
+  }, [card, onDropMedia])
+  const requestSummaryEditFromTextColumn = React.useCallback((event: React.SyntheticEvent<HTMLElement>) => {
+    const target = event.target instanceof Element ? event.target : null
+    if (target?.closest('button,input,textarea,select,a,[role="menu"],[role="menuitem"],[contenteditable="true"],[data-kg-card-inline-command-menu]')) return
+    event.preventDefault()
+    event.stopPropagation()
+    setSummaryEditRequestKey(key => key + 1)
+  }, [])
   const toolbarProps = buildStoryboardToolbarProps({
     active: true,
     duplicateDisabled: headerPinProps.headerPinned === true,
@@ -171,18 +213,27 @@ function StoryboardCardOverlayItem(props: {
           data-kg-rich-media-storyboard-widget-body="1"
           data-kg-widget-body="1"
         >
-          <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-1">
+          <section
+            className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-1"
+            data-kg-storyboard-card-text-column="1"
+            onPointerDownCapture={requestSummaryEditFromTextColumn}
+            onMouseDownCapture={requestSummaryEditFromTextColumn}
+          >
             <CardInlineTextEditor
-              value={rows[0] || card.slugline || ''}
+              value={summaryDisplayValue}
               ariaLabel={`Summary for ${card.id}`}
               placeholder="Add summary"
               canEdit
               editActivation="click"
+              editRequestKey={summaryEditRequestKey}
               multiline
               markdownPreview="auto"
+              markdownCommandContextText={storyboardCommandContextText}
+              openOnPointerDown
               rows={2}
               onCommit={nextValue => onCommitSummary(card, nextValue)}
-              displayClassName="m-0 line-clamp-2 text-[10px] leading-4 text-[color:var(--kg-text-secondary)]"
+              onMediaCommandSelect={applyInlineMediaCommandToCard}
+              displayClassName="m-0 line-clamp-2 select-none text-[10px] leading-4 text-[color:var(--kg-text-secondary)]"
               editorClassName="min-h-[3rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-1 text-[10px] leading-4 text-[color:var(--kg-text-primary)]"
             />
             <p className="m-0 line-clamp-3 text-[9px] leading-3 text-[color:var(--kg-text-tertiary)]">
@@ -307,6 +358,13 @@ export function StoryboardCardOverlayLayer2d(props: {
   const stopCardHeaderControlEvent = React.useCallback((event: React.SyntheticEvent) => {
     event.stopPropagation()
   }, [])
+  const readLatestNode = React.useCallback((id: string): GraphNode | null => {
+    const key = String(id || '').trim()
+    if (!key) return null
+    const latestGraphData = useGraphStore.getState().graphData
+    const latestNodes = Array.isArray(latestGraphData?.nodes) ? latestGraphData.nodes as GraphNode[] : []
+    return latestNodes.find(item => String(item?.id || '').trim() === key) || nodeById.get(key) || null
+  }, [nodeById])
   const commitNodePatch = React.useCallback((card: StoryboardCardModel, patch: Partial<GraphNode>, historyLabel: string) => {
     const id = String(card.id || '').trim()
     if (!id) return
@@ -319,7 +377,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     nextValue: string
     propertyKeys: readonly string[]
   }) => {
-    const node = nodeById.get(card.id)
+    const node = readLatestNode(card.id)
     const currentProperties = (node?.properties || {}) as Record<string, unknown>
     const nextProperties = buildGraphNodeCanonicalTextPatch({
       currentProperties,
@@ -328,19 +386,20 @@ export function StoryboardCardOverlayLayer2d(props: {
       nextValue: args.nextValue,
     }) as Record<string, JSONValue>
     commitNodePatch(card, { properties: nextProperties }, args.historyLabel)
-  }, [commitNodePatch, nodeById])
+  }, [commitNodePatch, readLatestNode])
   const commitTitle = React.useCallback((card: StoryboardCardModel, nextValue: string) => {
     const label = String(nextValue || '').trim()
+    const node = readLatestNode(card.id)
     commitNodePatch(card, {
       label,
       properties: buildGraphNodeCanonicalTextPatch({
-        currentProperties: (nodeById.get(card.id)?.properties || {}) as Record<string, unknown>,
+        currentProperties: (node?.properties || {}) as Record<string, unknown>,
         propertyKeys: GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS,
         canonicalKey: 'title',
         nextValue: label,
       }) as Record<string, JSONValue>,
     }, 'Storyboard title')
-  }, [commitNodePatch, nodeById])
+  }, [commitNodePatch, readLatestNode])
   const commitType = React.useCallback((card: StoryboardCardModel, nextValue: string) => {
     commitNodePatch(card, { type: String(nextValue || '').trim() }, 'Storyboard type')
   }, [commitNodePatch])

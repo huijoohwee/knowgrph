@@ -1242,7 +1242,7 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
       const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
       throw new Error(`expected @ command menu to include shared New Media action, got ${buttonText}`)
     }
-    const uploadedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('airvio_.JPEG') && String(button.textContent || '').includes('Uploaded media from Cloudflare storage'))
+    const uploadedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('airvio_.JPEG') && String(button.textContent || '').includes('Uploaded media from FloatingPanel Media'))
     if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) {
       const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
       throw new Error(`expected @ command menu to include uploaded FloatingPanel Media item, got ${buttonText}`)

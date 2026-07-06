@@ -61,8 +61,8 @@ The min-viable-max-value scope is not a new immersive product shell. It is a fir
 **Current implementation baseline**:
 
 - `kgCanvasSurfaceMode: "xr"` is already recognized as a Canvas surface preset.
-- Local and URL `.glb` / `.gltf` imports already produce model asset Markdown manifests with `kgCanvasSurfaceMode: "xr"`.
-- Three.js canvas rendering already parses model asset documents and renders GLB/GLTF assets without requiring an active WebXR session.
+- Local and URL `.glb` / `.gltf` imports already produce model asset Markdown manifests with `kgCanvasSurfaceMode: "xr"`; `.ply` / `.spz` imports produce standalone spatial-capture manifests with source-only cache identities.
+- Three.js canvas rendering already parses model asset documents and renders GLB/GLTF assets without requiring an active WebXR session; spatial-capture rendering uses bounded payload caches, range-backed local/URL PLY previews, shared source-buffer reads, preview-first parsing, a preview-first paint gate before transferable full-fidelity promotion, a full-parse floor for validation-size captures, progressive source ordering, first-paint render budgets, progressive GPU attribute upload, and deferred camera-direction Gaussian resorting.
 - XR Mode graph scenes already mount a distinct spatial stage instead of plain 3D globe effects.
 - A FOSS PNG-to-SVG conversion harness exists in Dev with VTracer/Potrace command adapters, input/path-budget fallback gates, and zero-token cost logging.
 - A deterministic SVG-to-GLB compiler exists in Dev with safe-SVG rejection, source provenance, XR manifest metadata, and GLB inspect metrics.
@@ -71,7 +71,7 @@ The min-viable-max-value scope is not a new immersive product shell. It is a fir
 
 - WebXR Device API is the browser standard for VR/AR device access, using `navigator.xr.isSessionSupported()` and `navigator.xr.requestSession()` behind user activation and permission boundaries.
 - Three.js supports WebXR rendering by enabling `renderer.xr.enabled`, setting an animation loop, and attaching XR session UI / controller inputs.
-- glTF/GLB is the preferred runtime model format for Three.js delivery; glTF Transform supports `inspect`, `optimize`, Meshopt/Draco geometry compression, and WebP/KTX2 texture compression.
+- glTF/GLB is the preferred runtime model format for Three.js delivery; glTF Transform supports `inspect`, `optimize`, Meshopt/Draco geometry compression, and WebP/KTX2 texture compression; PlayCanvas SuperSplat, PlayCanvas Engine, Spark, and Splat Transform remain reference-only systems for splat editing, rendering, and conversion ergonomics.
 - VTracer is MIT-licensed FOSS for colored raster-to-vector conversion; Potrace is a mature FOSS bitmap tracer best suited to black/white or thresholded inputs.
 
 ---
@@ -177,7 +177,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 
 ### User Story
 
-**KXR-E2-S1**: As a Solo Dev, I want imported `.glb` and `.gltf` files to open as XR-ready workspace documents, so that model inspection uses Source Files and Markdown Workspace rather than a separate asset manager.
+**KXR-E2-S1**: As a Solo Dev, I want imported `.glb`, `.gltf`, `.ply`, and `.spz` files to open as XR-ready workspace documents, so that model and spatial-capture inspection uses Source Files and Markdown Workspace rather than a separate asset manager.
 
 ### Acceptance Criteria
 
@@ -189,13 +189,13 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 * **Given** a valid `.gltf` model asset document with source-relative external resources, **when** XR Mode renders it, **then** the GLTF payload preserves the source base path and the loader receives parseable JSON text.
 * > **VCC translation**: `Verify source-relative base path resolution in GlbAssetModel.tsx passes validation`
 
-**KXR-E2-S1-AC3** - Session-independent inspection
-* **Given** the browser does not support immersive WebXR sessions, **when** the user opens an XR model document, **then** the inline canvas still renders the spatial inspection stage and shows a non-blocking XR entry state.
-* > **VCC translation**: `Verify inline canvas displays model content with data-kg-canvas-xr-status set to "checking" or "unsupported"`
+**KXR-E2-S1-AC3** - Session-independent spatial inspection
+* **Given** the browser does not support immersive WebXR sessions or a `.ply` / `.spz` source needs inline inspection, **when** the user opens an XR model or spatial-capture document, **then** the canvas renders the spatial stage with bounded caches, range-backed local/URL PLY previews, shared source-buffer reads, preview-first parsing, a preview-first paint gate before transferable full-fidelity promotion, a full-parse floor for validation-size captures, progressive source ordering, adaptive first-paint budgets, progressive GPU attribute upload, deferred splat resorting, and a non-blocking XR entry state.
+* > **VCC translation**: `Verify inline XR canvas status plus workspace.import.xrSpatialCapture.* and canvas.xrMode.modelAssetRenderPayloadCache pass without hardcoded runtime validation paths`
 
 ### Workflow: Model Asset Import To XR Render
 
-**Trigger**: Solo Dev imports a `.glb` or `.gltf` file via Source Files, URL import, or drag-and-drop.
+**Trigger**: Solo Dev imports a `.glb`, `.gltf`, `.ply`, or `.spz` file via Source Files, URL import, or drag-and-drop.
 **Actors**: Solo Dev, Import Handler, Manifest Builder, Markdown Workspace, XR Renderer.
 
 **Happy Path**:
@@ -205,7 +205,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 4. Solo Dev opens the document → XR Renderer mounts the model in an inline XR spatial stage.
 
 **Alternate Paths**:
-- GLTF with external resources: Manifest Builder preserves the `kgAssetUrl` base path so external textures/buffers resolve correctly at load time.
+- GLTF or spatial-capture source: Manifest Builder preserves the `kgAssetUrl` base path for external GLTF resources, records source identity and render cache keys for capture payloads, stores payload bytes outside Markdown, uses range-aware local/URL preview reads for binary PLY captures, and lets the renderer parse full source up to device caps while progressively raising visible splats and attribute-buffer views.
 - Browser lacks WebXR: Renderer displays the inline canvas preview with `data-kg-canvas-xr-status="unsupported"` and disables the session entry button.
 
 **Error Paths**:

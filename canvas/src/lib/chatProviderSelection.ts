@@ -3,6 +3,7 @@ import {
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_SEALION_ENDPOINT_URL,
   type ChatProviderId,
   normalizeChatEndpointUrlInput,
   normalizeChatProviderId,
@@ -26,6 +27,7 @@ const resolveProviderTransitionEndpointUrl = (args: {
     || currentEndpointUrl === CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL
     || currentEndpointUrl === CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL
     || currentEndpointUrl === CHAT_OPENAI_ENDPOINT_URL
+    || currentEndpointUrl === CHAT_SEALION_ENDPOINT_URL
   return shouldResetEndpoint
     ? normalizeChatEndpointUrlInput(null, chatProvider)
     : normalizeChatEndpointUrlInput(currentEndpointUrl, chatProvider)

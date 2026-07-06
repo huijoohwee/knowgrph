@@ -11,6 +11,7 @@ type PendingGlbAsset = {
 
 type PendingGlbAssetPayload = {
   dataUrl: string
+  loaderInput?: string | ArrayBuffer
   mimeType: string
   byteLength: number
   validMagic?: boolean
@@ -81,6 +82,7 @@ export async function readPendingGlbAssetPayload(path: unknown): Promise<Pending
     const inspection = inspectGltfJson(text)
     return {
       dataUrl: `${GLTF_ASSET_DATA_URL_PREFIX}${arrayBufferToBase64(buffer)}`,
+      loaderInput: text,
       mimeType: GLTF_ASSET_MIME_TYPE,
       byteLength: buffer.byteLength,
       validJson: inspection.validJson,
@@ -92,6 +94,7 @@ export async function readPendingGlbAssetPayload(path: unknown): Promise<Pending
   const inspection = inspectGlbBytes(buffer)
   return {
     dataUrl: `${GLB_ASSET_DATA_URL_PREFIX}${arrayBufferToBase64(buffer)}`,
+    loaderInput: buffer,
     mimeType: GLB_ASSET_MIME_TYPE,
     byteLength: buffer.byteLength,
     validMagic: inspection.validMagic,

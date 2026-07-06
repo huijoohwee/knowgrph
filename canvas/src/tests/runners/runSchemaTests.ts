@@ -8,7 +8,10 @@ const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy
 const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
 const modCanvasXrPanelSurfaces = () => import('@/__tests__/canvasXrPanelSurfaces.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
+const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
 const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
+const modModelAssetRenderPayloadCache = () => import('@/__tests__/modelAssetRenderPayloadCache.test')
+const modSpatialCaptureRenderPerformance = () => import('@/__tests__/spatialCaptureRenderPerformance.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modCanvasViewCardWidgetDisplayControls = () => import('@/__tests__/canvasViewCardWidgetDisplayControls.test')
@@ -102,6 +105,34 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
     await mod.testWorkspaceImportXrStandalonePlyUrlUsesCachedManifestWithoutPayloadFetch()
   })
+  await execTest(results, 'workspace.import.xrSpatialCapture.urlPlyHeadMimeHint', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testWorkspaceImportXrStandalonePlyUrlUsesHeadMimeHintForExtensionlessAssets()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.genericUrlSkipsSpatialProbe', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testWorkspaceImportXrStandaloneGenericUrlSkipsSpatialHeadProbe()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.launchUrlBridgeFallback', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testLaunchImportUrlFallsBackWhenBridgeCreatesNoWorkspacePath()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.launchLocalFilesBridgeFallback', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testLaunchImportLocalFilesFallsBackWhenBridgeRejects()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.launchUrlFallbackXrMode', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testLaunchImportUrlFallbackActivatesXrModeForStandalonePlyUrl()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.launchLocalFilesFallbackXrMode', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testLaunchImportLocalFilesFallbackActivatesXrModeForStandalonePlyFile()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.launchFormats', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureLaunchUrl()
+    await mod.testWorkspaceImportXrStandalonePlyLaunchImportFormatsStayAdvertised()
+  })
   await execTest(results, 'workspace.import.xrSpatialCapture.noLegacyModelExports', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
     await mod.testWorkspaceImportXrStandalonePlyDoesNotAdvertiseGltfGlbExports()
@@ -129,6 +160,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'workspace.import.xrSpatialCapture.runtimeCacheDedupPrune', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
     await mod.testWorkspaceImportXrStandalonePlyRuntimeDedupesAndBoundsParsedLoadCache()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.adaptiveRenderBudget', async () => {
+    const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
+    await mod.testWorkspaceImportXrStandalonePlyRuntimeUsesAdaptiveRenderBudget()
+  })
+  await execTest(results, 'workspace.import.xrSpatialCapture.boundedGaussianSortCadence', async () => {
+    const mod = await modSpatialCaptureRenderPerformance()
+    await mod.testSpatialCaptureRenderStageUsesBoundedGaussianSortCadence()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.workerParserTransfer', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureRuntime()
@@ -193,6 +232,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.gltfIngestParseRenderPipeline', async () => {
     const mod = await modCanvas3dMode()
     await mod.testXrModeGltfIngestParseRenderPipelineUsesNeutralPayload()
+  })
+  await execTest(results, 'canvas.xrMode.modelAssetRenderPayloadCache', async () => {
+    const mod = await modModelAssetRenderPayloadCache()
+    await mod.testModelAssetRenderPayloadCachesPendingLocalGlbReads()
   })
   await execTest(results, 'canvas.xrAsset.pngToSvgHarness.vtracerZeroToken', async () => {
     const mod = await modXrAssetConversion()

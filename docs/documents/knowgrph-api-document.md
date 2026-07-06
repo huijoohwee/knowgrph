@@ -115,6 +115,7 @@ This route is a Cloudflare Pages Function relay, not a persistence owner. It enf
 | `KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY` | Server-managed OpenAI proxy key | Cloudflare Pages project secret |
 | `KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY` | Server-managed MiroMind proxy key | Cloudflare Pages project secret |
 | `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` | Server-managed Agnes proxy key | Cloudflare Pages project secret |
+| `KNOWGRPH_CHAT_PROXY_SEALION_API_KEY` | Server-managed AI Singapore SEA-LION proxy key | Cloudflare Pages project secret |
 | `KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY` | Server-managed BytePlus proxy key | Cloudflare Pages project secret |
 | `OPENAI_API_KEY` | Fallback OpenAI proxy key alias | Cloudflare Pages project secret; cleanup debt only |
 | `MIROMIND_API_KEY` | Fallback MiroMind proxy key alias | Cloudflare Pages project secret; cleanup debt only |
@@ -263,6 +264,8 @@ All credentials are operator-supplied. No credential literal appears in source f
 | BytePlus ModelArk chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
 | MiroMind chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
 | Agnes AI chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_AGNES_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| AI Singapore SEA-LION chat proxy | Bearer API key for `https://api.sea-lion.ai/v1` | `KNOWGRPH_CHAT_PROXY_SEALION_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
+| AI Singapore SEA-LION MCP sidecar | Bearer API key | `KNOWGRPH_MCP_SEALION_API_KEY` on the local MCP host process | No browser path | Never |
 | Qwen chat proxy | Bearer API key | `KNOWGRPH_CHAT_PROXY_QWEN_API_KEY` on the Vite or server proxy runtime | Yes | RAM only |
 | Google Cloud / Gemini chat proxy | OAuth access token | `KNOWGRPH_CHAT_PROXY_GOOGLE_CLOUD_ACCESS_TOKEN` on the Vite or server proxy runtime | Yes | RAM only |
 | GrabMaps API | Bearer token | `KNOWGRPH_GRABMAPS_API_TOKEN` on the API proxy runtime | Yes | RAM only |
@@ -273,7 +276,7 @@ All credentials are operator-supplied. No credential literal appears in source f
 | VideoDB API and MCP | Bearer API key | `VIDEODB_API_KEY` on the server integration proxy or MCP host process | No browser path | Never |
 | SenseNova API | HMAC-SHA256 signed JWT source credential | `SENSENOVA_API_KEY` on the server integration proxy | No browser path | Never |
 
-**Env var naming convention:** chat-proxy credentials use `KNOWGRPH_CHAT_PROXY_<PROVIDER>_<TYPE>`. Provider-specific MCP and server-integration credentials use the upstream-recognized server or host env name documented by their SSOT row, such as `VIDEODB_API_KEY` and `SENSENOVA_API_KEY`. Do not add fallback env aliases; remove stale aliases at the source owner when touching the integration.
+**Env var naming convention:** chat-proxy credentials use `KNOWGRPH_CHAT_PROXY_<PROVIDER>_<TYPE>`. Local Knowgrph-owned MCP bridges use `KNOWGRPH_MCP_<PROVIDER>_<TYPE>`. Provider-specific server-integration credentials use the upstream-recognized server or host env name documented by their SSOT row, such as `VIDEODB_API_KEY` and `SENSENOVA_API_KEY`. Do not add fallback env aliases; remove stale aliases at the source owner when touching the integration.
 
 ---
 
@@ -384,6 +387,7 @@ Use the narrowest canonical owner:
 
 - Vite middleware routes: `canvas/vite.config.ts`
 - Chat endpoint and provider normalization: `canvas/src/lib/chatEndpoint.ts`
+- FloatingPanel Chat invocation discovery: `canvas/src/features/chat/{chatSkillRegistry.ts,chatCommandRegistry.ts,chatInvocationRegistry.ts}` plus shared Markdown command-menu, variable-token, `inlineUploadedMediaCandidates.ts`, keyword, vdeoxpln, and memory-contract owners; `/`, `@`, and `#` must resolve canonical registries, exact tool names, explicit scope, cached FloatingPanel Media candidates, and fail-closed handoff behavior without provider-specific parsers
 - MainPanel settings docs rows: `canvas/src/features/integrations/*Ssot.ts` or `canvas/src/features/panels/views/*ApiDocs.ts`
 - Local MCP tools: `mcp/local-tool-contract.js` plus the shared agent-ready contract imported by it
 - HTML video rendering: `canvas/src/features/html-video-renderer/*` validates Render_Spec input, resolves engines from runtime config, and delegates video persistence to `canvas/src/features/chat/richMediaRun.ts`; the native `headless-browser` adapter captures seeked Playwright frames and invokes an operator-provided FFmpeg binary, with no hardcoded fallback engine

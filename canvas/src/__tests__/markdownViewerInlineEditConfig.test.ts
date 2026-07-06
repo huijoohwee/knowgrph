@@ -181,7 +181,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     throw new Error('expected bubble toolbar to expose / and @ command menu triggers')
   }
   const inlineMenusText = readUtf8(blockInlineMenusOverlayPath)
-  const commandMenuText = readUtf8(blockCommandMenuPath)
+  const commandMenuText = `${readUtf8(blockCommandMenuPath)}\n${readUtf8(path.resolve(root, 'src', 'lib', 'command-menu', 'InlineMediaCommandThumbnail.tsx'))}`
   if (!inlineMenusText.includes('MarkdownBlockContainerCommandMenu') || !inlineMenusText.includes('placeholder="Type a command"') || !inlineMenusText.includes('placeholder="Find variable or action"')) {
     throw new Error('expected inline / and @ menus to reuse the shared command-menu owner with searchable action lists')
   }
@@ -189,13 +189,13 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     throw new Error('expected markdown inline command menu to own filtered items and keyboard selection')
   }
   if (
-    !commandMenuText.includes('data-kg-inline-command-thumbnail')
+    !commandMenuText.includes('InlineMediaCommandThumbnail') || !commandMenuText.includes('data-kg-inline-command-thumbnail')
     || !commandMenuText.includes('rounded-full')
     || !commandMenuText.includes('UI_THEME_TOKENS.panel.border')
     || !commandMenuText.includes('UI_THEME_TOKENS.input.bg')
     || !commandMenuText.includes('shadow-sm')
   ) {
-    throw new Error('expected markdown inline @ media thumbnails to render as tokenized mention-style pills')
+    throw new Error('expected markdown inline @ media thumbnails to render through the shared tokenized mention-style pill owner')
   }
   if (!blockText.includes('slashMenuRef') || !blockText.includes('active && slashNode && slashNode.contains(active)')) {
     throw new Error('expected slash command menu focus to participate in the upstream inline-edit blur guard')

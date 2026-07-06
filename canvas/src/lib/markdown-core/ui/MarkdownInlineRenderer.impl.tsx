@@ -39,7 +39,6 @@ import {
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import {
-  buildMarkdownVariableSsotAnchorId,
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
 import { renderInlineHtmlElement, renderInlineHtmlToken } from './markdownInlineHtmlToken'
@@ -54,6 +53,7 @@ import {
 import { CardPreviewInlineMediaPill } from '@/lib/cards/CardPreviewInlineMediaPill'
 import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { renderMarkdownVariableReferenceChip } from './markdownInlineVariableMediaPreview'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
 
@@ -378,18 +378,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           {splitVariableRefs(text).map((segment, segmentIndex) => {
             const baseKey = `${key}:seg:${segmentIndex}`
             if (segment.kind === 'var') {
-              const ssotAnchorId = buildMarkdownVariableSsotAnchorId(segment.key)
-              return (
-                <a
-                  key={baseKey}
-                  href={`#${ssotAnchorId}`}
-                  data-kg-var-key={segment.key}
-                  data-kg-var-raw={segment.value}
-                  className={`${UI_THEME_TOKENS.text.secondary} underline decoration-dotted underline-offset-2`}
-                >
-                  {segment.value}
-                </a>
-              )
+              return renderMarkdownVariableReferenceChip({ baseKey, key: segment.key, raw: segment.value, opts })
             }
             const parts = splitPlainUrls(segment.value)
             return parts.map((p, j) => {
@@ -574,6 +563,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               label={alt}
               fallbackLabel="Video"
               fullMedia={fullVideoNode}
+              thumbnailKind="video"
               toggleEnabled={inlineMediaToggleEnabled}
             >
               {videoNode}
@@ -608,6 +598,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               label={alt}
               fallbackLabel="Audio"
               fullMedia={fullAudioNode}
+              thumbnailKind="audio"
               toggleEnabled={inlineMediaToggleEnabled}
             >
               <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
@@ -671,6 +662,8 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             label={alt}
             fallbackLabel="Image"
             fullMedia={fullImageNode}
+            thumbnailKind="image"
+            thumbnailUrl={src}
             toggleEnabled={inlineMediaToggleEnabled}
           >
             {imageNode}

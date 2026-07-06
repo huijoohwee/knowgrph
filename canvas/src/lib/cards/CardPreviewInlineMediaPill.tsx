@@ -1,5 +1,7 @@
 import React from 'react'
 import { Image as ImageIcon, Minimize2 } from 'lucide-react'
+import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
+import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
@@ -17,11 +19,14 @@ export function CardPreviewInlineMediaPill(props: {
   label: string
   fallbackLabel: string
   fullMedia?: React.ReactElement | null
+  thumbnailKind?: InlineMediaKind
+  thumbnailUrl?: string
   toggleEnabled?: boolean
 }) {
   const [renderMode, setRenderMode] = React.useState<'chip' | 'media'>('chip')
   const label = readCardMarkdownPreviewMediaLabel(props.label, props.fallbackLabel)
   const canToggle = props.toggleEnabled === true && props.fullMedia
+  const thumbnailKind = props.thumbnailKind || (props.thumbnailUrl ? 'image' : undefined)
 
   if (canToggle && renderMode === 'media') {
     return (
@@ -60,7 +65,13 @@ export function CardPreviewInlineMediaPill(props: {
       title={label}
       data-kg-card-inline-media-pill="1"
     >
-      {props.children}
+      {thumbnailKind ? (
+        <InlineMediaCommandThumbnail
+          kind={thumbnailKind}
+          thumbnailUrl={props.thumbnailUrl}
+          variant="inline"
+        />
+      ) : props.children}
       <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{label}</span>
       {canToggle ? (
         <button

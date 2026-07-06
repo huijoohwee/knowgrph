@@ -1,5 +1,4 @@
 import React from 'react'
-
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/StoryboardWidget/portHandleUi'
 import type { WidgetRegistryEntry, WidgetRegistryFieldOption, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { getObjectPath } from '@/lib/data/objectPath'
@@ -8,19 +7,12 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flo
 import { UI_COPY } from '@/lib/config'
 import { formatFlowHandleAccessibleName, formatFlowHandleKtvKeyLabel, formatFlowHandleKtvSubLabel, formatFlowHandleSemanticKey, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import {
-  UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME,
-} from '@/lib/ui/responsiveElementClasses'
+import { UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'
-import {
-  inferTextGenerationProviderFamily,
-  listVisibleWidgetRegistryPortsForPropsEditor,
-  resolveWidgetRegistryApiDocRef,
-  resolveWidgetRegistryMainPanelLink,
-  resolveEffectiveTextGenerationWidgetProperties,
-} from '@/features/storyboard-widget-manager/registryTemplates'
+import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
+import { inferTextGenerationProviderFamily, listVisibleWidgetRegistryPortsForPropsEditor, resolveWidgetRegistryApiDocRef, resolveWidgetRegistryMainPanelLink, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -70,6 +62,10 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
   onSetProperties: (properties: Record<string, unknown>) => void
   onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
 }) {
+  const propertiesInlineMediaCommandContext = React.useMemo(
+    () => buildInlineMediaCommandContextFromRecord(props.properties),
+    [props.properties],
+  )
   const {
     active,
     properties,
@@ -482,6 +478,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
               placeholder={!v && connectedValueText ? connectedValueText : undefined}
               active={active}
               ariaLabel={label}
+              markdownCommandContextText={propertiesInlineMediaCommandContext}
               onCommit={next => {
                 const raw = String(next ?? '')
                 if (!raw.trim()) {
@@ -523,6 +520,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.input.text,
               )}
+              markdownCommandContextText={propertiesInlineMediaCommandContext}
               onCommit={next => setValue(next)}
             />
             {connectedMeta}
@@ -554,6 +552,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
             placeholder={!v && connectedValueText ? connectedValueText : undefined}
             active={active}
             ariaLabel={label}
+            markdownCommandContextText={propertiesInlineMediaCommandContext}
             onCommit={raw => {
               setValue(raw.trim() ? raw : undefined)
             }}

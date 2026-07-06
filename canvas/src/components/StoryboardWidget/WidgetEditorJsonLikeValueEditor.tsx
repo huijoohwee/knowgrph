@@ -31,6 +31,7 @@ export const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props
   placeholder?: string
   className: string
   mode: 'json' | 'object'
+  markdownCommandContextText?: string
   onCommit: (nextValue: unknown) => void
 }) {
   const normalize = React.useCallback((v: unknown) => normalizeJsonLikeValueText(v), [])
@@ -53,6 +54,7 @@ export const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props
       value={text}
       placeholder={props.placeholder}
       active={props.active}
+      markdownCommandContextText={props.markdownCommandContextText}
       onCommit={next => {
         setText(next)
         const raw = String(next || '')

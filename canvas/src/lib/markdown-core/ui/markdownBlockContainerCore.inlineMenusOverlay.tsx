@@ -12,6 +12,11 @@ import {
   type InlineSlashCommandId,
   type InlineVariableCommandId,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import {
+  buildInlineCommandActionMenuItem,
+  buildInlineMediaCommandMenuItem,
+  buildInlineVariableBrowseMenuItem,
+} from '@/lib/command-menu/inlineCommandMenuItems'
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
 
@@ -100,12 +105,9 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       checklist: () => applyChecklist(),
       divider: () => applyDivider(),
     }
-    return INLINE_SLASH_COMMAND_ACTIONS.map(action => ({
-      id: action.id,
-      label: action.label,
-      group: action.group,
+    return INLINE_SLASH_COMMAND_ACTIONS.map(action => buildInlineCommandActionMenuItem({
+      action,
       description: action.id === 'code-block' ? 'Convert this block to fenced code' : action.description,
-      keywords: [...action.keywords],
       onSelect: () => {
         runById[action.id]()
         closeSlashMenu()
@@ -113,22 +115,12 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     }))
   }, [applyChecklist, applyDivider, applyDraftAction, applyToggleHeading, applyTurnInto, closeSlashMenu])
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
-    const suggestionItems = variableSuggestions.map(suggestion => ({
-      id: `variable-${suggestion.key}`,
-      label: suggestion.key,
-      group: 'Variables',
-      description: `${suggestion.value != null ? suggestion.value : 'Reference variable'}${suggestion.source === 'frontmatter' ? ' from frontmatter' : suggestion.source === 'inline' ? ' from inline content' : ''}`,
-      keywords: [suggestion.value, suggestion.source].filter(Boolean) as string[],
+    const suggestionItems = variableSuggestions.map(suggestion => buildInlineVariableBrowseMenuItem({
+      row: suggestion,
       onSelect: () => setVariableMenu(prev => ({ ...prev, keyInput: suggestion.key, query: suggestion.key, mode: 'ref' })),
     }))
-    const mediaCandidateItems = mediaCommandCandidates.map(candidate => ({
-      id: candidate.id,
-      label: candidate.label,
-      group: 'Insert media',
-      description: candidate.description,
-      keywords: candidate.keywords,
-      thumbnailKind: candidate.kind,
-      thumbnailUrl: candidate.thumbnailUrl,
+    const mediaCandidateItems = mediaCommandCandidates.map(candidate => buildInlineMediaCommandMenuItem({
+      candidate,
       onSelect: () => applyMediaCommandCandidate(candidate),
     }))
     const setModeByActionId: Record<Exclude<InlineVariableCommandId, 'insert-reference' | 'inline-declaration' | 'insert-image' | 'insert-audio' | 'insert-video' | 'image-reference' | 'audio-reference' | 'video-reference'>, () => void> = {
@@ -141,41 +133,38 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     }
     const modeActionItems = INLINE_VARIABLE_COMMAND_ACTIONS
       .filter(action => action.id !== 'insert-reference' && action.id !== 'inline-declaration' && action.id !== 'insert-image' && action.id !== 'insert-audio' && action.id !== 'insert-video' && action.id !== 'image-reference' && action.id !== 'audio-reference' && action.id !== 'video-reference')
-      .map(action => ({
-        id: action.id,
-        label: action.label,
-        group: action.group,
-        description: action.description,
-        keywords: [...action.keywords],
-        danger: action.danger,
+      .map(action => buildInlineCommandActionMenuItem({
+        action,
         onSelect: setModeByActionId[action.id],
       }))
     const mediaInsertActionItems = (['insert-image', 'insert-audio', 'insert-video'] as const).map(actionId => {
-      const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)
+      const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)!
       const kind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[actionId]
       const fallbackCandidate = mediaCommandCandidates.find(candidate => candidate.kind === kind)
-      return {
-        id: actionId,
-        label: action?.label || kind,
-        group: action?.group || 'Insert media',
-        description: fallbackCandidate?.description || action?.description || `Insert ${kind}`,
-        keywords: [kind, ...(action?.keywords || [])],
-        thumbnailKind: fallbackCandidate?.kind,
-        thumbnailUrl: fallbackCandidate?.thumbnailUrl,
+      if (fallbackCandidate) return buildInlineMediaCommandMenuItem({
+        candidate: {
+          ...fallbackCandidate,
+          id: actionId,
+          label: action.label || fallbackCandidate.label,
+          description: fallbackCandidate.description || action.description || `Insert ${kind}`,
+          keywords: [kind, ...action.keywords, ...fallbackCandidate.keywords],
+        },
         onSelect: () => fallbackCandidate ? applyMediaCommandCandidate(fallbackCandidate) : applyTurnInto(kind),
-      }
+      })
+      return buildInlineCommandActionMenuItem({
+        action,
+        keywords: [kind, ...action.keywords],
+        onSelect: () => applyTurnInto(kind),
+      })
     })
     const mediaActionItems = (['image-reference', 'audio-reference', 'video-reference'] as const).map(actionId => {
-      const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)
+      const action = INLINE_VARIABLE_COMMAND_ACTIONS.find(row => row.id === actionId)!
       const key = INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID[actionId]
-      return {
-        id: actionId,
-        label: action?.label || key,
-        group: action?.group || 'Media',
-        description: action?.description || `Insert {{${key}}}`,
-        keywords: [key, ...(action?.keywords || [])],
+      return buildInlineCommandActionMenuItem({
+        action,
+        keywords: [key, ...action.keywords],
         onSelect: () => applyVariableToken('ref', key),
-      }
+      })
     })
     return [
       ...mediaCandidateItems,

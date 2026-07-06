@@ -7,11 +7,7 @@ import { buildKanbanCardDropIntentLabel } from '@/features/markdown/ui/kanban/ka
 import { getKanbanCardDragVisualState } from '@/features/markdown/ui/kanban/kanbanDragVisualState'
 import { KanbanCardDropPreview } from '@/features/markdown/ui/kanban/KanbanDropPreview'
 import { isInteractiveEventTarget } from '@/features/markdown/ui/kanban/kanbanMenu'
-import {
-  areKanbanRowIdsEqual,
-  moveKanbanRowIdBeforeTarget,
-  reconcileKanbanRowIds,
-} from '@/features/markdown/ui/kanban/kanbanOrderState'
+import { areKanbanRowIdsEqual, moveKanbanRowIdBeforeTarget, reconcileKanbanRowIds } from '@/features/markdown/ui/kanban/kanbanOrderState'
 import { reorderKanbanRowIds, type KanbanDropPosition } from '@/features/markdown/ui/kanban/kanbanReorder'
 import {
   type KanbanCardDragProps,
@@ -19,6 +15,7 @@ import {
   useKanbanDragAndDrop,
 } from '@/features/markdown/ui/kanban/useKanbanDragAndDrop'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
 import { CanvasGridOverlaySurface } from '@/components/CanvasGridOverlaySurface'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -606,6 +603,7 @@ function DashboardCardView(props: {
   const { card, cardDragProps, cardDropProps, dragOverCardId, dragOverPosition, draggingCardId, gridEnabled } = props
   const dragging = draggingCardId === card.id
   const dropTarget = dragOverCardId === card.id
+  const cardInlineMediaCommandContext = React.useMemo(() => buildInlineMediaCommandContextFromRecord(card), [card])
   const cardDragVisualState = getKanbanCardDragVisualState({
     hasActiveDrag: draggingCardId !== null,
     isDragging: dragging,
@@ -694,6 +692,7 @@ function DashboardCardView(props: {
             canEdit={props.canEditCardText}
             multiline
             markdownPreview="auto"
+            markdownCommandContextText={cardInlineMediaCommandContext}
             rows={3}
             onCommit={nextValue => props.onCommitCardText?.(card.id, 'footnote', nextValue)}
             displayClassName={`m-0 text-[11px] leading-5 ${UI_THEME_TOKENS.text.secondary}`}

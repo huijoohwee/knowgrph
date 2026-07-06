@@ -14,6 +14,7 @@ import {
   CHAT_GOOGLE_CLOUD_ENDPOINT_OPTIONS,
   CHAT_GOOGLE_CLOUD_MODEL_OPTIONS,
   CHAT_MIROMIND_MODEL_OPTIONS,
+  CHAT_SEALION_MODEL_OPTIONS,
   CHAT_QWEN_ENDPOINT_OPTIONS,
   CHAT_QWEN_MODEL_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
@@ -22,6 +23,7 @@ import {
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_GOOGLE_CLOUD,
   CHAT_PROVIDER_MIROMIND,
+  CHAT_PROVIDER_SEALION,
   CHAT_PROVIDER_QWEN,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
@@ -77,6 +79,11 @@ import {
   AGNES_API_DOC_ENTRIES,
   getAgnesApiRowAnchorId,
 } from './agnesApiDocs'
+import {
+  SEALION_API_DOC_AREA,
+  SEALION_API_DOC_ENTRIES,
+  getSealionApiRowAnchorId,
+} from './sealionApiDocs'
 import {
   QWEN_API_DOC_AREA,
   QWEN_API_DOC_ENTRIES,
@@ -190,6 +197,7 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...VIDEODB_API_DOC_ENTRIES,
   ...MIROMIND_API_DOC_ENTRIES,
   ...AGNES_API_DOC_ENTRIES,
+  ...SEALION_API_DOC_ENTRIES,
   ...QWEN_API_DOC_ENTRIES,
   ...GOOGLE_CLOUD_API_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
@@ -249,6 +257,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => CHAT_PROVIDER_AGNES,
     }
   }
+  if (String(entry.meta.key || '').trim() === 'sealionApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_SEALION,
+    }
+  }
   if (String(entry.meta.key || '').trim() === 'qwenApi.provider') {
     return {
       ...entry.meta,
@@ -290,6 +304,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       return {
         ...mappedMeta,
         options: [...CHAT_AGNES_MODEL_OPTIONS],
+      }
+    }
+    if (rowKey === 'sealionApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_SEALION_MODEL_OPTIONS],
       }
     }
     if (rowKey === 'qwenApi.model') {
@@ -954,55 +974,19 @@ export function useSettingsView({
     } catch { void 0 }
   }, [resetToDefaults])
 
-  const normalizedBytePlusValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'byteplus',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedOpenAiValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'openai',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedDeerFlowValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'deerflow',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedMiroMindValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'miromind',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedAgnesValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'agnes',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedQwenValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'qwen',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
-  const normalizedGoogleCloudValues = React.useMemo(
-    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
-      providerFamily: 'google-cloud',
-      properties: values as Record<string, unknown>,
-    }),
-    [values],
-  )
+  const normalizedProviderValuesByArea = React.useMemo(() => {
+    const properties = values as Record<string, unknown>
+    return new Map<string, Record<string, unknown>>([
+      [BYTEPLUS_SHARED_TEXT_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'byteplus', properties })],
+      [OPENAI_CHAT_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'openai', properties })],
+      [DEERFLOW_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'deerflow', properties })],
+      [MIROMIND_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'miromind', properties })],
+      [AGNES_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'agnes', properties })],
+      [SEALION_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'sealion', properties })],
+      [QWEN_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'qwen', properties })],
+      [GOOGLE_CLOUD_API_DOC_AREA, normalizeTextGenerationWidgetPropertiesForProviderFamily({ providerFamily: 'google-cloud', properties })],
+    ])
+  }, [values])
 
   const renderInput = (
     key: string,
@@ -1048,22 +1032,7 @@ export function useSettingsView({
     const virtualEntries: SettingsEntry[] = INTEGRATION_API_DOC_ENTRIES.map(entry => {
       const { resolvedMeta, stateKey: displayKey, usesMappedDisplayValue } = resolveIntegrationEntryStateKey(entry)
       const area = normalizeSettingsAreaLabel(entry.details.area)
-      const normalizedDisplayValues =
-        area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
-          ? normalizedBytePlusValues
-          : area === OPENAI_CHAT_API_DOC_AREA
-            ? normalizedOpenAiValues
-            : area === DEERFLOW_API_DOC_AREA
-              ? normalizedDeerFlowValues
-              : area === MIROMIND_API_DOC_AREA
-                ? normalizedMiroMindValues
-                : area === AGNES_API_DOC_AREA
-                  ? normalizedAgnesValues
-                : area === QWEN_API_DOC_AREA
-                  ? normalizedQwenValues
-                  : area === GOOGLE_CLOUD_API_DOC_AREA
-                    ? normalizedGoogleCloudValues
-                    : values
+      const normalizedDisplayValues = normalizedProviderValuesByArea.get(area) || values
       const anchorId =
         area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
           ? getBytePlusSharedTextApiRowAnchorId(entry.meta.key)
@@ -1083,6 +1052,8 @@ export function useSettingsView({
             ? getMiroMindApiRowAnchorId(entry.meta.key)
           : area === AGNES_API_DOC_AREA
             ? getAgnesApiRowAnchorId(entry.meta.key)
+          : area === SEALION_API_DOC_AREA
+            ? getSealionApiRowAnchorId(entry.meta.key)
           : area === QWEN_API_DOC_AREA
             ? getQwenApiRowAnchorId(entry.meta.key)
           : area === GOOGLE_CLOUD_API_DOC_AREA
@@ -1196,7 +1167,7 @@ export function useSettingsView({
 
     const providerArea = resolvePaymentsProviderSpec(paymentsProviderId).areaLabel
     return filteredByMode.filter(entry => normalizeSettingsAreaLabel(entry.details.area) === providerArea)
-  }, [flow, mode, normalizedAgnesValues, normalizedBytePlusValues, normalizedDeerFlowValues, normalizedGoogleCloudValues, normalizedMiroMindValues, normalizedOpenAiValues, normalizedQwenValues, paymentsProviderId, shouldHideSetting, values])
+  }, [flow, mode, normalizedProviderValuesByArea, paymentsProviderId, shouldHideSetting, values])
 
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const filtered = React.useMemo(
@@ -1250,6 +1221,11 @@ export function useSettingsView({
           title: AGNES_API_DOC_AREA,
           searchIndex: normalizeText('Agnes AI API agnes-2.0-flash shared chat completions sse json chunks floatingpanel chat markdown yaml frontmatter source files storyboard widget storyboard animatic'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === AGNES_API_DOC_AREA,
+        },
+        {
+          title: SEALION_API_DOC_AREA,
+          searchIndex: normalizeText('AI Singapore SEA-LION API sea-lion sealion aisingapore Southeast Asian multilingual localization safety MCP sidecar Ollama Workers AI OpenAI-compatible chat completions'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === SEALION_API_DOC_AREA,
         },
         {
           title: QWEN_API_DOC_AREA,

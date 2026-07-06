@@ -26,6 +26,7 @@ import {
   type ImportUrlRendererSelection,
 } from './ImportUrlRendererSelect'
 import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
+import { runLaunchImportUrl } from './launchImportDispatch'
 
 const DEFAULT_VIDEO_DOWNLOAD_OPTIONS: VideoDownloadOptions = {
   format: 'best',
@@ -118,15 +119,19 @@ export function LaunchDropdownImportUrlItem(props: {
   const selectedImportOpts = React.useCallback(() => parseImportUrlRendererSelection(importUrlRenderer) || undefined, [importUrlRenderer])
 
   const runImportUrl = React.useCallback(
-    (nextUrlRaw: string) => {
+    async (nextUrlRaw: string) => {
       const nextUrl = String(nextUrlRaw || '').trim()
       if (!nextUrl) return
       onClose()
       const launchBridge = getMarkdownWorkspaceActionBridge()
       const opts = selectedImportOpts()
       if (opts?.canvas2dRenderer === 'design') activateDesignEditorSurface({ openFloatingPanel: true })
-      if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(nextUrl, opts)
-      else void importUrlFallback(nextUrl, opts)
+      await runLaunchImportUrl({
+        urlRaw: nextUrl,
+        opts,
+        bridge: launchBridge,
+        fallback: importUrlFallback,
+      })
       setUrlInputOpen(false)
     },
     [importUrlFallback, onClose, selectedImportOpts],

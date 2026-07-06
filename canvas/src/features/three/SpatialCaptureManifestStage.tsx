@@ -11,9 +11,22 @@ import {
   subscribeSpatialCaptureTool,
 } from '@/features/three/xrSpatialCaptureTools'
 import type { SpatialCaptureAxisId, SpatialCaptureCenterActionId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
-import { loadSpatialCapturePointCloud, type SpatialCapturePointCloudLoad } from '@/lib/assets/spatialCaptureAssetRuntime'
+import { loadSpatialCapturePointCloud, loadSpatialCapturePointCloudPreview, type SpatialCapturePointCloudLoad } from '@/lib/assets/spatialCaptureAssetRuntime'
 import type { GlbFit } from '@/lib/three/GlbAssetModel'
-import { readModelAssetCameraPose } from './modelAssetCameraPose'
+import {
+  SPATIAL_CAPTURE_INITIAL_VIEW_DIRECTION,
+  SPATIAL_CAPTURE_PROGRESSIVE_INTERVAL_MS,
+  SPATIAL_CAPTURE_SORT_DIRECTION_DOT_MIN,
+  SPATIAL_CAPTURE_SORT_INTERVAL_MS,
+  SPATIAL_CAPTURE_SORT_SETTLE_MS,
+  advanceSpatialCaptureProgressiveCount,
+  buildGaussianSplatGeometry,
+  buildPointCloudGeometry,
+  dotSortDirection,
+  readSpatialCaptureGeometryCount,
+  resolveCameraSortDirection,
+  updateGaussianSplatGeometrySort,
+} from './spatialCaptureGeometryRuntime'
 import { buildGaussianSplatMaterial } from './spatialCaptureGaussianMaterial'
 
 type LoadState =
@@ -27,10 +40,7 @@ const SPATIAL_CAPTURE_BACKGROUND = '#081827'
 const SPATIAL_CAPTURE_FOG = '#0d2236'
 const SPATIAL_CAPTURE_GRID_MAJOR = '#b9c8d8'
 const SPATIAL_CAPTURE_GRID_MINOR = '#31506b'
-const SPATIAL_CAPTURE_SORT_BUCKETS = 32768
-const SPATIAL_CAPTURE_SORT_DIRECTION_DOT_MIN = 0.9965
-const SPATIAL_CAPTURE_SORT_INTERVAL_MS = 180
-const SPATIAL_CAPTURE_INITIAL_VIEW_DIRECTION = [-0.95, -0.28, -0.12] as const
+const SPATIAL_CAPTURE_FULL_PROMOTION_DELAY_MS = 180
 const SPATIAL_CAPTURE_SELECTION_COLORS: Record<SpatialCaptureCenterActionId, string> = {
   set: '#e2e8f0',
   add: '#38bdf8',
@@ -78,181 +88,24 @@ function buildSpatialCaptureFit(load: SpatialCapturePointCloudLoad): GlbFit {
   }
 }
 
-function buildDepthSortedIndex(positions: Float32Array, direction: readonly [number, number, number]): Uint16Array | Uint32Array | null {
-  const count = Math.floor(positions.length / 3)
-  if (count <= 1) return null
-  const [dx, dy, dz] = direction
-  let minDepth = Number.POSITIVE_INFINITY
-  let maxDepth = Number.NEGATIVE_INFINITY
-  for (let index = 0; index < count; index += 1) {
-    const offset = index * 3
-    const depth = positions[offset] * dx + positions[offset + 1] * dy + positions[offset + 2] * dz
-    if (depth < minDepth) minDepth = depth
-    if (depth > maxDepth) maxDepth = depth
-  }
-  if (!Number.isFinite(minDepth) || !Number.isFinite(maxDepth) || maxDepth <= minDepth) return null
-  const bucketCount = Math.min(SPATIAL_CAPTURE_SORT_BUCKETS, Math.max(64, count))
-  const histogram = new Uint32Array(bucketCount)
-  const scale = (bucketCount - 1) / Math.max(1e-6, maxDepth - minDepth)
-  for (let index = 0; index < count; index += 1) {
-    const offset = index * 3
-    const bucket = clamp(Math.floor((positions[offset] * dx + positions[offset + 1] * dy + positions[offset + 2] * dz - minDepth) * scale), 0, bucketCount - 1)
-    histogram[bucket] += 1
-  }
-  const offsets = new Uint32Array(bucketCount)
-  let cursor = 0
-  for (let bucket = bucketCount - 1; bucket >= 0; bucket -= 1) {
-    offsets[bucket] = cursor
-    cursor += histogram[bucket]
-  }
-  const writes = offsets.slice()
-  const out = count > 65535 ? new Uint32Array(count) : new Uint16Array(count)
-  for (let index = 0; index < count; index += 1) {
-    const offset = index * 3
-    const bucket = clamp(Math.floor((positions[offset] * dx + positions[offset + 1] * dy + positions[offset + 2] * dz - minDepth) * scale), 0, bucketCount - 1)
-    out[writes[bucket]] = index
-    writes[bucket] += 1
-  }
-  return out
-}
-
-function dotSortDirection(a: readonly [number, number, number], b: readonly [number, number, number]): number {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-
-function normalizeSortDirection(x: number, y: number, z: number): readonly [number, number, number] {
-  const length = Math.hypot(x, y, z)
-  if (!(length > 1e-6)) return SPATIAL_CAPTURE_INITIAL_VIEW_DIRECTION
-  return [x / length, y / length, z / length]
-}
-
-function resolveSpatialCaptureInitialSortDirection(fit: GlbFit): readonly [number, number, number] {
-  const pose = readModelAssetCameraPose(fit)
-  return normalizeSortDirection(
-    pose.target[0] - pose.position[0],
-    pose.target[1] - pose.position[1],
-    pose.target[2] - pose.position[2],
-  )
-}
-
-function buildInitialDepthSortedIndex(positions: Float32Array, fit: GlbFit): Uint16Array | Uint32Array | null {
-  return buildDepthSortedIndex(positions, resolveSpatialCaptureInitialSortDirection(fit))
-}
-
-function resolveCameraSortDirection(camera: THREE.Camera): readonly [number, number, number] {
-  const elements = camera.matrixWorld.elements
-  return normalizeSortDirection(-elements[8], -elements[9], -elements[10])
-}
-
-function buildPointCloudGeometry(load: SpatialCapturePointCloudLoad): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.BufferAttribute(load.pointCloud.positions, 3))
-  if (load.pointCloud.colors) geometry.setAttribute('pointColor', new THREE.BufferAttribute(load.pointCloud.colors, 3))
-  geometry.computeBoundingSphere()
-  return geometry
-}
-
-function reorderFloatAttribute(values: Float32Array, itemSize: number, order: Uint16Array | Uint32Array | null): Float32Array {
-  if (!order) return values
-  const out = new Float32Array(values.length)
-  for (let nextIndex = 0; nextIndex < order.length; nextIndex += 1) {
-    const sourceIndex = order[nextIndex]
-    const sourceOffset = sourceIndex * itemSize
-    const targetOffset = nextIndex * itemSize
-    for (let component = 0; component < itemSize; component += 1) {
-      out[targetOffset + component] = values[sourceOffset + component]
-    }
-  }
-  return out
-}
-
-function writeReorderedFloatAttribute(
-  target: Float32Array,
-  values: Float32Array,
-  itemSize: number,
-  order: Uint16Array | Uint32Array | null,
-): void {
-  if (!order) {
-    target.set(values)
-    return
-  }
-  for (let nextIndex = 0; nextIndex < order.length; nextIndex += 1) {
-    const sourceIndex = order[nextIndex]
-    const sourceOffset = sourceIndex * itemSize
-    const targetOffset = nextIndex * itemSize
-    for (let component = 0; component < itemSize; component += 1) {
-      target[targetOffset + component] = values[sourceOffset + component]
-    }
-  }
-}
-
-function updateReorderedFloatAttribute(
-  geometry: THREE.InstancedBufferGeometry,
-  name: string,
-  values: Float32Array | null,
-  itemSize: number,
-  order: Uint16Array | Uint32Array | null,
-): void {
-  if (!values) return
-  const attribute = geometry.getAttribute(name)
-  if (!(attribute instanceof THREE.InstancedBufferAttribute) || !(attribute.array instanceof Float32Array)) return
-  writeReorderedFloatAttribute(attribute.array, values, itemSize, order)
-  attribute.needsUpdate = true
-}
-
-function updateGaussianSplatGeometrySort(
-  geometry: THREE.InstancedBufferGeometry,
-  load: SpatialCapturePointCloudLoad,
-  direction: readonly [number, number, number],
-): void {
-  const order = buildDepthSortedIndex(load.pointCloud.positions, direction)
-  updateReorderedFloatAttribute(geometry, 'splatCenter', load.pointCloud.positions, 3, order)
-  updateReorderedFloatAttribute(geometry, 'splatColor', load.pointCloud.colors, 3, order)
-  updateReorderedFloatAttribute(geometry, 'splatOpacity', load.pointCloud.opacities, 1, order)
-  updateReorderedFloatAttribute(geometry, 'splatScale', load.pointCloud.splatScales, 3, order)
-  updateReorderedFloatAttribute(geometry, 'splatRotation', load.pointCloud.splatRotations, 4, order)
-}
-
-function buildGaussianSplatGeometry(load: SpatialCapturePointCloudLoad, fit: GlbFit): THREE.InstancedBufferGeometry {
-  const geometry = new THREE.InstancedBufferGeometry()
-  const initialOrder = buildInitialDepthSortedIndex(load.pointCloud.positions, fit)
-  const centers = reorderFloatAttribute(load.pointCloud.positions, 3, initialOrder)
-  const colors = load.pointCloud.colors ? reorderFloatAttribute(load.pointCloud.colors, 3, initialOrder) : null
-  const opacities = load.pointCloud.opacities ? reorderFloatAttribute(load.pointCloud.opacities, 1, initialOrder) : null
-  const scales = load.pointCloud.splatScales ? reorderFloatAttribute(load.pointCloud.splatScales, 3, initialOrder) : null
-  const rotations = load.pointCloud.splatRotations ? reorderFloatAttribute(load.pointCloud.splatRotations, 4, initialOrder) : null
-  geometry.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1))
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-    -1, -1, 0,
-    1, -1, 0,
-    1, 1, 0,
-    -1, 1, 0,
-  ]), 3))
-  geometry.setAttribute('splatCenter', new THREE.InstancedBufferAttribute(centers, 3))
-  if (colors) geometry.setAttribute('splatColor', new THREE.InstancedBufferAttribute(colors, 3))
-  if (opacities) geometry.setAttribute('splatOpacity', new THREE.InstancedBufferAttribute(opacities, 1))
-  if (scales) geometry.setAttribute('splatScale', new THREE.InstancedBufferAttribute(scales, 3))
-  if (rotations) geometry.setAttribute('splatRotation', new THREE.InstancedBufferAttribute(rotations, 4))
-  geometry.instanceCount = load.pointCloud.pointCount
-  const bounds = load.pointCloud.bounds
-  const center = new THREE.Vector3(bounds.center[0], bounds.center[1], bounds.center[2])
-  const radius = Math.max(
-    center.distanceTo(new THREE.Vector3(bounds.min[0], bounds.min[1], bounds.min[2])),
-    center.distanceTo(new THREE.Vector3(bounds.min[0], bounds.min[1], bounds.max[2])),
-    center.distanceTo(new THREE.Vector3(bounds.min[0], bounds.max[1], bounds.min[2])),
-    center.distanceTo(new THREE.Vector3(bounds.min[0], bounds.max[1], bounds.max[2])),
-    center.distanceTo(new THREE.Vector3(bounds.max[0], bounds.min[1], bounds.min[2])),
-    center.distanceTo(new THREE.Vector3(bounds.max[0], bounds.min[1], bounds.max[2])),
-    center.distanceTo(new THREE.Vector3(bounds.max[0], bounds.max[1], bounds.min[2])),
-    center.distanceTo(new THREE.Vector3(bounds.max[0], bounds.max[1], bounds.max[2])),
-  )
-  geometry.boundingSphere = new THREE.Sphere(center, Math.max(1, radius))
-  return geometry
-}
-
 function resolvePointCloudMaterialScale(pointCount: number): number {
   const millions = Math.max(0.25, pointCount / 1_000_000)
   return Math.max(2.4, Math.min(6.2, 7.6 / Math.sqrt(millions)))
+}
+
+function waitForSpatialCapturePreviewFirstPaint(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') {
+      setTimeout(resolve, SPATIAL_CAPTURE_FULL_PROMOTION_DELAY_MS)
+      return
+    }
+    const finish = () => window.setTimeout(resolve, SPATIAL_CAPTURE_FULL_PROMOTION_DELAY_MS)
+    if (typeof window.requestAnimationFrame !== 'function') {
+      finish()
+      return
+    }
+    window.requestAnimationFrame(() => window.requestAnimationFrame(finish))
+  })
 }
 
 function buildPointCloudMaterial(args: {
@@ -427,18 +280,24 @@ export function SpatialCaptureManifestStage({
   const [spatialCenterAction, setSpatialCenterAction] = React.useState<SpatialCaptureCenterActionId>(readSpatialCaptureCenterAction())
   const sortStateRef = React.useRef<{
     direction: readonly [number, number, number]
+    lastProgressiveMs: number
     lastSortMs: number
+    pendingDirection: readonly [number, number, number] | null
+    pendingSinceMs: number
   }>({
     direction: SPATIAL_CAPTURE_INITIAL_VIEW_DIRECTION,
+    lastProgressiveMs: 0,
     lastSortMs: 0,
+    pendingDirection: null,
+    pendingSinceMs: 0,
   })
-	  const loadKey = [
+  const loadKey = [
     manifest.format,
     manifest.renderCacheKey,
     manifest.pendingLocalPath,
     manifest.sourceKind,
     manifest.sourceIdentity,
-	  ].join('|')
+  ].join('|')
 
   React.useEffect(() => subscribeSpatialCaptureTool(setSpatialTool), [])
   React.useEffect(() => subscribeSpatialCaptureAxis(setSpatialAxis), [])
@@ -449,18 +308,33 @@ export function SpatialCaptureManifestStage({
     const loadingState: LoadState = { status: 'loading' }
     setState(loadingState)
     onLoadStateChange?.(loadingState)
-    loadSpatialCapturePointCloud(manifest)
-      .then(load => {
+    const promoteLoad = (load: SpatialCapturePointCloudLoad | null) => {
+      if (cancelled) return
+      const nextState: LoadState = load ? { status: 'ready', load } : { status: 'empty' }
+      setState(nextState)
+      onLoadStateChange?.(nextState)
+    }
+    loadSpatialCapturePointCloudPreview(manifest)
+      .then(async previewLoad => {
         if (cancelled) return
-        const nextState: LoadState = load ? { status: 'ready', load } : { status: 'empty' }
-        setState(nextState)
-        onLoadStateChange?.(nextState)
+        if (previewLoad) {
+          promoteLoad(previewLoad)
+          if (previewLoad.pointCloud.pointCount >= previewLoad.pointCloud.sourcePointCount) return
+          await waitForSpatialCapturePreviewFirstPaint()
+          if (cancelled) return
+        }
+        promoteLoad(await loadSpatialCapturePointCloud(manifest))
       })
       .catch(error => {
         if (cancelled) return
-        const nextState: LoadState = { status: 'error', message: error instanceof Error ? error.message : String(error) }
-        setState(nextState)
-        onLoadStateChange?.(nextState)
+        loadSpatialCapturePointCloud(manifest)
+          .then(promoteLoad)
+          .catch(fullError => {
+            if (cancelled) return
+            const nextState: LoadState = { status: 'error', message: fullError instanceof Error ? fullError.message : String(fullError || error) }
+            setState(nextState)
+            onLoadStateChange?.(nextState)
+          })
       })
     return () => {
       cancelled = true
@@ -471,7 +345,7 @@ export function SpatialCaptureManifestStage({
   const geometry = React.useMemo(() => {
     if (state.status !== 'ready' || !fit) return null
     return state.load.pointCloud.kind === 'gaussian-splat'
-      ? buildGaussianSplatGeometry(state.load, fit)
+      ? buildGaussianSplatGeometry(state.load)
       : buildPointCloudGeometry(state.load)
   }, [fit, state])
   React.useEffect(() => () => geometry?.dispose(), [geometry])
@@ -485,29 +359,53 @@ export function SpatialCaptureManifestStage({
       || !state.load.pointCloud.splatRotations
     ) return null
     return buildGaussianSplatMaterial({
-      paused,
+      paused: false,
       viewportHeight: size.height,
       viewportWidth: size.width,
     })
-  }, [paused, size.height, size.width, state])
+  }, [state])
+  React.useEffect(() => {
+    if (!gaussianSplatMaterial) return
+    gaussianSplatMaterial.uniforms.opacityScale.value = paused ? 0.42 : 1.0
+    gaussianSplatMaterial.uniforms.viewportSize.value.set(Math.max(1, size.width), Math.max(1, size.height))
+  }, [gaussianSplatMaterial, paused, size.height, size.width])
   React.useEffect(() => () => gaussianSplatMaterial?.dispose(), [gaussianSplatMaterial])
   useFrame(({ clock }) => {
     if (
       state.status !== 'ready'
-      || state.load.pointCloud.kind !== 'gaussian-splat'
+      || !geometry
+    ) return
+    const elapsedMs = clock.elapsedTime * 1000
+    const sortState = sortStateRef.current
+    if (!paused && elapsedMs - sortState.lastProgressiveMs >= SPATIAL_CAPTURE_PROGRESSIVE_INTERVAL_MS) {
+      advanceSpatialCaptureProgressiveCount(geometry, state.load)
+      sortState.lastProgressiveMs = elapsedMs
+    }
+    if (
+      state.load.pointCloud.kind !== 'gaussian-splat'
+      || paused
       || !(geometry instanceof THREE.InstancedBufferGeometry)
+      || readSpatialCaptureGeometryCount(geometry, state.load) < state.load.pointCloud.pointCount
     ) return
     const nextDirection = resolveCameraSortDirection(camera)
-    const sortState = sortStateRef.current
-    const elapsedMs = clock.elapsedTime * 1000
     if (
       dotSortDirection(sortState.direction, nextDirection) >= SPATIAL_CAPTURE_SORT_DIRECTION_DOT_MIN
       || elapsedMs - sortState.lastSortMs < SPATIAL_CAPTURE_SORT_INTERVAL_MS
     ) return
-    updateGaussianSplatGeometrySort(geometry, state.load, nextDirection)
+    const pendingDirection = sortState.pendingDirection
+    if (!pendingDirection || dotSortDirection(pendingDirection, nextDirection) < SPATIAL_CAPTURE_SORT_DIRECTION_DOT_MIN) {
+      sortState.pendingDirection = nextDirection
+      sortState.pendingSinceMs = elapsedMs
+      return
+    }
+    if (elapsedMs - sortState.pendingSinceMs < SPATIAL_CAPTURE_SORT_SETTLE_MS) return
+    updateGaussianSplatGeometrySort(geometry, state.load, pendingDirection)
     sortStateRef.current = {
-      direction: nextDirection,
+      direction: pendingDirection,
+      lastProgressiveMs: sortState.lastProgressiveMs,
       lastSortMs: elapsedMs,
+      pendingDirection: null,
+      pendingSinceMs: 0,
     }
   })
   const pointCloudMaterial = React.useMemo(() => {

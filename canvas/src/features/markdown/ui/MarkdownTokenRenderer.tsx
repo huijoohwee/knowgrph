@@ -72,6 +72,7 @@ export type MarkdownTokenRendererProps = {
   markdownLargeDocumentMode?: boolean
   markdownCardPreviewMode?: boolean
   markdownViewerMediaMode?: MarkdownViewerMediaMode
+  markdownVariablePreviewByKey?: RenderOpts['markdownVariablePreviewByKey']
 }
 
 export const MARKDOWN_IMAGE_GRID_BASE_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-3 items-start'
@@ -141,6 +142,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownLargeDocumentMode,
     markdownCardPreviewMode,
     markdownViewerMediaMode = 'chip',
+    markdownVariablePreviewByKey,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
@@ -193,6 +195,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownBlockGutterEnabled: blockChromeEnabled,
       markdownCardPreviewMode: cardPreviewMode,
       markdownViewerMediaMode,
+      markdownVariablePreviewByKey,
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
       standaloneMediaRenderLineSet,
@@ -222,6 +225,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       deferMermaidRender,
       markdownLargeDocumentMode,
       markdownViewerMediaMode,
+      markdownVariablePreviewByKey,
       mermaidFrontmatterConfig,
       onInsertLineAfter,
       onMoveHeadingSection,

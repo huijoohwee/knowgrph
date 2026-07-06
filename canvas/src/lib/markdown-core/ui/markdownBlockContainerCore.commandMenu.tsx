@@ -1,6 +1,8 @@
 import React from 'react'
-import { FileAudio, Image, Search, Video } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
+import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
+import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -11,7 +13,7 @@ export type MarkdownInlineCommandMenuItem = {
   description?: string
   keywords?: string[]
   thumbnailUrl?: string
-  thumbnailKind?: 'image' | 'audio' | 'video'
+  thumbnailKind?: InlineMediaKind
   disabled?: boolean
   danger?: boolean
   onSelect: () => void
@@ -58,6 +60,7 @@ export const MarkdownBlockContainerCommandMenu = (props: {
   itemDangerClassName: string
   itemDisabledClassName: string
   emptyLabel: string
+  selectOnPointerDown?: boolean
 }) => {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const mouseDownSelectedItemIdRef = React.useRef('')
@@ -167,50 +170,25 @@ export const MarkdownBlockContainerCommandMenu = (props: {
                   disabled={item.disabled}
                   role="option"
                   aria-selected={selected}
+                  data-kg-inline-command-menu-item="1"
+                  data-kg-inline-command-item-id={item.id}
+                  data-kg-inline-command-item-group={item.group}
+                  data-kg-inline-command-media-kind={item.thumbnailKind || undefined}
                   onMouseEnter={() => {
                     const nextIndex = selectableItems.findIndex(row => row.id === item.id)
                     if (nextIndex >= 0) setActiveIndex(nextIndex)
                   }}
-                  onPointerDownCapture={event => runItemFromPointerStart(event, item)}
-                  onPointerDown={event => runItemFromPointerStart(event, item)}
-                  onMouseDownCapture={event => runItemFromPointerStart(event, item)}
+                  onPointerDownCapture={props.selectOnPointerDown === false ? undefined : event => runItemFromPointerStart(event, item)}
+                  onPointerDown={props.selectOnPointerDown === false ? undefined : event => runItemFromPointerStart(event, item)}
+                  onMouseDownCapture={props.selectOnPointerDown === false ? undefined : event => runItemFromPointerStart(event, item)}
                   onMouseDown={event => {
                     preventDefaultMouseDown(event)
-                    runItemFromPointerStart(event, item)
+                    if (props.selectOnPointerDown !== false) runItemFromPointerStart(event, item)
                   }}
                   onClick={() => runItemFromClick(item)}
                 >
-                  {item.thumbnailUrl ? (
-                    <span
-                      className={`relative flex h-8 w-14 shrink-0 overflow-hidden rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.input.bg} p-[2px] shadow-sm`}
-                      aria-hidden="true"
-                      data-kg-inline-command-thumbnail={item.thumbnailKind || 'image'}
-                    >
-                      <img
-                        src={item.thumbnailUrl}
-                        alt=""
-                        className="h-full w-full rounded-full object-cover"
-                        loading="lazy"
-                        draggable={false}
-                      />
-                      {item.thumbnailKind === 'video' ? (
-                        <span className="absolute inset-0 grid place-items-center bg-black/15 text-white">
-                          <Video className="h-4 w-4 drop-shadow" strokeWidth={1.8} />
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : item.thumbnailKind ? (
-                    <span
-                      className={`grid h-8 w-14 shrink-0 place-items-center rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm`}
-                      aria-hidden="true"
-                      data-kg-inline-command-thumbnail={item.thumbnailKind}
-                    >
-                      {item.thumbnailKind === 'video'
-                        ? <Video className="h-4 w-4" strokeWidth={1.8} />
-                        : item.thumbnailKind === 'audio'
-                          ? <FileAudio className="h-4 w-4" strokeWidth={1.8} />
-                          : <Image className="h-4 w-4" strokeWidth={1.8} />}
-                    </span>
+                  {item.thumbnailUrl || item.thumbnailKind ? (
+                    <InlineMediaCommandThumbnail kind={item.thumbnailKind} thumbnailUrl={item.thumbnailUrl} />
                   ) : null}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{item.label}</span>
