@@ -191,6 +191,9 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     if (hierarchyCells.length < 3 || !hierarchyCells.every(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.paddingInlineStart === 'calc(2.25rem + 0.5rem)')) {
       throw new Error('expected rows-as-records hierarchy cells to carry Level-derived indentation')
     }
+    if (!hierarchyCells.every(cell => cell.className.includes('kg-data-view-tree-cell') && cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') === '1' && cell.style.getPropertyValue('--kg-data-view-tree-depth') === '2')) {
+      throw new Error('expected rows-as-records hierarchy cells to expose subtle tree guide metadata')
+    }
     const valueCells = Array.from(dom.window.document.querySelectorAll('tbody tr[data-kg-markdown-data-view-row-nested-depth="2"] td:nth-child(4)'))
       .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
     if (valueCells.length < 3 || valueCells.some(cell => cell.style.paddingInlineStart)) {
@@ -254,6 +257,10 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
       .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
     if (columnHierarchyCells.length < 4 || !columnHierarchyCells.some(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.paddingInlineStart === 'calc(2.25rem + 0.5rem)')) {
       throw new Error('expected columns-as-records hierarchy cells to carry Level-derived indentation')
+    }
+    const deepColumnHierarchyCell = columnHierarchyCells.find(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2') || null
+    if (!deepColumnHierarchyCell || !deepColumnHierarchyCell.className.includes('kg-data-view-tree-cell') || deepColumnHierarchyCell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') !== '1' || deepColumnHierarchyCell.style.getPropertyValue('--kg-data-view-tree-depth') !== '2') {
+      throw new Error('expected columns-as-records hierarchy cells to expose subtle tree guide metadata')
     }
     const columnValueRow = Array.from(dom.window.document.querySelectorAll('tbody tr'))
       .filter((row): row is HTMLElement => row instanceof dom.window.HTMLElement)

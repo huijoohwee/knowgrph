@@ -21,3 +21,28 @@
   background-color: var(--kg-data-view-table-sticky-header-bg);
   background-clip: padding-box;
 }
+
+.kg-data-view-tree-cell {
+  position: relative;
+}
+
+.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before,
+.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--kg-border) 72%, transparent);
+}
+
+.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before {
+  inset-block: 0;
+  inset-inline-start: calc((var(--kg-data-view-tree-depth, 1) * 1.125rem) - 0.35rem);
+  width: 1px;
+}
+
+.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::after {
+  block-size: 1px;
+  inline-size: 0.65rem;
+  inset-block-start: 50%;
+  inset-inline-start: calc((var(--kg-data-view-tree-depth, 1) * 1.125rem) - 0.35rem);
+}
