@@ -23,7 +23,7 @@ export function MarkdownDataViewHierarchyCell(props: {
       data-kg-markdown-data-view-row-hierarchy-cell={props.scope === 'row' ? '1' : undefined}
       data-kg-markdown-data-view-column-record-hierarchy-cell={props.scope === 'columnRecord' ? '1' : undefined}
       data-kg-markdown-data-view-row-hierarchy-line-depth={String(props.depth)}
-      data-kg-markdown-data-view-row-hierarchy-branch={props.depth > 0 ? '1' : undefined}
+      data-kg-markdown-data-view-row-hierarchy-branch={props.depth > 0 || props.childCount > 0 ? '1' : undefined}
       data-kg-markdown-data-view-row-hierarchy-parent={props.childCount > 0 ? '1' : undefined}
       style={style}
     >

@@ -31,7 +31,7 @@
   position: absolute;
   pointer-events: none;
   background-color: var(--kg-muted-foreground);
-  opacity: 0.32;
+  opacity: 0.56;
 }
 
 .kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before {
