@@ -26,23 +26,16 @@
   position: relative;
 }
 
-.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before,
-.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::after {
+.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before {
   content: "";
   position: absolute;
   pointer-events: none;
-  background-color: color-mix(in srgb, var(--kg-border) 72%, transparent);
+  background-color: var(--kg-muted-foreground);
+  opacity: 0.32;
 }
 
 .kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::before {
-  inset-block: 0;
-  inset-inline-start: calc((var(--kg-data-view-tree-depth, 1) * 1.125rem) - 0.35rem);
+  inset-block: 0.55rem;
+  inset-inline-start: calc((var(--kg-data-view-tree-depth, 1) * 1.125rem) + 0.875rem);
   width: 1px;
-}
-
-.kg-data-view-tree-cell[data-kg-markdown-data-view-row-hierarchy-branch="1"]::after {
-  block-size: 1px;
-  inline-size: 0.65rem;
-  inset-block-start: 50%;
-  inset-inline-start: calc((var(--kg-data-view-tree-depth, 1) * 1.125rem) - 0.35rem);
 }
