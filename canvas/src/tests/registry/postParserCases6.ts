@@ -11,6 +11,8 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.panel.markdownScrollSurfaceCanPanCanvas","@/__tests__/richMediaPanelMarkdownScrollSurfacePan.test","testRichMediaPanelMarkdownScrollSurfaceCanPanCanvasWhenForwarded"],
   ["ui.floatingPanelChat.apiKeyPrompt.byokOnly","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatApiKeyPromptIsByokOnly"],
   ["ui.floatingPanelChat.apiKey.modelIconAlignment","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterByokApiKeyToggleStaysAtModelIconAndAlignsInput"],
+  ["ui.floatingPanelChat.newChat.workspaceFile","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatNewChatCreatesAndFollowsCanonicalWorkspaceFile"],
+  ["ui.floatingPanelChat.durableResume.newChatIdle","@/__tests__/floatingPanelChatDurableResume.test","testFloatingPanelChatDurableResumeSettlesBeforeNewChat"],
   ["ui.floatingPanelChat.contextRail.quickActions","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatContextRailAndQuickActionsStayStateOwned"],
   ["ui.floatingPanelChat.workspaceContextCache.scopeAware","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatWorkspaceContextCacheKeyIsScopeAware"],
   ["ui.floatingPanelChat.pipeline.runtimeState","@/__tests__/floatingPanelChatPipeline.test","testFloatingPanelChatPipelineStagesDeriveFromRuntimeState"],

@@ -11,9 +11,9 @@ import {
   unmountReactRoot,
 } from '@/tests/lib/reactRootHarness'
 import {
-  CHAT_MIROMIND_BASE,
-  CHAT_MIROMIND_ENDPOINT_URL,
-  CHAT_PROVIDER_MIROMIND,
+  CHAT_OPENAI_BASE,
+  CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
 } from '@/lib/chatEndpoint'
 
@@ -30,7 +30,7 @@ const requireKtvValueCell = (container: Element, key: string): HTMLElement => {
   return valueCell
 }
 
-export async function testMainPanelMiroMindApiKeyUsesServerManagedPagesSecretContract() {
+export async function testMainPanelOpenAiApiKeyUsesServerManagedProxyContract() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -47,7 +47,7 @@ export async function testMainPanelMiroMindApiKeyUsesServerManagedPagesSecretCon
     dom.window.document.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await mountReactRoot(root, React.createElement(IntegrationsHubView, {
-      searchQuery: 'MIROMIND_API_KEY',
+      searchQuery: 'OPENAI_API_KEY',
     }), {
       window: dom.window as unknown as Window,
       frames: 6,
@@ -55,35 +55,41 @@ export async function testMainPanelMiroMindApiKeyUsesServerManagedPagesSecretCon
     })
 
     const text = container.textContent || ''
-    ;['MiroMind API', 'miromindApi.api_key'].forEach(token => {
+    ;['OpenAI Chat API', 'openaiApi.auth_mode', 'openaiApi.api_key'].forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected MiroMind API key search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected OpenAI server-managed key search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
 
-    const apiKeyValueCell = requireKtvValueCell(container, 'miromindApi.api_key')
+    const authValueCell = requireKtvValueCell(container, 'openaiApi.auth_mode')
+    const authSelect = authValueCell.querySelector('select') as HTMLSelectElement | null
+    if (!authSelect || authSelect.value !== 'serverManaged') {
+      throw new Error(`expected openaiApi.auth_mode to default to serverManaged, got ${JSON.stringify(authValueCell.textContent || '')}`)
+    }
+
+    const apiKeyValueCell = requireKtvValueCell(container, 'openaiApi.api_key')
     const serverManagedInput = apiKeyValueCell.querySelector('input') as HTMLInputElement | null
     if (!serverManagedInput || serverManagedInput.type === 'password' || serverManagedInput.placeholder !== 'Server-managed Key') {
-      throw new Error(`expected miromindApi.api_key to render the server-managed placeholder by default, got ${JSON.stringify(apiKeyValueCell.textContent || '')}`)
+      throw new Error(`expected openaiApi.api_key to render the server-managed placeholder by default, got ${JSON.stringify(apiKeyValueCell.textContent || '')}`)
     }
     if (useGraphStore.getState().chatAuthMode !== 'serverManaged' || useGraphStore.getState().chatApiKey !== '') {
-      throw new Error(`expected MiroMind server-managed mode to keep the browser key empty, got ${JSON.stringify({
+      throw new Error(`expected OpenAI server-managed mode to keep the browser key empty, got ${JSON.stringify({
         chatAuthMode: useGraphStore.getState().chatAuthMode,
         hasKey: Boolean(useGraphStore.getState().chatApiKey),
       })}`)
     }
 
     const headers = buildChatProxyHeaders({
-      provider: CHAT_PROVIDER_MIROMIND,
-      endpointUrl: CHAT_MIROMIND_ENDPOINT_URL,
+      provider: CHAT_PROVIDER_OPENAI,
+      endpointUrl: CHAT_OPENAI_ENDPOINT_URL,
       apiKey: '',
-      clientRequestId: 'kg-miromind-mainpanel-server-managed',
+      clientRequestId: 'kg-openai-mainpanel-server-managed',
     })
-    if (headers['X-KG-Chat-Provider'] !== CHAT_PROVIDER_MIROMIND || headers['X-KG-Chat-Api-Key']) {
-      throw new Error(`expected server-managed MiroMind requests to omit browser API-key headers, got ${JSON.stringify(headers)}`)
+    if (headers['X-KG-Chat-Provider'] !== CHAT_PROVIDER_OPENAI || headers['X-KG-Chat-Api-Key']) {
+      throw new Error(`expected server-managed OpenAI requests to omit browser API-key headers, got ${JSON.stringify(headers)}`)
     }
-    if (headers['X-KG-Chat-Upstream'] !== CHAT_MIROMIND_BASE) {
-      throw new Error(`expected MiroMind upstream to route through the shared proxy owner, got ${JSON.stringify(headers)}`)
+    if (headers['X-KG-Chat-Upstream'] !== CHAT_OPENAI_BASE) {
+      throw new Error(`expected OpenAI upstream to route through the shared proxy owner, got ${JSON.stringify(headers)}`)
     }
   } finally {
     if (root) {

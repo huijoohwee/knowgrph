@@ -46,8 +46,14 @@ export const useResumeDurableChatStream = (args: {
   streamDraftTextRef: React.MutableRefObject<{ path: string; text: string } | null>
 }): void => {
   const durableResumeRunRef = React.useRef<string | null>(null)
+  const argsRef = React.useRef(args)
 
   React.useEffect(() => {
+    argsRef.current = args
+  })
+
+  React.useEffect(() => {
+    const args = argsRef.current
     const activeRun = readActiveDurableChatStreamRun()
     if (!activeRun || durableResumeRunRef.current === activeRun.runId || args.isLoading) return
     if (activeRun.chatStorageTarget !== args.chatStorageTarget) return
@@ -193,5 +199,5 @@ export const useResumeDurableChatStream = (args: {
     return () => {
       cancelled = true
     }
-  }, [args])
+  }, [args.chatStorageTarget])
 }

@@ -511,6 +511,48 @@ export function testMiroMindServerManagedProxyEnvNamesStayAligned() {
   }
 }
 
+export function testOpenAiServerManagedProxyLoadsLocalEnvFiles() {
+  const viteConfigCandidates = [
+    resolve(process.cwd(), 'vite.config.ts'),
+    resolve(process.cwd(), 'canvas/vite.config.ts'),
+  ]
+  const viteConfigPath = viteConfigCandidates.find(candidate => existsSync(candidate))
+  if (!viteConfigPath) {
+    throw new Error(`could not find vite.config.ts from ${process.cwd()}`)
+  }
+  const source = readFileSync(viteConfigPath, 'utf8')
+  const helperCandidates = [
+    resolve(process.cwd(), 'viteChatProxyEnv.ts'),
+    resolve(process.cwd(), 'canvas/viteChatProxyEnv.ts'),
+  ]
+  const helperPath = helperCandidates.find(candidate => existsSync(candidate))
+  if (!helperPath) {
+    throw new Error(`could not find viteChatProxyEnv.ts from ${process.cwd()}`)
+  }
+  const helperSource = readFileSync(helperPath, 'utf8')
+  const expectedViteSnippets = [
+    "import { loadChatProxyServerManagedEnv } from './viteChatProxyEnv'",
+    'loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname })',
+    'process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY',
+  ]
+  const missingViteSnippets = expectedViteSnippets.filter(snippet => !source.includes(snippet))
+  if (missingViteSnippets.length) {
+    throw new Error(`expected Dev chat proxy to load OpenAI server-managed env before routing, missing ${JSON.stringify(missingViteSnippets)}`)
+  }
+  const expectedHelperSnippets = [
+    'CHAT_PROXY_SERVER_ENV_KEYS',
+    "'KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY'",
+    "'OPENAI_API_KEY'",
+    "path.resolve(args.repoRoot, '.env.local')",
+    "path.resolve(args.canvasRoot, '.env.local')",
+    'if (String(process.env[key] ||',
+  ]
+  const missingHelperSnippets = expectedHelperSnippets.filter(snippet => !helperSource.includes(snippet))
+  if (missingHelperSnippets.length) {
+    throw new Error(`expected server-managed chat proxy env helper to whitelist local OpenAI env files, missing ${JSON.stringify(missingHelperSnippets)}`)
+  }
+}
+
 export function testChatProxyErrorResponsesGuardHeadersSent() {
   const candidates = [
     resolve(process.cwd(), 'vite.config.ts'),
