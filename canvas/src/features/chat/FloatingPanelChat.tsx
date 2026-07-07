@@ -918,7 +918,7 @@ export default function FloatingPanelChat() {
               : null
           }
           onOpenWorkspacePath={openWorkspaceMarkdownPath}
-          setMessages={setMessages}
+          quickActions={messages.length === 0 ? chatQuickActions : []} onQuickAction={appendChatPrompt} setMessages={setMessages}
         />
       </section>
 
@@ -945,7 +945,7 @@ export default function FloatingPanelChat() {
         showNewChatButton={chatStorageTarget === 'chatKnowgrph'}
         isNewChatDisabled={isLoading}
         onNewChat={handleNewChat}
-        quickActions={chatQuickActions}
+        quickActions={messages.length === 0 ? [] : chatQuickActions}
         onQuickAction={appendChatPrompt}
         markdownText={markdownText}
       />

@@ -37,8 +37,9 @@ export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
 
     const status = container.querySelector('[data-kg-chat-stream-status="top"]') as HTMLElement | null
     if (!status) throw new Error('expected streaming reasoning status to render inside the chat messages section')
-    if (status !== container.firstElementChild) {
-      throw new Error('expected streaming status to be the first chat message-section element')
+    const viewport = container.querySelector('[data-kg-chat-thread-viewport="true"]') as HTMLElement | null
+    if (!viewport || status !== viewport.firstElementChild) {
+      throw new Error('expected streaming status to be the first chat viewport element')
     }
     if (status.getAttribute('role') !== 'status' || status.getAttribute('aria-live') !== 'polite') {
       throw new Error('expected streaming status to expose a polite live region')

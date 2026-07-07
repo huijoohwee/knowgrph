@@ -10,8 +10,8 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
-import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
+import { FloatingPanelChatQuickActionGrid } from '@/features/chat/floatingPanelChat/FloatingPanelChatQuickActionGrid'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -213,6 +213,8 @@ type MessagesSectionProps = {
   streamingFinishReason?: string | null
   writingWorkspaceFileLabel?: string | null
   onOpenWorkspacePath?: (path: string) => void
+  quickActions?: FloatingPanelChatQuickAction[]
+  onQuickAction?: (prompt: string) => void
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 }
 
@@ -231,6 +233,8 @@ export function FloatingPanelChatMessagesSection({
   streamingFinishReason,
   writingWorkspaceFileLabel,
   onOpenWorkspacePath,
+  quickActions = [],
+  onQuickAction,
   setMessages,
 }: MessagesSectionProps) {
   const liveStreamingReasoningPreview = isLoading ? streamingReasoningPreview : null
@@ -239,7 +243,7 @@ export function FloatingPanelChatMessagesSection({
   const liveWritingWorkspaceFileLabel = isLoading ? writingWorkspaceFileLabel : null
 
   return (
-    <>
+    <section data-kg-chat-thread-viewport="true" className="flex min-h-full flex-col gap-2">
       <FloatingPanelChatStreamingStatus
         reasoningPreview={liveStreamingReasoningPreview}
         usageSummary={liveStreamingUsageSummary}
@@ -337,9 +341,17 @@ export function FloatingPanelChatMessagesSection({
       {messages.length === 0 && (
         <section
           data-kg-chat-empty-state="true"
-          className={['rounded border border-dashed px-2 py-2', uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
+          className={['flex min-h-[12rem] flex-1 flex-col justify-between gap-2 rounded border border-dashed px-2 py-2', uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
         >
-          {UI_COPY.chatEmptyStateHelp}
+          <section>{UI_COPY.chatEmptyStateHelp}</section>
+          <FloatingPanelChatQuickActionGrid
+            quickActions={quickActions}
+            isLoading={isLoading}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+            placement="thread"
+            onQuickAction={onQuickAction}
+          />
         </section>
       )}
 
@@ -356,7 +368,7 @@ export function FloatingPanelChatMessagesSection({
           />
         )
       })}
-    </>
+    </section>
   )
 }
 
@@ -492,24 +504,14 @@ export function FloatingPanelChatFooter({
         disabled={isLoading}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       />
-      {quickActions.length > 0 ? (
-        <section aria-label="Chat prompt actions" data-kg-chat-quick-actions="true" className="grid grid-cols-2 gap-1 auto-rows-[2rem]">
-          {quickActions.map(action => (
-            <button
-              key={action.id}
-              type="button"
-              data-kg-chat-quick-action="true"
-              data-kg-chat-quick-action-id={action.id}
-              className={getUiSectionActionClassName('secondary', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'min-w-0 justify-center truncate px-2 disabled:opacity-50'].join(' '))}
-              disabled={isLoading || action.disabled}
-              onClick={() => onQuickAction?.(action.prompt)}
-              title={action.label}
-            >
-              {action.label}
-            </button>
-          ))}
-        </section>
-      ) : null}
+      <FloatingPanelChatQuickActionGrid
+        quickActions={quickActions}
+        isLoading={isLoading}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+        placement="footer"
+        onQuickAction={onQuickAction}
+      />
       <form onSubmit={onSubmit} className="space-y-2">
         <FloatingPanelChatComposer
           input={input}

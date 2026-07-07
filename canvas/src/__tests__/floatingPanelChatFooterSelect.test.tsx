@@ -274,6 +274,17 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
           uiPanelTextFontClass="text-sm"
           uiPanelKeyValueTextSizeClass="text-xs"
           uiPanelMicroLabelTextSizeClass="text-xs"
+          quickActions={[
+            {
+              id: 'trace-pipeline',
+              label: 'Trace pipeline',
+              prompt: 'Trace the current document from ingestion to parsing to canvas rendering.',
+            },
+          ]}
+          onQuickAction={prompt => {
+            quickActionPrompts.push(prompt)
+            setInput(prompt)
+          }}
           setMessages={() => undefined}
         />
         <FloatingPanelChatFooter
@@ -292,17 +303,6 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
           isSubmitDisabled={!input.trim()}
           onSubmit={event => event.preventDefault()}
           onStop={() => undefined}
-          quickActions={[
-            {
-              id: 'trace-pipeline',
-              label: 'Trace pipeline',
-              prompt: 'Trace the current document from ingestion to parsing to canvas rendering.',
-            },
-          ]}
-          onQuickAction={prompt => {
-            quickActionPrompts.push(prompt)
-            setInput(prompt)
-          }}
         />
       </React.Fragment>
     )
@@ -340,7 +340,7 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
       throw new Error('expected workspace context chip value to truncate instead of overflowing the floating panel')
     }
     const emptyState = container.querySelector('[data-kg-chat-empty-state="true"]') as HTMLElement | null
-    if (!emptyState || !emptyState.className.includes('border-dashed')) {
+    if (!emptyState || !emptyState.className.includes('border-dashed') || !emptyState.className.includes('flex-1')) {
       throw new Error(`expected empty chat guidance to render as a compact thread state, got ${emptyState?.className || 'missing'}`)
     }
     const footer = container.querySelector('[data-kg-chat-footer="compact"]') as HTMLElement | null
@@ -352,8 +352,11 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
     if (!actionGroup || !actionGroup.className.includes('grid-cols-2') || !actionGroup.className.includes('auto-rows-[2rem]')) {
       throw new Error(`expected quick actions to use a compact two-column grid, got ${actionGroup?.className || 'missing actions'}`)
     }
+    if (actionGroup.getAttribute('data-kg-chat-quick-actions-placement') !== 'thread') {
+      throw new Error(`expected empty-thread quick actions to live in the chat viewport, got ${actionGroup.getAttribute('data-kg-chat-quick-actions-placement')}`)
+    }
     const action = container.querySelector('[data-kg-chat-quick-action-id="trace-pipeline"]') as HTMLButtonElement | null
-    if (!action) throw new Error('expected FloatingPanel chat footer to render quick prompt actions')
+    if (!action) throw new Error('expected FloatingPanel chat viewport to render quick prompt actions')
     await act(async () => {
       action.click()
       await waitForFrames(dom.window as unknown as Window, 1)
