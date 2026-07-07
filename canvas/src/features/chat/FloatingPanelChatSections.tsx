@@ -249,7 +249,7 @@ export function FloatingPanelChatMessagesSection({
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       />
 
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between rounded border px-2 py-1.5">
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
         </section>
@@ -277,7 +277,7 @@ export function FloatingPanelChatMessagesSection({
           aria-label="Chat context"
           data-kg-chat-context-rail="true"
           className={[
-            'rounded border px-2 py-1.5',
+            'rounded border px-2 py-1',
             UI_THEME_TOKENS.panel.border,
             UI_THEME_TOKENS.panel.bg,
           ].join(' ')}
@@ -335,7 +335,10 @@ export function FloatingPanelChatMessagesSection({
       ) : null}
 
       {messages.length === 0 && (
-        <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        <section
+          data-kg-chat-empty-state="true"
+          className={['rounded border border-dashed px-2 py-2', uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}
+        >
           {UI_COPY.chatEmptyStateHelp}
         </section>
       )}
@@ -423,7 +426,7 @@ export function FloatingPanelChatFooter({
   markdownText,
 }: FooterProps) {
   return (
-    <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
+    <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-2 space-y-1.5`} data-kg-chat-footer="compact">
       {errorText && (
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'text-red-700 dark:text-red-400'].join(' ')}>
           {errorText}
@@ -490,14 +493,14 @@ export function FloatingPanelChatFooter({
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
       />
       {quickActions.length > 0 ? (
-        <section aria-label="Chat prompt actions" data-kg-chat-quick-actions="true" className="grid grid-cols-2 gap-1.5">
+        <section aria-label="Chat prompt actions" data-kg-chat-quick-actions="true" className="grid grid-cols-2 gap-1 auto-rows-[2rem]">
           {quickActions.map(action => (
             <button
               key={action.id}
               type="button"
               data-kg-chat-quick-action="true"
               data-kg-chat-quick-action-id={action.id}
-              className={getUiSectionActionClassName('secondary', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'min-w-0 justify-center truncate disabled:opacity-50'].join(' '))}
+              className={getUiSectionActionClassName('secondary', [uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, 'min-w-0 justify-center truncate px-2 disabled:opacity-50'].join(' '))}
               disabled={isLoading || action.disabled}
               onClick={() => onQuickAction?.(action.prompt)}
               title={action.label}

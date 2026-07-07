@@ -10,7 +10,7 @@ export function MarkdownDataViewNestedRowToggle(props: {
       type="button"
       aria-label={props.collapsed ? 'Expand nested rows' : 'Collapse nested rows'}
       aria-expanded={!props.collapsed}
-      className="inline-flex align-middle text-[color:var(--kg-muted-foreground)] hover:text-[color:var(--kg-text-primary)]"
+      className="inline-flex align-middle"
       data-kg-markdown-data-view-row-nested-toggle="1"
       onClick={event => {
         event.preventDefault()

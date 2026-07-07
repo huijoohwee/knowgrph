@@ -1,5 +1,7 @@
 import React from 'react'
 import { Simulate } from 'react-dom/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownDataViewTableView } from '@/features/markdown/ui/MarkdownDataViewTableView'
 import type { MarkdownDataView } from '@/features/markdown/ui/markdownDataViewModel'
@@ -160,6 +162,7 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
         { id: 'f1', cells: ['L2', 'mermaid_gantt', '| Field | Value |', '| Field | Value |', '20', '4'] },
         { id: 'f2', cells: ['L2', 'mermaid_gantt', '| --- | --- |', '| --- | --- |', '21', '4'] },
         { id: 'f3', cells: ['L2', 'mermaid_gantt', '| output | storyboard |', '| output | storyboard |', '22', '4'] },
+        { id: 'f4', cells: ['L1', 'scalar', 'md:demo-root-leaf', 'graphId: "md:demo-root-leaf"', '23', '2'] },
       ],
       titleColumnId: 'content',
       groupByColumnId: null,
@@ -188,11 +191,17 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     }
     const hierarchyCells = Array.from(dom.window.document.querySelectorAll('tbody tr[data-kg-markdown-data-view-row-nested-depth="2"] td[data-kg-markdown-data-view-row-hierarchy-cell="1"]'))
       .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
-    if (hierarchyCells.length < 3 || !hierarchyCells.every(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.paddingInlineStart === 'calc(2.25rem + 0.5rem)')) {
-      throw new Error('expected rows-as-records hierarchy cells to carry Level-derived indentation')
+    if (hierarchyCells.length < 3 || !hierarchyCells.every(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.getPropertyValue('--kg-data-view-tree-depth') === '2' && !cell.style.paddingInlineStart)) {
+      throw new Error('expected rows-as-records hierarchy cells to expose bounded Level-derived depth metadata without padding into text columns')
     }
-    if (!hierarchyCells.every(cell => cell.className.includes('kg-data-view-tree-cell') && cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') === '1' && cell.style.getPropertyValue('--kg-data-view-tree-depth') === '2')) {
+    if (!hierarchyCells.every(cell => cell.className.includes('kg-data-view-tree-cell') && cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') === '1' && cell.style.getPropertyValue('--kg-data-view-tree-depth') === '2' && cell.querySelector('.kg-data-view-tree-cell-guide'))) {
       throw new Error('expected rows-as-records hierarchy cells to expose subtle tree guide metadata')
+    }
+    const rootLeafHierarchyCell = Array.from(dom.window.document.querySelectorAll('tbody td[data-kg-markdown-data-view-row-hierarchy-line-depth="1"][data-kg-markdown-data-view-row-hierarchy-branch="1"]'))
+      .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
+      .find(cell => String(cell.parentElement?.textContent || '').includes('graphId: "md:demo-root-leaf"')) || null
+    if (!rootLeafHierarchyCell?.querySelector('.kg-data-view-tree-cell-guide')) {
+      throw new Error('expected root leaf rows to expose the body tree guide')
     }
     const valueCells = Array.from(dom.window.document.querySelectorAll('tbody tr[data-kg-markdown-data-view-row-nested-depth="2"] td:nth-child(4)'))
       .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
@@ -202,6 +211,13 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     const nestedToggle = dom.window.document.querySelector('[data-kg-markdown-data-view-row-nested-toggle="1"]') as HTMLButtonElement | null
     if (!nestedToggle || nestedToggle.getAttribute('aria-expanded') !== 'true') {
       throw new Error('expected rows-as-records nested parent row to expose a default-expanded toggle')
+    }
+    if (nestedToggle.closest('.kg-data-view-tree-cell')?.querySelector('.kg-data-view-tree-cell-guide')) {
+      throw new Error('expected rows-as-records parent toggle cell to keep the tree guide off the chevron row')
+    }
+    const treeGuideCss = readFileSync(resolve(process.cwd(), 'src/styles/markdown-data-view-table.css'), 'utf8')
+    if (!treeGuideCss.includes('--kg-data-view-tree-chevron-size: var(--kg-compact-glyph-size, 0.75rem);') || !treeGuideCss.includes('--kg-data-view-tree-chevron-stroke-width: 1.5px;') || !treeGuideCss.includes('--kg-data-view-tree-guide-width: var(--kg-data-view-tree-chevron-stroke-width);') || !treeGuideCss.includes('--kg-data-view-tree-guide-color: var(--kg-muted-foreground, var(--kg-text-secondary, #4b5563));') || !treeGuideCss.includes('--kg-data-view-tree-parent-depth-offset: max(calc((var(--kg-data-view-tree-depth, 0) - 1) * var(--kg-data-view-tree-depth-step)), 0rem);') || !treeGuideCss.includes('--kg-data-view-tree-parent-chevron-center: calc(var(--kg-data-view-tree-cell-padding-inline) + var(--kg-data-view-tree-parent-control-start) + var(--kg-data-view-tree-control-icon-center));') || !treeGuideCss.includes('--kg-data-view-tree-guide-inset: calc(var(--kg-data-view-tree-parent-chevron-center) - (var(--kg-data-view-tree-guide-width) / 2));') || !treeGuideCss.includes('.kg-data-view-tree-control svg {\n  stroke-width: var(--kg-data-view-tree-chevron-stroke-width);') || !treeGuideCss.includes('.kg-data-view-tree-control:hover') || !treeGuideCss.includes('width: var(--kg-data-view-tree-guide-width);') || !treeGuideCss.includes('color: var(--kg-data-view-tree-guide-color, currentColor);') || !treeGuideCss.includes('background: currentColor;')) {
+      throw new Error('expected body tree guide CSS to align with the parent chevron rail inside the hierarchy column')
     }
     Simulate.click(nestedToggle)
     await tick()
@@ -221,6 +237,9 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     const rowBulkToggle = dom.window.document.querySelector('thead [data-kg-markdown-data-view-row-nested-bulk-toggle="1"]') as HTMLButtonElement | null
     if (!rowBulkToggle || rowBulkToggle.getAttribute('aria-label') !== 'Collapse all nested rows') {
       throw new Error('expected rows-as-records hierarchy header to expose collapse-all control')
+    }
+    if (rowBulkToggle.querySelector('.kg-data-view-tree-guide')) {
+      throw new Error('expected rows-as-records collapse-all control to sit on the rail without rendering a header guide')
     }
     Simulate.click(rowBulkToggle)
     await tick()
@@ -255,11 +274,11 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     }
     const columnHierarchyCells = Array.from(columnHierarchyRow.querySelectorAll('td[data-kg-markdown-data-view-column-record-hierarchy-cell="1"]'))
       .filter((cell): cell is HTMLElement => cell instanceof dom.window.HTMLElement)
-    if (columnHierarchyCells.length < 4 || !columnHierarchyCells.some(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.paddingInlineStart === 'calc(2.25rem + 0.5rem)')) {
-      throw new Error('expected columns-as-records hierarchy cells to carry Level-derived indentation')
+    if (columnHierarchyCells.length < 4 || !columnHierarchyCells.some(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2' && cell.style.getPropertyValue('--kg-data-view-tree-depth') === '2' && !cell.style.paddingInlineStart)) {
+      throw new Error('expected columns-as-records hierarchy cells to expose bounded Level-derived depth metadata without padding into text columns')
     }
     const deepColumnHierarchyCell = columnHierarchyCells.find(cell => cell.getAttribute('data-kg-markdown-data-view-row-hierarchy-line-depth') === '2') || null
-    if (!deepColumnHierarchyCell || !deepColumnHierarchyCell.className.includes('kg-data-view-tree-cell') || deepColumnHierarchyCell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') !== '1' || deepColumnHierarchyCell.style.getPropertyValue('--kg-data-view-tree-depth') !== '2') {
+    if (!deepColumnHierarchyCell || !deepColumnHierarchyCell.className.includes('kg-data-view-tree-cell') || deepColumnHierarchyCell.getAttribute('data-kg-markdown-data-view-row-hierarchy-branch') !== '1' || deepColumnHierarchyCell.style.getPropertyValue('--kg-data-view-tree-depth') !== '2' || !deepColumnHierarchyCell.querySelector('.kg-data-view-tree-cell-guide')) {
       throw new Error('expected columns-as-records hierarchy cells to expose subtle tree guide metadata')
     }
     const columnValueRow = Array.from(dom.window.document.querySelectorAll('tbody tr'))
@@ -294,6 +313,9 @@ export async function testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndC
     const columnBulkToggle = columnHierarchyRow.querySelector('[data-kg-markdown-data-view-row-nested-bulk-toggle="1"]') as HTMLButtonElement | null
     if (!columnBulkToggle || columnBulkToggle.getAttribute('aria-label') !== 'Collapse all nested rows') {
       throw new Error('expected columns-as-records hierarchy row to expose collapse-all control')
+    }
+    if (columnBulkToggle.querySelector('.kg-data-view-tree-guide')) {
+      throw new Error('expected columns-as-records collapse-all control to sit on the rail without rendering a header guide')
     }
     Simulate.click(columnBulkToggle)
     await tick()

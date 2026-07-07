@@ -339,9 +339,17 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
     if (!workspaceValue || !workspaceValue.className.includes('truncate')) {
       throw new Error('expected workspace context chip value to truncate instead of overflowing the floating panel')
     }
+    const emptyState = container.querySelector('[data-kg-chat-empty-state="true"]') as HTMLElement | null
+    if (!emptyState || !emptyState.className.includes('border-dashed')) {
+      throw new Error(`expected empty chat guidance to render as a compact thread state, got ${emptyState?.className || 'missing'}`)
+    }
+    const footer = container.querySelector('[data-kg-chat-footer="compact"]') as HTMLElement | null
+    if (!footer || !footer.className.includes('p-2')) {
+      throw new Error(`expected FloatingPanel chat footer to use the compact control density, got ${footer?.className || 'missing'}`)
+    }
 
     const actionGroup = container.querySelector('[data-kg-chat-quick-actions="true"]') as HTMLElement | null
-    if (!actionGroup || !actionGroup.className.includes('grid-cols-2')) {
+    if (!actionGroup || !actionGroup.className.includes('grid-cols-2') || !actionGroup.className.includes('auto-rows-[2rem]')) {
       throw new Error(`expected quick actions to use a compact two-column grid, got ${actionGroup?.className || 'missing actions'}`)
     }
     const action = container.querySelector('[data-kg-chat-quick-action-id="trace-pipeline"]') as HTMLButtonElement | null

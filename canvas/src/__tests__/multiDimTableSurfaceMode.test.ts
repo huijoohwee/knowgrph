@@ -224,7 +224,7 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
   if (!table.includes('## Markdown YAML Frontmatter') || table.includes('## Storyboard Cards')) {
     throw new Error(`expected structured source metadata table to expose only Markdown YAML Frontmatter and Markdown Body tables, got:\n${table}`)
   }
-  if (!table.includes('## Markdown Body') || !table.includes('| # Runnable Demo | 21 | 0 |') || !table.includes('| Body content stays source-owned. | 23 | 0 |')) {
+  if (!table.includes('## Markdown Body') || !table.includes('| # Runnable Demo | 21 | 0 | L0 |') || !table.includes('| Body content stays source-owned. | 23 | 0 | L1 |')) {
     throw new Error(`expected structured source metadata table to preserve Markdown body lines, got:\n${table}`)
   }
   if (!table.includes('| \\| Stage \\| Owner \\| | 27 | 0 |') || !table.includes('| \\| Render \\| Multi-dimensional Table \\| | 29 | 0 |')) {

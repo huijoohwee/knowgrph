@@ -62,5 +62,5 @@ export const readMarkdownDataViewRowsAsRecordsHierarchyStyle = (args: {
   depth: number
 }): React.CSSProperties | undefined => {
   const depth = Math.min(MAX_MARKDOWN_DATA_VIEW_ROW_DEPTH, Math.max(0, args.depth))
-  return depth > 0 ? { paddingInlineStart: `calc(${depth * 1.125}rem + 0.5rem)` } : undefined
+  return { '--kg-data-view-tree-depth': String(depth) } as React.CSSProperties
 }

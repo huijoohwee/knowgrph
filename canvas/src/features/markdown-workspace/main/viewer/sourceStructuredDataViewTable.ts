@@ -26,7 +26,7 @@ export type StructuredSourceDataViewProjection = {
   replacements: StructuredSourceTableReplacement[]
 }
 
-const SOURCE_LINE_TABLE_COLUMNS = ['Content', 'Line', 'Indent'] as const
+const SOURCE_LINE_TABLE_COLUMNS = ['Content', 'Line', 'Indent', 'Level'] as const
 
 const extractLeadingStructuredSourceParts = (text: string): { metadataText: string; bodyText: string; metadataStartLine: number; metadataEndLine: number; bodyStartLine: number } => {
   const normalized = String(text || '').replace(/\r\n/g, '\n')
@@ -98,17 +98,39 @@ const readLineIndent = (line: string): number => {
 
 const stripLineIndent = (line: string): string => String(line || '').replace(/^ +/, '')
 
+const readMarkdownBodyLineLevel = (args: {
+  line: string
+  currentHeadingDepth: number
+}): { depth: number; nextHeadingDepth: number } => {
+  const raw = String(args.line || '')
+  const trimmed = raw.trim()
+  const headingMatch = /^(#{1,6})\s+/.exec(trimmed)
+  if (headingMatch) {
+    const depth = Math.max(0, Math.min(5, headingMatch[1]!.length - 1))
+    return { depth, nextHeadingDepth: depth }
+  }
+  const indentDepth = Math.min(8, Math.floor(readLineIndent(raw) / 2))
+  const headingChildDepth = args.currentHeadingDepth >= 0 ? args.currentHeadingDepth + 1 : 0
+  return { depth: Math.max(indentDepth, headingChildDepth), nextHeadingDepth: args.currentHeadingDepth }
+}
+
 const buildSourceLineTableMarkdown = (args: {
   heading: string
   text: string
   startLine: number
 }): { lines: string[]; sourceLineByRowIndex: number[] } => {
   const sourceLines = splitSourceLines(args.text)
-  const rows = sourceLines.map((line, index) => [
-    stripLineIndent(line),
-    String(args.startLine + index),
-    String(readLineIndent(line)),
-  ])
+  let currentHeadingDepth = -1
+  const rows = sourceLines.map((line, index) => {
+    const level = readMarkdownBodyLineLevel({ line, currentHeadingDepth })
+    currentHeadingDepth = level.nextHeadingDepth
+    return [
+      stripLineIndent(line),
+      String(args.startLine + index),
+      String(readLineIndent(line)),
+      `L${level.depth}`,
+    ]
+  })
   return {
     lines: buildSerializedTableMarkdownLines({ heading: args.heading, header: SOURCE_LINE_TABLE_COLUMNS, rows }),
     sourceLineByRowIndex: sourceLines.map((_, index) => args.startLine + index),

@@ -69,6 +69,7 @@ export function CardPreviewInlineMediaPill(props: {
         <InlineMediaCommandThumbnail
           kind={thumbnailKind}
           thumbnailUrl={props.thumbnailUrl}
+          thumbnailAlt={label}
           variant="inline"
         />
       ) : props.children}

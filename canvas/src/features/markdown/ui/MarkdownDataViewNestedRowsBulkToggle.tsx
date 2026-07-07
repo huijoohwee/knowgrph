@@ -11,7 +11,7 @@ export function MarkdownDataViewNestedRowsBulkToggle(props: {
       type="button"
       aria-label={props.collapsed ? 'Expand all nested rows' : 'Collapse all nested rows'}
       aria-pressed={props.collapsed}
-      className="inline-flex align-middle text-[color:var(--kg-muted-foreground)] hover:text-[color:var(--kg-text-primary)]"
+      className="kg-data-view-tree-control align-middle"
       data-kg-markdown-data-view-row-nested-bulk-toggle="1"
       onClick={event => {
         event.preventDefault()

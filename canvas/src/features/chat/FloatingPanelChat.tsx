@@ -898,7 +898,7 @@ export default function FloatingPanelChat() {
 
   return (
     <section className="h-full flex flex-col">
-      <section ref={scrollRef} className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
+      <section ref={scrollRef} className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-2 space-y-2`}>
         <FloatingPanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}

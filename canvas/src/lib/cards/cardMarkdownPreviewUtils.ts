@@ -5,6 +5,8 @@ export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
 export const CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME =
   'inline-flex items-center align-baseline gap-0.5 rounded-full border border-[color:var(--kg-border)] pl-1 pr-1.5 py-0 [font-size:inherit] [line-height:inherit] text-[color:var(--kg-text-secondary)]'
+export const CARD_MARKDOWN_PREVIEW_INLINE_TEXT_TOKEN_CHIP_CLASS_NAME =
+  'inline rounded-[0.35em] bg-[color:var(--kg-panel-action-bg)] text-[color:var(--kg-text-secondary)] shadow-[inset_0_0_0_1px_var(--kg-border)] box-decoration-clone [-webkit-box-decoration-break:clone] [font-size:inherit] [line-height:inherit]'
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME =
   'inline-block !h-3 !w-3 shrink-0 rounded-full object-cover'
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME =

@@ -8,6 +8,7 @@ export const INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR = 'data-kg-inline-command-thumb
 export function InlineMediaCommandThumbnail(props: {
   kind?: InlineMediaKind
   thumbnailUrl?: string
+  thumbnailAlt?: string
   variant?: 'menu' | 'inline'
 }) {
   const kind = props.kind || 'image'
@@ -21,7 +22,7 @@ export function InlineMediaCommandThumbnail(props: {
       <>
         <img
           src={props.thumbnailUrl}
-          alt=""
+          alt={props.thumbnailAlt || ''}
           className="h-full w-full rounded-full object-cover"
           loading="lazy"
           decoding="async"

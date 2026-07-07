@@ -168,7 +168,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["markdown.dataView.imageCellsRenderThumbnails","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableRendersMarkdownImageCellsAsThumbnails"],
   ["markdown.dataView.imageCellsRenderThumbnailsInColumns","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewColumnsOrientationRendersMarkdownImageCellsAsThumbnails"],
   ["markdown.dataView.nestedTableCells","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableRendersNestedMarkdownTablesInsideCells"],
-  ["markdown.dataView.richMediaCells","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableRendersInlineMediaCellsWithRichMediaPanel"],
+  ["markdown.dataView.richMediaCells","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableRendersInlineMediaCellsWithSharedChipToggle"],
   ["markdown.dataView.nestedTableMediaChipToggle","@/__tests__/markdownDataViewNestedRichMediaCell.test","testMarkdownDataViewNestedTableMediaCellsUseSharedInlineChipToggle"],
   ["markdown.dataView.sourceLineNestedTables","@/__tests__/markdownDataViewNestedRichMediaCell.test","testMarkdownDataViewSourceLineNestedTablesRenderInRowsAndColumns"],
   ["markdown.dataView.stickyHeaderOpaqueMask","@/__tests__/markdownDataViewStickyHeaderMask.test","testMarkdownDataViewStickyHeadersUseOpaqueMaskClass"],

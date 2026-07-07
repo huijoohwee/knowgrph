@@ -75,7 +75,7 @@ const safeLinkHref = (raw: string): string | null => {
 export const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
 export const MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT = 32
 export const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
-const MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX = 48
+const MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX = 64
 export const MARKDOWN_DATA_VIEW_FIELD_COLUMN_ID = '__field'
 
 export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
@@ -313,7 +313,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
         <thead className={`${MARKDOWN_DATA_VIEW_TABLE_STICKY_HEADER_CLASSNAME} sticky top-0 z-30 isolate ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
           <tr>
             {hasNestedRowHierarchy ? (
-              <th aria-label="Nested row hierarchy" className={`${headerPaddingClassName} relative z-[31] w-12 border-b ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`}>
+              <th aria-label="Nested row hierarchy" className={`${headerPaddingClassName} relative z-[31] w-16 border-b ${UI_THEME_TOKENS.table.cellBorder} ${UI_THEME_TOKENS.table.headerBg}`}>
                 <MarkdownDataViewNestedRowsBulkToggle collapsed={areAllNestedRowsCollapsed} onToggle={toggleAllNestedRows} />
               </th>
             ) : null}

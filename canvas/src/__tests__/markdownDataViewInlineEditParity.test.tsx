@@ -221,7 +221,7 @@ export async function testMarkdownDataViewTableRendersNestedMarkdownTablesInside
   }
 }
 
-export async function testMarkdownDataViewTableRendersInlineMediaCellsWithRichMediaPanel() {
+export async function testMarkdownDataViewTableRendersInlineMediaCellsWithSharedChipToggle() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {
     const reactDomClient = await import('react-dom/client')
@@ -255,11 +255,23 @@ export async function testMarkdownDataViewTableRendersInlineMediaCellsWithRichMe
 
     const mediaCell = dom.window.document.querySelector('[data-kg-markdown-data-view-rich-media-cell="1"]')
     if (!(mediaCell instanceof dom.window.HTMLElement)) {
-      throw new Error('expected media table cell to render the shared RichMediaPanel wrapper')
+      throw new Error('expected media table cell to render the shared inline media wrapper')
     }
+    if (mediaCell.getAttribute('data-kg-markdown-data-view-rich-media-mode') !== 'chip') {
+      throw new Error('expected media table cell to default to the shared inline media chip')
+    }
+    const chip = mediaCell.querySelector('[data-kg-card-inline-media-pill="1"]') as HTMLElement | null
+    if (!chip) throw new Error('expected media table cell to reuse the shared Card inline media chip')
+    const toggle = mediaCell.querySelector('[data-kg-card-inline-media-toggle="1"]') as HTMLButtonElement | null
+    if (!toggle) throw new Error('expected media table cell to expose the shared full-media toggle')
+
+    toggle.click()
+    await tick()
+    await tick()
+
     const panel = mediaCell.querySelector('[data-kg-rich-media-panel="1"]')
     if (!(panel instanceof dom.window.HTMLElement)) {
-      throw new Error('expected media table cell to mount RichMediaPanel')
+      throw new Error('expected expanded media table chip to mount RichMediaPanel')
     }
     const video = mediaCell.querySelector('video[data-kg-card-media-kind="video"]') as HTMLVideoElement | null
     if (!video) throw new Error('expected RichMediaPanel table cell to render a video media surface')

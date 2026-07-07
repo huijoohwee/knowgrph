@@ -18,7 +18,27 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FLOATING_MENU_BUTTON_CLASSNAME, FLOATING_MENU_BUTTON_DISABLED_CLASSNAME, FLOATING_MENU_BUTTON_DANGER_CLASSNAME, FLOATING_POPOVER_INPUT_CLASSNAME } from '@/features/markdown-workspace/main/viewer/floatingMenuStyles'
 import { UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { replaceChatComposerTrigger, resolveChatComposerTrigger, type ChatComposerTrigger } from './chatComposerTrigger'
-import { buildFloatingPanelChatComposerMediaParts, FloatingPanelChatComposerMediaOverlay } from './FloatingPanelChatComposerMediaOverlay'
+import {
+  buildFloatingPanelChatComposerDisplayText,
+  buildFloatingPanelChatComposerOverlayParts,
+  deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
+  FloatingPanelChatComposerMediaOverlay,
+  mapFloatingPanelChatComposerDisplayIndexToRawIndex,
+  mapFloatingPanelChatComposerRawIndexToDisplayIndex,
+  resolveFloatingPanelChatComposerRawText,
+} from './FloatingPanelChatComposerMediaOverlay'
+
+const FLOATING_PANEL_CHAT_COMPOSER_OVERLAY_SELECTION_STYLE = `
+textarea[data-kg-chat-input-overlay-active='1']::selection,
+textarea[data-kg-chat-input-media-overlay-active='1']::selection {
+  background: transparent;
+  color: transparent;
+}
+textarea[data-kg-chat-input-overlay-active='1']::-moz-selection,
+textarea[data-kg-chat-input-media-overlay-active='1']::-moz-selection {
+  background: transparent;
+  color: transparent;
+}`
 
 type FloatingPanelChatComposerProps = {
   input: string
@@ -43,14 +63,20 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   }, [])
   const applyReplacement = React.useCallback((replacement: string) => {
     if (!trigger) return
-    const next = replaceChatComposerTrigger({ text: props.input, trigger, replacement })
+    const rawTrigger = {
+      ...trigger,
+      rangeStart: mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, trigger.rangeStart),
+      rangeEnd: mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, trigger.rangeEnd),
+    }
+    const next = replaceChatComposerTrigger({ text: props.input, trigger: rawTrigger, replacement })
     props.setInput(next.text)
     closeMenu()
     requestAnimationFrame(() => {
       const input = inputRef.current
       if (!input) return
+      const cursor = mapFloatingPanelChatComposerRawIndexToDisplayIndex(next.text, next.cursor)
       input.focus({ preventScroll: true })
-      input.setSelectionRange(next.cursor, next.cursor)
+      input.setSelectionRange(cursor, cursor)
     })
   }, [closeMenu, props, trigger])
   const updateTrigger = React.useCallback((value: string) => {
@@ -126,19 +152,57 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const items = trigger?.kind === 'slash' ? slashItems : trigger?.kind === 'keyword' ? keywordItems : variableItems
   const ariaLabel = trigger?.kind === 'slash' ? 'Chat slash commands' : trigger?.kind === 'keyword' ? 'Chat runtime invocations' : 'Chat variable commands'
   const menuListId = `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-list`
-  const hasMediaOverlay = React.useMemo(() => buildFloatingPanelChatComposerMediaParts(props.input).hasMedia, [props.input])
+  const composerOverlay = React.useMemo(() => buildFloatingPanelChatComposerOverlayParts(props.input), [props.input])
+  const hasMediaOverlay = composerOverlay.hasMedia
+  const hasComposerOverlay = composerOverlay.hasOverlay
+  const displayInput = React.useMemo(() => buildFloatingPanelChatComposerDisplayText(props.input), [props.input])
+  const deleteProjectedTokenRange = React.useCallback((target: HTMLInputElement | HTMLTextAreaElement, direction: 'backward' | 'forward'): boolean => {
+    if (!hasComposerOverlay) return false
+    const next = deleteFloatingPanelChatComposerProjectedTokenDisplayRange({
+      text: props.input,
+      selectionStart: target.selectionStart ?? target.value.length,
+      selectionEnd: target.selectionEnd ?? target.value.length,
+      direction,
+    })
+    if (!next) return false
+    props.setInput(next.text)
+    closeMenu()
+    requestAnimationFrame(() => {
+      const input = inputRef.current
+      if (!input) return
+      input.focus({ preventScroll: true })
+      input.setSelectionRange(next.cursor, next.cursor)
+    })
+    return true
+  }, [closeMenu, hasComposerOverlay, props])
 
   return (
     <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+      {hasComposerOverlay ? (
+        <style data-kg-chat-input-overlay-selection-style="1" data-kg-chat-input-media-selection-style={hasMediaOverlay ? '1' : undefined}>
+          {FLOATING_PANEL_CHAT_COMPOSER_OVERLAY_SELECTION_STYLE}
+        </style>
+      ) : null}
       <FloatingPanelChatComposerMediaOverlay input={props.input} uiPanelTextFontClass={props.uiPanelTextFontClass} />
       <PlainTextInputEditor
         ref={inputRef}
-        value={props.input}
+        value={displayInput}
         onChange={value => {
-          props.setInput(value)
+          props.setInput(resolveFloatingPanelChatComposerRawText(value, props.input))
           updateTrigger(value)
         }}
         onSelect={event => updateTrigger(event.currentTarget.value)}
+        onBeforeInput={event => {
+          const inputType = (event.nativeEvent as InputEvent).inputType
+          const direction = inputType === 'deleteContentBackward'
+            ? 'backward'
+            : inputType === 'deleteContentForward'
+              ? 'forward'
+              : null
+          if (!direction) return
+          if (!deleteProjectedTokenRange(event.currentTarget, direction)) return
+          event.preventDefault()
+        }}
         placeholder={props.placeholder}
         ariaLabel={props.placeholder}
         ariaExpanded={!!trigger}
@@ -146,9 +210,19 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
         disabled={props.isLoading}
         multiline
         className="w-full h-full border-0 rounded-none bg-transparent"
-        inputClassName={`${props.uiPanelTextFontClass} ${hasMediaOverlay ? 'text-transparent caret-[color:var(--kg-text-primary)] selection:bg-sky-500/20' : ''}`}
-        dataAttributes={{ 'data-kg-chat-input': true }}
+        inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? 'text-transparent caret-[color:var(--kg-text-primary)] selection:bg-transparent' : ''}`}
+        dataAttributes={{
+          'data-kg-chat-input': true,
+          'data-kg-chat-input-overlay-active': hasComposerOverlay ? '1' : undefined,
+          'data-kg-chat-input-media-overlay-active': hasMediaOverlay ? '1' : undefined,
+        }}
         onKeyDown={event => {
+          if (hasComposerOverlay && (event.key === 'Backspace' || event.key === 'Delete')) {
+            if (deleteProjectedTokenRange(event.currentTarget, event.key === 'Backspace' ? 'backward' : 'forward')) {
+              event.preventDefault()
+              return
+            }
+          }
           if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter' || props.isSubmitDisabled) return
           event.preventDefault()
           event.currentTarget.form?.requestSubmit()

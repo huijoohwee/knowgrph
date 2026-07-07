@@ -26,6 +26,7 @@ type PlainTextInputEditorProps = {
   ariaControls?: string
   ariaExpanded?: boolean
   onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  onBeforeInput?: React.FormEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onSelect?: React.ReactEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onDoubleClick?: React.MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>
@@ -55,6 +56,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
   ariaControls,
   ariaExpanded,
   onBlur,
+  onBeforeInput,
   onKeyDown,
   onSelect,
   onDoubleClick,
@@ -81,6 +83,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
         autoCorrect="off"
         autoCapitalize="off"
         onBlur={onBlur}
+        onBeforeInput={onBeforeInput}
         onKeyDown={onKeyDown}
         onSelect={onSelect}
         onDoubleClick={onDoubleClick}
@@ -119,6 +122,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
       autoCorrect="off"
       autoCapitalize="off"
       onBlur={onBlur}
+      onBeforeInput={onBeforeInput}
       onKeyDown={onKeyDown}
       onSelect={onSelect}
       onDoubleClick={onDoubleClick}

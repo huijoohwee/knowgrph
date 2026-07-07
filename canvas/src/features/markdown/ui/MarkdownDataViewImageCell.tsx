@@ -273,11 +273,17 @@ const renderRichMediaCell = (args: {
       : args.kind === 'svg'
         ? 'image'
         : undefined
+    const stopCellEditActivation = (event: React.SyntheticEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     return (
       <span
         className="inline-flex max-w-full"
         data-kg-markdown-data-view-rich-media-cell="1"
         data-kg-markdown-data-view-rich-media-mode="chip"
+        onMouseDown={stopCellEditActivation}
+        onClick={stopCellEditActivation}
       >
         <CardPreviewInlineMediaPill
           label={args.title}
@@ -313,7 +319,7 @@ export const renderMarkdownDataViewTableRichCell = (
   if (options.sourceLineNestedTable) return renderSourceLineNestedTableCell(options.sourceLineNestedTable)
   const nestedTable = options.nested ? null : readWholeCellNestedMarkdownTable(raw)
   if (nestedTable) return renderNestedTableCell(nestedTable)
-  const presentation = options.nested ? 'chip' : 'panel'
+  const presentation = 'chip'
 
   const image = readWholeCellMarkdownImage(raw)
   if (image) {
