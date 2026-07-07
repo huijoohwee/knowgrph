@@ -75,7 +75,7 @@ const hasExpectedProtectedResource = (payload) => hasExpectedAuthResourceReferen
 const hasExpectedAgentAuth = (agentAuth) => agentAuth?.skill === `${originUrl}/auth.md` && agentAuth?.register_uri === `${baseUrl}/agent/auth` && agentAuth?.claim_uri === `${baseUrl}/agent/auth/claim` && agentAuth?.revocation_uri === `${baseUrl}/agent/auth/revoke` && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion']) && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key']) && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, ['urn:ietf:params:oauth:token-type:id-jag', 'verified_email']) && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key']) && includesAll(agentAuth?.events_supported, ['https://schemas.workos.com/events/agent/auth/identity/assertion/revoked'])
 const preferredSharedDocSample = {
   workspaceId: defaultWorkspaceId,
-  canonicalPath: 'huijoohwee/docs/knowgrph-design-demo.md',
+  canonicalPath: 'huijoohwee/docs/knowgrph-strybldr-starter-template.md',
 }
 const buildSharedDocSample = async ({ workspaceId, canonicalPath, requireNonEmpty = false }) => {
   const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : ''
