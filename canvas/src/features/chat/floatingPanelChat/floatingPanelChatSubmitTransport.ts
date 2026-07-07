@@ -1,9 +1,27 @@
 import { shouldRetryWithModelFallback } from '../FloatingPanelChat.helpers'
+import { CHAT_PROVIDER_OPENAI, normalizeChatProviderId } from '@/lib/chatEndpoint'
 
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
 
 export const CHAT_SUBMIT_TRANSPORT_TIMEOUT_MS = 45_000
+export const CHAT_SUBMIT_OPENAI_RESPONSES_TIMEOUT_MS = 180_000
 export const CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR = 'CHAT_SUBMIT_TRANSPORT_TIMEOUT'
+
+export const resolveChatSubmitTransportTimeoutMs = (args: {
+  chatProvider?: string | null
+  chatModel?: string | null
+  endpointUrl?: string | null
+}): number => {
+  const provider = normalizeChatProviderId(args.chatProvider || '')
+  const modelId = String(args.chatModel || '').trim().toLowerCase()
+  const endpointUrl = String(args.endpointUrl || '').trim().toLowerCase()
+  const isOpenAi = provider === CHAT_PROVIDER_OPENAI || endpointUrl.includes('api.openai.com')
+  const isGpt5Model = /^gpt-5(?:[.-]|$)/i.test(modelId)
+  const isResponsesEndpoint = endpointUrl.includes('/v1/responses')
+  return isOpenAi && (isGpt5Model || isResponsesEndpoint)
+    ? CHAT_SUBMIT_OPENAI_RESPONSES_TIMEOUT_MS
+    : CHAT_SUBMIT_TRANSPORT_TIMEOUT_MS
+}
 
 const isRetryableTransportError = (error: unknown, controller: AbortController): boolean => {
   const message = error instanceof Error ? error.message : String(error || '')

@@ -4,6 +4,7 @@ import {
   buildChatProxyHeaders,
   getDefaultChatModelForProvider,
   getChatModelOptions,
+  isResponsesEndpointUrl,
   normalizeChatModelIdForProvider,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
@@ -43,6 +44,8 @@ import { buildChatInvocationSystemPrompt } from '../chatInvocationRegistry'
 
 export type ChatSubmitMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
+type OpenAiResponsesInputContent = { type: 'input_text' | 'output_text'; text: string }
+type OpenAiResponsesInputMessage = { type: 'message'; role: ChatSubmitMessage['role']; content: OpenAiResponsesInputContent[] }
 
 const toFiniteNumberOrUndefined = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -57,6 +60,34 @@ export const resolveChatSubmitTokenLimitKey = (chatProvider: string): ChatSubmit
   const provider = normalizeChatProviderId(chatProvider)
   return provider === CHAT_PROVIDER_OPENAI ? 'max_completion_tokens' : 'max_tokens'
 }
+
+const isOpenAiResponsesSubmit = (args: { chatProvider: string; endpointUrl: string }): boolean =>
+  normalizeChatProviderId(args.chatProvider) === CHAT_PROVIDER_OPENAI && isResponsesEndpointUrl(args.endpointUrl)
+
+const buildChatSubmitTokenLimitOptions = (args: {
+  chatProvider: string
+  endpointUrl: string
+  tokenLimitKey: ChatSubmitTokenLimitKey
+  tokenLimit: number
+}): Record<string, number> => {
+  if (isOpenAiResponsesSubmit(args)) return { max_output_tokens: args.tokenLimit }
+  return args.tokenLimitKey === 'max_completion_tokens'
+    ? { max_completion_tokens: args.tokenLimit }
+    : { max_tokens: args.tokenLimit }
+}
+
+const buildOpenAiResponsesInput = (messages: ChatSubmitMessage[]): OpenAiResponsesInputMessage[] =>
+  messages
+    .map(message => {
+      const text = String(message.content || '').trim()
+      const contentType: OpenAiResponsesInputContent['type'] = message.role === 'assistant' ? 'output_text' : 'input_text'
+      return {
+        type: 'message' as const,
+        role: message.role,
+        content: text ? [{ type: contentType, text }] : [],
+      }
+    })
+    .filter(message => message.content.length > 0)
 
 export const resolveInitialChatSubmitModel = (args: {
   chatProvider: string
@@ -237,9 +268,10 @@ export const createChatSubmitRequestSender = (args: {
       args.submitArgs.chatStorageTarget === 'chatKnowgrph'
         ? Math.max(4000, tokenLimit)
         : tokenLimit
+    const endpointUrl = args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL
     const providerOptions = buildProviderChatRequestOptions({
       provider: args.submitArgs.chatProvider,
-      endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+      endpointUrl,
       chatModel: args.submitArgs.chatModel,
       chatTemperature: args.submitArgs.chatTemperature,
       chatServiceTier: args.submitArgs.chatServiceTier,
@@ -261,10 +293,12 @@ export const createChatSubmitRequestSender = (args: {
       chatToolsJson: args.submitArgs.chatToolsJson,
       chatToolChoiceJson: args.submitArgs.chatToolChoiceJson,
     })
-    const tokenLimitOptions =
-      tokenLimitKey === 'max_completion_tokens'
-        ? { max_completion_tokens: effectiveTokenLimit }
-        : { max_tokens: effectiveTokenLimit }
+    const tokenLimitOptions = buildChatSubmitTokenLimitOptions({
+      chatProvider: args.submitArgs.chatProvider,
+      endpointUrl,
+      tokenLimitKey,
+      tokenLimit: effectiveTokenLimit,
+    })
     const storageRelayProviderId = toKnowgrphStorageChatProviderId(args.submitArgs.chatProvider)
     const storageRelayConfig = args.submitArgs.storageChatRelayDecision?.kind === 'ready'
       ? args.submitArgs.storageChatRelayDecision.config
@@ -275,7 +309,7 @@ export const createChatSubmitRequestSender = (args: {
         workspaceId: storageRelayConfig.workspaceId,
         providerId: storageRelayProviderId,
         authMode: args.submitArgs.chatAuthMode,
-        endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+        endpointUrl,
         model,
         messages,
         stream: false,
@@ -310,20 +344,29 @@ export const createChatSubmitRequestSender = (args: {
       ...buildChatProxyHeaders({
         provider: args.submitArgs.chatProvider,
         apiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
-        endpointUrl: args.submitArgs.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+        endpointUrl,
         clientRequestId,
       }),
     }
+    const requestBody = isOpenAiResponsesSubmit({ chatProvider: args.submitArgs.chatProvider, endpointUrl })
+      ? {
+          model,
+          input: buildOpenAiResponsesInput(messages),
+          stream: true,
+          ...providerOptions,
+          ...tokenLimitOptions,
+        }
+      : {
+          model,
+          messages,
+          stream: true,
+          ...providerOptions,
+          ...tokenLimitOptions,
+        }
     const init: RequestInit = {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        model,
-        messages,
-        stream: true,
-        ...providerOptions,
-        ...tokenLimitOptions,
-      }),
+      body: JSON.stringify(requestBody),
       signal: args.controller.signal,
     }
     if (args.durableStream) {

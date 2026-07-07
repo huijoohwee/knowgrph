@@ -2241,7 +2241,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       })
       const ctrl = new AbortController()
       controller = ctrl
-      timeoutId = setTimeout(() => ctrl.abort(), 90_000)
+      timeoutId = setTimeout(() => ctrl.abort(), Math.max(15_000, Math.min(600_000, Math.floor(Number(process.env.KNOWGRPH_CHAT_PROXY_TIMEOUT_MS) || 210_000))))
       if (localProviderSelected && method === 'GET' && upstreamPath === '/v1/models') {
         let localGatewayModelsRes: Response | null = null
         try {

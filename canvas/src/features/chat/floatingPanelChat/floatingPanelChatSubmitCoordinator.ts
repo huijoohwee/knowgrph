@@ -15,6 +15,7 @@ import {
 } from './floatingPanelChatSubmitRequest'
 import { bootstrapKnowgrphSubmitDraft } from './floatingPanelChatSubmitPreflight'
 import { executeChatSubmitTransportAttempt } from './floatingPanelChatSubmitTransport'
+import { resolveChatSubmitTransportTimeoutMs } from './floatingPanelChatSubmitTransport'
 import {
   buildProviderStreamDraftText,
   buildTraceOnlyAssistantText,
@@ -213,6 +214,11 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           effectiveModel = fallback
           args.submitArgs.setChatModel(fallback)
         },
+        transportTimeoutMs: resolveChatSubmitTransportTimeoutMs({
+          chatProvider: args.submitArgs.chatProvider,
+          chatModel: effectiveModel,
+          endpointUrl: args.submitArgs.chatEndpointUrl,
+        }),
       })
       effectiveModel = transport.effectiveModel
       const res = transport.response
@@ -228,7 +234,6 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           : ''
         const suffix = detailText ? ` ${detailText}` : ''
         const responseText = `${statusText}${suffix}`.trim()
-        const connectivityDetail = [`Chat endpoint returned ${res.status}.`, detailText].filter(Boolean).join(' ').trim()
         handleIssueExit({
           assistantMessageId: args.assistantMessageId,
           requestText: args.trimmedInput,
@@ -243,7 +248,7 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
           setConnectivity: args.submitArgs.setConnectivity,
           connectivity: 'error',
           setConnectivityDetail: args.submitArgs.setConnectivityDetail,
-          connectivityDetail,
+          connectivityDetail: null,
           setIsLoading: args.submitArgs.setIsLoading,
           abortRef: args.submitArgs.abortRef,
           setStreamingWorkspacePath: args.submitArgs.setStreamingWorkspacePath,

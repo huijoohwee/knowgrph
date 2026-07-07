@@ -1,7 +1,10 @@
 import { resolveSubmitRuntimeFriendlyMessage } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitErrors'
 import {
+  CHAT_SUBMIT_OPENAI_RESPONSES_TIMEOUT_MS,
   CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR,
+  CHAT_SUBMIT_TRANSPORT_TIMEOUT_MS,
   executeChatSubmitTransportAttempt,
+  resolveChatSubmitTransportTimeoutMs,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitTransport'
 
 export function testResolveSubmitRuntimeFriendlyMessageUsesTransportTimeoutCopy() {
@@ -12,6 +15,25 @@ export function testResolveSubmitRuntimeFriendlyMessageUsesTransportTimeoutCopy(
   })
   if (!friendly.includes('OpenAI') || !friendly.includes('request timeout')) {
     throw new Error(`Expected transport-timeout submit message to use provider-friendly copy, got: ${friendly}`)
+  }
+}
+
+export function testResolveChatSubmitTransportTimeoutExtendsOpenAiResponsesBudget() {
+  const openAiGpt5 = resolveChatSubmitTransportTimeoutMs({
+    chatProvider: 'openai',
+    chatModel: 'gpt-5-nano',
+    endpointUrl: 'https://api.openai.com/v1/responses',
+  })
+  if (openAiGpt5 !== CHAT_SUBMIT_OPENAI_RESPONSES_TIMEOUT_MS) {
+    throw new Error(`Expected OpenAI GPT-5 Responses timeout ${CHAT_SUBMIT_OPENAI_RESPONSES_TIMEOUT_MS}, got ${openAiGpt5}`)
+  }
+  const regularProvider = resolveChatSubmitTransportTimeoutMs({
+    chatProvider: 'miromind',
+    chatModel: 'mirothinker-1-7-deepresearch-mini',
+    endpointUrl: 'https://api.miromind.ai/v1/chat/completions',
+  })
+  if (regularProvider !== CHAT_SUBMIT_TRANSPORT_TIMEOUT_MS) {
+    throw new Error(`Expected regular provider timeout ${CHAT_SUBMIT_TRANSPORT_TIMEOUT_MS}, got ${regularProvider}`)
   }
 }
 
