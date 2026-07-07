@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, Agentic Canvas OS dry-run planning, approval-gated video-remix run manifests, local browser API bridge, vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, Agentic Canvas OS dry-run planning, approval-gated video-remix run manifests, local probe-tree branching, local browser API bridge, vdeoxpln registry inspection
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -136,7 +136,13 @@ Canonical local tool inventory owner:
    - `knowgrph.memory.search` returns top-K scoped memory results for prompt augmentation
    - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
    - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
-10. `knowgrph.vdeoxpln.list`
+10. Probe-tree tools
+   - `knowgrph.probe.generate` recalls scoped resolved-path exemplars and returns at most four typed candidate next questions without mutating the current node
+   - `knowgrph.probe.select` persists a user-selected option as a fresh `type: probe` markdown node with an embedded `branches-to` edge and checkpoint fork metadata under `data/probe-tree`
+   - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer
+   - `knowgrph.probe.generate` can call a host-owned local Ollama runtime when `KNOWGRPH_PROBE_TREE_MODEL` is set; it uses non-streaming structured JSON output and falls back to local heuristic options when the adapter is unconfigured or fails
+   - The local runtime keeps markdown as the graph SSOT; native LangGraph checkpoint persistence remains a follow-on adapter path rather than a second datastore
+11. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
@@ -202,7 +208,9 @@ Add a server entry similar to:
         "KNOWGRPH_PYTHON": "/ABS/PATH/TO/PYTHON",
         "KNOWGRPH_MCP_TIMEOUT_MS": "600000",
         "KNOWGRPH_MEMORY_STORE_PATH": "data/memory-layer/local-memory-store.json",
-        "KNOWGRPH_BROWSER_API_RUNTIME_URL": "http://localhost:6969"
+        "KNOWGRPH_BROWSER_API_RUNTIME_URL": "http://localhost:6969",
+        "KNOWGRPH_PROBE_TREE_MODEL": "qwen2.5:14b",
+        "KNOWGRPH_PROBE_TREE_MODEL_URL": "http://127.0.0.1:11434"
       }
     }
   }
@@ -218,6 +226,9 @@ Then you can call:
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 - `knowgrph.superagent.run` with `{ "inputPath": "docs/documents/my-input.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Build a production-ready agent app with frontend, backend, live evidence, and approval-gated actions", "consumerRepoPath": "../strybldr", "consumerRepo": "strybldr", "allowExternalRepo": true, "lanes": ["market_radar", "browser_evidence", "market_to_artifact", "learning_loop", "starter_repo"], "writeArtifacts": false }`
+- `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3 }`
+- `knowgrph.probe.select` with `{ "thread_root_id": "support-intake", "parent_node_id": "root", "chosen_option": { "id": "o1", "text": "Which constraint matters most right now?", "rationale": "Narrow the branch before handoff" } }`
+- `knowgrph.probe.evolve` with `{ "thread_root_id": "support-intake", "terminal_node_id": "probe_node_...", "rating": 1 }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Create a starter repository plan for a secured React frontend connected to an AI-agent backend", "runId": "agentic-os-starter-dry-run", "writeArtifacts": true, "iac": "cdk" }`
 - `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "budgetUsd": 20 }`
 - `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "approvals": ["paid-model-call", "render-action", "payment-action", "cloud-deploy"], "sourceCards": [{ "url": "https://example.com/a" }, { "url": "https://example.com/b" }, { "url": "https://example.com/c" }] }`

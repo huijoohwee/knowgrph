@@ -232,6 +232,7 @@ function owningHarnessForTool(toolId, fallback = "unknown") {
   if (toolId.startsWith("knowgrph.video_remix.")) return "video_remix";
   if (toolId.startsWith("knowgrph.superagent.")) return "superagent";
   if (toolId.startsWith("knowgrph.memory.")) return "memory_layer";
+  if (toolId.startsWith("knowgrph.probe.")) return "probe_tree";
   if (toolId.startsWith("knowgrph.html_video.")) return "html_video_renderer";
   if (toolId.startsWith("knowgrph.annotate.")) return "visual_annotation_engine";
   if (toolId.startsWith("knowgrph.vdeoxpln.")) return "vdeoxpln";

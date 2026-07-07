@@ -30,6 +30,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["design.documentUrl.fallsBackToEdgeMetadataDocumentPath","@/__tests__/designDocumentUrl.test","testDesignDocumentUrlFallsBackToEdgeMetadataDocumentPath"],
   ["settings.registryReadWrite","@/__tests__/settings.test","testSettingsRegistryReadWrite"],
   ["htmlParser.allText.includesNavAndMain","@/__tests__/htmlParserAllText.test","testHtmlParserAllTextIncludesNavAndMain"],
+  ["docs.careAgentDemo.runtimeReady","@/__tests__/careAgentDemoRuntimeReady.test","testCareAgentDemoIsRuntimeReadyFromLocalProof"],
   ["htmlParser.losslessEmbeddedMarkdown","@/__tests__/htmlParserRoundTripLossless.test","testHtmlParserUsesEmbeddedLosslessMarkdownSource"],
   ["htmlParser.plainText.paragraphs","@/__tests__/plainTextToMarkdown.test","testPlainTextToMarkdownPreservesParagraphs"],
   ["webpage.frontmatter.roundtrip","@/__tests__/webpageFrontmatter.test","testWebpageFrontmatterRoundtrip"],
