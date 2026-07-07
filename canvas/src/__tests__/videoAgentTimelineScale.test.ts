@@ -3,6 +3,8 @@ import { buildVideoAgentUrlImportMarkdown } from '@/features/markdown-workspace/
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import {
   buildMermaidGanttCodeFromNeutralTimelinePayload,
+  buildMermaidGanttWorkflowCodeFromEventModelingCode,
+  buildMermaidGanttWorkflowCodeFromFlowchartCode,
   readYamlFrontmatterMermaidDiagramCodes,
 } from '@/lib/mermaid/mermaidDiagramCode'
 import {
@@ -149,6 +151,66 @@ export function testVideoAgentImportRoutesProcessToFlowchartAndMediaToTimeline()
   }
 }
 
+export function testFlowchartBottomPanelReusesWorkflowTimelineBars() {
+  const flowchartCode = `flowchart LR
+  source["Source URL and operator notes"]
+  ideation["/memory.seed ideation @source.body"]
+  invocation["/harness.define invocation #harness"]
+  generation["/canvas.project generation @canvas"]
+  source --> ideation --> invocation --> generation`
+  const workflowCode = buildMermaidGanttWorkflowCodeFromFlowchartCode(flowchartCode)
+  const workflowModel = buildMermaidGanttTimelineModel(workflowCode)
+  const labels = workflowModel.taskSpans.map(span => span.label).join('|')
+  if (
+    !workflowCode.includes('title Flowchart Workflow') ||
+    !workflowCode.includes('section Workflow') ||
+    workflowModel.taskSpans.length !== 4 ||
+    labels !== 'Source URL and operator notes|/memory.seed ideation @source.body|/harness.define invocation #harness|/canvas.project generation @canvas' ||
+    workflowModel.taskSpans.some(span => !/flowchart_/.test(span.raw) || Math.abs(span.durationMinutes - 0.167) > 0.0001)
+  ) {
+    throw new Error(`expected Flowchart workflow to convert into reusable Timeline bars, got ${JSON.stringify({ workflowCode, labels, workflowModel })}`)
+  }
+  const flowchartBottomText = readSource('features', 'gitgraph', 'FlowchartBottomPanelView.tsx')
+  const strybldrBottomText = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
+  if (
+    !flowchartBottomText.includes('buildMermaidGanttWorkflowCodeFromFlowchartCode(code)') ||
+    !flowchartBottomText.includes('<GanttTimelineTransportPanel code={flowchartTimelineCode} compact={compact} mode="workflow" />') ||
+    flowchartBottomText.includes('MermaidDiagramPanelView') ||
+    !strybldrBottomText.includes("view === 'documentVersionGraph' || view === 'flowchart' || view === 'gitGraph'")
+  ) {
+    throw new Error('expected BottomPanel Flowchart to reuse workflow Timeline bar transport instead of the Mermaid SVG panel')
+  }
+}
+
+export function testEventModelBottomPanelReusesWorkflowTimelineBars() {
+  const eventModelCode = `eventmodeling
+tf 01 ui IdeaSubmitted
+tf 02 cmd RunComputeFlow
+tf 03 evt InputsValidated
+tf 04 pcr ComputeAgent
+tf 05 cmd RequestApproval`
+  const workflowCode = buildMermaidGanttWorkflowCodeFromEventModelingCode(eventModelCode)
+  const workflowModel = buildMermaidGanttTimelineModel(workflowCode)
+  const labels = workflowModel.taskSpans.map(span => span.label).join('|')
+  if (
+    !workflowCode.includes('title Event Model Workflow') ||
+    !workflowCode.includes('section Workflow') ||
+    workflowModel.taskSpans.length !== 5 ||
+    labels !== 'IdeaSubmitted|RunComputeFlow|InputsValidated|ComputeAgent|RequestApproval' ||
+    workflowModel.taskSpans.some(span => !/event_model_/.test(span.raw) || Math.abs(span.durationMinutes - 0.167) > 0.0001)
+  ) {
+    throw new Error(`expected Event Model workflow to convert into reusable Timeline bars, got ${JSON.stringify({ workflowCode, labels, workflowModel })}`)
+  }
+  const eventModelBottomText = readSource('features', 'gitgraph', 'EventModelingBottomPanelView.tsx')
+  if (
+    !eventModelBottomText.includes('buildMermaidGanttWorkflowCodeFromEventModelingCode(code)') ||
+    !eventModelBottomText.includes('<GanttTimelineTransportPanel code={eventModelTimelineCode} compact={compact} mode="workflow" />') ||
+    eventModelBottomText.includes('MermaidDiagramPanelView')
+  ) {
+    throw new Error('expected BottomPanel Event Model to reuse workflow Timeline bar transport instead of the Mermaid SVG panel')
+  }
+}
+
 export function testVideoSequenceBottomPanelExpandsMultipleVideoSourcesIntoDisplayLanes() {
   const code = `gantt
   title Video Sequence Timeline
@@ -271,6 +333,7 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     '!shouldRetainVideoSequenceFloatingPanelView(current.floatingPanelView)',
     'videoSequenceModel?.enabled',
     '!timelineCode && ganttCode',
+    "useMermaidGanttDocument({ purpose: 'media' })",
     'kind="gantt"',
     'renderMode="list"',
     'rowFilter={videoSequenceModel?.enabled ? videoSequenceFloatingRowFilter : undefined}',
@@ -282,13 +345,11 @@ export function testVideoAgentStructuredDiagramFloatingPanelOpenEventRoutesMedia
     if (timelineFloatingText.includes(staleToken)) throw new Error(`expected video-agent FloatingPanel Timeline to avoid BottomPanel transport owner token: ${staleToken}`)
   }
   for (const token of [
-    'readVideoSequenceTimelineModelFromMarkdown',
-    'const videoSequenceModel = React.useMemo',
-    '(videoSequenceModel?.enabled || !timelineCode) && ganttCode',
-    '<GanttTimelineTransportPanel code={ganttCode} compact={compact} />',
+    "useMermaidGanttDocument({ purpose: 'media' })",
+    '<GanttTimelineTransportPanel code={mediaGanttCode} compact={compact} mode="media" />',
     'GanttTimelineTransportPlaybackRuntime',
     '<GanttTimelineTransportPlaybackRuntime />',
-    'useGanttTimelineTransportSession({ code })',
+    "useGanttTimelineTransportSession({ code, mode: 'media' })",
     'useGanttTimelineTransportPlaybackModel',
     'clockActive: true',
     'clockActive: false',
@@ -320,29 +381,33 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
   }
   for (const token of [
     'data-kg-video-sequence-dense-fbf={denseFbfClip ?',
-    'data-kg-compact-source-media={compactSourceMedia ?',
+    'const compactTimelineBar = workflowProjection || compactSourceMedia',
+    'data-kg-compact-source-media={compactTimelineBar ?',
+    'data-kg-workflow-timeline-bar={workflowProjection ?',
     'compactSourceTimeline',
     'resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })',
     'const compactSourceTimeline = React.useMemo',
-    'timelineModel.taskSpans.every(span => isCompactSourceMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
-    'scopes: compactSourceTimeline ? [] : transportSession.monitorScopes',
-    "showMediaCues: showsMediaContent && lane !== 'audio' && !compactSourceMedia",
+    'transportSession.timelineModel.taskSpans.every(span => isCompactSourceMediaSpan(span, resolveVideoSequenceTimelineLane(span)))',
+    'scopes: compactSourceTimeline || workflowMode ? [] : transportSession.monitorScopes',
     "const compactSourceVideo = compactSourceMedia && lane === 'video'",
     "const compactSourceFrameSamples = compactSourceMedia && lane === 'fbf'",
+    'const showsSourceMediaContent = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) && (compactSourceMedia || !!sourceThumbnailSet)',
+    "showMediaCues: showsMediaContent && lane !== 'audio' && !compactSourceMedia",
     'const semanticFrameSamples = compactSourceFrameSamples',
-    'const sourceVideoFallbackSamples = compactSourceVideo',
     "thumbnailSamples: compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? []",
     '<VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />',
     'data-kg-video-sequence-frame-sample-rail="semantic"',
     "'--kg-video-sequence-frame-sample-count': samples.length",
     "&& !verticalMarker && !compactSourceMedia",
     "lane === 'fbf' && !verticalMarker",
-    'compactSourceMedia ? 0 : (index % 2) * 2',
+    'compactTimelineBar ? 0 : (index % 2) * 2',
     '.timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
     '.timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
     '.timeline-transport-track-clip--lane-fbf[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"])',
     '.timeline-transport-track-clip[data-kg-compact-source-media="1"]::before',
     '[data-kg-compact-source-media="1"] .timeline-transport-track-clip-move',
+    '[data-kg-workflow-timeline-bar="1"] .timeline-transport-track-clip-move',
+    'pointer-events: auto',
     '[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-timecode',
     '[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-meta',
     '!verticalMarker && !compactSourceMedia',
@@ -412,5 +477,29 @@ export function testVideoAgentTimelineDenseFbfClipsDoNotForceOverlap() {
     '.timeline-transport-track-clip--lane-video[data-kg-compact-source-media="1"]',
   ]) {
     if (`${rulerText}\n${cssText}\n${sequenceTimelineText}`.includes(staleToken)) throw new Error(`expected video-agent timeline to avoid stale compact FBF selector: ${staleToken}`)
+  }
+}
+
+export function testVideoAgentWorkflowStageBarsAvoidSyntheticMediaMutation() {
+  const code = `gantt
+  title Video-agent E2E Pipeline
+  dateFormat HH:mm
+  axisFormat %H:%M
+  section Video-agent stages
+  Ideation : video_agent_ideation, 00:00, 0.167m
+  Invocation : video_agent_invocation, after video_agent_ideation, 0.167m
+  Generation dry-run : video_agent_generation, after video_agent_invocation, 0.167m
+  Runtime proof : video_agent_runtime_proof, after video_agent_generation, 0.167m`
+  const spans = buildMermaidGanttTimelineModel(code).taskSpans
+  const stageSpan = spans.find(span => span.label === 'Ideation')
+  if (!stageSpan || resolveVideoSequenceTimelineLane(stageSpan) !== 'video' || isCompactSourceMediaSpan(stageSpan, 'video')) {
+    throw new Error(`expected workflow stages to remain non-compact even when they default to video lane: ${JSON.stringify(stageSpan)}`)
+  }
+  const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  if (
+    !rulerText.includes('const showsSourceMediaContent = VIDEO_SEQUENCE_SOURCE_CONTENT_LANES.has(lane) && (compactSourceMedia || !!sourceThumbnailSet)') ||
+    !rulerText.includes('const showsMediaContent = !verticalMarker && (showsSourceMediaContent || VIDEO_SEQUENCE_OPERATION_CONTENT_LANES.has(lane) || showsGeneratedFrameContent)')
+  ) {
+    throw new Error('expected non-media workflow stages to avoid synthetic thumbnail/cue/frame-strip mutation')
   }
 }

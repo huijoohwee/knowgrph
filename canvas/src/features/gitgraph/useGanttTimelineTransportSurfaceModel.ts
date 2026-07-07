@@ -29,6 +29,7 @@ import { resolveVideoSequenceTimelineScaleMaxMinutes } from '@/components/timeli
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { type GanttTimelineTransportAudioPlaybackBridgeModel } from './GanttTimelineTransportAudioPlaybackBridge'
 import { type GanttTimelineTransportMediaPlayerModel } from './GanttTimelineTransportMediaPlayer'
+import type { GanttTimelineTransportMode } from './ganttTimelineTransportMode'
 
 export type GanttTimelineTransportSurfaceModel = {
   audioPlaybackBridgeModel: GanttTimelineTransportAudioPlaybackBridgeModel
@@ -99,25 +100,33 @@ const collectTimelineTransportThumbnailSourceItems = (plans: readonly (ReturnTyp
 export function useGanttTimelineTransportSurfaceModel(args: {
   code: string
   compact: boolean
+  mode: GanttTimelineTransportMode
 }): GanttTimelineTransportSurfaceModel {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
   const rulerViewportRef = React.useRef<HTMLElement | null>(null)
   const [mediaPlayerVisible, setMediaPlayerVisible] = React.useState(false)
+  const workflowMode = args.mode === 'workflow'
   const videoSequenceTimelineLaneVisibility = useGraphStore(state => state.videoSequenceTimelineLaneVisibility)
   const disabledLaneIds = React.useMemo(() => (
-    VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS.filter(laneId => videoSequenceTimelineLaneVisibility?.[laneId] !== true)
-  ), [videoSequenceTimelineLaneVisibility])
+    workflowMode
+      ? []
+      : VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS.filter(laneId => videoSequenceTimelineLaneVisibility?.[laneId] !== true)
+  ), [videoSequenceTimelineLaneVisibility, workflowMode])
   const transportSession = useGanttTimelineTransportSession({
     code: args.code,
     disabledLaneIds,
+    mode: args.mode,
   })
   const compactSourceTimeline = React.useMemo(() => (
-    transportSession.timelineModel.taskSpans.length > 0
+    !workflowMode
+    && transportSession.timelineModel.taskSpans.length > 0
     && transportSession.timelineModel.taskSpans.every(span => isCompactSourceMediaSpan(span, resolveVideoSequenceTimelineLane(span)))
-  ), [transportSession.timelineModel.taskSpans])
+  ), [transportSession.timelineModel.taskSpans, workflowMode])
   const rulerVisibleLaneCount = React.useMemo(() => (
-    resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })
-  ), [disabledLaneIds, transportSession.timelineModel.taskSpans])
+    workflowMode
+      ? (transportSession.timelineModel.taskSpans.length ? 1 : 0)
+      : resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })
+  ), [disabledLaneIds, transportSession.timelineModel.taskSpans, workflowMode])
   const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan
   const mediaPreviewSourceUrl = React.useMemo(() => {
     if (selectedPreviewEmpty) return ''
@@ -171,7 +180,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     return source ? resolveTimelinePlanSourceUrl(source) : ''
   }, [transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
   const mediaPreviewSummary = useTimelineMediaReaderSummary({
-    active: !!mediaPreviewSourceUrl,
+    active: !workflowMode && !!mediaPreviewSourceUrl,
     url: mediaPreviewSourceUrl,
   })
   const displaySourceDurationSeconds = timelinePlanSourceDurationSeconds || mediaPreviewSummary.durationSeconds
@@ -181,7 +190,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     mediaDurationSeconds: rulerMediaDurationSeconds,
   }), [rulerMediaDurationSeconds, transportSession.maxMinutes])
   const thumbnailSummary = useTimelineMediaReaderSummary({
-    active: !!thumbnailSourceUrl,
+    active: !workflowMode && !!thumbnailSourceUrl,
     url: thumbnailSourceUrl,
   })
   const sourceThumbnailItems = React.useMemo(() => collectTimelineTransportThumbnailSourceItems([
@@ -191,7 +200,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   ]), [transportSession.exportPlan, transportSession.previewPlan, transportSession.thumbnailPlan])
   const sourceThumbnailUrls = React.useMemo(() => sourceThumbnailItems.map(item => item.src), [sourceThumbnailItems])
   const sourceThumbnailSummaries = useTimelineMediaReaderSummaries({
-    active: sourceThumbnailUrls.length > 0,
+    active: !workflowMode && sourceThumbnailUrls.length > 0,
     urls: sourceThumbnailUrls,
   })
   const sourceThumbnailWindows = React.useMemo<VideoSequenceTimelineThumbnailWindow[]>(() => {
@@ -358,7 +367,8 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: rulerMediaDurationSeconds,
     mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate),
-    onDropMedia: transportCommandModel.handleMediaDrop,
+    mode: args.mode,
+    onDropMedia: workflowMode ? () => false : transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
     onSelectRowKey: transportSession.setSelectedRowKey,
@@ -369,7 +379,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
     playheadPercent: transportInteractionModel.playheadPercent,
     positionMinutes: transportSession.positionMinutes,
-    scopes: compactSourceTimeline ? [] : transportSession.monitorScopes,
+    scopes: compactSourceTimeline || workflowMode ? [] : transportSession.monitorScopes,
     selectedRowKey: transportSession.selectedRowKey,
     sourceThumbnails: thumbnailSummary.thumbnails,
     sourceThumbnailWindows,
@@ -404,7 +414,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onValueChange: transportInteractionModel.handlePositionChange,
     playbackRate: transportSession.playbackRate,
     playing: transportSession.playing,
-    timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed',
+    timelineMode: workflowMode ? 'workflow' : (selectedPreviewEmpty ? 'empty' : 'source-backed'),
   })
 
   return {

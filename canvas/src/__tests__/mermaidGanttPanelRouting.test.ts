@@ -45,10 +45,8 @@ import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatte
 import { normalizeWorkspaceImportUrlInput } from '@/lib/url'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
-
 const root = () => resolve(process.cwd(), 'src')
 const readSource = (...parts: string[]) => readFileSync(resolve(root(), ...parts), 'utf8')
-
 export function testTimelineBarClickRequiresDragIntentBeforePreview() {
   const interactionsText = readSource('features', 'gitgraph', 'useGanttTimelineInteractions.ts')
   const dragCommitGuardIndex = interactionsText.indexOf('if (!resolveMermaidGanttBarDragCommitted(preview.deltaPx)) return')
@@ -66,7 +64,6 @@ export function testTimelineBarClickRequiresDragIntentBeforePreview() {
     throw new Error('expected Timeline bar clicks to select without seeking or entering visual drag preview before drag intent')
   }
 }
-
 export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter() {
   const markdown = [
     '---',
@@ -122,7 +119,6 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
     '',
     '# Flow diagrams',
   ].join('\n')
-
   const gitGraphCode = resolveMermaidDiagramCode(
     readYamlFrontmatterMermaidDiagramCodes(markdown, 'gitgraph'),
     'gitgraph',
@@ -130,7 +126,6 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!gitGraphCode.includes('commit id:"source_input"')) {
     throw new Error('expected typed mermaid_gitgraph frontmatter to resolve GitGraph code')
   }
-
   const ganttCode = resolveMermaidDiagramCode(
     readYamlFrontmatterMermaidDiagramCodes(markdown, 'gantt'),
     'gantt',
@@ -138,13 +133,11 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!ganttCode.includes('Inline compute :crit')) {
     throw new Error('expected typed mermaid_gantt frontmatter to resolve Gantt code')
   }
-
   const model = parseMermaidDiagramCodeModel(ganttCode, 'gantt')
   const criticalTask = model.rows.find(row => row.kind === 'task' && row.label === 'Inline compute')
   if (!criticalTask) {
     throw new Error('expected Gantt parser model to expose task rows')
   }
-
   const timelineCode = resolveMermaidDiagramCode(
     readYamlFrontmatterMermaidDiagramCodes(markdown, 'timeline'),
     'timeline',
@@ -152,13 +145,11 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!timelineCode.includes('timeline LR')) {
     throw new Error('expected typed mermaid_timeline frontmatter to resolve Timeline code with direction')
   }
-
   const timelineModel = parseMermaidDiagramCodeModel(timelineCode, 'timeline')
   const computeEvent = timelineModel.rows.find(row => row.kind === 'event' && row.label === 'Inline compute')
   if (!computeEvent) {
     throw new Error('expected Timeline parser model to expose chronology event rows')
   }
-
   const architectureCode = resolveMermaidDiagramCode(
     readYamlFrontmatterMermaidDiagramCodes(markdown, 'architecture'),
     'architecture',
@@ -171,7 +162,6 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
   if (!serviceRow) {
     throw new Error('expected Architecture parser model to expose service rows')
   }
-
   const eventModelingCode = resolveMermaidDiagramCode(
     readYamlFrontmatterMermaidDiagramCodes(markdown, 'eventmodeling'),
     'eventmodeling',
@@ -185,7 +175,6 @@ export function testTypedMermaidDiagramResolverReadsGitGraphAndGanttFrontmatter(
     throw new Error('expected Event Modeling parser model to expose event rows')
   }
 }
-
 export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   const graphData = {
     type: 'Graph',
@@ -241,7 +230,6 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
       },
     },
   }
-
   const ganttCode = resolveMermaidDiagramCode(
     readFrontmatterMermaidDiagramCodes(graphData, 'gantt'),
     'gantt',
@@ -249,7 +237,6 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   if (!ganttCode.includes('Render Gantt :crit')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Gantt code')
   }
-
   const timelineCode = resolveMermaidDiagramCode(
     readFrontmatterMermaidDiagramCodes(graphData, 'timeline'),
     'timeline',
@@ -257,7 +244,6 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   if (!timelineCode.includes('Render Timeline')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Timeline code')
   }
-
   const architectureCode = resolveMermaidDiagramCode(
     readFrontmatterMermaidDiagramCodes(graphData, 'architecture'),
     'architecture',
@@ -265,7 +251,6 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
   if (!architectureCode.includes('MCP Worker')) {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Architecture code')
   }
-
   const eventModelingCode = resolveMermaidDiagramCode(
     readFrontmatterMermaidDiagramCodes(graphData, 'eventmodeling'),
     'eventmodeling',
@@ -274,7 +259,6 @@ export function testTypedMermaidDiagramResolverReadsParsedGraphMetadata() {
     throw new Error('expected parsed graph frontmatter metadata to resolve typed Event Modeling code')
   }
 }
-
 export function testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload() {
   const timelinePayload = {
     title: 'URL to MP4 Agent Demo',
@@ -299,7 +283,6 @@ export function testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload()
   ) {
     throw new Error(`expected neutral timeline payload to convert to source-backed Mermaid Gantt code, got ${directCode}`)
   }
-
   const graphData = {
     type: 'Graph',
     nodes: [{
@@ -330,7 +313,6 @@ export function testTypedMermaidDiagramResolverReadsNeutralFlowTimelinePayload()
     throw new Error(`expected neutral Storyboard Widget timeline payload to expose five Gantt task rows, got ${JSON.stringify(rows)}`)
   }
 }
-
 export function testInteractiveMermaidSelectionAnnotatesSiblingChartGeometry() {
   const { dom, restore } = initJsdomHarness()
   const globalWithSerializer = globalThis as typeof globalThis & { XMLSerializer?: typeof XMLSerializer }
@@ -382,7 +364,6 @@ export function testInteractiveMermaidSelectionAnnotatesSiblingChartGeometry() {
     restore()
   }
 }
-
 export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() {
   const toolbarText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const canvasViewMenuText = readSource('components', 'toolbar', 'canvasViewMenu.ts')
@@ -478,7 +459,6 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   const gitGraphSelectionText = readSource('lib', 'mermaid', 'mermaidGitGraphSelection.ts')
   const svgSurfaceZoomRuntimeText = readSource('components', 'GraphCanvas', 'hooks', 'useSvgSurfaceZoomRuntime.ts')
   const ganttBarInteractionText = readSource('lib', 'mermaid', 'mermaidGanttBarInteraction.ts')
-
   if (!floatingTypeText.includes("| 'gantt'") || !floatingTypeText.includes("| 'timeline'")) {
     throw new Error('expected FloatingPanelView to include first-class Gantt and Timeline views')
   }
@@ -845,24 +825,29 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     throw new Error('expected BottomPanel GitGraph to render only typed Mermaid GitGraph and forbid document-version fallback')
   }
   if (
-    !ganttBottomText.includes('MermaidDiagramPanelView') ||
-    !ganttBottomText.includes('kind="gantt"') ||
-    !ganttBottomText.includes('renderMode="diagram"')
+    !ganttBottomText.includes('GanttTimelineTransportPanel') ||
+    !ganttBottomText.includes("useMermaidGanttDocument({ purpose: 'workflow' })") ||
+    !ganttBottomText.includes('<GanttTimelineTransportPanel code={workflowGanttCode} compact={compact} mode="workflow" />') ||
+    ganttBottomText.includes('MermaidDiagramPanelView') ||
+    ganttBottomText.includes('renderMode="diagram"')
   ) {
-    throw new Error('expected BottomPanel Gantt to reuse the shared Mermaid panel utility as the diagram surface')
+    throw new Error('expected BottomPanel Gantt-Timeline to reuse the shared transport bar UI as the workflow surface')
   }
   if (
-    !timelineBottomText.includes('MermaidDiagramPanelView') ||
-    !timelineBottomText.includes('kind="timeline"') ||
-    !timelineBottomText.includes('renderMode="diagram"') ||
     !timelineBottomText.includes('GanttTimelineTransportPanel') ||
-    !timelineBottomText.includes('<GanttTimelineTransportPanel code={ganttCode} compact={compact} />') ||
+    !timelineBottomText.includes("useMermaidGanttDocument({ purpose: 'media' })") ||
+    !timelineBottomText.includes('<GanttTimelineTransportPanel code={mediaGanttCode} compact={compact} mode="media" />') ||
+    timelineBottomText.includes('MermaidDiagramPanelView') ||
+    timelineBottomText.includes('useMermaidTimelineDocument') ||
+    timelineBottomText.includes('kind="timeline"') ||
+    timelineBottomText.includes('renderMode="diagram"') ||
+    timelineBottomText.includes('<GanttTimelineTransportPanel code={ganttCode} compact={compact} />') ||
     timelineBottomText.includes('TimelineTransportControls') ||
     timelineBottomText.includes('useTimelineTransportPlayback') ||
     timelineBottomText.includes('buildMermaidGanttTimelineModel') ||
     timelineBottomText.includes('data-kg-gantt-timeline-transport')
   ) {
-    throw new Error('expected BottomPanel Timeline to render Mermaid Timeline and delegate the Gantt-Timeline transport fallback to the shared Gantt transport owner')
+    throw new Error('expected BottomPanel Timeline to always mount the shared media editor transport while workflow diagrams stay under BottomPanel Gantt-Timeline')
   }
   if (
     ganttTransportText.includes('<TimelineTransportChrome') ||
@@ -974,7 +959,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     ganttTransportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
     !ganttTransportSurfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
     !ganttTransportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
-    !ganttTransportSurfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
+    !ganttTransportSurfaceModelText.includes("timelineMode: workflowMode ? 'workflow' : (selectedPreviewEmpty ? 'empty' : 'source-backed')") ||
     !ganttTransportSurfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') || !ganttTransportSurfaceModelText.includes('sourceThumbnailWindows') || !ganttTransportSurfaceModelText.includes('sourceThumbnailSets') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportSurface') ||
     !ganttTransportSurfaceText.includes('GanttTimelineTransportShell') ||
@@ -1042,6 +1027,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportRulerModelText.includes('scopes: args.scopes') ||
     !ganttTransportRulerText.includes('GanttTimelineTransportRuler') ||
     !ganttTransportRulerText.includes('VideoSequenceTimelineRuler') ||
+    !ganttTransportRulerText.includes('projectionMode={args.model.mode}') ||
     !ganttTransportRulerText.includes('onSelectRowKey={args.model.onSelectRowKey}') ||
     !ganttTransportRulerText.includes('onSelectRowPosition={args.model.onSelectRowPosition}') ||
     !ganttTransportRulerText.includes('sourceThumbnails={args.model.sourceThumbnails}') || !ganttTransportRulerText.includes('sourceThumbnailWindows={args.model.sourceThumbnailWindows}') || !ganttTransportRulerText.includes('sourceThumbnailSets={args.model.sourceThumbnailSets}') ||
@@ -1053,7 +1039,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportShellModelText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
     !ganttTransportShellModelText.includes("'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined") ||
     !ganttTransportShellModelText.includes("'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined") ||
-    !ganttTransportShellModelText.includes("timelineMode: 'empty' | 'source-backed'") ||
+    !ganttTransportShellModelText.includes("timelineMode: 'empty' | 'source-backed' | 'workflow'") ||
     !ganttTransportShellModelText.includes("'data-kg-video-sequence-timeline': args.timelineMode") ||
     !ganttTransportShellModelText.includes('showInlineProgress: false') ||
     !ganttTransportShellModelText.includes('showRange: false') ||
@@ -1403,7 +1389,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   ) {
     throw new Error('expected Media Canvas video playback and BottomPanel Timeline slider to share the neutral Gantt transport state')
   }
-  if (!timelineBottomText.includes('<GanttTimelineTransportPanel code={ganttCode} compact={compact} />') ||
+  if (!timelineBottomText.includes('<GanttTimelineTransportPanel code={mediaGanttCode} compact={compact} mode="media" />') ||
     timelineBottomText.includes('TimelineVideoSequenceEmptyState') ||
     timelineBottomText.includes('TimelineVideoSequenceEmptyDropState') ||
     timelineBottomText.includes('onDropMedia={rulerModel.onDropMedia}')) {

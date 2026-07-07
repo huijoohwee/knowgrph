@@ -44,13 +44,10 @@ import {
 } from '@/components/timeline/videoSequenceClipEdit'
 import { resolveVideoSequenceClipThumbnails } from '@/components/timeline/videoSequenceClipThumbnailSelection'
 import type { TimelineMediaReaderThumbnail } from '@/components/timeline/timelineMediaReader'
-
 const root = process.cwd()
-
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(root, 'src', ...parts), 'utf8')
 }
-
 function buildTestThumbnail(timestampSeconds: number, rasterDataUrl: string): TimelineMediaReaderThumbnail {
   return {
     dataUrl: rasterDataUrl,
@@ -64,7 +61,6 @@ function buildTestThumbnail(timestampSeconds: number, rasterDataUrl: string): Ti
     width: 160,
   }
 }
-
 export function testVideoSequenceClipThumbnailsKeepNativeVideoFrameReel() {
   const duplicateNativeFrames = [
     buildTestThumbnail(0, 'data:image/png;base64,same-frame'),
@@ -77,15 +73,12 @@ export function testVideoSequenceClipThumbnailsKeepNativeVideoFrameReel() {
   ]
   const span = buildMermaidGanttTimelineModel(['gantt', '  title Video Sequence Timeline', '  dateFormat HH:mm', '  section Source video', '  Source video : clip_source, kgsrc_0_3, kgpos_0, 3m'].join('\n')).taskSpans[0]
   const sourceWindow = { sourceEndSeconds: 3, sourceStartSeconds: 0, timelineEndMinutes: 3, timelineStartMinutes: 0 }
-
   const retainedDuplicates = resolveVideoSequenceClipThumbnails({ sourceThumbnails: duplicateNativeFrames, sourceWindow })
   const retainedDistinctFrames = resolveVideoSequenceClipThumbnails({ sourceThumbnails: distinctNativeFrames, sourceWindow })
-
   if (retainedDuplicates.length !== duplicateNativeFrames.length || retainedDistinctFrames.length !== distinctNativeFrames.length || !span) {
     throw new Error('expected compact source video thumbnails to keep native frame reels even when sampled frames are visually similar')
   }
 }
-
 export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming() {
   const code = ['gantt', '  title Video Sequence Timeline', '  dateFormat HH:mm', '  axisFormat %H:%M', '  section Source video', '  Source video : clip_source, kgsrc_0_0_252, kgpos_0, 0.252m'].join('\n')
   const span = buildMermaidGanttTimelineModel(code).taskSpans[0]
@@ -121,7 +114,6 @@ export function testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming
     throw new Error(`expected source clip edit tools to preserve fractional timing: ${JSON.stringify({ editStep, nudgeDelta, pointerMoveDelta, pointerResizePreview, pointerResizeDelta, nudged, trimmed })}`)
   }
 }
-
 export function testVideoSequenceDisplayLanesStayStableWhenClipMovesAcrossAnother() {
   const code = [
     'gantt',
@@ -155,7 +147,6 @@ export function testVideoSequenceDisplayLanesStayStableWhenClipMovesAcrossAnothe
     throw new Error(`expected horizontal clip drag to preserve source display lane, got ${JSON.stringify({ afterLane, afterHarbor, beforeLane, beforeHarbor, movedCode })}`)
   }
 }
-
 export function testVideoSequenceClipVerticalDragReordersDisplayLane() {
   const code = [
     'gantt',
@@ -192,7 +183,6 @@ export function testVideoSequenceClipVerticalDragReordersDisplayLane() {
     throw new Error(`expected vertical clip drag to move Seedance to the upper display lane, got ${JSON.stringify({ afterLane, afterLaneLabel, afterSpans, beforeLane, beforeLaneLabel, reordered })}`)
   }
 }
-
 export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   const controlsText = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
   const controlsCssText = readSource('components', 'timeline', 'TimelineTransportControls.css')
@@ -294,9 +284,12 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     controlsText.includes('timeline-transport-ruler-aside') ||
     controlsText.includes('timeline-transport-ruler-below') ||
     !controlsText.includes('timeline-player-context') ||
-    !controlsText.includes('timeline-player-context-label') ||
+    !controlsText.includes('timeline-transport-status-bar') ||
+    controlsText.includes('timeline-player-context-label') ||
+    controlsText.includes('timeline-player-info-button') ||
+    !controlsText.includes('timeline-transport-status-details') ||
+    !controlsText.includes('timeline-transport-status-actions') ||
     !controlsText.includes('timeline-player-toolbar') ||
-    !controlsText.includes('timeline-player-info-button') ||
     !controlsText.includes('timeline-rate-button') ||
     controlsText.includes('<select') ||
     controlsCssText.includes('ant-select') ||
@@ -330,7 +323,10 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     clipEditText.includes('Clip nudge, trim, split, and snap tools') ||
     clipEditText.includes('timeline-video-sequence-clip-edit-actions') ||
     !controlsCssText.includes('.timeline-player-toolbar') ||
-    !controlsCssText.includes('.timeline-player-info-button') ||
+    controlsCssText.includes('.timeline-player-info-button') ||
+    !controlsCssText.includes('.timeline-transport-status-bar') ||
+    !controlsCssText.includes('.timeline-transport-status-details') ||
+    !controlsCssText.includes('.timeline-transport-status-actions') ||
     !controlsText.includes('{contextControls}') ||
     !rulerText.includes('VideoSequenceTimelineRuler') ||
     !rulerText.includes('data-kg-video-sequence-clip-cues="1"') ||
@@ -642,6 +638,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportRulerModelText.includes('scopes: args.scopes') ||
     !transportRulerText.includes('GanttTimelineTransportRuler') ||
     !transportRulerText.includes('VideoSequenceTimelineRuler') ||
+    !transportRulerText.includes('projectionMode={args.model.mode}') ||
     !transportRulerText.includes('disabledLaneIds={args.model.disabledLaneIds}') ||
     !transportRulerText.includes('scopes={args.model.scopes}') ||
     !transportInteractionModelText.includes('useGanttTimelineTransportInteractionModel') ||
@@ -657,7 +654,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportShellModelText.includes("'data-kg-gantt-timeline-transport': 'bottomPanel'") ||
     !transportShellModelText.includes("'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined") ||
     !transportShellModelText.includes("'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined") ||
-    !transportShellModelText.includes("timelineMode: 'empty' | 'source-backed'") ||
+    !transportShellModelText.includes("timelineMode: 'empty' | 'source-backed' | 'workflow'") ||
     !transportShellModelText.includes("'data-kg-video-sequence-timeline': args.timelineMode") ||
     !transportShellModelText.includes('showInlineProgress: false') ||
     !transportShellModelText.includes('showRange: false') ||
@@ -982,7 +979,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     transportSurfaceModelText.includes('mediaDurationSeconds: selectedPreviewEmpty ? 0 : transportSession.mediaDurationSeconds') ||
     !transportSurfaceModelText.includes('hasMediaDurationScale: transportClockDisplayModel.hasMediaDurationScale') ||
     !transportSurfaceModelText.includes('mediaDurationSeconds: transportSession.mediaDurationSeconds') ||
-    !transportSurfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
+    !transportSurfaceModelText.includes("timelineMode: workflowMode ? 'workflow' : (selectedPreviewEmpty ? 'empty' : 'source-backed')") ||
     !previewSyncText.includes('TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT') ||
     !previewSyncText.includes('resolveTimelineVideoPreviewDurationSeconds') ||
     !previewSyncText.includes('resolveTimelineVideoPreviewTargetSeconds') ||

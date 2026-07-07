@@ -2,6 +2,17 @@ import React from 'react'
 import { AnchorOverlay } from '@/lib/ui/overlay'
 import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
+import {
+  AGENTIC_OS_BINDING_INVOCATIONS,
+  AGENTIC_OS_DOC_INVOCATIONS,
+  buildAgenticOsDictionaryActionId,
+  buildAgenticOsDocActionId,
+} from '@/features/agentic-os/agenticOsDocInvocations'
+import {
+  buildAgenticOsSemanticInvocationActionMenuItems,
+  buildAgenticOsSlashInvocationActionMenuItems,
+} from '@/features/agentic-os/agenticOsInlineCommandItems'
+import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
 import { MarkdownBlockContainerCommandMenu, type MarkdownInlineCommandMenuItem } from './markdownBlockContainerCore.commandMenu'
 import {
   INLINE_SLASH_COMMAND_ACTIONS,
@@ -14,6 +25,7 @@ import {
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
   buildInlineCommandActionMenuItem,
+  buildInlineCommandMenuItem,
   buildInlineMediaCommandMenuItem,
   buildInlineVariableBrowseMenuItem,
 } from '@/lib/command-menu/inlineCommandMenuItems'
@@ -22,7 +34,7 @@ type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
 
 export const MarkdownBlockContainerInlineMenusOverlay = (props: {
   editDisableRichUi: boolean
-  slashMenu: { show: boolean; leftPx: number; topPx: number }
+  slashMenu: SlashMenuState
   variableMenu: {
     show: boolean
     leftPx: number
@@ -41,8 +53,8 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
   variableMenuRef: React.RefObject<HTMLElement | null>
   onToolbarInteract: () => void
   onVariableMenuMouseDownCapture: () => void
-  setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
-  applyTurnInto: (next: string) => void
+  setSlashMenuStable: (next: SlashMenuState) => void
+  applyTurnInto: (next: string, triggerSelection?: { startOffset: number; endOffset: number } | null) => void
   applyDraftAction: (action: 'heading2' | 'bulletList' | 'numberedList' | 'blockquote') => void
   applyToggleHeading: (level: 1 | 2 | 3) => void
   applyChecklist: () => void
@@ -86,11 +98,26 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     mediaCommandCandidates,
     variableSuggestions,
   } = props
+  const slashMenuKind = props.slashMenu.kind === 'semantic' ? 'semantic' : 'slash'
+  React.useEffect(() => {
+    if (!props.slashMenu.show) {
+      setSlashQuery('')
+      return
+    }
+    setSlashQuery(props.slashMenu.query || '')
+  }, [props.slashMenu.kind, props.slashMenu.query, props.slashMenu.show])
   const closeSlashMenu = React.useCallback(() => {
     setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
     setSlashQuery('')
   }, [setSlashMenuStable])
   const slashCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
+    const selectAgenticOsAction = (actionId: string) => {
+      applyTurnInto(actionId, props.slashMenu.triggerRange || null)
+      closeSlashMenu()
+    }
+    if (slashMenuKind === 'semantic') {
+      return buildAgenticOsSemanticInvocationActionMenuItems({ onSelectActionId: selectAgenticOsAction })
+    }
     const runById: Record<InlineSlashCommandId, () => void> = {
       heading: () => applyDraftAction('heading2'),
       h1: () => applyToggleHeading(1),
@@ -105,7 +132,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       checklist: () => applyChecklist(),
       divider: () => applyDivider(),
     }
-    return INLINE_SLASH_COMMAND_ACTIONS.map(action => buildInlineCommandActionMenuItem({
+    const baseItems = INLINE_SLASH_COMMAND_ACTIONS.map(action => buildInlineCommandActionMenuItem({
       action,
       description: action.id === 'code-block' ? 'Convert this block to fenced code' : action.description,
       onSelect: () => {
@@ -113,7 +140,11 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
         closeSlashMenu()
       },
     }))
-  }, [applyChecklist, applyDivider, applyDraftAction, applyToggleHeading, applyTurnInto, closeSlashMenu])
+    return [
+      ...baseItems,
+      ...buildAgenticOsSlashInvocationActionMenuItems({ onSelectActionId: selectAgenticOsAction }),
+    ]
+  }, [applyChecklist, applyDivider, applyDraftAction, applyToggleHeading, applyTurnInto, closeSlashMenu, props.slashMenu.triggerRange, slashMenuKind])
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const suggestionItems = variableSuggestions.map(suggestion => buildInlineVariableBrowseMenuItem({
       row: suggestion,
@@ -122,6 +153,22 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     const mediaCandidateItems = mediaCommandCandidates.map(candidate => buildInlineMediaCommandMenuItem({
       candidate,
       onSelect: () => applyMediaCommandCandidate(candidate),
+    }))
+    const docItems = AGENTIC_OS_DOC_INVOCATIONS.map(doc => buildInlineCommandMenuItem({
+      id: `agentic-os-doc-at-${doc.id}`,
+      label: doc.atToken,
+      group: 'Agentic OS docs',
+      description: doc.summary,
+      keywords: [doc.label, doc.slashCommand, doc.hashToken, doc.sourcePath, ...doc.keywords],
+      onSelect: () => applyTurnInto(buildAgenticOsDocActionId(doc)),
+    }))
+    const bindingItems = AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => buildInlineCommandMenuItem({
+      id: `agentic-os-binding-${invocation.id}`,
+      label: invocation.token,
+      group: invocation.group,
+      description: invocation.summary,
+      keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
+      onSelect: () => applyTurnInto(buildAgenticOsDictionaryActionId(invocation)),
     }))
     const setModeByActionId: Record<Exclude<InlineVariableCommandId, 'insert-reference' | 'inline-declaration' | 'insert-image' | 'insert-audio' | 'insert-video' | 'image-reference' | 'audio-reference' | 'video-reference'>, () => void> = {
       'browse-variable': () => setVariableMenu(prev => ({ ...prev, mode: 'ref' })),
@@ -169,6 +216,8 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     return [
       ...mediaCandidateItems,
       ...mediaInsertActionItems,
+      ...bindingItems,
+      ...docItems,
       ...suggestionItems,
       ...modeActionItems,
       ...mediaActionItems,
@@ -178,14 +227,14 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     <>
       {!props.editDisableRichUi && props.slashMenu.show ? (
         <AnchorOverlay anchorRef={props.slashAnchorRef} open={props.slashMenu.show} align="bottom-left" className={props.floatingMenuLeftW220ClassName}>
-          <section ref={props.slashMenuRef} aria-label="Slash commands" onMouseDownCapture={props.onToolbarInteract}>
+          <section ref={props.slashMenuRef} aria-label={slashMenuKind === 'semantic' ? 'Semantic commands' : 'Slash commands'} onMouseDownCapture={props.onToolbarInteract}>
             <MarkdownBlockContainerCommandMenu
-              ariaLabel="Slash commands"
+              ariaLabel={slashMenuKind === 'semantic' ? 'Semantic commands' : 'Slash commands'}
               items={slashCommandItems}
               query={slashQuery}
               onQueryChange={setSlashQuery}
               onCancel={closeSlashMenu}
-              placeholder="Type a command"
+              placeholder={slashMenuKind === 'semantic' ? 'Find semantic token' : 'Type a command'}
               inputClassName={props.floatingPopoverInputClassName}
               itemClassName={props.floatingMenuButtonClassName}
               itemDangerClassName={props.floatingMenuButtonDangerClassName}

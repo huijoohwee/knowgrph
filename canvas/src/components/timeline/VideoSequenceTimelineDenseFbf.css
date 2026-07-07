@@ -164,6 +164,11 @@
   pointer-events: none;
 }
 
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-workflow-timeline-bar="1"] .timeline-transport-track-clip-move,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-workflow-timeline-bar="1"]:not(.timeline-transport-track-clip--lane-audio):not(.timeline-transport-track-clip--lane-fbf) .timeline-transport-track-clip-move {
+  pointer-events: auto;
+}
+
 .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"][data-kg-video-sequence-clip-thumbnail-reel="1"]:not(.timeline-transport-track-clip--lane-audio):not(.timeline-transport-track-clip--lane-fbf) .timeline-transport-track-clip-move {
   z-index: 8;
   padding: 0;

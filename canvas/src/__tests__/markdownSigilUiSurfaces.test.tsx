@@ -51,6 +51,26 @@ export const testMarkdownSigilDataViewChipUsesDisplayText = () => {
   if (!html.includes('data-kg-sigil="1"')) throw new Error('expected data-view chip to reuse shared sigil renderer')
 }
 
+export const testMarkdownSigilInlineTextRendersCommandAndBindingTokens = () => {
+  const html = renderToStaticMarkup(
+    <span>
+      {renderMarkdownSigilInlineText('Use @mediaUrl with /ingest-url and #memory.add, then /runtime-ready.check #frontmatter @operator')}
+    </span>,
+  )
+  if ((html.match(/data-kg-card-inline-keyword-pill="1"/g) || []).length !== 6) {
+    throw new Error(`expected @, /, and # tokens to reuse shared inline chip rendering, got ${html}`)
+  }
+  for (const expected of ['@mediaUrl', '/ingest-url', 'memory.add', '/runtime-ready.check', '#frontmatter', '@operator']) {
+    if (!html.includes(expected)) throw new Error(`expected inline sigil chip output to include ${expected}, got ${html}`)
+  }
+  if ((html.match(/data-kg-agentic-os-invocation-chip="1"/g) || []).length !== 3) {
+    throw new Error(`expected registered Agentic OS / # @ tokens to use the shared invocation chip marker, got ${html}`)
+  }
+  if (!html.includes('DICTIONARY-COMMAND.md') || !html.includes('DICTIONARY-SEMANTIC.md') || !html.includes('DICTIONARY-BINDING.md')) {
+    throw new Error(`expected registered Agentic OS invocation chips to expose dictionary sources, got ${html}`)
+  }
+}
+
 export const testMarkdownToolbarHighlightToggleCountsSigils = () => {
   const previous = useGraphStore.getState().markdownDocumentText
   useGraphStore.setState({

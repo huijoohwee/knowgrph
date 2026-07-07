@@ -20,6 +20,15 @@ export const isMediaRowControlTarget = (target: EventTarget | null): boolean => 
 export const shouldHandleMediaRowPointer = (event: React.PointerEvent<HTMLElement>): boolean =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && !isMediaRowControlTarget(event.target)
 
+export const shouldPrimeMediaRowDragPayload = (
+  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>,
+): boolean => {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false
+  if (typeof Element === 'undefined' || !(event.target instanceof Element)) return false
+  if (event.target.closest('input, textarea, select, [data-kg-media-upload-rename], [data-kg-media-upload-delete], [data-kg-media-open-link-overlay], [data-kg-media-download-overlay]')) return false
+  return !!event.target.closest('[data-kg-media-draggable="1"], [data-kg-media-drag-affordance="frame"], [data-kg-command-menu-media-thumbnail="1"]')
+}
+
 const isOpenableMediaHref = (value: string): boolean =>
   /^(https?:|blob:|data:|\/|\.\/|\.\.\/|docs\/)/i.test(value.trim())
 
@@ -472,9 +481,19 @@ export function startMediaPointerDrag(event: React.PointerEvent<HTMLElement>, pa
   beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
 }
 
+export function primeMediaPointerDrag(event: React.PointerEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
+  beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
+}
+
 export function startMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
   if (!payload) return
   event.stopPropagation()
+  beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
+}
+
+export function primeMediaMouseDrag(event: React.MouseEvent<HTMLElement>, payload: MediaDragPayload | null): void {
+  if (!payload) return
   beginMediaPointerDragPayload(payload, { clientX: event.clientX, clientY: event.clientY })
 }
 

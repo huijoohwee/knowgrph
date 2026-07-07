@@ -9,6 +9,7 @@ export type CardInlineTextExternalMediaCandidate = {
 export type CardInlineTextExternalCommandTarget = {
   id: string
   insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => boolean
+  insertText?: (replacement: string) => boolean
 }
 
 const CARD_INLINE_TEXT_EXTERNAL_COMMAND_STATE_KEY = '__knowgrphCardInlineTextExternalCommandState'
@@ -117,4 +118,17 @@ export function insertMediaIntoActiveCardInlineTextEditor(candidate: CardInlineT
   } catch {
     return false
   }
+}
+
+export function insertTextIntoActiveCardInlineTextEditor(replacement: string): boolean {
+  const text = normalizeText(replacement)
+  if (!text) return false
+  const selectedTarget = readSelectedCardInlineTextExternalCommandTarget()
+  if (selectedTarget?.insertText?.(text) === true) {
+    setActiveCardInlineTextExternalCommandTarget(selectedTarget)
+    return true
+  }
+  const activeTarget = readCommandState().activeTarget
+  if (activeTarget?.insertText?.(text) === true) return true
+  return false
 }

@@ -27,7 +27,11 @@ export function MarkdownDataViewHierarchyCell(props: {
       data-kg-markdown-data-view-row-hierarchy-parent={props.childCount > 0 ? '1' : undefined}
       style={style}
     >
-      {hasTreeGuide ? <span className="kg-data-view-tree-cell-guide" aria-hidden="true" /> : null}
+      {hasTreeGuide ? (
+        <svg className="kg-data-view-tree-cell-guide" aria-hidden="true" focusable="false" viewBox="0 0 24 24" preserveAspectRatio="none">
+          <line className="kg-data-view-tree-cell-guide-line" x1="12" x2="12" y1="0" y2="24" />
+        </svg>
+      ) : null}
       <span className="kg-data-view-tree-control">
         {props.childCount > 0 ? (
           <MarkdownDataViewNestedRowToggle collapsed={props.collapsed} onToggle={props.onToggle} />

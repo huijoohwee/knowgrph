@@ -7,7 +7,14 @@ import { rewriteInlineCodeSigilsToStyledSpansHtml, rewriteSigilSpansToInlineCode
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { getSelectionOffsetsWithin, setSelectionByOffsetsWithin } from './markdownBlockContainerCore.selection'
 import { buildReplacementLinesFromDraftWithPrefixes, HTML_TO_MARKDOWN_UNIFIED_DEFAULTS } from './markdownBlockContainerCore.commit'
-import { restoreInlineMediaEditTokensInPlace, rewriteRenderedInlineMediaForEditorHtml } from './markdownBlockContainerCore.inlineMediaEditHtml'
+import {
+  getInlineMediaEditorMarkdownSelectionOffsets,
+  INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR,
+  readInlineMediaEditorMarkdownText,
+  restoreInlineMediaEditTokensInPlace,
+  rewriteRenderedInlineMediaForEditorHtml,
+} from './markdownBlockContainerCore.inlineMediaEditHtml'
+import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
 
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
 
@@ -221,6 +228,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
           || element.hasAttribute('data-kg-footnote-ref')
           || element.hasAttribute('data-kg-comment')
           || element.hasAttribute('data-kg-inline-media-edit-token')
+          || element.hasAttribute('data-kg-inline-invocation-edit-token')
           || element.hasAttribute('data-kg-sigil-color')
           || element.hasAttribute('data-kg-sigil-bg')
           || String(element.getAttribute('style') || '').trim().length > 0
@@ -235,6 +243,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
 
   const readPlainTextFromRoot = React.useCallback((root: HTMLElement | null): string => {
     if (!root) return ''
+    if (root.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) return readInlineMediaEditorMarkdownText(root)
     const nodes = Array.from(root.childNodes)
     const elementChildren = nodes.filter(n => n.nodeType === Node.ELEMENT_NODE) as HTMLElement[]
     if (elementChildren.length === 0) return String(root.textContent || '').replace(/\r/g, '')
@@ -277,7 +286,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   const getSelectionOffsets = React.useCallback((): { startOffset: number; endOffset: number } | null => {
     const root = args.editorRef.current
     if (!root) return null
-    return getSelectionOffsetsWithin(root)
+    return getInlineMediaEditorMarkdownSelectionOffsets(root) || getSelectionOffsetsWithin(root)
   }, [args.editorRef])
 
   const setSelectionByOffsets = React.useCallback((selection: { startOffset: number; endOffset: number }) => {
@@ -460,7 +469,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
         if (rendered.replace(/\s+/g, '').length === 0 && String(nextText || '').trim()) el.textContent = nextText
         else el.innerHTML = args.normalizeRenderedBlockHtmlForEditor(rendered)
       } else {
-        const lines = String(nextText || '').split(/\r?\n/)
+        const lines = normalizeEscapedInlineMediaMarkdown(String(nextText || '')).split(/\r?\n/)
         const renderedInlineHtml = lines
           .map(line => (line ? md.renderInline(line) : ''))
           .map((html, i) => (i === 0 ? html : `<br/>${html}`))

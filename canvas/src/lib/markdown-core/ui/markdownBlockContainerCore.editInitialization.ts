@@ -1,5 +1,6 @@
 import React from 'react'
 import { getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
+import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
 import { normalizeInlineCommentRangeIndicatorsInPlace, rewriteInlineCodeSigilsToPlainTextHtml, rewriteInlineCodeSigilsToStyledSpansHtml } from '@/features/markdown/ui/markdownSigil'
 import { rewriteInlineEditorCommentIndicatorsHtml } from './markdownBlockContainerCore.draftCommit'
 import { rewriteRenderedInlineMediaForEditorHtml } from './markdownBlockContainerCore.inlineMediaEditHtml'
@@ -143,9 +144,10 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
             args.initialEditorHtmlRef.current = el.innerHTML
             args.lastSerializedEditorHtmlRef.current = el.innerHTML
           } else {
-            const lines = String(presentText || '').split(/\r?\n/)
+            const inlinePresentText = normalizeEscapedInlineMediaMarkdown(String(presentText || ''))
+            const lines = inlinePresentText.split(/\r?\n/)
             el.innerHTML = readCachedOrComputeEditHtml(
-              `inline:${args.editSigilRenderMode}:${presentText}`,
+              `inline:${args.editSigilRenderMode}:${inlinePresentText}`,
               () => {
                 const md = getMarkdownItFastHtml()
                 return rewriteInlineSigilsForEditHtml(lines.map(line => (line ? md.renderInline(line) : '')).map((html, i) => (i === 0 ? html : `<br/>${html}`)).join(''))
@@ -218,9 +220,10 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
           args.initialEditorHtmlRef.current = el.innerHTML
           args.lastSerializedEditorHtmlRef.current = el.innerHTML
         } else {
-          const lines = String(normalizedInitialText || '').split(/\r?\n/)
+          const inlineInitialText = normalizeEscapedInlineMediaMarkdown(String(normalizedInitialText || ''))
+          const lines = inlineInitialText.split(/\r?\n/)
           el.innerHTML = readCachedOrComputeEditHtml(
-            `inline:${args.editSigilRenderMode}:${normalizedInitialText}`,
+            `inline:${args.editSigilRenderMode}:${inlineInitialText}`,
             () => {
               const md = getMarkdownItFastHtml()
               return rewriteInlineSigilsForEditHtml(lines.map(line => (line ? md.renderInline(line) : '')).map((html, i) => (i === 0 ? html : `<br/>${html}`)).join(''))

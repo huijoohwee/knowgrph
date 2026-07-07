@@ -35,9 +35,8 @@ import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'
 import { parseMarkdownInlineCodeSemantic, parseMarkdownSigil, readMarkdownSigilInlineStyle } from '@/features/markdown/ui/markdownSigil'
-import {
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-} from '@/features/markdown/ui/dataViewChipStyles'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
+import { renderAgenticOsInlineCodeInvocationLinks } from '@/features/agentic-os/agenticOsInvocationChips'
 import {
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
@@ -49,6 +48,7 @@ import {
   CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
+  readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { CardPreviewInlineMediaPill } from '@/lib/cards/CardPreviewInlineMediaPill'
 import { UI_RESPONSIVE_MARKDOWN_BOUNDED_IMAGE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
@@ -56,7 +56,36 @@ import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { renderMarkdownVariableReferenceChip } from './markdownInlineVariableMediaPreview'
 type KatexModule = typeof import('katex')
 let katexModulePromise: Promise<KatexModule> | null = null
-
+const normalizeInlineVariablePreviewKey = (key: string): string => String(key || '').trim().toLowerCase()
+function resolveInlineMediaVariablePillProps(args: {
+  label: string
+  fallbackLabel: string
+  mediaUrl: string
+  opts: InlineRenderOpts
+}): {
+  displayLabel?: string
+  sourceTitle?: string
+  sourceToken?: string
+  sourceValue?: string
+} {
+  const label = readCardMarkdownPreviewMediaLabel(args.label, args.fallbackLabel)
+  const preview = args.opts.markdownVariablePreviewByKey?.[normalizeInlineVariablePreviewKey(label)]
+  if (!preview) return {}
+  const token = `@${label}`
+  const source = preview.source || 'unresolved'
+  const line = preview.line ? ` line ${preview.line}` : ''
+  return {
+    displayLabel: token,
+    sourceToken: token,
+    sourceValue: preview.value || args.mediaUrl,
+    sourceTitle: [
+      `${token} - Markdown media reference`,
+      `Source: ${source}${line}`,
+      preview.value ? `Value: ${preview.value}` : '',
+      args.mediaUrl ? `Media: ${args.mediaUrl}` : '',
+    ].filter(Boolean).join('\n'),
+  }
+}
 const loadKatexModule = async (): Promise<KatexModule> => {
   if (!katexModulePromise) {
     katexModulePromise = import('katex')
@@ -68,10 +97,8 @@ const loadKatexModule = async (): Promise<KatexModule> => {
   }
   return katexModulePromise
 }
-
 function InlineMathRenderer({ tex, display }: { tex: string; display: boolean }) {
   const [html, setHtml] = React.useState<string>(display ? tex : tex)
-
   React.useEffect(() => {
     let cancelled = false
     void loadKatexModule()
@@ -97,13 +124,11 @@ function InlineMathRenderer({ tex, display }: { tex: string; display: boolean })
       cancelled = true
     }
   }, [display, tex])
-
   if (display) {
     return <span className="block my-3 overflow-x-auto" dangerouslySetInnerHTML={{ __html: html }} />
   }
   return <span className="inline-block" dangerouslySetInnerHTML={{ __html: html }} />
 }
-
 const INLINE_HTML_WRAPPER_TAGS = new Set([
   'a',
   'abbr',
@@ -123,7 +148,6 @@ const INLINE_HTML_WRAPPER_TAGS = new Set([
   'v-click',
   'v-mark',
 ])
-
 const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' | 'close'; raw: string } | null => {
   const generic = token as unknown as TokensGeneric
   if (generic.type !== 'html') return null
@@ -142,7 +166,6 @@ const readInlineHtmlWrapperToken = (token: Token): { tag: string; kind: 'open' |
   if (!INLINE_HTML_WRAPPER_TAGS.has(tag)) return null
   return { tag, kind: 'open', raw }
 }
-
 const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: string }> => {
   const raw = String(text || '')
   if (!raw) return [{ kind: 'text', value: '' }]
@@ -161,7 +184,6 @@ const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: stri
   if (last < raw.length) out.push({ kind: 'text', value: raw.slice(last) })
   return out.length ? out : [{ kind: 'text', value: raw }]
 }
-
 const splitVariableRefs = (text: string): Array<
   | { kind: 'text'; value: string }
   | { kind: 'var'; value: string; key: string }
@@ -182,23 +204,19 @@ const splitVariableRefs = (text: string): Array<
   if (cursor < raw.length) out.push({ kind: 'text', value: raw.slice(cursor) })
   return out
 }
-
 const INLINE_SEMANTIC_BADGE_CLASS = [
   'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 align-baseline leading-none',
   'border-slate-300/70 bg-slate-100/80 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200',
 ].join(' ')
-
 const INLINE_SEMANTIC_LABEL_CLASS = [
   'uppercase tracking-wide text-[10px] font-semibold',
   UI_THEME_TOKENS.text.secondary,
 ].join(' ')
-
 const INLINE_SEMANTIC_VALUE_CLASS = 'font-medium'
 const INLINE_COMMENT_RANGE_CLASS = [
   'cursor-pointer underline decoration-dotted underline-offset-2',
   UI_THEME_TOKENS.status.warning,
 ].join(' ')
-
 const readCommentReferenceCodeToken = (token: Token): { code: string; commentId: string } | null => {
   const generic = token as unknown as TokensGeneric
   if (generic.type !== 'code') return null
@@ -212,7 +230,6 @@ const readCommentReferenceCodeToken = (token: Token): { code: string; commentId:
     commentId,
   }
 }
-
 const getInlineSemanticToneClassName = (badgeLabel: string): string => {
   const label = String(badgeLabel || '').trim().toLowerCase()
   if (label === 'comment') return `${UI_THEME_TOKENS.status.warning} border-amber-300/70 dark:border-amber-700/70`
@@ -224,7 +241,6 @@ const getInlineSemanticToneClassName = (badgeLabel: string): string => {
   if (label === 'date' || label === 'hash') return `${UI_THEME_TOKENS.status.warning} border-amber-300/70 dark:border-amber-700/70`
   return ''
 }
-
 const renderInlineCodeSemanticToken = (
   rawText: string,
   key: string,
@@ -274,7 +290,6 @@ const renderInlineCodeSemanticToken = (
     </span>
   )
 }
-
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const cardPreviewMode = opts.markdownCardPreviewMode === true
@@ -283,7 +298,6 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
   const fragmentOpts = opts.fragmentOptions || null
   const fragmentIndexRef = { current: 0 }
   const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS
-
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
     const list = Array.isArray(subTokens) ? subTokens : []
     const out: React.ReactNode[] = []
@@ -364,7 +378,6 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     return out
   }
-
   const renderOne = (t: Token, i: number, insideLink: boolean): React.ReactNode => {
     const key = `${t.type}:${i}`
     const tt = t as unknown as TokensGeneric
@@ -565,6 +578,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               fullMedia={fullVideoNode}
               thumbnailKind="video"
               toggleEnabled={inlineMediaToggleEnabled}
+              {...resolveInlineMediaVariablePillProps({ label: alt, fallbackLabel: 'Video', mediaUrl: resolved || src, opts })}
             >
               {videoNode}
             </CardPreviewInlineMediaPill>
@@ -600,6 +614,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
               fullMedia={fullAudioNode}
               thumbnailKind="audio"
               toggleEnabled={inlineMediaToggleEnabled}
+              {...resolveInlineMediaVariablePillProps({ label: alt, fallbackLabel: 'Audio', mediaUrl: resolved || src, opts })}
             >
               <span className={[CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME, 'inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]'].join(' ')}>
                 <Volume2 className="h-2.5 w-2.5" aria-hidden="true" />
@@ -665,6 +680,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
             thumbnailKind="image"
             thumbnailUrl={src}
             toggleEnabled={inlineMediaToggleEnabled}
+            {...resolveInlineMediaVariablePillProps({ label: alt, fallbackLabel: 'Image', mediaUrl: resolved || src, opts })}
           >
             {imageNode}
           </CardPreviewInlineMediaPill>
@@ -681,9 +697,16 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       })
     }
     if (tt.type === 'code') {
-      const semanticToken = renderInlineCodeSemanticToken((t as unknown as TokensCode).text, key, activeDocumentPath)
+      const codeText = (t as unknown as TokensCode).text
+      const semanticToken = renderInlineCodeSemanticToken(codeText, key, activeDocumentPath)
       if (semanticToken) return semanticToken
-      const sigil = parseMarkdownSigil((t as unknown as TokensCode).text)
+      const inlineCodeInvocationLinks = renderAgenticOsInlineCodeInvocationLinks({
+        text: codeText,
+        keyValue: key,
+        className: inlineCodeClassName,
+      })
+      if (inlineCodeInvocationLinks) return inlineCodeInvocationLinks
+      const sigil = parseMarkdownSigil(codeText)
       if (sigil) {
         return (
           <span
@@ -697,7 +720,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       }
       return (
         <code key={key} className={inlineCodeClassName}>
-          {(t as unknown as TokensCode).text}
+          {codeText}
         </code>
       )
     }
@@ -725,6 +748,5 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     return <React.Fragment key={key}>{(t as unknown as { raw?: string }).raw || ''}</React.Fragment>
   }
-
   return <>{renderTokens(tokens, false)}</>
 }

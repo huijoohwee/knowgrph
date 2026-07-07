@@ -1,5 +1,5 @@
+import { AGENTIC_OS_DOC_INVOCATIONS, AGENTIC_OS_SEMANTIC_INVOCATIONS } from '@/features/agentic-os/agenticOsDocInvocations'
 export type InlineCommandMenuKind = 'slash' | 'variable' | 'keyword'
-
 export type InlineSlashCommandId =
   | 'heading'
   | 'h1'
@@ -13,7 +13,6 @@ export type InlineSlashCommandId =
   | 'video'
   | 'checklist'
   | 'divider'
-
 export type InlineVariableCommandId =
   | 'browse-variable'
   | 'upload-media'
@@ -29,7 +28,6 @@ export type InlineVariableCommandId =
   | 'edit-variable'
   | 'fallback-reference'
   | 'delete-variable'
-
 export type InlineKeywordCommandId =
   | 'source'
   | 'storyboard'
@@ -46,7 +44,6 @@ export type InlineKeywordCommandId =
   | 'graph'
   | 'canvas'
   | 'workflow'
-
 export type InlineCommandMenuActionSpec<Id extends string = string> = {
   id: Id
   kind: InlineCommandMenuKind
@@ -56,16 +53,13 @@ export type InlineCommandMenuActionSpec<Id extends string = string> = {
   keywords: readonly string[]
   danger?: boolean
 }
-
 export type ParsedInlineVariableCommandQuery = {
   mode: 'ref' | 'create' | 'fallback'
   key: string
   value: string
   fallback: string
 }
-
 export type InlineMediaKind = 'image' | 'audio' | 'video'
-
 export type InlineMediaCommandCandidate = {
   id: string
   kind: InlineMediaKind
@@ -76,7 +70,6 @@ export type InlineMediaCommandCandidate = {
   description: string
   keywords: string[]
 }
-
 export type InlineKeywordCommandCandidate = {
   id: string
   label: string
@@ -85,9 +78,7 @@ export type InlineKeywordCommandCandidate = {
   description: string
   keywords: string[]
 }
-
 export const INLINE_VARIABLE_KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
-
 export const INLINE_MEDIA_COMMAND_ENTRY_LABELS = [
   'Image insertion',
   'Audio insertion',
@@ -96,21 +87,17 @@ export const INLINE_MEDIA_COMMAND_ENTRY_LABELS = [
   'Audio reference',
   'Video reference',
 ] as const
-
 export const INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID = {
   'image-reference': 'imageUrl',
   'audio-reference': 'audioUrl',
   'video-reference': 'videoUrl',
 } as const satisfies Partial<Record<InlineVariableCommandId, string>>
-
 export const INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID = {
   'insert-image': 'image',
   'insert-audio': 'audio',
   'insert-video': 'video',
 } as const satisfies Partial<Record<InlineVariableCommandId, InlineMediaKind>>
-
 export const INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID = 'upload-media' as const satisfies InlineVariableCommandId
-
 export const INLINE_SLASH_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineSlashCommandId>[] = [
   {
     id: 'heading',
@@ -209,7 +196,6 @@ export const INLINE_SLASH_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<
     keywords: ['hr', 'separator', 'rule'],
   },
 ] as const
-
 export const INLINE_KEYWORD_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineKeywordCommandId>[] = [
   { id: 'source', kind: 'keyword', label: 'Source', group: 'Canvas keywords', description: 'Insert #source', keywords: ['lane', 'input', 'evidence'] },
   { id: 'storyboard', kind: 'keyword', label: 'Storyboard', group: 'Canvas keywords', description: 'Insert #storyboard', keywords: ['card', 'frame', 'strybldr'] },
@@ -227,7 +213,6 @@ export const INLINE_KEYWORD_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpe
   { id: 'canvas', kind: 'keyword', label: 'Canvas', group: 'Graph keywords', description: 'Insert #canvas', keywords: ['view', 'surface'] },
   { id: 'workflow', kind: 'keyword', label: 'Workflow', group: 'Graph keywords', description: 'Insert #workflow', keywords: ['process', 'stage'] },
 ] as const
-
 export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSpec<InlineVariableCommandId>[] = [
   {
     id: INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID,
@@ -343,7 +328,6 @@ export const INLINE_VARIABLE_COMMAND_ACTIONS: readonly InlineCommandMenuActionSp
     danger: true,
   },
 ] as const
-
 export function parseInlineVariableCommandQuery(query: string): ParsedInlineVariableCommandQuery {
   const raw = String(query || '').trim()
   const createIndex = raw.indexOf(':')
@@ -366,11 +350,9 @@ export function parseInlineVariableCommandQuery(query: string): ParsedInlineVari
   }
   return { mode: 'ref', key: raw, value: '', fallback: '' }
 }
-
 export function isInlineVariableKey(value: string): boolean {
   return INLINE_VARIABLE_KEY_PATTERN.test(String(value || '').trim())
 }
-
 const INLINE_MEDIA_URL_SOURCE_PATTERN = String.raw`(?:https?:\/\/|\/)[^\s"'<>),\]}]+`
 const INLINE_MEDIA_URL_PATTERN = new RegExp(INLINE_MEDIA_URL_SOURCE_PATTERN, 'gi')
 const INLINE_MEDIA_KEY_VALUE_PATTERN = new RegExp(String.raw`^\s*["']?([A-Za-z0-9_.-]{1,96})["']?\s*[:=]\s*["']?(${INLINE_MEDIA_URL_SOURCE_PATTERN})`, 'i')
@@ -380,7 +362,6 @@ const INLINE_VIDEO_KEY_PATTERN = /(video|clip|movie|trailer|watch|playback|strea
 const INLINE_IMAGE_URL_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i
 const INLINE_AUDIO_URL_PATTERN = /\.(?:aac|aiff?|flac|m4a|mp3|oga|ogg|opus|wav|weba)(?:[?#].*)?$/i
 const INLINE_VIDEO_URL_PATTERN = /\.(?:m3u8|m4v|mov|mp4|mpeg|mpg|ogg|ogv|webm)(?:[?#].*)?$/i
-
 function inferInlineMediaKind(key: string | undefined, url: string): InlineMediaKind | null {
   const sourceKey = String(key || '')
   if (INLINE_IMAGE_KEY_PATTERN.test(sourceKey)) return 'image'
@@ -398,7 +379,6 @@ function inferInlineMediaKind(key: string | undefined, url: string): InlineMedia
   if (INLINE_VIDEO_URL_PATTERN.test(url) || host.includes('youtube.') || host === 'youtu.be' || host.includes('vimeo.')) return 'video'
   return null
 }
-
 function buildInlineMediaCandidateLabel(kind: InlineMediaKind, sourceKey: string | undefined, url: string): string {
   const key = String(sourceKey || '').trim()
   const label = kind === 'image' ? 'Image' : kind === 'audio' ? 'Audio' : 'Video'
@@ -411,7 +391,6 @@ function buildInlineMediaCandidateLabel(kind: InlineMediaKind, sourceKey: string
     return `${label} URL`
   }
 }
-
 function readYoutubeVideoId(url: string): string {
   try {
     const parsed = new URL(url)
@@ -423,20 +402,17 @@ function readYoutubeVideoId(url: string): string {
   }
   return ''
 }
-
 function resolveInlineMediaThumbnailUrl(kind: InlineMediaKind, url: string): string | undefined {
   if (kind === 'image') return url
   const youtubeVideoId = readYoutubeVideoId(url)
   if (youtubeVideoId) return `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`
   return undefined
 }
-
 function normalizeInlineMediaUrl(raw: string): string {
   return String(raw || '')
     .trim()
     .replace(/[.,;:]+$/g, '')
 }
-
 function escapeInlineMediaHtmlAttr(raw: string): string {
   return String(raw || '')
     .replace(/&/g, '&amp;')
@@ -444,14 +420,12 @@ function escapeInlineMediaHtmlAttr(raw: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 }
-
 function buildInlineMediaMarkdownDestination(raw: string): string {
   const url = String(raw || '').trim()
   if (!url) return 'image-url'
   if (!/[\s<>]/.test(url)) return url
   return `<${url.replace(/\\/g, '\\\\').replace(/>/g, '%3E').replace(/\r?\n/g, ' ')}>`
 }
-
 const INLINE_KEYWORD_STOP_WORDS = new Set([
   'a',
   'an',
@@ -469,7 +443,6 @@ const INLINE_KEYWORD_STOP_WORDS = new Set([
   'to',
   'with',
 ])
-
 export function buildInlineKeywordToken(raw: string): string {
   const token = String(raw || '')
     .normalize('NFKC')
@@ -482,12 +455,10 @@ export function buildInlineKeywordToken(raw: string): string {
     .toLowerCase()
   return token ? `#${token}` : ''
 }
-
 function readInlineKeywordLabel(raw: string): string {
   const compact = String(raw || '').normalize('NFKC').replace(/\s+/g, ' ').trim()
   return compact ? compact.slice(0, 48) : ''
 }
-
 export function collectInlineKeywordCommandCandidates(args: {
   draftText?: string
   limit?: number | null
@@ -524,6 +495,33 @@ export function collectInlineKeywordCommandCandidates(args: {
     push(action.label, action.group, action.description, [...action.keywords])
     if (reachedLimit()) return candidates
   }
+  for (const doc of AGENTIC_OS_DOC_INVOCATIONS) {
+    if (reachedLimit()) return candidates
+    if (seen.has(doc.hashToken)) continue
+    seen.add(doc.hashToken)
+    candidates.push({
+      id: `keyword-${doc.id}`,
+      label: doc.label,
+      token: doc.hashToken,
+      group: 'Agentic OS docs',
+      description: doc.summary,
+      keywords: [doc.hashToken, doc.slashCommand, doc.atToken, doc.sourcePath, ...doc.keywords],
+    })
+  }
+  for (const invocation of AGENTIC_OS_SEMANTIC_INVOCATIONS) {
+    if (reachedLimit()) return candidates
+    const token = invocation.token
+    if (seen.has(token)) continue
+    seen.add(token)
+    candidates.push({
+      id: `keyword-${invocation.id}`,
+      label: invocation.label,
+      token,
+      group: invocation.group,
+      description: invocation.summary,
+      keywords: [token, invocation.sourcePath, ...invocation.keywords],
+    })
+  }
   for (const match of text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,47}/gu)) {
     const word = match[0] || ''
     if (INLINE_KEYWORD_STOP_WORDS.has(word.toLowerCase())) continue
@@ -532,7 +530,6 @@ export function collectInlineKeywordCommandCandidates(args: {
   }
   return candidates
 }
-
 export function collectInlineMediaCommandCandidates(args: {
   sourceLines?: string[]
   draftText?: string
@@ -580,7 +577,6 @@ export function collectInlineMediaCommandCandidates(args: {
   }
   return candidates
 }
-
 export function buildInlineMediaEmbed(args: {
   kind: InlineMediaKind
   url?: string
@@ -610,7 +606,6 @@ export function buildInlineMediaEmbed(args: {
   const titleAttr = title ? ` title="${title}"` : ''
   return `<video src="${escapeInlineMediaHtmlAttr(url || selected || 'video-url')}"${posterAttr}${titleAttr} controls></video>`
 }
-
 export function getInlineCommandMenuCatalog() {
   return {
     slash: INLINE_SLASH_COMMAND_ACTIONS,

@@ -5,6 +5,7 @@ import { UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME } from '@/lib/ui/responsi
 
 export const MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS = UI_RESPONSIVE_CONTENT_START_PADDING_CLASSNAME
 export const MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS = 'pr-2'
+export const MARKDOWN_BLOCK_GUTTER_CONTROLS_INLINE_START_CLASS = 'left-[calc(var(--kg-content-start-offset-left,44px)-36px)]'
 export const MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS = ''
 
 export const LINE_BLOCK_TRANSFER_TYPE = 'application/x-kg-md-lineblock'
@@ -133,7 +134,8 @@ export function MarkdownBlockGutterControls(props: {
   return (
     <span
       className={[
-        'absolute left-2 inset-y-0 opacity-0 transition-opacity',
+        'absolute inset-y-0 opacity-0 transition-opacity',
+        MARKDOWN_BLOCK_GUTTER_CONTROLS_INLINE_START_CLASS,
         revealCls,
         UI_THEME_TOKENS.text.tertiary,
         'flex items-center gap-0.5',

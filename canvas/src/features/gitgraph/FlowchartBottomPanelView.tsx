@@ -1,4 +1,6 @@
-import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
+import React from 'react'
+import { buildMermaidGanttWorkflowCodeFromFlowchartCode } from '@/lib/mermaid/mermaidDiagramCode'
+import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { useMermaidStructuredDiagramDocument } from './useMermaidStructuredDiagramDocument'
 
 export function FlowchartBottomPanelView({
@@ -6,18 +8,7 @@ export function FlowchartBottomPanelView({
 }: {
   compact?: boolean
 }) {
-  const { code, model, themeMode } = useMermaidStructuredDiagramDocument('flowchart')
-  return (
-    <MermaidDiagramPanelView
-      code={code}
-      model={model}
-      kind="flowchart"
-      title="Flowchart"
-      emptyLabel="No Flowchart Mermaid frontmatter."
-      rootThemeMode={themeMode}
-      compact={compact}
-      surface="bottomPanel"
-      renderMode="diagram"
-    />
-  )
+  const { code } = useMermaidStructuredDiagramDocument('flowchart')
+  const flowchartTimelineCode = React.useMemo(() => buildMermaidGanttWorkflowCodeFromFlowchartCode(code), [code])
+  return <GanttTimelineTransportPanel code={flowchartTimelineCode} compact={compact} mode="workflow" />
 }

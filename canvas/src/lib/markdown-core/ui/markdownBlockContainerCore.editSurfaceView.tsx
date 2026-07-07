@@ -21,6 +21,7 @@ import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockConta
 import { MarkdownBlockContainerCommentPreviewOverlay } from './markdownBlockContainerCore.commentPreviewOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
 
 export const MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS =
   '[caret-color:inherit] focus:outline-none focus-visible:outline-none'
@@ -37,7 +38,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   editStaticChildrenMode?: 'flow' | 'overlay' | 'passthrough'
   editLeftRailClassName?: string
   bubble: { show: boolean; leftPx: number; topPx: number }
-  slashMenu: { show: boolean; leftPx: number; topPx: number }
+  slashMenu: SlashMenuState
   variableMenu: { show: boolean; leftPx: number; topPx: number; query: string; keyInput: string; valueInput: string; fallbackInput: string; mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete' }
   linkPopover: { show: boolean; leftPx: number; topPx: number; href: string }
   commentPreview: { show: boolean; leftPx: number; topPx: number; text: string }
@@ -80,7 +81,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
     onShowInGraphDataTable: (line: number) => void
   } | null
   onVariableMenuMouseDownCapture: () => void
-  setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
+  setSlashMenuStable: (next: SlashMenuState) => void
   setVariableMenu: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number; query: string; keyInput: string; valueInput: string; fallbackInput: string; mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete' }>>
   variableSuggestions: Array<{ key: string; value?: string | null; source?: string }>
   applyVariableToken: (mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete', forcedKey?: string) => void
@@ -197,7 +198,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         applyChecklist={props.applyChecklist}
         applyDivider={props.applyDivider}
         openSlashCommandMenu={() => {
-          props.setSlashMenuStable({ show: true, leftPx: props.bubble.leftPx, topPx: props.bubble.topPx })
+          props.setSlashMenuStable({ show: true, leftPx: props.bubble.leftPx, topPx: props.bubble.topPx, kind: 'slash', query: '' })
           props.setVariableMenu(prev => ({ ...prev, show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' }))
         }}
         openVariableCommandMenu={() => {

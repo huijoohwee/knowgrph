@@ -19,6 +19,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       mediaDurationSeconds={args.model.mediaDurationSeconds}
       mediaFrameRate={args.model.mediaFrameRate}
       playheadPercent={args.model.playheadPercent}
+      projectionMode={args.model.mode}
       selectedRowKey={args.model.selectedRowKey}
       scopes={args.model.scopes}
       sourceThumbnails={args.model.sourceThumbnails}

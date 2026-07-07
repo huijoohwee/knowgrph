@@ -10,8 +10,33 @@ import {
 } from '@/lib/mermaid/mermaidDiagramCode'
 import { readFrontmatterMermaidCode } from '@/lib/mermaid/mermaidFrontmatterCode'
 import { resolveMermaidGanttCode } from '@/lib/mermaid/mermaidGitGraph'
+import {
+  filterVideoSequenceMediaEditorGanttCode,
+  filterVideoSequenceWorkflowGanttCode,
+} from '@/components/timeline/videoSequenceTimeline'
 
-export function useMermaidGanttDocument() {
+export type MermaidGanttDocumentPurpose = 'any' | 'media' | 'workflow'
+
+const resolveGanttCandidatesForPurpose = (
+  candidates: readonly string[],
+  purpose: MermaidGanttDocumentPurpose,
+): readonly string[] => {
+  if (purpose === 'any') return candidates
+  if (purpose === 'media') {
+    return candidates
+      .map(filterVideoSequenceMediaEditorGanttCode)
+      .filter((code): code is string => !!code)
+  }
+  return candidates
+    .map(filterVideoSequenceWorkflowGanttCode)
+    .filter((code): code is string => !!code)
+}
+
+export function useMermaidGanttDocument({
+  purpose = 'any',
+}: {
+  purpose?: MermaidGanttDocumentPurpose
+} = {}) {
   const graphData = useActiveGraphRenderData(true)
   const { graphDataRevision, markdownDocumentText, themeMode } = useGraphStore(
     useShallow(state => ({
@@ -21,14 +46,16 @@ export function useMermaidGanttDocument() {
     })),
   )
   const code = React.useMemo(
-    () =>
-      resolveMermaidGanttCode([
+    () => {
+      const candidates = [
         ...readYamlFrontmatterMermaidDiagramCodes(markdownDocumentText || '', 'gantt'),
         readYamlFrontmatterMermaidCode(markdownDocumentText || ''),
         ...readFrontmatterMermaidDiagramCodes(graphData, 'gantt'),
         readFrontmatterMermaidCode(graphData),
-      ]),
-    [graphData, markdownDocumentText],
+      ]
+      return resolveMermaidGanttCode(resolveGanttCandidatesForPurpose(candidates, purpose))
+    },
+    [graphData, markdownDocumentText, purpose],
   )
   const ganttModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gantt'), [code])
 

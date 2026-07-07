@@ -107,9 +107,12 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const headingControlVisibilityClassName = 'opacity-0 group-hover:opacity-100 transition-opacity'
   const headingLinkClassName = [
     headingControlVisibilityClassName,
+    'p-0.5 rounded',
     'no-underline',
     UI_THEME_TOKENS.text.tertiary,
     UI_THEME_TOKENS.button.hoverText,
+    UI_THEME_TOKENS.button.hoverBg,
+    'flex items-center justify-center shrink-0',
   ].join(' ')
   const headingButtonClassName = [
     headingControlVisibilityClassName,

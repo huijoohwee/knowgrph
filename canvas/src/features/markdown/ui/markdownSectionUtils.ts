@@ -10,11 +10,13 @@ import {
 
 export type TocItem = MarkdownTocItem
 
+export const MARKDOWN_VIEWER_CONTENT_START_OFFSET_CLASS = '[--kg-content-start-offset-left:20px]'
+
 export function getMarkdownViewerWidthWrapperClassName(
   mode: 'standard' | 'wide' = 'wide',
 ): string {
-  if (mode === 'standard') return 'w-[var(--kg-viewer-article-width,80%)] max-w-none mx-auto min-w-0 px-8 box-border'
-  return 'w-[var(--kg-viewer-article-width,80%)] max-w-none mx-auto min-w-0 px-8 box-border'
+  if (mode === 'standard') return `w-[var(--kg-viewer-article-width,80%)] max-w-none mx-auto min-w-0 px-8 box-border ${MARKDOWN_VIEWER_CONTENT_START_OFFSET_CLASS}`
+  return `w-[var(--kg-viewer-article-width,80%)] max-w-none mx-auto min-w-0 px-8 box-border ${MARKDOWN_VIEWER_CONTENT_START_OFFSET_CLASS}`
 }
 
 export function getDefaultStickyHeadingTopPx(providedTopPx: number | undefined): number {

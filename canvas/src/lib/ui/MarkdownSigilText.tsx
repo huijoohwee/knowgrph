@@ -12,6 +12,7 @@ import {
   readMarkdownSigilInlineStyle,
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { getSemanticHighlightSurfaceAttributes, getSemanticHighlightSurfaceClassName, resolveSemanticHighlightColors, SEMANTIC_HIGHLIGHT_SURFACES } from '@/lib/ui/semanticHighlight'
 
@@ -20,6 +21,7 @@ type MarkdownSigilTextOptions = {
   maxScanChars?: number
   highlightClassName?: string
   keywordChipClassName?: string
+  renderKeywordChip?: (args: { value: string; label: string; className: string }) => React.ReactNode | null
 }
 
 type MarkdownSigilTextProps = MarkdownSigilTextOptions & {
@@ -54,13 +56,22 @@ export const renderMarkdownSigilInlineText = (
     if (keywordSegments.every(segment => segment.kind === 'text')) return text
     return keywordSegments.map((segment, index) => {
       if (segment.kind === 'text') return <React.Fragment key={`text-${index}`}>{segment.value}</React.Fragment>
+      const className = [
+        options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
+        resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value)),
+      ].join(' ')
+      const customChip = options?.renderKeywordChip?.({
+        value: segment.value,
+        label: readInlineKeywordChipLabel(segment.value),
+        className,
+      })
+      if (customChip) return <React.Fragment key={`keyword-${index}`}>{customChip}</React.Fragment>
+      const invocationChip = renderAgenticOsInvocationKeywordChip({ value: segment.value, className })
+      if (invocationChip) return <React.Fragment key={`keyword-${index}`}>{invocationChip}</React.Fragment>
       return (
         <span
           key={`keyword-${index}`}
-          className={[
-            options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
-            resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value)),
-          ].join(' ')}
+          className={className}
           title={segment.value}
           data-kg-card-inline-keyword-pill="1"
         >
@@ -105,8 +116,9 @@ export const MarkdownSigilText = React.memo(function MarkdownSigilText(props: Ma
       maxScanChars: props.maxScanChars,
       highlightClassName: props.highlightClassName,
       keywordChipClassName: props.keywordChipClassName,
+      renderKeywordChip: props.renderKeywordChip,
     }),
-    [props.highlightClassName, props.keywordChipClassName, props.maxAnnotations, props.maxScanChars, props.text],
+    [props.highlightClassName, props.keywordChipClassName, props.maxAnnotations, props.maxScanChars, props.renderKeywordChip, props.text],
   )
   return (
     <Tag className={props.className} title={props.title}>

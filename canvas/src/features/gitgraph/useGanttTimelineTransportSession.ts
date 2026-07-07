@@ -23,6 +23,7 @@ import {
 import { useGanttTimelineDisplayModel } from './useGanttTimelineDisplayModel'
 import { useGanttTimelineMediaDuration } from './useGanttTimelineMediaDuration'
 import { useGanttTimelineTransportPreviewSession } from './useGanttTimelineTransportPreviewSession'
+import type { GanttTimelineTransportMode } from './ganttTimelineTransportMode'
 
 export type GanttTimelineTransportSession = {
   currentLabel: string
@@ -59,6 +60,7 @@ export type GanttTimelineTransportSession = {
 export function useGanttTimelineTransportSession(args: {
   code: string
   disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]
+  mode: GanttTimelineTransportMode
 }): GanttTimelineTransportSession {
   const { markdownDocumentName, markdownText } = useTimelineDocumentStoreBinding()
   const { selectedRowKey, setSelectedRowKey } = useTimelineGanttSelectionStoreBinding()
@@ -72,8 +74,10 @@ export function useGanttTimelineTransportSession(args: {
   const timelineModel = React.useMemo(() => buildMermaidGanttTimelineModel(args.code), [args.code])
   const ticks = React.useMemo(() => buildMermaidGanttTimelineTicks(timelineModel), [timelineModel])
   const visibleLaneCount = React.useMemo(
-    () => resolveVisibleVideoSequenceTimelineLaneCount(timelineModel.taskSpans, { disabledLaneIds: args.disabledLaneIds }),
-    [args.disabledLaneIds, timelineModel.taskSpans],
+    () => args.mode === 'workflow'
+      ? (timelineModel.taskSpans.length ? 1 : 0)
+      : resolveVisibleVideoSequenceTimelineLaneCount(timelineModel.taskSpans, { disabledLaneIds: args.disabledLaneIds }),
+    [args.disabledLaneIds, args.mode, timelineModel.taskSpans],
   )
   const maxMinutes = Math.max(0, timelineModel.durationMinutes)
   const disabled = !args.code || maxMinutes <= 0

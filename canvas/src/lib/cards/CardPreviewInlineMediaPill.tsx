@@ -18,13 +18,19 @@ export function CardPreviewInlineMediaPill(props: {
   children: React.ReactElement
   label: string
   fallbackLabel: string
+  displayLabel?: string
   fullMedia?: React.ReactElement | null
+  sourceTitle?: string
+  sourceToken?: string
+  sourceValue?: string
   thumbnailKind?: InlineMediaKind
   thumbnailUrl?: string
   toggleEnabled?: boolean
 }) {
   const [renderMode, setRenderMode] = React.useState<'chip' | 'media'>('chip')
   const label = readCardMarkdownPreviewMediaLabel(props.label, props.fallbackLabel)
+  const displayLabel = String(props.displayLabel || '').trim() || label
+  const title = String(props.sourceTitle || '').trim() || label
   const canToggle = props.toggleEnabled === true && props.fullMedia
   const thumbnailKind = props.thumbnailKind || (props.thumbnailUrl ? 'image' : undefined)
 
@@ -33,7 +39,7 @@ export function CardPreviewInlineMediaPill(props: {
       <span
         className="relative my-1 inline-block max-w-full align-top"
         data-kg-card-inline-media-expanded="1"
-        title={label}
+        title={title}
       >
         <span className={CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME}>
           {props.fullMedia}
@@ -62,18 +68,21 @@ export function CardPreviewInlineMediaPill(props: {
         CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
         canToggle ? 'group/kg-inline-media relative isolate !overflow-visible' : '',
       ].filter(Boolean).join(' ')}
-      title={label}
+      title={title}
       data-kg-card-inline-media-pill="1"
+      data-kg-card-inline-media-source={props.sourceTitle || undefined}
+      data-kg-card-inline-media-token={props.sourceToken || undefined}
+      data-kg-card-inline-media-value={props.sourceValue || undefined}
     >
       {thumbnailKind ? (
         <InlineMediaCommandThumbnail
           kind={thumbnailKind}
           thumbnailUrl={props.thumbnailUrl}
-          thumbnailAlt={label}
+          thumbnailAlt={displayLabel}
           variant="inline"
         />
       ) : props.children}
-      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{label}</span>
+      <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{displayLabel}</span>
       {canToggle ? (
         <button
           type="button"

@@ -2,17 +2,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildVideoSequenceTimelineZoomTicks, resolveVideoSequenceTimelineAppendSpacePercent, resolveVideoSequenceTimelineContentZoom, resolveVideoSequenceTimelineFrameRate, resolveVideoSequenceTimelineScaleDurationSeconds, resolveVideoSequenceTimelineScaleMaxMinutes, resolveVideoSequenceTimelineWorkspaceLayout, resolveVideoSequenceTimelineZoomTickStepSeconds } from '@/components/timeline/videoSequenceTimelineZoom'
 import { resolveTimelineTransportGestureZoomStepCount, resolveTimelineTransportNextZoomIndex, resolveTimelineTransportZoom } from '@/components/timeline/timelineTransport'
-
 const root = process.cwd()
-
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(root, 'src', ...parts), 'utf8')
 }
-
 function expectSourceIncludes(sourceText: string, tokens: readonly string[], message: string): void {
   for (const token of tokens) if (!sourceText.includes(token)) throw new Error(`${message}: ${token}`)
 }
-
 export function testVideoSequenceTimelineEditorEnhancementContracts() {
   const rulerText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
   const rulerCssText = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
@@ -216,7 +212,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   }
   const scrollWorkspaceLayout = resolveVideoSequenceTimelineWorkspaceLayout({ appendSpacePercent: 40, timelineContentZoom: 2 })
   if (scrollWorkspaceLayout.workspaceWidthPercent !== 240 || Math.abs(scrollWorkspaceLayout.viewportFlexPercent - 83.3333) > 0.01 || Math.abs(scrollWorkspaceLayout.appendFlexPercent - 16.6667) > 0.01) throw new Error(`expected zoomed BottomPanel source timeline to own real scrollable workspace width, got ${JSON.stringify(scrollWorkspaceLayout)}`)
-
   expectSourceIncludes(clipThumbnailStripText, [
     'aria-label={`${span.label} thumbnail ${formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} ${thumbnail.format}/${thumbnail.rasterFormat}`}',
     'buildVideoSequenceThumbnailDragPayload',
@@ -246,20 +241,17 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   expectSourceIncludes(transportInteractionsText, ['const primaryButtonActive = event.button === 0 || event.buttons === 1', 'if (!primaryButtonActive || args.maxMinutes <= 0) return'], 'expected thumbnail move promotion to start whole-bar drag from active pointermove events')
   expectSourceIncludes(transportInteractionModelText, ["draggingMode: ReturnType<typeof useGanttTimelineInteractions>['draggingMode']", 'draggingMode: interactions.draggingMode'], 'expected transport interactions to expose active drag mode for resize-safe compact thumbnails')
   if (clipThumbnailStripText.includes('{thumbnail.format}/{thumbnail.rasterFormat}</span>') || clipThumbnailStripText.includes('{formatVideoSequenceTimelineSecondsOffset(thumbnail.timestampSeconds)} {thumbnail.format}/{thumbnail.rasterFormat}')) throw new Error('expected thumbnail metadata to stay out of visible ruler text')
-
   expectSourceIncludes(clipMetaText, [
     'timeline-video-sequence-clip-meta',
     'data-kg-video-sequence-clip-source-window',
     'durationLabel: string',
     'resolveVideoSequenceSourceWindowLabel',
   ], 'expected clip metadata token')
-
   expectSourceIncludes(clipMetaCssText, [
     '.timeline-video-sequence-clip-meta',
     'flex-wrap: wrap',
     'text-overflow: ellipsis',
   ], 'expected clip metadata style')
-
   expectSourceIncludes(editRailCssText, [
     '--kg-compact-source-media-bar-height: calc(var(--kg-main-toolbar-height, 38px) * 1.5)',
     '--kg-compact-source-placeholder-bar-height: var(--kg-compact-source-media-bar-height)',
@@ -399,20 +391,17 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (denseFbfCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-compact-source-media="1"]')) {
     throw new Error('expected compact source audio to reuse the shared source bar chrome')
   }
-
   if (
     !denseFbfCssText.includes('[data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-meta') ||
     !denseFbfCssText.includes('[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-meta')
   ) {
     throw new Error('expected dense and compact media lanes to suppress clip metadata')
   }
-
   expectSourceIncludes(contextControlsText, [
     'timeline-transport-clip-context',
     'data-kg-video-sequence-clip-context',
     'selectedSpan ? args.model.clipEdit.detailsLabel',
   ], 'expected clip context token')
-
   if (contextControlsText.includes('if (!args.model.exportSessions.items.length) return null')) {
     throw new Error('expected selected-clip context to render without export sessions')
   }
@@ -430,7 +419,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'clip-path: inset(50%)',
     'background: color-mix(in srgb, var(--kg-canvas-accent',
   ], 'expected clip context to reuse design tokens')
-
   if (!transportText.includes("import './TimelineTransportControlsMermaidGantt.css'")) {
     throw new Error('expected focused Mermaid Gantt transport chrome CSS to be imported after base transport CSS')
   }
@@ -467,6 +455,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf)',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-status-bar',
+    '.timeline-transport-chrome--mermaid-gantt .timeline-transport-status-details',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-slot',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-frame',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-media-player-media',
@@ -560,7 +550,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   ]) {
     if (!mediaPlayerText.includes(token)) throw new Error(`expected media player reuse token: ${token}`)
   }
-
   for (const token of [
     'TIMELINE_TRANSPORT_GESTURE_ZOOM_DELTA',
     'TIMELINE_TRANSPORT_WHEEL_LINE_DELTA',

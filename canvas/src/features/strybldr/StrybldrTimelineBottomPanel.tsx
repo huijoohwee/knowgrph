@@ -16,10 +16,16 @@ import { cn } from '@/lib/utils'
 import { GanttTimelineTransportPlaybackRuntime } from '@/features/gitgraph/GanttTimelineTransportPlaybackRuntime'
 import { ChartGantt, Columns2, Cuboid, FileDiff, GitGraph, History, MonitorPlay, Network, Workflow } from 'lucide-react'
 import { StrybldrTimelinePanel } from './StrybldrTimelinePanel'
+import {
+  TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE, TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO,
+  TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX, TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX,
+  TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX, TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX, TIMELINE_BOTTOM_PANEL_VISIBLE_PX,
+  clampTimelineBottomPanelHeightRatio,
+  resolveWorkspaceCanvasLayerInsetLeft,
+} from './strybldrTimelineBottomPanelLayout'
 
 type TimelineBottomPanelPosition = { top: number; left: number }
 type TimelineBottomPanelSize = { width: number; height: number }
-
 type TimelineBottomPanelView =
   | 'timeline'
   | 'designTimeline'
@@ -31,15 +37,6 @@ type TimelineBottomPanelView =
   | 'architecture'
   | 'xr'
   | 'eventModeling'
-
-const TIMELINE_BOTTOM_PANEL_VISIBLE_PX = 32
-const TIMELINE_BOTTOM_PANEL_FALLBACK_SIZE = { width: 560, height: 128 } as const
-const TIMELINE_BOTTOM_PANEL_MIN_HEIGHT_RATIO = 0.18
-const TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO = 0.62
-const TIMELINE_BOTTOM_PANEL_UNPINNED_WIDTH_PX = 672
-const TIMELINE_BOTTOM_PANEL_UNPINNED_MAX_HEIGHT_PX = 384
-const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_WIDTH_PX = 320
-const TIMELINE_BOTTOM_PANEL_MIN_RESIZE_HEIGHT_PX = 112
 const GitGraphBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphBottomPanelView').then(mod => ({ default: mod.GitGraphBottomPanelView })))
 const FlowchartBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartBottomPanelView').then(mod => ({ default: mod.FlowchartBottomPanelView })))
 const GanttBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GanttBottomPanelView').then(mod => ({ default: mod.GanttBottomPanelView })))
@@ -49,46 +46,6 @@ const DesignTimelineBottomPanelViewLazy = React.lazy(() => import('@/features/de
 const ArchitectureBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/ArchitectureBottomPanelView').then(mod => ({ default: mod.ArchitectureBottomPanelView })))
 const EventModelingBottomPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingBottomPanelView').then(mod => ({ default: mod.EventModelingBottomPanelView })))
 const DocumentVersionGitGraphPanelLazy = React.lazy(() => import('@/features/document-versioning/DocumentVersionGitGraphPanel').then(mod => ({ default: mod.DocumentVersionGitGraphPanel })))
-
-type TimelineLayerRect = Pick<DOMRect, 'left' | 'right' | 'width'>
-
-function resolveWorkspaceCanvasLayerInsetLeft({
-  workspaceEditorOverlayOpen,
-  rootRect,
-  workspaceLeftPaneRect,
-}: {
-  workspaceEditorOverlayOpen: boolean
-  rootRect: TimelineLayerRect | null
-  workspaceLeftPaneRect: TimelineLayerRect | null
-}) {
-  if (!workspaceEditorOverlayOpen || !rootRect || !workspaceLeftPaneRect) return 0
-  if (
-    !Number.isFinite(rootRect.left) ||
-    !Number.isFinite(rootRect.right) ||
-    !Number.isFinite(rootRect.width) ||
-    rootRect.width <= 0
-  ) {
-    return 0
-  }
-  if (
-    !Number.isFinite(workspaceLeftPaneRect.left) ||
-    !Number.isFinite(workspaceLeftPaneRect.right) ||
-    !Number.isFinite(workspaceLeftPaneRect.width) ||
-    workspaceLeftPaneRect.width <= 0
-  ) {
-    return 0
-  }
-  if (workspaceLeftPaneRect.right <= rootRect.left || workspaceLeftPaneRect.left >= rootRect.right) return 0
-  const insetLeft = workspaceLeftPaneRect.right - rootRect.left
-  if (!Number.isFinite(insetLeft) || insetLeft <= 0) return 0
-  if (insetLeft >= rootRect.width - TIMELINE_BOTTOM_PANEL_VISIBLE_PX) return 0
-  return Math.max(0, Math.min(rootRect.width, insetLeft))
-}
-
-function clampTimelineBottomPanelHeightRatio(value: number) {
-  if (!Number.isFinite(value)) return 0.35
-  return Math.max(TIMELINE_BOTTOM_PANEL_MIN_HEIGHT_RATIO, Math.min(TIMELINE_BOTTOM_PANEL_MAX_HEIGHT_RATIO, value))
-}
 
 export function StrybldrTimelineBottomPanel({
   active = true,
@@ -376,7 +333,7 @@ export function StrybldrTimelineBottomPanel({
   }
   const panelHeightStyle = minimized
     ? { height: 'var(--kg-toolbar-compact-surface-height)' }
-    : view === 'documentVersionGraph' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'designTimeline' || view === 'xr' || view === 'architecture' || view === 'eventModeling'
+    : view === 'documentVersionGraph' || view === 'flowchart' || view === 'gitGraph' || view === 'gantt' || view === 'timeline' || view === 'designTimeline' || view === 'xr' || view === 'architecture' || view === 'eventModeling'
       ? pinned
         ? expandedPinnedHeightStyle
         : expandedUnpinnedHeightStyle

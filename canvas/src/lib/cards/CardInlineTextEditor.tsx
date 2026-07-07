@@ -301,42 +301,46 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
 
   const buildExternalCommandTarget = React.useCallback(() => {
     const targetId = id || ariaLabel
+    const insertText = (replacement: string) => {
+      const latest = externalCommandStateRef.current
+      if (!latest.canEdit || latest.multiline !== true) return false
+      if (latest.editing && inputRef.current) {
+        const input = inputRef.current
+        const text = normalizeEditorValue(input.value ?? latest.draft)
+        const selection = readInputSelection(input)
+        const lineStartIdx = text.lastIndexOf('\n', Math.max(0, selection.end) - 1) + 1
+        const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, selection.end)))
+        const triggerMatch = /[\/#@][A-Za-z0-9_.-]{0,96}$/.exec(preceding)
+        const rangeStart = selection.start !== selection.end
+          ? selection.start
+          : triggerMatch
+            ? selection.end - triggerMatch[0].length
+            : selection.end
+        const { text: next, cursor } = replaceTextRange({
+          text,
+          start: rangeStart,
+          end: selection.start !== selection.end ? selection.end : selection.end,
+          replacement,
+        })
+        setDraft(next)
+        latest.persistCommandDraft(next)
+        focusInputSelectionSoon(input, cursor)
+        return true
+      }
+      const current = normalizeEditorValue(latest.editing ? latest.draft : latest.value)
+      const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
+      const next = `${current}${separator}${replacement}`
+      setDraft(next)
+      lastCommandPersistedDraftRef.current = next
+      latest.onCommit?.(next)
+      return true
+    }
     return {
       id: targetId,
+      insertText,
       insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => {
-        const latest = externalCommandStateRef.current
-        if (!latest.canEdit || latest.multiline !== true) return false
         const replacement = buildCardInlineTextMediaEmbed(candidate)
-        if (latest.editing && inputRef.current) {
-          const input = inputRef.current
-          const text = normalizeEditorValue(input.value ?? latest.draft)
-          const selection = readInputSelection(input)
-          const lineStartIdx = text.lastIndexOf('\n', Math.max(0, selection.end) - 1) + 1
-          const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, selection.end)))
-          const atQueryMatch = /@([A-Za-z0-9_.-]{0,96})$/.exec(preceding)
-          const rangeStart = selection.start !== selection.end
-            ? selection.start
-            : atQueryMatch
-              ? selection.end - atQueryMatch[0].length
-              : selection.end
-          const { text: next, cursor } = replaceTextRange({
-            text,
-            start: rangeStart,
-            end: selection.start !== selection.end ? selection.end : selection.end,
-            replacement,
-          })
-          setDraft(next)
-          latest.persistCommandDraft(next)
-          focusInputSelectionSoon(input, cursor)
-          return true
-        }
-        const current = normalizeEditorValue(latest.editing ? latest.draft : latest.value)
-        const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
-        const next = `${current}${separator}${replacement}`
-        setDraft(next)
-        lastCommandPersistedDraftRef.current = next
-        latest.onCommit?.(next)
-        return true
+        return insertText(replacement)
       },
     }
   }, [ariaLabel, id])

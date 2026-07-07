@@ -10,6 +10,7 @@ import {
   normalizeVClicksHtmlBlocks,
 } from './markdownPreviewLexUtils'
 import { buildBlockTokens } from './markdownPreviewLexBlock'
+import { normalizeEscapedInlineMediaMarkdown } from './inlineMediaMarkdown'
 
 // Re-export TokenWithLines as it was originally exported from here
 export type { TokenWithLines } from './markdownPreviewLexUtils'
@@ -239,8 +240,9 @@ export const lexMarkdownContent = (
   const base0 = input.includes('<v-clicks') ? normalizeVClicksHtmlBlocks(input) : input
   const base = /reddit-embed-bq|embed\.reddit\.com\/widgets\.js/i.test(base0) ? normalizeRedditEmbedHtmlBlocks(base0) : base0
   const asciiNormalized = normalizeMarkdownAsciiBlocks(base)
-  const content =
+  const contentBeforeMedia =
     asciiNormalized.includes('[[') || asciiNormalized.includes('^') ? normalizeMarkdownWikiLinksAndBlockIds(asciiNormalized) : asciiNormalized
+  const content = normalizeEscapedInlineMediaMarkdown(contentBeforeMedia)
   const normalized = normalizeAtxHeadingWhitespaceForParser(normalizeStandaloneHtmlHeadingsToAtx(content))
 
   const largeMode = normalized.length > LARGE_DOC_FAST_MODE_CHARS

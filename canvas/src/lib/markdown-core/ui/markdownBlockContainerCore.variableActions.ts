@@ -9,13 +9,15 @@ import {
   collectInlineMediaCommandCandidates,
   type InlineMediaCommandCandidate,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { mergeInlineMediaCommandCandidates } from '@/lib/command-menu/inlineMediaCommandCandidateMerge'
+import { useUploadedMediaInlineCommandCandidates } from '@/lib/command-menu/inlineUploadedMediaCandidates'
 import {
   applyCommandMenuMediaNameDraftsToInlineCandidates,
   useCommandMenuMediaNameDrafts,
 } from '@/lib/command-menu/commandMenuMediaNameSync'
 import {
   getInlineMediaEditorMarkdownSelectionOffsets,
-  INLINE_MEDIA_EDIT_TOKEN_SELECTOR,
+  INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR,
   mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets,
   readInlineMediaEditorMarkdownText,
 } from './markdownBlockContainerCore.inlineMediaEditHtml'
@@ -53,11 +55,12 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   editorRef: React.RefObject<HTMLElement | null>
 }) => {
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
+  const uploadedMediaCommandCandidates = useUploadedMediaInlineCommandCandidates({ enabled: args.variableMenu.show })
   const readCommandDraft = React.useCallback(() => {
     const el = args.editorRef.current
-    const hasInlineMediaTokens = !!el?.querySelector(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)
+    const hasInlineMarkdownTokens = !!el?.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)
     const visibleSelection = args.getCommandSelectionOffsets?.() || args.getSelectionOffsets()
-    if (el && hasInlineMediaTokens) {
+    if (el && hasInlineMarkdownTokens) {
       const text = readInlineMediaEditorMarkdownText(el)
       const selection = getInlineMediaEditorMarkdownSelectionOffsets(el)
         || mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets(el, visibleSelection)
@@ -243,10 +246,13 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   const mediaCommandCandidates = React.useMemo(() => {
     if (!args.variableMenu.show) return []
     const query = String(args.variableMenu.keyInput || args.variableMenu.query || '').trim().toLowerCase()
-    const all = applyCommandMenuMediaNameDraftsToInlineCandidates(collectInlineMediaCommandCandidates({
-      sourceLines: args.sourceLines,
-      draftText: args.getDraft(),
-    }), mediaNameDrafts)
+    const all = applyCommandMenuMediaNameDraftsToInlineCandidates(mergeInlineMediaCommandCandidates([
+      ...uploadedMediaCommandCandidates,
+      ...collectInlineMediaCommandCandidates({
+        sourceLines: args.sourceLines,
+        draftText: args.getDraft(),
+      }),
+    ]), mediaNameDrafts)
     if (!query) return all.slice(0, 8)
     return all
       .filter(candidate => (
@@ -255,7 +261,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
         || candidate.sourceKey?.toLowerCase().includes(query)
       ))
       .slice(0, 8)
-  }, [args, mediaNameDrafts])
+  }, [args, mediaNameDrafts, uploadedMediaCommandCandidates])
 
   return {
     applyVariableFrontmatterCrud,

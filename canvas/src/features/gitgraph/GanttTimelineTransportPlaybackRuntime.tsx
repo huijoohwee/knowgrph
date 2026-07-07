@@ -7,7 +7,7 @@ export function GanttTimelineTransportPlaybackRuntime({
 }: {
   active?: boolean
 }) {
-  const { code } = useMermaidGanttDocument()
+  const { code } = useMermaidGanttDocument({ purpose: 'media' })
   if (!active || !code) return null
   return <GanttTimelineTransportPlaybackRuntimeController code={code} />
 }
@@ -17,7 +17,7 @@ function GanttTimelineTransportPlaybackRuntimeController({
 }: {
   code: string
 }) {
-  const transportSession = useGanttTimelineTransportSession({ code })
+  const transportSession = useGanttTimelineTransportSession({ code, mode: 'media' })
   useGanttTimelineTransportPlaybackModel({
     clockActive: true,
     disabled: transportSession.disabled,

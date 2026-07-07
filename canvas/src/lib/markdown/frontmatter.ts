@@ -58,6 +58,28 @@ export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlo
   }
 }
 
+export function restoreMissingOpeningYamlFrontmatterFence(rawText: string): string {
+  const text = String(rawText || '')
+  if (!text) return text
+  if (text.startsWith('---')) {
+    if (text.indexOf('\n---', 3) >= 0) return text
+    const headingIndex = text.search(/\n#{1,6}\s+/)
+    if (headingIndex < 0) return text
+    const yamlText = text.slice(4, headingIndex).trimEnd()
+    if (!/^[A-Za-z0-9_-]+:\s*/.test(yamlText)) return text
+    const parsed = parseMarkdownFrontmatter(splitMarkdownLines(`---\n${yamlText}\n---`))
+    if (!parsed.meta || Object.keys(parsed.meta).length === 0) return text
+    return `${text.slice(0, headingIndex).trimEnd()}\n---${text.slice(headingIndex)}`
+  }
+  const end = text.indexOf('\n---')
+  if (end < 0) return text
+  const yamlText = text.slice(0, end).trimEnd()
+  if (!/^[A-Za-z0-9_-]+:\s*/.test(yamlText)) return text
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(`---\n${yamlText}\n---`))
+  if (!parsed.meta || Object.keys(parsed.meta).length === 0) return text
+  return `---\n${text}`
+}
+
 function normalizeFrontmatterFenceComparisonText(rawText: string): string {
   return String(rawText || '').replace(/\r\n?/g, '\n').replace(/\s+$/, '')
 }
@@ -76,6 +98,8 @@ export function preferCanonicalYamlFrontmatterFencedText(args: {
   const candidateText = String(args.candidateText || '')
   const canonicalText = String(args.canonicalText || '')
   if (!candidateText || candidateText === canonicalText) return candidateText
+  const repairedCandidateText = restoreMissingOpeningYamlFrontmatterFence(candidateText)
+  if (repairedCandidateText !== candidateText) return repairedCandidateText
   if (!canonicalText || extractYamlFrontmatterHeaderBlock(candidateText)) return candidateText
 
   const canonicalWithoutFences = stripYamlFrontmatterFencesForComparison(canonicalText)

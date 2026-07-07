@@ -11,7 +11,7 @@ export const useMarkdownBlockContainerInlineUiState = (args: {
   endLine?: number
 }) => {
   const [bubble, setBubble] = React.useState<{ show: boolean; leftPx: number; topPx: number }>({ show: false, leftPx: 0, topPx: 0 })
-  const [slashMenu, setSlashMenu] = React.useState<SlashMenuState>({ show: false, leftPx: 0, topPx: 0 })
+  const [slashMenu, setSlashMenu] = React.useState<SlashMenuState>({ show: false, leftPx: 0, topPx: 0, kind: 'slash', query: '' })
   const [variableMenu, setVariableMenu] = React.useState<VariableMenuState>({
     show: false,
     leftPx: 0,

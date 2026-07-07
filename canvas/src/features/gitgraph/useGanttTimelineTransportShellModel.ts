@@ -32,7 +32,7 @@ export function useGanttTimelineTransportShellModel(args: {
   mediaReaderSummary: TimelineMediaReaderSummary
   playbackRate: TimelineTransportPlaybackRate
   playing: boolean
-  timelineMode: 'empty' | 'source-backed'
+  timelineMode: 'empty' | 'source-backed' | 'workflow'
   onTogglePlayback: () => void
   onValueChange: (value: number) => void
   onPlaybackRateChange: (rate: TimelineTransportPlaybackRate) => void

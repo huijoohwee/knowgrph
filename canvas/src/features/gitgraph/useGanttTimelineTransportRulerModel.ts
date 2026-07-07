@@ -4,6 +4,7 @@ import type { VideoSequenceTimelineSourceThumbnailSet, VideoSequenceTimelineThum
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { clampTimelineTransportValue } from '@/components/timeline/timelineTransport'
 import { type VideoSequenceTimelineLaneId, type VideoSequenceTimelineScope } from '@/components/timeline/videoSequenceTimeline'
+import type { GanttTimelineTransportMode } from './ganttTimelineTransportMode'
 import {
   type MermaidGanttBarDragMode,
   type MermaidGanttTimelineDragPreview,
@@ -29,6 +30,7 @@ export type GanttTimelineTransportRulerModel = {
     maxMinutes: number
     mediaDurationSeconds: number
     mediaFrameRate: number
+    mode: GanttTimelineTransportMode
     playheadPercent: number
     scopes: readonly VideoSequenceTimelineScope[]
     selectedRowKey: string
@@ -57,6 +59,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   maxMinutes: number
   mediaDurationSeconds: number
   mediaFrameRate: number
+  mode: GanttTimelineTransportMode
   playheadPercent: number
   positionMinutes: number
   scopes: readonly VideoSequenceTimelineScope[]
@@ -103,6 +106,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       maxMinutes: args.maxMinutes,
       mediaDurationSeconds: args.mediaDurationSeconds,
       mediaFrameRate: args.mediaFrameRate,
+      mode: args.mode,
       onDropMedia: args.onDropMedia,
       onRulerPointerDown: args.onRulerPointerDown,
       onSelectRowKey: args.onSelectRowKey,
@@ -129,6 +133,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.maxMinutes,
     args.mediaDurationSeconds,
     args.mediaFrameRate,
+    args.mode,
     args.onDropMedia,
     args.onRulerPointerDown,
     args.onRulerWheel,

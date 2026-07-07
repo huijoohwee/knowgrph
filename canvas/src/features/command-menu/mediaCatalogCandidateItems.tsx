@@ -370,6 +370,7 @@ export function MediaActionRow({
   onSelect: (action: MediaPanelActionSpec) => void
 }) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
+  const prefix = action.kind === 'slash' ? '/' : action.kind === 'keyword' ? '#' : '@'
   const Icon = action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID
     ? Upload
     : action.id === MEDIA_IMPORT_URL_ACTION_ID
@@ -383,7 +384,7 @@ export function MediaActionRow({
       tabIndex={0}
       className={mediaListItemClassName()}
       data-kg-command-menu-media-action={action.id}
-      data-kg-command-menu-prefix="@"
+      data-kg-command-menu-prefix={prefix}
       data-kg-media-list-row-layout="3-rows"
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
@@ -405,7 +406,7 @@ export function MediaActionRow({
       <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${action.label} action summary`}>
         <header className="flex min-w-0 items-center justify-between gap-2" data-kg-media-list-row-section="title">
           <span className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</span>
-          <span className={cn('shrink-0 font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@</span>
+          <span className={cn('shrink-0 font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{prefix}</span>
         </header>
         <section className="flex min-w-0 items-center gap-1" data-kg-media-list-row-section="meta">
           <span className={cn('min-w-0 truncate text-[11px]', UI_THEME_TOKENS.text.secondary)}>{action.group}</span>
@@ -426,6 +427,7 @@ export function MediaActionCard({
   onSelect: (action: MediaPanelActionSpec) => void
 }) {
   const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
+  const prefix = action.kind === 'slash' ? '/' : action.kind === 'keyword' ? '#' : '@'
   const Icon = action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID
     ? Upload
     : action.id === MEDIA_IMPORT_URL_ACTION_ID
@@ -439,7 +441,7 @@ export function MediaActionCard({
       tabIndex={0}
       className={mediaCardClassName()}
       data-kg-command-menu-media-action={action.id}
-      data-kg-command-menu-prefix="@"
+      data-kg-command-menu-prefix={prefix}
       onPointerDownCapture={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         event.preventDefault()
@@ -466,7 +468,7 @@ export function MediaActionCard({
           <h3 className={cn('m-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{action.label}</h3>
           <p className={cn('m-0 mt-1 truncate font-mono text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{action.id}</p>
         </section>
-        <ResponsiveInlineIconBadge Icon={Icon} label="@" />
+        <ResponsiveInlineIconBadge Icon={Icon} label={prefix} />
       </header>
       <p className={cn('m-0 mt-2 truncate px-2 text-[11px]', UI_THEME_TOKENS.text.secondary)}>{action.group}</p>
       <p className={cn('m-0 mt-1 line-clamp-2 px-2 pb-2 text-[11px] leading-4', UI_THEME_TOKENS.text.tertiary)} title={action.description}>

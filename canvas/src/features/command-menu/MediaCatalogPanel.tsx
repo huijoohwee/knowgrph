@@ -15,7 +15,13 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
-import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
+import { insertMediaIntoActiveCardInlineTextEditor, insertTextIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
+import {
+  buildAgenticOsDictionaryInvocationMarkdown,
+  buildAgenticOsDocInvocationMarkdown,
+  findAgenticOsDictionaryInvocationByActionId,
+  findAgenticOsDocInvocationByActionId,
+} from '@/features/agentic-os/agenticOsDocInvocations'
 import { MEDIA_LIBRARY_OPEN_TOP_EVENT } from '@/features/canvas/utils'
 import { buildVideoSequenceTimelineImportMarkdown } from '@/features/markdown-workspace/workspaceImport/videoSequenceTimelineImport'
 import { MediaCatalogPanelView } from './MediaCatalogPanelView'
@@ -23,9 +29,7 @@ import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, MEDIA_NEW_A
 import { buildUploadedMediaMarkdown } from './mediaCatalogUploadedItems'
 import { getUploadedMediaDescriptionKey, buildCommandMenuMediaDragPayload, buildUploadedMediaDragPayload, getMediaNameSyncKey, readRichMediaInsertUrl, startMediaDrag, type UploadedMediaDragMetadata } from './mediaCatalogShared'
 import { buildProceduralMediaMarkdown, generateProceduralMediaArtifact, readProceduralMediaGenerationSettings, type ProceduralMediaArtifact } from './proceduralMediaGenerator'
-
 export function MediaCatalogPanel() {
-
   const panelTypography = usePanelTypography()
   const panelRef = React.useRef<HTMLElement | null>(null)
   const mediaListRef = React.useRef<HTMLElement | null>(null)
@@ -484,6 +488,20 @@ export function MediaCatalogPanel() {
     startMediaDrag(event, buildUploadedMediaDragPayload(item, metadata))
   }, [])
   const handleSelectMediaAction = React.useCallback((action: MediaPanelActionSpec) => {
+    const dictionaryInvocation = findAgenticOsDictionaryInvocationByActionId(action.id)
+    if (dictionaryInvocation) {
+      const inserted = insertTextIntoActiveCardInlineTextEditor(buildAgenticOsDictionaryInvocationMarkdown(dictionaryInvocation))
+      if (inserted) return
+      pushUiToast({ id: 'agentic-os-dictionary-invocation', kind: 'neutral', message: `${dictionaryInvocation.token} ready for / # @ insertion in an active card or editor`, ttlMs: UI_TOAST_TTL_MS.actionFeedback, dismissible: false })
+      return
+    }
+    const agenticOsDoc = findAgenticOsDocInvocationByActionId(action.id)
+    if (agenticOsDoc) {
+      const inserted = insertTextIntoActiveCardInlineTextEditor(buildAgenticOsDocInvocationMarkdown(agenticOsDoc))
+      if (inserted) return
+      pushUiToast({ id: 'agentic-os-doc-invocation', kind: 'neutral', message: `${agenticOsDoc.atToken} ready for / # @ insertion in an active card or editor`, ttlMs: UI_TOAST_TTL_MS.actionFeedback, dismissible: false })
+      return
+    }
     if (action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID) {
       uploadInputRef.current?.click()
       return
@@ -506,7 +524,7 @@ export function MediaCatalogPanel() {
     })
     if (inserted) return
     setMermaidFocus(null)
-  }, [setMermaidFocus])
+  }, [pushUiToast, setMermaidFocus])
   const handleRenameMedia = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
     const owner = item.renameOwner
     const name = String(nextName || '').trim()
@@ -601,5 +619,4 @@ export function MediaCatalogPanel() {
     />
   )
 }
-
 export default MediaCatalogPanel

@@ -1,13 +1,45 @@
 import fs from 'node:fs'
 import path from 'node:path'
-
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 const staleContentStartUtility = (prefix: 'left' | 'pl'): string => `${prefix}-[44px]`
 const staleMarkdownGutterContentStartAlias = (): string => ['MARKDOWN_BLOCK_GUTTER_CONTENT_START', 'LEFT_CLASS'].join('_')
-
+export const testMarkdownViewerReadableColumnAlignsBodyWithFrontmatterRows = () => {
+  const root = process.cwd()
+  const sectionUtilsPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownSectionUtils.ts')
+  const sectionUtilsText = readUtf8(sectionUtilsPath)
+  const gutterPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockGutter.tsx')
+  const gutterText = readUtf8(gutterPath)
+  const dataViewTablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
+  const dataViewTableText = readUtf8(dataViewTablePath)
+  const frontmatterPreviewPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownFrontmatterPreviewBlocks.tsx')
+  const frontmatterPreviewText = readUtf8(frontmatterPreviewPath)
+  if (
+    !sectionUtilsText.includes('MARKDOWN_VIEWER_CONTENT_START_OFFSET_CLASS') ||
+    !sectionUtilsText.includes('[--kg-content-start-offset-left:20px]') ||
+    !sectionUtilsText.includes('${MARKDOWN_VIEWER_CONTENT_START_OFFSET_CLASS}')
+  ) {
+    throw new Error('expected Markdown Viewer width wrapper to own the readable content-start offset so body text aligns with frontmatter table rows')
+  }
+  if (
+    !gutterText.includes('MARKDOWN_BLOCK_GUTTER_CONTROLS_INLINE_START_CLASS') ||
+    !gutterText.includes('left-[calc(var(--kg-content-start-offset-left,44px)-36px)]')
+  ) {
+    throw new Error('expected Markdown block gutter controls to derive hover rail placement from the shared content-start offset without overlapping Viewer text')
+  }
+  if (
+    !dataViewTableText.includes("tableFit?: 'content' | 'container'") ||
+    !dataViewTableText.includes("tableFit === 'container' ? 'min-w-full w-full' : 'min-w-max w-max'") ||
+    !dataViewTableText.includes("tableFit === 'container'") ||
+    !dataViewTableText.includes("width: '100%'")
+  ) {
+    throw new Error('expected Markdown data-view tables to expose an explicit container-fit mode that aligns the right edge with the readable Viewer column')
+  }
+  if (!frontmatterPreviewText.includes('tableFit="container"')) {
+    throw new Error('expected Markdown frontmatter properties preview to fill the readable Viewer column instead of rendering as a narrow content-sized table')
+  }
+}
 export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () => {
   const root = process.cwd()
-
   const blockPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.tsx')
   const blockCorePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.core.tsx')
   const blockViewPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.view.tsx')
@@ -212,7 +244,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (blockText.includes('[&_code]:text-sm')) {
     throw new Error('expected html edit surfaces to avoid hardcoded inline-code text size mutation')
   }
-
   const rendererPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownTokenRenderer.tsx')
   const rendererText = readUtf8(rendererPath)
   if (!rendererText.includes("case 'hr':") || !rendererText.includes('editPresentation="html"')) {
@@ -232,7 +263,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!htmlBlockText.includes('const htmlWrapperClassName = [')) {
     throw new Error('expected html block wrapper class composition to be centralized and reused across safe/raw render branches')
   }
-
   const inlinePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineRenderer.impl.tsx')
   const inlineText = readUtf8(inlinePath)
   if (!inlineText.includes('MARKDOWN_INLINE_CODE_VIEW_CLASS')) {
@@ -254,7 +284,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!codeParityText.includes('ring-1 ring-inset ring-[color:var(--kg-code-border)]') || !codeParityText.includes('[&_code]:ring-[color:var(--kg-code-border)]')) {
     throw new Error('expected inline-code ring parity contracts to be centralized for both read and edit surfaces')
   }
-
   const tablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownTableBlock.tsx')
   const tableText = readUtf8(tablePath)
   if (!tableText.includes('inlineEditable={false}')) {
@@ -305,7 +334,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!workspaceMainText.includes('forbidCopy={false}')) {
     throw new Error('expected markdown workspace read viewer code-fence copy action to stay enabled in read mode')
   }
-
   const codePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx')
   const codeText = readUtf8(codePath)
   if (!codeText.includes('editDisableRichUi')) {
@@ -379,7 +407,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (highlightedCodeText.includes('leading-[1.5em]') || highlightedCodeText.includes('h-[1.5em]')) {
     throw new Error('expected highlighted code to avoid local hardcoded line-spacing literals and rely on centralized SSOT constants')
   }
-
   const listPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownListBlock.tsx')
   const listText = readUtf8(listPath)
   if (!listText.includes('getMarkdownListSurfaceClass(!!list.ordered)')) {
@@ -496,7 +523,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (listText.includes('editHtmlRender="block"')) {
     throw new Error('expected list row inline editor to avoid block-level html list edit mode')
   }
-
   const blockquotePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockquoteBlock.tsx')
   const blockquoteText = readUtf8(blockquotePath)
   const calloutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCalloutBlock.tsx')
@@ -507,6 +533,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const editSurfaceLayoutText = readUtf8(editSurfaceLayoutPath)
   const headingPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownHeadingBlock.tsx')
   const headingText = readUtf8(headingPath)
+  testMarkdownViewerReadableColumnAlignsBodyWithFrontmatterRows()
   if (!editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
     throw new Error('expected normal-text edit surface layout contract to be centralized in markdownEditSurfaceLayout SSOT')
   }
@@ -523,11 +550,10 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     throw new Error('expected markdown list block wrapper spacing to reuse centralized markdown block stack spacing contract')
   }
   if (
-    !editSurfaceLayoutText.includes('m-0 p-0') ||
-    !editSurfaceLayoutText.includes('text-left [text-indent:0]') ||
+    !editSurfaceLayoutText.includes("MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS = 'm-0 text-left [text-indent:0]'") ||
     !editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_WRAP_CLASS')
   ) {
-    throw new Error('expected normal-text edit surface layout contract to enforce zero inset, left alignment, and wrapping parity')
+    throw new Error('expected normal-text edit surface layout contract to enforce zero margin, left alignment, and wrapping parity without canceling content-start padding')
   }
   if (!editSurfaceLayoutText.includes('getMarkdownQuoteLikeEditorClass')) {
     throw new Error('expected quote/callout html-block edit-surface class contract to be centralized in markdownEditSurfaceLayout SSOT')
@@ -619,6 +645,13 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!headingText.includes('headingRightRailClassName') || !headingText.includes('headingControlVisibilityClassName')) {
     throw new Error('expected heading right-rail controls to reuse centralized local class contracts and avoid duplicated drift paths')
   }
+  if (
+    !headingText.includes('headingLinkClassName') ||
+    !headingText.includes('p-0.5 rounded') ||
+    !headingText.includes('flex items-center justify-center shrink-0')
+  ) {
+    throw new Error('expected heading permalink link to use the same centered icon-button box contract as the collapse chevron')
+  }
   if (!headingText.includes('overflow-x-auto whitespace-nowrap')) {
     throw new Error('expected heading inline editor to allow horizontal scroll reveal during edit')
   }
@@ -687,7 +720,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!calloutText.includes('resolveEditLineRangeOnOpen={resolveCalloutBodyEditLineRange}') || !calloutText.includes('const resolveCalloutBodyEditLineRange = React.useCallback')) {
     throw new Error('expected callout body inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')
   }
-
   const dataViewPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewBlock.tsx')
   const dataViewText = readUtf8(dataViewPath)
   if (!dataViewText.includes('if (!canMutate) return')) {
@@ -712,7 +744,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   ) {
     throw new Error('expected data-view property name edit surface to reveal full text on focus while keeping truncated rest-state contract')
   }
-
   const kanbanPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')
   const kanbanText = readUtf8(kanbanPath)
   if (!kanbanText.includes('disabled={!props.canMutate}')) {

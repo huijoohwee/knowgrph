@@ -3,6 +3,7 @@ import {
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 
 const chipToneClasses = [
   UI_THEME_TOKENS.status.neutral,
@@ -46,31 +47,15 @@ export const resolveDataViewChipClass = (value: string): string => {
   return fixedChipClasses[key] || hashPick(key)
 }
 
-export const INLINE_KEYWORD_CHIP_TOKEN_RE = /#[A-Za-z0-9][A-Za-z0-9-]{0,47}/g
-
 export const splitInlineKeywordChipTokens = (text: string): Array<
   | { kind: 'text'; value: string }
   | { kind: 'keyword'; value: string }
 > => {
-  const raw = String(text ?? '')
-  if (!raw) return [{ kind: 'text', value: '' }]
-  const out: Array<{ kind: 'text'; value: string } | { kind: 'keyword'; value: string }> = []
-  let last = 0
-  for (;;) {
-    const match = INLINE_KEYWORD_CHIP_TOKEN_RE.exec(raw)
-    if (!match) break
-    const token = String(match[0] || '')
-    const start = match.index
-    const end = start + token.length
-    const previous = start > 0 ? raw[start - 1] || '' : ''
-    const next = end < raw.length ? raw[end] || '' : ''
-    if ((previous && /[A-Za-z0-9_/-]/.test(previous)) || (next && /[A-Za-z0-9_-]/.test(next))) continue
-    if (start > last) out.push({ kind: 'text', value: raw.slice(last, start) })
-    out.push({ kind: 'keyword', value: token })
-    last = end
-  }
-  if (last < raw.length) out.push({ kind: 'text', value: raw.slice(last) })
-  return out.length ? out : [{ kind: 'text', value: raw }]
+  return splitInvocationTokenSegments(text).map(segment => (
+    segment.kind === 'text'
+      ? segment
+      : { kind: 'keyword' as const, value: segment.value }
+  ))
 }
 
 export const readInlineKeywordChipToneValue = (value: string): string => {

@@ -27,17 +27,21 @@
   --kg-data-view-tree-cell-padding-inline: 0.75rem;
   --kg-data-view-tree-chevron-size: var(--kg-compact-glyph-size, 0.75rem);
   --kg-data-view-tree-control-icon-center: calc(var(--kg-data-view-tree-chevron-size) / 2);
-  --kg-data-view-tree-chevron-stroke-width: 1.5px;
-  --kg-data-view-tree-guide-width: var(--kg-data-view-tree-chevron-stroke-width);
+  --kg-data-view-tree-stroke-width: 1.5px;
+  --kg-data-view-tree-chevron-stroke-width: var(--kg-data-view-tree-stroke-width);
+  --kg-data-view-tree-guide-width: var(--kg-data-view-tree-stroke-width);
   --kg-data-view-tree-depth-step: 0.375rem;
-  --kg-data-view-tree-guide-color: var(--kg-muted-foreground, var(--kg-text-secondary, #4b5563));
+  --kg-data-view-tree-stroke-color: var(--kg-text-secondary, currentColor);
+  --kg-data-view-tree-stroke-opacity: 0.72;
+  --kg-data-view-tree-guide-color: var(--kg-data-view-tree-stroke-color);
 }
 
 .kg-data-view-tree-cell {
   --kg-data-view-tree-parent-depth-offset: max(calc((var(--kg-data-view-tree-depth, 0) - 1) * var(--kg-data-view-tree-depth-step)), 0rem);
   --kg-data-view-tree-parent-control-start: min(calc(var(--kg-data-view-tree-parent-depth-offset) + var(--kg-data-view-tree-cell-padding-inline)), 2rem);
   --kg-data-view-tree-parent-chevron-center: calc(var(--kg-data-view-tree-cell-padding-inline) + var(--kg-data-view-tree-parent-control-start) + var(--kg-data-view-tree-control-icon-center));
-  --kg-data-view-tree-guide-inset: calc(var(--kg-data-view-tree-parent-chevron-center) - (var(--kg-data-view-tree-guide-width) / 2));
+  --kg-data-view-tree-guide-inset: var(--kg-data-view-tree-parent-chevron-center);
+  color: var(--kg-data-view-tree-stroke-color, currentColor);
   isolation: isolate;
   position: relative;
   overflow: hidden;
@@ -49,14 +53,22 @@
   align-items: center;
   gap: 0.375rem;
   margin-inline-start: min(calc(var(--kg-data-view-tree-depth, 0) * var(--kg-data-view-tree-depth-step, 0.375rem) + var(--kg-data-view-tree-cell-padding-inline, 0.75rem)), 2rem);
-  color: var(--kg-data-view-tree-guide-color, currentColor);
+  color: var(--kg-data-view-tree-stroke-color, currentColor);
   position: relative;
   z-index: 2;
   vertical-align: middle;
 }
 
 .kg-data-view-tree-control svg {
+  color: var(--kg-data-view-tree-stroke-color, currentColor);
+  stroke: var(--kg-data-view-tree-stroke-color, currentColor);
+  stroke-opacity: var(--kg-data-view-tree-stroke-opacity);
   stroke-width: var(--kg-data-view-tree-chevron-stroke-width);
+}
+
+.kg-data-view-tree-control svg :where(path, line, polyline, polygon, circle) {
+  stroke: var(--kg-data-view-tree-stroke-color, currentColor);
+  stroke-opacity: var(--kg-data-view-tree-stroke-opacity);
 }
 
 .kg-data-view-tree-control:hover,
@@ -68,14 +80,23 @@
 
 .kg-data-view-tree-cell-guide {
   position: absolute;
-  inset-block: 0.55rem;
+  top: 50%;
   inset-inline-start: var(--kg-data-view-tree-guide-inset);
   z-index: 1;
-  width: var(--kg-data-view-tree-guide-width);
+  display: block;
+  width: var(--kg-data-view-tree-chevron-size);
+  height: calc(var(--kg-data-view-tree-chevron-size) * 1.75);
   pointer-events: none;
-  color: var(--kg-data-view-tree-guide-color, currentColor);
-  background: currentColor;
-  border-radius: 1px;
+  color: var(--kg-data-view-tree-stroke-color, currentColor);
+  overflow: visible;
+  transform: translate(-50%, -50%);
+}
+
+.kg-data-view-tree-cell-guide-line {
+  stroke: var(--kg-data-view-tree-stroke-color, currentColor);
+  stroke-linecap: round;
+  stroke-opacity: var(--kg-data-view-tree-stroke-opacity);
+  stroke-width: var(--kg-data-view-tree-guide-width);
 }
 
 .kg-data-view-tree-guide {
@@ -84,7 +105,7 @@
   width: var(--kg-data-view-tree-guide-width, 2px);
   height: 0.875rem;
   pointer-events: none;
-  color: var(--kg-data-view-tree-guide-color, var(--kg-muted-foreground, #111827));
+  color: var(--kg-data-view-tree-stroke-color, currentColor);
   background: currentColor;
   border-radius: 1px;
 }

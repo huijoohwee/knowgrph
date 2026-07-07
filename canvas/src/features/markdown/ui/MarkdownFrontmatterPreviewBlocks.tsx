@@ -59,6 +59,7 @@ export const MarkdownFrontmatterPreviewBlocks = React.memo(function MarkdownFron
               columnTypesById={{ 'frontmatter-key': 'text', 'frontmatter-value': 'text' }}
               canMutate={false}
               canConfigure={false}
+              tableFit="container"
               onUpdateCell={() => {}}
             />
           </section>

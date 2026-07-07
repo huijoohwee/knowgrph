@@ -48,6 +48,16 @@ type NeutralTimelineLane = {
   tracks: string[]
 }
 
+type MermaidFlowchartWorkflowNode = {
+  id: string
+  label: string
+}
+
+type MermaidWorkflowStep = {
+  id: string
+  label: string
+}
+
 const MERMAID_TYPED_TYPE_BY_KIND: Record<MermaidStructuredDiagramKind, string> = {
   flowchart: 'mermaid_flowchart',
   gitgraph: 'mermaid_gitgraph',
@@ -184,6 +194,108 @@ const formatNeutralTimelineDurationMinutes = (ms: number, unitMs: number): strin
 const readNeutralTimelineTitle = (payload: Record<string, unknown>): string => (
   sanitizeNeutralTimelineLabel(payload.title, 'Video Sequence Timeline')
 )
+
+const cleanMermaidFlowchartLabel = (value: unknown): string => String(value || '')
+  .replace(/<br\s*\/?>/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;/gi, "'")
+  .replace(/[:\n\r]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+
+const sanitizeMermaidFlowchartWorkflowId = (value: unknown, fallback: string): string => (
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  || fallback
+)
+
+const buildMermaidGanttWorkflowCode = (
+  args: {
+    idPrefix: string
+    title: string
+    steps: readonly MermaidWorkflowStep[]
+  },
+): string => {
+  if (!args.steps.length) return ''
+  const stepMinutes = 1 / 6
+  const lines = [
+    'gantt',
+    `  title ${args.title}`,
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Workflow',
+  ]
+  args.steps.forEach((step, index) => {
+    const id = sanitizeMermaidFlowchartWorkflowId(step.id, `${args.idPrefix}_${index + 1}`)
+    const label = cleanMermaidFlowchartLabel(step.label) || id
+    const startToken = `kgpos_${String(Number((index * stepMinutes).toFixed(3))).replace(/\./g, '_')}`
+    lines.push(`  ${label} : ${args.idPrefix}_${id}, ${startToken}, ${String(Number(stepMinutes.toFixed(3)))}m`)
+  })
+  return lines.join('\n')
+}
+
+const readMermaidFlowchartNodeToken = (value: string): MermaidFlowchartWorkflowNode | null => {
+  const token = String(value || '').trim()
+  if (!token || /^(?:class|classDef|click|end|flowchart|linkStyle|style|subgraph)\b/i.test(token)) return null
+  const labelMatch = /^([A-Za-z0-9_:-]+)\s*(?:\[\[([\s\S]*?)\]\]|\[\s*"([\s\S]*?)"\s*\]|\[\s*'([\s\S]*?)'\s*\]|\[([\s\S]*?)\]|\(\(\s*"([\s\S]*?)"\s*\)\)|\(\(\s*'([\s\S]*?)'\s*\)\)|\(\(([\s\S]*?)\)\)|\(\s*"([\s\S]*?)"\s*\)|\(\s*'([\s\S]*?)'\s*\)|\(([\s\S]*?)\)|\{([\s\S]*?)\})/.exec(token)
+  if (labelMatch) {
+    const label = cleanMermaidFlowchartLabel(labelMatch.slice(2).find(part => part != null) || '')
+    const id = cleanMermaidFlowchartLabel(labelMatch[1] || '')
+    return id ? { id, label: label || id } : null
+  }
+  const bareMatch = /^([A-Za-z0-9_:-]+)\b/.exec(token)
+  const id = cleanMermaidFlowchartLabel(bareMatch?.[1] || '')
+  return id ? { id, label: id } : null
+}
+
+const collectMermaidFlowchartWorkflowNodes = (code: string): MermaidFlowchartWorkflowNode[] => {
+  const nodeById = new Map<string, MermaidFlowchartWorkflowNode>()
+  const pushNode = (node: MermaidFlowchartWorkflowNode | null): void => {
+    if (!node || nodeById.has(node.id)) return
+    nodeById.set(node.id, node)
+  }
+  for (const rawLine of String(code || '').replace(/\r/g, '').split('\n')) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('%%') || /^flowchart\b/i.test(line)) continue
+    const declaration = readMermaidFlowchartNodeToken(line)
+    if (declaration?.label !== declaration?.id || !/(?:-->|---|==>|-.->|-\.-|~~~)/.test(line)) pushNode(declaration)
+    const edgeParts = line.split(/\s*(?:-->|---|==>|-.->|-\.-|~~~)\s*/).map(part => part.trim()).filter(Boolean)
+    if (edgeParts.length < 2) continue
+    for (const part of edgeParts) pushNode(readMermaidFlowchartNodeToken(part))
+  }
+  return Array.from(nodeById.values())
+}
+
+export const buildMermaidGanttWorkflowCodeFromFlowchartCode = (code: string): string => {
+  const nodes = collectMermaidFlowchartWorkflowNodes(code)
+  return buildMermaidGanttWorkflowCode({
+    idPrefix: 'flowchart',
+    title: 'Flowchart Workflow',
+    steps: nodes,
+  })
+}
+
+export const buildMermaidGanttWorkflowCodeFromEventModelingCode = (code: string): string => {
+  const model = parseMermaidDiagramCodeModel(code, 'eventmodeling')
+  const steps = model.rows
+    .filter(row => row.kind !== 'line' && row.kind !== 'timeframe' && row.kind !== 'reference')
+    .map((row, index) => ({
+      id: `${row.kind}_${row.label || index + 1}`,
+      label: cleanMermaidFlowchartLabel(row.label) || `${row.kind} ${index + 1}`,
+    }))
+    .filter(step => !!step.label)
+  return buildMermaidGanttWorkflowCode({
+    idPrefix: 'event_model',
+    title: 'Event Model Workflow',
+    steps,
+  })
+}
 
 export const buildMermaidGanttCodeFromNeutralTimelinePayload = (value: unknown): string => {
   const payload = parseNeutralTimelinePayload(value)

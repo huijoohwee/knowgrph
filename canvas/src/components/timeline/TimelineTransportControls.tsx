@@ -1,5 +1,5 @@
 import React from 'react'
-import { Info, Pause, Play } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   TIMELINE_TRANSPORT_PLAYBACK_RATES,
@@ -49,9 +49,6 @@ export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
 export function TimelineTransportControls(props: TimelineTransportControlsProps) {
   const {
     ariaLabel,
-    contextControls,
-    contextDetailsLabel,
-    contextLabel,
     currentLabel,
     disabled = false,
     max,
@@ -140,23 +137,6 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
             {toolbarControls}
           </section>
         ) : null}
-        {contextLabel ? (
-          <section className="timeline-player-context-label" aria-label="Timeline context summary">
-            <button
-              type="button"
-              className="timeline-player-info-button"
-              aria-label={contextDetailsLabel || 'Timeline context summary'}
-              title={contextDetailsLabel || (typeof contextLabel === 'string' ? contextLabel : 'Timeline context summary')}
-            >
-              <Info className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
-            </button>
-          </section>
-        ) : null}
-        {contextControls ? (
-          <section className="timeline-player-context" aria-label="Timeline contextual controls">
-            {contextControls}
-          </section>
-        ) : null}
       </section>
       {showRange ? (
         <section className={cn('timeline-player-range', rangeClassName)}>
@@ -181,6 +161,9 @@ export function TimelineTransportControls(props: TimelineTransportControlsProps)
 export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
   const {
     chromeClassName,
+    contextControls,
+    contextDetailsLabel,
+    contextLabel,
     headerAside,
     mediaPlayer,
     rootProps,
@@ -195,6 +178,7 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
   const rulerRootClassName = cn('timeline-transport-ruler', rulerClassName)
   const inlineHeaderAside = !titleLabel && !subtitleLabel ? headerAside : null
   const headerAsideContent = inlineHeaderAside ? null : headerAside
+  const statusDetails = contextDetailsLabel || contextLabel
   return (
     <section
       {...rootProps}
@@ -226,6 +210,20 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
           >
             {ruler}
           </section>
+        </section>
+      ) : null}
+      {statusDetails || contextControls ? (
+        <section className="timeline-player-context timeline-transport-status-bar" aria-label="Timeline contextual controls">
+          {statusDetails ? (
+            <section className="timeline-transport-status-details" aria-label="Timeline context summary">
+              {statusDetails}
+            </section>
+          ) : null}
+          {contextControls ? (
+            <section className="timeline-transport-status-actions" aria-label="Timeline contextual actions">
+              {contextControls}
+            </section>
+          ) : null}
         </section>
       ) : null}
     </section>

@@ -17,7 +17,10 @@ import {
   mediaCardClassName,
   mediaListItemClassName,
   mediaListThumbnailFrameClassName,
+  primeMediaMouseDrag,
+  primeMediaPointerDrag,
   shouldHandleMediaRowPointer,
+  shouldPrimeMediaRowDragPayload,
   startMediaMouseDrag,
   startMediaPointerDrag,
   useNativeVideoMediaThumbnail,
@@ -106,6 +109,10 @@ export function UploadedMediaRow({
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
       data-kg-media-list-row-layout="3-rows"
+      onPointerDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaPointerDrag(event, buildDragPayload())
+      }}
       onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         startMediaPointerDrag(event, buildDragPayload())
@@ -113,6 +120,10 @@ export function UploadedMediaRow({
       onPointerMove={event => {
         if (isMediaRowControlTarget(event.target)) return
         continueMediaPointerDrag(event, buildDragPayload())
+      }}
+      onMouseDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaMouseDrag(event, buildDragPayload())
       }}
       onMouseDown={event => {
         if (isMediaRowControlTarget(event.target)) return
@@ -336,6 +347,10 @@ export function UploadedMediaCard({
       data-kg-media-draggable="1"
       data-kg-media-upload-kind={item.kind}
       data-kg-media-upload-status={item.status}
+      onPointerDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaPointerDrag(event, buildDragPayload())
+      }}
       onPointerDown={event => {
         if (!shouldHandleMediaRowPointer(event)) return
         startMediaPointerDrag(event, buildDragPayload())
@@ -343,6 +358,10 @@ export function UploadedMediaCard({
       onPointerMove={event => {
         if (isMediaRowControlTarget(event.target)) return
         continueMediaPointerDrag(event, buildDragPayload())
+      }}
+      onMouseDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaMouseDrag(event, buildDragPayload())
       }}
       onMouseDown={event => {
         if (isMediaRowControlTarget(event.target)) return

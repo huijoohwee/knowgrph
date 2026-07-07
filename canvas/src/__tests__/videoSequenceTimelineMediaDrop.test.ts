@@ -1,19 +1,53 @@
 import { buildTimelinePreviewSyncPlan } from '@/components/timeline/timelinePlanSync'
-import { readVideoSequenceTimelineModelFromMarkdown, resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
+import { filterVideoSequenceMediaEditorGanttCode, filterVideoSequenceWorkflowGanttCode, isVideoSequenceMediaEditorGanttCode, readVideoSequenceTimelineModelFromMarkdown, resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
 import { appendMermaidGanttVideoSequenceMediaDrop } from '@/lib/mermaid/mermaidGanttVideoSequenceMediaDrop'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
 import { resolveMermaidGanttCode } from '@/lib/mermaid/mermaidGitGraph'
-import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
-
 const readVideoSequenceCode = (markdownText: string): string => {
-  const meta = parseMarkdownFrontmatter(splitMarkdownLines(markdownText)).meta as {
-    flow_diagrams?: { video_sequence?: { value?: unknown } }
-  }
-  return String(meta.flow_diagrams?.video_sequence?.value || '') ||
-    resolveMermaidGanttCode(readYamlFrontmatterMermaidDiagramCodes(markdownText, 'gantt'))
+  const codes = readYamlFrontmatterMermaidDiagramCodes(markdownText, 'gantt')
+  return resolveMermaidGanttCode(codes.map(filterVideoSequenceMediaEditorGanttCode).filter(Boolean)) || resolveMermaidGanttCode(codes)
 }
-
+export function testVideoSequenceTimelineMediaFilterRemovesWorkflowRows() {
+  const mixedCode = [
+    'gantt',
+    '  title Video-Agent E2E Pipeline',
+    '  dateFormat HH:mm',
+    '  axisFormat %H:%M',
+    '  section Agentic OS',
+    '  Ideation : video_agent_ideation, 00:00, 0.167m',
+    '  Invocation : video_agent_invocation, 00:10, 0.167m',
+    '  section Source video',
+    '  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_seedance, kgsrc_0_52, kgpos_0, 0.867m',
+    '  section Audio',
+    '  Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 audio : clip_seedance_audio, kgsrc_0_52, kgpos_0, 0.867m',
+  ].join('\n')
+  const filteredCode = filterVideoSequenceMediaEditorGanttCode(mixedCode)
+  const workflowCode = filterVideoSequenceWorkflowGanttCode(mixedCode)
+  const rows = buildMermaidGanttTimelineModel(filteredCode).taskSpans
+  const workflowRows = buildMermaidGanttTimelineModel(workflowCode).taskSpans
+  if (
+    !isVideoSequenceMediaEditorGanttCode(filteredCode) ||
+    filteredCode.includes('Ideation : video_agent_ideation') ||
+    filteredCode.includes('Invocation : video_agent_invocation') ||
+    !filteredCode.includes('section Source video') ||
+    !filteredCode.includes('section Audio') ||
+    rows.length !== 2 ||
+    !rows.some(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4') ||
+    !rows.some(span => span.label === 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 audio')
+  ) {
+    throw new Error(`expected mixed Gantt code to filter to media editor rows only, got ${JSON.stringify({ filteredCode, rows })}`)
+  }
+  if (
+    workflowCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4') ||
+    !workflowCode.includes('section Agentic OS') ||
+    !workflowRows.some(span => span.label === 'Ideation') ||
+    !workflowRows.some(span => span.label === 'Invocation') ||
+    workflowRows.length !== 2
+  ) {
+    throw new Error(`expected mixed Gantt code to filter to workflow rows only, got ${JSON.stringify({ workflowCode, workflowRows })}`)
+  }
+}
 export function testVideoSequenceTimelineMediaDropAppendsSourceBackedClip() {
   const markdownText = [
     '---',
@@ -80,7 +114,7 @@ export function testVideoSequenceTimelineMediaDropAppendsSourceBackedClip() {
       source.frameRate === 24
     )) ||
     !nextCode.includes('港岛仿生局.mp4 : clip_') ||
-    !nextCode.includes('kgsrc_0_0_25') ||
+    !nextCode.includes('kgsrc_0_15') ||
     !nextCode.includes('kgpos_0_5') ||
     !result.rowKey.includes('港岛仿生局.mp4') ||
     !droppedSegment ||
@@ -90,7 +124,6 @@ export function testVideoSequenceTimelineMediaDropAppendsSourceBackedClip() {
     throw new Error(`expected dropped media to persist as a source-backed timeline clip, got ${JSON.stringify({ code: nextCode, model: nextModel, plan: nextPlan, rowKey: result.rowKey })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
   const markdownText = [
     '---',
@@ -132,12 +165,12 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     !nextModel?.enabled ||
     nextModel.sources.length !== 1 ||
     !result.markdownText.includes('kgVideoSequenceTimeline: true') ||
-    !result.markdownText.includes('video_sequence:') ||
+    !result.markdownText.includes('video_media_timeline:') ||
     !result.markdownText.includes('type: mermaid_gantt') ||
     !nextCode.includes('gantt') ||
     !nextCode.includes('section Source video') ||
     !nextCode.includes('港岛仿生局.mp4 : clip_') ||
-    !nextCode.includes('kgsrc_0_0_25') ||
+    !nextCode.includes('kgsrc_0_15') ||
     !nextCode.includes('kgpos_0') ||
     !droppedSegment ||
     droppedSegment.timelineStartMinutes !== 0 ||
@@ -145,7 +178,57 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
   ) {
     throw new Error(`expected dropped media to initialize a timeline clip, got ${JSON.stringify({ code: nextCode, model: nextModel, plan: nextPlan, markdownText: result.markdownText })}`)
   }
-
+  const inlineEmptySourcesMarkdownText = [
+    '---',
+    'kgVideoSequenceSources: []',
+    'kgVideoSequenceTimeline: false',
+    'flow_diagrams:',
+    '  key: "flow_diagrams"',
+    '  type: "object"',
+    '  value:',
+    '    video_sequence:',
+    '      key: video_sequence',
+    '      type: mermaid_gantt',
+    '      value: |-',
+    '        gantt',
+    '          title Video-Agent E2E Pipeline',
+    '          dateFormat HH:mm',
+    '          axisFormat %H:%M',
+    '          section Agentic OS',
+    '          Ideation : video_agent_ideation, 00:00, 0.167m',
+    '---',
+    '',
+  ].join('\n')
+  const inlineEmptySourcesResult = appendMermaidGanttVideoSequenceMediaDrop({
+    code: '',
+    markdownText: inlineEmptySourcesMarkdownText,
+    media: {
+      durationSeconds: 1.08,
+      frameRate: 24,
+      kind: 'video',
+      label: 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4',
+      mimeHint: 'video/mp4',
+      sourceKey: 'synced-r2-object',
+      url: '/api/storage/media/airvio/runs/upload/video/seedance.mp4',
+    },
+    startMinutes: 0,
+  })
+  if (!inlineEmptySourcesResult) throw new Error('expected inline empty media sources drop to land without duplicate YAML keys')
+  const sourceKeyMatches = inlineEmptySourcesResult.markdownText.match(/^kgVideoSequenceSources\s*:/gm) || []
+  const inlineResultModel = readVideoSequenceTimelineModelFromMarkdown(inlineEmptySourcesResult.markdownText)
+  if (
+    sourceKeyMatches.length !== 1 ||
+    inlineEmptySourcesResult.markdownText.includes('kgVideoSequenceSources: []') ||
+    !inlineEmptySourcesResult.markdownText.includes('kgVideoSequenceTimeline: true') ||
+    !inlineResultModel?.enabled ||
+    inlineResultModel.sources.length !== 1 ||
+    !inlineEmptySourcesResult.markdownText.includes('video_media_timeline:') ||
+    !inlineEmptySourcesResult.markdownText.includes('Ideation : video_agent_ideation, 00:00, 0.167m') ||
+    readVideoSequenceCode(inlineEmptySourcesResult.markdownText).includes('Ideation : video_agent_ideation') ||
+    !readVideoSequenceCode(inlineEmptySourcesResult.markdownText).includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : clip_')
+  ) {
+    throw new Error(`expected first FloatingPanel media drop to canonicalize inline empty sources, got ${JSON.stringify({ markdownText: inlineEmptySourcesResult.markdownText, model: inlineResultModel, sourceKeyMatches })}`)
+  }
   const starterPlaceholderMarkdownText = [
     '---',
     'kgVideoSequenceTimeline: true',
@@ -195,13 +278,12 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     starterPlaceholderModel.sources[0]?.id !== 'operator_source_video' ||
     starterPlaceholderModel.sources[0]?.sourceUrl !== '/media/seedance.mp4' ||
     starterPlaceholderCode.includes('Source video : operator_source_video, kgpos_0, 1m') ||
-    !starterPlaceholderCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_25, kgpos_0_32, 0.25m') ||
+    !starterPlaceholderCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_15, kgpos_0_32, 0.25m') ||
     starterPlaceholderRows.length !== 1 ||
     starterPlaceholderRows[0]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
   ) {
     throw new Error(`expected first real video drop to consume starter placeholder instead of duplicating bars, got ${JSON.stringify({ code: starterPlaceholderCode, model: starterPlaceholderModel, rows: starterPlaceholderRows })}`)
   }
-
   const sourceBackedScaffoldMarkdownText = [
     '---',
     'kgVideoSequenceTimeline: true',
@@ -253,7 +335,7 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     sourceBackedScaffoldModel.sources[0]?.id !== 'operator_source_video' ||
     sourceBackedScaffoldModel.sources[0]?.sourceUrl !== '/media/seedance.mp4' ||
     !sourceBackedScaffoldCode.includes('Source video : operator_source_video, kgsrc_0_0_86, kgpos_0, 0.86m') ||
-    !sourceBackedScaffoldCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_0_867, kgpos_0_37, 0.867m') ||
+    !sourceBackedScaffoldCode.includes('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video, kgsrc_0_52, kgpos_0_37, 0.867m') ||
     sourceBackedScaffoldRows.length !== 2 ||
     sourceBackedScaffoldRows[0]?.label !== 'Source video' ||
     sourceBackedScaffoldRows[1]?.label !== 'Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4'
@@ -261,7 +343,6 @@ export function testVideoSequenceTimelineMediaDropBootstrapsEmptyTimeline() {
     throw new Error(`expected existing source-backed scaffold add to append without replacing the first media, got ${JSON.stringify({ code: sourceBackedScaffoldCode, model: sourceBackedScaffoldModel, rows: sourceBackedScaffoldRows })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropAppendsSecondVideoWithoutReplacingFirst() {
   const markdownText = [
     '---',
@@ -329,7 +410,6 @@ export function testVideoSequenceTimelineMediaDropAppendsSecondVideoWithoutRepla
     throw new Error(`expected second video drop to append without replacing the first clip, got ${JSON.stringify({ code: nextCode, model: nextModel, rows })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropDoesNotReplaceSourceBackedStaleLabel() {
   const markdownText = [
     '---',
@@ -387,7 +467,6 @@ export function testVideoSequenceTimelineMediaDropDoesNotReplaceSourceBackedStal
     throw new Error(`expected stale source-backed Source video row to survive second drop, got ${JSON.stringify({ code: nextCode, model, rows })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropDoesNotReplaceRestartedSourceVideoBar() {
   const markdownText = [
     '---',
@@ -445,7 +524,6 @@ export function testVideoSequenceTimelineMediaDropDoesNotReplaceRestartedSourceV
     throw new Error(`expected restarted Source video bar to survive flower drop, got ${JSON.stringify({ code: nextCode, model, rows })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropTargetsVideoSequenceWhenEarlierGanttExists() {
   const markdownText = [
     '---',
@@ -508,7 +586,6 @@ export function testVideoSequenceTimelineMediaDropTargetsVideoSequenceWhenEarlie
     throw new Error(`expected video_sequence replacement to leave earlier gantt untouched, got ${JSON.stringify({ markdownText: result.markdownText, nextCode })}`)
   }
 }
-
 export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
   const markdownText = [
     '---',
@@ -550,7 +627,7 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
     !nextModel ||
     !nextModel.sources.some(source => source.sourceUrl === '/media/kongwu.jpg' && source.frameRate === 12) ||
     !nextCode.includes('空武.jpg image : clip_') ||
-    !nextCode.includes('kgsrc_0_0_001389') ||
+    !nextCode.includes('kgsrc_0_0_083') ||
     !nextCode.includes('kgpos_0_25') ||
     !nextCode.includes('0.001389m') ||
     nextCode.includes('0.016667m') ||
@@ -560,7 +637,6 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
   ) {
     throw new Error(`expected dropped image to persist as one frame, got ${JSON.stringify({ code: nextCode, imageSpan, model: nextModel })}`)
   }
-
   const thumbnailResult = appendMermaidGanttVideoSequenceMediaDrop({
     code: nextCode,
     markdownText: result.markdownText,
@@ -593,7 +669,6 @@ export function testVideoSequenceTimelineImageDropUsesOneFrameDuration() {
     throw new Error(`expected dropped timeline thumbnail to create a one-frame image clip, got ${JSON.stringify({ code: thumbnailCode, model: thumbnailModel, span: thumbnailSpan })}`)
   }
 }
-
 export function testVideoSequenceTimelineMediaDropRoutesFloatingPanelKinds() {
   const starterPlaceholderMarkdownText = [
     '---',
@@ -711,7 +786,6 @@ export function testVideoSequenceTimelineMediaDropRoutesFloatingPanelKinds() {
   ) {
     throw new Error(`expected first video add to replace the empty source-video placeholder, got ${JSON.stringify({ code: videoOnPlaceholderCode, model: videoOnPlaceholderModel, rows: videoOnPlaceholderRows })}`)
   }
-
   const markdownText = [
     '---',
     'kgVideoSequenceTimeline: true',

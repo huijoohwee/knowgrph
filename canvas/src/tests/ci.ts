@@ -346,6 +346,12 @@ if (!g.window.cancelAnimationFrame) {
     clearTimeout(id)
   }
 }
+if (!g.requestAnimationFrame) {
+  g.requestAnimationFrame = g.window.requestAnimationFrame.bind(g.window)
+}
+if (!g.cancelAnimationFrame) {
+  g.cancelAnimationFrame = g.window.cancelAnimationFrame.bind(g.window)
+}
 
 if (!g.NodeFilter) {
   g.NodeFilter = {

@@ -1,5 +1,6 @@
 import React from 'react'
-import { MermaidDiagramPanelView } from './MermaidDiagramPanelView'
+import { buildMermaidGanttWorkflowCodeFromEventModelingCode } from '@/lib/mermaid/mermaidDiagramCode'
+import { GanttTimelineTransportPanel } from './GanttTimelineTransportPanel'
 import { useMermaidStructuredDiagramDocument } from './useMermaidStructuredDiagramDocument'
 
 export function EventModelingBottomPanelView({
@@ -7,18 +8,7 @@ export function EventModelingBottomPanelView({
 }: {
   compact?: boolean
 }) {
-  const { code, model, themeMode } = useMermaidStructuredDiagramDocument('eventmodeling')
-  return (
-    <MermaidDiagramPanelView
-      code={code}
-      model={model}
-      kind="eventmodeling"
-      title="Event Model"
-      emptyLabel="No Event Modeling Mermaid frontmatter."
-      rootThemeMode={themeMode}
-      compact={compact}
-      surface="bottomPanel"
-      renderMode="diagram"
-    />
-  )
+  const { code } = useMermaidStructuredDiagramDocument('eventmodeling')
+  const eventModelTimelineCode = React.useMemo(() => buildMermaidGanttWorkflowCodeFromEventModelingCode(code), [code])
+  return <GanttTimelineTransportPanel code={eventModelTimelineCode} compact={compact} mode="workflow" />
 }

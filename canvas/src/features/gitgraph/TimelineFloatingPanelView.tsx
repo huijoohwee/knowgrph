@@ -123,7 +123,7 @@ export function TimelineFloatingPanelView() {
   const videoSequenceTimelineLaneVisibility = useGraphStore(state => state.videoSequenceTimelineLaneVisibility)
   const setVideoSequenceTimelineLaneVisibility = useGraphStore(state => state.setVideoSequenceTimelineLaneVisibility)
   const { code: timelineCode, graphData, themeMode, timelineModel } = useMermaidTimelineDocument()
-  const { code: ganttCode, ganttModel, graphData: ganttGraphData, themeMode: ganttThemeMode } = useMermaidGanttDocument()
+  const { code: ganttCode, ganttModel, graphData: ganttGraphData, themeMode: ganttThemeMode } = useMermaidGanttDocument({ purpose: 'media' })
   const videoSequenceModel = React.useMemo(() => readVideoSequenceTimelineModelFromMarkdown(markdownDocumentText), [markdownDocumentText])
   const [floatingRowsExpanded, setFloatingRowsExpanded] = React.useState(true)
   const laneVisibility = React.useMemo<VideoSequenceFloatingPanelLaneVisibility>(() => {

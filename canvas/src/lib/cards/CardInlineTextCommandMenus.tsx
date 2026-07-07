@@ -2,6 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { AtSign, Hash, Slash } from 'lucide-react'
 import { buildMarkdownVariableToken, collectMarkdownVariableBrowseRows } from '@/features/markdown/ui/markdownVariableReferences'
+import { buildAgenticOsBindingInvocationMenuItems, buildAgenticOsSlashInvocationMenuItems } from '@/features/agentic-os/agenticOsInlineCommandItems'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import { MarkdownBlockContainerCommandMenu, type MarkdownInlineCommandMenuItem } from '@/lib/markdown-core/ui/markdownBlockContainerCore.commandMenu'
 import {
@@ -20,6 +21,7 @@ import {
   type InlineSlashCommandId,
   type InlineVariableCommandId,
 } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { mergeInlineMediaCommandCandidates } from '@/lib/command-menu/inlineMediaCommandCandidateMerge'
 import {
   applyCommandMenuMediaNameDraftsToInlineCandidates,
   useCommandMenuMediaNameDrafts,
@@ -40,11 +42,8 @@ import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPane
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { readCardInlineMediaCommandDuplicateNeedle } from '@/lib/cards/cardInlineTextEditorUtils'
-
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
-
 export type CardInlineTextCommandMenuMode = 'slash' | 'variable' | 'keyword'
-
 const cardInlineCommandButtonClassName = [
   'inline-flex h-6 w-6 items-center justify-center rounded border',
   UI_THEME_TOKENS.input.bg,
@@ -65,13 +64,11 @@ const cardInlineCommandMenuDisabledClassName = [
   cardInlineCommandMenuItemClassName,
   'opacity-50 cursor-not-allowed',
 ].join(' ')
-
 type CardInlineCommandMenuFrame = {
   left: number
   top: number
   width: number
 }
-
 function readCardInlineTextInputSelection(input: HTMLInputElement | HTMLTextAreaElement | null): { start: number; end: number } {
   if (!input) return { start: 0, end: 0 }
   const length = String(input.value || '').length
@@ -81,7 +78,6 @@ function readCardInlineTextInputSelection(input: HTMLInputElement | HTMLTextArea
   const end = Math.max(0, Math.min(length, rawEnd))
   return { start: Math.min(start, end), end: Math.max(start, end) }
 }
-
 function focusCardInlineTextInputSelectionSoon(input: HTMLInputElement | HTMLTextAreaElement | null, start: number, end: number = start) {
   if (!input) return
   window.requestAnimationFrame(() => {
@@ -93,7 +89,6 @@ function focusCardInlineTextInputSelectionSoon(input: HTMLInputElement | HTMLTex
     }
   })
 }
-
 function replaceDraftRange(args: {
   input: HTMLInputElement | HTMLTextAreaElement | null
   draft: string
@@ -112,7 +107,6 @@ function replaceDraftRange(args: {
   args.onCommandDraftChange?.(next)
   focusCardInlineTextInputSelectionSoon(args.input, cursor)
 }
-
 function findInlineCommandTokenRange(args: {
   text: string
   selection: { start: number; end: number }
@@ -128,7 +122,6 @@ function findInlineCommandTokenRange(args: {
   if (match) return { start: end - match[0].length, end }
   return { start: end, end }
 }
-
 function insertMarkdownBlockRange(args: {
   text: string
   start: number
@@ -146,7 +139,6 @@ function insertMarkdownBlockRange(args: {
   const next = `${before}${prefix}${block}${suffix}${after}`
   return { text: next, cursor: before.length + prefix.length + block.length }
 }
-
 function replaceCurrentLine(args: {
   input: HTMLInputElement | HTMLTextAreaElement | null
   draft: string
@@ -165,7 +157,6 @@ function replaceCurrentLine(args: {
     .trimStart()
   replaceDraftRange({ ...args, start: lineStart, end: lineEnd, replacement: `${args.prefix}${content}` })
 }
-
 export function CardInlineTextCommandMenus(props: {
   commandMode: CardInlineTextCommandMenuMode | null
   commandQuery: string
@@ -204,7 +195,6 @@ export function CardInlineTextCommandMenus(props: {
   const [inlineUploadItems, setInlineUploadItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
   const mediaNameDrafts = useCommandMenuMediaNameDrafts()
   const uploadedMediaCommandCandidates = useUploadedMediaInlineCommandCandidates()
-
   React.useEffect(() => {
     const uploadObjectUrls = uploadObjectUrlsRef.current
     return () => {
@@ -218,7 +208,6 @@ export function CardInlineTextCommandMenus(props: {
       uploadObjectUrls.clear()
     }
   }, [])
-
   React.useLayoutEffect(() => {
     if (!commandMode) {
       setMenuFrame(null)
@@ -252,7 +241,6 @@ export function CardInlineTextCommandMenus(props: {
       window.removeEventListener('scroll', updateFrame, true)
     }
   }, [commandMode, inputRef])
-
   const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
     const start = Math.max(0, Math.min(text.length, commandSelectionRef.current.start))
@@ -271,7 +259,6 @@ export function CardInlineTextCommandMenus(props: {
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next)
   }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
-
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
     if (candidate.url) onMediaCommandSelect?.(candidate)
@@ -311,7 +298,6 @@ export function CardInlineTextCommandMenus(props: {
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
   }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
-
   const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
     const results = await uploadFilesToUploadedMediaPanel({
       files: Array.from(fileList || []),
@@ -337,7 +323,6 @@ export function CardInlineTextCommandMenus(props: {
       keywords: [first.item.kind, first.item.name, first.storage.contentHash, first.storage.objectKey].filter(Boolean),
     }, { closeAfterApply: true })
   }, [commandSelectionRef, inputRef, insertMediaCommand, setCommandMode, setCommandQuery])
-
   const slashCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const prefixById: Partial<Record<InlineSlashCommandId, string>> = {
       h1: '# ',
@@ -348,7 +333,7 @@ export function CardInlineTextCommandMenus(props: {
       quote: '> ',
       checklist: '- [ ] ',
     }
-    return INLINE_SLASH_COMMAND_ACTIONS
+    const baseItems = INLINE_SLASH_COMMAND_ACTIONS
       .filter(action => action.id !== 'heading')
       .map(action => buildInlineCommandActionMenuItem({
         action,
@@ -386,17 +371,17 @@ export function CardInlineTextCommandMenus(props: {
           }
         },
       }))
+    return [...baseItems, ...buildAgenticOsSlashInvocationMenuItems({ onSelect: replaceCommandSelection })]
   }, [closeCommandMenu, commandSelectionRef, draft, inputRef, insertMediaCommand, onCommandDraftChange, replaceCommandSelection, setDraft])
-
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const parsed = parseInlineVariableCommandQuery(commandQuery)
     const queryKey = parsed.key
-    const mediaCandidates = applyCommandMenuMediaNameDraftsToInlineCandidates([
+    const mediaCandidates = applyCommandMenuMediaNameDraftsToInlineCandidates(mergeInlineMediaCommandCandidates([
       ...uploadedMediaCommandCandidates,
       ...collectInlineMediaCommandCandidates({
         draftText: [commandContextText, draft].filter(Boolean).join('\n'),
       }),
-    ], mediaNameDrafts).slice(0, 12)
+    ]), mediaNameDrafts).slice(0, 12)
     const mediaCandidateItems = mediaCandidates
       .filter(candidate => !queryKey || candidate.label.toLowerCase().includes(queryKey.toLowerCase()) || candidate.url.toLowerCase().includes(queryKey.toLowerCase()))
       .map(candidate => buildInlineMediaCommandMenuItem({
@@ -411,6 +396,10 @@ export function CardInlineTextCommandMenus(props: {
         idPrefix: 'var-',
         onSelect: () => replaceCommandSelection(buildMarkdownVariableToken({ mode: 'ref', key: row.key })),
       }))
+    const agenticOsInvocationItems = buildAgenticOsBindingInvocationMenuItems({
+      queryKey,
+      onSelect: replaceCommandSelection,
+    })
     const canRef = isInlineVariableKey(parsed.key)
     const canCreate = parsed.mode === 'create' && canRef && !!parsed.value
     const canFallback = parsed.mode === 'fallback' && canRef && !!parsed.fallback
@@ -466,6 +455,7 @@ export function CardInlineTextCommandMenus(props: {
       }),
       ...mediaCandidateItems,
       ...mediaInsertActions,
+      ...agenticOsInvocationItems,
       ...suggestionItems,
       buildInlineCommandActionMenuItem({
         action: insertReference,
@@ -497,7 +487,6 @@ export function CardInlineTextCommandMenus(props: {
       ...mediaActions,
     ]
   }, [commandContextText, commandQuery, draft, insertMediaCommand, mediaNameDrafts, replaceCommandSelection, uploadedMediaCommandCandidates])
-
   const keywordCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     return collectInlineKeywordCommandCandidates({
       draftText: [commandContextText, draft].filter(Boolean).join('\n'),
@@ -529,7 +518,6 @@ export function CardInlineTextCommandMenus(props: {
         emptyLabel: 'No keyword commands',
       }
     : null
-
   const commandMenu = commandMode ? (
     <section
       aria-label={commandMenuConfig?.ariaLabel || 'Card commands'}
@@ -554,7 +542,6 @@ export function CardInlineTextCommandMenus(props: {
     </section>
   ) : null
   const commandMenuHost = inputRef.current?.ownerDocument?.body || (typeof document !== 'undefined' ? document.body : null)
-
   return (
     <>
       <input

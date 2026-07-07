@@ -1,5 +1,8 @@
 import { builtInParsers } from '@/features/parsers/default'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { restoreMissingOpeningYamlFrontmatterFence } from '@/lib/markdown/frontmatter'
+import { sanitizeProvidedMarkdownPreviewTokensForFrontmatter } from '@/features/markdown/ui/useMarkdownPreviewTokens'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 
 export function testMarkdownFrontmatterParseReportsYamlFailureWarnings() {
   const lines = splitMarkdownLines([
@@ -48,6 +51,63 @@ export function testMarkdownFrontmatterParseRepairsInlineComputeBlockScalarEnvel
   const computeValue = flow?.nodes?.[0]?.compute?.value
   if (typeof computeValue !== 'string' || !computeValue.includes('inputs.input')) {
     throw new Error(`expected repaired compute block scalar value, got ${JSON.stringify(computeValue)}`)
+  }
+}
+
+export function testMarkdownPreviewProvidedTokensDropFrontmatterLeak() {
+  const leakedFrontmatterParagraph = {
+    type: 'paragraph',
+    text: 'title: "Knowgrph Strybldr Starter Template" graphId: "md:knowgrph-strybldr-starter-template"',
+    startLine: 1,
+    endLine: 42,
+  } as unknown as TokenWithLines
+  const bodyHeading = {
+    type: 'heading',
+    text: 'Knowgrph Strybldr Starter Template',
+    startLine: 45,
+    endLine: 45,
+  } as unknown as TokenWithLines
+
+  const sanitized = sanitizeProvidedMarkdownPreviewTokensForFrontmatter(
+    [leakedFrontmatterParagraph, bodyHeading],
+    44,
+  )
+
+  if (sanitized.length !== 1 || sanitized[0] !== bodyHeading) {
+    throw new Error('expected provided Markdown preview tokens to drop frontmatter-sourced blocks before Viewer rendering')
+  }
+}
+
+export function testMarkdownFrontmatterRepairRestoresMissingOpeningFence() {
+  const corrupted = [
+    'title: "Knowgrph Strybldr Starter Template"',
+    'graphId: "md:knowgrph-strybldr-starter-template"',
+    'kgFrontmatterModeEnabled: true',
+    '---',
+    '',
+    '# Knowgrph Strybldr Starter Template',
+  ].join('\n')
+
+  const repaired = restoreMissingOpeningYamlFrontmatterFence(corrupted)
+  if (!repaired.startsWith('---\ntitle: "Knowgrph Strybldr Starter Template"')) {
+    throw new Error('expected missing opening YAML frontmatter fence to be restored before editor/runtime sync')
+  }
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(repaired))
+  if (parsed.startIndex !== 5 || String(parsed.meta.graphId || '') !== 'md:knowgrph-strybldr-starter-template') {
+    throw new Error(`expected repaired YAML frontmatter to parse with canonical graphId, got ${JSON.stringify(parsed)}`)
+  }
+
+  const missingClosing = [
+    '---',
+    'title: "Knowgrph Strybldr Starter Template"',
+    'graphId: "md:knowgrph-strybldr-starter-template"',
+    'kgFrontmatterModeEnabled: true',
+    '',
+    '# Knowgrph Strybldr Starter Template',
+  ].join('\n')
+  const repairedClosing = restoreMissingOpeningYamlFrontmatterFence(missingClosing)
+  if (!repairedClosing.includes('kgFrontmatterModeEnabled: true\n---\n# Knowgrph Strybldr Starter Template')) {
+    throw new Error('expected missing closing YAML frontmatter fence to be restored before the Markdown body heading')
   }
 }
 

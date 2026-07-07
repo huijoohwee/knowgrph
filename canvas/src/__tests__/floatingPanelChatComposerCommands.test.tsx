@@ -6,9 +6,18 @@ import { Simulate } from 'react-dom/test-utils'
 import { parseChatIngestUrlCommand } from '@/features/chat/chatCommandRegistry'
 import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { buildKnowgrphVdeoxplnChatSystemPrompt, buildKnowgrphVdeoxplnRoutingPlan } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
+import {
+  AGENTIC_OS_BINDING_INVOCATIONS,
+  AGENTIC_OS_COMMAND_INVOCATIONS,
+  AGENTIC_OS_DICTIONARY_INVOCATIONS,
+  AGENTIC_OS_DOCS_GITHUB_ROOT_URL,
+  AGENTIC_OS_DOC_INVOCATIONS,
+  AGENTIC_OS_SEMANTIC_INVOCATIONS,
+} from '@/features/agentic-os/agenticOsDocInvocations'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import {
   buildFloatingPanelChatComposerDisplayText,
+  buildFloatingPanelChatComposerOverlayParts,
   deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
 } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 import { replaceChatComposerTrigger, resolveChatComposerTrigger } from '@/features/chat/floatingPanelChat/chatComposerTrigger'
@@ -16,7 +25,26 @@ import { buildUploadedMediaInlineCommandCandidate } from '@/lib/command-menu/inl
 import type { UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
-
+function readAgenticOsDictionaryEntries(fileName: string): string[] {
+  const text = readFileSync(resolve(process.cwd(), '../../huijoohwee/agentic-os-docs', fileName), 'utf8')
+  const match = /^dictionary_entries:\n((?:  - .+\n)+)/m.exec(text)
+  if (!match) throw new Error(`expected ${fileName} to expose dictionary_entries frontmatter`)
+  return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean)
+}
+export function testAgenticOsInvocationsUsePublicSourceLinks() {
+  const invocations = [
+    ...AGENTIC_OS_DOC_INVOCATIONS,
+    ...AGENTIC_OS_DICTIONARY_INVOCATIONS,
+  ]
+  for (const invocation of invocations) {
+    if (!invocation.sourcePath.startsWith(`${AGENTIC_OS_DOCS_GITHUB_ROOT_URL}/`)) {
+      throw new Error(`expected ${invocation.id} to use GitHub source URL, got ${invocation.sourcePath}`)
+    }
+    if (invocation.sourcePath.includes('/Users/') || invocation.sourcePath.includes('localhost')) {
+      throw new Error(`expected ${invocation.id} to avoid local source links, got ${invocation.sourcePath}`)
+    }
+  }
+}
 export function testFloatingPanelChatComposerTriggerRangesStayInlineAndNeutral() {
   const slash = resolveChatComposerTrigger('Review /story', 13)
   if (!slash || slash.kind !== 'slash' || slash.query !== 'story') {
@@ -30,7 +58,6 @@ export function testFloatingPanelChatComposerTriggerRangesStayInlineAndNeutral()
   if (slashReplacement.text !== 'Review /storybuilding ') {
     throw new Error(`expected only the active slash token to be replaced, got ${JSON.stringify(slashReplacement)}`)
   }
-
   const variable = resolveChatComposerTrigger('Use @pro', 8)
   if (!variable || variable.kind !== 'variable' || variable.query !== 'pro') {
     throw new Error(`expected variable trigger at the caret, got ${JSON.stringify(variable)}`)
@@ -44,7 +71,6 @@ export function testFloatingPanelChatComposerTriggerRangesStayInlineAndNeutral()
     throw new Error(`expected runtime invocation trigger at the caret, got ${JSON.stringify(invocation)}`)
   }
 }
-
 export function testFloatingPanelChatIngestCommandUsesSharedRegistryParser() {
   const parsed = parseChatIngestUrlCommand('/ingest-url https://example.com/source.md')
   if (parsed?.url !== 'https://example.com/source.md') {
@@ -54,7 +80,6 @@ export function testFloatingPanelChatIngestCommandUsesSharedRegistryParser() {
     throw new Error('expected invalid ingest command URL to stay rejected')
   }
 }
-
 export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContract() {
   const directives = parseChatInvocationDirectives('Use #memory.search with #media, #mcp, and #model for this request.')
   if (directives.map(directive => directive.id).join(',') !== 'memory.search,media,mcp,model') {
@@ -68,7 +93,60 @@ export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContra
   for (const expected of ['knowgrph.memory.search', 'openai / gpt-5-nano', 'explicit user_id', 'media references present', 'never claim execution']) {
     if (!invocationPrompt.includes(expected)) throw new Error(`expected invocation prompt to include ${expected}`)
   }
-
+  const agenticOsPrompt = buildChatInvocationSystemPrompt({
+    userQuery: 'Use /agentic-os.runtime with #agentic-os.runtime, #frontmatter, and @agentic-os.runtime.',
+    chatProvider: 'openai',
+    chatModel: 'gpt-5-nano',
+  })
+  for (const expected of ['#agentic-os.runtime', '#frontmatter', 'RUNTIME-READINESS.md', 'DICTIONARY-SEMANTIC.md', 'do not authorize Prod or Cloudflare deployment']) {
+    if (!agenticOsPrompt.includes(expected)) throw new Error(`expected Agentic OS invocation prompt to include ${expected}`)
+  }
+  const agenticOsOverlay = buildFloatingPanelChatComposerOverlayParts('/agentic-os.runtime /runtime-ready.check #agentic-os.runtime #frontmatter @agentic-os.runtime @operator')
+  const commandKinds = agenticOsOverlay.parts
+    .flatMap(part => part.kind === 'command' ? [`${part.commandKind}:${part.text}`] : [])
+  for (const expected of ['slash:/agentic-os.runtime', 'slash:/runtime-ready.check', 'keyword:#agentic-os.runtime', 'keyword:#frontmatter', 'binding:@agentic-os.runtime', 'binding:@operator']) {
+    if (!commandKinds.includes(expected)) throw new Error(`expected Agentic OS composer overlay command ${expected}, got ${JSON.stringify(commandKinds)}`)
+  }
+  const runtimeReadySource = agenticOsOverlay.parts.find(part => part.kind === 'command' && part.text === '/runtime-ready.check')
+  const frontmatterSource = agenticOsOverlay.parts.find(part => part.kind === 'command' && part.text === '#frontmatter')
+  const operatorSource = agenticOsOverlay.parts.find(part => part.kind === 'command' && part.text === '@operator')
+  for (const [label, part, expectedSource] of [
+    ['/runtime-ready.check', runtimeReadySource, 'DICTIONARY-COMMAND.md'],
+    ['#frontmatter', frontmatterSource, 'DICTIONARY-SEMANTIC.md'],
+    ['@operator', operatorSource, 'DICTIONARY-BINDING.md'],
+  ] as const) {
+    if (!part || part.kind !== 'command' || !part.source.includes(expectedSource)) {
+      throw new Error(`expected ${label} overlay chip source to reference ${expectedSource}, got ${JSON.stringify(part)}`)
+    }
+    if (!part.agenticOsInvocation) {
+      throw new Error(`expected ${label} overlay chip to use the shared Agentic OS invocation marker, got ${JSON.stringify(part)}`)
+    }
+    if (!part.source.includes(AGENTIC_OS_DOCS_GITHUB_ROOT_URL) || part.source.includes('/Users/') || part.source.includes('localhost')) {
+      throw new Error(`expected ${label} overlay chip source to use public GitHub docs URL, got ${JSON.stringify(part)}`)
+    }
+  }
+  const chatRegistryOverlay = buildFloatingPanelChatComposerOverlayParts('/ingest-url #memory.add')
+  const ingestSource = chatRegistryOverlay.parts.find(part => part.kind === 'command' && part.text === '/ingest-url')
+  const memoryAddSource = chatRegistryOverlay.parts.find(part => part.kind === 'command' && part.text === '#memory.add')
+  if (!ingestSource || ingestSource.kind !== 'command' || !ingestSource.source.includes('chat command registry')) {
+    throw new Error(`expected /ingest-url hover source to reference chat command registry, got ${JSON.stringify(ingestSource)}`)
+  }
+  if (!memoryAddSource || memoryAddSource.kind !== 'command' || !memoryAddSource.source.includes('knowgrph.memory.add')) {
+    throw new Error(`expected #memory.add hover source to expose its MCP tool source, got ${JSON.stringify(memoryAddSource)}`)
+  }
+  const commandTokens = AGENTIC_OS_COMMAND_INVOCATIONS.map(invocation => invocation.token)
+  const semanticTokens = AGENTIC_OS_SEMANTIC_INVOCATIONS.map(invocation => invocation.token)
+  const bindingTokens = AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => invocation.token)
+  for (const [fileName, actualTokens] of [
+    ['DICTIONARY-COMMAND.md', commandTokens],
+    ['DICTIONARY-SEMANTIC.md', semanticTokens],
+    ['DICTIONARY-BINDING.md', bindingTokens],
+  ] as const) {
+    const expectedTokens = readAgenticOsDictionaryEntries(fileName)
+    if (JSON.stringify(actualTokens) !== JSON.stringify(expectedTokens)) {
+      throw new Error(`expected shared Agentic OS invocation catalog to mirror ${fileName}, expected=${JSON.stringify(expectedTokens)} actual=${JSON.stringify(actualTokens)}`)
+    }
+  }
   const plan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: '#memory.search recall scoped memory context' })
   if (plan.selectedVdeoxplnId !== 'knowgrph-memory-layer') {
     throw new Error(`expected memory invocation to select the memory-layer runtime, got ${JSON.stringify(plan)}`)
@@ -77,7 +155,6 @@ export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContra
   for (const toolName of ['knowgrph.memory.add', 'knowgrph.memory.search', 'knowgrph.memory.assemble_prompt']) {
     if (!routingPrompt.includes(toolName)) throw new Error(`expected routing prompt to expose ${toolName}`)
   }
-
   const uploadedCandidate = buildUploadedMediaInlineCommandCandidate({
     id: 'cloudflare-media:cover',
     name: 'Storyboard cover',
@@ -98,7 +175,6 @@ export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContra
     throw new Error(`expected shared FloatingPanel Media candidate projection, got ${JSON.stringify(uploadedCandidate)}`)
   }
 }
-
 export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus() {
   const sourceRoot = process.cwd()
   const readSource = (relativePath: string): string => readFileSync(resolve(sourceRoot, 'src', relativePath), 'utf8')
@@ -128,12 +204,10 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
       if (!source.includes(snippet)) throw new Error(`expected ${label} to reuse shared inline command/media chip owner: ${snippet}`)
     }
   }
-
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
-
   function Harness() {
     const [input, setInput] = React.useState('')
     return (
@@ -151,7 +225,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
       </React.Fragment>
     )
   }
-
   try {
     await mountReactRoot(root, React.createElement(Harness), { window: dom.window as unknown as Window, frames: 2 })
     const textarea = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
@@ -160,7 +233,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     textarea.setSelectionRange(4, 4)
     Simulate.change(textarea)
     await waitForFrames(dom.window as unknown as Window, 2)
-
     const slashMenu = dom.window.document.querySelector('section[aria-label="Chat slash commands"]')
     if (!slashMenu) throw new Error('expected slash trigger to mount the shared command menu')
     const storybuilding = Array.from(slashMenu.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('/storybuilding'))
@@ -175,10 +247,32 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (storybuildingChip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve') {
       throw new Error(`expected slash token chip to preserve textarea caret metrics, got ${JSON.stringify(storybuildingChip.outerHTML)}`)
     }
+    if (!storybuildingChip.getAttribute('data-kg-chat-input-command-source')?.includes('chat skill registry') || !storybuildingChip.getAttribute('title')?.includes('/storybuilding')) {
+      throw new Error(`expected slash token chip to expose hover source metadata, got ${JSON.stringify(storybuildingChip.outerHTML)}`)
+    }
     if (textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1') {
       throw new Error(`expected slash-chip composer textarea to expose the overlay contract, got ${JSON.stringify(textarea.outerHTML)}`)
     }
-
+    textarea.value = '/runtime'
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    Simulate.change(textarea)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const agenticSlashMenu = dom.window.document.querySelector('section[aria-label="Chat slash commands"]')
+    const runtimeReadyCommand = Array.from((agenticSlashMenu?.querySelectorAll('button') || []) as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('/runtime-ready.check'))
+    if (!runtimeReadyCommand) throw new Error('expected slash menu to expose Agentic OS /runtime-ready.check')
+    runtimeReadyCommand.click()
+    await waitForFrames(dom.window as unknown as Window, 2)
+    if (textarea.value !== '/runtime-ready.check ') {
+      throw new Error(`expected Agentic OS slash selection to insert only the invocation token, got ${JSON.stringify(textarea.value)}`)
+    }
+    const runtimeRawInput = container.querySelector('[data-kg-test-chat-raw-input="true"]') as HTMLOutputElement | null
+    if (String(runtimeRawInput?.textContent || '').includes('https://github.com/') || textarea.value.includes('DICTIONARY-COMMAND.md')) {
+      throw new Error(`expected Agentic OS slash selection to keep source URL in chip metadata only, raw=${JSON.stringify(runtimeRawInput?.textContent || '')} visible=${JSON.stringify(textarea.value)}`)
+    }
+    const runtimeReadyChip = container.querySelector('[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="/runtime-ready.check"]')
+    if (!runtimeReadyChip?.getAttribute('data-kg-agentic-os-invocation-source')?.includes('DICTIONARY-COMMAND.md')) {
+      throw new Error(`expected selected /runtime-ready.check to render through shared Agentic OS chip metadata, html=${container.innerHTML}`)
+    }
     textarea.value = '@pro'
     textarea.setSelectionRange(4, 4)
     Simulate.change(textarea)
@@ -191,7 +285,22 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (textarea.value !== '{{project}}') {
       throw new Error(`expected @ selection to insert the shared variable token, got ${JSON.stringify(textarea.value)}`)
     }
-
+    textarea.value = '@oper'
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    Simulate.change(textarea)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const agenticBindingMenu = dom.window.document.querySelector('section[aria-label="Chat variable commands"]')
+    const operatorBinding = Array.from((agenticBindingMenu?.querySelectorAll('button') || []) as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('@operator'))
+    if (!operatorBinding) throw new Error('expected @ menu to expose Agentic OS @operator')
+    operatorBinding.click()
+    await waitForFrames(dom.window as unknown as Window, 2)
+    if (textarea.value !== '@operator ') {
+      throw new Error(`expected Agentic OS @ selection to insert only the binding token, got ${JSON.stringify(textarea.value)}`)
+    }
+    const operatorChip = container.querySelector('[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="@operator"]')
+    if (!operatorChip?.getAttribute('data-kg-agentic-os-invocation-source')?.includes('DICTIONARY-BINDING.md')) {
+      throw new Error(`expected selected @operator to render through shared Agentic OS chip metadata, html=${container.innerHTML}`)
+    }
     textarea.value = '@cover'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
@@ -225,6 +334,10 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!overlayChipThumbnail) throw new Error(`expected Chat composer media embed to render through shared inline media chip overlay, html=${container.innerHTML}`)
     if (overlayChipThumbnail.getAttribute('src') !== 'https://example.com/media/cover.png') {
       throw new Error(`expected Chat composer overlay thumbnail to preserve media URL, got ${JSON.stringify(overlayChipThumbnail.getAttribute('src'))}`)
+    }
+    const overlayMediaChip = overlayChipThumbnail.closest('[data-kg-chat-input-media-chip="1"]')
+    if (!overlayMediaChip?.getAttribute('data-kg-chat-input-media-source')?.includes('https://example.com/media/cover.png') || !overlayMediaChip.getAttribute('title')?.includes('Source: https://example.com/media/cover.png')) {
+      throw new Error(`expected Chat composer media chip to expose hover source metadata, got ${JSON.stringify(overlayMediaChip?.outerHTML || '')}`)
     }
     const mediaMetricToken = container.querySelector('[data-kg-chat-input-media-metric="preserve"]')
     if (!mediaMetricToken) throw new Error(`expected Chat composer media chip to reserve textarea display metrics, html=${container.innerHTML}`)
@@ -263,6 +376,9 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!mixedSlashChip || !mixedKeywordChip || !mixedMediaMetricToken || !mixedMediaChipThumbnail) {
       throw new Error(`expected mixed / # @ composer input to render all projected chip families without mutating layout or media-chip styling, html=${container.innerHTML}`)
     }
+    if (!mixedSlashChip.getAttribute('data-kg-chat-input-command-source')?.includes('chat skill registry') || !mixedKeywordChip.getAttribute('data-kg-chat-input-command-source')?.includes('knowgrph.memory.search')) {
+      throw new Error(`expected mixed / # chips to expose hover source metadata, slash=${JSON.stringify(mixedSlashChip.outerHTML)} keyword=${JSON.stringify(mixedKeywordChip.outerHTML)}`)
+    }
     if (mixedMediaChipThumbnail.getAttribute('src') !== 'https://example.com/media/cover.png') {
       throw new Error(`expected mixed / # @ composer media chip to preserve its shared thumbnail renderer, got ${JSON.stringify(mixedMediaChipThumbnail.outerHTML)}`)
     }
@@ -277,7 +393,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!rawInput.textContent?.includes('![Image: coverUrl](https://example.com/media/cover.png) after')) {
       throw new Error(`expected typing after compact chip to append after the raw media embed without mutating the visible input, got ${JSON.stringify(rawInput.textContent || '')}`)
     }
-
     textarea.value = `${textarea.value} /sto`
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
@@ -298,7 +413,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (chipSlashToken.getAttribute('data-kg-chat-input-command-metric') !== 'preserve') {
       throw new Error(`expected /storybuilding chip after compact media to preserve textarea caret metrics, got ${JSON.stringify(chipSlashToken.outerHTML)}`)
     }
-
     textarea.value = `${textarea.value}#memory.sea`
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
@@ -355,7 +469,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (adjacentDeleteDisplay.includes(mixedMediaLabel)) {
       throw new Error(`expected Backspace after mixed @ media chip spacing to remove the visible media label, got ${JSON.stringify(adjacentDeleteDisplay)}`)
     }
-
     textarea.value = '#memory.sea'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
@@ -370,31 +483,66 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     }
     const memorySearchChip = container.querySelector('[data-kg-chat-input-command-chip="keyword"][data-kg-chat-input-command-token="#memory.search"]')
     if (!memorySearchChip) throw new Error(`expected selected #memory.search token to render through the shared chat composer chip overlay, html=${container.innerHTML}`)
-
-    textarea.value = 'i can #memory.add , /storybuilding'
+    if (!memorySearchChip.getAttribute('data-kg-chat-input-command-source')?.includes('knowgrph.memory.search') || !memorySearchChip.getAttribute('title')?.includes('#memory.search')) {
+      throw new Error(`expected #memory.search chip to expose hover source metadata, got ${JSON.stringify(memorySearchChip.outerHTML)}`)
+    }
+    textarea.value = '#mc'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
     await waitForFrames(dom.window as unknown as Window, 2)
-    if (textarea.value !== 'i can #memory.add , /storybuilding') {
+    const agenticSemanticMenu = dom.window.document.querySelector('section[aria-label="Chat runtime invocations"]')
+    const mcpSemantic = Array.from((agenticSemanticMenu?.querySelectorAll('button') || []) as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('#mcp'))
+    if (!mcpSemantic) throw new Error('expected # menu to expose Agentic OS #mcp')
+    mcpSemantic.click()
+    await waitForFrames(dom.window as unknown as Window, 2)
+    if (textarea.value !== '#mcp ') {
+      throw new Error(`expected Agentic OS # selection to insert only the semantic token, got ${JSON.stringify(textarea.value)}`)
+    }
+    const mcpChip = container.querySelector('[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="#mcp"]')
+    if (!mcpChip?.getAttribute('data-kg-agentic-os-invocation-source')?.includes('DICTIONARY-SEMANTIC.md')) {
+      throw new Error(`expected selected #mcp to render through shared Agentic OS chip metadata, html=${container.innerHTML}`)
+    }
+    textarea.value = '/runtime-ready.check #frontmatter @operator'
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    Simulate.change(textarea)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const agenticOsComposerChips = Array.from(container.querySelectorAll('[data-kg-agentic-os-invocation-chip="1"]')) as HTMLElement[]
+    const agenticOsComposerTokens = agenticOsComposerChips.map(chip => chip.getAttribute('data-kg-agentic-os-invocation-token') || '')
+    for (const expected of ['/runtime-ready.check', '#frontmatter', '@operator']) {
+      if (!agenticOsComposerTokens.includes(expected)) {
+        throw new Error(`expected Chat composer to project ${expected} through shared Agentic OS invocation chips, got ${JSON.stringify(agenticOsComposerTokens)} html=${container.innerHTML}`)
+      }
+    }
+    if (agenticOsComposerChips.some(chip => chip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve')) {
+      throw new Error(`expected Chat composer Agentic OS chips to preserve textarea metrics, html=${container.innerHTML}`)
+    }
+    textarea.value = 'i can #memory.add , /ingest-url'
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    Simulate.change(textarea)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    if (textarea.value !== 'i can #memory.add , /ingest-url') {
       throw new Error(`expected registry token chips to preserve raw visible text, got ${JSON.stringify(textarea.value)}`)
     }
     const memoryAddChip = container.querySelector('[data-kg-chat-input-command-chip="keyword"][data-kg-chat-input-command-token="#memory.add"]')
-    const slashStorybuildingChip = container.querySelector('[data-kg-chat-input-command-chip="slash"][data-kg-chat-input-command-token="/storybuilding"]')
-    if (!memoryAddChip || !slashStorybuildingChip) {
-      throw new Error(`expected #memory.add and /storybuilding to render as @-like composer chips without media, html=${container.innerHTML}`)
+    const slashIngestUrlChip = container.querySelector('[data-kg-chat-input-command-chip="slash"][data-kg-chat-input-command-token="/ingest-url"]')
+    if (!memoryAddChip || !slashIngestUrlChip) {
+      throw new Error(`expected #memory.add and /ingest-url to render as @-like composer chips without media, html=${container.innerHTML}`)
     }
-    if (memoryAddChip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve' || slashStorybuildingChip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve') {
-      throw new Error(`expected #memory.add and /storybuilding chips to preserve textarea caret metrics, html=${container.innerHTML}`)
+    if (memoryAddChip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve' || slashIngestUrlChip.getAttribute('data-kg-chat-input-command-metric') !== 'preserve') {
+      throw new Error(`expected #memory.add and /ingest-url chips to preserve textarea caret metrics, html=${container.innerHTML}`)
     }
-    const slashChipEnd = textarea.value.indexOf('/storybuilding') + '/storybuilding'.length
+    if (!memoryAddChip.getAttribute('data-kg-chat-input-command-source')?.includes('knowgrph.memory.add') || !slashIngestUrlChip.getAttribute('data-kg-chat-input-command-source')?.includes('chat command registry')) {
+      throw new Error(`expected #memory.add and /ingest-url chips to expose hover source metadata, memory=${JSON.stringify(memoryAddChip.outerHTML)} slash=${JSON.stringify(slashIngestUrlChip.outerHTML)}`)
+    }
+    const slashChipEnd = textarea.value.indexOf('/ingest-url') + '/ingest-url'.length
     textarea.setSelectionRange(slashChipEnd, slashChipEnd)
     Simulate.keyDown(textarea, { key: 'Backspace' })
     await waitForFrames(dom.window as unknown as Window, 2)
-    if (textarea.value.includes('/storybuilding')) {
-      throw new Error(`expected Backspace at /storybuilding chip boundary to delete the projected slash token, got ${JSON.stringify(textarea.value)}`)
+    if (textarea.value.includes('/ingest-url')) {
+      throw new Error(`expected Backspace at /ingest-url chip boundary to delete the projected slash token, got ${JSON.stringify(textarea.value)}`)
     }
     if (!textarea.value.includes('#memory.add')) {
-      throw new Error(`expected deleting /storybuilding to preserve the #memory.add chip text, got ${JSON.stringify(textarea.value)}`)
+      throw new Error(`expected deleting /ingest-url to preserve the #memory.add chip text, got ${JSON.stringify(textarea.value)}`)
     }
     const keywordChipEnd = textarea.value.indexOf('#memory.add') + '#memory.add'.length
     textarea.setSelectionRange(keywordChipEnd, keywordChipEnd)
@@ -424,7 +572,6 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!commandOnlyKeywordDelete || commandOnlyKeywordDelete.text.includes('#media') || !commandOnlyKeywordDelete.text.includes('/storybuilding')) {
       throw new Error(`expected projected keyword token deletion without media to preserve slash text, got ${JSON.stringify(commandOnlyKeywordDelete)}`)
     }
-
     textarea.value = '#media'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)

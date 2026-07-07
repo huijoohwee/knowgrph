@@ -137,7 +137,6 @@
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-chrome-actions button,
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls button,
 .timeline-transport-chrome--mermaid-gantt .timeline-tool-menu > summary,
-.timeline-transport-chrome--mermaid-gantt .timeline-player-info-button,
 .timeline-transport-chrome--mermaid-gantt .timeline-rate-button {
   flex: 0 0 26px;
   width: 26px;
@@ -183,8 +182,6 @@
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-zoom-controls button:focus-visible,
 .timeline-transport-chrome--mermaid-gantt .timeline-tool-menu > summary:hover,
 .timeline-transport-chrome--mermaid-gantt .timeline-tool-menu[open] > summary,
-.timeline-transport-chrome--mermaid-gantt .timeline-player-info-button:hover,
-.timeline-transport-chrome--mermaid-gantt .timeline-player-info-button:focus-visible,
 .timeline-transport-chrome--mermaid-gantt .timeline-rate-button:hover:not(:disabled),
 .timeline-transport-chrome--mermaid-gantt .timeline-rate-button:focus-visible {
   border-color: color-mix(in srgb, var(--kg-canvas-accent, #3b82f6) 28%, var(--kg-border, #e5e7eb));
@@ -205,14 +202,25 @@
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-player-context {
-  align-self: stretch;
-  margin-inline-start: auto;
-  border-left: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
-  padding-inline-start: 6px;
+  align-self: auto;
+  margin-inline-start: 0;
 }
 
 .timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty {
   display: none;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-status-bar {
+  min-height: 30px;
+  justify-content: space-between;
+  border-top: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 82%, transparent);
+  background: color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 70%, var(--kg-panel-bg, #fff));
+  padding-block: 3px;
+  padding-inline: 8px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-status-details {
+  color: var(--kg-text-secondary, rgb(71 85 105 / 1));
 }
 
 @container timeline-player-toolbar (max-width: 500px) {

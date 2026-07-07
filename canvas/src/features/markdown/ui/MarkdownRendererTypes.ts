@@ -9,13 +9,18 @@ export type MarkdownInlineDraftTextChangeOptions = {
 }
 
 export type MarkdownViewerMediaMode = 'chip' | 'image'
+export type MarkdownVariablePreview = {
+  value: string | null
+  source?: 'frontmatter' | 'inline' | 'unresolved'
+  line?: number | null
+}
 
 export type InlineRenderOpts = {
   activeDocumentPath: string
   uiPanelTextFontClass: string
   uiPanelMonospaceTextClass: string
   markdownPresentationMode: boolean
-  markdownVariablePreviewByKey?: Record<string, { value: string | null }>
+  markdownVariablePreviewByKey?: Record<string, MarkdownVariablePreview>
   markdownLargeDocumentMode?: boolean
   markdownCardPreviewMode?: boolean
   markdownViewerMediaMode?: MarkdownViewerMediaMode

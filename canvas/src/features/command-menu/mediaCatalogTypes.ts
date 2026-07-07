@@ -1,4 +1,5 @@
 import React from 'react'
+import { AGENTIC_OS_DICTIONARY_INVOCATIONS, AGENTIC_OS_DOC_INVOCATIONS, buildAgenticOsDictionaryActionId, buildAgenticOsDocActionId } from '@/features/agentic-os/agenticOsDocInvocations'
 import { INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID, type InlineCommandMenuActionSpec } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import type { TimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
 
@@ -50,6 +51,22 @@ export const MEDIA_NEW_ACTIONS: readonly MediaPanelActionSpec[] = [
     description: 'Open the prompt panel to generate image, audio, or video media',
     keywords: ['new', 'generate', 'media', 'prompt', 'image', 'audio', 'video'],
   },
+  ...AGENTIC_OS_DICTIONARY_INVOCATIONS.map(invocation => ({
+    id: buildAgenticOsDictionaryActionId(invocation),
+    kind: invocation.kind === 'command' ? 'slash' as const : invocation.kind === 'semantic' ? 'keyword' as const : 'variable' as const,
+    label: invocation.token,
+    group: invocation.group,
+    description: invocation.summary,
+    keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
+  })),
+  ...AGENTIC_OS_DOC_INVOCATIONS.map(doc => ({
+    id: buildAgenticOsDocActionId(doc),
+    kind: 'variable' as const,
+    label: doc.atToken,
+    group: 'Agentic OS docs',
+    description: doc.summary,
+    keywords: [doc.label, doc.slashCommand, doc.hashToken, doc.sourcePath, ...doc.keywords],
+  })),
 ]
 
 export function readStoredMediaCatalogLayout(): MediaCatalogLayout {

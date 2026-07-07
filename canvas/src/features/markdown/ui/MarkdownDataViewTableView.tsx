@@ -38,7 +38,6 @@ import {
   type DataViewFieldLineMode,
   type DataViewRowHeightPreset,
 } from '@/lib/ui/dataViewDensity'
-
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
   visibleColumnIds?: string[] | null
@@ -55,15 +54,14 @@ type MarkdownDataViewTableViewProps = {
   onSetColumnSort?: (args: { columnId: string; direction: 'asc' | 'desc' }) => void
   renderAllRows?: boolean
   orientation?: 'rows' | 'columns'
+  tableFit?: 'content' | 'container'
   rowHeightPreset?: DataViewRowHeightPreset
   fieldLineMode?: DataViewFieldLineMode
 }
-
 const isTruthy = (raw: string): boolean => {
   const v = String(raw || '').trim().toLowerCase()
   return v === 'true' || v === '1' || v === 'yes' || v === 'x'
 }
-
 const safeLinkHref = (raw: string): string | null => {
   const v = String(raw || '').trim()
   if (!v) return null
@@ -71,19 +69,16 @@ const safeLinkHref = (raw: string): string | null => {
   if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:')) return v
   return null
 }
-
 export const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
 export const MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT = 32
 export const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
 const MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX = 64
 export const MARKDOWN_DATA_VIEW_FIELD_COLUMN_ID = '__field'
-
 export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
   const value = String(raw || '')
   if (value.length <= MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT) return value
   return `${value.slice(0, MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT).trimEnd()}...`
 }
-
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
@@ -97,10 +92,8 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   const [draft, setDraft] = React.useState('')
   const [renderedRowLimit, setRenderedRowLimit] = React.useState(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
   const [previewColumnWidthsById, setPreviewColumnWidthsById] = React.useState<Record<string, number>>({})
-
   const draftRef = React.useRef('')
   draftRef.current = draft
-
   const startEdit = React.useCallback(
     (rowId: string, colId: string, current: string, anchorEl: HTMLElement) => {
       if (!canMutate) return
@@ -109,7 +102,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     },
     [canMutate],
   )
-
   const commit = React.useCallback((nextOverride?: string) => {
     if (!editing) return
     if (!canMutate) {
@@ -120,11 +112,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     onUpdateCell({ rowId: editing.rowId, columnId: editing.colId, nextValue })
     setEditing(null)
   }, [canMutate, editing, onUpdateCell])
-
   const cancel = React.useCallback(() => {
     setEditing(null)
   }, [])
-
   const handleInlineTextCommit = React.useCallback(
     (rowId: string, colId: string, nextValue: string) => {
       if (!canMutate) return
@@ -133,7 +123,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     },
     [canMutate, commit, editing],
   )
-
   const visibleColumnMeta = React.useMemo(() => {
     if (!visibleColumnIds) return view.columns.map((c, idx) => ({ col: c, index: idx }))
     const allowed = new Set(visibleColumnIds)
@@ -154,7 +143,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     setPreviewColumnWidthsById(prev => ({ ...prev, [columnId]: width }))
   }, [])
   const commitColumnResize = React.useCallback(previewColumnResize, [previewColumnResize])
-
   React.useEffect(() => {
     if (props.renderAllRows) {
       setRenderedRowLimit(view.rows.length)
@@ -162,14 +150,12 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     }
     setRenderedRowLimit(MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT)
   }, [props.renderAllRows, view.rows, visibleColumnSignature])
-
   React.useEffect(() => {
     if (!editing) return
     const rowIndex = view.rows.findIndex(row => row.id === editing.rowId)
     if (rowIndex < 0 || rowIndex < renderedRowLimit) return
     setRenderedRowLimit(Math.min(view.rows.length, rowIndex + 1))
   }, [editing, renderedRowLimit, view.rows])
-
   const renderedRows = React.useMemo(
     () => (props.renderAllRows ? view.rows : view.rows.slice(0, Math.min(view.rows.length, renderedRowLimit))),
     [props.renderAllRows, renderedRowLimit, view.rows],
@@ -184,13 +170,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     [contentColumnIndex, indentColumnIndex, levelColumnIndex, lineColumnIndex, renderedRows],
   )
   const { areAllNestedRowsCollapsed, collapsedNestedRowIds, hasNestedRowHierarchy, toggleAllNestedRows, toggleNestedRow, visibleNestedRowStates } = useMarkdownDataViewNestedRowCollapse({ rows: renderedRows, levelColumnIndex, indentColumnIndex })
-
   const workspaceCellSelectPanelPlacement = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
     () => workspaceTablePreferencesStore.getSnapshot().workspaceCellSelectPanelPlacement,
     () => workspaceTablePreferencesStore.getServerSnapshot().workspaceCellSelectPanelPlacement,
   )
-
   const columnIndexById = React.useMemo(() => {
     const map = new Map<string, number>()
     for (let i = 0; i < view.columns.length; i += 1) {
@@ -198,7 +182,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     }
     return map
   }, [view.columns])
-
   const editingMeta = React.useMemo(() => {
     if (!editing) return null
     const colIndex = columnIndexById.get(editing.colId)
@@ -217,7 +200,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       anchorEl: editing.anchorEl,
     }
   }, [columnIndexById, columnTypesById, editing, view.columns])
-
   const editingSelectOptions = React.useMemo(() => {
     if (!editingMeta) return []
     if (editingMeta.baseKind !== 'select' || editingMeta.uiType === 'checkbox') return []
@@ -234,7 +216,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     }
     return Array.from(set)
   }, [editingMeta, view.rows])
-
   const editingMultiSelectOptions = React.useMemo(() => {
     if (!editingMeta) return []
     if (editingMeta.baseKind !== 'multi-select') return []
@@ -257,7 +238,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     }
     return list
   }, [editingMeta, view.rows])
-
   const titleColumnIndex = React.useMemo(() => {
     const index = view.columns.findIndex(column => column.id === view.titleColumnId)
     return index >= 0 ? index : 0
@@ -265,7 +245,11 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   const rowRecordTableWidth = (hasNestedRowHierarchy ? MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX : 0)
     + visibleColumnMeta.reduce((sum, { col }) => sum + readColumnWidth(col.id, readMarkdownDataViewDefaultColumnWidth(col.name)), 0)
     + (canMutate && props.onAddColumn ? 52 : 0)
-
+  const tableFit = props.tableFit === 'container' ? 'container' : 'content'
+  const tableSizeClassName = tableFit === 'container' ? 'min-w-full w-full' : 'min-w-max w-max'
+  const tableStyle: React.CSSProperties = tableFit === 'container'
+    ? { minWidth: rowRecordTableWidth, width: '100%' }
+    : { width: rowRecordTableWidth }
   if (orientation === 'columns') {
     return (
       <MarkdownDataViewColumnsTableView
@@ -301,10 +285,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       />
     )
   }
-
   return (
     <section className={`${UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME} isolate`} aria-label="Table view">
-      <table className="min-w-max w-max table-fixed border-separate border-spacing-0 text-xs" style={{ width: rowRecordTableWidth }}>
+      <table className={`${tableSizeClassName} table-fixed border-separate border-spacing-0 text-xs`} style={tableStyle}>
         <colgroup>
           {hasNestedRowHierarchy ? <col style={{ width: MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX }} /> : null}
           {visibleColumnMeta.map(({ col }) => <col key={col.id} style={{ width: readColumnWidth(col.id, readMarkdownDataViewDefaultColumnWidth(col.name)) }} />)}
@@ -485,12 +468,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                     </td>
                   )
                 }
-
                 const chips = baseKind === 'multi-select' ? splitMultiValues(value) : []
-
                 const href = uiType === 'link' ? safeLinkHref(value) : null
                 const progressValue = uiType === 'progress' ? Number(value) : NaN
-
                 return (
                   <td
                     key={c.id}
@@ -581,7 +561,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
           ) : null}
         </tbody>
       </table>
-
       <MarkdownDataViewCellSelectPopover
         editingMeta={editingMeta}
         placement={workspaceCellSelectPanelPlacement}

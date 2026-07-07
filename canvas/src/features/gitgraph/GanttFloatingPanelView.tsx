@@ -5,7 +5,7 @@ import { useGanttFloatingPanelSelectionTransportSync } from './useGanttFloatingP
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
 
 export function GanttFloatingPanelView() {
-  const { code, ganttModel, graphData, themeMode } = useMermaidGanttDocument()
+  const { code, ganttModel, graphData, themeMode } = useMermaidGanttDocument({ purpose: 'workflow' })
   const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
     diagramModel: ganttModel,

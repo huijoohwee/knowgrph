@@ -586,7 +586,7 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     !surfaceModelText.includes('sourceDurationSeconds: selectedPreviewEmpty ? 0 : displaySourceDurationSeconds') ||
     !surfaceModelText.includes('sourceThumbnails: thumbnailSummary.thumbnails') ||
     !surfaceModelText.includes('mediaReaderSummary: mediaPreviewSummary') ||
-    !surfaceModelText.includes("timelineMode: selectedPreviewEmpty ? 'empty' : 'source-backed'") ||
+    !surfaceModelText.includes("timelineMode: workflowMode ? 'workflow' : (selectedPreviewEmpty ? 'empty' : 'source-backed')") ||
     !surfaceModelText.includes('transportSession.previewPlan?.segments.find') ||
     !previewSessionText.includes('buildTimelinePreviewSyncPlan') ||
     !previewSessionText.includes('previewPlan') ||

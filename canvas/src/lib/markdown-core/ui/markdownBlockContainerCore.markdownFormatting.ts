@@ -2,6 +2,14 @@ import React from 'react'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
 import { buildMarkdownSigil, parseMarkdownSigil, unwrapDefaultHighlight } from '@/features/markdown/ui/markdownSigil'
+import {
+  buildAgenticOsDictionaryInvocationMarkdown,
+  buildAgenticOsDocBindingInvocationMarkdown,
+  buildAgenticOsDocInvocationMarkdown,
+  buildAgenticOsDocSemanticInvocationMarkdown,
+  findAgenticOsDictionaryInvocationByActionId,
+  findAgenticOsDocInvocationByActionId,
+} from '@/features/agentic-os/agenticOsDocInvocations'
 import { toggleHeadingAcrossLines } from './markdownBlockContainerCore.toolbar'
 import {
   computeFloatingMenuPosition,
@@ -172,7 +180,54 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
     queueMicrotask(() => args.editorRef.current?.focus())
   }, [applyHtmlStructuralMutation, applySerializedDraftMutation, args])
 
-  const applyTurnInto = React.useCallback((next: string) => {
+  const applyTurnInto = React.useCallback((next: string, triggerSelection?: { startOffset: number; endOffset: number } | null) => {
+    const dictionaryInvocation = findAgenticOsDictionaryInvocationByActionId(next)
+    if (dictionaryInvocation) {
+      const current = args.getDraft()
+      const selection = triggerSelection || args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
+      const startOffset = selection?.startOffset ?? current.length
+      const endOffset = selection?.endOffset ?? startOffset
+      const a = Math.max(0, Math.min(current.length, startOffset))
+      const b = Math.max(0, Math.min(current.length, endOffset))
+      const start = Math.min(a, b)
+      const end = Math.max(a, b)
+      const lineStartIdx = current.lastIndexOf('\n', Math.max(0, end) - 1) + 1
+      const preceding = current.slice(lineStartIdx, Math.max(lineStartIdx, end))
+      const triggerMatch = /[\/#@][A-Za-z0-9_.-]{0,96}$/.exec(preceding)
+      const rangeStart = start !== end ? start : triggerMatch ? end - triggerMatch[0].length : end
+      const replacement = buildAgenticOsDictionaryInvocationMarkdown(dictionaryInvocation)
+      const nextText = `${current.slice(0, rangeStart)}${replacement}${current.slice(end)}`
+      const cursor = rangeStart + replacement.length
+      args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
+      queueMicrotask(() => args.editorRef.current?.focus())
+      return
+    }
+    const docInvocation = findAgenticOsDocInvocationByActionId(next)
+    if (docInvocation) {
+      const current = args.getDraft()
+      const selection = triggerSelection || args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()
+      const startOffset = selection?.startOffset ?? current.length
+      const endOffset = selection?.endOffset ?? startOffset
+      const a = Math.max(0, Math.min(current.length, startOffset))
+      const b = Math.max(0, Math.min(current.length, endOffset))
+      const start = Math.min(a, b)
+      const end = Math.max(a, b)
+      const lineStartIdx = current.lastIndexOf('\n', Math.max(0, end) - 1) + 1
+      const preceding = current.slice(lineStartIdx, Math.max(lineStartIdx, end))
+      const triggerMatch = /[\/#@][A-Za-z0-9_.-]{0,96}$/.exec(preceding)
+      const rangeStart = start !== end ? start : triggerMatch ? end - triggerMatch[0].length : end
+      const triggerPrefix = triggerMatch?.[0]?.[0] || '/'
+      const replacement = triggerPrefix === '#'
+        ? buildAgenticOsDocSemanticInvocationMarkdown(docInvocation)
+        : triggerPrefix === '@'
+        ? buildAgenticOsDocBindingInvocationMarkdown(docInvocation)
+        : buildAgenticOsDocInvocationMarkdown(docInvocation)
+      const nextText = `${current.slice(0, rangeStart)}${replacement}${current.slice(end)}`
+      const cursor = rangeStart + replacement.length
+      args.setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
+      queueMicrotask(() => args.editorRef.current?.focus())
+      return
+    }
     const applyInlineMediaInsert = (kind: 'image' | 'video') => {
       const current = args.getDraft()
       const selection = args.readSelectionOffsetsForFormatting() || args.getSelectionOffsets()

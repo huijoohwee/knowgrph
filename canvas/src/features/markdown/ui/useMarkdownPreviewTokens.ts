@@ -116,6 +116,22 @@ const getLexedMarkdownCached = (text: string, cacheKey: string): LexedMarkdownRe
   )
 }
 
+export function sanitizeProvidedMarkdownPreviewTokensForFrontmatter(
+  tokens: TokenWithLines[],
+  startLineOffset: number,
+): TokenWithLines[] {
+  const offset = Math.max(0, Math.floor(Number(startLineOffset) || 0))
+  if (!offset || !tokens.length) return tokens
+  let changed = false
+  const filtered = tokens.filter(token => {
+    const startLine = Math.floor(Number(token.startLine) || 0)
+    const keep = !startLine || startLine > offset
+    if (!keep) changed = true
+    return keep
+  })
+  return changed ? filtered : tokens
+}
+
 export function useMarkdownPreviewLexedMarkdown(
   markdownText: string,
   providedTokens: TokenWithLines[] | undefined,
@@ -149,7 +165,10 @@ export function useMarkdownPreviewLexedMarkdown(
   const lexedLarge = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
       return {
-        tokens: providedTokens,
+        tokens: sanitizeProvidedMarkdownPreviewTokensForFrontmatter(
+          providedTokens,
+          providedTokensFrontmatter.startLineOffset,
+        ),
         meta: providedTokensFrontmatter.meta,
         startLineOffset: providedTokensFrontmatter.startLineOffset,
       }
@@ -160,7 +179,10 @@ export function useMarkdownPreviewLexedMarkdown(
   const lexedSmall = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
       return {
-        tokens: providedTokens,
+        tokens: sanitizeProvidedMarkdownPreviewTokensForFrontmatter(
+          providedTokens,
+          providedTokensFrontmatter.startLineOffset,
+        ),
         meta: providedTokensFrontmatter.meta,
         startLineOffset: providedTokensFrontmatter.startLineOffset,
       }

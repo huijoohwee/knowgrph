@@ -26,11 +26,9 @@ import {
 import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
-
 const readUtf8 = (relativePath: string) => {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 }
-
 const buildFloatingBinding = (viewConfig: WorkspaceDataViewConfig): WorkspaceDataViewFloatingBinding => ({
   registrationId: 'storybook-refresh-density',
   contextLabel: 'Storyboard',
@@ -45,7 +43,6 @@ const buildFloatingBinding = (viewConfig: WorkspaceDataViewConfig): WorkspaceDat
   setViewConfig: () => void 0,
   onChangeLayout: () => void 0,
 })
-
 const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; fieldLineMode: 'single' | 'double' }): WorkspaceDataViewConfig => {
   const viewConfig = coerceWorkspaceDataViewConfig({
     v: 2,
@@ -63,7 +60,6 @@ const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; 
   if (!viewConfig) throw new Error('expected test view config to coerce')
   return viewConfig
 }
-
 export function testPlainTextInputEditorUsesReactChangeContract() {
   const plainTextInput = readUtf8('../components/ui/PlainTextInputEditor.tsx')
   if (plainTextInput.includes('onInput=')) {
@@ -79,7 +75,6 @@ export function testPlainTextInputEditorUsesReactChangeContract() {
     }
   }
 }
-
 export function testCardInlineTextEditorPreservesSharedMultilineCommitContract() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
   const storyboardWidgetOverlayProxy = readUtf8('../lib/canvas/storyboard-widget-overlay-proxy.ts')
@@ -108,26 +103,22 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
     throw new Error('expected Storyboard Widget overlay pointer routing to treat shared card inline editors as interactive controls')
   }
 }
-
 export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistrationViewConfig() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const snapshots: string[] = []
-
   function DensityProbe() {
     const density = useWorkspaceDataViewFloatingDensity()
     snapshots.push(`${density.rowHeightPreset}:${density.fieldLineMode}`)
     return React.createElement('span', { 'data-density': `${density.rowHeightPreset}:${density.fieldLineMode}` })
   }
-
   try {
     await act(async () => {
       root.render(React.createElement(DensityProbe))
       await waitForFrames(dom.window, 4)
     })
-
     await act(async () => {
       setWorkspaceDataViewFloatingBinding(buildFloatingBinding(buildViewConfig({
         rowHeightPreset: 'comfortable',
@@ -135,7 +126,6 @@ export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistratio
       })))
       await waitForFrames(dom.window, 4)
     })
-
     await act(async () => {
       setWorkspaceDataViewFloatingBinding(buildFloatingBinding(buildViewConfig({
         rowHeightPreset: 'comfortable',
@@ -143,7 +133,6 @@ export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistratio
       })))
       await waitForFrames(dom.window, 4)
     })
-
     const latestDensity = container.querySelector('[data-density]')?.getAttribute('data-density')
     if (latestDensity !== 'comfortable:double') {
       throw new Error(`expected same-registration binding update to resync persisted density after refresh, got ${String(latestDensity)} snapshots=${snapshots.join(',')}`)
@@ -157,7 +146,6 @@ export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistratio
     restore()
   }
 }
-
 export function testInlineKeywordCommandsReuseCompleteDashboardKeywordContext() {
   const dashboardKeywords = Array.from({ length: 36 }, (_, index) => `#Reusabletype${String(index).padStart(2, '0')}`)
   const candidates = collectInlineKeywordCommandCandidates({
@@ -173,13 +161,12 @@ export function testInlineKeywordCommandsReuseCompleteDashboardKeywordContext() 
     ].join('\n'),
   })
   const labels = new Set(candidates.map(candidate => candidate.label))
-  for (const expectedLabel of ['Strybldrimagesource', 'Storyboardframe', 'Storyboardelement', 'Fork', 'Review', 'Publish']) {
+  for (const expectedLabel of ['Strybldrimagesource', 'Storyboardframe', 'Storyboardelement', 'Fork', 'Review', 'Publish', 'Agentic OS Runtime Readiness', 'Frontmatter']) {
     if (!labels.has(expectedLabel)) {
       throw new Error(`expected inline # command menu to include Dashboard keyword ${expectedLabel}, got ${JSON.stringify(candidates.map(candidate => candidate.label))}`)
     }
   }
 }
-
 export function testCardInlineTextEditorAvoidsRuntimeFocusPolyfill() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
   for (const fragment of ['attach' + 'Event', 'detach' + 'Event']) {
@@ -188,14 +175,12 @@ export function testCardInlineTextEditorAvoidsRuntimeFocusPolyfill() {
     }
   }
 }
-
 export async function testCardInlineTextEditorAllowsSharedClickActivation() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -210,17 +195,14 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
       )
       await waitForFrames(dom.window, 8)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected shared card inline editor to expose the click activation marker')
     }
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const input = container.querySelector('input[aria-label="Card title"]')
     if (!(input instanceof dom.window.HTMLInputElement)) {
       throw new Error('expected shared card inline editor click activation to open the editable input')
@@ -235,14 +217,12 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
     restore()
   }
 }
-
 export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveField() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -258,18 +238,15 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
       )
       await waitForFrames(dom.window, 8)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected card inline display to expose the external invoke target')
     }
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 2)
     })
-
     const inserted = insertMediaIntoActiveCardInlineTextEditor({
       kind: 'image',
       url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token',
@@ -277,7 +254,6 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
       sourceKey: 'sha256:demo',
     })
     if (!inserted) throw new Error('expected FloatingPanel Media invoke to insert into the active card field')
-
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token)')) {
       throw new Error(`expected external Media invoke to append image markdown to Action field, got ${latest}`)
@@ -289,14 +265,12 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
     restore()
   }
 }
-
 export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -315,27 +289,61 @@ export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
       )
       await waitForFrames(dom.window, 8)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-
     const imageAction = container.querySelector('[data-kg-command-menu-media-action="insert-image"]')
     if (!(imageAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media image action row')
-
     await act(async () => {
       imageAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 2)
     })
-
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
       throw new Error(`expected FloatingPanel Media image action to insert into active Action field, got ${latest}`)
+    }
+    const commandAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:command:runtime-ready.check"]')
+    if (!(commandAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS /runtime-ready.check action row')
+    if (commandAction.getAttribute('data-kg-command-menu-prefix') !== '/') {
+      throw new Error(`expected command dictionary media action to expose / prefix, got ${commandAction.getAttribute('data-kg-command-menu-prefix')}`)
+    }
+    await act(async () => {
+      commandAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 2)
+    })
+    const latestCommandInvoke = committedValues.at(-1) || ''
+    if (!latestCommandInvoke.includes('/runtime-ready.check')) {
+      throw new Error(`expected FloatingPanel Media / dictionary action to insert shared command dictionary token, got ${latestCommandInvoke}`)
+    }
+    if (latestCommandInvoke.includes('[Runtime-ready check](') || latestCommandInvoke.includes('DICTIONARY-COMMAND.md')) {
+      throw new Error(`expected FloatingPanel Media / dictionary action to avoid duplicate dictionary link indicators, got ${latestCommandInvoke}`)
+    }
+    const semanticAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:semantic:frontmatter"]')
+    if (!(semanticAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS #frontmatter action row')
+    if (semanticAction.getAttribute('data-kg-command-menu-prefix') !== '#') {
+      throw new Error(`expected semantic dictionary media action to expose # prefix, got ${semanticAction.getAttribute('data-kg-command-menu-prefix')}`)
+    }
+    const bindingAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:binding:operator"]')
+    if (!(bindingAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS @operator action row')
+    if (bindingAction.getAttribute('data-kg-command-menu-prefix') !== '@') {
+      throw new Error(`expected binding dictionary media action to expose @ prefix, got ${bindingAction.getAttribute('data-kg-command-menu-prefix')}`)
+    }
+    const agenticOsAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-doc:agentic-os.runtime"]')
+    if (!(agenticOsAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS runtime doc action row')
+    await act(async () => {
+      agenticOsAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 2)
+    })
+    const latestDocInvoke = committedValues.at(-1) || ''
+    if (!latestDocInvoke.includes('/agentic-os.runtime')) {
+      throw new Error(`expected FloatingPanel Media Agentic OS doc action to insert shared slash token, got ${latestDocInvoke}`)
+    }
+    if (latestDocInvoke.includes('[Agentic OS Runtime Readiness](') || latestDocInvoke.includes('#agentic-os.runtime @agentic-os.runtime')) {
+      throw new Error(`expected FloatingPanel Media Agentic OS doc action to avoid prose-mutating title/hash/binding triplets, got ${latestDocInvoke}`)
     }
   } finally {
     await act(async () => {
@@ -344,14 +352,12 @@ export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
     restore()
   }
 }
-
 export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -370,23 +376,18 @@ export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick
       )
       await waitForFrames(dom.window, 8)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       await waitForFrames(dom.window, 1)
     })
-
     const imageAction = container.querySelector('[data-kg-command-menu-media-action="insert-image"]')
     if (!(imageAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media image action row')
-
     await act(async () => {
       imageAction.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       await waitForFrames(dom.window, 2)
     })
-
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
       throw new Error(`expected FloatingPanel Media pointer-down invoke to insert before blur/click cleanup, got ${latest}`)
@@ -398,7 +399,6 @@ export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick
     restore()
   }
 }
-
 export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardField() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -407,7 +407,6 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
   const committedValues: string[] = []
   const storageKey = 'knowgrph:floating-panel-media:uploaded-cloudflare-items:v1'
   const mediaUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
-
   try {
     dom.window.localStorage.setItem(storageKey, JSON.stringify([{
       id: 'cloudflare-media:sha256:uploaded-demo',
@@ -445,7 +444,6 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
       },
       error: null,
     }]))
-
     await act(async () => {
       root.render(
         React.createElement(React.Fragment, null,
@@ -463,15 +461,12 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
       )
       await waitForFrames(dom.window, 8)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected active card display field')
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       await waitForFrames(dom.window, 1)
     })
-
     const mediaName = container.querySelector('[data-kg-media-upload-name-text="cloudflare-media:sha256:uploaded-demo"]')
     if (!(mediaName instanceof dom.window.HTMLElement)) throw new Error('expected uploaded media name text to be the primary insert target')
     const renameButton = container.querySelector('[data-kg-media-upload-rename="cloudflare-media:sha256:uploaded-demo"]')
@@ -484,13 +479,11 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     }
     const previewButton = container.querySelector('[data-kg-media-thumbnail-fullscreen="cloudflare-media:sha256:uploaded-demo"]')
     if (!(previewButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media thumbnail to open fullscreen preview')
-
     await act(async () => {
       previewButton.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       previewButton.click()
       await waitForFrames(dom.window, 4)
     })
-
     const lightbox = dom.window.document.querySelector('[data-kg-media-lightbox="1"]')
     if (!(lightbox instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open the shared media lightbox')
     if (lightbox.getAttribute('data-kg-media-lightbox-kind') !== 'image') {
@@ -510,7 +503,6 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     if (committedValues.length !== 0) {
       throw new Error(`expected thumbnail preview to avoid invoking active card insertion, got ${JSON.stringify(committedValues)}`)
     }
-
     await act(async () => {
       closeLightbox.click()
       await waitForFrames(dom.window, 2)
@@ -518,12 +510,10 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]')) {
       throw new Error('expected Close to dismiss the media lightbox')
     }
-
     await act(async () => {
       mediaName.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       await waitForFrames(dom.window, 2)
     })
-
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![airvio-demo.jpg](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=')) {
       throw new Error(`expected uploaded Media name click to insert Cloudflare image into active Action field, got ${latest}`)
@@ -536,7 +526,6 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     restore()
   }
 }
-
 export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -544,7 +533,6 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
   const root = createRoot(container)
   const actionValues: string[] = []
   const dialogueValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -573,25 +561,21 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
       )
       await waitForFrames(dom.window, 8)
     })
-
     const actionDisplay = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit="1"]')
     const dialogueDisplay = container.querySelector('[aria-label="Dialogue"][data-kg-card-inline-edit="1"]')
     if (!(actionDisplay instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
     if (!(dialogueDisplay instanceof dom.window.HTMLElement)) throw new Error('expected Dialogue display field')
-
     await act(async () => {
       dialogueDisplay.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       dialogueDisplay.dispatchEvent(new dom.window.MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }))
       await waitForFrames(dom.window, 1)
     })
-
     const range = dom.window.document.createRange()
     range.selectNodeContents(actionDisplay)
     const selection = dom.window.document.getSelection()
     if (!selection) throw new Error('expected browser selection')
     selection.removeAllRanges()
     selection.addRange(range)
-
     const inserted = insertMediaIntoActiveCardInlineTextEditor({
       kind: 'image',
       url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/action-target.jpg?kg_media_token=token',
@@ -599,7 +583,6 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
       sourceKey: 'sha256:action-target',
     })
     if (!inserted) throw new Error('expected selected Action display field to accept Media insertion')
-
     const latestAction = actionValues.at(-1) || ''
     if (!latestAction.includes('Review the source evidence into editable storyboard elements.\n![action-target.jpg](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/action-target.jpg?kg_media_token=token)')) {
       throw new Error(`expected selected Action field to receive media insertion, got ${latestAction}`)
@@ -614,13 +597,11 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
     restore()
   }
 }
-
 export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   const readOpenedTextareaRows = async (fieldLineMode: 'single' | 'double') => {
     await act(async () => {
       setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode })
@@ -638,34 +619,27 @@ export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
       )
       await waitForFrames(dom.window, 4)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
     const rows = textarea.rows
     const className = textarea.className
-
     await act(async () => {
       textarea.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-
     return { rows, className }
   }
-
   try {
     const single = await readOpenedTextareaRows('single')
     if (single.rows !== 1 || !single.className.includes('min-h-8')) {
       throw new Error(`expected single-line View density to open card textarea with one row, got rows=${single.rows} class=${single.className}`)
     }
-
     const double = await readOpenedTextareaRows('double')
     if (double.rows !== 2 || !double.className.includes('min-h-12') || !double.className.includes('resize-y')) {
       throw new Error(`expected two-line View density to open card textarea with two rows, got rows=${double.rows} class=${double.className}`)
@@ -681,13 +655,11 @@ export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
     restore()
   }
 }
-
 export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   const readDisplayClassName = async (fieldLineMode: 'single' | 'double') => {
     await act(async () => {
       setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode })
@@ -706,18 +678,15 @@ export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity()
       )
       await waitForFrames(dom.window, 4)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
     return display.className
   }
-
   try {
     const singleClassName = await readDisplayClassName('single')
     if (!singleClassName.includes('truncate')) {
       throw new Error(`expected single-line View density to clamp card display surface to one line, got class=${singleClassName}`)
     }
-
     const doubleClassName = await readDisplayClassName('double')
     if (!doubleClassName.includes('line-clamp-2')) {
       throw new Error(`expected two-line View density to clamp card display surface to two lines, got class=${doubleClassName}`)
@@ -733,13 +702,11 @@ export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity()
     restore()
   }
 }
-
 export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCardSurfaceAndTextarea() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'compact', fieldLineMode: 'double' })
@@ -757,7 +724,6 @@ export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCar
       )
       await waitForFrames(dom.window, 4)
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard Widget value display to reuse CardInlineTextEditor')
     if (!display.className.includes('line-clamp-2')) {
@@ -769,12 +735,10 @@ export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCar
     if (display.className.includes('h-6')) {
       throw new Error(`expected Storyboard Widget display surface to ignore single-line/editor sizing classes, got class=${display.className}`)
     }
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-
     const textarea = container.querySelector('textarea[aria-label="Widget value"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Storyboard Widget value to open a shared textarea')
     if (textarea.rows !== 2 || !textarea.className.includes('min-h-12') || !textarea.className.includes('resize-y')) {
@@ -791,14 +755,12 @@ export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCar
     restore()
   }
 }
-
 export async function testCardInlineTextEditorCanPropagateActivationClick() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let parentClicks = 0
-
   try {
     await act(async () => {
       root.render(
@@ -818,17 +780,14 @@ export async function testCardInlineTextEditorCanPropagateActivationClick() {
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected shared card inline editor to expose the click activation marker')
     }
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     if (parentClicks !== 1) {
       throw new Error(`expected shared inline editor to allow activation click propagation when requested, got ${parentClicks}`)
     }
@@ -843,14 +802,12 @@ export async function testCardInlineTextEditorCanPropagateActivationClick() {
     restore()
   }
 }
-
 export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndVariableActions() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -872,7 +829,6 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected shared card editor display surface')
@@ -881,7 +837,6 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const textarea = container.querySelector('textarea[aria-label="Widget text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
       throw new Error('expected multiline card editor textarea')
@@ -892,7 +847,6 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
     if (!(slashButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected slash command launcher')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
     if (!(keywordButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected keyword command launcher')
-
     await act(async () => {
       slashButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       slashButton.click()
@@ -912,7 +866,6 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
     if (!textarea.value.includes('- [ ] Widget panel text')) {
       throw new Error(`expected slash command to transform widget panel text into a checklist item, got ${JSON.stringify(textarea.value)}`)
     }
-
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
@@ -1005,14 +958,12 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
     restore()
   }
 }
-
 export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnail() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
-
   try {
     await act(async () => {
       root.render(
@@ -1031,19 +982,16 @@ export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnai
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
     const variableButton = container.querySelector('button[title="Variable commands"]')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
@@ -1059,7 +1007,6 @@ export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnai
     if (videoThumbnail.getAttribute('src') !== 'https://i.ytimg.com/vi/demoVideoId/hqdefault.jpg') {
       throw new Error(`expected Video @ media thumbnail to use derived poster URL, got ${JSON.stringify(videoThumbnail.getAttribute('src'))}`)
     }
-
     await act(async () => {
       Simulate.blur(textarea, { relatedTarget: null })
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -1067,7 +1014,6 @@ export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnai
     if (!dom.window.document.querySelector('#Card\\ variable\\ commands-insert-video')) {
       throw new Error('expected @ Video command menu to stay open across null relatedTarget blur')
     }
-
     await act(async () => {
       videoInsertButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       videoInsertButton.click()
@@ -1085,13 +1031,11 @@ export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnai
     restore()
   }
 }
-
 export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditable() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1107,19 +1051,16 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
     const variableButton = container.querySelector('button[title="Variable commands"]')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
@@ -1128,7 +1069,6 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
     })
     const imageInsertButton = dom.window.document.querySelector('#Card\\ variable\\ commands-insert-image')
     if (!(imageInsertButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected generic Image @ media insertion command')
-
     await act(async () => {
       imageInsertButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       imageInsertButton.click()
@@ -1148,7 +1088,6 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
     restore()
   }
 }
-
 export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1185,7 +1124,6 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
       access: { cacheKey: null, expiresAtMs: null, url: accessUrl },
     },
   }
-
   try {
     dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
       id: 'cloudflare-media:sha256:uploaded-at-command-demo',
@@ -1199,7 +1137,6 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
       storage,
       error: null,
     }]))
-
     await act(async () => {
       root.render(
         React.createElement(CardInlineTextEditor, {
@@ -1216,26 +1153,22 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
       )
       await waitForFrames(dom.window, 4)
     })
-
     const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 1)
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
     const variableButton = container.querySelector('button[title="Variable commands"]')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-
     await act(async () => {
       textarea.setSelectionRange(0, 0)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       variableButton.click()
       await waitForFrames(dom.window, 4)
     })
-
     const mediaButtons = Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]
     const uploadMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('New Media') && String(button.textContent || '').includes('Create or upload image, audio, or video through the shared Media storage flow'))
     if (!(uploadMediaButton instanceof dom.window.HTMLButtonElement)) {
@@ -1247,13 +1180,11 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
       const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
       throw new Error(`expected @ command menu to include uploaded FloatingPanel Media item, got ${buttonText}`)
     }
-
     await act(async () => {
       uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       uploadedMediaButton.click()
       await waitForFrames(dom.window, 2)
     })
-
     const latest = committedValues.at(-1) || ''
     if (!latest.startsWith('![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=')) {
       throw new Error(`expected @ command media insertion to commit uploaded image into Action field, got ${JSON.stringify(committedValues)}`)
@@ -1269,7 +1200,6 @@ export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
     restore()
   }
 }
-
 export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMedia() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1283,7 +1213,6 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
     '',
     'Review the source evidence into editable storyboard elements.',
   ].join('\n')
-
   try {
     dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
       id: 'cloudflare-media:sha256:uploaded-at-command-demo',
@@ -1321,7 +1250,6 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
       },
       error: null,
     }]))
-
     await act(async () => {
       root.render(
         React.createElement(CardInlineTextEditor, {
@@ -1338,36 +1266,30 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
       )
       await waitForFrames(dom.window, 4)
     })
-
     const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 1)
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
     const variableButton = container.querySelector('button[title="Variable commands"]')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       variableButton.click()
       await waitForFrames(dom.window, 4)
     })
-
     const uploadedMediaButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[])
       .find(button => String(button.textContent || '').includes('airvio_.JPEG'))
     if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded Media item in @ command menu')
-
     await act(async () => {
       uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
       uploadedMediaButton.click()
       await waitForFrames(dom.window, 2)
     })
-
     if (committedValues.length !== 0) {
       throw new Error(`expected duplicate @ media insertion to no-op without mutating Action text, got ${JSON.stringify(committedValues)}`)
     }
@@ -1379,7 +1301,6 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
     restore()
   }
 }
-
 export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuRenameDraft() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1387,7 +1308,6 @@ export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuR
   const root = createRoot(container)
   const renamedUrl = 'https://www.youtube.com/watch?v=commandMenuRenameDraft'
   const committedValues: string[] = []
-
   try {
     writeCommandMenuMediaNameDraft(renamedUrl, 'sd1')
     await act(async () => {
@@ -1408,19 +1328,16 @@ export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuR
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface')
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected multiline action textarea')
     const variableButton = container.querySelector('button[title="Variable commands"]')
     if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-
     await act(async () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length)
       variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
@@ -1450,13 +1367,11 @@ export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuR
     restore()
   }
 }
-
 export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1475,7 +1390,6 @@ export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow()
       )
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const chip = container.querySelector('[data-kg-card-inline-media-pill="1"]')
     if (!(chip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected inline video chip in card preview, html=${container.innerHTML}`)
@@ -1498,13 +1412,11 @@ export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow()
     restore()
   }
 }
-
 export async function testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1519,7 +1431,6 @@ export async function testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse()
       )
       await waitForFrames(dom.window, 8)
     })
-
     const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
     if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
     const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
@@ -1542,13 +1453,11 @@ export async function testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse()
     restore()
   }
 }
-
 export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypography() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1560,7 +1469,6 @@ export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypo
       )
       await waitForFrames(dom.window, 8)
     })
-
     const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
     if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
     const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
@@ -1585,13 +1493,11 @@ export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypo
     restore()
   }
 }
-
 export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypography() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1603,7 +1509,6 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
       )
       await waitForFrames(dom.window, 8)
     })
-
     const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
     if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
     const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
@@ -1655,13 +1560,11 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
     restore()
   }
 }
-
 export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1678,7 +1581,6 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
       )
       await waitForFrames(dom.window, 8)
     })
-
     const chips = Array.from(container.querySelectorAll('[data-kg-card-inline-keyword-pill="1"]')) as HTMLElement[]
     const chip = chips[0] as HTMLElement | undefined
     if (!(chip instanceof dom.window.HTMLElement)) {
@@ -1715,13 +1617,11 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
     restore()
   }
 }
-
 export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefaultEditor() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
-
   try {
     await act(async () => {
       root.render(
@@ -1738,7 +1638,6 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
       await new Promise(resolve => setTimeout(resolve, 0))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="doubleClick"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected shared card editor display surface to preserve default double-click activation')
@@ -1751,14 +1650,12 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
     if (!(previewImage instanceof dom.window.HTMLImageElement)) {
       throw new Error('expected markdown preview media thumbnail to render inside the shared card editor display')
     }
-
     await act(async () => {
       previewRoot.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, detail: 1 }))
       previewRoot.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 1 }))
       previewRoot.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
       throw new Error('expected one click on the markdown preview read surface to reopen the default shared inline editor')
@@ -1773,7 +1670,6 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
     restore()
   }
 }
-
 export async function testStoryboardWidgetInlineValueEditorFirstInactiveClickCommits() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1782,7 +1678,6 @@ export async function testStoryboardWidgetInlineValueEditorFirstInactiveClickCom
   let committed = ''
   let parentClicks = 0
   let parentPointerDowns = 0
-
   function Harness() {
     const [active, setActive] = React.useState(false)
     return React.createElement('section', {
@@ -1803,38 +1698,32 @@ export async function testStoryboardWidgetInlineValueEditorFirstInactiveClickCom
       },
     }))
   }
-
   try {
     await act(async () => {
       root.render(React.createElement(Harness))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     const display = container.querySelector('[data-kg-card-inline-edit-activation="click"]')
     if (!(display instanceof dom.window.HTMLElement)) {
       throw new Error('expected Storyboard Widget Value cell to render the shared click-activated inline editor')
     }
-
     await act(async () => {
       display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-
     if (parentPointerDowns !== 0) {
       throw new Error(`expected first inactive Storyboard Widget value pointer-down to stay local and avoid workspace/indexing activation, got ${parentPointerDowns}`)
     }
     if (parentClicks !== 0) {
       throw new Error(`expected first inactive Storyboard Widget value click to stay local and avoid workspace/indexing activation, got ${parentClicks}`)
     }
-
     const input = container.querySelector('input[aria-label="Metric target"]')
     if (!(input instanceof dom.window.HTMLInputElement)) {
       throw new Error('expected first inactive Storyboard Widget value click to open the shared editable input')
     }
     const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set
     if (!setter) throw new Error('expected input value setter')
-
     await act(async () => {
       setter.call(input, '77')
       Simulate.change(input)
@@ -1843,7 +1732,6 @@ export async function testStoryboardWidgetInlineValueEditorFirstInactiveClickCom
     await act(async () => {
       Simulate.keyDown(input, { key: 'Enter' })
     })
-
     if (committed !== '77') {
       throw new Error(`expected first Storyboard Widget inline edit value to commit without requiring a second click, got ${JSON.stringify(committed)}`)
     }

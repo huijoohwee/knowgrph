@@ -42,24 +42,36 @@ function loadUploadedMediaPanelItems(): Promise<UploadedMediaPanelItem[]> {
       return next
     })
     .catch(() => readStoredUploadedMediaPanelItems())
+    .finally(() => {
+      storageItemsRequest = null
+    })
   return storageItemsRequest
 }
 
-export function useUploadedMediaInlineCommandCandidates(): InlineMediaCommandCandidate[] {
-  const [items, setItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
+export function useUploadedMediaInlineCommandCandidates(options?: { enabled?: boolean }): InlineMediaCommandCandidate[] {
+  const enabled = options?.enabled !== false
+  const [items, setItems] = React.useState<UploadedMediaPanelItem[]>(() => (enabled ? readStoredUploadedMediaPanelItems() : []))
 
   React.useEffect(() => {
+    if (!enabled) {
+      setItems([])
+      return
+    }
     let active = true
-    const refreshLocal = () => setItems(readStoredUploadedMediaPanelItems())
+    const refreshLocal = () => {
+      storageItemsRequest = null
+      setItems(readStoredUploadedMediaPanelItems())
+    }
+    refreshLocal()
     window.addEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, refreshLocal)
     loadUploadedMediaPanelItems().then(next => {
-      if (active) setItems(next)
+      if (active) setItems(mergeUploadedMediaPanelItems([...readStoredUploadedMediaPanelItems(), ...next]))
     })
     return () => {
       active = false
       window.removeEventListener(UPLOADED_MEDIA_PANEL_ITEMS_CHANGED_EVENT, refreshLocal)
     }
-  }, [])
+  }, [enabled])
 
   return React.useMemo(
     () => items.flatMap(item => {

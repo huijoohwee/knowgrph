@@ -21,6 +21,8 @@ export async function testMarkdownViewerVariableClickNavigatesToSsotLine() {
       '---',
       '',
       'Meet at {{venue}}',
+      '',
+      'Image token {{1920s_Singapore_Malaya_202606190937.jpeg}}',
     ].join('\n')
 
     root.render(
@@ -44,6 +46,28 @@ export async function testMarkdownViewerVariableClickNavigatesToSsotLine() {
 
     const variableLink = dom.window.document.querySelector('[data-kg-var-key="venue"]') as HTMLAnchorElement | null
     if (!variableLink) throw new Error('expected variable link')
+    if (!variableLink.getAttribute('data-kg-var-source')?.includes('Source: frontmatter line 2') || !variableLink.getAttribute('title')?.includes('@venue - Markdown variable')) {
+      throw new Error(`expected Viewer variable chip to expose @-aligned source metadata, got ${JSON.stringify(variableLink.outerHTML)}`)
+    }
+    if (variableLink.getAttribute('data-kg-var-token') !== '@venue' || !String(variableLink.textContent || '').includes('@venue') || String(variableLink.textContent || '').includes('{{venue}}')) {
+      throw new Error(`expected Viewer variable chip to render the actual @ token instead of raw moustache syntax, got ${JSON.stringify(variableLink.outerHTML)}`)
+    }
+    if (!variableLink.querySelector('[data-kg-card-inline-keyword-pill="1"]')) {
+      throw new Error(`expected plain Viewer variable chip to reuse shared sigil chip utility, got ${JSON.stringify(variableLink.outerHTML)}`)
+    }
+    const mediaVariableLink = dom.window.document.querySelector('[data-kg-var-key="1920s_Singapore_Malaya_202606190937.jpeg"]') as HTMLAnchorElement | null
+    if (!mediaVariableLink) throw new Error('expected media variable link')
+    const mediaThumbnail = mediaVariableLink.querySelector('[data-kg-inline-command-thumbnail="image"] img') as HTMLImageElement | null
+    if (!mediaThumbnail) {
+      throw new Error(`expected unresolved media-like @ variable chip to render a visible thumbnail, got ${JSON.stringify(mediaVariableLink.outerHTML)}`)
+    }
+    const mediaThumbnailSrc = String(mediaThumbnail.getAttribute('src') || '')
+    if (!mediaThumbnailSrc.includes('/__codebase_asset?path=') || !decodeURIComponent(mediaThumbnailSrc).includes('docs/1920s_Singapore_Malaya_202606190937.jpeg')) {
+      throw new Error(`expected media-like @ variable thumbnail to resolve relative to active document, got ${mediaThumbnailSrc}`)
+    }
+    if (!String(mediaVariableLink.textContent || '').includes('@1920s_Singapore_Malaya_202606190937.jpeg')) {
+      throw new Error(`expected media-like variable chip to preserve @ token label, got ${JSON.stringify(mediaVariableLink.outerHTML)}`)
+    }
     variableLink.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
 

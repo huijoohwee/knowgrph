@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { UploadedMediaCard, UploadedMediaRow } from '@/features/command-menu/mediaCatalogUploadedItems'
+import { shouldPrimeMediaRowDragPayload } from '@/features/command-menu/mediaCatalogShared'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { clearMediaPointerDragPayload, finishMediaPointerDragPayloadForEvent, MEDIA_POINTER_DRAG_DROP_EVENT, readMediaPointerDragPayload, type MediaPointerDragDropDetail } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -189,6 +190,35 @@ async function assertUploadedMediaSurfaceStartsPointerDrag(surface: 'card' | 'ro
 
 export async function testUploadedMediaRowStartsSharedPointerDragPayload() {
   await assertUploadedMediaSurfaceStartsPointerDrag('row')
+  const { dom, restore } = initJsdomHarness()
+  const article = dom.window.document.createElement('article')
+  article.setAttribute('data-kg-media-draggable', '1')
+  const title = dom.window.document.createElement('span')
+  const rename = dom.window.document.createElement('button')
+  const openLink = dom.window.document.createElement('a')
+  title.textContent = 'media title'
+  rename.setAttribute('data-kg-media-upload-rename', 'demo')
+  openLink.setAttribute('data-kg-media-open-link-overlay', '1')
+  article.append(title, rename, openLink)
+  dom.window.document.body.appendChild(article)
+  try {
+    const primeEvent = (target: Element) => ({
+      altKey: false,
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      target,
+    }) as unknown as React.MouseEvent<HTMLElement>
+    if (!shouldPrimeMediaRowDragPayload(primeEvent(title))) {
+      throw new Error('expected uploaded media row body to prime shared drag payload before nested handlers')
+    }
+    if (shouldPrimeMediaRowDragPayload(primeEvent(rename)) || shouldPrimeMediaRowDragPayload(primeEvent(openLink))) {
+      throw new Error('expected uploaded media row action controls to avoid priming drag payload')
+    }
+  } finally {
+    restore()
+  }
   const mediaDragPayloadSource = readFileSync(new URL('../lib/ui/mediaDragPayload.ts', import.meta.url), 'utf8')
   const mediaCatalogSharedSource = readFileSync(new URL('../features/command-menu/mediaCatalogShared.tsx', import.meta.url), 'utf8')
   const mediaCatalogUploadedItemsSource = readFileSync(new URL('../features/command-menu/mediaCatalogUploadedItems.tsx', import.meta.url), 'utf8')
@@ -230,6 +260,11 @@ export async function testUploadedMediaCardStartsSharedPointerDragPayload() {
   for (const snippet of [
     'const generatedThumbnail = useNativeVideoMediaThumbnail({',
     'const buildDragPayload = () => buildUploadedMediaDragPayload(item, generatedThumbnail)',
+    'onPointerDownCapture={event => {',
+    'shouldPrimeMediaRowDragPayload(event)',
+    'primeMediaPointerDrag(event, buildDragPayload())',
+    'onMouseDownCapture={event => {',
+    'primeMediaMouseDrag(event, buildDragPayload())',
     'onDragStart={event => onDragStart(event, item, generatedThumbnail)}',
     'startMediaPointerDrag(event, buildDragPayload())',
     'continueMediaPointerDrag(event, buildDragPayload())',

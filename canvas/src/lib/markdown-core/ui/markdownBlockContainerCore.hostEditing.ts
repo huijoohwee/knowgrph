@@ -4,6 +4,7 @@ import { ensureWordSelectionInRoot } from './markdownBlockContainerCore.interact
 import { useMarkdownBlockContainerHostOrchestration } from './markdownBlockContainerCore.hostOrchestration'
 import { useMarkdownBlockContainerLinkPopover } from './markdownBlockContainerCore.linkPopover'
 import { useMarkdownBlockContainerEditorEvents } from './markdownBlockContainerCore.editorEvents'
+import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
 
 export const useMarkdownBlockContainerHostEditing = (args: {
   editing: boolean
@@ -34,8 +35,8 @@ export const useMarkdownBlockContainerHostEditing = (args: {
   editDisableRichUi: boolean
   setVariableMenuStable: (next: { show: boolean; leftPx: number; topPx: number; query?: string; keyInput?: string }) => void
   variableMenu: { show: boolean; keyInput: string; mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete' }
-  setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
-  slashMenu: { show: boolean }
+  setSlashMenuStable: (next: SlashMenuState) => void
+  slashMenu: Pick<SlashMenuState, 'show' | 'kind' | 'query'>
   setBubble: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number }>>
   bubble: { show: boolean }
   blurCommitTimerRef: React.MutableRefObject<number>

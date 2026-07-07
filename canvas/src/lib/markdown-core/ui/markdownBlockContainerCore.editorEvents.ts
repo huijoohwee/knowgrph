@@ -1,5 +1,6 @@
 import React from 'react'
 import { scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
+import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
 import {
   computeFloatingMenuPosition,
   getRangeRectSafe,
@@ -47,7 +48,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   lastSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   setVariableMenuStable: (next: { show: boolean; leftPx: number; topPx: number; query?: string; keyInput?: string }) => void
   variableMenu: { show: boolean; keyInput: string; mode: VariableMode }
-  setSlashMenuStable: (next: { show: boolean; leftPx: number; topPx: number }) => void
+  setSlashMenuStable: (next: SlashMenuState) => void
   slashMenu: { show: boolean }
   setBubble: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number }>>
   bubble: { show: boolean }
@@ -93,7 +94,13 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     const rawText = typeof (el as HTMLElement).innerText === 'string'
       ? (el as HTMLElement).innerText
       : String(el.textContent || '')
-    const textRaw = args.editPreserveWhitespace ? args.readEditorPlainText() : rawText.replace(/\r/g, '')
+    const rawNormalized = rawText.replace(/\r/g, '')
+    const editorPlainText = args.readEditorPlainText()
+    const textRaw = args.editPreserveWhitespace
+      ? editorPlainText
+      : editorPlainText.length === rawNormalized.length
+      ? rawNormalized
+      : editorPlainText
     const preserveQuoteOnlyBlankLineStructure =
       !!args.editStripLinePrefix &&
       Array.isArray(args.editLinePrefixesRef.current) &&
@@ -124,13 +131,33 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     const lineStartIdx = text.lastIndexOf('\n', Math.max(0, caretOffset) - 1) + 1
     const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, caretOffset)))
     const atMatch = /@([A-Za-z0-9_.-]{0,64})$/.exec(preceding)
+    const semanticMatch = /#([A-Za-z0-9_.-]{0,64})$/.exec(preceding)
     if (atMatch) {
       const query = String(atMatch[1] || '')
       args.setVariableMenuStable({ show: true, leftPx, topPx, query, keyInput: query || args.variableMenu.keyInput })
       args.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
       args.setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
+    } else if (semanticMatch) {
+      const query = String(semanticMatch[1] || '')
+      args.setSlashMenuStable({
+        show: true,
+        leftPx,
+        topPx,
+        kind: 'semantic',
+        query,
+        triggerRange: { startOffset: caretOffset - semanticMatch[0].length, endOffset: caretOffset },
+      })
+      args.setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
+      args.setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
     } else if (/\/$/.test(preceding)) {
-      args.setSlashMenuStable({ show: true, leftPx, topPx })
+      args.setSlashMenuStable({
+        show: true,
+        leftPx,
+        topPx,
+        kind: 'slash',
+        query: '',
+        triggerRange: { startOffset: Math.max(0, caretOffset - 1), endOffset: caretOffset },
+      })
       args.setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
       args.setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
     } else if (args.slashMenu.show) {

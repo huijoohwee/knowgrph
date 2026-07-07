@@ -4,9 +4,25 @@ import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
+import {
+  buildAgenticOsInvocationSourceTitle,
+  findAgenticOsInvocationByToken,
+} from '@/features/agentic-os/agenticOsDocInvocations'
+import {
+  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  resolveDataViewChipClass,
+} from '@/features/markdown/ui/dataViewChipStyles'
+import {
+  AGENTIC_OS_INVOCATION_CHIP_ATTR,
+  AGENTIC_OS_INVOCATION_TOKEN_ATTR,
+} from '@/features/agentic-os/agenticOsInvocationChips'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 
 const INLINE_MEDIA_EDIT_TOKEN_ATTR = 'data-kg-inline-media-edit-token'
 const INLINE_MEDIA_EDIT_MARKDOWN_ATTR = 'data-kg-inline-media-markdown'
+const INLINE_INVOCATION_EDIT_TOKEN_ATTR = 'data-kg-inline-invocation-edit-token'
+const INLINE_INVOCATION_EDIT_MARKDOWN_ATTR = 'data-kg-inline-invocation-markdown'
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
@@ -54,6 +70,89 @@ const buildInlineMediaEditTokenHtml = (args: {
   ].join('')
 }
 
+const readRenderedMediaPillMarkdown = (node: HTMLElement): string => {
+  const sourceValue = String(node.getAttribute('data-kg-card-inline-media-value') || '').trim()
+  if (/^!\[[\s\S]*\]\([\s\S]+\)$/.test(sourceValue)) return sourceValue
+  const href = String((node as HTMLAnchorElement).href || node.getAttribute('href') || '').trim()
+  const src = sourceValue || href || String(node.getAttribute('data-kg-card-inline-media-token') || '').trim()
+  if (!src || src.startsWith('#')) return ''
+  const kind = /\.(?:mp4|webm|mov|m4v)(?:[?#].*)?$/i.test(src)
+    ? 'video'
+    : /\.(?:mp3|wav|m4a|aac|ogg)(?:[?#].*)?$/i.test(src)
+      ? 'audio'
+      : 'image'
+  const labelNode = node.querySelector(`.${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME.split(/\s+/)[0]}`)
+  const label = readCardMarkdownPreviewMediaLabel(
+    String(labelNode?.textContent || node.getAttribute('aria-label') || node.getAttribute('title') || '').trim(),
+    kind === 'audio' ? 'Audio' : kind === 'video' ? 'Video' : 'Image',
+  )
+  return readMediaMarkdown(kind, src, label)
+}
+
+const buildInlineInvocationEditTokenHtml = (token: string): string => {
+  const invocation = findAgenticOsInvocationByToken(token)
+  if (!invocation) return escapeHtml(token)
+  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${resolveDataViewChipClass(token)}`
+  return [
+    `<span class="${escapeHtmlAttr(className)}"`,
+    ` title="${escapeHtmlAttr(buildAgenticOsInvocationSourceTitle(invocation))}"`,
+    ` ${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"`,
+    ` ${INLINE_INVOCATION_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(token)}"`,
+    ' contenteditable="false">',
+    escapeHtml(token),
+    '</span>',
+  ].join('')
+}
+
+const rewriteRenderedInvocationChipsForEditor = (root: HTMLElement): void => {
+  const selector = `[${AGENTIC_OS_INVOCATION_CHIP_ATTR}="1"][${AGENTIC_OS_INVOCATION_TOKEN_ATTR}]`
+  const nodes = Array.from(root.querySelectorAll(selector)) as HTMLElement[]
+  nodes.forEach(node => {
+    const token = String(node.getAttribute(AGENTIC_OS_INVOCATION_TOKEN_ATTR) || '').trim()
+    if (!findAgenticOsInvocationByToken(token)) return
+    const wrapper = root.ownerDocument.createElement('span')
+    wrapper.innerHTML = buildInlineInvocationEditTokenHtml(token)
+    const editToken = wrapper.firstElementChild
+    if (editToken) node.replaceWith(editToken)
+  })
+}
+
+const rewriteTextNodeInvocationsForEditor = (root: HTMLElement): void => {
+  const ownerDocument = root.ownerDocument
+  const nodeFilterShowText = ownerDocument.defaultView?.NodeFilter?.SHOW_TEXT ?? 4
+  const walker = ownerDocument.createTreeWalker(root, nodeFilterShowText)
+  const textNodes: Text[] = []
+  let node = walker.nextNode()
+  while (node) {
+    const parent = (node as Text).parentElement
+    if (!parent?.closest(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) textNodes.push(node as Text)
+    node = walker.nextNode()
+  }
+  textNodes.forEach(textNode => {
+    const text = String(textNode.nodeValue || '')
+    const segments = splitInvocationTokenSegments(text)
+    if (!segments.some(segment => segment.kind === 'token' && findAgenticOsInvocationByToken(segment.value))) return
+    const fragment = ownerDocument.createDocumentFragment()
+    segments.forEach(segment => {
+      if (segment.kind === 'text') {
+        fragment.append(ownerDocument.createTextNode(segment.value))
+        return
+      }
+      const token = segment.value
+      if (!findAgenticOsInvocationByToken(token)) {
+        fragment.append(ownerDocument.createTextNode(token))
+        return
+      }
+      const wrapper = ownerDocument.createElement('span')
+      wrapper.innerHTML = buildInlineInvocationEditTokenHtml(token)
+      const tokenNode = wrapper.firstElementChild
+      if (tokenNode) fragment.append(tokenNode)
+      else fragment.append(ownerDocument.createTextNode(token))
+    })
+    textNode.replaceWith(fragment)
+  })
+}
+
 export const rewriteRenderedInlineMediaForEditorHtml = (html: string): string => {
   const raw = String(html || '')
   if (!raw.trim() || typeof DOMParser === 'undefined') return raw
@@ -65,6 +164,29 @@ export const rewriteRenderedInlineMediaForEditorHtml = (html: string): string =>
   }
   const root = doc.body.firstElementChild as HTMLElement | null
   if (!root) return raw
+  const renderedMediaPills = Array.from(root.querySelectorAll('[data-kg-card-inline-media-pill="1"]')) as HTMLElement[]
+  renderedMediaPills.forEach(node => {
+    if (node.hasAttribute(INLINE_MEDIA_EDIT_TOKEN_ATTR)) return
+    const markdown = readRenderedMediaPillMarkdown(node)
+    if (!markdown) return
+    const normalized = normalizeEscapedInlineMediaMarkdown(markdown)
+    const match = /^!\[([\s\S]*?)\]\(([\s\S]+)\)$/.exec(normalized)
+    if (!match) return
+    const url = String(match[2] || '').trim()
+    const alt = String(match[1] || '').trim()
+    const kind = /^(?:Audio|Video):\s/i.test(alt)
+      ? /^Audio:\s/i.test(alt) ? 'audio' : 'video'
+      : /\.(?:mp4|webm|mov|m4v)(?:[?#].*)?$/i.test(url)
+        ? 'video'
+        : /\.(?:mp3|wav|m4a|aac|ogg)(?:[?#].*)?$/i.test(url)
+          ? 'audio'
+          : 'image'
+    const wrapper = doc.createElement('span')
+    wrapper.innerHTML = buildInlineMediaEditTokenHtml({ kind, src: url, alt, title: alt })
+    const token = wrapper.firstElementChild
+    if (token) node.replaceWith(token)
+  })
+  rewriteRenderedInvocationChipsForEditor(root)
   const mediaNodes = Array.from(root.querySelectorAll('img,video,audio')) as HTMLElement[]
   mediaNodes.forEach(node => {
     const tag = String(node.tagName || '').toLowerCase()
@@ -78,6 +200,7 @@ export const rewriteRenderedInlineMediaForEditorHtml = (html: string): string =>
     const token = wrapper.firstElementChild
     if (token) node.replaceWith(token)
   })
+  rewriteTextNodeInvocationsForEditor(root)
   return root.innerHTML
 }
 
@@ -88,19 +211,41 @@ export const restoreInlineMediaEditTokensInPlace = (root: HTMLElement): void => 
     if (!markdown) return
     token.replaceWith(root.ownerDocument.createTextNode(markdown))
   })
+  const invocationTokens = Array.from(root.querySelectorAll(`[${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"]`)) as HTMLElement[]
+  invocationTokens.forEach(token => {
+    const markdown = String(token.getAttribute(INLINE_INVOCATION_EDIT_MARKDOWN_ATTR) || token.textContent || '').trim()
+    if (!markdown) return
+    token.replaceWith(root.ownerDocument.createTextNode(markdown))
+  })
 }
 
 export const INLINE_MEDIA_EDIT_TOKEN_SELECTOR = `[${INLINE_MEDIA_EDIT_TOKEN_ATTR}="1"]`
+export const INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR = `${INLINE_MEDIA_EDIT_TOKEN_SELECTOR},[${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"]`
 
 const readInlineMediaEditTokenMarkdown = (token: Element): string =>
-  String(token.getAttribute(INLINE_MEDIA_EDIT_MARKDOWN_ATTR) || token.textContent || '').replace(/\r/g, '')
+  normalizeEscapedInlineMediaMarkdown(String(token.getAttribute(INLINE_MEDIA_EDIT_MARKDOWN_ATTR) || token.textContent || '').replace(/\r/g, ''))
+
+const readInlineInvocationEditTokenMarkdown = (token: Element): string =>
+  String(token.getAttribute(INLINE_INVOCATION_EDIT_MARKDOWN_ATTR) || token.textContent || '').replace(/\r/g, '').trim()
 
 const isInlineMediaEditTokenElement = (node: Node): node is HTMLElement =>
   node.nodeType === Node.ELEMENT_NODE
     && (node as Element).matches(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)
 
+const isInlineInvocationEditTokenElement = (node: Node): node is HTMLElement =>
+  node.nodeType === Node.ELEMENT_NODE
+    && (node as Element).matches(`[${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"]`)
+
+const isInlineMarkdownEditTokenElement = (node: Node): node is HTMLElement =>
+  isInlineMediaEditTokenElement(node) || isInlineInvocationEditTokenElement(node)
+
+const readInlineMarkdownEditTokenMarkdown = (node: Element): string =>
+  isInlineMediaEditTokenElement(node)
+    ? readInlineMediaEditTokenMarkdown(node)
+    : readInlineInvocationEditTokenMarkdown(node)
+
 const readSerializedInlineMediaLength = (node: Node): number => {
-  if (isInlineMediaEditTokenElement(node)) return readInlineMediaEditTokenMarkdown(node).length
+  if (isInlineMarkdownEditTokenElement(node)) return readInlineMarkdownEditTokenMarkdown(node).length
   if (node.nodeType === Node.TEXT_NODE) return String(node.nodeValue || '').replace(/\r/g, '').length
   if (node.nodeType !== Node.ELEMENT_NODE) return 0
   const element = node as HTMLElement
@@ -118,8 +263,8 @@ export const readInlineMediaEditorMarkdownText = (root: HTMLElement | null): str
   if (!root) return ''
   let out = ''
   const walk = (node: Node): void => {
-    if (isInlineMediaEditTokenElement(node)) {
-      out += readInlineMediaEditTokenMarkdown(node)
+    if (isInlineMarkdownEditTokenElement(node)) {
+      out += readInlineMarkdownEditTokenMarkdown(node)
       return
     }
     if (node.nodeType === Node.TEXT_NODE) {
@@ -149,9 +294,9 @@ const readSerializedOffsetToBoundary = (
     if (parent === container && parent.nodeType === Node.TEXT_NODE) {
       return baseOffset + Math.max(0, Math.min(offset, String(parent.nodeValue || '').length))
     }
-    if (isInlineMediaEditTokenElement(parent)) {
+    if (isInlineMarkdownEditTokenElement(parent)) {
       if (parent === container || parent.contains(container)) {
-        return baseOffset + (offset > 0 ? readInlineMediaEditTokenMarkdown(parent).length : 0)
+        return baseOffset + (offset > 0 ? readInlineMarkdownEditTokenMarkdown(parent).length : 0)
       }
       return null
     }
@@ -164,11 +309,11 @@ const readSerializedOffsetToBoundary = (
       if (child === container && child.nodeType === Node.TEXT_NODE) {
         return current + Math.max(0, Math.min(offset, String(child.nodeValue || '').length))
       }
-      if (isInlineMediaEditTokenElement(child)) {
+      if (isInlineMarkdownEditTokenElement(child)) {
         if (child === container || child.contains(container)) {
-          return current + (offset > 0 ? readInlineMediaEditTokenMarkdown(child).length : 0)
+          return current + (offset > 0 ? readInlineMarkdownEditTokenMarkdown(child).length : 0)
         }
-        current += readInlineMediaEditTokenMarkdown(child).length
+        current += readInlineMarkdownEditTokenMarkdown(child).length
         continue
       }
       if (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(container)) {
@@ -185,7 +330,7 @@ const readSerializedOffsetToBoundary = (
 export const getInlineMediaEditorMarkdownSelectionOffsets = (
   root: HTMLElement | null,
 ): { startOffset: number; endOffset: number } | null => {
-  if (!root || !root.querySelector(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)) return null
+  if (!root || !root.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) return null
   const selection = typeof window !== 'undefined' ? window.getSelection() : null
   if (!selection || selection.rangeCount <= 0) return null
   const range = selection.getRangeAt(0)
@@ -227,8 +372,8 @@ const readInlineMediaOffsetSegments = (root: HTMLElement): InlineMediaOffsetSegm
     markdownOffset += markdownLength
   }
   const walk = (node: Node): void => {
-    if (isInlineMediaEditTokenElement(node)) {
-      push(String(node.textContent || '').replace(/\r/g, '').length, readInlineMediaEditTokenMarkdown(node).length, true)
+    if (isInlineMarkdownEditTokenElement(node)) {
+      push(String(node.textContent || '').replace(/\r/g, '').length, readInlineMarkdownEditTokenMarkdown(node).length, true)
       return
     }
     if (node.nodeType === Node.TEXT_NODE) {
@@ -268,7 +413,7 @@ export const mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets = (
   root: HTMLElement | null,
   offsets: { startOffset: number; endOffset: number } | null | undefined,
 ): { startOffset: number; endOffset: number } | null => {
-  if (!root || !offsets || !root.querySelector(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)) return offsets || null
+  if (!root || !offsets || !root.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) return offsets || null
   const segments = readInlineMediaOffsetSegments(root)
   return {
     startOffset: mapVisibleOffsetToMarkdownOffset(segments, offsets.startOffset),
