@@ -47,9 +47,50 @@ test("probe.generate recalls scoped exemplars and does not mutate the markdown g
   assert.equal(result.options.length, 2);
   assert.equal(result.options[0].text, "What information is still missing?");
   assert.equal(result.recalled_exemplars.length, 1);
+  assert.equal(result.token_budget.within_budget, true);
   assert.equal(result.degraded, true);
   assert.equal(result.stateGraph.checkpointer, "markdown-graph-store");
   assert.equal(await fs.readFile(path.join(storeDir, "sentinel.txt"), "utf8"), "before");
+});
+
+test("probe.generate enforces token budget before local model invocation", async () => {
+  const rootDir = await tempRoot();
+  await fs.mkdir(path.join(rootDir, "data/memory-layer"), { recursive: true });
+  await fs.writeFile(path.join(rootDir, "data/memory-layer/local-memory-store.json"), JSON.stringify({
+    version: "knowgrph-memory-store/v0.1",
+    updated_at: "2026-07-07T00:00:00.000Z",
+    memories: [{
+      id: "mem-1",
+      memory: "Probe exemplar ".repeat(200),
+      scope: { app_id: "knowgrph-probe-tree" },
+      categories: ["probe-tree"],
+      metadata: { recommended_question: "What information is still missing?" },
+      created_at: "2026-07-07T00:00:00.000Z",
+      updated_at: "2026-07-07T00:00:00.000Z",
+    }],
+  }, null, 2), "utf8");
+  let called = false;
+
+  const result = await generateProbeOptions({
+    thread_root_id: "budgeted",
+    current_node_id: "root",
+    context_text: "x".repeat(2000),
+    k: 4,
+    token_budget: 10,
+  }, {
+    rootDir,
+    env: { KNOWGRPH_PROBE_TREE_MODEL: "qwen-local" },
+    fetchImpl: async () => {
+      called = true;
+      throw new Error("unexpected model call");
+    },
+  });
+
+  assert.equal(called, false);
+  assert.equal(result.degraded, true);
+  assert.equal(result.degraded_reason, "token_budget_ceiling");
+  assert.equal(result.token_budget.within_budget, false);
+  assert.equal(result.recalled_exemplars.length, 0);
 });
 
 test("probe.generate uses host-owned Ollama adapter when configured and keeps cost local-zero", async () => {
@@ -134,6 +175,9 @@ test("probe.select persists a child node with branches-to edge and leaves parent
 
 test("probe.evolve scores resolved path and writes a reusable memory exemplar", async () => {
   const rootDir = await tempRoot();
+  const rootPath = path.join(rootDir, "data/probe-tree/threads/thread-b/nodes/root.md");
+  await fs.mkdir(path.dirname(rootPath), { recursive: true });
+  await fs.writeFile(rootPath, "---\nid: \"root\"\nstatus: \"active\"\nscore: 0\n---\n\n# Root\n", "utf8");
   const first = await selectProbeOption({
     thread_root_id: "thread-b",
     parent_node_id: "root",
@@ -153,7 +197,8 @@ test("probe.evolve scores resolved path and writes a reusable memory exemplar", 
   }, { rootDir });
 
   assert.equal(result.ok, true);
-  assert.equal(result.updated_scores.length, 2);
+  assert.equal(result.updated_scores.length, 3);
+  assert.equal(result.complete_path_scored, true);
   assert.ok(result.updated_scores.every((entry) => entry.score > 0));
   assert.match(result.exemplar_id, /^kgmem_/);
 
@@ -164,6 +209,32 @@ test("probe.evolve scores resolved path and writes a reusable memory exemplar", 
   const memoryStore = JSON.parse(await fs.readFile(path.join(rootDir, "data/memory-layer/local-memory-store.json"), "utf8"));
   assert.equal(memoryStore.memories.length, 1);
   assert.equal(memoryStore.memories[0].metadata.terminal_node_id, second.new_node_id);
+});
+
+test("probe.evolve rejects incomplete parent checkpoints unless explicitly partial", async () => {
+  const rootDir = await tempRoot();
+  const selected = await selectProbeOption({
+    thread_root_id: "thread-c",
+    parent_node_id: "missing-root",
+    chosen_option: { id: "o1", text: "What information is still missing?", rationale: "gap" },
+    terminal: true,
+  }, { rootDir });
+
+  await assert.rejects(
+    () => evolveProbeTree({
+      thread_root_id: "thread-c",
+      terminal_node_id: selected.new_node_id,
+    }, { rootDir }),
+    /missing parent node\(s\): missing-root/,
+  );
+
+  const partial = await evolveProbeTree({
+    thread_root_id: "thread-c",
+    terminal_node_id: selected.new_node_id,
+    allow_partial_path: true,
+  }, { rootDir });
+  assert.equal(partial.complete_path_scored, false);
+  assert.deepEqual(partial.unscored_parent_node_ids, ["missing-root"]);
 });
 
 test("local MCP descriptors expose the probe-tree tools with mutation annotations", () => {

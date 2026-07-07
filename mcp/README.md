@@ -137,9 +137,10 @@ Canonical local tool inventory owner:
    - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
    - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
 10. Probe-tree tools
-   - `knowgrph.probe.generate` recalls scoped resolved-path exemplars and returns at most four typed candidate next questions without mutating the current node
+   - `knowgrph.probe.generate` recalls scoped resolved-path exemplars and returns at most four typed candidate next questions without mutating the current node; `token_budget` is enforced before a local model call, trimming recalled exemplars first and degrading to local heuristic options when the request would exceed budget
    - `knowgrph.probe.select` persists a user-selected option as a fresh `type: probe` markdown node with an embedded `branches-to` edge and checkpoint fork metadata under `data/probe-tree`
-   - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer
+   - `knowgrph.probe.select` output is frontmatter-flow parseable, so the existing canvas/sync parser can project the new `type: probe` node and `branches-to` edge without a probe-specific renderer
+   - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer; incomplete parent paths are surfaced unless `allow_partial_path` is explicitly set
    - `knowgrph.probe.generate` can call a host-owned local Ollama runtime when `KNOWGRPH_PROBE_TREE_MODEL` is set; it uses non-streaming structured JSON output and falls back to local heuristic options when the adapter is unconfigured or fails
    - The local runtime keeps markdown as the graph SSOT; native LangGraph checkpoint persistence remains a follow-on adapter path rather than a second datastore
 11. `knowgrph.vdeoxpln.list`
@@ -226,7 +227,7 @@ Then you can call:
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 - `knowgrph.superagent.run` with `{ "inputPath": "docs/documents/my-input.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Build a production-ready agent app with frontend, backend, live evidence, and approval-gated actions", "consumerRepoPath": "../strybldr", "consumerRepo": "strybldr", "allowExternalRepo": true, "lanes": ["market_radar", "browser_evidence", "market_to_artifact", "learning_loop", "starter_repo"], "writeArtifacts": false }`
-- `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3 }`
+- `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3, "token_budget": 1200 }`
 - `knowgrph.probe.select` with `{ "thread_root_id": "support-intake", "parent_node_id": "root", "chosen_option": { "id": "o1", "text": "Which constraint matters most right now?", "rationale": "Narrow the branch before handoff" } }`
 - `knowgrph.probe.evolve` with `{ "thread_root_id": "support-intake", "terminal_node_id": "probe_node_...", "rating": 1 }`
 - `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Create a starter repository plan for a secured React frontend connected to an AI-agent backend", "runId": "agentic-os-starter-dry-run", "writeArtifacts": true, "iac": "cdk" }`

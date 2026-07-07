@@ -10,6 +10,8 @@ export const PROBE_TREE_DEFAULTS = Object.freeze({
   optionCount: 3,
   maxOptionCount: 4,
   recallTopK: 5,
+  tokenBudget: 1200,
+  optionCompletionTokenEstimate: 64,
   maxDepth: 8,
   appMemoryScope: "knowgrph-probe-tree",
 });
@@ -48,6 +50,7 @@ export const PROBE_GENERATE_INPUT_SCHEMA = Object.freeze({
     context_text: { type: "string" },
     k: { type: "integer", minimum: 1, maximum: PROBE_TREE_DEFAULTS.maxOptionCount, default: PROBE_TREE_DEFAULTS.optionCount },
     recall_top_k: { type: "integer", minimum: 0, maximum: 20, default: PROBE_TREE_DEFAULTS.recallTopK },
+    token_budget: { type: "integer", minimum: 1, default: PROBE_TREE_DEFAULTS.tokenBudget },
     graph_store_dir: { type: "string" },
   },
 });
@@ -75,6 +78,7 @@ export const PROBE_EVOLVE_INPUT_SCHEMA = Object.freeze({
     terminal_node_id: { type: "string" },
     resolved: { type: "boolean", default: true },
     rating: { type: "number", minimum: 0, maximum: 1 },
+    allow_partial_path: { type: "boolean", default: false },
     graph_store_dir: { type: "string" },
   },
 });
@@ -89,6 +93,7 @@ export const PROBE_GENERATE_OUTPUT_SCHEMA = Object.freeze({
     options: { type: "array", items: optionSchema },
     degraded: { type: "boolean" },
     recalled_exemplars: { type: "array", items: { type: "object", additionalProperties: true } },
+    token_budget: { type: "object", additionalProperties: true },
     cost_log: costLogSchema,
   },
 });
@@ -116,5 +121,7 @@ export const PROBE_EVOLVE_OUTPUT_SCHEMA = Object.freeze({
     ok: { type: "boolean" },
     updated_scores: { type: "array", items: { type: "object", additionalProperties: true } },
     exemplar_id: { type: "string" },
+    complete_path_scored: { type: "boolean" },
+    unscored_parent_node_ids: { type: "array", items: { type: "string" } },
   },
 });

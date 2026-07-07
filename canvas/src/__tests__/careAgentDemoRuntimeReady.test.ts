@@ -116,6 +116,9 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   if (probeProof.generate_mutates_graph !== false || probeProof.select_writes_type_probe_node !== true) {
     throw new Error(`expected probe-tree proof to preserve generate/select mutation contract, got ${JSON.stringify(probeProof)}`)
   }
+  if (probeProof.select_frontmatter_flow_canvas_sync !== true || probeProof.token_budget_ceiling_enforced !== true) {
+    throw new Error(`expected probe-tree proof to include canvas sync and token-budget checks, got ${JSON.stringify(probeProof)}`)
+  }
   if (probeProof.native_checkpointer_datastore !== false || probeProof.paid_call_count !== 0) {
     throw new Error(`expected probe-tree proof to avoid second datastore and paid calls, got ${JSON.stringify(probeProof)}`)
   }
@@ -176,6 +179,9 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   }
   if (!checks.includes('mcp.probeTree.runtime')) {
     throw new Error('expected runtime_proof.focused_checks to include mcp.probeTree.runtime')
+  }
+  if (!checks.includes('probeTree.select.frontmatterFlowCanvasSync')) {
+    throw new Error('expected runtime_proof.focused_checks to include probeTree.select.frontmatterFlowCanvasSync')
   }
   if (runtimeProof.prod_mirror_mutated !== false || runtimeProof.cloudflare_deploy_mutated !== false) {
     throw new Error(`expected runtime proof to preserve deploy boundary, got ${JSON.stringify(runtimeProof)}`)

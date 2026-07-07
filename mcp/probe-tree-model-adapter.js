@@ -62,7 +62,7 @@ const optionFormatSchema = Object.freeze({
   required: ["options"],
 });
 
-const buildPrompt = ({ contextText, recalledExemplars, k }) => [
+export const buildProbeModelPrompt = ({ contextText, recalledExemplars, k }) => [
   "Generate concise candidate next questions for a branching probe-tree.",
   "Return JSON only with shape {\"options\":[{\"text\":\"...\",\"rationale\":\"...\"}]}",
   `Return at most ${k} options.`,
@@ -114,7 +114,7 @@ export async function generateProbeOptionsWithLocalModel({ contextText, recalled
         options: { temperature: 0 },
         messages: [
           { role: "system", content: "You produce strict JSON for a local Knowgrph probe-tree agent." },
-          { role: "user", content: buildPrompt({ contextText, recalledExemplars, k }) },
+          { role: "user", content: buildProbeModelPrompt({ contextText, recalledExemplars, k }) },
         ],
       }),
     });

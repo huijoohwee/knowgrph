@@ -11,7 +11,8 @@ import {
   addMemoryLayerMemory,
   searchMemoryLayerMemories,
 } from "./memory-layer-runtime.js";
-import { generateProbeOptionsWithLocalModel } from "./probe-tree-model-adapter.js";
+import { estimateMemoryTokens } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
+import { buildProbeModelPrompt, generateProbeOptionsWithLocalModel } from "./probe-tree-model-adapter.js";
 
 const STORE_SCHEMA = "kgc-computing-flow/v1";
 const NODE_TYPE = "probe";
@@ -33,6 +34,17 @@ const zeroCostLog = (model = "none") => ({
   completion_tokens: 0,
   cache_hits: 0,
   estimated_cost_usd: 0,
+});
+
+const estimateCompletionTokens = (k) => k * PROBE_TREE_DEFAULTS.optionCompletionTokenEstimate;
+
+const buildTokenBudgetReport = ({ tokenBudget, promptTokens, completionTokens, recalledCount }) => ({
+  budget: tokenBudget,
+  estimated_prompt_tokens: promptTokens,
+  estimated_completion_tokens: completionTokens,
+  estimated_total_tokens: promptTokens + completionTokens,
+  recalled_exemplar_count: recalledCount,
+  within_budget: promptTokens + completionTokens <= tokenBudget,
 });
 
 const defaultGraphStoreDir = (rootDir) => path.join(rootDir, "data", "probe-tree");
@@ -207,6 +219,25 @@ const buildOptions = ({ contextText, generatedOptions = [], memories, k }) => {
   return options;
 };
 
+const fitRecalledExemplarsToBudget = ({ contextText, recalledExemplars, k, tokenBudget }) => {
+  const completionTokens = estimateCompletionTokens(k);
+  const selected = [...recalledExemplars];
+  let promptTokens = estimateMemoryTokens(buildProbeModelPrompt({ contextText, recalledExemplars: selected, k }));
+  while (selected.length && promptTokens + completionTokens > tokenBudget) {
+    selected.pop();
+    promptTokens = estimateMemoryTokens(buildProbeModelPrompt({ contextText, recalledExemplars: selected, k }));
+  }
+  return {
+    recalledExemplars: selected,
+    report: buildTokenBudgetReport({
+      tokenBudget,
+      promptTokens,
+      completionTokens,
+      recalledCount: selected.length,
+    }),
+  };
+};
+
 export async function generateProbeOptions(input = {}, options = {}) {
   const startedAt = performance.now();
   const threadRootId = normalizeString(input.thread_root_id);
@@ -215,6 +246,7 @@ export async function generateProbeOptions(input = {}, options = {}) {
   if (!currentNodeId) throw new Error("current_node_id is required.");
   const k = Math.max(1, Math.min(PROBE_TREE_DEFAULTS.maxOptionCount, Math.floor(Number(input.k) || PROBE_TREE_DEFAULTS.optionCount)));
   const recallTopK = Math.max(0, Math.min(20, Math.floor(Number(input.recall_top_k) || PROBE_TREE_DEFAULTS.recallTopK)));
+  const tokenBudget = Math.max(1, Math.floor(Number(input.token_budget) || PROBE_TREE_DEFAULTS.tokenBudget));
   const contextText = normalizeString(input.context_text) || `${threadRootId} ${currentNodeId}`;
   const memoryResult = recallTopK > 0
     ? await searchMemoryLayerMemories({
@@ -223,23 +255,29 @@ export async function generateProbeOptions(input = {}, options = {}) {
       top_k: recallTopK,
     }, { rootDir: options.rootDir })
     : { results: [] };
-  const recalledExemplars = Array.isArray(memoryResult.results) ? memoryResult.results : [];
+  const recalledCandidates = Array.isArray(memoryResult.results) ? memoryResult.results : [];
+  const budgetedRecall = fitRecalledExemplarsToBudget({ contextText, recalledExemplars: recalledCandidates, k, tokenBudget });
+  const recalledExemplars = budgetedRecall.recalledExemplars;
   let modelResult = { configured: false, reason: "model_not_configured", options: [], costLog: null };
-  try {
-    modelResult = await generateProbeOptionsWithLocalModel({
-      contextText,
-      recalledExemplars,
-      k,
-      env: options.env || process.env,
-      fetchImpl: options.fetchImpl || fetch,
-    });
-  } catch (error) {
-    modelResult = {
-      configured: true,
-      reason: error instanceof Error ? error.message : String(error),
-      options: [],
-      costLog: null,
-    };
+  if (budgetedRecall.report.within_budget) {
+    try {
+      modelResult = await generateProbeOptionsWithLocalModel({
+        contextText,
+        recalledExemplars,
+        k,
+        env: options.env || process.env,
+        fetchImpl: options.fetchImpl || fetch,
+      });
+    } catch (error) {
+      modelResult = {
+        configured: true,
+        reason: error instanceof Error ? error.message : String(error),
+        options: [],
+        costLog: null,
+      };
+    }
+  } else {
+    modelResult = { configured: false, reason: "token_budget_ceiling", options: [], costLog: null };
   }
   const resultOptions = buildOptions({ contextText, generatedOptions: modelResult.options, memories: recalledExemplars, k });
   const modelConfigured = modelResult.configured === true;
@@ -251,6 +289,7 @@ export async function generateProbeOptions(input = {}, options = {}) {
     current_node_id: currentNodeId,
     options: resultOptions,
     recalled_exemplars: recalledExemplars,
+    token_budget: budgetedRecall.report,
     model_adapter: {
       provider: modelResult.provider || "",
       model: modelResult.model || "",
@@ -337,6 +376,7 @@ const findResolvedPath = (nodes, terminalNodeId) => {
     : nodes.find((node) => ["resolved", "terminal"].includes(normalizeString(node.frontmatter.status)));
   if (!terminal) throw new Error("No resolved probe node found. Pass terminal_node_id or mark a selected node terminal.");
   const pathNodes = [];
+  const unscoredParentNodeIds = [];
   const seen = new Set();
   let cursor = terminal;
   while (cursor) {
@@ -345,9 +385,14 @@ const findResolvedPath = (nodes, terminalNodeId) => {
     seen.add(id);
     pathNodes.unshift(cursor);
     const parentId = normalizeString(cursor.frontmatter.parent_node_id);
-    cursor = parentId ? byId.get(parentId) : null;
+    if (!parentId) {
+      cursor = null;
+    } else {
+      cursor = byId.get(parentId);
+      if (!cursor) unscoredParentNodeIds.push(parentId);
+    }
   }
-  return pathNodes;
+  return { pathNodes, unscoredParentNodeIds };
 };
 
 const scoreForPathNode = ({ index, length, resolved, rating }) => {
@@ -362,7 +407,11 @@ export async function evolveProbeTree(input = {}, options = {}) {
   if (!threadRootId) throw new Error("thread_root_id is required.");
   const rootDir = options.rootDir || process.cwd();
   const nodes = await listProbeNodes({ rootDir, graphStoreDir: input.graph_store_dir, threadRootId });
-  const pathNodes = findResolvedPath(nodes, normalizeString(input.terminal_node_id));
+  const path = findResolvedPath(nodes, normalizeString(input.terminal_node_id));
+  if (path.unscoredParentNodeIds.length && input.allow_partial_path !== true) {
+    throw new Error(`Resolved probe path is incomplete; missing parent node(s): ${path.unscoredParentNodeIds.join(", ")}.`);
+  }
+  const pathNodes = path.pathNodes;
   const resolved = input.resolved !== false;
   const updatedScores = [];
   for (let index = 0; index < pathNodes.length; index += 1) {
@@ -391,6 +440,8 @@ export async function evolveProbeTree(input = {}, options = {}) {
     updated_scores: updatedScores,
     exemplar_id: memory.memory_ids?.[0] || "",
     path_node_ids: pathNodes.map((node) => normalizeString(node.frontmatter.id)),
+    complete_path_scored: path.unscoredParentNodeIds.length === 0,
+    unscored_parent_node_ids: path.unscoredParentNodeIds,
     stateGraph: buildProbeTreeStateGraphDefinition(),
     cost_log: zeroCostLog(),
   };
