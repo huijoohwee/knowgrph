@@ -307,10 +307,11 @@ export default function SettingsView({
     return (
       <SourceFileManagementSettingsRows
         normalizedQuery={normalizedQuery}
+        setValues={setValues}
         values={values}
       />
     )
-  }, [normalizedQuery, shouldRenderSourceFileManagementRows, values])
+  }, [normalizedQuery, setValues, shouldRenderSourceFileManagementRows, values])
   return (
     <article className="min-h-full flex flex-col space-y-0">
       <input

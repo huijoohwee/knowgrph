@@ -1399,7 +1399,7 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   if (!settingsViewText.includes('getAreaIntroItemCount={getSettingsAreaIntroItemCount}')) {
     throw new Error('Expected MainPanel Settings section counts to include Source File Management lead rows')
   }
-  if (!sourceFileRowsText.includes('SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 5')) {
+  if (!sourceFileRowsText.includes('SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 7')) {
     throw new Error('Expected Source File Management lead row count to stay owned by the rows module')
   }
   if (!sourceFileRowsText.includes("from 'grph-shared/react/keyTypeValueRow'")) {
@@ -1417,11 +1417,8 @@ export const testMainPanelSettingsSurfacesSourceFileManagementContract = () => {
   if (!sourceFileRowsText.includes('scheduleApplyComposedGraphFromSourceFiles()')) {
     throw new Error('Expected Source File Management settings rows to reuse the canonical passive Source Files recomposition scheduler')
   }
-  if (!sourceFileRowsText.includes('Import local files remains an explicit manual action')) {
-    throw new Error('Expected Source File Management settings rows to document the manual-only local import boundary')
-  }
-  if (sourceFileRowsText.includes('importLocalFiles') || sourceFileRowsText.includes('openFilePicker')) {
-    throw new Error('Expected Source File Management settings rows to avoid hidden Import local files actions')
+  if (!sourceFileRowsText.includes('Import local files remains an explicit manual action') || !sourceFileRowsText.includes('Select folder') || !sourceFileRowsText.includes('Select files') || !sourceFileRowsText.includes('Automatic') || !sourceFileRowsText.includes('Manual')) {
+    throw new Error('Expected Source File Management settings rows to expose explicit local selection and automatic/manual sync controls')
   }
   if (!collapseStateText.includes('requestMarkdownExplorerSourceFilesOpen')) {
     throw new Error('Expected markdown explorer collapse state to expose a source-owned Source Files open request')

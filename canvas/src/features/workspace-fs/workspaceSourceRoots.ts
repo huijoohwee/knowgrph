@@ -3,11 +3,17 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
-export const DEFAULT_WORKSPACE_SOURCE_ROOT_PATHS: WorkspacePath[] = ['/docs', CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT]
+export const WORKSPACE_DOCS_SOURCE_ROOT_PATH = '/docs' as WorkspacePath
+export const WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH = '/agentic-os-docs' as WorkspacePath
+export const DEFAULT_WORKSPACE_SOURCE_ROOT_PATHS: WorkspacePath[] = [
+  WORKSPACE_DOCS_SOURCE_ROOT_PATH,
+  WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH,
+  CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
+]
 
 function readWorkspaceConfiguredDocsMirrorRootPath(): WorkspacePath {
   const configured = normalizeWorkspacePath(readWorkspaceImportShareExportRootPathSetting() as WorkspacePath)
-  if (!configured || configured === '/') return '/docs'
+  if (!configured || configured === '/') return WORKSPACE_DOCS_SOURCE_ROOT_PATH
   return configured
 }
 
@@ -20,7 +26,12 @@ export function resolveWorkspaceSourceRootPaths(args?: {
   const docsRoot = readWorkspaceConfiguredDocsMirrorRootPath()
   const unique = new Set<string>()
   const ordered: WorkspacePath[] = []
-  for (const candidate of [docsRoot, '/docs', chatRoot]) {
+  for (const candidate of [
+    docsRoot,
+    WORKSPACE_DOCS_SOURCE_ROOT_PATH,
+    WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH,
+    chatRoot,
+  ]) {
     const normalized = normalizeWorkspacePath(candidate as WorkspacePath)
     if (!normalized || normalized === '/') continue
     if (unique.has(normalized)) continue

@@ -4,13 +4,20 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestMarkdownExplorerSourceFilesOpen } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { LS_KEYS } from '@/lib/config'
 import { lsRemove } from '@/lib/persistence'
-import { readWorkspaceDocsMirrorRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
+import {
+  readWorkspaceDocsMirrorRootPathSetting,
+  writeWorkspaceAutoRefreshEnabledSetting,
+  writeWorkspaceSeedSyncEnabledSetting,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui/sectionChipChrome'
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
+import { openLocalMarkdownFolder, syncLocalMarkdownFolderToSourceFiles } from '@/features/source-files/localMarkdownFolder'
+import { importSelectedSourceFiles } from '@/features/source-files/importSelectedSourceFiles'
+import { SOURCE_FILES_FORMATS } from '@/lib/config.copy'
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
@@ -20,6 +27,10 @@ const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'local docs mirror',
   'configured docs root',
   'manual import local files',
+  'select source files folder',
+  'select source files files',
+  'automatic sync',
+  'manual sync',
   'docs mirror contract',
   'storage defaults',
   'source mix',
@@ -28,14 +39,16 @@ const SOURCE_FILE_MANAGEMENT_SEARCH_INDEX = [
   'workspace import default source url',
 ].join(' ')
 
-export const SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 5
+export const SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT = 7
 
 const SOURCE_FILE_MANAGEMENT_ROW_ANCHORS = {
   actions: buildSettingsRowAnchorId('source-file-management-row', 'actions'),
   contract: buildSettingsRowAnchorId('source-file-management-row', 'contract'),
   counts: buildSettingsRowAnchorId('source-file-management-row', 'counts'),
+  selection: buildSettingsRowAnchorId('source-file-management-row', 'selection'),
   sources: buildSettingsRowAnchorId('source-file-management-row', 'sources'),
   storage: buildSettingsRowAnchorId('source-file-management-row', 'storage'),
+  sync: buildSettingsRowAnchorId('source-file-management-row', 'sync'),
 } as const
 const SOURCE_FILE_ROW_VALUE_CLASS_NAME = `${uiToolbarRowScrollClassName} flex-1 gap-1`
 const SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME = `min-w-0 max-w-full ${UI_TEXT_TRUNCATE} ${UI_THEME_TOKENS.text.secondary}`
@@ -48,6 +61,7 @@ export const matchesSourceFileManagementQuery = (query: string): boolean => {
 
 type SourceFileManagementSettingsRowsProps = {
   normalizedQuery: string
+  setValues?: React.Dispatch<React.SetStateAction<Record<string, string | number | boolean>>>
   values: Record<string, string | number | boolean>
 }
 
@@ -97,6 +111,7 @@ function SourceFileSettingsActionButton({
 
 export function SourceFileManagementSettingsRows({
   normalizedQuery,
+  setValues,
   values,
 }: SourceFileManagementSettingsRowsProps) {
   const sourceFiles = useGraphStore(s => s.sourceFiles)
@@ -104,6 +119,7 @@ export function SourceFileManagementSettingsRows({
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [isRestoringDefaults, setIsRestoringDefaults] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const shouldShow = matchesSourceFileManagementQuery(normalizedQuery)
   const docsMirrorRootPath = String(values['workspace.sync.docsMirror.rootPath'] || readWorkspaceDocsMirrorRootPathSetting() || '').trim()
@@ -111,6 +127,10 @@ export function SourceFileManagementSettingsRows({
   const seedSync = readBooleanValue(values, 'workspace.sync.seed.enabled', true)
   const autoRefresh = readBooleanValue(values, 'workspace.sync.autoRefresh.enabled', true)
   const defaultSourceUrl = String(values['workspace.import.defaultSourceUrl'] || '').trim()
+  const syncMode = seedSync && autoRefresh ? 'automatic' : 'manual'
+  const folderName = useGraphStore(s => s.localMarkdownFolderName)
+  const folderAccessMode = useGraphStore(s => s.localMarkdownFolderAccessMode)
+  const folderCacheId = useGraphStore(s => s.localMarkdownFolderCacheId)
 
   const summary = React.useMemo(() => {
     const list = Array.isArray(sourceFiles) ? sourceFiles : []
@@ -153,6 +173,98 @@ export function SourceFileManagementSettingsRows({
     requestMarkdownExplorerSourceFilesOpen()
     openMarkdownWorkspaceEditorPane(useGraphStore.getState())
   }, [])
+
+  const syncSelectedFolder = React.useCallback(async () => {
+    try {
+      await syncLocalMarkdownFolderToSourceFiles()
+      pushUiToast({
+        id: `source-files-folder-refresh-${Date.now().toString(36)}`,
+        kind: 'success',
+        message: 'Refreshed selected Source Files folder.',
+        ttlMs: 2600,
+        dismissible: true,
+      })
+    } catch (err) {
+      pushUiToast({
+        id: 'source-files-folder-refresh-failed',
+        kind: 'error',
+        message: err instanceof Error ? err.message : 'Failed to refresh selected Source Files folder.',
+        ttlMs: 5000,
+        dismissible: true,
+      })
+    }
+  }, [pushUiToast])
+
+  const selectSourceFilesFolder = React.useCallback(async () => {
+    const opened = await openLocalMarkdownFolder()
+    if (opened) openSourceFiles()
+  }, [openSourceFiles])
+
+  const selectSourceFiles = React.useCallback(() => {
+    const input = fileInputRef.current
+    if (!input) return
+    try {
+      const anyInput = input as unknown as { showPicker?: () => void }
+      if (typeof anyInput.showPicker === 'function') {
+        anyInput.showPicker()
+        return
+      }
+    } catch {
+      void 0
+    }
+    input.click()
+  }, [])
+
+  const importSourceFiles = React.useCallback(async (files: FileList | null) => {
+    try {
+      const count = await importSelectedSourceFiles(files)
+      if (count > 0) {
+        openSourceFiles()
+        pushUiToast({
+          id: `source-files-selected-imported-${Date.now().toString(36)}`,
+          kind: 'success',
+          message: `Imported ${count} selected Source Files.`,
+          ttlMs: 2600,
+          dismissible: true,
+        })
+      }
+    } catch (err) {
+      pushUiToast({
+        id: 'source-files-selected-import-failed',
+        kind: 'error',
+        message: err instanceof Error ? err.message : 'Failed to import selected Source Files.',
+        ttlMs: 5000,
+        dismissible: true,
+      })
+    }
+  }, [openSourceFiles, pushUiToast])
+
+  const setSourceFilesSyncMode = React.useCallback(async (mode: 'automatic' | 'manual') => {
+    const automatic = mode === 'automatic'
+    writeWorkspaceSeedSyncEnabledSetting(automatic)
+    writeWorkspaceAutoRefreshEnabledSetting(automatic)
+    setValues?.(prev => ({
+      ...prev,
+      'workspace.sync.seed.enabled': automatic,
+      'workspace.sync.autoRefresh.enabled': automatic,
+    }))
+    if (automatic) {
+      try {
+        const mod = (await import('@/features/workspace-fs/workspaceFs')) as typeof import('@/features/workspace-fs/workspaceFs')
+        const fs = await mod.getWorkspaceFs()
+        await fs.ensureSeed()
+      } catch {
+        void 0
+      }
+    }
+    pushUiToast({
+      id: `source-files-sync-mode-${mode}`,
+      kind: 'neutral',
+      message: `Source Files sync: ${automatic ? 'automatic' : 'manual'}.`,
+      ttlMs: 2400,
+      dismissible: true,
+    })
+  }, [pushUiToast, setValues])
 
   const recomposeSourceFiles = React.useCallback(async () => {
     try {
@@ -245,6 +357,63 @@ export function SourceFileManagementSettingsRows({
           valueNode={(
             <section className={SOURCE_FILE_ROW_DESCRIPTION_CLASS_NAME}>
               Automated defaults hydrate Source Files from the configured docs mirror. Import local files remains an explicit manual action, not a hidden bootstrap path.
+            </section>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.selection}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.selection}
+          keyNode="Folder / file selection"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>input</span>}
+          valueNode={(
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileSettingsActionButton onClick={() => { void selectSourceFilesFolder() }}>
+                Select folder
+              </SourceFileSettingsActionButton>
+              <SourceFileSettingsActionButton onClick={selectSourceFiles}>
+                Select files
+              </SourceFileSettingsActionButton>
+              <SourceFileSettingsActionButton onClick={() => { void syncSelectedFolder() }}>
+                Refresh selected
+              </SourceFileSettingsActionButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={SOURCE_FILES_FORMATS.importLocalText.join(',')}
+                className="hidden"
+                onChange={event => {
+                  const files = event.currentTarget.files
+                  void importSourceFiles(files)
+                  event.currentTarget.value = ''
+                }}
+              />
+              <SourceFileValuePill>Folder: {folderName || folderCacheId || 'none'}</SourceFileValuePill>
+              <SourceFileValuePill>Access: {folderAccessMode || 'none'}</SourceFileValuePill>
+            </section>
+          )}
+          align="start"
+        />
+      </li>
+      <li>
+        <KeyTypeValueRow
+          id={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.sync}
+          dataKgAnchor={SOURCE_FILE_MANAGEMENT_ROW_ANCHORS.sync}
+          keyNode="Sync mode"
+          typeNode={<span className={UI_THEME_TOKENS.text.secondary}>control</span>}
+          valueNode={(
+            <section className={SOURCE_FILE_ROW_VALUE_CLASS_NAME}>
+              <SourceFileSettingsActionButton primary={syncMode === 'automatic'} onClick={() => { void setSourceFilesSyncMode('automatic') }}>
+                Automatic
+              </SourceFileSettingsActionButton>
+              <SourceFileSettingsActionButton primary={syncMode === 'manual'} onClick={() => { void setSourceFilesSyncMode('manual') }}>
+                Manual
+              </SourceFileSettingsActionButton>
+              <SourceFileValuePill>Default: automatic</SourceFileValuePill>
+              <SourceFileValuePill>Mode: {syncMode}</SourceFileValuePill>
             </section>
           )}
           align="start"

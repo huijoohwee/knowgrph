@@ -11,6 +11,7 @@ import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, 
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
 import { isWorkspaceDocsMirrorGitHubSourceUrl, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
+import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000
@@ -147,6 +148,9 @@ const splitSafeMirrorSegments = (value: string): string[] => {
 const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readWorkspaceDocsMirrorRootPathSetting())
 }
+
+const readWorkspaceInitializationAgenticOsDocsAbsRoot = (): string =>
+  readWorkspaceMirrorBaseAbsRoot() ? `${readWorkspaceMirrorBaseAbsRoot()}/agentic-os-docs` : ''
 
 const readWorkspaceInitializationChatLogAbsRoot = (): string => {
   const explicit = normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT', ''))
@@ -1526,18 +1530,13 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
   const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
   if (docsAbsRoot) {
-    const browserLikeRuntime = typeof window !== 'undefined'
-    const viaProxy = await readWorkspaceDocsMirrorEntriesViaProxy(docsAbsRoot)
-    if (viaProxy.length > 0) {
-      if (!preferCompleteDataset || browserLikeRuntime) return viaProxy
-      completeDatasetCandidates.push(viaProxy)
-    }
-    if (!browserLikeRuntime || viaProxy.length === 0) {
-      const viaNodeFs = await readWorkspaceDocsMirrorEntriesViaNodeFs(docsAbsRoot)
-      if (viaNodeFs.length > 0) {
-        if (!preferCompleteDataset) return viaNodeFs
-        completeDatasetCandidates.push(viaNodeFs)
-      }
+    const rootMirrorEntries = [
+      ...await readWorkspaceMirrorRootEntries({ absRoot: docsAbsRoot, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
+      ...await readWorkspaceMirrorRootEntries({ absRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot(), workspaceRootName: 'agentic-os-docs', readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
+    ]
+    if (rootMirrorEntries.length > 0) {
+      if (!preferCompleteDataset) return rootMirrorEntries
+      completeDatasetCandidates.push(rootMirrorEntries)
     }
   }
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {

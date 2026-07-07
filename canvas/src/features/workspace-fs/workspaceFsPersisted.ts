@@ -49,6 +49,7 @@ const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
   [GEOSPATIAL_WORKSPACE_SEED_PATH, GEOSPATIAL_WORKSPACE_SEED_BASENAME],
 ])
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
+const WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/agentic-os-docs')
 const readChatLocalStorageRootPath = (): WorkspacePath => {
   const value = lsJson<string>(
     LS_KEYS.chatLocalStorageRootPath,
@@ -99,20 +100,14 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
 
 const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
+  if (normalizedRelPath === 'agentic-os-docs' || normalizedRelPath.startsWith('agentic-os-docs/')) return normalizeWorkspacePath(`/${normalizedRelPath}`)
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
-const isWorkspaceDocsMirrorPath = (path: WorkspacePath): boolean => {
-  return isWorkspaceUnderRoot(path, WORKSPACE_DOCS_MIRROR_ROOT_PATH)
-}
-
-const isWorkspaceChatMirrorPath = (path: WorkspacePath): boolean => {
-  return isWorkspaceUnderRoot(path, readChatLocalStorageRootPath())
-}
-
-const isWorkspacePersistedMirrorPath = (path: WorkspacePath): boolean => {
-  return isWorkspaceDocsMirrorPath(path) || isWorkspaceChatMirrorPath(path)
-}
+const isWorkspaceDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, WORKSPACE_DOCS_MIRROR_ROOT_PATH)
+const isWorkspaceAgenticOsDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH)
+const isWorkspaceDocsBackedMirrorPath = (path: WorkspacePath): boolean => isWorkspaceDocsMirrorPath(path) || isWorkspaceAgenticOsDocsMirrorPath(path)
+const isWorkspaceChatMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, readChatLocalStorageRootPath())
 
 const scheduleWorkspaceDocsMirrorFolderEnsure = (workspacePath: WorkspacePath): void => {
   if (typeof window === 'undefined') {
@@ -485,7 +480,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
         basename: seedBasename,
         text: nextText,
       })
-    } else if (isWorkspaceDocsMirrorPath(p)) {
+    } else if (isWorkspaceDocsBackedMirrorPath(p)) {
       scheduleWorkspaceDocsMirrorTextUpsert(p, nextText)
     } else if (isWorkspaceChatMirrorPath(p)) {
       void upsertWorkspaceDocsMirrorText({
@@ -516,7 +511,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
-    if (isWorkspaceDocsMirrorPath(path)) {
+    if (isWorkspaceDocsBackedMirrorPath(path)) {
       scheduleWorkspaceDocsMirrorFolderEnsure(path)
     } else if (isWorkspaceChatMirrorPath(path)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: path })
@@ -549,12 +544,12 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
-    if (isWorkspaceDocsMirrorPath(parent)) {
+    if (isWorkspaceDocsBackedMirrorPath(parent)) {
       scheduleWorkspaceDocsMirrorFolderEnsure(parent)
     } else if (isWorkspaceChatMirrorPath(parent)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: parent })
     }
-    if (isWorkspaceDocsMirrorPath(path)) {
+    if (isWorkspaceDocsBackedMirrorPath(path)) {
       scheduleWorkspaceDocsMirrorTextUpsert(path, String(args.text ?? ''))
     } else if (isWorkspaceChatMirrorPath(path)) {
       void upsertWorkspaceDocsMirrorText({
