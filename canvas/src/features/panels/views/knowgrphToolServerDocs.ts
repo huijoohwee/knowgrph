@@ -1,3 +1,4 @@
+import { buildKnowgrphLocalMcpToolNameList } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
@@ -5,22 +6,10 @@ import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 export const KNOWGRPH_TOOL_SERVER_DOC_AREA = 'Knowgrph Tool Servers'
 export const KNOWGRPH_TOOL_SERVER_LOCAL_CONFIG_KEY = 'knowgrphToolServer.config.local_stdio'
 export const KNOWGRPH_TOOL_SERVER_PAGES_CONFIG_KEY = 'knowgrphToolServer.config.pages_http_readonly'
+export const KNOWGRPH_TOOL_SERVER_LIVE_PROOF_KEY = 'knowgrphToolServer.live.stdio_probe'
 export const KNOWGRPH_TOOL_SERVER_KEY = 'knowgrph'
 
 const KNOWGRPH_TOOL_SERVER_KEY_PREFIX = 'knowgrphToolServer.'
-
-const KNOWGRPH_TOOL_GROUPS = [
-  'published Source Files search/fetch',
-  'local Canvas UI launch/stop',
-  'pipeline and GraphRAG pipeline',
-  'SuperAgent and Agentic Canvas OS dry-run planning',
-  'video remix and HTML video render',
-  'browser API bridge',
-  'visual annotation',
-  'memory layer',
-  'probe tree',
-  'vdeoxpln registry',
-] as const
 
 type KnowgrphToolServerDocRow = {
   key: string
@@ -63,6 +52,14 @@ export function buildKnowgrphToolServerPagesHttpConfigJson(): string {
 
 const list = (items: readonly string[]): string => items.join(' | ')
 
+export function buildKnowgrphToolServerLocalToolNamesText(): string {
+  return list(buildKnowgrphLocalMcpToolNameList())
+}
+
+export function buildKnowgrphToolServerLiveReadinessProofText(): string {
+  return 'local stdio proof: MCP SDK Client.connect initializes mcp/server.js, then client.listTools returns the source-derived local tool-name registry'
+}
+
 const KNOWGRPH_TOOL_SERVER_DOC_ROWS: ReadonlyArray<KnowgrphToolServerDocRow> = [
   {
     key: 'server.role',
@@ -88,11 +85,19 @@ const KNOWGRPH_TOOL_SERVER_DOC_ROWS: ReadonlyArray<KnowgrphToolServerDocRow> = [
     searchHints: ['Pages HTTP MCP', 'search', 'fetch', 'read-only'],
   },
   {
-    key: 'tool.groups',
+    key: 'tool.names',
     typeLabel: 'tool list',
-    value: list(KNOWGRPH_TOOL_GROUPS),
-    responsibility: 'Summarize Knowgrph-owned tool groups available through the local stdio server without duplicating tool schemas in MainPanel.',
-    searchHints: [...KNOWGRPH_TOOL_GROUPS],
+    value: buildKnowgrphToolServerLocalToolNamesText(),
+    responsibility: 'Project Knowgrph-owned local stdio tool names from the shared vdeoxpln local MCP registry without duplicating tool schemas in MainPanel.',
+    searchHints: buildKnowgrphLocalMcpToolNameList(),
+  },
+  {
+    key: 'live.stdio_probe',
+    typeLabel: 'runtime',
+    value: buildKnowgrphToolServerLiveReadinessProofText(),
+    responsibility: 'Pin the live readiness gate to stdio initialize plus tools/list discovery against mcp/server.js, not to a browser-only documentation render.',
+    notes: 'The focused MainPanel MCP test starts the local stdio server with placeholder-free host env values and does not call mutating tools.',
+    searchHints: ['live readiness', 'stdio probe', 'Client.connect', 'tools/list', 'mcp/server.js'],
   },
   {
     key: 'discovery.startup',
@@ -170,11 +175,17 @@ export const KNOWGRPH_TOOL_SERVER_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntr
       modules: [
         'mcp/server.js',
         'mcp/local-tool-contract.js',
+        'canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs',
         'canvas/src/features/panels/views/knowgrphToolServerDocs.ts',
         'canvas/src/features/panels/views/settingsMcpDocEntries.ts',
       ],
       classes: ['Knowgrph-owned MCP tools', 'External user connection readiness'],
-      functions: ['buildKnowgrphToolServerLocalStdioConfigJson', 'buildKnowgrphToolServerPagesHttpConfigJson'],
+      functions: [
+        'buildKnowgrphToolServerLocalStdioConfigJson',
+        'buildKnowgrphToolServerPagesHttpConfigJson',
+        'buildKnowgrphToolServerLocalToolNamesText',
+        'buildKnowgrphToolServerLiveReadinessProofText',
+      ],
       imports: [],
     }
     return {

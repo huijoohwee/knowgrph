@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, Agentic Canvas OS dry-run planning, approval-gated video-remix run manifests, local probe-tree branching, local browser API bridge, vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -105,11 +105,10 @@ Canonical local tool inventory owner:
    - Runs: `python -m knowgrph_parser superagent ...`
    - Typical use: run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across `quick_triage`, `bounded_compile`, `deep_research`, and `parallel_build` levels. The run uses native memory, role-scoped subagents, `skill.select`, `research.scout`, `code.write_and_run`, bounded generated-code sandbox artifacts, default `providerMode="byteplus-modelark"` placeholder media metadata, optional deterministic `mock` mode, and Codex-facing BytePlus ModelArk remote MCP guidance for image/audio-in-video/video generation.
    - Emits: `state.json`, `trace.jsonl`, `goal.json`, `harness-proof.json`, `final-report.md`, selected-skill/research/code/sandbox artifacts, `artifacts/canvas/canvas.graph.json`, and `artifacts/workspace/rich-media-flow.md`
-4. `knowgrph.agentic_canvas_os.plan`
-   - Profiles a root-allowlisted repo, or an explicit read-only sibling repo when `allowExternalRepo=true`
-   - Emits a dry-run Agentic Canvas OS dashboard document model plus typed run manifest for repo profile, build plan, tool calls, approval gates, token/TCO budget, adapter readiness, Market Radar, browser evidence, market-to-artifact, Learning Loop, starter-repo blueprint, demo pack, failure handling, and `/goal` coverage lanes
-   - Default behavior writes no files; `writeArtifacts=true` writes only `dashboard.agentic-os.md` and `run-manifest.json` under `KNOWGRPH_ROOT/data/outputs/agentic-canvas-os/<runId>` or another `outputDir` inside `KNOWGRPH_ROOT`
-   - Does not write into the consumer repo, deploy, call paid services, extract credentials, or perform payment actions
+4. SEA-LION sidecar tools
+   - `sealion.detect_language_variant` detects language, regional variant, register, and code-switching before Southeast Asian language routing
+   - `sealion.translate_localize` returns translation plus localization notes through the hosted sidecar with server-owned auth
+   - `sealion.safety_check` returns advisory SEA-Guard safety classification through the same sidecar boundary
 5. `knowgrph.video_remix.run`
    - Produces an approval-gated video-remix run manifest for `referenceUrl`, `brief`, `sourceCards`, budget meters, storyboard flow, render/checkout gates, demo-pack coverage, and bounded failure handling
    - `mode="live"` without approval tokens returns `state="blocked"`, at least five approval gates, zero estimated cost, and no provider execution log entries
@@ -145,7 +144,15 @@ Canonical local tool inventory owner:
    - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer; incomplete parent paths are surfaced unless `allow_partial_path` is explicitly set
    - `knowgrph.probe.generate` can call a host-owned local Ollama runtime when `KNOWGRPH_PROBE_TREE_MODEL` is set; it uses non-streaming structured JSON output and falls back to local heuristic options when the adapter is unconfigured or fails
    - The local runtime keeps markdown as the graph SSOT; native LangGraph checkpoint persistence remains a follow-on adapter path rather than a second datastore
-11. `knowgrph.vdeoxpln.list`
+11. AI Showrunner tools
+   - `knowgrph.showrunner.start_run` validates a Creative_Brief and starts a bounded dry-run or approval-gated Pipeline_Run
+   - `knowgrph.showrunner.run_status` reads lifecycle state without mutating Creative_State
+   - `knowgrph.showrunner.post_choice`, `knowgrph.showrunner.submit_critique`, and `knowgrph.showrunner.approve_stage` route explicit user/operator events through the showrunner message bus
+   - `knowgrph.showrunner.get_artifact` returns a Source_File path for an existing run artifact without triggering new turns
+12. `knowgrph.os.status`
+   - Returns zero-token Agentic OS views for process state, capability catalogs, cost summary, approval gates, and circuit breakers
+   - Optional remote MCP catalog discovery reports unavailable endpoints as status data rather than blocking local stdio readiness
+13. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
@@ -203,22 +210,22 @@ Add a server entry similar to:
 ```json
 {
   "mcpServers": {
-    "api-native-browser-bridge": {
+    "knowgrph": {
       "command": "node",
-      "args": ["/ABS/PATH/TO/LOCAL_MCP_SERVER.js"],
+      "args": ["/ABS/PATH/TO/KNOWGRPH/mcp/server.js"],
       "env": {
-        "KNOWGRPH_ROOT": "/ABS/PATH/TO/WORKSPACE_ROOT",
+        "KNOWGRPH_ROOT": "/ABS/PATH/TO/KNOWGRPH",
         "KNOWGRPH_PYTHON": "/ABS/PATH/TO/PYTHON",
-        "KNOWGRPH_MCP_TIMEOUT_MS": "600000",
-        "KNOWGRPH_MEMORY_STORE_PATH": "data/memory-layer/local-memory-store.json",
-        "KNOWGRPH_BROWSER_API_RUNTIME_URL": "http://localhost:6969",
-        "KNOWGRPH_PROBE_TREE_MODEL": "qwen2.5:14b",
-        "KNOWGRPH_PROBE_TREE_MODEL_URL": "http://127.0.0.1:11434"
+        "KNOWGRPH_MCP_TIMEOUT_MS": "600000"
       }
     }
   }
 }
 ```
+
+Optional tool-specific host env remains server-owned, for example `KNOWGRPH_MEMORY_STORE_PATH`,
+`KNOWGRPH_BROWSER_API_RUNTIME_URL`, `KNOWGRPH_PROBE_TREE_MODEL`, and
+`KNOWGRPH_PROBE_TREE_MODEL_URL`.
 
 Then you can call:
 
@@ -228,11 +235,10 @@ Then you can call:
 - `knowgrph.pipeline` with `{ "mode": "pipeline", "inputPath": "data/outputs/graph.json", "outputDir": "data/outputs" }`
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 - `knowgrph.superagent.run` with `{ "inputPath": "docs/documents/my-input.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
-- `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Build a production-ready agent app with frontend, backend, live evidence, and approval-gated actions", "consumerRepoPath": "../strybldr", "consumerRepo": "strybldr", "allowExternalRepo": true, "lanes": ["market_radar", "browser_evidence", "market_to_artifact", "learning_loop", "starter_repo"], "writeArtifacts": false }`
+- `sealion.detect_language_variant` with `{ "text": "Saya nak buat onboarding agent untuk pengguna Singapura." }`
 - `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3, "token_budget": 1200 }`
 - `knowgrph.probe.select` with `{ "thread_root_id": "support-intake", "parent_node_id": "root", "chosen_option": { "id": "o1", "text": "Which constraint matters most right now?", "rationale": "Narrow the branch before handoff" } }`
 - `knowgrph.probe.evolve` with `{ "thread_root_id": "support-intake", "terminal_node_id": "probe_node_...", "rating": 1 }`
-- `knowgrph.agentic_canvas_os.plan` with `{ "goal": "Create a starter repository plan for a secured React frontend connected to an AI-agent backend", "runId": "agentic-os-starter-dry-run", "writeArtifacts": true, "iac": "cdk" }`
 - `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "budgetUsd": 20 }`
 - `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "approvals": ["paid-model-call", "render-action", "payment-action", "cloud-deploy"], "sourceCards": [{ "url": "https://example.com/a" }, { "url": "https://example.com/b" }, { "url": "https://example.com/c" }] }`
 - `knowgrph.browser_api.run` with `{ "operation": "resolve", "targetUrl": "<TARGET_URL>", "intent": "find the current account profile JSON endpoint" }`
@@ -242,6 +248,8 @@ Then you can call:
 - `knowgrph.memory.add` with `{ "text": "Prefer local-first memory and operator-gated deploys.", "user_id": "runtime-user-id", "metadata": { "memory_key": "deployment-boundary" } }`
 - `knowgrph.memory.search` with `{ "query": "Should deploys happen automatically?", "user_id": "runtime-user-id", "top_k": 3 }`
 - `knowgrph.memory.assemble_prompt` with `{ "base_system_message": "Answer directly.", "memories": [{ "id": "memory-id", "memory": "Prefer local-first memory.", "score": 1, "created_at": "2026-06-13T00:00:00.000Z" }], "max_memory_tokens": 80 }`
+- `knowgrph.showrunner.start_run` with `{ "brief_markdown": "---\\ncontract: knowgrph-showrunner-brief/v1\\n---\\n# Brief\\nDry-run a branching podcast pilot.", "dry_run": true }`
+- `knowgrph.os.status` with `{ "view": "capabilities" }`
 - `knowgrph.vdeoxpln.list` with `{ "includeMarkdown": true }`
 
 ## Relationship to MainPanel MCP

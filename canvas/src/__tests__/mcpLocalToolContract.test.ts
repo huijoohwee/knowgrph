@@ -118,34 +118,7 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     defaultUiPort: 4173,
   })
   const toolNames = tools.map(tool => tool.name)
-  const expectedNames = [
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.search,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.fetch,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiStop,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.graphragPipeline,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.browserApiRun,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.htmlVideoRender,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateImage,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateVideoFrame,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerRunStatus,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerPostChoice,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerSubmitCritique,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerApproveStage,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerGetArtifact,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus,
-    contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
-  ]
+  const expectedNames = Object.values(contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES)
 
   if (JSON.stringify(toolNames) !== JSON.stringify(expectedNames)) {
     throw new Error(`expected stable local MCP tool order, got ${JSON.stringify(toolNames)}`)

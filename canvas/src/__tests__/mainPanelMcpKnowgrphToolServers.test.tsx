@@ -1,12 +1,17 @@
+import path from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import McpHubView from '@/features/panels/views/McpHubView'
 import {
   KNOWGRPH_TOOL_SERVER_DOC_ENTRIES,
   KNOWGRPH_TOOL_SERVER_KEY,
+  KNOWGRPH_TOOL_SERVER_LIVE_PROOF_KEY,
   KNOWGRPH_TOOL_SERVER_LOCAL_CONFIG_KEY,
   KNOWGRPH_TOOL_SERVER_PAGES_CONFIG_KEY,
   buildKnowgrphToolServerLocalStdioConfigJson,
+  buildKnowgrphToolServerLocalToolNamesText,
   buildKnowgrphToolServerPagesHttpConfigJson,
   getKnowgrphToolServerRowAnchorId,
 } from '@/features/panels/views/knowgrphToolServerDocs'
@@ -15,6 +20,9 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  buildKnowgrphLocalMcpToolDefinitions,
+} from '../../../mcp/local-tool-contract.js'
 
 const withRenderedMcpHub = async (assertions: (container: Element) => void): Promise<void> => {
   const storage = new MemoryStorage()
@@ -74,7 +82,8 @@ export async function testMcpHubSurfacesKnowgrphToolServerRows() {
       'knowgrphToolServer.server.role',
       'knowgrphToolServer.surface.local_stdio',
       'knowgrphToolServer.surface.pages_http_readonly',
-      'knowgrphToolServer.tool.groups',
+      'knowgrphToolServer.tool.names',
+      KNOWGRPH_TOOL_SERVER_LIVE_PROOF_KEY,
       'knowgrphToolServer.config.local_stdio',
       'knowgrphToolServer.config.pages_http_readonly',
       '<ABS_PATH_TO_KNOWGRPH>',
@@ -119,13 +128,56 @@ export function testKnowgrphToolServerGeneratedConfigsStayPlaceholderOnly() {
   assertNoSecretOrLiveDeployMaterial(`${localText}\n${pagesText}`)
 }
 
+export async function testKnowgrphToolServerLocalStdioLiveReadinessListsSourceOwnedTools() {
+  const repoRoot = path.resolve(process.cwd(), '..')
+  const expectedToolNames = buildKnowgrphLocalMcpToolDefinitions().map(tool => tool.name)
+  const client = new Client({
+    name: 'knowgrph-mainpanel-mcp-live-readiness',
+    version: '0.0.0',
+  })
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.resolve(repoRoot, 'mcp/server.js')],
+    cwd: repoRoot,
+    env: {
+      PATH: String(process.env.PATH || ''),
+      HOME: String(process.env.HOME || ''),
+      NODE_ENV: 'test',
+      KNOWGRPH_ROOT: repoRoot,
+      KNOWGRPH_PYTHON: String(process.env.KNOWGRPH_PYTHON || 'python3'),
+      KNOWGRPH_MCP_TIMEOUT_MS: '600000',
+    },
+    stderr: 'pipe',
+  })
+  let stderrText = ''
+  transport.stderr?.on('data', chunk => {
+    stderrText += String(chunk)
+  })
+
+  try {
+    await client.connect(transport, { timeout: 10_000 })
+    const capabilities = client.getServerCapabilities()
+    if (!capabilities?.tools) {
+      throw new Error(`expected local stdio server initialize to advertise tools, got ${JSON.stringify(capabilities)}`)
+    }
+    const listed = await client.listTools(undefined, { timeout: 10_000 })
+    const actualToolNames = listed.tools.map(tool => tool.name)
+    if (JSON.stringify(actualToolNames) !== JSON.stringify(expectedToolNames)) {
+      throw new Error(`expected stdio tools/list to match source-owned tool definitions, got ${JSON.stringify({ actualToolNames, expectedToolNames, stderrText })}`)
+    }
+  } finally {
+    await client.close().catch(() => undefined)
+  }
+}
+
 export function testKnowgrphToolServerSsotRowsCoverInternalToolsAndBoundaries() {
   const keys = new Set(KNOWGRPH_TOOL_SERVER_DOC_ENTRIES.map(entry => entry.meta.key))
   for (const key of [
     'knowgrphToolServer.server.role',
     'knowgrphToolServer.surface.local_stdio',
     'knowgrphToolServer.surface.pages_http_readonly',
-    'knowgrphToolServer.tool.groups',
+    'knowgrphToolServer.tool.names',
+    KNOWGRPH_TOOL_SERVER_LIVE_PROOF_KEY,
     'knowgrphToolServer.selection.policy',
     'knowgrphToolServer.approval.boundary',
     'knowgrphToolServer.secrets.boundary',
@@ -136,16 +188,22 @@ export function testKnowgrphToolServerSsotRowsCoverInternalToolsAndBoundaries() 
     if (!keys.has(key)) throw new Error(`missing Knowgrph tool-server SSOT row ${key}`)
   }
 
-  const groupsEntry = KNOWGRPH_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'knowgrphToolServer.tool.groups')
+  const namesEntry = KNOWGRPH_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'knowgrphToolServer.tool.names')
+  const liveEntry = KNOWGRPH_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === KNOWGRPH_TOOL_SERVER_LIVE_PROOF_KEY)
   const copyEntry = KNOWGRPH_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'knowgrphToolServer.copy.boundary')
-  const combined = `${groupsEntry?.value || ''}\n${groupsEntry?.details.responsibility || ''}\n${copyEntry?.value || ''}\n${copyEntry?.details.responsibility || ''}`
+  const combined = `${namesEntry?.value || ''}\n${namesEntry?.details.responsibility || ''}\n${liveEntry?.value || ''}\n${copyEntry?.value || ''}\n${copyEntry?.details.responsibility || ''}`
   ;[
-    'published Source Files search/fetch',
-    'Agentic Canvas OS dry-run planning',
-    'memory layer',
-    'probe tree',
+    'search',
+    'fetch',
+    'knowgrph.memory.search',
+    'knowgrph.probe.generate',
+    'knowgrph.os.status',
+    'client.listTools',
     'do not copy Hermes code',
   ].forEach(token => {
     if (!combined.includes(token)) throw new Error(`expected Knowgrph tool-server contract to include ${JSON.stringify(token)}, got ${JSON.stringify(combined)}`)
   })
+  if (namesEntry?.value !== buildKnowgrphToolServerLocalToolNamesText()) {
+    throw new Error('expected MainPanel Knowgrph tool names to be projected from the shared local MCP registry')
+  }
 }

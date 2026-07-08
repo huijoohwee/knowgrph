@@ -46,6 +46,37 @@ export const hasCompleteAssistantMarkdownAnswer = (assistantText: string): boole
   return wordCount >= 80 || /^#{1,3}\s+\S+/m.test(assistantMarkdown) || /\n\s*\n/.test(assistantMarkdown)
 }
 
+const RESPONSE_ENVELOPE_FENCE_RX = /```(?:ya?ml|json)?\s*\n\s*response\s*:/gi
+
+const countFenceMarkers = (text: string): number => (text.match(/```/g) || []).length
+
+const hasUnbalancedDoubleQuotes = (text: string): boolean => {
+  const quoteCount = (String(text || '').match(/(?<!\\)"/g) || []).length
+  return quoteCount % 2 === 1
+}
+
+const closeOpenFence = (text: string): string =>
+  countFenceMarkers(text) % 2 === 1 ? `${text.trimEnd()}\n\`\`\`` : text.trimEnd()
+
+const removeTrailingBrokenYamlScalar = (lines: string[]): string[] => {
+  const out = [...lines]
+  while (out.length > 0 && !out[out.length - 1].trim()) out.pop()
+  if (out.length <= 0) return out
+  const tail = out[out.length - 1]
+  if (/^\s*[A-Za-z0-9_-]+\s*:\s*"/.test(tail) && hasUnbalancedDoubleQuotes(tail)) out.pop()
+  return out
+}
+
+const normalizeAssistantMarkdownForResponseProjection = (assistantText: string): string => {
+  const markdown = String(assistantText || '').replace(/\r\n/g, '\n').trim()
+  const starts = Array.from(markdown.matchAll(RESPONSE_ENVELOPE_FENCE_RX))
+    .map(match => match.index)
+    .filter((index): index is number => typeof index === 'number')
+  if (starts.length < 2) return markdown
+  const firstEnvelope = markdown.slice(starts[0], starts[1])
+  return closeOpenFence(removeTrailingBrokenYamlScalar(firstEnvelope.split('\n')).join('\n'))
+}
+
 const escapeHtml = (value: unknown): string => String(value || '').replace(/[&<>"']/g, ch => {
   if (ch === '&') return '&amp;'
   if (ch === '<') return '&lt;'
@@ -79,7 +110,9 @@ export const buildResponseMarkdownLines = (args: {
   if (
     hasSubstantiveAssistantMarkdown(assistantMarkdown)
   ) {
-    return assistantMarkdown.split('\n').map(line => String(line || '').replace(/^(#{1,2})(\s+)/, '###$2'))
+    return normalizeAssistantMarkdownForResponseProjection(assistantMarkdown)
+      .split('\n')
+      .map(line => String(line || '').replace(/^(#{1,2})(\s+)/, '###$2'))
   }
   const traceOnly = isTraceOnlyAssistantText(args.assistantText)
   const assistantSignal = traceOnly ? '' : summariseAssistantSignal(args.assistantText)

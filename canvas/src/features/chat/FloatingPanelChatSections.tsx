@@ -388,6 +388,11 @@ export function FloatingPanelChatFooter({
   onQuickAction,
   markdownText,
 }: FooterProps) {
+  const normalizedErrorText = String(errorText || '').trim()
+  const normalizedConnectivityDetail = String(connectivityDetail || '').trim()
+  const duplicateConnectivityError = connectivity === 'error' &&
+    normalizedErrorText.length > 0 &&
+    normalizedErrorText === normalizedConnectivityDetail
   return (
     <section className={`border-t ${UI_THEME_TOKENS.panel.border} p-2 space-y-1.5`} data-kg-chat-footer="compact">
       {errorText && (
@@ -396,7 +401,7 @@ export function FloatingPanelChatFooter({
         </section>
       )}
 
-      {connectivity !== 'unknown' && (
+      {connectivity !== 'unknown' && !duplicateConnectivityError && (
         <section
           className={[
             uiPanelTextFontClass,

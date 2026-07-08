@@ -80,7 +80,7 @@ export function testKgcFallbackPreservesNamedTermsForUnfamiliarPromptWithoutFami
     'monetized user actions',
     'commercialization and integration assumptions',
     'OpenClaw marketplace distribution',
-    'Swipe checkout',
+    'Stripe checkout',
   ], 'universal KGC fallback')
 
   validateGeneratedKgc(md, 'universal KGC fallback')
@@ -203,7 +203,7 @@ export function testKgcFallbackPreservesDenseSymbolicTermsWithoutPromptFamilyTem
 
   assertOmits(md, [
     'OpenClaw marketplace distribution',
-    'Swipe checkout',
+    'Stripe checkout',
     'external discovery channels',
     'the stated revenue actions',
     'the monetized conversion trigger',

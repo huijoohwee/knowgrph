@@ -243,8 +243,10 @@ function owningHarnessForTool(toolId, fallback = "unknown") {
 function upsertCapability(catalog, { toolId, owningHarness, schemaRef, sourceCatalog }) {
   const normalizedToolId = text(toolId);
   if (!normalizedToolId) return;
+  const semanticOwner = owningHarnessForTool(normalizedToolId, "");
   const existing = catalog.get(normalizedToolId);
   if (existing) {
+    if (semanticOwner) existing.owningHarness = semanticOwner;
     if (!existing.sourceCatalogs.includes(sourceCatalog)) {
       existing.sourceCatalogs.push(sourceCatalog);
       existing.sourceCatalogs.sort();
@@ -253,7 +255,7 @@ function upsertCapability(catalog, { toolId, owningHarness, schemaRef, sourceCat
   }
   catalog.set(normalizedToolId, {
     toolId: normalizedToolId,
-    owningHarness: text(owningHarness) || owningHarnessForTool(normalizedToolId),
+    owningHarness: semanticOwner || text(owningHarness) || "unknown",
     schemaRef: text(schemaRef) || "schema:unknown",
     sourceCatalogs: [sourceCatalog],
   });

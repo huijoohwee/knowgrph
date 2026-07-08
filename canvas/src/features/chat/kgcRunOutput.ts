@@ -154,11 +154,11 @@ const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string
     profile.signals.bootstrap ? 'bootstrap execution' : '',
     profile.signals.organicGrowth ? 'organic growth pressure' : '',
     profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion ? 'clear monetization choices' : '',
-    profile.signals.swipe || profile.signals.payments ? 'payment and checkout transitions' : '',
+    profile.signals.stripe || profile.signals.payments ? 'payment and checkout transitions' : '',
   ].filter(Boolean)
   const joined = constraints.length ? ` under ${constraints.join(', ')}` : ''
   const focus = buildNamedTermSummary(profile) || profile.product || 'the active request terms'
-  const assumptionScope = profile.signals.swipe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion
+  const assumptionScope = profile.signals.stripe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion
     ? 'commercial, entitlement, or integration assumptions'
     : 'handoff, render, or integration assumptions'
   return `${profile.subject || 'The user'} needs ${profile.artifact || 'an output'} for ${focus}${joined}. A generic scaffold is not enough because the result has to stay specific to the request, show what gets delivered, and keep ${assumptionScope} explicit.`
@@ -169,7 +169,7 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.mcp ? 'MCP distribution' : '',
     profile.signals.openClaw ? 'OpenClaw marketplace entry' : '',
     profile.signals.marketplace ? 'skills marketplace discovery' : '',
-    profile.signals.swipe ? 'Swipe checkout' : '',
+    profile.signals.stripe ? 'Stripe checkout' : '',
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean)
@@ -178,7 +178,7 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
 }
 
 const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  if (profile.signals.swipe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
+  if (profile.signals.stripe || profile.signals.payments || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
     return `A target user discovers ${profile.product || 'the offer'}, evaluates the initial value proposition, reaches the requested activation or paid action, completes the required entitlement or checkout step, and then receives the promised capability or artifact.`
   }
   return `A target user opens the workspace, reviews the generated text and connected render outputs, edits source assumptions inline, and receives updated cards, widgets, or Rich Media Panels from the same source values.`
@@ -205,8 +205,8 @@ const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): s
     profile.signals.conversion ? 'conversion-oriented commerce events' : '',
   ].filter(Boolean)
   const monetizationLabel = monetization.length ? monetization.join(', ') : 'the stated monetization or value-exchange options'
-  const handoff = profile.signals.swipe
-    ? 'Swipe checkout and fulfillment'
+  const handoff = profile.signals.stripe
+    ? 'Stripe checkout and fulfillment'
     : (profile.signals.payments ? 'payment completion' : 'the requested fulfillment handoff')
   return `Monetization should stay tied to actual user actions rather than abstract pricing language. Compare ${monetizationLabel}, show where value is unlocked, and keep the handoff into ${handoff} explicit.`
 }
@@ -214,7 +214,7 @@ const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): s
 const buildIntegrationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const terms = [
     profile.signals.openClaw ? 'OpenClaw for listing and discovery' : '',
-    profile.signals.swipe ? 'Swipe for checkout and payment confirmation' : '',
+    profile.signals.stripe ? 'Stripe for checkout and payment confirmation' : '',
     profile.signals.rxdb ? 'RxDB for local-first state and draft persistence' : '',
     profile.signals.maplibre ? 'MapLibre for spatial presentation where location adds value' : '',
   ].filter(Boolean)

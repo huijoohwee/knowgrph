@@ -1,12 +1,11 @@
-import { BROWSER_API_TOOL } from "./browser-api-runtime.js"; import { OS_STATUS_TOOL_NAME, buildOsStatusToolDefinition } from "./os-status-contract.js";
+import { BROWSER_API_TOOL } from "./browser-api-runtime.js"; import { buildOsStatusToolDefinition } from "./os-status-contract.js";
 import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, KNOWGRPH_AGENT_READY_TOOL_IDS, buildKnowgrphAgentReadyToolContracts } from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
-import { KNOWGRPH_PROBE_TREE_TOOL_NAMES } from "../canvas/src/features/agent-ready/probeTreeContract.mjs";
 import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.js";
 
-export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({ ...SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES, probeGenerate: KNOWGRPH_PROBE_TREE_TOOL_NAMES.generate, probeSelect: KNOWGRPH_PROBE_TREE_TOOL_NAMES.select, probeEvolve: KNOWGRPH_PROBE_TREE_TOOL_NAMES.evolve, osStatus: OS_STATUS_TOOL_NAME });
+export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

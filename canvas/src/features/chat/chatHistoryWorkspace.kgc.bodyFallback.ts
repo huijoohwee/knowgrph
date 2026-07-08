@@ -25,7 +25,7 @@ const buildUseCaseText = (profile: ReturnType<typeof analyzeKgcRequest>): string
     profile.signals.mcp ? 'MCP delivery' : '',
     profile.signals.externalUsers ? 'external-user access' : '',
     profile.signals.openClaw ? 'OpenClaw and related marketplace surfaces' : (profile.signals.marketplace ? 'marketplace surfaces' : 'the stated delivery surfaces'),
-    profile.signals.swipe ? 'checkout completion' : (profile.signals.payments ? 'payment completion' : ''),
+    profile.signals.stripe ? 'checkout completion' : (profile.signals.payments ? 'payment completion' : ''),
   ].filter(Boolean)
   const deliverySurface = profile.signals.openClaw
     ? 'OpenClaw and related marketplace surfaces'
@@ -48,7 +48,7 @@ const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string
     profile.signals.externalUsers ? 'external-user access' : '',
     profile.signals.marketplace || profile.signals.openClaw ? 'distribution and discovery' : '',
     profile.signals.b2c || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion ? 'monetized user actions' : '',
-    profile.signals.swipe || profile.signals.payments ? 'payment or checkout transitions' : '',
+    profile.signals.stripe || profile.signals.payments ? 'payment or checkout transitions' : '',
     profile.signals.rxdb || profile.signals.maplibre ? 'stated implementation boundaries' : '',
   ].filter(Boolean)
   return `\`{{subject}}\` needs \`{{artifact}}\` for \`{{product}}\`${pressures.length ? ` under ${pressures.join(', ')}` : ''}. Generic planning prose is not enough because the response has to make ${requiredCoverage.join(', ') || 'the stated request constraints'} explicit in a form that can guide delivery, monetization, and follow-up implementation decisions.`
@@ -61,7 +61,7 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
   const channels = [
     profile.signals.mcp ? '`{{product}}` as an MCP offer' : '',
     profile.signals.openClaw ? 'OpenClaw marketplace distribution' : (profile.signals.marketplace ? 'skills marketplace distribution' : ''),
-    profile.signals.swipe ? 'Swipe checkout and payment completion' : '',
+    profile.signals.stripe ? 'Stripe checkout and payment completion' : '',
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean)
@@ -70,10 +70,10 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
 }
 
 const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  const conversionMoment = profile.signals.swipe
-    ? 'completes the Swipe checkout flow and unlocks the paid entitlement or action'
+  const conversionMoment = profile.signals.stripe
+    ? 'completes the Stripe checkout flow and unlocks the paid entitlement or action'
     : (profile.signals.payments ? 'completes checkout and unlocks the paid entitlement or action' : 'crosses from free exploration into paid activation')
-  if (profile.signals.payments || profile.signals.swipe || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
+  if (profile.signals.payments || profile.signals.stripe || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
     return `A user discovers the \`{{product}}\` offer, evaluates the entry point, reaches the requested paid or conversion action, ${conversionMoment}, and then receives the promised output, capability, or follow-up access.`
   }
   return `\`{{subject}}\` opens the workspace, provides the active request terms, reviews generated text plus connected render outputs, edits assumptions inline, and persists the validated handoff so downstream panels and cards stay aligned with the same source values.`
@@ -97,7 +97,7 @@ const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): s
 const buildIntegrationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const stack = [
     profile.signals.openClaw ? 'OpenClaw can cover marketplace listing and demand capture' : '',
-    profile.signals.swipe ? 'Swipe can cover checkout, payment confirmation, and post-payment handoff' : '',
+    profile.signals.stripe ? 'Stripe can cover checkout, payment confirmation, and post-payment handoff' : '',
     profile.signals.rxdb ? 'RxDB can cover local-first state, draft persistence, and usage context' : '',
     profile.signals.maplibre ? 'MapLibre can cover spatial presentation where maps add user value' : '',
   ].filter(Boolean)
@@ -119,8 +119,8 @@ const buildDataFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     const fileNote = profile.outputFile ? ` plus output target ${profile.outputFile}` : ''
     return `Request text and workspace context become a bounded creative bundle containing tone, pacing, originality constraints${fileNote}. That bundle becomes \`{{artifact}}\` markdown, validation yields either corrective feedback or approved output, and approved output becomes persisted workspace state with creative intent and safety assumptions intact.`
   }
-  const transitionPayload = profile.signals.swipe
-    ? 'Swipe checkout trigger, payment state, and post-payment entitlement'
+  const transitionPayload = profile.signals.stripe
+    ? 'Stripe checkout trigger, payment state, and post-payment entitlement'
     : (profile.signals.payments || profile.signals.conversion ? 'conversion trigger and post-conversion entitlement' : 'handoff state and downstream render targets')
   const stackPayload = [
     profile.signals.rxdb ? 'RxDB-backed local context' : '',
@@ -149,7 +149,7 @@ const buildDocumentLead = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.externalUsers ? 'target users' : '',
     profile.signals.marketplace || profile.signals.openClaw ? 'distribution context' : '',
     profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion ? 'action and monetization logic' : '',
-    profile.signals.swipe || profile.signals.payments ? 'checkout transitions' : '',
+    profile.signals.stripe || profile.signals.payments ? 'checkout transitions' : '',
     profile.signals.rxdb || profile.signals.maplibre ? 'implementation boundaries' : '',
   ].filter(Boolean)
   const namedTerms = buildNamedTermSummary(profile)

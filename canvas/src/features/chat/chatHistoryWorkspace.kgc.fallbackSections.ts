@@ -40,8 +40,8 @@ export const buildSnapshotRows = (args: {
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean).join(', ') || 'the stated implementation boundaries'
-  const checkoutStep = profile.signals.swipe
-    ? 'Swipe checkout and payment completion'
+  const checkoutStep = profile.signals.stripe
+    ? 'Stripe checkout and payment completion'
     : (profile.signals.payments ? 'checkout completion' : 'handoff or transition moment')
   const namedTerms = buildNamedTermSummary(profile)
   return [
@@ -92,13 +92,13 @@ export const buildOpenQuestions = (args: {
       ? `Which topic constraints must remain explicit in the final response: ${args.topics.join(', ')}?`
       : 'Which context constraints must remain explicit in the final response instead of being inferred?',
     args.requestedSections.integrations
-      ? args.signals.swipe
-        ? 'Which integrations are required at generation time versus documented later, especially OpenClaw discovery, Swipe checkout, RxDB state, and MapLibre presentation?'
+      ? args.signals.stripe
+        ? 'Which integrations are required at generation time versus documented later, especially OpenClaw discovery, Stripe checkout, RxDB state, and MapLibre presentation?'
         : 'Which integrations are required at generation time versus documented as later implementation work?'
       : 'Which dependencies belong in the current answer versus a later implementation phase?',
     args.requestedSections.monetization
-      ? args.signals.swipe
-        ? 'Which user action should trigger Swipe checkout, and what entitlement or fulfillment should follow payment completion?'
+      ? args.signals.stripe
+        ? 'Which user action should trigger Stripe checkout, and what entitlement or fulfillment should follow payment completion?'
         : 'Which monetization or conversion decision points are requirements versus open evaluation items?'
       : 'Which delivery and ownership decisions still need confirmation before downstream automation runs?',
   ]

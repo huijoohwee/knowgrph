@@ -35,6 +35,40 @@ const TRACE_ONLY_ASSISTANT_TEXT = [
   '',
   '- SSE events: 5',
 ].join('\n')
+const REPEATED_PARTIAL_RESPONSE_YAML = [
+  '```yaml',
+  'response:',
+  '  intent: "Provide a neutral visual description of the attached media."',
+  '  domain_vars: {}',
+  '  context_scope: "image-analysis:attached image"',
+  '  structuredContent:',
+  '    cards:',
+  '      - id: attached-image-analysis',
+  '        label: "Attached image analysis"',
+  '        kind: "description"',
+  '        output:',
+  '          - "The attached image contains a source object that should be described without inventing unavailable context."',
+  '  table:',
+  '    - id: image-attachment',
+  '      field: description',
+  '      value: "partial',
+  '```yaml',
+  'response:',
+  '  intent: "Provide a neutral visual description of the attached media."',
+  '  domain_vars: {}',
+  '  context_scope: "image-analysis:attached image"',
+  '  structuredContent:',
+  '    cards:',
+  '      - id: attached-image-analysis',
+  '        label: "Attached image analysis"',
+  '        kind: "description"',
+  '        output:',
+  '          - "The attached image contains a source object that should be described without inventing unavailable context."',
+  '  table:',
+  '    - id: image-attachment',
+  '      field: description',
+  '      value: "partial',
+].join('\n')
 
 const readStoryboardTemplateContract = (): string =>
   readFileSync(resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'template', 'knowgrph-2d-renderer-storyboard-template.md'), 'utf8')
@@ -174,7 +208,7 @@ export async function testFloatingPanelChatPrdTadSlashUsesStructuredKgcContract(
     'Runtime invocation routing contract:',
     'Agentic OS invocation contract:',
     'Storyboard template Agentic OS directive context:',
-    'Slash routes: /source.ingest, /source.parse, /source.normalize, /ingest-url, /workspace.review, /pipeline.trace, /harness.define, /canvas.project, /canvas.render, /runtime-ready.check, /deploy.guard, /memory.seed.',
+    'Slash routes: /memory.seed, /source.normalize, /harness.define, /canvas.project, /runtime-ready.check, /validation.run, /deploy.guard.',
     'Semantic routes: #frontmatter, #harness, #token-economics, #runtime-ready, #canvas, #approval-gate, #dev-only, #no-hardcode.',
     'Binding routes: @source.frontmatter, @source.body, @local-harness, @runtime-proof, @cost-log, @canvas, @operator, @dev-only.',
     'kgc-2d-renderer-storyboard-template/v1',
@@ -392,7 +426,7 @@ export function testKgcPrdTadSlashTraceUsesResponseOnlyNoBackfill() {
     relevance.intent !== "why there's [attached image]" ||
     relevance.namedTerms.length > 0 ||
     !relevance.focus.startsWith("why there's [attached image]") ||
-    !relevance.focus.includes('Artifact: PRD + TAD') ||
+    relevance.focus.includes('Artifact: PRD + TAD') ||
     relevance.focus.includes('/prd-tad.create') ||
     relevance.focus.includes('deliver PRD + TAD')
   ) {
@@ -403,11 +437,73 @@ export function testKgcPrdTadSlashTraceUsesResponseOnlyNoBackfill() {
     sparseRelevance.intent !== "what's [attached image]" ||
     sparseRelevance.namedTerms.length > 0 ||
     !sparseRelevance.focus.startsWith("what's [attached image]") ||
-    !sparseRelevance.focus.includes('Artifact: PRD + TAD') ||
+    sparseRelevance.focus.includes('Artifact: PRD + TAD') ||
     sparseRelevance.focus.includes('/prd-tad.create') ||
     sparseRelevance.focus.includes('deliver PRD + TAD')
   ) {
     throw new Error(`Expected sparse /prd-tad.create trace relevance to stay query scoped, got ${JSON.stringify(sparseRelevance)}`)
+  }
+}
+
+export function testKgcAttachedMediaResponsesUseStoryboardTemplateContract() {
+  const cases = [
+    {
+      label: 'no-slash',
+      requestText: "what's in [attached image]",
+    },
+    {
+      label: 'slash',
+      requestText: '/prd-tad.create [attached image]',
+    },
+  ] as const
+  for (const entry of cases) {
+    const md = normalizeKgcAssistantBodyForStorage({
+      timestampMs: Date.UTC(2026, 6, 8, 7, 40, 37),
+      workspacePath: `/chat-log/20260708T074037Z/kgc_${entry.label}.md`,
+      requestText: entry.requestText,
+      assistantText: REPEATED_PARTIAL_RESPONSE_YAML,
+    })
+    if (!isKgcStructuredMarkdown(md)) throw new Error(`Expected ${entry.label} attached-media response to remain structured`)
+    parseYaml(md.split('\n---\n')[0]?.replace(/^---\n/, '') || '')
+    for (const required of [
+      '$schema: "kgc-response/v1"',
+      'kgcResponseOnly: true',
+      'schema: "kgc-2d-renderer-storyboard-template/v1"',
+      'runtime_readiness:',
+      'paid_call_count: 0',
+      'prod_mirror: "blocked until operator instruction"',
+      'cloudflare: "blocked until operator instruction"',
+      'agentic_os_contract:',
+      'shared_renderer_contract:',
+      'semantic_html_projection:',
+      'runtime_pipeline:',
+      'flow_diagrams:',
+      'strybldr_storyboard:',
+      'kgCanvas2dRenderer: "storyboard"',
+      '# Chat Response',
+      '## Response',
+    ]) {
+      if (!md.includes(required)) throw new Error(`Expected ${entry.label} attached-media response to include ${required}`)
+    }
+    for (const forbidden of [
+      'schema: "kgc-computing-flow/v1"',
+      'template_flow_demo',
+      'source_input',
+      'compute_summary',
+      'Rich Media Panel - Text Output',
+      'PRD — Product Requirements',
+      'TAD — Technical Architecture',
+      'Product: /prd-tad.create',
+      'Named terms: /prd-tad.create',
+      'kg_media_token',
+      'localhost:5180',
+    ]) {
+      if (md.includes(forbidden)) throw new Error(`Expected ${entry.label} attached-media response to avoid ${forbidden}`)
+    }
+    const responseFenceCount = (md.match(/```yaml\s+response:/g) || []).length
+    if (responseFenceCount > 2) {
+      throw new Error(`Expected ${entry.label} attached-media response to collapse duplicate response YAML fences, got ${responseFenceCount}`)
+    }
   }
 }
 

@@ -244,7 +244,7 @@ const shouldRegenerateQueryResponsiveFrontmatter = (args: {
   ]
   if (requiredSnippets.some(snippet => !frontmatter.includes(snippet))) return true
   if (profile.signals.openClaw && !containsAny(frontmatter, ['openclaw'])) return true
-  if (profile.signals.swipe && !containsAny(frontmatter, ['swipe', 'checkout'])) return true
+  if (profile.signals.stripe && !containsAny(frontmatter, ['stripe', 'checkout'])) return true
   if (profile.signals.subscriptions && !containsAny(frontmatter, ['subscription'])) return true
   if (profile.signals.payPerUse && !containsAny(frontmatter, ['pay-per-use'])) return true
   if (profile.signals.conversion && !containsAny(frontmatter, ['conversion'])) return true
@@ -306,7 +306,7 @@ const shouldRegenerateQueryResponsiveBody = (args: {
   if (profile.signals.payPerUse && !containsAny(body, ['pay-per-use'])) return true
   if (profile.signals.conversion && !containsAny(body, ['conversion', 'checkout'])) return true
   if (profile.signals.openClaw && !containsAny(body, ['openclaw'])) return true
-  if (profile.signals.swipe && !containsAny(body, ['swipe', 'checkout'])) return true
+  if (profile.signals.stripe && !containsAny(body, ['stripe', 'checkout'])) return true
   if (profile.signals.rxdb && !containsAny(body, ['rxdb'])) return true
   if (profile.signals.maplibre && !containsAny(body, ['maplibre'])) return true
   if (profile.signals.externalUsers && !containsAny(body, ['external users'])) return true

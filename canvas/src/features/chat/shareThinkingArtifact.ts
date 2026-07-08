@@ -1,21 +1,11 @@
-import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
 import { formatReasoningStepSummary } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import type { DereferencedChatStreamArtifact } from './chatStreamArtifactDereference'
+import {
+  buildChatTraceQueryRelevance,
+  type ChatTraceQueryRelevance,
+} from './chatTraceQueryRelevance'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i
-const GENERIC_ARTIFACT_LABELS = new Set(['chat response', 'response', 'report', 'analysis'])
-const REQUESTED_SECTION_LABELS: Record<string, string> = {
-  useCase: 'Use Case',
-  problem: 'Problem',
-  solution: 'Solution',
-  userFlow: 'User Flow',
-  workflow: 'Work Flow',
-  dataFlow: 'Data Flow',
-  goals: 'Goals',
-  userStories: 'User Stories',
-  monetization: 'Monetization',
-  integrations: 'Integration',
-}
 const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)\b/i
 const GENERIC_PREVIEW_LINE_RX = /(this document is the pipeline|machine-readable source of truth|human-readable projection|self-runnable|graph-complete|schema-validated|ssot surfaces|renderers may use this block|dual-layer structure|workspace listings|execute .+ logic using bounded graph context|execution:\s*computing-flow|output:\s*"?computed analysis"?|stage:\s*"?execute"?)/i
 const REQUEST_KEYWORD_STOPWORDS = new Set([
@@ -107,12 +97,7 @@ const uniqueText = (values: readonly string[]): string[] => {
   return out
 }
 
-type StreamArtifactQueryRelevance = {
-  intent: string
-  focus: string
-  requestedSections: string[]
-  namedTerms: string[]
-}
+type StreamArtifactQueryRelevance = ChatTraceQueryRelevance
 
 type WorkspaceOutputSnapshot = {
   headings: string[]
@@ -131,29 +116,7 @@ type StreamSignalSnapshot = {
   sourceUrls: string[]
 }
 
-const buildStreamArtifactQueryRelevance = (requestText: string): StreamArtifactQueryRelevance => {
-  const intent = sanitizeRequestIntent(requestText, 320) || 'Prompt unavailable.'
-  const profile = analyzeKgcRequest(requestText)
-  const requestedSections = Object.entries(profile.requestedSections)
-    .filter(([, enabled]) => Boolean(enabled))
-    .map(([key]) => REQUESTED_SECTION_LABELS[key] || key)
-  const focusParts = uniqueText([
-    profile.objective && profile.objective !== sanitizeRequestIntent(requestText, 320) ? profile.objective : '',
-    profile.artifact && !GENERIC_ARTIFACT_LABELS.has(profile.artifact.toLowerCase()) ? `Artifact: ${profile.artifact}` : '',
-    profile.product ? `Product: ${profile.product}` : '',
-    profile.subject ? `Subject: ${profile.subject}` : '',
-    profile.domain ? `Domain: ${profile.domain}` : '',
-    requestedSections.length > 0 ? `Requested Sections: ${requestedSections.join(', ')}` : '',
-    ...profile.topics,
-    ...profile.namedTerms,
-  ])
-  return {
-    intent,
-    focus: clampText(focusParts.join(' · '), 260) || intent,
-    requestedSections,
-    namedTerms: uniqueText(profile.namedTerms),
-  }
-}
+const buildStreamArtifactQueryRelevance = buildChatTraceQueryRelevance
 
 const stripLeadingFrontmatter = (value: string): string => {
   const text = String(value || '').replace(/\r\n/g, '\n').trim()

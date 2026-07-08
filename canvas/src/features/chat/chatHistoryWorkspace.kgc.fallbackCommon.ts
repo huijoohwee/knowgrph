@@ -52,7 +52,7 @@ export const buildRequestSummary = (profile: ReturnType<typeof analyzeKgcRequest
     profile.signals.externalUsers ? 'for external users' : '',
     profile.signals.openClaw ? 'with OpenClaw marketplace delivery' : (profile.signals.marketplace ? 'with marketplace delivery' : ''),
     profile.signals.b2c ? 'including B2C monetization' : '',
-    profile.signals.swipe ? 'and Swipe payment flow' : '',
+    profile.signals.stripe ? 'and Stripe payment flow' : '',
   ].filter(Boolean)
   return sanitizeScalar(parts.join(' '), 240)
 }
@@ -81,7 +81,7 @@ export const buildObjectiveSummary = (profile: ReturnType<typeof analyzeKgcReque
     profile.signals.mcp ? 'MCP packaging' : '',
     profile.signals.openClaw ? 'OpenClaw distribution' : (profile.signals.marketplace ? 'marketplace distribution' : ''),
     profile.signals.b2c ? 'B2C monetization' : '',
-    profile.signals.swipe ? 'Swipe-ready checkout' : (profile.signals.payments ? 'payment-ready checkout' : ''),
+    profile.signals.stripe ? 'Stripe-ready checkout' : (profile.signals.payments ? 'payment-ready checkout' : ''),
   ].filter(Boolean)
   return sanitizeScalar(parts.join('; '), 180)
 }

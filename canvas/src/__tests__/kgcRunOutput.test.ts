@@ -10,7 +10,7 @@ const buildKgcFixture = (formatLine = ''): string => [
   'product: "Knowledge Graph Canvas"',
   'subject: "Solo founder"',
   'artifact: "Pitch Deck + PRD + TAD + TCO"',
-  'objective: "Recommend a zero-budget bootstrap plan for external users with Use Case, Problem, Solution, User Flow, Work Flow, Data Flow, B2C monetization, and Swipe payment flow"',
+  'objective: "Recommend a zero-budget bootstrap plan for external users with Use Case, Problem, Solution, User Flow, Work Flow, Data Flow, B2C monetization, and Stripe payment flow"',
   'domain: "MCP distribution, OpenClaw, marketplace, organic growth"',
   'date: "2026-04-20"',
   'doc:',
@@ -197,7 +197,7 @@ export async function testEmitKgcRunOutputWritesCanonicalMarkdownSection() {
       '## Data Flow',
       '## Monetization Surface',
       '## Integration Boundaries',
-      'Swipe for checkout and payment confirmation',
+      'Stripe for checkout and payment confirmation',
       'OpenClaw for listing and discovery',
     ]
     for (const snippet of expectedSnippets) {

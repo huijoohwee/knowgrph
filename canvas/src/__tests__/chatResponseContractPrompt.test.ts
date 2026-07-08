@@ -1146,7 +1146,7 @@ export function testBaseTemplateFixturePassesKgcStructuredAndValidation() {
 }
 
 export function testKgcDeterministicFallbackIsStructuredAndValid() {
-  const requestIntent = 'Solo founder bootstrap GTM with Swipe payment checkout integration'
+  const requestIntent = 'Solo founder bootstrap GTM with Stripe payment checkout integration'
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 12, 34, 56),
     requestText: requestIntent,
@@ -1158,10 +1158,10 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
   if (!md.includes('owner: "solo founder"')) {
     throw new Error('Expected deterministic fallback to project explicit owner from the named actor')
   }
-  if (!md.includes('bootstrap execution') || !md.includes('Swipe payment') || !md.includes('checkout')) {
+  if (!md.includes('bootstrap execution') || !md.includes('Stripe payment') || !md.includes('checkout')) {
     throw new Error('Expected deterministic fallback to derive a normalized query-shaped objective')
   }
-  if (!md.includes('Swipe') || !md.includes('solo founder')) {
+  if (!md.includes('Stripe') || !md.includes('solo founder')) {
     throw new Error('Expected deterministic fallback body to stay request-shaped for actor and payment context')
   }
   if (!md.includes('This document packages `{{artifact}}` for `{{subject}}` around the active request.')) {
@@ -1401,7 +1401,7 @@ export function testKgcFallbackWithNonEmptyQueryIsNotByteEqualToCanonicalTemplat
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 20, 14, 10),
     workspacePath: '/chat-log/20260419T201410Z/kgc_20260419T201410Z.md',
-    requestText: 'Solo founder bootstrap growth with Swipe checkout and RxDB MapLibre stack',
+    requestText: 'Solo founder bootstrap growth with Stripe checkout and RxDB MapLibre stack',
     assistantText: 'invalid fallback trigger',
   }).replace(/\r\n/g, '\n').trimEnd()
 
@@ -1412,7 +1412,7 @@ export function testKgcFallbackWithNonEmptyQueryIsNotByteEqualToCanonicalTemplat
 
 export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
   const canonicalTemplate = buildBaseTemplateSample().replace(/\r\n/g, '\n')
-  const requestText = 'Solo founder bootstrap growth with Swipe checkout, RxDB, MapLibre, MCP marketplace'
+  const requestText = 'Solo founder bootstrap growth with Stripe checkout, RxDB, MapLibre, MCP marketplace'
   const generated = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 3, 19, 21, 1, 10),
     workspacePath: '/chat-log/20260419T210110Z/kgc_20260419T210110Z.md',
@@ -1434,7 +1434,7 @@ export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
 }
 
 export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
-  const requestText = 'RECOMMEND: Solo founder; zero budget, bootstrap, organic growth; **Knowledge Graph Canvas** product as MCP for external users, OpenClaw, skills marketplace; Pitch Deck+PRD+TAD, TCO; Use Case -> Problem -> Solution; User Flow+Work Flow+Data Flow; B2C monetization ideas; monetize user actions (subscriptions, pay-per-use, and commerce-like conversion); FOSS RxDB, MapLibre; expose integration with **Swipe payment** flow (payments/checkout)'
+  const requestText = 'RECOMMEND: Solo founder; zero budget, bootstrap, organic growth; **Knowledge Graph Canvas** product as MCP for external users, OpenClaw, skills marketplace; Pitch Deck+PRD+TAD, TCO; Use Case -> Problem -> Solution; User Flow+Work Flow+Data Flow; B2C monetization ideas; monetize user actions (subscriptions, pay-per-use, and commerce-like conversion); FOSS RxDB, MapLibre; expose integration with **Stripe payment** flow (payments/checkout)'
   const assistantText = [
     '---',
     'title: "knowledge-graph-canvas · AI Pipeline — PRD + TAD"',
@@ -1489,14 +1489,14 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
     '### Monetization Surface',
     '### Integration Boundaries',
     'OpenClaw',
-    'Swipe',
+    'Stripe',
     'RxDB',
     'MapLibre',
     'subscriptions',
     'pay-per-use',
     'conversion',
     'external users',
-    'Swipe can cover checkout, payment confirmation, and post-payment handoff',
+    'Stripe can cover checkout, payment confirmation, and post-payment handoff',
     'OpenClaw can cover marketplace listing and demand capture',
     'A user discovers the `{{product}}` offer',
     'unlocks the paid entitlement or action',
@@ -1513,12 +1513,12 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
     throw new Error('Expected latest recommendation fallback to resolve a bounded but query-shaped domain')
   }
   if (
-    !md.includes('objective: "support zero-budget execution; prioritize bootstrap execution; favor organic growth; package Knowledge Graph Canvas as an MCP offer; serve external users; support OpenClaw marketplace packaging; deliver Pitch Deck + PRD + TAD + TCO; evaluate B2C monetization; compare subscription, pay-per-use, and conversion monetization; expose Swipe payment and checkout integration') &&
-    !md.includes('integrate Swipe checkout and payment flow')
+    !md.includes('objective: "support zero-budget execution; prioritize bootstrap execution; favor organic growth; package Knowledge Graph Canvas as an MCP offer; serve external users; support OpenClaw marketplace packaging; deliver Pitch Deck + PRD + TAD + TCO; evaluate B2C monetization; compare subscription, pay-per-use, and conversion monetization; expose Stripe payment and checkout integration') &&
+    !md.includes('integrate Stripe checkout and payment flow')
   ) {
     throw new Error('Expected latest recommendation fallback to resolve a synthesized objective without clipped raw query fragments')
   }
-  if (!md.includes('Which user action should trigger Swipe checkout, and what entitlement or fulfillment should follow payment completion?')) {
+  if (!md.includes('Which user action should trigger Stripe checkout, and what entitlement or fulfillment should follow payment completion?')) {
     throw new Error('Expected latest recommendation fallback to replace generic open questions with request-shaped ones')
   }
   if (!md.includes('S01 captures the active request brief for `{{product}}`')) {
@@ -1607,7 +1607,7 @@ export function testKgcDeterministicFallbackStaysNeutralForGenericRequest() {
     '### Integration Boundaries',
     'recommendation package',
     'OpenClaw',
-    'Swipe',
+    'Stripe',
     'video-script-promessic.md',
     'This document turns one request into one reusable pipeline artifact.',
   ]

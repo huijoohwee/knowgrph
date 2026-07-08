@@ -17,6 +17,7 @@ import {
 } from './chatHistoryWorkspace.kgc.fallbackCommon'
 import { buildFlowDiagramsBlock } from './chatHistoryWorkspace.kgc.flowDiagramsFallback'
 import { KGC_RESPONSE_ONLY_SCHEMA } from './chatKgcResponseOnlyContract'
+import { buildStoryboardTemplateProjectionFrontmatterLines } from './chatStoryboardTemplateProjection'
 import {
   buildResponseMarkdownLines,
   buildResponseStatus,
@@ -45,7 +46,7 @@ const buildFrontmatterContextSummary = (profile: ReturnType<typeof analyzeKgcReq
     profile.signals.subscriptions ? 'subscriptions' : '',
     profile.signals.payPerUse ? 'pay-per-use' : '',
     profile.signals.conversion ? 'conversion actions' : '',
-    profile.signals.swipe ? 'Swipe checkout' : (profile.signals.payments ? 'checkout' : ''),
+    profile.signals.stripe ? 'Stripe checkout' : (profile.signals.payments ? 'checkout' : ''),
     profile.signals.rxdb ? 'RxDB' : '',
     profile.signals.maplibre ? 'MapLibre' : '',
   ].filter(Boolean).join(' + '), 220)
@@ -56,7 +57,7 @@ const buildFrontmatterValidationFocus = (profile: ReturnType<typeof analyzeKgcRe
     ...buildRequiredSectionLabels(profile),
     profile.namedTerms.length > 0 ? 'named request term coverage' : '',
     profile.signals.openClaw ? 'OpenClaw discovery path' : '',
-    profile.signals.swipe ? 'Swipe payment trigger and fulfillment' : '',
+    profile.signals.stripe ? 'Stripe payment trigger and fulfillment' : '',
     profile.signals.subscriptions ? 'subscription entitlement logic' : '',
     profile.signals.payPerUse ? 'usage-metered action logic' : '',
     profile.signals.conversion ? 'conversion event framing' : '',
@@ -94,6 +95,10 @@ const buildResponseOnlyFrontmatter = (args: {
     'kgDocumentStructureBaselineLock: false',
     'kgcResponseOnly: true',
     `$schema: ${JSON.stringify(KGC_RESPONSE_ONLY_SCHEMA)}`,
+    ...buildStoryboardTemplateProjectionFrontmatterLines({
+      profile: args.profile,
+      assistantText: args.assistantText,
+    }),
     'spec:',
     '  format:        kgc-response',
     '  version:       "1.0.0"',

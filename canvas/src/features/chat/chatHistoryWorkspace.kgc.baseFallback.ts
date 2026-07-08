@@ -29,7 +29,7 @@ const shouldUseResponseOnlyBaseTemplate = (args: {
   if (!hasRecognizedChatRuntimeInvocation(args.requestText)) return true
   const runtimeQuery = resolveChatRuntimeInvocationQuery(args.requestText)
   if (runtimeQuery.leadingRoute) {
-    return isTraceOnlyAssistantText(args.assistantText) && isAttachedImageQuestionTerm(profile.intent)
+    return isAttachedImageQuestionTerm(profile.intent)
   }
   if (profile.signals.computingFlow || shouldMaterializeHeadlessResponseSurface(profile)) return false
   if (hasRequestedSections(profile)) return false
@@ -41,7 +41,20 @@ const shouldUseResponseOnlyBaseTemplate = (args: {
     profile.namedTerms.length === 0
 }
 
-const projectResponseOnlyProfile = (profile: ReturnType<typeof analyzeKgcRequest>): ReturnType<typeof analyzeKgcRequest> => {
+const projectResponseOnlyProfile = (
+  profile: ReturnType<typeof analyzeKgcRequest>,
+  assistantText: string,
+): ReturnType<typeof analyzeKgcRequest> => {
+  if (isTraceOnlyAssistantText(assistantText)) {
+    return {
+      ...profile,
+      invocation: null,
+      product: '',
+      artifact: '',
+      objective: profile.intent,
+      namedTerms: [],
+    }
+  }
   if (!profile.invocation || !isAttachedImageQuestionTerm(profile.intent)) return profile
   return {
     ...profile,
@@ -57,7 +70,7 @@ export const buildDeterministicBaseTemplateKgcTurn = (args: BaseFallbackArgs): s
   const assistantText = String(args.assistantText || '')
   const responseSurface = extractChatResponseStructuredSurface(assistantText)
   const responseOnly = shouldUseResponseOnlyBaseTemplate({ profile, requestText: args.requestText, assistantText })
-  const outputProfile = responseOnly ? projectResponseOnlyProfile(profile) : profile
+  const outputProfile = responseOnly ? projectResponseOnlyProfile(profile, assistantText) : profile
   const useComputingFlowResponse = (
     outputProfile.signals.computingFlow ||
     (!responseOnly && !responseSurface && !shouldMaterializeHeadlessResponseSurface(outputProfile) && (

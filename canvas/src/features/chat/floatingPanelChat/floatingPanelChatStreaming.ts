@@ -566,12 +566,10 @@ export const readAssistantResponseText = async (args: {
       }
     }
   } catch (error) {
-    try {
-      await reader.cancel(error)
-    } catch {
-      void 0
-    }
-    throw error
+    const message = error instanceof Error ? error.message : String(error || '')
+    try { await reader.cancel(error) } catch { void 0 }
+    if (!receivedAnyChunk || /abort/i.test(message)) throw error
+    state = { ...state, finishReason: state.finishReason || 'error', reasoningSteps: [...state.reasoningSteps, `stream_error: ${clampTraceLine(message || 'provider stream failed')}`] }
   } finally {
     try {
       reader.releaseLock()
@@ -579,6 +577,7 @@ export const readAssistantResponseText = async (args: {
       void 0
     }
   }
+  if (!state.assistantText.trim() && state.rawSseEvents.length > 0 && state.reasoningSteps.length <= 0) state = { ...state, finishReason: state.finishReason || 'error', reasoningSteps: ['stream_empty: provider stream ended without assistant text'] }
   if (state.assistantText.trim()) {
     flushStateDraftThrottled(true, 'terminal')
   } else {

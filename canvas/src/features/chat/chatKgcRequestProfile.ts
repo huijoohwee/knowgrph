@@ -74,7 +74,7 @@ export type KgcRequestSignals = {
   payPerUse: boolean
   conversion: boolean
   payments: boolean
-  swipe: boolean
+  stripe: boolean
   foss: boolean
   rxdb: boolean
   maplibre: boolean
@@ -176,6 +176,38 @@ const TERM_STOPWORDS = new Set([
   'with',
 ])
 
+const NEUTRAL_ATTACHED_MEDIA_QUESTION_LEADS = new Set([
+  'what',
+  'what in',
+  'what s',
+  'what s in',
+  'whats',
+  'whats in',
+  'what is',
+  'what is in',
+  'what are',
+  'what does',
+  'which',
+  'who',
+  'where',
+  'when',
+])
+
+const NEUTRAL_ATTACHED_MEDIA_INSPECTION_LEADS = new Set([
+  'analyse',
+  'analyze',
+  'describe',
+  'explain',
+  'identify',
+  'inspect',
+  'read',
+  'review',
+  'summarise',
+  'summarize',
+])
+
+const NEUTRAL_ATTACHED_MEDIA_INSPECTION_RX = /^(?:analyse|analyze|describe|explain|identify|inspect|read|review|summari[sz]e)(?:\s+(?:about|briefly|content|contents|for me|image|in detail|it|media|object|photo|picture|scene|that|the|this|visually))*$/
+
 export const isAttachedImageQuestionTerm = (raw: string): boolean => {
   const normalized = String(raw || '')
     .toLowerCase()
@@ -192,23 +224,9 @@ export const isAttachedImageQuestionTerm = (raw: string): boolean => {
     .replace(/\s+/g, ' ')
     .trim()
   if (!lead) return true
-  const neutralQuestionLeads = new Set([
-    'what',
-    'what in',
-    'what s',
-    'what s in',
-    'whats',
-    'whats in',
-    'what is',
-    'what is in',
-    'what are',
-    'what does',
-    'which',
-    'who',
-    'where',
-    'when',
-  ])
-  if (neutralQuestionLeads.has(lead)) return true
+  if (NEUTRAL_ATTACHED_MEDIA_QUESTION_LEADS.has(lead)) return true
+  if (NEUTRAL_ATTACHED_MEDIA_INSPECTION_LEADS.has(lead)) return true
+  if (NEUTRAL_ATTACHED_MEDIA_INSPECTION_RX.test(lead)) return true
   return /^(?:why(?:\s+(?:is|are|does|do|did|there\s+is|there's|theres))?|how(?:\s+(?:is|are|does|do|did|can|would))?)$/.test(lead)
 }
 
@@ -367,7 +385,7 @@ const inferSignals = (lowered: string): KgcRequestSignals => ({
   payPerUse: /\bpay[- ]?per[- ]?use\b/.test(lowered),
   conversion: /\bconversion\b|\bcommerce\b/.test(lowered),
   payments: /\bpayments?\b|\bcheckout\b/.test(lowered),
-  swipe: /\bswipe\b/.test(lowered),
+  stripe: /\bstripe\b/.test(lowered),
   foss: /\bfoss\b|\bopen source\b/.test(lowered),
   rxdb: /\brxdb\b/.test(lowered),
   maplibre: /\bmaplibre\b/.test(lowered),
@@ -376,7 +394,7 @@ const inferSignals = (lowered: string): KgcRequestSignals => ({
 const inferNamedTerms = (signals: KgcRequestSignals, intent: string): string[] => {
   const terms = unique([
     signals.openClaw ? 'OpenClaw' : '',
-    signals.swipe ? 'Swipe payment flow' : '',
+    signals.stripe ? 'Stripe payment flow' : '',
     signals.rxdb ? 'RxDB' : '',
     signals.maplibre ? 'MapLibre' : '',
     ...inferGenericNamedTerms(intent),
@@ -425,7 +443,7 @@ const inferObjective = (intent: string, signals: KgcRequestSignals, artifact: st
     signals.subscriptions || signals.payPerUse || signals.conversion
       ? 'compare subscription, pay-per-use, and conversion monetization'
       : '',
-    signals.swipe ? 'expose Swipe payment and checkout integration' : (signals.payments ? 'expose payment and checkout integration' : ''),
+    signals.stripe ? 'expose Stripe payment and checkout integration' : (signals.payments ? 'expose payment and checkout integration' : ''),
     signals.foss && (signals.rxdb || signals.maplibre) ? 'stay compatible with FOSS local-first and spatial components' : '',
   ].filter(Boolean)
   if (parts.length > 0) return sanitizeScalar(parts.join('; '), 520)

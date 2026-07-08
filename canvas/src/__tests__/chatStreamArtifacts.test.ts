@@ -256,7 +256,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
       traceId: 'trace-stream-1',
       providerSummary: 'MiroMind · Global',
       modelId: 'mirothinker-1-7-deepresearch',
-      requestText: 'Summarize the MCP payment stream, preserve report URLs, and keep Swipe checkout plus MapLibre integration details query-relevant.',
+      requestText: 'Summarize the MCP payment stream, preserve report URLs, and keep Stripe checkout plus MapLibre integration details query-relevant.',
       rawAssistantText: [
         '# Stream report',
         '',
@@ -270,7 +270,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
         '# MCP Payment Stream Plan',
         '',
         '### Monetization Surface',
-        'Swipe checkout covers payment trigger, confirmation, and entitlement handoff.',
+        'Stripe checkout covers payment trigger, confirmation, and entitlement handoff.',
         '',
         '### Integration Boundaries',
         'MapLibre remains a spatial surface while MCP tools and report artifacts stay linked as external references.',
@@ -287,7 +287,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
                   {
                     type: 'web_search',
                     web_search: {
-                      search_keywords: ['MCP payment stream Swipe checkout MapLibre observability'],
+                      search_keywords: ['MCP payment stream Stripe checkout MapLibre observability'],
                     },
                   },
                 ],
@@ -301,7 +301,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
               delta: {
                 content: [
                   '### Monetization Surface',
-                  'Swipe checkout is the query-relevant payment handoff for the MCP stream.',
+                  'Stripe checkout is the query-relevant payment handoff for the MCP stream.',
                   `Report source: ${MIROMIND_REPORT_SHARE_URL}`,
                 ].join('\n'),
               },
@@ -369,22 +369,22 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     if (!logText || !logText.includes('kgCanvas2dRenderer: "storyboard"') || !logText.includes('edges:')) {
       throw new Error('expected stream log markdown artifact to keep storyboard frontmatter nodes and edges')
     }
-    if (!logText.includes('## Query Relevance') || !logText.includes('Swipe payment flow') || !logText.includes('MapLibre')) {
-      throw new Error('expected stream log to include request-derived query relevance details')
+    if (!logText.includes('## Query Relevance') || !logText.includes('user-action monetization') || !logText.includes('local-first spatial workflows')) {
+      throw new Error('expected stream log to include neutral request-derived query relevance details')
     }
     if (!logText.includes('## Editor Workspace Output') || !logText.includes('Requested Sections Present: Monetization, Integration')) {
       throw new Error('expected stream log to summarize request-aligned editor workspace output')
     }
-    if (!logText.includes('## Response Snapshot') || !logText.includes('Swipe checkout covers payment trigger, confirmation, and entitlement handoff.')) {
+    if (!logText.includes('## Response Snapshot') || !logText.includes('Stripe checkout covers payment trigger, confirmation, and entitlement handoff.')) {
       throw new Error('expected stream log to foreground a concise request-shaped response snapshot')
     }
     if (!logText.includes('## Stream Signals') || !logText.includes('Selected Signals:')) {
       throw new Error('expected stream log to summarize selected stream signals rather than every raw SSE chunk')
     }
-    if (!logText.includes('## SSE Markdown Projection') || !logText.includes('Swipe checkout is the query-relevant payment handoff for the MCP stream.')) {
+    if (!logText.includes('## SSE Markdown Projection') || !logText.includes('Stripe checkout is the query-relevant payment handoff for the MCP stream.')) {
       throw new Error('expected stream log to render query-relevant SSE JSON content as markdown')
     }
-    if (!logText.includes('web_search: MCP payment stream Swipe checkout MapLibre observability') || !logText.includes(MIROMIND_REPORT_SHARE_URL)) {
+    if (!logText.includes('web_search: MCP payment stream Stripe checkout MapLibre observability') || !logText.includes(MIROMIND_REPORT_SHARE_URL)) {
       throw new Error('expected stream log markdown projection to summarize streamed reasoning and source links')
     }
     if (logText.includes('## Final Assistant Text') || logText.includes('## SSE JSON Chunks')) {
@@ -432,7 +432,7 @@ export async function testPersistChatStreamArtifactsWritesStoryboardMarkdownDocs
     if (!shareThinkingText.includes(expectedShareExportMarkdown) || !shareThinkingText.includes(MIROMIND_SHARE_URL)) {
       throw new Error('expected per-share thinking trace to link canonical share markdown and source URL')
     }
-    if (!shareThinkingText.includes('web_search: MCP payment stream Swipe checkout MapLibre observability')) {
+    if (!shareThinkingText.includes('web_search: MCP payment stream Stripe checkout MapLibre observability')) {
       throw new Error('expected per-share thinking trace to preserve explicit search trajectory lines')
     }
     if (!shareThinkingText.includes('No run-code, execute-command, execute-python, or tool-call execution signals were captured.')) {

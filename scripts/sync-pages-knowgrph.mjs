@@ -108,10 +108,9 @@ const agentReadyResourceContractTarget = path.resolve(
 )
 const mcpAppsReadyContractSource = agentReadyFeatureSource('mcpAppsReadyContract.mjs')
 const mcpAppsReadyContractTarget = agentReadyFeatureTarget('mcpAppsReadyContract.mjs')
-const vdeoxplnContractSource = agentReadyFeatureSource('knowgrphVdeoxplnContract.mjs')
-const vdeoxplnContractTarget = agentReadyFeatureTarget('knowgrphVdeoxplnContract.mjs')
-const vdeoxplnRoutingToolsSource = agentReadyFeatureSource('knowgrphVdeoxplnRoutingTools.mjs')
-const vdeoxplnRoutingToolsTarget = agentReadyFeatureTarget('knowgrphVdeoxplnRoutingTools.mjs')
+const vdeoxplnContractSource = agentReadyFeatureSource('knowgrphVdeoxplnContract.mjs'), vdeoxplnContractTarget = agentReadyFeatureTarget('knowgrphVdeoxplnContract.mjs')
+const localMcpToolNamesSource = agentReadyFeatureSource('knowgrphLocalMcpToolNames.mjs'), localMcpToolNamesTarget = agentReadyFeatureTarget('knowgrphLocalMcpToolNames.mjs'), probeTreeContractSource = agentReadyFeatureSource('probeTreeContract.mjs'), probeTreeContractTarget = agentReadyFeatureTarget('probeTreeContract.mjs')
+const vdeoxplnRoutingToolsSource = agentReadyFeatureSource('knowgrphVdeoxplnRoutingTools.mjs'), vdeoxplnRoutingToolsTarget = agentReadyFeatureTarget('knowgrphVdeoxplnRoutingTools.mjs')
 const sharedDocumentStructureInspectionSource = agentReadyFeatureSource('sharedDocumentStructureInspection.mjs')
 const sharedDocumentStructureInspectionTarget = agentReadyFeatureTarget('sharedDocumentStructureInspection.mjs')
 const agentSurfaceInspectionSource = agentReadyFeatureSource('agentSurfaceInspection.mjs')
@@ -583,8 +582,7 @@ const agentReadyToolContractNeedsUpdate = await plainFileNeedsUpdate(agentReadyT
 const agentReadyPromptContractNeedsUpdate = await plainFileNeedsUpdate(agentReadyPromptContractSource, agentReadyPromptContractTarget)
 const agentReadyResourceContractNeedsUpdate = await plainFileNeedsUpdate(agentReadyResourceContractSource, agentReadyResourceContractTarget)
 const mcpAppsReadyContractNeedsUpdate = await plainFileNeedsUpdate(mcpAppsReadyContractSource, mcpAppsReadyContractTarget)
-const vdeoxplnContractNeedsUpdate = await plainFileNeedsUpdate(vdeoxplnContractSource, vdeoxplnContractTarget)
-const vdeoxplnRoutingToolsNeedsUpdate = await plainFileNeedsUpdate(vdeoxplnRoutingToolsSource, vdeoxplnRoutingToolsTarget)
+const vdeoxplnContractNeedsUpdate = await plainFileNeedsUpdate(vdeoxplnContractSource, vdeoxplnContractTarget), localMcpToolNamesNeedsUpdate = await plainFileNeedsUpdate(localMcpToolNamesSource, localMcpToolNamesTarget), probeTreeContractNeedsUpdate = await plainFileNeedsUpdate(probeTreeContractSource, probeTreeContractTarget), vdeoxplnRoutingToolsNeedsUpdate = await plainFileNeedsUpdate(vdeoxplnRoutingToolsSource, vdeoxplnRoutingToolsTarget)
 const sharedDocumentStructureInspectionNeedsUpdate = await plainFileNeedsUpdate(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
 const agentSurfaceInspectionNeedsUpdate = await plainFileNeedsUpdate(agentSurfaceInspectionSource, agentSurfaceInspectionTarget)
 const webMcpLifecycleNeedsUpdate = await plainFileNeedsUpdate(webMcpLifecycleSource, webMcpLifecycleTarget)
@@ -631,8 +629,7 @@ if (checkMode) {
     agentReadyPromptContractNeedsUpdate ||
     agentReadyResourceContractNeedsUpdate ||
     mcpAppsReadyContractNeedsUpdate ||
-    vdeoxplnContractNeedsUpdate ||
-    vdeoxplnRoutingToolsNeedsUpdate ||
+    vdeoxplnContractNeedsUpdate || localMcpToolNamesNeedsUpdate || probeTreeContractNeedsUpdate || vdeoxplnRoutingToolsNeedsUpdate ||
     sharedDocumentStructureInspectionNeedsUpdate ||
     agentSurfaceInspectionNeedsUpdate ||
     webMcpLifecycleNeedsUpdate ||
@@ -689,8 +686,7 @@ if (checkMode) {
     if (agentReadyPromptContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared prompt contract is out of sync')
     if (agentReadyResourceContractNeedsUpdate) console.error('  - Knowgrph agent-ready shared resource contract is out of sync')
     if (mcpAppsReadyContractNeedsUpdate) console.error('  - Knowgrph MCP Apps-ready shared contract is out of sync')
-    if (vdeoxplnContractNeedsUpdate) console.error('  - Knowgrph vdeoxpln contract helper is out of sync')
-    if (vdeoxplnRoutingToolsNeedsUpdate) console.error('  - Knowgrph vdeoxpln routing helper is out of sync')
+    if (vdeoxplnContractNeedsUpdate) console.error('  - Knowgrph vdeoxpln contract helper is out of sync'); if (localMcpToolNamesNeedsUpdate) console.error('  - Knowgrph local MCP tool names helper is out of sync'); if (probeTreeContractNeedsUpdate) console.error('  - Knowgrph probe-tree contract helper is out of sync'); if (vdeoxplnRoutingToolsNeedsUpdate) console.error('  - Knowgrph vdeoxpln routing helper is out of sync')
     if (sharedDocumentStructureInspectionNeedsUpdate) console.error('  - Knowgrph shared document structure inspection helper is out of sync')
     if (agentSurfaceInspectionNeedsUpdate) console.error('  - Knowgrph agent surface inspection helper is out of sync')
     if (webMcpLifecycleNeedsUpdate) console.error('  - Knowgrph WebMCP lifecycle helper is out of sync')
@@ -802,12 +798,10 @@ if (checkMode) {
   if (mcpAppsReadyContractNeedsUpdate) {
     await copyPlainFile(mcpAppsReadyContractSource, mcpAppsReadyContractTarget)
   }
-  if (vdeoxplnContractNeedsUpdate) {
-    await copyPlainFile(vdeoxplnContractSource, vdeoxplnContractTarget)
-  }
-  if (vdeoxplnRoutingToolsNeedsUpdate) {
-    await copyPlainFile(vdeoxplnRoutingToolsSource, vdeoxplnRoutingToolsTarget)
-  }
+  if (vdeoxplnContractNeedsUpdate) await copyPlainFile(vdeoxplnContractSource, vdeoxplnContractTarget)
+  if (localMcpToolNamesNeedsUpdate) await copyPlainFile(localMcpToolNamesSource, localMcpToolNamesTarget)
+  if (probeTreeContractNeedsUpdate) await copyPlainFile(probeTreeContractSource, probeTreeContractTarget)
+  if (vdeoxplnRoutingToolsNeedsUpdate) await copyPlainFile(vdeoxplnRoutingToolsSource, vdeoxplnRoutingToolsTarget)
   if (sharedDocumentStructureInspectionNeedsUpdate) {
     await copyPlainFile(sharedDocumentStructureInspectionSource, sharedDocumentStructureInspectionTarget)
   }
@@ -849,6 +843,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyRuntimeUpdated=${agentReadyRuntimeUpdated}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnRoutingToolsUpdated=${vdeoxplnRoutingToolsNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyRuntimeUpdated=${agentReadyRuntimeUpdated}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, localMcpToolNamesUpdated=${localMcpToolNamesNeedsUpdate ? 'yes' : 'no'}, probeTreeContractUpdated=${probeTreeContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnRoutingToolsUpdated=${vdeoxplnRoutingToolsNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, webMcpLifecycleUpdated=${webMcpLifecycleNeedsUpdate ? 'yes' : 'no'}, publishedToolExecutorsUpdated=${publishedToolExecutorsNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
   )
 }

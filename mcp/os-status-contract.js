@@ -1,4 +1,6 @@
-export const OS_STATUS_TOOL_NAME = "knowgrph.os.status";
+import { KNOWGRPH_OS_STATUS_TOOL_NAME } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
+
+export const OS_STATUS_TOOL_NAME = KNOWGRPH_OS_STATUS_TOOL_NAME;
 export const OS_STATUS_COUNT_UNAVAILABLE = "unavailable";
 export const SHOWRUNNER_STAGE_APPROVAL_GATE_ID = "showrunner-stage-approval";
 

@@ -11,7 +11,6 @@ import {
   CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
   normalizeChatLocalStorageRootPath,
 } from './chatStorageConfig'
-import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
 import { formatReasoningStepSummary } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import {
   extractKgcWorkspaceSessionId,
@@ -27,6 +26,10 @@ import {
 import { filterPersistableObservedUrls, sanitizeStreamArtifactPrompt } from './chatStreamArtifactSanitizers'
 import { buildShareThinkingArtifactDocument } from './shareThinkingArtifact'
 import { mergeKgcTraceSection } from './chatKgcConsolidatedArtifacts'
+import {
+  buildChatTraceQueryRelevance,
+  type ChatTraceQueryRelevance,
+} from './chatTraceQueryRelevance'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i
 
@@ -112,12 +115,7 @@ const isReportShareUrl = (value: string): boolean => {
   }
 }
 
-type StreamArtifactQueryRelevance = {
-  intent: string
-  focus: string
-  requestedSections: string[]
-  namedTerms: string[]
-}
+type StreamArtifactQueryRelevance = ChatTraceQueryRelevance
 
 type WorkspaceOutputSnapshot = {
   headings: string[]
@@ -134,21 +132,6 @@ type StreamSignalSnapshot = {
   reasoningHighlights: string[]
   toolSignals: string[]
   sourceUrls: string[]
-}
-
-const GENERIC_ARTIFACT_LABELS = new Set(['chat response', 'response', 'report', 'analysis'])
-
-const REQUESTED_SECTION_LABELS: Record<string, string> = {
-  useCase: 'Use Case',
-  problem: 'Problem',
-  solution: 'Solution',
-  userFlow: 'User Flow',
-  workflow: 'Work Flow',
-  dataFlow: 'Data Flow',
-  goals: 'Goals',
-  userStories: 'User Stories',
-  monetization: 'Monetization',
-  integrations: 'Integration',
 }
 
 const GENERIC_WORKSPACE_HEADING_RX = /^(computing flow definition|runner protocol|graph registry|document links|flow graph|pipeline|open questions|customization guide)\b/i
@@ -172,31 +155,7 @@ const uniqueText = (values: readonly string[]): string[] => {
   return out
 }
 
-export const buildStreamArtifactQueryRelevance = (requestText: string): StreamArtifactQueryRelevance => {
-  const profile = analyzeKgcRequest(requestText)
-  const intent = sanitizeRequestIntent(profile.intent, 320) || 'Prompt unavailable.'
-  const hasInvocationRoute = Boolean(profile.invocation)
-  const requestedSections = Object.entries(profile.requestedSections)
-    .filter(([, enabled]) => Boolean(enabled))
-    .map(([key]) => REQUESTED_SECTION_LABELS[key] || key)
-  const focusParts = uniqueText([
-    intent,
-    !hasInvocationRoute && profile.objective && profile.objective !== intent ? profile.objective : '',
-    profile.artifact && !GENERIC_ARTIFACT_LABELS.has(profile.artifact.toLowerCase()) ? `Artifact: ${profile.artifact}` : '',
-    profile.product ? `Product: ${profile.product}` : '',
-    profile.subject ? `Subject: ${profile.subject}` : '',
-    profile.domain ? `Domain: ${profile.domain}` : '',
-    requestedSections.length > 0 ? `Requested Sections: ${requestedSections.join(', ')}` : '',
-    ...profile.topics,
-    ...profile.namedTerms,
-  ])
-  return {
-    intent,
-    focus: clampText(focusParts.join(' · '), 260) || intent,
-    requestedSections,
-    namedTerms: uniqueText(profile.namedTerms),
-  }
-}
+export const buildStreamArtifactQueryRelevance = buildChatTraceQueryRelevance
 
 const stripLeadingFrontmatter = (value: string): string => {
   const text = String(value || '').replace(/\r\n/g, '\n').trim()
@@ -285,16 +244,13 @@ const extractKeywordTokens = (value: string): string[] => {
     return true
   }))
 }
-
-const buildRequestKeywordSet = (requestText: string, queryRelevance?: StreamArtifactQueryRelevance): Set<string> => {
-  const keywords = [
-    ...extractKeywordTokens(requestText),
+const buildRequestKeywordSet = (requestText: string, queryRelevance?: StreamArtifactQueryRelevance): Set<string> => (
+  new Set([
+    ...extractKeywordTokens(queryRelevance?.intent || requestText),
     ...(queryRelevance?.namedTerms || []).flatMap(term => extractKeywordTokens(term)),
     ...(queryRelevance?.requestedSections || []).flatMap(section => extractKeywordTokens(section)),
-  ]
-  return new Set(keywords.map(keyword => keyword.toLowerCase()))
-}
-
+  ].map(keyword => keyword.toLowerCase()))
+)
 const scorePreviewLine = (line: string, keywordSet: Set<string>): number => {
   const normalized = String(line || '').trim()
   if (!normalized || shouldSkipPreviewLine(normalized)) return Number.NEGATIVE_INFINITY
@@ -389,10 +345,7 @@ const extractReasoningTexts = (delta: Record<string, unknown>): string[] => {
   ]).filter(Boolean)
 }
 
-const buildStreamSignalSnapshot = (args: {
-  requestText: string
-  rawSseEvents: string[]
-}): StreamSignalSnapshot => {
+const buildStreamSignalSnapshot = (args: { requestText: string; rawSseEvents: string[]; reasoningSteps?: string[] }): StreamSignalSnapshot => {
   const selectedSignals: string[] = []
   const contentParts: string[] = []
   const reasoningParts: string[] = []
@@ -468,6 +421,11 @@ const buildStreamSignalSnapshot = (args: {
     maxCount: 4,
   })
   reasoningProjectionLines.forEach(line => pushUniqueLimited(reasoningHighlights, line, 12, 180))
+  ;(args.reasoningSteps || []).forEach(step => {
+    const signal = clampText(step, 180)
+    pushUniqueLimited(reasoningHighlights, signal, 12, 180)
+    if (/^(?:provider_error|stream_error|stream_empty|tool_call|web_search|fetch_url):/i.test(signal)) pushUniqueLimited(selectedSignals, signal, 12, 180)
+  })
   return {
     contentChunkCount,
     reasoningChunkCount,
@@ -656,6 +614,7 @@ const buildStreamLogDocument = (args: {
   const streamSignalSnapshot = buildStreamSignalSnapshot({
     requestText: args.requestText,
     rawSseEvents: args.rawSseEvents,
+    reasoningSteps: args.reasoningSteps,
   })
   const nodes: ArtifactNode[] = [
     {
