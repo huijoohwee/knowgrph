@@ -2,11 +2,8 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, LS_KEYS } from '@/lib/config'
 import { CHAT_INPUT_APPEND_EVENT } from '@/features/canvas/utils'
-import { getLocalStorage, lsSetJson, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
+import { getLocalStorage, lsSetJson } from '@/lib/persistence'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
-import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 import type {
   ChatMessage,
   StreamingAssistantState,
@@ -28,12 +25,10 @@ import {
 import { parseIntegrationConfigsJson } from '@/features/integrations/config'
 import {
   buildHistoryKey,
-  CHAT_HISTORY_COALESCE_DELAY_MS,
-  getCachedChatHistory,
   persistChatExchangeLog,
   putChatHistoryCache,
-  toHistoryTaskKey,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
+import { useFloatingPanelChatHistory } from '@/features/chat/floatingPanelChat/useFloatingPanelChatHistory'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
@@ -154,7 +149,6 @@ export default function FloatingPanelChat() {
   const abortRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLElement | null>(null)
   const scrollRafRef = React.useRef<number | null>(null)
-  const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
   const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
   const lastRelayLogSignatureRef = React.useRef<string | null>(null)
@@ -615,70 +609,13 @@ export default function FloatingPanelChat() {
     currentNode, messageCount: messages.length, isLoading, setInput,
   })
 
-  React.useEffect(() => {
-    if (lastLoadedHistoryKeyRef.current === historyKey) return
-    lastLoadedHistoryKeyRef.current = historyKey
-    const cached = getCachedChatHistory(historyKey)
-    if (cached) {
-      setMessages(cached)
-      return
-    }
-    const storage = getLocalStorage()
-    if (!storage) {
-      setMessages([])
-      return
-    }
-    const parseHistory = (raw: unknown): ChatMessage[] | null => {
-      if (!Array.isArray(raw)) return null
-      const next: ChatMessage[] = []
-      raw.forEach(item => {
-        if (!item || typeof item !== 'object') return
-        const id = typeof (item as { id?: unknown }).id === 'string' ? String((item as { id: unknown }).id) : ''
-        const role = (item as { role?: unknown }).role
-        const content = (item as { content?: unknown }).content
-        if (!id) return
-        if (role !== 'user' && role !== 'assistant') return
-        if (typeof content !== 'string') return
-        next.push({ id, role, content })
-      })
-      return next
-    }
-    const next = readJsonFromStorage(storage, historyKey, [] as ChatMessage[], parseHistory)
-    const trimmed = next.slice(-80)
-    putChatHistoryCache(historyKey, trimmed)
-    setMessages(trimmed)
-  }, [historyKey])
-
-  React.useEffect(() => {
-    const history = (() => {
-      const base = messages.slice(-80)
-      const streamingId = streamingAssistant?.id || ''
-      if (!streamingId) return base
-      return base.filter(m => !(m.id === streamingId && m.role === 'assistant' && !String(m.content || '').trim()))
-    })()
-    putChatHistoryCache(historyKey, history)
-    const taskKey = toHistoryTaskKey(historyKey)
-    const signature = hashSignatureParts([
-      historyKey,
-      history.length,
-      hashArrayOfObjectsSignature(history, { maxItems: 24, maxKeysPerItem: 4 }),
-    ])
-    scheduleWorkspaceSyncTask(taskKey, () => {
-      const storage = getLocalStorage()
-      if (!storage) return
-      writeJsonToStorage(storage, historyKey, history)
-    }, CHAT_HISTORY_COALESCE_DELAY_MS, {
-      signature,
-      scopeKey: WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE,
-    })
-  }, [historyKey, messages, streamingAssistant ? streamingAssistant.id : ''])
-
-  React.useEffect(() => {
-    return () => {
-      const taskKey = toHistoryTaskKey(historyKey)
-      cancelWorkspaceSyncTask(taskKey)
-    }
-  }, [historyKey])
+  useFloatingPanelChatHistory({
+    historyKey,
+    isLoading,
+    messages,
+    setMessages,
+    streamingAssistant,
+  })
 
   React.useEffect(() => {
     const el = scrollRef.current

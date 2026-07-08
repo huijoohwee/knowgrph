@@ -6,7 +6,7 @@ import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
+export async function testFloatingPanelChatStreamsReasoningStatusAfterLatestMessage() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -16,11 +16,18 @@ export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
     await mountReactRoot(
       root,
       React.createElement(FloatingPanelChatMessagesSection, {
-        messages: [{
-          id: 'assistant-1',
-          role: 'assistant',
-          content: 'Assistant response is still streaming.',
-        }],
+        messages: [
+          {
+            id: 'user-1',
+            role: 'user',
+            content: '/prd-tad.create airvio_.JPEG',
+          },
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: '',
+          },
+        ],
         isLoading: true,
         historyKey: 'history-key',
         uiPanelTextFontClass: 'text-sm',
@@ -35,17 +42,24 @@ export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
       { window: dom.window as unknown as Window, frames: 2 },
     )
 
-    const status = container.querySelector('[data-kg-chat-stream-status="top"]') as HTMLElement | null
+    const status = container.querySelector('[data-kg-chat-stream-status="chronological"]') as HTMLElement | null
     if (!status) throw new Error('expected streaming reasoning status to render inside the chat messages section')
     const viewport = container.querySelector('[data-kg-chat-thread-viewport="true"]') as HTMLElement | null
-    if (!viewport || status !== viewport.firstElementChild) {
-      throw new Error('expected streaming status to be the first chat viewport element')
+    if (!viewport || status !== viewport.lastElementChild) {
+      throw new Error('expected streaming status to follow the latest visible chat message')
     }
     if (status.getAttribute('role') !== 'status' || status.getAttribute('aria-live') !== 'polite') {
       throw new Error('expected streaming status to expose a polite live region')
     }
-    if (!status.className.includes('sticky') || !status.className.includes('top-0')) {
-      throw new Error(`expected streaming status to stay pinned to the top of Chat, got ${status.className}`)
+    if (status.className.includes('sticky') || status.className.includes('top-0')) {
+      throw new Error(`expected streaming status to stay in chronological chat flow, got ${status.className}`)
+    }
+    const latestBubble = container.querySelector('.kg-floating-chat-message-bubble') as HTMLElement | null
+    if (!latestBubble || !String(latestBubble.textContent || '').includes('/prd-tad.create')) {
+      throw new Error(`expected latest user request bubble before streaming status, got ${container.textContent}`)
+    }
+    if (!(latestBubble.compareDocumentPosition(status) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING)) {
+      throw new Error('expected streaming status DOM order to follow the latest user request bubble')
     }
 
     const reasoning = status.querySelector('[data-kg-chat-stream-reasoning="true"]') as HTMLElement | null
@@ -78,7 +92,7 @@ export async function testFloatingPanelChatStreamsReasoningStatusAtTopOfChat() {
       { window: dom.window as unknown as Window, frames: 2 },
     )
 
-    if (container.querySelector('[data-kg-chat-stream-status="top"]')) {
+    if (container.querySelector('[data-kg-chat-stream-status="chronological"]')) {
       throw new Error('expected settled Chat state to hide stale streaming status')
     }
   } finally {

@@ -694,12 +694,10 @@ export function useStoryboardWidgetOverlayEdges(args: {
         pendingPreviewSourceId: pendingEdgePreviewRef.current.sourceId,
         domOverlayRootEntries,
       })
-      const requestedOverlayIdentityIds = requestedOverlayIdentityIdsBase.length > 0
-        ? Array.from(new Set([
-            ...requestedOverlayIdentityIdsBase,
-            ...domStoryboardFixedCardEntries.map(entry => entry.id),
-          ])).sort((a, b) => a.localeCompare(b))
-        : requestedOverlayIdentityIdsBase
+      const requestedOverlayIdentityIds = Array.from(new Set([
+        ...requestedOverlayIdentityIdsBase,
+        ...domStoryboardFixedCardEntries.map(entry => entry.id),
+      ])).sort((a, b) => a.localeCompare(b))
       const stableGraphContainsRequestedOverlayIdentities = graphContainsRequestedOverlayIdentities(stableGraph, requestedOverlayIdentityIds)
       const withinWorkspaceCloseRecoveryWindow = now <= overlayEdgeWorkspaceCloseRecoveryUntilRef.current
       const canReuseMetadataLessStableGraph =
@@ -836,11 +834,9 @@ export function useStoryboardWidgetOverlayEdges(args: {
           const id = readCanonicalStoryboardWidgetOverlayIdentity(domOverlayRootEntries[i]?.id)
           if (id) set.add(id)
         }
-        if (set.size > 0) {
-          for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {
-            const id = readCanonicalStoryboardWidgetOverlayIdentity(domStoryboardFixedCardEntries[i]?.id)
-            if (id) set.add(id)
-          }
+        for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {
+          const id = readCanonicalStoryboardWidgetOverlayIdentity(domStoryboardFixedCardEntries[i]?.id)
+          if (id) set.add(id)
         }
         if (sel) set.add(readCanonicalStoryboardWidgetOverlayIdentity(sel))
         const liveSetSize = set.size

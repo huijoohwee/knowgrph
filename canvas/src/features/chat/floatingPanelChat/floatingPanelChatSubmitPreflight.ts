@@ -11,7 +11,7 @@ import {
   ensureChatHistoryWorkspaceFilePath,
   toKgcStreamingWorkspacePath,
 } from '../chatHistoryWorkspace'
-import { putChatHistoryCache, toShortId } from './floatingPanelChatRuntime'
+import { putChatHistoryCache, toShortId, upsertPendingChatRequestTurn } from './floatingPanelChatRuntime'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 
@@ -100,11 +100,12 @@ export const initializeChatSubmitOptimisticState = (args: {
   args.setConnectivityDetail?.(null)
   args.setStreamingInsights?.(null)
   args.setStreamingAssistant({ id: assistantMessageId, text: '' })
-  const nextMessages: ChatMessage[] = [
-    ...args.messages,
-    { id: userMessageId, role: 'user', content: args.trimmedInput },
-    { id: assistantMessageId, role: 'assistant', content: '' },
-  ]
+  const nextMessages = upsertPendingChatRequestTurn({
+    messages: args.messages,
+    requestText: args.trimmedInput,
+    requestMessageId: userMessageId,
+    assistantMessageId,
+  })
   putChatHistoryCache(args.historyKey, nextMessages.slice(-80))
   args.setMessages(nextMessages)
   args.setInput('')

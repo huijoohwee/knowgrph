@@ -36,7 +36,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.mainPanel.skillsCommands.catalog","@/__tests__/mainPanelSkillsCommands.test.tsx","testMainPanelSkillsCommandsViewRendersSlashInvokableSkills"],
   ["ui.mainPanel.skillsCommands.sharedOwners","@/__tests__/mainPanelSkillsCommands.test.tsx","testMainPanelSkillsCommandsIsRegisteredInSharedMainPanelOwners"],
   ["ui.floatingPanelChat.sourceFilesLink","@/__tests__/floatingPanelChatSourceFileLink.test","testFloatingPanelChatRendersSourceFilesWorkspaceLinks"],
-  ["ui.floatingPanelChat.streamingStatusTop","@/__tests__/floatingPanelChatStreamingStatusPlacement.test","testFloatingPanelChatStreamsReasoningStatusAtTopOfChat"],
+  ["ui.floatingPanelChat.streamingStatusChronological","@/__tests__/floatingPanelChatStreamingStatusPlacement.test","testFloatingPanelChatStreamsReasoningStatusAfterLatestMessage"],
   ["ui.workspace.responsiveBoundedSurfaces","@/__tests__/panelSemanticContract.test","testResponsiveWorkspaceAndTableSurfacesStayBounded"],
   ["ui.workspace.responsiveMenusAndDataViewSurfaces","@/__tests__/panelSemanticContract.test","testResponsiveMenusAndDataViewSurfacesStayBounded"],
   ["ui.designTokens.tokenLists.sharedResponsiveOwner","@/__tests__/designTokensResponsiveContract.test","testDesignTokenListsUseSharedResponsiveOwner"],

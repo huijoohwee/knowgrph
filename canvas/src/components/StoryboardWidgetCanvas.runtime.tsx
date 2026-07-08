@@ -303,7 +303,7 @@ export default function StoryboardWidgetCanvasRuntime(
     for (let i = 0; i < openWidgetNodeIds.length; i += 1) pushId(openWidgetNodeIds[i])
     return next
   }, [openWidgetNodeIds, storyboardCardDisplayActive, storyboardCanvasGraphDataForDisplay, storyboardWidgetDisplayActive, storyboardWidgetNodeIds])
-  const overlayRenderGraphDataOverride = storyboardWidgetDisplayActive ? storyboardCanvasGraphDataForDisplay : renderGraphDataOverride
+  const overlayRenderGraphDataOverride = storyboardCardsMode ? storyboardCanvasGraphDataForDisplay : renderGraphDataOverride
   const overlayTopologyLayoutSignature = React.useMemo(() => {
     const graphDataForOverlayRuntime =
       draftGraphData

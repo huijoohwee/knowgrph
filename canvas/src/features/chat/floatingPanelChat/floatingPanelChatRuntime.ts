@@ -36,6 +36,80 @@ export const buildHistoryKey = (graphData: GraphData | null): string => {
   return getChatHistoryStorageKey(idish || fallback)
 }
 
+export type ChatHistoryHydrationAction = 'skip' | 'mark-loaded' | 'hydrate'
+
+export const resolveChatHistoryHydrationAction = (args: {
+  historyKey: string
+  lastLoadedHistoryKey: string | null
+  isLoading: boolean
+}): ChatHistoryHydrationAction => {
+  const historyKey = String(args.historyKey || '').trim()
+  if (!historyKey || String(args.lastLoadedHistoryKey || '') === historyKey) return 'skip'
+  return args.isLoading ? 'mark-loaded' : 'hydrate'
+}
+
+export const createPendingChatRequestMessageId = (assistantMessageId: string): string => {
+  const safeAssistantMessageId = String(assistantMessageId || '').trim()
+  return `${safeAssistantMessageId || 'assistant'}-request`
+}
+
+export const upsertPendingChatRequestTurn = (args: {
+  messages: ChatMessage[]
+  requestText: string
+  requestMessageId: string
+  assistantMessageId: string
+  dedupeRequestContent?: boolean
+}): ChatMessage[] => {
+  const requestText = String(args.requestText || '').trim()
+  const requestMessageId = String(args.requestMessageId || '').trim()
+  const assistantMessageId = String(args.assistantMessageId || '').trim()
+  if (!requestText && !assistantMessageId) return args.messages
+
+  const next = args.messages.slice()
+  let changed = false
+  const assistantIndex = assistantMessageId
+    ? next.findIndex(message => message.id === assistantMessageId)
+    : -1
+  const requestIndexById = requestMessageId
+    ? next.findIndex(message => message.id === requestMessageId)
+    : -1
+  const requestIndexByContent = args.dedupeRequestContent && requestText
+    ? (() => {
+        for (let index = next.length - 1; index >= 0; index -= 1) {
+          const message = next[index]
+          if (message?.role === 'user' && String(message.content || '').trim() === requestText) return index
+        }
+        return -1
+      })()
+    : -1
+  const requestIndex = requestIndexById >= 0 ? requestIndexById : requestIndexByContent
+
+  if (requestText) {
+    if (requestIndex >= 0) {
+      const current = next[requestIndex]
+      if (current.role !== 'user' || current.content !== requestText) {
+        next[requestIndex] = { ...current, role: 'user', content: requestText }
+        changed = true
+      }
+    } else {
+      const insertAt = assistantIndex >= 0 ? assistantIndex : next.length
+      next.splice(insertAt, 0, {
+        id: requestMessageId || createPendingChatRequestMessageId(assistantMessageId),
+        role: 'user',
+        content: requestText,
+      })
+      changed = true
+    }
+  }
+
+  if (assistantMessageId && !next.some(message => message.id === assistantMessageId)) {
+    next.push({ id: assistantMessageId, role: 'assistant', content: '' })
+    changed = true
+  }
+
+  return changed ? next : args.messages
+}
+
 export const CHAT_HISTORY_COALESCE_DELAY_MS = 220
 
 const CHAT_HISTORY_CACHE_LIMIT = 80

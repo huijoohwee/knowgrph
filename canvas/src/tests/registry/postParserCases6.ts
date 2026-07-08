@@ -15,6 +15,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.newChat.workspaceFile","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatNewChatCreatesAndFollowsCanonicalWorkspaceFile"],
   ["ui.floatingPanelChat.durableResume.newChatIdle","@/__tests__/floatingPanelChatDurableResume.test","testFloatingPanelChatDurableResumeSettlesBeforeNewChat"],
   ["ui.floatingPanelChat.durableResume.stopFinalizes","@/__tests__/floatingPanelChatDurableResume.test","testFloatingPanelChatStopFinalizesDurableResumeState"],
+  ["ui.floatingPanelChat.streaming.promptSurvivesGraphHistoryKeyChurn","@/__tests__/floatingPanelChatDurableResume.test","testFloatingPanelChatStreamingPromptSurvivesGraphHistoryKeyChurn"],
   ["ui.floatingPanelChat.newChat.sendingCreatesFreshSession","@/__tests__/floatingPanelChatDurableResume.test","testFloatingPanelChatNewChatStopsSendingAndCreatesFreshSessionFolder"],
   ["ui.floatingPanelChat.contextRail.quickActions","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatContextRailAndQuickActionsStayStateOwned"],
   ["ui.floatingPanelChat.workspaceContextCache.scopeAware","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatWorkspaceContextCacheKeyIsScopeAware"],

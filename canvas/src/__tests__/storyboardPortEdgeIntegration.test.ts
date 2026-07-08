@@ -359,11 +359,11 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   if (!overlayEdges.includes('const requestedOverlayIdentityIdsBase = collectRequestedOverlayIdentityIds({')) {
     throw new Error('expected Storyboard overlay edge runtime to build a base requested-id set before widening hybrid media-to-card routing context')
   }
-  if (!overlayEdges.includes('requestedOverlayIdentityIdsBase.length > 0')) {
-    throw new Error('expected Storyboard overlay edge runtime to widen requested ids with fixed cards only when an overlay edge context is already active')
+  if (overlayEdges.includes('requestedOverlayIdentityIdsBase.length > 0')) {
+    throw new Error('expected Storyboard overlay edge runtime to widen requested ids with fixed cards without requiring a pre-existing overlay edge context')
   }
-  if (!overlayEdges.includes('if (set.size > 0) {\n          for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {')) {
-    throw new Error('expected Storyboard overlay edge runtime to add fixed-card ids only after an overlay node activates hybrid edge rendering')
+  if (!overlayEdges.includes('for (let i = 0; i < domStoryboardFixedCardEntries.length; i += 1) {\n          const id = readCanonicalStoryboardWidgetOverlayIdentity(domStoryboardFixedCardEntries[i]?.id)')) {
+    throw new Error('expected Storyboard overlay edge runtime to seed visible fixed-card ids into pure Card-mode overlay edge rendering')
   }
   if (cursorEffect.includes('if (!args.overlayOnlyModeEnabled) return')) {
     throw new Error('expected Storyboard port drag preview to avoid overlay-only gating')

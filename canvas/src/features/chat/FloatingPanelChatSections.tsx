@@ -82,9 +82,9 @@ const FloatingPanelChatStreamingStatus = React.memo(function FloatingPanelChatSt
     <section
       aria-live="polite"
       role="status"
-      data-kg-chat-stream-status="top"
+      data-kg-chat-stream-status="chronological"
       className={[
-        'sticky top-0 z-10 space-y-1 rounded border px-2 py-1.5 shadow-sm',
+        'space-y-1 rounded border px-2 py-1.5',
         UI_THEME_TOKENS.panel.border,
         UI_THEME_TOKENS.panel.bg,
       ].join(' ')}
@@ -195,15 +195,6 @@ export function FloatingPanelChatMessagesSection({
 
   return (
     <section data-kg-chat-thread-viewport="true" className="flex min-h-full flex-col gap-2">
-      <FloatingPanelChatStreamingStatus
-        reasoningPreview={liveStreamingReasoningPreview}
-        usageSummary={liveStreamingUsageSummary}
-        finishReason={liveStreamingFinishReason}
-        writingWorkspaceFileLabel={liveWritingWorkspaceFileLabel}
-        uiPanelTextFontClass={uiPanelTextFontClass}
-        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
-      />
-
       <header className="flex items-center justify-between rounded border px-2 py-1.5">
         <section className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
           {UI_COPY.chatHistoryCountStatus(messages.length)}
@@ -319,6 +310,15 @@ export function FloatingPanelChatMessagesSection({
           />
         )
       })}
+
+      <FloatingPanelChatStreamingStatus
+        reasoningPreview={liveStreamingReasoningPreview}
+        usageSummary={liveStreamingUsageSummary}
+        finishReason={liveStreamingFinishReason}
+        writingWorkspaceFileLabel={liveWritingWorkspaceFileLabel}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+      />
     </section>
   )
 }

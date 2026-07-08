@@ -63,6 +63,9 @@ export async function testFloatingPanelChatDurableResumeSettlesBeforeNewChat() {
     if (findFooterButton(container, 'Sending…')) {
       throw new Error('expected durable resume failure to leave the footer out of Sending state')
     }
+    if (!String(container.textContent || '').includes('resume this stream')) {
+      throw new Error('expected durable resume to keep the active request prompt visible')
+    }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     clearActiveDurableChatStreamRun('resume-loop-guard')
@@ -91,6 +94,110 @@ export function testFloatingPanelChatStopFinalizesDurableResumeState() {
   }
   if (!stopSource.includes('setStreamingAssistant(null)') || !stopSource.includes('setStreamingInsights(null)')) {
     throw new Error('expected Stop to clear transient streaming assistant and insight state')
+  }
+}
+
+export async function testFloatingPanelChatStreamingPromptSurvivesGraphHistoryKeyChurn() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const originalFetch = globalThis.fetch
+  let fetchStarted = false
+  let rejectPending: ((error: Error) => void) | null = null
+  const promptText = '/prd-tad.create airvio_.JPEG'
+  const findPromptBubble = () => {
+    return (Array.from(container.querySelectorAll('.kg-floating-chat-message-bubble')) as HTMLElement[])
+      .find(element => String(element.textContent || '').includes(promptText)) || null
+  }
+
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).includes('/__kg_fs_write')) {
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    }
+    if (String(init?.method || 'GET').toUpperCase() !== 'POST') {
+      const body = String(input).includes('policies') ? { policies: [] } : { memberships: [] }
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }))
+    }
+    return new Promise<Response>((_resolve, reject) => {
+      fetchStarted = true
+      rejectPending = reject
+      const signal = init?.signal || null
+      if (signal?.aborted) {
+        reject(new Error('Aborted'))
+        return
+      }
+      signal?.addEventListener('abort', () => reject(new Error('Aborted')), { once: true })
+    })
+  }) as typeof fetch
+
+  resetWorkspaceFsForTests()
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setChatStorageTarget('chatKnowgrph')
+  useGraphStore.getState().setChatKnowgrphWorkspacePath(null)
+  useGraphStore.getState().setChatProvider('lmstudio-local')
+  useGraphStore.getState().setChatModel('gpt-5-nano')
+  useGraphStore.getState().setGraphData({
+    context: '',
+    type: 'Graph',
+    nodes: [{ id: 'node-a', label: 'A', type: 'Node', properties: {} }],
+    edges: [],
+  } as never)
+  useMarkdownExplorerStore.getState().setActivePath(null)
+
+  try {
+    await mountReactRoot(root, React.createElement(FloatingPanelChat), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+      tasks: 1,
+    })
+    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    if (!input) throw new Error('expected FloatingPanel chat input to render')
+    await act(async () => {
+      input.value = promptText
+      Simulate.change(input)
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    const form = input.closest('form') as HTMLFormElement | null
+    if (!form) throw new Error('expected FloatingPanel chat input to be inside a form')
+    await act(async () => {
+      Simulate.submit(form)
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (fetchStarted && findPromptBubble()) break
+        await waitForTasks(1)
+        await waitForFrames(dom.window as unknown as Window, 1)
+      }
+    })
+    if (!fetchStarted) throw new Error('expected chat submit to reach the streaming transport')
+    if (!findPromptBubble()) throw new Error('expected optimistic user prompt bubble to render before graph churn')
+
+    await act(async () => {
+      useGraphStore.getState().setGraphData({
+        context: '',
+        type: 'Graph',
+        nodes: [
+          { id: 'node-a', label: 'A', type: 'Node', properties: {} },
+          { id: 'node-b', label: 'B', type: 'Node', properties: {} },
+        ],
+        edges: [],
+      } as never)
+      await waitForTasks(2)
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+
+    if (!findPromptBubble()) {
+      throw new Error('expected active stream prompt bubble to survive graph-derived history key churn')
+    }
+  } finally {
+    rejectPending?.(new Error('test cleanup'))
+    globalThis.fetch = originalFetch
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    useMarkdownExplorerStore.getState().setActivePath(null)
+    useGraphStore.getState().resetAll()
+    resetWorkspaceFsForTests()
+    restore()
   }
 }
 

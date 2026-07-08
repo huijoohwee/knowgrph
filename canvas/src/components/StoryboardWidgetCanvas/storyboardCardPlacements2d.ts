@@ -177,7 +177,7 @@ export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
     const placement = id ? placements.get(id) : null
     if (!placement) return node
     changed = true
-    return { ...node, x: placement.x, y: placement.y, fx: placement.x, fy: placement.y, vx: 0, vy: 0 } as GraphNode
+    return { ...node, x: placement.x, y: placement.y } as GraphNode
   })
   return changed ? { ...graphData, nodes: nextNodes } : graphData
 }

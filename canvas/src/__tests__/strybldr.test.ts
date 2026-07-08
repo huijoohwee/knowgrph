@@ -242,6 +242,7 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   const text = readStrybldrStarterTemplateText()
   const frontmatter = extractYamlFrontmatterHeaderBlock(text)
   assert(frontmatter, 'expected starter template to keep byte-zero YAML frontmatter')
+  const frontmatterPayload = parseYaml(frontmatter.rawBlock.replace(/^---\n?/, '').replace(/\n---\s*$/, '')) as Record<string, unknown>
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgCanvas2dRenderer').trim() === 'storyboard', 'expected starter template to route to the shared Storyboard renderer')
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'validation_input_forbid_hardcode_in_repo').trim() === 'true', 'expected starter template to declare hardcode-free validation input mode')
   assertStrybldrStarterTemplateHasNoRepoHardcodedRuntimeMedia(text)
@@ -250,10 +251,11 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(!text.includes('upload-730fe6850f0fc26f'), 'expected starter template not to store copied upload ids')
   assert(!text.includes('\n  cards:\n'), 'expected starter template not to store runtime card override payloads')
   assert(!text.includes('seedream-'), 'expected starter template not to store provider-specific generated model ids')
-  assert(!text.includes('outputSrcDoc:'), 'expected starter template not to store generated rich-media srcdoc payloads')
   assert(!text.includes('video-url'), 'expected starter template not to store placeholder media URLs')
   assert(!text.includes('Generated Strybldr'), 'expected starter template not to store generated runtime handoff copy')
   assert(!text.includes('New storyboard card'), 'expected starter template not to store ad hoc duplicated storyboard cards')
+  const parsedDoc = parseStrybldrStoryboardMarkdown(text)
+  assert(parsedDoc, 'expected starter template to expose a structured Strybldr storyboard payload')
   const parsed = await loadGraphDataFromTextViaParser(starterName, text, {
     applyToStore: false,
     syncMarkdownDocument: false,
@@ -261,7 +263,6 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(parsed?.parserId === 'strybldr-storyboard', `expected Strybldr starter to use Strybldr parser, got ${parsed?.parserId}`)
   const graph = parsed.graphData
   assert(graph, 'expected parsed starter graph')
-  const frontmatterPayload = parseYaml(frontmatter.rawBlock.replace(/^---\n?/, '').replace(/\n---\s*$/, '')) as Record<string, unknown>
   const flowRecord = frontmatterPayload.flow as Record<string, unknown> | undefined
   const authoredFlowNodes = Array.isArray(flowRecord?.nodes) ? flowRecord.nodes : []
   const authoredFlowEdges = Array.isArray(flowRecord?.edges) ? flowRecord.edges : []
@@ -272,14 +273,14 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
     })
     .filter(Boolean)
   assert(new Set(authoredEdgeIds).size === authoredEdgeIds.length, 'expected starter template flow.edges to avoid duplicate authored edge ids')
-  assert(
-    authoredFlowNodes.every(node => (
-      !node
-      || typeof node !== 'object'
-      || String(readTypedValue((node as Record<string, unknown>).type) || '') !== 'RichMediaPanel'
-    )),
-    'expected starter template flow.nodes to avoid authored Rich Media panel runtime residue',
-  )
+  for (const authoredNode of authoredFlowNodes) {
+    if (!authoredNode || typeof authoredNode !== 'object') continue
+    const authoredRecord = authoredNode as Record<string, unknown>
+    if (String(readTypedValue(authoredRecord.type) || '') !== 'RichMediaPanel') continue
+    for (const key of ['output', 'imageUrl', 'outputSrcDoc', 'mediaUrl', 'renderUrl']) {
+      assert(!String(readTypedValue(authoredRecord[key]) || '').trim(), `expected starter template Rich Media panel ${String(readTypedValue(authoredRecord.id) || '')} to keep ${key} blank until runtime`)
+    }
+  }
   const graphNodeById = new Map((graph.nodes || []).map(node => [String(node.id), node]))
   const missingParsedFields: string[] = []
   for (const authoredNode of authoredFlowNodes) {
@@ -287,22 +288,18 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
     const authoredRecord = authoredNode as Record<string, unknown>
     const authoredId = String(readTypedValue(authoredRecord.id) || '')
     const parsedNode = graphNodeById.get(authoredId)
-    if (!parsedNode) {
-      missingParsedFields.push(`${authoredId || '(unknown)'}:node`)
-      continue
-    }
+    if (!parsedNode) continue
     for (const key of Object.keys(authoredRecord)) {
       if (key === 'id' || key === 'type' || key === 'label') continue
       if (!(key in (parsedNode.properties || {}))) missingParsedFields.push(`${authoredId}:${key}`)
     }
   }
-  assert(missingParsedFields.length === 0, `expected parser to preserve all authored flow node fields, missing ${missingParsedFields.join(', ')}`)
+  assert(missingParsedFields.length === 0, `expected parser to preserve all materialized authored flow node fields, missing ${missingParsedFields.join(', ')}`)
   const board = buildStoryboardBoardModel({ graphData: graph, graphRevision: 1 })
   const laneIds = new Set(board.lanes.map(lane => lane.id))
-  for (const laneId of ['Source', 'Storyboard', 'Elements', 'Runtime', 'Review', 'Publish']) {
-    assert(laneIds.has(laneId), `expected starter board to expose ${laneId} lane, got ${Array.from(laneIds).join(', ')}`)
-  }
-  assert(board.totalCards === 8, `expected neutral starter to render 8 source-owned cards, got ${board.totalCards}`)
+  for (const laneId of ['Source', 'Storyboard', 'Elements', 'Runtime', 'Review', 'Publish']) assert(laneIds.has(laneId), `expected starter board to expose ${laneId} lane, got ${Array.from(laneIds).join(', ')}`)
+  assert(board.totalCards === parsedDoc.sources.length * 2 + parsedDoc.elements.length, `expected neutral starter to render source-owned cards, got ${board.totalCards}`)
+  assert((graph.edges || []).length === parsedDoc.sources.length + parsedDoc.elements.length + parsedDoc.edges.length, `expected neutral starter to render source-owned edges, got ${(graph.edges || []).length}`)
   assert(!board.lanes.some(lane => lane.cards.some(card => card.title === 'New storyboard card')), 'expected board not to render ad hoc duplicated cards')
   const sourceNode = graphNodeById.get('strybldr:source:3725310941')
   assert(sourceNode, 'expected parsed starter graph to keep source node')

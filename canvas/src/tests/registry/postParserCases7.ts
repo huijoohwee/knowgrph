@@ -22,4 +22,6 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["workspace.import.localFolder.spatialCaptureFileset","@/__tests__/workspaceImportSpatialCaptureFileset.test","testWorkspaceImportLocalFolderSpatialCaptureFilesetCreatesRenderableXrManifest"],
   ["url.commandMenuMediaThumbnail.prefersRenderableImageSrc","@/__tests__/mediaUrlCoercion.test","testCommandMenuMediaThumbnailResolverPrefersRenderableImageSrc"],
   ["url.commandMenuMediaThumbnail.fileVideoNativeReader","@/__tests__/mediaUrlCoercion.test","testCommandMenuMediaThumbnailResolverLeavesFileVideosForNativeReader"],
+  ["ui.flowWidget.storyboardFixedCardPlacement.noForceMutation","@/__tests__/storyboardFixedCardPlacementProjection.test","testStoryboardFixedCardPlacementProjectionAvoidsForceLayoutMutationFields"],
+  ["strybldr.markdown.storyboard2dTemplateRuntimeReadyNeutral","@/__tests__/strybldrStoryboardTemplateValidation.test","testStrybldr2dRendererStoryboardTemplateStaysRuntimeReadyAndNeutral"],
 ]

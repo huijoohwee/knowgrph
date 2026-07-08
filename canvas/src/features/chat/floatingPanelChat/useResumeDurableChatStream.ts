@@ -7,6 +7,10 @@ import {
   forgetDurableChatStreamRun,
   readActiveDurableChatStreamRun,
 } from './floatingPanelChatDurableStream'
+import {
+  createPendingChatRequestMessageId,
+  upsertPendingChatRequestTurn,
+} from './floatingPanelChatRuntime'
 import { resolveChatKnowgrphAttempt } from './floatingPanelChatKgcAttempt'
 import { finalizeSubmitTerminalState } from './floatingPanelChatSubmitLifecycle'
 import {
@@ -73,6 +77,13 @@ export const useResumeDurableChatStream = (args: {
       finishReason: null,
       modelId: activeRun.modelId,
     })
+    args.setMessages(prev => upsertPendingChatRequestTurn({
+      messages: prev,
+      requestText: activeRun.requestText,
+      requestMessageId: createPendingChatRequestMessageId(activeRun.assistantMessageId),
+      assistantMessageId: activeRun.assistantMessageId,
+      dedupeRequestContent: true,
+    }))
     args.setStreamingInsights(null)
 
     void (async () => {
