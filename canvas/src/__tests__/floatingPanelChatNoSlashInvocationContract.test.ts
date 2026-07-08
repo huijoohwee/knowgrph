@@ -459,7 +459,7 @@ export function testKgcAttachedMediaResponsesUseStoryboardTemplateContract() {
   for (const entry of cases) {
     const md = normalizeKgcAssistantBodyForStorage({
       timestampMs: Date.UTC(2026, 6, 8, 7, 40, 37),
-      workspacePath: `/chat-log/20260708T074037Z/kgc_${entry.label}.md`,
+      workspacePath: `/chat-log/regression/kgc_${entry.label}.md`,
       requestText: entry.requestText,
       assistantText: REPEATED_PARTIAL_RESPONSE_YAML,
     })

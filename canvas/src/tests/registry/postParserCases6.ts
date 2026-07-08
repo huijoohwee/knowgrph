@@ -4,7 +4,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["chat.responseContract.prompt.kgcComputingFlowKtvShape","@/__tests__/chatResponseKgcComputingFlowContract.test","testChatKgcResponseContractPromptEnforcesComputingFlowShape"],
   ["chat.responseContract.storage.kgcComputingFlowKtvBodyTokens","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens"],
   ["chat.responseContract.storage.kgcPreservesAssistantAnswerResponseBody","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcDeterministicFallbackPreservesAssistantAnswerInResponseBody"],
-  ["chat.responseContract.storage.kgcSubstantiveAnswerComputingFlowBodyOnly","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcSubstantiveAssistantAnswerUsesComputingFlowBodyOnly"],
+  ["chat.responseContract.storage.kgcSubstantiveAnswerResponseOnlyBody","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcSubstantiveAssistantAnswerUsesResponseOnlyBody"],
   ["chat.responseContract.storage.kgcSubstantiveAnswerSeedsRichMediaOutputs","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcSubstantiveAssistantAnswerSeedsRichMediaOutputs"],
   ["chat.responseContract.storage.kgcTraceOnlyNoBackfillBody","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcDeterministicFallbackTraceOnlyKeepsHumanFacingNoBackfill"],
   ["chat.responseContract.storage.kgcNoSlashImageTraceCleanSlate","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcNoSlashImageTraceKeepsCleanSlateNoBackfill"],

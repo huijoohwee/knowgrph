@@ -10,6 +10,7 @@ import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurf
 import { buildResolvableVarKeySet, validateChatMarkdown } from './chatMarkdownValidation'
 import { sanitizeChatHistoryTraceUserText } from './chatStreamArtifactSanitizers'
 import { hasRecognizedChatRuntimeInvocation } from './chatRuntimeInvocationProfile'
+import { analyzeKgcRequest } from './chatKgcRequestProfile'
 
 type KgcStorageNormalizeArgs = {
   timestampMs: number
@@ -68,7 +69,8 @@ export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArg
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   const recovered = recoverStructuredKgcAssistantPayload(raw)
   const kgc = typeof recovered.kgc === 'string' ? sanitizeComputingFlowMarkdown(recovered.kgc) : ''
-  const allowStructuredKgc = hasRecognizedChatRuntimeInvocation(args.requestText)
+  const profile = analyzeKgcRequest(args.requestText)
+  const allowStructuredKgc = hasRecognizedChatRuntimeInvocation(args.requestText) || profile.signals.computingFlow
   if (allowStructuredKgc && kgc && isKgcStructuredMarkdown(kgc)) {
     const queryResponsive = enforceKgcQueryResponsiveContent({
       markdown: kgc,

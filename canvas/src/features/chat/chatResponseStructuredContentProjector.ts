@@ -436,6 +436,7 @@ export const projectChatResponseStructuredSurfaceIntoKgcFrontmatter = (args: {
   if (surface.nodes.length === 0) return frontmatterWithStructuredFields
   const frontmatterWithRegistry = upsertWidgetRegistryEntries(frontmatterWithStructuredFields, surface)
   const frontmatterWithWidgetRefs = appendWidgetBundleNodeRefs(frontmatterWithRegistry, surface.nodes.map(node => node.id))
+  if (/(^|\n)kgcResponseOnly:\s*true\b/.test(frontmatterWithWidgetRefs)) return frontmatterWithWidgetRefs
   const projectedNodes = surface.nodes.filter(node => !hasFlowListItemId(frontmatterWithWidgetRefs, node.id))
   const projectedEdges = surface.edges.filter(edge => !hasFlowListItemId(frontmatterWithWidgetRefs, edge.id))
   if (projectedNodes.length === 0 && projectedEdges.length === 0) return frontmatterWithWidgetRefs

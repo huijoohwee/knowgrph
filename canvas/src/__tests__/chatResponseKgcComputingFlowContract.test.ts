@@ -260,31 +260,26 @@ export function testKgcDeterministicFallbackPreservesAssistantAnswerInResponseBo
   assertValidKgc(md, 'assistant-answer fallback')
   const body = extractMarkdownBody(md)
   const responseSection = extractMarkdownSection(md, '## Response')
-  if (!md.includes('schema: "kgc-computing-flow/v1"')) {
-    throw new Error('Expected substantive assistant answer fallback to use computing-flow KTV syntax')
+  if (!md.includes('$schema: "kgc-response/v1"') || !md.includes('schema: "kgc-2d-renderer-storyboard-template/v1"')) {
+    throw new Error('Expected substantive no-slash assistant answer fallback to use response-only Storyboard template syntax')
   }
-  if (responseSection.trim() !== `{{${COMPUTING_FLOW_COMPUTE_NODE_ID}.output}}`) {
-    throw new Error(`Expected response body to project compute_summary output token, got: ${responseSection}`)
-  }
-  const computeNode = readComputingFlowNode(md, COMPUTING_FLOW_COMPUTE_NODE_ID)
-  const output = isPlainRecord(computeNode?.output) ? String(computeNode.output.value || '') : ''
   for (const snippet of [
     'Below is a structured view of how to think about an 80% BTC / 20% gold portfolio',
     'ETF Flow Momentum vs Spot Premium/Discount',
     'long-dated BTC downside skew can converge toward gold-like macro hedge demand',
   ]) {
-    if (!output.includes(snippet)) {
-      throw new Error(`Expected compute_summary.output to preserve assistant answer snippet: ${snippet}`)
+    if (!responseSection.includes(snippet)) {
+      throw new Error(`Expected response-only body to preserve assistant answer snippet: ${snippet}`)
     }
   }
-  for (const forbidden of ['No final assistant body was available', 'Assistant output signal:', '### Headless Structured Output', 'Dataflow:', 'Frontmatter keeps', '## Computing Flow Definition', 'flow.nodes', 'flow.edges']) {
+  for (const forbidden of ['schema: "kgc-computing-flow/v1"', 'template_flow_demo', 'source_input', 'compute_summary', 'No final assistant body was available', 'Assistant output signal:', '### Headless Structured Output', 'Dataflow:', 'Frontmatter keeps', '## Computing Flow Definition', 'flow.nodes', 'flow.edges']) {
     if (body.includes(forbidden)) {
       throw new Error(`Expected markdown body to avoid contract narration: ${forbidden}`)
     }
   }
 }
 
-export function testKgcSubstantiveAssistantAnswerUsesComputingFlowBodyOnly() {
+export function testKgcSubstantiveAssistantAnswerUsesResponseOnlyBody() {
   const assistantAnswer = [
     '## 1. Big Picture for an 80% BTC / 20% Gold Portfolio',
     '',
@@ -303,24 +298,25 @@ export function testKgcSubstantiveAssistantAnswerUsesComputingFlowBodyOnly() {
   assertValidKgc(md, '062758-style assistant-answer fallback')
   const body = extractMarkdownBody(md)
   const bodyHeadings = body.split('\n').filter(line => /^##\s+/.test(line)).map(line => line.trim())
-  if (JSON.stringify(bodyHeadings) !== JSON.stringify(['## Response', '## Inputs'])) {
-    throw new Error(`Expected markdown body to contain only Response and Inputs sections, got: ${bodyHeadings.join(', ')}`)
+  if (JSON.stringify(bodyHeadings) !== JSON.stringify(['## Response'])) {
+    throw new Error(`Expected response-only markdown body to contain only Response, got: ${bodyHeadings.join(', ')}`)
   }
   for (const required of [
-    `{{${COMPUTING_FLOW_COMPUTE_NODE_ID}.output}}`,
-    `{{${COMPUTING_FLOW_SOURCE_NODE_ID}.input_query}}`,
-    `{{${COMPUTING_FLOW_SOURCE_NODE_ID}.input_metric_target}}`,
+    '$schema: "kgc-response/v1"',
+    'schema: "kgc-2d-renderer-storyboard-template/v1"',
+    'runtime_readiness:',
+    'agentic_os_contract:',
+    'shared_renderer_contract:',
+    'semantic_html_projection:',
   ]) {
-    if (!body.includes(required)) {
-      throw new Error(`Expected body to include dynamic token ${required}`)
+    if (!md.includes(required)) {
+      throw new Error(`Expected response-only KGC to include ${required}`)
     }
   }
-  const computeNode = readComputingFlowNode(md, COMPUTING_FLOW_COMPUTE_NODE_ID)
-  const output = isPlainRecord(computeNode?.output) ? String(computeNode.output.value || '') : ''
-  if (!output.includes('What Options Desks Miss') || !output.includes('long-dated BTC downside skew')) {
-    throw new Error('Expected compute_summary.output to retain the substantive assistant answer')
+  if (!body.includes('What Options Desks Miss') || !body.includes('long-dated BTC downside skew')) {
+    throw new Error('Expected response-only body to retain the substantive assistant answer')
   }
-  for (const forbidden of ['# {{product}} · AI Pipeline', '## Computing Flow Definition', 'Machine source:', 'frontmatter', 'dataflow', 'flow.nodes', 'flow.edges']) {
+  for (const forbidden of ['schema: "kgc-computing-flow/v1"', 'template_flow_demo', 'source_input', 'compute_summary', '# {{product}} · AI Pipeline', '## Computing Flow Definition', 'Machine source:', 'frontmatter', 'dataflow', 'flow.nodes', 'flow.edges']) {
     if (body.includes(forbidden)) {
       throw new Error(`Expected 062758-style body to avoid legacy narration: ${forbidden}`)
     }
@@ -344,7 +340,7 @@ export function testKgcSubstantiveAssistantAnswerSeedsRichMediaOutputs() {
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 5, 7, 7, 20, 17),
     workspacePath: '/chat-log/20260607T072017Z/kgc_20260607T072017Z.md',
-    requestText: '12-36 month horizon, portfolio BTC 80% + gold 20%; factor analysis with ETF flow momentum, options skew, FOMC, CPI, premium/discount, and macro catalyst sensitivity.',
+    requestText: 'Generate a Storyboard Widget computing flow with KTV key/type/value inputs for 12-36 month horizon, portfolio BTC 80% + gold 20%; factor analysis with ETF flow momentum, options skew, FOMC, CPI, premium/discount, and macro catalyst sensitivity.',
     assistantText: assistantAnswer,
   })
   assertValidKgc(md, '072017-style assistant-answer fallback')
