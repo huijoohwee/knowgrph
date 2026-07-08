@@ -151,7 +151,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.importUrl.shareSourceFiles.skipsEmptyThinkingArtifact","@/__tests__/workspaceImportUrlShareSourceFiles.test","testWorkspaceImportUrlShareImportSkipsEmptyThinkingArtifact"],
   ["workspace.importUrl.shareSourceFiles.existingDocsRootVisible","@/__tests__/workspaceImportUrlShareSourceFiles.test","testConfiguredDocsRootWorkspaceFileIsVisibleWithoutLegacySourceIndex"],
   ["workspace.importUrl.shareSourceFiles.dropsMissingEmptyWorkspaceArtifact","@/__tests__/workspaceImportUrlShareSourceFiles.test","testSourceFilesMergeDropsMissingEmptyWorkspaceArtifact"],
-  ["workspace.importUrl.shareSourceFiles.viteIgnoresMirrorOutputRoots","@/__tests__/workspaceImportUrlShareSourceFiles.test","testViteDevServerIgnoresWorkspaceMirrorOutputRoots"],
+  ["workspace.importUrl.shareSourceFiles.viteIgnoresMirrorOutputRoots","@/__tests__/workspaceImportUrlShareSourceFiles.test","testViteDevServerIgnoresWorkspaceMirrorOutputRoots"], ["workspace.importUrl.shareSourceFiles.viteKgFsWriteMkdirOnly","@/__tests__/workspaceImportUrlShareSourceFiles.test","testViteKgFsWriteHandlerAcceptsMirrorMkdirOnlyRequests"],
   ["workspace.importUrl.thinking.clickedSiblingExport","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlShareThinkingTrajectoryUsesClickedSiblingExport"],
   ["workspace.importUrl.thinking.persistNormalizesMarkdown","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlShareArtifactPersistNormalizesThinkingMarkdown"],
   ["workspace.importUrl.thinking.plainTextPreservesStructure","@/__tests__/workspaceImportUrlStubNoFetch.test","testPlainTextToMarkdownPreservesThinkingTranscriptMarkdownStructure"],

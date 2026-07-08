@@ -60,3 +60,56 @@ export async function testFloatingPanelChatRendersSourceFilesWorkspaceLinks() {
     restore()
   }
 }
+
+export async function testFloatingPanelChatRendersUserMediaMarkdownAsInlineChip() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const mediaUrl = 'http://localhost:5180/api/storage/media/airvio/runs/upload-017d1e965528642f/image/strybldr-starter-source-017d1e965528642f.png?kg_media_token=test-token'
+  const content = `what's in ![strybldr-starter-source.png](${mediaUrl})`
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatMessagesSection, {
+        messages: [{ id: 'user-1', role: 'user', content }],
+        isLoading: false,
+        historyKey: 'history-key',
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelKeyValueTextSizeClass: 'text-xs',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        setMessages: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const bubble = container.querySelector('.kg-floating-chat-message-bubble')
+    if (!bubble) throw new Error('expected user message bubble to render')
+    const chip = bubble.querySelector('[data-kg-chat-message-media-chip="1"][data-kg-chat-message-media-kind="image"]')
+    if (!chip) throw new Error(`expected user media markdown to render as an inline media chip, html=${bubble.innerHTML}`)
+    const sharedPill = chip.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!sharedPill) throw new Error(`expected message media chip to reuse the shared inline media pill, html=${chip.innerHTML}`)
+    const thumbnail = chip.querySelector('[data-kg-inline-command-thumbnail="image"] img') as HTMLImageElement | null
+    if (!thumbnail || thumbnail.getAttribute('src') !== mediaUrl) {
+      throw new Error(`expected message media chip thumbnail to preserve the media URL, got ${JSON.stringify(thumbnail?.getAttribute('src') || null)}`)
+    }
+
+    const visibleText = String(bubble.textContent || '')
+    if (!visibleText.includes("what's in") || !visibleText.includes('strybldr-starter-source.png')) {
+      throw new Error(`expected media-chip bubble to preserve prompt text and label, got ${JSON.stringify(visibleText)}`)
+    }
+    for (const hiddenRawToken of ['![', mediaUrl, 'kg_media_token']) {
+      if (visibleText.includes(hiddenRawToken)) {
+        throw new Error(`expected raw media markdown to stay out of visible bubble text, got ${JSON.stringify(visibleText)}`)
+      }
+    }
+    if (content !== `what's in ![strybldr-starter-source.png](${mediaUrl})`) {
+      throw new Error('expected test message content to remain raw markdown-owned')
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}

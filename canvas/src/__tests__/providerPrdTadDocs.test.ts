@@ -14,11 +14,13 @@ export function testProviderPrdTadDocsUseImplementedOrReferenceOwners(): void {
     'canvas/src/features/panels/views/useSettingsView.ts',
     'canvas/src/features/panels/views/settingsView.constants.ts',
     'canvas/src/lib/chatEndpoint.ts',
-    'canvas/src/features/chat/FloatingPanelChat.helpers.ts',
+    'canvas/src/features/chat/floatingPanelChat/floatingPanelChatProviderOptions.ts',
+    'canvas/src/features/chat/floatingPanelChat/floatingPanelChatStreamParsing.ts',
   ].map(readRepoFile).join('\n')
   const stripeOwners = [
     'grph-shared/src/payments/stripeMcpSsot.ts',
     'canvas/src/features/panels/views/stripeMcpApiDocs.ts',
+    'canvas/src/features/panels/views/stripePaymentApiDocs.ts',
     'canvas/src/features/panels/views/settingsMcpDocEntries.ts',
     'canvas/src/features/panels/views/CommerceHubView.tsx',
   ].map(readRepoFile).join('\n')
@@ -62,7 +64,8 @@ export function testProviderPrdTadDocsUseImplementedOrReferenceOwners(): void {
     'STRIPE_MCP_REMOTE_CONFIG_KEY',
     'STRIPE_MCP_LOCAL_CONFIG_KEY',
     'STRIPE_PAYMENT_ROUTE_PATHS',
-    'MainPanel MCP is ready to accept payment through Stripe MCP: remote OAuth first, restricted-key local/server fallback, human confirmation, and MainPanel Commerce checkout handoff.',
+    'accept_payment_ready',
+    'Crawler Pay Per Crawl remains Cloudflare-owned; app and customer checkout readiness stays with Stripe MCP plus MainPanel Commerce.',
   ]
   for (const token of requiredStripeOwnerTokens) {
     if (!stripeOwners.includes(token)) throw new Error(`Expected Stripe MCP source owner token ${JSON.stringify(token)}`)

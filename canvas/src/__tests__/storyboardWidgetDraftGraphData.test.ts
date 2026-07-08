@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { bumpStoryboardWidgetDraftGraphDataRevision, resolveStoryboardWidgetDraftGraphDataForBaseReset } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import {
+  buildStoryboardWidgetDraftGraphBaseSignature,
+  bumpStoryboardWidgetDraftGraphDataRevision,
+  resolveStoryboardWidgetDraftGraphDataForBaseReset,
+} from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -9,6 +13,14 @@ const graph = (revision: number, ids: string[]): GraphData => ({
   nodes: ids.map(id => ({ id, label: id, type: 'Widget', properties: {} })) as never,
   edges: [],
   metadata: { graphDataRevision: revision },
+})
+
+const graphWithNodeProperties = (revision: number, props: Record<string, unknown>): GraphData => ({
+  type: 'Graph',
+  context: 'markdown',
+  nodes: [{ id: 'source_input', label: 'Source Input', type: 'Widget', properties: props }] as never,
+  edges: [],
+  metadata: { graphDataRevision: revision, kind: 'markdown', source: 'markdown:chat-log/session.md' },
 })
 
 export function testStoryboardWidgetBaseResetPreservesNewerSameDocumentDraft() {
@@ -60,6 +72,29 @@ export function testStoryboardWidgetBaseResetPreservesEqualRevisionSameDocumentD
     nextBaseGraphData: base,
   })
   if (resolved !== draft) throw new Error('expected same-document equal-revision reset to preserve the live draft after store writeback')
+}
+
+export function testStoryboardWidgetBaseResetSkipsEquivalentNewerBaseRefresh() {
+  const draft = graphWithNodeProperties(4, { value: 'same', nested: { count: 1 } })
+  const base = graphWithNodeProperties(5, { value: 'same', nested: { count: 1 } })
+  const changedBase = graphWithNodeProperties(6, { value: 'changed', nested: { count: 1 } })
+  const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'chat-log/session.md::5',
+    previousDocumentKey: 'chat-log/session.md::5',
+    currentDraftGraphData: draft,
+    nextBaseGraphData: base,
+  })
+  const changedResolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'chat-log/session.md::6',
+    previousDocumentKey: 'chat-log/session.md::6',
+    currentDraftGraphData: draft,
+    nextBaseGraphData: changedBase,
+  })
+  if (buildStoryboardWidgetDraftGraphBaseSignature(draft) !== buildStoryboardWidgetDraftGraphBaseSignature(base)) {
+    throw new Error('expected equivalent draft/base graph refreshes to share a reset signature')
+  }
+  if (resolved !== draft) throw new Error('expected equivalent newer base refresh to avoid replacing the active draft graph')
+  if (changedResolved !== changedBase) throw new Error('expected changed newer base graph to replace the active draft graph')
 }
 
 export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity() {

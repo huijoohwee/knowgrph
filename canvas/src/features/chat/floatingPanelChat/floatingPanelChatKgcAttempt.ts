@@ -1,7 +1,7 @@
 import { buildResolvableVarKeySet, validateChatMarkdown } from '../chatMarkdownValidation'
 import { isKgcStructuredMarkdown } from '../chatHistoryWorkspace'
 import { extractChatResponseStructuredSurface } from '../chatResponseStructuredContent'
-import { extractKgcBlockFromAssistantText } from '../FloatingPanelChat.helpers'
+import { extractKgcBlockFromAssistantText } from './floatingPanelChatKgcPayload'
 import { buildCorrectionPrompt } from './floatingPanelChatCorrectionPrompt'
 import type { JSONValue } from '@/lib/graph/types'
 

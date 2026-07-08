@@ -14,6 +14,7 @@ import {
   toKgcTraceWorkspacePath,
 } from './chatHistoryWorkspace.paths'
 import { mergeKgcTraceSection } from './chatKgcConsolidatedArtifacts'
+import { sanitizeChatHistoryTraceUserText } from './chatStreamArtifactSanitizers'
 import { mirrorChatWorkspaceFileToHost } from './chatWorkspaceMirror'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
 import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
@@ -63,6 +64,7 @@ const buildChatHistoryEntry = (args: {
   assistantText: string
 }): string => {
   const assistantSection = ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
+  const userText = sanitizeChatHistoryTraceUserText(args.userText)
   return [
     `## ${formatReadableTimestamp(args.timestampMs)}`,
     '',
@@ -71,7 +73,7 @@ const buildChatHistoryEntry = (args: {
     `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
     '',
     '### user',
-    wrapFence(args.userText, 'text'),
+    wrapFence(userText, 'text'),
     '',
     assistantSection,
   ].join('\n')

@@ -26,12 +26,24 @@ export const replaceChatComposerTrigger = (args: {
   trigger: ChatComposerTrigger
   replacement: string
 }): { text: string; cursor: number } => {
-  const replacement = String(args.replacement || '')
+  const replacement = normalizeChatComposerTriggerReplacement(args.replacement)
   const text = String(args.text || '')
   const start = Math.max(0, Math.min(text.length, args.trigger.rangeStart))
   const end = Math.max(start, Math.min(text.length, args.trigger.rangeEnd))
+  const suffixStart = findChatComposerTriggerSuffixStart(text, end)
   return {
-    text: `${text.slice(0, start)}${replacement}${text.slice(end)}`,
+    text: `${text.slice(0, start)}${replacement}${text.slice(suffixStart)}`,
     cursor: start + replacement.length,
   }
+}
+
+function normalizeChatComposerTriggerReplacement(replacement: unknown): string {
+  const text = String(replacement || '').trimEnd()
+  return text ? `${text} ` : ''
+}
+
+function findChatComposerTriggerSuffixStart(text: string, end: number): number {
+  let cursor = end
+  while (cursor < text.length && /[ \t]/.test(text[cursor] || '')) cursor += 1
+  return cursor
 }

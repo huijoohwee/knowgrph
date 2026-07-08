@@ -5,7 +5,7 @@ import {
   extractAssistantStreamDelta,
   formatChatStreamUsageSummary,
   parseSseEvents,
-} from '../FloatingPanelChat.helpers'
+} from './floatingPanelChatStreamParsing'
 
 const CHAT_STREAM_FIRST_CHUNK_TIMEOUT_MS = 12_000
 const CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR = 'CHAT_STREAM_FIRST_CHUNK_TIMEOUT'

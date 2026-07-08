@@ -15,6 +15,7 @@ import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './Flo
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { ensureChatStreamArtifactBundleInitialized } from '@/features/chat/chatStreamArtifacts'
+import { mirrorChatWorkspaceFileToHost } from '@/features/chat/chatWorkspaceMirror'
 import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
@@ -32,15 +33,12 @@ import {
   persistChatExchangeLog,
   putChatHistoryCache,
   toHistoryTaskKey,
-} from '@/features/chat/FloatingPanelChat.helpers'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
 import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { buildStorageChatRelayLogDescriptor } from '@/features/chat/floatingPanelChat/floatingPanelChatRelayDiagnostics'
 import {
-  abortDurableChatStreamRun,
-  clearActiveDurableChatStreamRun,
-  forgetDurableChatStreamRun,
   readActiveDurableChatStreamRun,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatDurableStream'
 import { useResumeDurableChatStream } from '@/features/chat/floatingPanelChat/useResumeDurableChatStream'
@@ -72,11 +70,9 @@ import {
   KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME,
   KTV_STATUS_TEXT_SIZE_CLASS_NAME,
 } from 'grph-shared/ui/keyTypeValueRows'
-import {
-  parseChatSkillSlashInvocation,
-} from './chatSkillRegistry'
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSurfaceModel'
+import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/floatingPanelChatStop'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -406,7 +402,6 @@ export default function FloatingPanelChat() {
     storageChatRelayConfig,
     storageChatRelayDecision,
   ])
-  const invokedChatSkill = React.useMemo(() => parseChatSkillSlashInvocation(input), [input])
   const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
 
   React.useEffect(() => {
@@ -529,8 +524,25 @@ export default function FloatingPanelChat() {
     }
   }, [editorWorkspacePane, workspaceViewMode])
 
+  const stopActiveChatStream = React.useCallback(() => {
+    stopFloatingPanelChatStream({
+      setIsLoading,
+      abortRef,
+      setStreamingWorkspacePath,
+      setChatWorkspaceStreamingState,
+      setStreamingAssistant,
+      setStreamingInsights,
+      streamFollowRef,
+      streamDraftTextRef,
+    })
+  }, [setChatWorkspaceStreamingState])
+
   const handleNewChat = React.useCallback(async () => {
-    if (isLoading || chatStorageTarget !== 'chatKnowgrph') return
+    if (chatStorageTarget !== 'chatKnowgrph') return
+    if (isLoading) {
+      stopActiveChatStream()
+      setIsLoading(false)
+    }
     setErrorText(null)
     setConnectivity('unknown')
     setConnectivityDetail(null)
@@ -553,9 +565,11 @@ export default function FloatingPanelChat() {
         defaultLocalRootPath: chatLocalStorageRootPath,
       })
       await writeWorkspaceFileTextEnsuringFile({ path: nextPath, text: '' })
+      await mirrorChatWorkspaceFileToHost({ workspacePath: nextPath, text: '' })
+      useGraphStore.setState({ workspaceGraphMutationLayoutLockActive: false })
+      followWorkspaceMarkdownPath(nextPath, { forceReveal: true })
       setChatKnowgrphWorkspacePath(nextPath)
       clearCurrentHistory()
-      followWorkspaceMarkdownPath(nextPath, { forceReveal: true })
     } catch {
       setErrorText(UI_COPY.chatNewChatFailedError)
     }
@@ -566,6 +580,7 @@ export default function FloatingPanelChat() {
     followWorkspaceMarkdownPath,
     isLoading,
     setChatKnowgrphWorkspacePath,
+    stopActiveChatStream,
   ])
 
   const graphLookup = React.useMemo(() => {
@@ -734,22 +749,6 @@ export default function FloatingPanelChat() {
     }
   }, [])
 
-  const handleStop = () => {
-    const activeDurableRun = readActiveDurableChatStreamRun()
-    if (activeDurableRun?.runId) {
-      clearActiveDurableChatStreamRun(activeDurableRun.runId)
-      void abortDurableChatStreamRun(activeDurableRun.runId)
-      void forgetDurableChatStreamRun(activeDurableRun.runId)
-    }
-    const ctrl = abortRef.current
-    if (!ctrl) return
-    try {
-      ctrl.abort()
-    } catch {
-      void 0
-    }
-  }
-
   const finalizeAssistantSuccess = useFinalizeAssistantSuccess({
     chatStorageTarget,
     chatProviderSummary,
@@ -825,7 +824,6 @@ export default function FloatingPanelChat() {
     chatGraphSummaryMaxTokens,
     chatGuidelineDigestMaxTokens,
     chatSystemPrompt,
-    chatSkillId: invokedChatSkill?.skill.id || null,
     chatContextScope: (chatContextScope === 'selection' || chatContextScope === 'workspace') ? chatContextScope : 'hybrid',
     chatStorageTarget,
     chatLocalStorageRootPath,
@@ -941,9 +939,8 @@ export default function FloatingPanelChat() {
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}
         onSubmit={handleSubmitWithCommands}
-        onStop={handleStop}
+        onStop={stopActiveChatStream}
         showNewChatButton={chatStorageTarget === 'chatKnowgrph'}
-        isNewChatDisabled={isLoading}
         onNewChat={handleNewChat}
         quickActions={messages.length === 0 ? [] : chatQuickActions}
         onQuickAction={appendChatPrompt}

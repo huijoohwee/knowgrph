@@ -40,7 +40,6 @@ export const buildSubmitArgsFixture = (
   chatGraphSummaryMaxTokens: null,
   chatGuidelineDigestMaxTokens: null,
   chatSystemPrompt: null,
-  chatSkillId: null,
   chatContextScope: 'workspace',
   chatStorageTarget: 'chatHistory',
   chatLocalStorageRootPath: '/workspace',

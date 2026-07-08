@@ -318,8 +318,6 @@ export function ToolbarToolMenu({
     workspaceCanvasPaneOpen,
     canvasRenderMode,
     canvas2dRenderer,
-    bottomSurfaceCollapsed,
-    bottomSurfaceHeightRatio,
   } = useGraphStore(
     useShallow(state => ({
       floatingPanelWidthRatio: state.floatingPanelWidthRatio,
@@ -330,8 +328,6 @@ export function ToolbarToolMenu({
       workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
       canvasRenderMode: state.canvasRenderMode,
       canvas2dRenderer: state.canvas2dRenderer,
-      bottomSurfaceCollapsed: state.bottomSurfaceCollapsed === true,
-      bottomSurfaceHeightRatio: state.bottomSurfaceHeightRatio,
     })),
   )
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
@@ -472,16 +468,12 @@ export function ToolbarToolMenu({
   const floatingPanelSizeStyle = React.useMemo(() => {
     const widthRatio = Number.isFinite(floatingPanelWidthRatio) ? floatingPanelWidthRatio : FLOATING_PANEL_DEFAULT_WIDTH_RATIO
     const safeWidth = Math.max(0.15, Math.min(0.6, widthRatio))
-    const safeBottomRatio = bottomSurfaceCollapsed ? 0 : Math.max(0, Math.min(0.65, Number.isFinite(bottomSurfaceHeightRatio) ? bottomSurfaceHeightRatio : 0))
-    const height = safeBottomRatio > 0
-      ? `calc(${FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS} - ${Math.round(safeBottomRatio * 100)}vh)`
-      : FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS
     return {
       width: `min(calc(100vw - ${FLOATING_PANEL_CANVAS_INLINE_CLEARANCE_CSS}), max(${FLOATING_PANEL_DEFAULT_MIN_WIDTH_CSS}, ${Math.round(safeWidth * 100)}vw))`,
-      height,
-      maxHeight: height,
+      height: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS,
+      maxHeight: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS,
     }
-  }, [bottomSurfaceCollapsed, bottomSurfaceHeightRatio, floatingPanelWidthRatio])
+  }, [floatingPanelWidthRatio])
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const designPanelsAvailable =

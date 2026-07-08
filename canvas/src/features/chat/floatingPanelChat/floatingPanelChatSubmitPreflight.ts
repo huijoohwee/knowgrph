@@ -11,7 +11,7 @@ import {
   ensureChatHistoryWorkspaceFilePath,
   toKgcStreamingWorkspacePath,
 } from '../chatHistoryWorkspace'
-import { putChatHistoryCache, toShortId } from '../FloatingPanelChat.helpers'
+import { putChatHistoryCache, toShortId } from './floatingPanelChatRuntime'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 

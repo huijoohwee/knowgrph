@@ -3,7 +3,7 @@ import {
   extractAssistantStreamDelta,
   formatChatStreamUsageSummary,
   parseSseEvents,
-} from '@/features/chat/FloatingPanelChat.helpers'
+} from '@/features/chat/floatingPanelChat/floatingPanelChatStreamParsing'
 import { extractAssistantContentText } from '@/features/chat/assistantContentText'
 
 export function testParseSseEventsSkipsHeartbeatCommentsAndKeepsMultiLinePayloads() {
@@ -131,6 +131,26 @@ export function testExtractAssistantStreamDeltaReadsMiroMindReasoningAndUsage() 
     traceOnlyDelta.finishReason !== 'error'
   ) {
     throw new Error(`expected trace-only delta to preserve reasoning/tool signals, got ${JSON.stringify(traceOnlyDelta)}`)
+  }
+
+  const failedResponseDelta = extractAssistantStreamDelta({
+    type: 'response.failed',
+    response: {
+      status: 'failed',
+      model: 'gpt-5-nano',
+      error: {
+        code: 'unsupported_parameter',
+        message: "Unsupported parameter: 'stop'.",
+      },
+    },
+  })
+  if (
+    failedResponseDelta.contentDelta !== '' ||
+    failedResponseDelta.finishReason !== 'error' ||
+    failedResponseDelta.modelId !== 'gpt-5-nano' ||
+    !failedResponseDelta.reasoningStepSummaries.includes("provider_error: Unsupported parameter: 'stop'.")
+  ) {
+    throw new Error(`expected failed Responses event to preserve provider error metadata, got ${JSON.stringify(failedResponseDelta)}`)
   }
 
   const completedResponseDelta = extractAssistantStreamDelta({

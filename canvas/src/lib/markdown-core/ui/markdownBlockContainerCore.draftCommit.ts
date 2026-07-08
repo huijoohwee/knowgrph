@@ -14,6 +14,7 @@ import {
   restoreInlineMediaEditTokensInPlace,
   rewriteRenderedInlineMediaForEditorHtml,
 } from './markdownBlockContainerCore.inlineMediaEditHtml'
+import { readFastInlineMarkdownDraft } from './markdownBlockContainerCore.inlineDraftSerialization'
 import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
 
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
@@ -383,6 +384,8 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     if (preferPlainTextInlineDraft) {
       return String(plainDraft || '').replace(/\r/g, '').replace(/\n+$/g, '')
     }
+    const fastInlineDraft = readFastInlineMarkdownDraft(root, args.htmlRenderMode)
+    if (typeof fastInlineDraft === 'string') return fastInlineDraft
     const result = await convertHtmlToMarkdownUnified({
       html: `<section>${htmlForMarkdownConversion}</section>`,
       ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
@@ -407,11 +410,11 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   }, [args.draftRef, args.editorPresentation, args.editorRef, args.lastSerializedEditorHtmlRef])
   const emitHtmlDraftTextChangeFromEditorDom = React.useCallback(() => {
     if (args.editorPresentation !== 'html') return
-    if (!args.onDraftTextChange || !Array.isArray(args.sourceLines)) return
     const root = args.editorRef.current
     if (!root) return
     const currentEditorHtml = String(root.innerHTML || '')
     if (currentEditorHtml === args.lastSerializedEditorHtmlRef.current) return
+    args.editDirtyRef.current = true
     const sessionId = args.editSessionIdRef.current
     const emitVersion = htmlDraftEmitVersionRef.current + 1
     htmlDraftEmitVersionRef.current = emitVersion
@@ -430,7 +433,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       }
     })
     pendingHtmlDraftSerializationRef.current = trackedPendingSerialization
-  }, [args.editorPresentation, args.editSessionIdRef, args.onDraftTextChange, args.sourceLines, args.draftRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange, serializeHtmlRootToDraft])
+  }, [args.editorPresentation, args.editSessionIdRef, args.draftRef, args.editorRef, args.lastSerializedEditorHtmlRef, emitDraftTextChange, serializeHtmlRootToDraft])
 
   const readCurrentMarkdownDraft = React.useCallback(async (): Promise<string> => {
     if (args.editorPresentation !== 'html') return String(args.draftRef.current || '')
@@ -462,6 +465,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     if (!el) return
     if (!args.editorRef.current) args.editorRef.current = el
     args.draftRef.current = nextText
+    args.editDirtyRef.current = true
     if (args.editorPresentation === 'html') {
       const md = getMarkdownItFastHtml()
       if (args.htmlRenderMode === 'block') {
@@ -492,14 +496,10 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     if (!args.editable || !args.onReplaceLineRange) return
     if (args.editorPresentation === 'html') {
       const root = args.editorRef.current
-      const hasDomMutation = !!root && root.innerHTML !== args.initialEditorHtmlRef.current
       if (!args.editDirtyRef.current) {
-        if (hasDomMutation) args.editDirtyRef.current = true
-        else {
-          args.setEditing(false)
-          args.setSessionEditLineRange(null)
-          return
-        }
+        args.setEditing(false)
+        args.setSessionEditLineRange(null)
+        return
       }
       if (!root) {
         args.setEditing(false)

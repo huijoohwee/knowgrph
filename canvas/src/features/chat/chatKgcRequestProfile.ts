@@ -1,3 +1,8 @@
+import {
+  resolveChatRuntimeInvocationQuery,
+  resolveChatRuntimeInvocationResponsiveQueryText,
+} from './chatRuntimeInvocationQuery'
+
 export const KGC_TIER_B_KEYS = [
   'product',
   'domain',
@@ -26,6 +31,11 @@ export type KgcRequestedSections = {
 
 export type KgcRequestProfile = {
   intent: string
+  invocation: {
+    token: string
+    label: string
+    query: string
+  } | null
   product: string
   domain: string
   subject: string
@@ -122,6 +132,9 @@ const TOPIC_PATTERNS: Array<{ rx: RegExp; label: string }> = [
 export const sanitizeRequestIntent = (raw: string, maxChars = 240): string => {
   return String(raw || '')
     .replace(/\r\n/g, '\n')
+    .replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, ' [attached image] ')
+    .replace(/\[([^\]\n]+)\]\([^)\n]*\)/g, '$1')
+    .replace(/\bhttps?:\/\/\S+/gi, ' [url] ')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -163,6 +176,42 @@ const TERM_STOPWORDS = new Set([
   'with',
 ])
 
+export const isAttachedImageQuestionTerm = (raw: string): boolean => {
+  const normalized = String(raw || '')
+    .toLowerCase()
+    .replace(/['\u2019]/g, ' ')
+    .replace(/[?!.]+/g, ' ')
+    .replace(/[\[\]{}()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const attachedMediaRx = /\battached (?:image|video|audio|media)\b/g
+  if (!/\battached (?:image|video|audio|media)\b/.test(normalized)) return false
+  const lead = normalized
+    .replace(attachedMediaRx, ' ')
+    .replace(/\bthere\s+s\b/g, 'theres')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!lead) return true
+  const neutralQuestionLeads = new Set([
+    'what',
+    'what in',
+    'what s',
+    'what s in',
+    'whats',
+    'whats in',
+    'what is',
+    'what is in',
+    'what are',
+    'what does',
+    'which',
+    'who',
+    'where',
+    'when',
+  ])
+  if (neutralQuestionLeads.has(lead)) return true
+  return /^(?:why(?:\s+(?:is|are|does|do|did|there\s+is|there's|theres))?|how(?:\s+(?:is|are|does|do|did|can|would))?)$/.test(lead)
+}
+
 const normalizeNamedTerm = (raw: string, maxChars = 90): string => {
   const cleaned = sanitizeScalar(raw, maxChars)
     .replace(/^[\s:;,.()[\]{}"'`]+|[\s:;,.()[\]{}"'`]+$/g, '')
@@ -173,6 +222,11 @@ const normalizeNamedTerm = (raw: string, maxChars = 90): string => {
     .replace(/\s+(?:please|thanks)$/i, '')
     .trim()
   if (!cleaned) return ''
+  const attachedImageProbe = cleaned
+    .replace(/[`"'()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (isAttachedImageQuestionTerm(attachedImageProbe)) return ''
   if (/^(?:forbid|avoid|no trademark|non[- ]?infring)/i.test(cleaned)) return ''
   const words = cleaned.toLowerCase().split(/\s+/).filter(Boolean)
   if (words.length === 1 && TERM_STOPWORDS.has(words[0])) return ''
@@ -253,6 +307,13 @@ const filterTrademarkAvoidanceTerms = (intent: string, terms: string[]): string[
       return normalizedTerm === excluded || normalizedTerm.includes(excluded) || excluded.includes(normalizedTerm)
     })
   })
+}
+
+const sanitizeTrademarkAvoidanceIntent = (intent: string): string => {
+  return sanitizeRequestIntent(intent, 900)
+    .replace(/\binspired by\s+([^.;\n`(]{2,160})/gi, 'inspired by high-level tone, pacing, and atmosphere')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 const inferProduct = (intent: string, namedTerms: string[]): string => {
@@ -396,28 +457,57 @@ const inferRequestedSections = (lowered: string): KgcRequestedSections => ({
   integrations: /\bintegration\b|\bintegrations\b|\brxdb\b|\bmaplibre\b|\bmcp\b|\bapi\b/.test(lowered),
 })
 
+const applyInvocationSignals = (
+  signals: KgcRequestSignals,
+  invocation: ReturnType<typeof resolveChatRuntimeInvocationQuery>['leadingRoute'],
+): KgcRequestSignals => {
+  if (!invocation) return signals
+  if (invocation.token === '/computing-flow') return { ...signals, computingFlow: true }
+  return signals
+}
+
+const inferInvocationArtifact = (
+  artifact: string,
+  invocation: ReturnType<typeof resolveChatRuntimeInvocationQuery>['leadingRoute'],
+): string => {
+  if (artifact) return artifact
+  if (!invocation) return ''
+  if (invocation.token === '/prd-tad.create') return 'PRD + TAD'
+  if (invocation.token === '/computing-flow') return 'computing-flow'
+  return ''
+}
+
 export const analyzeKgcRequest = (requestText: string): KgcRequestProfile => {
-  const intent = sanitizeRequestIntent(requestText, 900)
-  const lowered = intent.toLowerCase()
-  const signals = inferSignals(lowered)
+  const runtimeInvocation = resolveChatRuntimeInvocationQuery(requestText)
+  const rawIntent = sanitizeRequestIntent(resolveChatRuntimeInvocationResponsiveQueryText(requestText), 900)
+  const lowered = rawIntent.toLowerCase()
+  const signals = applyInvocationSignals(inferSignals(lowered), runtimeInvocation.leadingRoute)
   const topics = inferTopics(lowered)
-  const namedTerms = inferNamedTerms(signals, intent)
-  const artifact = inferArtifact(lowered)
+  const namedTerms = inferNamedTerms(signals, rawIntent)
+  const artifact = inferInvocationArtifact(inferArtifact(lowered), runtimeInvocation.leadingRoute)
   const subject = sanitizeScalar(inferSubject(lowered), 60)
-  const product = inferProduct(intent, namedTerms)
+  const product = inferProduct(rawIntent, namedTerms)
+  const intent = signals.trademarkAvoidance ? sanitizeTrademarkAvoidanceIntent(rawIntent) : rawIntent
   return {
     intent,
+    invocation: runtimeInvocation.leadingRoute
+      ? {
+          token: runtimeInvocation.leadingRoute.token,
+          label: runtimeInvocation.leadingRoute.label,
+          query: rawIntent,
+        }
+      : null,
     product,
     domain: inferDomain(topics, signals),
     subject,
-    objective: inferObjective(intent, signals, artifact, product),
+    objective: inferObjective(rawIntent, signals, artifact, product),
     artifact,
     owner: subject,
     version: '',
     status: inferStatus(lowered),
     topics,
     namedTerms,
-    outputFile: inferOutputFile(intent),
+    outputFile: inferOutputFile(rawIntent),
     signals,
     requestedSections: inferRequestedSections(lowered),
   }

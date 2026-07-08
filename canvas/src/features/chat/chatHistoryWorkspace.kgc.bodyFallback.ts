@@ -401,7 +401,7 @@ export const buildBody = (args: {
         '',
         '### Non-Goals',
         '',
-        'This base path does not infer missing business decisions, create alternate legacy mappings, or inject project-specific vocabulary when the request does not provide it. Domain-specific choices should be added only when the request or later context makes them explicit.',
+        'This base path does not infer missing business decisions, create alternate mappings, or inject project-specific vocabulary when the request does not provide it. Domain-specific choices should be added only when the request or later context makes them explicit.',
         '',
         '### User Stories',
         '',
@@ -576,4 +576,23 @@ export const buildBody = (args: {
     '| Background sigil | `bg#HEX:text` | semantic highlight | `bg#E1F5EE:intent` |',
     '| Multi-select array | `["A","B"]` | JSON-safe inline array | `["system"]` |',
   ].filter(Boolean).join('\n')
+}
+
+export const buildResponseOnlyBody = (args: {
+  assistantText: string
+  profile: ReturnType<typeof analyzeKgcRequest>
+}): string => {
+  const responseMarkdown = buildResponseMarkdown({
+    profile: args.profile,
+    assistantText: args.assistantText,
+  })
+  return [
+    '# Chat Response',
+    '',
+    '`{{artifact}}` · {{date}}',
+    '',
+    '## Response',
+    '',
+    responseMarkdown,
+  ].join('\n').trimEnd()
 }

@@ -5088,16 +5088,15 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
       return
     }
-    let parsed: { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown } | null = null
+    let parsed: { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown } | null = null
     try {
-      parsed = JSON.parse(body) as { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown }
+      parsed = JSON.parse(body) as { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown }
     } catch {
       parsed = null
     }
     const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
     const text = typeof parsed?.text === 'string' ? parsed.text : ''
-    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : ''
-    const encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : ''
+    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : '', encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : '', mkdirOnly = parsed?.mkdirOnly === true
     if (!incomingPath || incomingPath.includes('\u0000')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -5105,6 +5104,7 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const requestedAbsPath = toHostPath(incomingPath)
+    if (mkdirOnly) { if (!isAllowed(requestedAbsPath)) { res.statusCode = 403; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: 'Forbidden' })); return } try { await fs.mkdir(requestedAbsPath, { recursive: true }); res.statusCode = 200; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: true })) } catch (e: unknown) { const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''; res.statusCode = 500; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: msg || 'Mkdir failed' })) } return }
     const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
     const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
     const ext = String(path.extname(absPath) || '').toLowerCase()

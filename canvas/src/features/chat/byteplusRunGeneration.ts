@@ -14,14 +14,13 @@ import {
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
+import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPanelChatProviderOptions'
+import { extractAssistantDelta, parseSseEvents } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import {
-  buildProviderChatRequestOptions,
-  extractAssistantDelta,
   loadAvailableModelIds,
   parseErrorBody,
-  parseSseEvents,
   shouldRetryWithActivationFallback,
-} from './FloatingPanelChat.helpers'
+} from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { readBytePlusVideoWidgetDefaults } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { LS_KEYS } from '@/lib/config'

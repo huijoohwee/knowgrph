@@ -1,5 +1,5 @@
 import React from 'react'
-import { loadAvailableModelIds } from '@/features/chat/FloatingPanelChat.helpers'
+import { loadAvailableModelIds } from '@/features/chat/floatingPanelChat/floatingPanelChatHttp'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_PROVIDER,

@@ -1,51 +1,9 @@
-import { splitLeadingFrontmatterAndBody } from './chatKgcFrontmatter'
-
-const countLeadingSpaces = (line: string): number => {
-  const match = /^\s*/.exec(String(line || ''))
-  return match?.[0]?.length ?? 0
-}
-
-const removeGroupingAliasBlocksFromFrontmatter = (frontmatter: string): string => {
-  const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
-  const out: string[] = []
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = String(lines[i] || '')
-    const match = /^(\s*)(kg:subgraphs|clusters|cluster|groups|group|layers|layer)\s*:\s*(.*)$/.exec(line)
-    if (!match) {
-      out.push(line)
-      continue
-    }
-    const currentIndent = countLeadingSpaces(line)
-    let end = i
-    for (let j = i + 1; j < lines.length; j += 1) {
-      const next = String(lines[j] || '')
-      if (!next.trim()) {
-        end = j
-        continue
-      }
-      if (countLeadingSpaces(next) <= currentIndent) break
-      end = j
-    }
-    i = end
-  }
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
-}
-
-export const sanitizeStructuredKgcCandidate = (raw: string): string => {
-  const text = String(raw || '').replace(/\r\n/g, '\n').trim()
-  if (!text.startsWith('---\n')) return text
-  const parsed = splitLeadingFrontmatterAndBody(text)
-  if (!parsed) return text
-  const sanitizedFrontmatter = removeGroupingAliasBlocksFromFrontmatter(parsed.frontmatter)
-  return ['---', sanitizedFrontmatter.trimEnd(), '---', parsed.body.trim()].join('\n').trimEnd()
-}
-
 const maybeExtractStructuredDocumentSlice = (raw: string): { kgc: string | null; wrapperStart: number; wrapperEnd: number } => {
   const text = String(raw || '').replace(/\r\n/g, '\n').trim()
   if (!text) return { kgc: null, wrapperStart: -1, wrapperEnd: -1 }
   if (text.startsWith('---\n')) {
     return {
-      kgc: sanitizeStructuredKgcCandidate(text),
+      kgc: text,
       wrapperStart: 0,
       wrapperEnd: text.length,
     }
@@ -69,7 +27,7 @@ const maybeExtractStructuredDocumentSlice = (raw: string): { kgc: string | null;
   if (kgcMatches.length === 1) {
     const only = kgcMatches[0]
     return {
-      kgc: sanitizeStructuredKgcCandidate(only.body),
+      kgc: only.body,
       wrapperStart: only.start,
       wrapperEnd: only.end,
     }
@@ -82,7 +40,7 @@ const maybeExtractStructuredDocumentSlice = (raw: string): { kgc: string | null;
     const closingFenceStart = text.lastIndexOf('\n```')
     if (documentStart >= 0 && closingFenceStart > documentStart) {
       return {
-        kgc: sanitizeStructuredKgcCandidate(text.slice(documentStart, closingFenceStart).trim()),
+        kgc: text.slice(documentStart, closingFenceStart).trim(),
         wrapperStart,
         wrapperEnd: Math.min(text.length, closingFenceStart + 1),
       }
@@ -92,7 +50,7 @@ const maybeExtractStructuredDocumentSlice = (raw: string): { kgc: string | null;
   const rawDocumentStart = text.indexOf('\n---\n')
   if (rawDocumentStart >= 0) {
     return {
-      kgc: sanitizeStructuredKgcCandidate(text.slice(rawDocumentStart + 1).trim()),
+      kgc: text.slice(rawDocumentStart + 1).trim(),
       wrapperStart: rawDocumentStart + 1,
       wrapperEnd: text.length,
     }

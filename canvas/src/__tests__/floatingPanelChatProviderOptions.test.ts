@@ -1,5 +1,5 @@
 import { CHAT_PROVIDER_AGNES, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_GOOGLE_CLOUD, CHAT_PROVIDER_MIROMIND, CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_QWEN } from '@/lib/chatEndpoint'
-import { buildProviderChatRequestOptions } from '@/features/chat/FloatingPanelChat.helpers'
+import { buildProviderChatRequestOptions } from '@/features/chat/floatingPanelChat/floatingPanelChatProviderOptions'
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
@@ -137,8 +137,6 @@ export function testOpenAiProviderOptionsUseResponsesSurface() {
   })
   const expected = {
     service_tier: 'auto',
-    frequency_penalty: 0,
-    presence_penalty: 0,
     parallel_tool_calls: true,
     include: ['message.output_text.logprobs'],
     top_logprobs: 5,
@@ -149,6 +147,50 @@ export function testOpenAiProviderOptionsUseResponsesSurface() {
   const serializedExpected = stableStringify(expected)
   if (serialized !== serializedExpected) {
     throw new Error(`expected OpenAI responses options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testOpenAiResponsesProviderOptionsDropChatCompletionsOnlyControls() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_OPENAI,
+    endpointUrl: '/v1/responses',
+    chatModel: 'gpt-4.1-mini',
+    chatTemperature: 0.5,
+    chatServiceTier: 'default',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'high',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 1,
+    chatPresencePenalty: 1,
+    chatTopP: 0.9,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '["DONE"]',
+    chatStreamOptionsJson: '{"include_usage":true,"include_obfuscation":false}',
+    chatResponseFormatJson: '',
+    chatLogitBiasJson: '{"42":5}',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const serialized = stableStringify(options)
+  for (const forbidden of ['frequency_penalty', 'presence_penalty', 'logit_bias', 'stop', 'include_usage', 'reasoning']) {
+    if (serialized.includes(forbidden)) {
+      throw new Error(`expected OpenAI Responses options to omit ${forbidden}, got ${serialized}`)
+    }
+  }
+  const expected = {
+    temperature: 0.5,
+    service_tier: 'default',
+    top_p: 0.9,
+    parallel_tool_calls: true,
+    stream_options: { include_obfuscation: false },
+  }
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected sanitized OpenAI responses options ${serializedExpected}, got ${serialized}`)
   }
 }
 

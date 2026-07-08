@@ -1,5 +1,5 @@
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
-import { formatReasoningStepSummary } from './FloatingPanelChat.helpers'
+import { formatReasoningStepSummary } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import type { DereferencedChatStreamArtifact } from './chatStreamArtifactDereference'
 
 const REPORT_SHARE_HINT_RX = /\/report\/share\//i

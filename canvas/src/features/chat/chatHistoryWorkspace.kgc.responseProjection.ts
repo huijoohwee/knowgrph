@@ -10,7 +10,15 @@ import { buildNamedTermSummary, fallbackArtifact } from './chatHistoryWorkspace.
 import type { ChatResponseStructuredSurface } from './chatResponseStructuredContent'
 import { STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE } from './chatResponseStructuredCompute'
 
+export const isTraceOnlyAssistantText = (assistantText: string): boolean => {
+  const text = String(assistantText || '')
+  if (!/Provider Stream Trace/i.test(text)) return false
+  if (/did not return final assistant text/i.test(text)) return true
+  return /provider stream is active/i.test(text) && /Incoming reasoning, tool, and assistant deltas/i.test(text)
+}
+
 export const summariseAssistantSignal = (assistantText: string): string => {
+  if (isTraceOnlyAssistantText(assistantText)) return ''
   const text = String(assistantText || '')
     .replace(/\r\n/g, '\n')
     .replace(/```[\s\S]*?```/g, ' ')
@@ -19,11 +27,6 @@ export const summariseAssistantSignal = (assistantText: string): string => {
     .trim()
   if (!text || text.startsWith('---')) return ''
   return sanitizeScalar(text, 220)
-}
-
-export const isTraceOnlyAssistantText = (assistantText: string): boolean => {
-  const text = String(assistantText || '')
-  return /Provider Stream Trace/i.test(text) && /did not return final assistant text/i.test(text)
 }
 
 export const hasSubstantiveAssistantMarkdown = (assistantText: string): boolean => {
@@ -84,7 +87,7 @@ export const buildResponseMarkdownLines = (args: {
   const artifact = fallbackArtifact(args.profile.artifact)
   const intent = sanitizeRequestIntent(args.profile.intent, 320) || 'Prompt unavailable.'
   const resultLine = traceOnly
-    ? 'The provider returned trace/tool signals but no final assistant text. This document does not invent the missing answer; no answer is backfilled. Rerun the request or inspect the trace artifact.'
+    ? `For the request "${intent}", the provider returned trace/tool signals but no final assistant text. This document does not infer missing details or invent an answer; no answer is backfilled. Rerun the request or inspect the trace artifact.`
     : assistantSignal
       ? `Partial assistant signal: ${assistantSignal}. No answer is backfilled beyond the provider text.`
       : 'No final assistant answer was available. No answer is backfilled.'

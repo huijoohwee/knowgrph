@@ -7,7 +7,8 @@ import {
   resolveBinaryDownloadProxyUrl,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
-import { parseErrorBody, parseSseEvents } from './FloatingPanelChat.helpers'
+import { parseErrorBody } from './floatingPanelChat/floatingPanelChatHttp'
+import { parseSseEvents } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import type {
   GeneratedBinaryAsset,
   RunGenerationConfig,

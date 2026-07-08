@@ -192,19 +192,27 @@ const createTimestampedWorkspaceFile = async (args: {
   prefix: 'chh' | 'kgc'
   timestampMs: number
 }): Promise<WorkspacePath> => {
-  await ensureWorkspaceFolderTreeIfMissing({ fs: args.fs, folderPath: args.parentPath })
   for (let i = 0; i < 5; i += 1) {
     const ts = args.timestampMs + i * 1000
+    const parentPath = args.prefix === 'kgc'
+      ? normalizeWorkspacePath(`${args.parentPath === '/' ? '' : args.parentPath}/${formatKgcWorkspaceSessionId(ts)}`)
+      : args.parentPath
+    await ensureWorkspaceFolderTreeIfMissing({ fs: args.fs, folderPath: parentPath })
     const name = formatFilename(args.prefix, ts)
-    const existingPath = normalizeWorkspacePath(`${args.parentPath === '/' ? '' : args.parentPath}/${name}`)
+    const existingPath = normalizeWorkspacePath(`${parentPath === '/' ? '' : parentPath}/${name}`)
     const existing = await args.fs.readFileText(existingPath)
     if (existing !== null) continue
-    const created = await args.fs.createFile({ parentPath: args.parentPath, name, text: '' })
+    const created = await args.fs.createFile({ parentPath, name, text: '' })
     return normalizeWorkspacePath(created)
   }
+  const fallbackTimestampMs = Date.now()
+  const fallbackParentPath = args.prefix === 'kgc'
+    ? normalizeWorkspacePath(`${args.parentPath === '/' ? '' : args.parentPath}/${formatKgcWorkspaceSessionId(fallbackTimestampMs)}`)
+    : args.parentPath
+  await ensureWorkspaceFolderTreeIfMissing({ fs: args.fs, folderPath: fallbackParentPath })
   const fallbackCreated = await args.fs.createFile({
-    parentPath: args.parentPath,
-    name: formatFilename(args.prefix, Date.now()),
+    parentPath: fallbackParentPath,
+    name: formatFilename(args.prefix, fallbackTimestampMs),
     text: '',
   })
   return normalizeWorkspacePath(fallbackCreated)
@@ -246,12 +254,9 @@ export const createNewChatHistoryWorkspaceFilePath = async (
   await ensureWorkspaceFolderTreeIfMissing({ folderPath: folder })
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
-  const parentPath = prefix === 'kgc'
-    ? normalizeWorkspacePath(`${folder === '/' ? '' : folder}/${formatKgcWorkspaceSessionId(timestampMs)}`)
-    : folder
   const normalized = await createTimestampedWorkspaceFile({
     fs,
-    parentPath,
+    parentPath: folder,
     prefix,
     timestampMs,
   })

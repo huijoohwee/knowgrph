@@ -1,3 +1,4 @@
+import { load as parseYaml } from 'js-yaml'
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
 import { ensureKgcBaseTemplateRequiredBodyScaffold } from './chatHistoryWorkspace.kgc.bodyScaffold'
 import { sanitizeComputingFlowMarkdown } from './chatComputingFlowContract'
@@ -6,6 +7,9 @@ import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { recoverStructuredKgcAssistantPayload } from './chatHistoryWorkspace.kgc.recovery'
 import { enforceKgcQueryResponsiveContent } from './chatHistoryWorkspace.kgc.normalize'
 import { extractChatResponseStructuredSurface, projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContent'
+import { buildResolvableVarKeySet, validateChatMarkdown } from './chatMarkdownValidation'
+import { sanitizeChatHistoryTraceUserText } from './chatStreamArtifactSanitizers'
+import { hasRecognizedChatRuntimeInvocation } from './chatRuntimeInvocationProfile'
 
 type KgcStorageNormalizeArgs = {
   timestampMs: number
@@ -47,18 +51,33 @@ const projectStructuredContentIntoKgcMarkdown = (markdown: string): string => {
   return ['---', frontmatter.trimEnd(), '---', parsed.body.trim()].join('\n').trimEnd() + '\n'
 }
 
+const isValidatedStorageKgc = (markdown: string): boolean => {
+  if (!isKgcStructuredMarkdown(markdown)) return false
+  const parsed = splitLeadingFrontmatterAndBody(markdown)
+  if (!parsed) return false
+  try {
+    parseYaml(parsed.frontmatter)
+  } catch {
+    return false
+  }
+  const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: null, markdown })
+  return validateChatMarkdown({ markdown, resolvableVarKeys }).ok
+}
+
 export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   const recovered = recoverStructuredKgcAssistantPayload(raw)
   const kgc = typeof recovered.kgc === 'string' ? sanitizeComputingFlowMarkdown(recovered.kgc) : ''
-  if (kgc && isKgcStructuredMarkdown(kgc)) {
+  const allowStructuredKgc = hasRecognizedChatRuntimeInvocation(args.requestText)
+  if (allowStructuredKgc && kgc && isKgcStructuredMarkdown(kgc)) {
     const queryResponsive = enforceKgcQueryResponsiveContent({
       markdown: kgc,
       requestText: args.requestText,
       workspacePath: args.workspacePath,
       assistantText: args.assistantText,
     })
-    return sanitizeComputingFlowMarkdown(projectStructuredContentIntoKgcMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(queryResponsive)))
+    const normalized = sanitizeComputingFlowMarkdown(projectStructuredContentIntoKgcMarkdown(ensureKgcBaseTemplateRequiredBodyScaffold(queryResponsive)))
+    if (isValidatedStorageKgc(normalized)) return normalized
   }
   const fileName = String(args.workspacePath || '').split('/').filter(Boolean).slice(-1)[0] || ''
   const fallback = buildDeterministicBaseTemplateKgcTurn({
@@ -92,6 +111,7 @@ export const buildKgcDraftEntry = (args: {
 }): string => {
   const heading = `## ${formatReadableTimestamp(args.timestampMs)} (in progress)`
   const assistantMarkdown = String(args.assistantText || '_Streaming..._').replace(/\r\n/g, '\n').trim() || '_Streaming..._'
+  const userText = sanitizeChatHistoryTraceUserText(args.userText)
   return [
     `<!-- kg-chat-draft:start:${args.traceId} -->`,
     heading,
@@ -101,7 +121,7 @@ export const buildKgcDraftEntry = (args: {
     `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
     '',
     '### user',
-    wrapFence(args.userText, 'text'),
+    wrapFence(userText, 'text'),
     '',
     '### assistant',
     wrapFence(assistantMarkdown, 'markdown'),

@@ -11,6 +11,24 @@ import {
   getApiNativeBrowserMcpApiRowAnchorId,
 } from './apiNativeBrowserMcpApiDocs'
 import {
+  EXTERNAL_MCP_TOOL_SERVER_DOC_AREA,
+  EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES,
+  EXTERNAL_MCP_TOOL_SERVER_HTTP_CONFIG_KEY,
+  EXTERNAL_MCP_TOOL_SERVER_STDIO_CONFIG_KEY,
+  buildExternalMcpStdioConfigJson,
+  buildExternalMcpStreamableHttpConfigJson,
+  getExternalMcpToolServerRowAnchorId,
+} from './externalMcpToolServerDocs'
+import {
+  KNOWGRPH_TOOL_SERVER_DOC_AREA,
+  KNOWGRPH_TOOL_SERVER_DOC_ENTRIES,
+  KNOWGRPH_TOOL_SERVER_LOCAL_CONFIG_KEY,
+  KNOWGRPH_TOOL_SERVER_PAGES_CONFIG_KEY,
+  buildKnowgrphToolServerLocalStdioConfigJson,
+  buildKnowgrphToolServerPagesHttpConfigJson,
+  getKnowgrphToolServerRowAnchorId,
+} from './knowgrphToolServerDocs'
+import {
   CRAWLER_ACCESS_MCP_DOC_AREA,
   CRAWLER_ACCESS_MCP_DOC_ENTRIES,
   getCrawlerAccessMcpApiRowAnchorId,
@@ -126,6 +144,8 @@ export function buildMcpDocEntries(
 ): ReadonlyArray<VirtualSettingsEntry> {
   return [
     ...API_NATIVE_BROWSER_MCP_DOC_ENTRIES,
+    ...KNOWGRPH_TOOL_SERVER_DOC_ENTRIES,
+    ...EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES,
     ...CRAWLER_ACCESS_MCP_DOC_ENTRIES,
     ...CLOUDFLARE_AI_GATEWAY_MCP_DOC_ENTRIES,
     ...BYTEPLUS_MODELARK_MCP_DOC_ENTRIES,
@@ -153,6 +173,10 @@ export function buildMcpVirtualEntry(
   const anchorId =
     area === API_NATIVE_BROWSER_MCP_DOC_AREA
       ? getApiNativeBrowserMcpApiRowAnchorId(entry.meta.key)
+      : area === KNOWGRPH_TOOL_SERVER_DOC_AREA
+        ? getKnowgrphToolServerRowAnchorId(entry.meta.key)
+      : area === EXTERNAL_MCP_TOOL_SERVER_DOC_AREA
+        ? getExternalMcpToolServerRowAnchorId(entry.meta.key)
       : area === CRAWLER_ACCESS_MCP_DOC_AREA
         ? getCrawlerAccessMcpApiRowAnchorId(entry.meta.key)
       : area === CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA
@@ -188,6 +212,14 @@ export function buildMcpVirtualEntry(
       ? buildApiNativeBrowserMcpAgentConfigJson(values)
       : entry.meta.key === API_NATIVE_BROWSER_MCP_BRIDGE_CONFIG_KEY
         ? buildBrowserBridgeMcpConfigJson(values)
+        : entry.meta.key === EXTERNAL_MCP_TOOL_SERVER_STDIO_CONFIG_KEY
+          ? buildExternalMcpStdioConfigJson()
+          : entry.meta.key === EXTERNAL_MCP_TOOL_SERVER_HTTP_CONFIG_KEY
+            ? buildExternalMcpStreamableHttpConfigJson()
+            : entry.meta.key === KNOWGRPH_TOOL_SERVER_LOCAL_CONFIG_KEY
+              ? buildKnowgrphToolServerLocalStdioConfigJson()
+              : entry.meta.key === KNOWGRPH_TOOL_SERVER_PAGES_CONFIG_KEY
+                ? buildKnowgrphToolServerPagesHttpConfigJson()
         : entry.meta.key === CLOUDFLARE_AI_GATEWAY_MCP_REMOTE_CONFIG_KEY
           ? buildCloudflareAiGatewayMcpRemoteConfigJson()
         : entry.meta.key === BYTEPLUS_MODELARK_MCP_RESPONSES_TOOL_CONFIG_KEY

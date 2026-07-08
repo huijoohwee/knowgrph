@@ -8,9 +8,9 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
+import { renderFloatingPanelChatMessageContent } from '@/features/chat/floatingPanelChat/FloatingPanelChatMessageContent'
 import { FloatingPanelChatQuickActionGrid } from '@/features/chat/floatingPanelChat/FloatingPanelChatQuickActionGrid'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
@@ -43,8 +43,6 @@ export type FloatingPanelChatPipelineStage = {
   prompt: string
 }
 
-const WORKSPACE_LINK_RE = /\[([^\]]+)\]\(((?:workspace:)?\/[^\s)]+\.md)\)/g
-
 const getFloatingPanelChatContextChipClassName = (
   tone: UiSectionChipStatusTone = 'neutral',
   className?: string,
@@ -57,12 +55,6 @@ const getFloatingPanelChatContextChipClassName = (
 const getFloatingPanelChatContextItemClassName = (id: string): string => {
   if (id === 'workspace' || id === 'selection') return 'min-w-0 col-span-2'
   return 'min-w-0'
-}
-
-const normalizeChatWorkspaceLinkPath = (raw: string): string => {
-  const text = String(raw || '').trim()
-  const withoutScheme = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
-  return normalizeWorkspacePath(withoutScheme)
 }
 
 const FloatingPanelChatStreamingStatus = React.memo(function FloatingPanelChatStreamingStatus({
@@ -124,45 +116,6 @@ const FloatingPanelChatStreamingStatus = React.memo(function FloatingPanelChatSt
   )
 })
 
-const renderMessageWithWorkspaceLinks = (
-  raw: string,
-  onOpenWorkspacePath?: (path: string) => void,
-): React.ReactNode => {
-  const content = String(raw || '')
-  if (!content || typeof onOpenWorkspacePath !== 'function') return content
-  const nodes: React.ReactNode[] = []
-  let last = 0
-  let index = 0
-  WORKSPACE_LINK_RE.lastIndex = 0
-  for (;;) {
-    const match = WORKSPACE_LINK_RE.exec(content)
-    if (!match) break
-    const start = match.index
-    const end = start + match[0].length
-    if (start > last) nodes.push(content.slice(last, start))
-    const label = String(match[1] || '').trim() || 'Open'
-    const path = normalizeChatWorkspaceLinkPath(String(match[2] || ''))
-    nodes.push(
-      <button
-        key={`workspace-link-${index}-${path}`}
-        type="button"
-        data-kg-chat-source-file-link="true"
-        data-workspace-path={path}
-        aria-label={`Open ${path} in Source Files`}
-        title={`Open ${path} in Source Files`}
-        className={getUiSectionStatusChipClassName('info', 'cursor-pointer')}
-        onClick={() => onOpenWorkspacePath(path)}
-      >
-        {label}
-      </button>,
-    )
-    last = end
-    index += 1
-  }
-  if (last < content.length) nodes.push(content.slice(last))
-  return nodes.length > 0 ? nodes : content
-}
-
 const ChatMessageRow = React.memo(function ChatMessageRow({
   message,
   uiPanelTextFontClass,
@@ -190,9 +143,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             : `mr-auto ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.panel.border}`,
         ].join(' ')}
       >
-        {message.role === 'assistant'
-          ? renderMessageWithWorkspaceLinks(content, onOpenWorkspacePath)
-          : content}
+        {renderFloatingPanelChatMessageContent(content, onOpenWorkspacePath)}
       </section>
     </section>
   )

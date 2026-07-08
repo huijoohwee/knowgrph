@@ -6,10 +6,10 @@ import {
 } from '../chatHistoryWorkspace'
 import {
   extractKgcBlockFromAssistantText,
-  persistChatExchangeLog,
   pickBestErrorFallbackSource,
   toConciseBulletText,
-} from '../FloatingPanelChat.helpers'
+} from './floatingPanelChatKgcPayload'
+import { persistChatExchangeLog } from './floatingPanelChatRuntime'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'

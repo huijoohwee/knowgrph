@@ -3,10 +3,10 @@ title: Knowgrph LLM Prompt Contract PRD-TAD (Implemented E2E)
 id: knowgrph-llm-prompt-contract-prd-tad
 schema: kgc-computing-flow/v1
 doc_type: prd-tad
-version: 0.3.14
+version: 0.3.17
 status: Accepted and implemented
 created: 2026-05-21
-updated: 2026-06-04
+updated: 2026-07-08
 author: "@airvio"
 repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
 repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
@@ -87,6 +87,15 @@ changelog:
   - version: 0.3.14
     date: 2026-06-04
     summary: Documents submit-path acceptance for literal MCP structured results that already contain a renderable structured surface, finalizing without KGC retry or synthetic KGC text.
+  - version: 0.3.15
+    date: 2026-07-08
+    summary: Documents slash-invoked chatResponseBaseContract variants for Storybuilding, Research Agent, Video Agent, and Care Agent, with no leading slash falling back to the plain vanilla base contract.
+  - version: 0.3.16
+    date: 2026-07-08
+    summary: Keeps no-slash provider trace fallbacks clean-slate by treating active-stream/no-content traces as no-answer evidence and neutralizing markdown image runtime URLs before request-profile fallback generation.
+  - version: 0.3.17
+    date: 2026-07-08
+    summary: Routes no-slash trace-only/no-content fallbacks through the plain base KGC contract instead of the computing-flow template scaffold, keeping attached-image prompts query-responsive without product/title backfill.
 ---
 
 # Knowgrph - LLM Prompt Contract PRD-TAD (Implemented E2E)
@@ -128,7 +137,8 @@ When a standard, recovered, literal MCP, or already-accepted KGC chat answer inc
 | MainPanel chat configuration | MainPanel Settings + settings assist | `canvas/src/features/panels/MainPanel.tsx`, `canvas/src/features/panels/views/SettingsView.tsx`, `canvas/src/features/panels/views/useSettingsChatAssist.tsx` | MainPanel owns chat settings and model discovery, not chat rendering. |
 | Floating chat mount | FloatingPanel toolbar view switch | `canvas/src/lib/toolbar/ToolbarToolMenu.impl.tsx`, `canvas/src/components/ui/FloatingPanel.tsx` | FloatingPanel mounts `FloatingPanelChatLazy` when the chat panel is selected. |
 | Chat UI | Floating panel chat feature | `canvas/src/features/chat/FloatingPanelChat.tsx` | FloatingPanelChat is the active runtime owner for LLM chat UI state and graph/workspace context reads. |
-| System prompt contract | Base chat response contracts | `canvas/src/features/chat/chatResponseBaseContract.ts` | `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` is the current chatKnowgrph KGC contract owner. |
+| System prompt contract | Base chat response contracts | `canvas/src/features/chat/chatBaseKgcResponseContractPrompt.ts`, `canvas/src/features/chat/chatBaseResponseContractPrompt.ts`, re-exported by `canvas/src/features/chat/chatResponseBaseContract.ts` | `CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT` is the current chatKnowgrph KGC contract owner; the generic chat prompt stays in its sibling prompt module. |
+| Slash response variants | Chat skill registry plus submit request builder | `canvas/src/features/chat/chatSkillRegistry.ts`, `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest.ts` | A leading `/storybuilding`, `/research-agent`, `/video-agent`, or `/care-agent` invokes a narrow chatResponseBaseContract variant over the active base contract; no leading slash uses the plain vanilla base contract, and trace-only/no-content fallbacks must not escalate into the computing-flow template scaffold unless computing-flow intent is explicit. |
 | Chat structured-content projection | MCP-shaped chat response materializer | `canvas/src/features/chat/chatResponseStructuredContent.ts`, `canvas/src/features/chat/chatResponseStructuredContentProjector.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.baseFallback.ts`, `canvas/src/features/chat/chatHistoryWorkspace.kgc.build.ts`, `canvas/src/features/parsers/markdownFrontmatterFlowGraph.flowEnvelope.ts`, `canvas/src/features/parsers/markdownFrontmatterFlowGraph.core.ts`, `canvas/src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs.ts` | Extracts `response.structuredContent`, literal MCP `result.structuredContent`, and structured `result.content[]` text blocks from standard, recovered, literal MCP, or accepted KGC assistant YAML/JSON/frontmatter, normalizes plain fields plus typed KTV envelopes, projects declared widget forms as real Storyboard Widget nodes with document-scoped widget registry entries, preserves safe `flow:compute` widget data for the shared connected-value runtime and provider-free workflow-run output writeback, and projects neutral render records into Rich Media Panel endpoints, canonical `flow.edges`, and existing `widget_bundle.graph.nodes_ref` before parser/canvas apply. |
 | Submit hook shell | Submit hook shell | `canvas/src/features/chat/floatingPanelChat/useFloatingPanelChatSubmit.ts` | Thin hook shell that resolves endpoint guards, initializes optimistic state, and delegates the async submit lifecycle. |
 | Submit preflight | Preflight helpers | `canvas/src/features/chat/floatingPanelChat/floatingPanelChatSubmitPreflight.ts` | Owns endpoint/model guards, optimistic message setup, cache updates, and trace-draft bootstrap. |
@@ -524,11 +534,11 @@ The enhanced contract MUST explicitly forbid:
 
 - returning prose plus a partial KGC fragment instead of one full KGC document
 - returning a minimal canvas-preset-only document when the chatKnowgrph path expects the full KGC contract
-- duplicate cluster channels such as separate legacy `clusters:` payloads when `flow.subgraphs` already owns grouping semantics
+- duplicate cluster channels such as separate retired `clusters:` payloads when `flow.subgraphs` already owns grouping semantics
 - hardcoded domain roles in actor arrays
 - hardcoded model identifiers in sys_event or flow node data
 - hardcoded retry counts in validation or retry arcs
-- legacy canned body labels unless the user explicitly requested those labels
+- stale canned body labels unless the user explicitly requested those labels
 - duplicate directive echoing from long prompts
 - separate downstream instructions that reinterpret the generated graph outside the saved Markdown document
 

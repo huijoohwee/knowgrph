@@ -1,13 +1,26 @@
 import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
 import { reorderList } from '@/lib/reorder';
-import { normalizeSourceFileRecord, normalizeSourceFiles } from '@/features/source-files/sourceFileParsedState';
+import {
+  areSourceFileRecordsEqual,
+  normalizeSourceFileRecord,
+  normalizeSourceFiles,
+} from '@/features/source-files/sourceFileParsedState';
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {
   for (const [key, value] of Object.entries(updates) as Array<[keyof SourceFile, SourceFile[keyof SourceFile]]>) {
     if (!Object.is(file[key], value)) return true;
   }
   return false;
+};
+
+const areSourceFileListsEqual = (left: SourceFile[], right: SourceFile[]): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (!areSourceFileRecordsEqual(left[i], right[i])) return false;
+  }
+  return true;
 };
 
 export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
@@ -24,7 +37,10 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   clearSourceFiles: () => void;
 }> = (set) => ({
   sourceFiles: [],
-  setSourceFiles: (files) => set(() => ({ sourceFiles: normalizeSourceFiles(files) })),
+  setSourceFiles: (files) => set((state) => {
+    const sourceFiles = normalizeSourceFiles(files);
+    return areSourceFileListsEqual(state.sourceFiles, sourceFiles) ? state : { sourceFiles };
+  }),
   addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, normalizeSourceFileRecord(file)] })),
   updateSourceFile: (id, updates) => set((state) => {
     let changed = false;

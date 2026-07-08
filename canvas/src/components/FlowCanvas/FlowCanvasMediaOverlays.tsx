@@ -153,8 +153,8 @@ export default function FlowCanvasMediaOverlays(args: {
   const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>('')
   const workspaceOverlayOpenRef = React.useRef(false)
   const workspaceMutationBlockedRef = React.useRef(false)
-  const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)
-  const [, setWorkspaceMutationBlockedKey] = React.useState(0)
+  const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
+  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
   const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
@@ -191,37 +191,10 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [cancelMediaOverlayInteractionState])
 
   React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
-    const readWorkspaceMutationBlocked = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
-    const initialOpen = readWorkspaceOverlayOpen()
-    const initialBlocked = readWorkspaceMutationBlocked()
-    if (workspaceOverlayOpenRef.current !== initialOpen) setWorkspaceOverlayOpenKey(key => key + 1)
-    if (workspaceMutationBlockedRef.current !== initialBlocked) setWorkspaceMutationBlockedKey(key => key + 1)
-    workspaceOverlayOpenRef.current = initialOpen
-    workspaceMutationBlockedRef.current = initialBlocked
-    if (workspaceMutationBlockedRef.current) cancelMediaOverlayInteractionState()
-    const unsub = useGraphStore.subscribe(
-      s => [
-        s.workspaceViewMode,
-        s.workspaceCanvasPaneOpen,
-        s.markdownWorkspaceIndexingInFlight,
-        s.workspaceGraphMutationBlockUntilMs,
-        s.workspaceGraphMutationBlockKey,
-      ] as const,
-      () => {
-        const nextBlocked = readWorkspaceMutationBlocked()
-        const nextOpen = readWorkspaceOverlayOpen()
-        const overlayChanged = workspaceOverlayOpenRef.current !== nextOpen
-        const blockedChanged = workspaceMutationBlockedRef.current !== nextBlocked
-        workspaceOverlayOpenRef.current = nextOpen
-        workspaceMutationBlockedRef.current = nextBlocked
-        if (workspaceMutationBlockedRef.current) cancelMediaOverlayInteractionState()
-        if (overlayChanged) setWorkspaceOverlayOpenKey(key => key + 1)
-        if (blockedChanged) setWorkspaceMutationBlockedKey(key => key + 1)
-      },
-    )
-    return () => unsub()
-  }, [cancelMediaOverlayInteractionState])
+    workspaceOverlayOpenRef.current = workspaceOverlayOpen
+    workspaceMutationBlockedRef.current = workspaceMutationBlocked
+    if (workspaceMutationBlocked) cancelMediaOverlayInteractionState()
+  }, [cancelMediaOverlayInteractionState, workspaceMutationBlocked, workspaceOverlayOpen])
 
   React.useEffect(() => {
     const next = new Map<string, Record<string, unknown>>()
@@ -352,7 +325,7 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     __flowCanvasDebug.richMediaRectById = next
     syncFlowCanvasDebugWindow()
-  }, [mediaNodes, mediaLayoutItemsKey, mediaLayoutPropsSignature, workspaceOverlayOpenKey])
+  }, [mediaNodes, mediaLayoutItemsKey, mediaLayoutPropsSignature, workspaceOverlayOpen])
 
   React.useEffect(() => {
     if (lastPlannedOverlayNodeIdsKeyRef.current === plannedOverlayNodeIdsKey) return
@@ -617,7 +590,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [
     active,
     canvas2dRenderer,
-    workspaceOverlayOpenKey,
+    workspaceOverlayOpen,
     storyboardWidgetFrontmatterDocumentModeRequested,
     storyboardWidgetFrontmatterInteractionMode,
     mediaLayoutItemIdsKey,
@@ -714,7 +687,7 @@ export default function FlowCanvasMediaOverlays(args: {
     }
   }, [
     active,
-    workspaceOverlayOpenKey,
+    workspaceOverlayOpen,
     storyboardWidgetFrontmatterDocumentModeRequested,
     storyboardWidgetSurfaceRendererMode,
     richMediaInfiniteCanvasMode,
@@ -740,7 +713,6 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [resetMediaOverlayInteractionState])
 
   if (!(active && mediaNodes.length > 0)) return null
-  const workspaceMutationBlocked = workspaceMutationBlockedRef.current
   return (
     <section
       aria-label="Flow media overlay"

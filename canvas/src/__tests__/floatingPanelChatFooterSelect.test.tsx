@@ -118,9 +118,11 @@ export async function testFloatingPanelChatNewChatCreatesAndFollowsCanonicalWork
     if (!newChatButton) throw new Error('expected FloatingPanel chat to render the New Chat command')
     await act(async () => {
       newChatButton.click()
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        if (String(useGraphStore.getState().chatKnowgrphWorkspacePath || '').trim()) break
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const state = useGraphStore.getState()
+        if (String(state.chatKnowgrphWorkspacePath || '').trim() && state.workspaceViewMode === 'editor') break
         await waitForTasks(1)
+        await waitForFrames(dom.window as unknown as Window, 1)
       }
       await waitForFrames(dom.window as unknown as Window, 2)
     })
@@ -277,8 +279,8 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
           quickActions={[
             {
               id: 'trace-pipeline',
-              label: 'Trace pipeline',
-              prompt: 'Trace the current document from ingestion to parsing to canvas rendering.',
+              label: '/pipeline.trace',
+              prompt: '/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.',
             },
           ]}
           onQuickAction={prompt => {
@@ -361,7 +363,7 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
       action.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
-    if (quickActionPrompts[0] !== 'Trace the current document from ingestion to parsing to canvas rendering.') {
+    if (quickActionPrompts[0] !== '/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.') {
       throw new Error(`expected quick action to publish its prompt through state, got ${JSON.stringify(quickActionPrompts)}`)
     }
     const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
@@ -369,8 +371,12 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
     if (input.getAttribute('aria-label') !== 'Ask a question about the current graph or selection.') {
       throw new Error(`expected chat input to expose the shared placeholder as its aria label, got ${input.getAttribute('aria-label')}`)
     }
-    if (!String(input.value || '').includes('Trace the current document')) {
+    if (!String(input.value || '').includes('/pipeline.trace Trace the current document')) {
       throw new Error(`expected quick action to populate chat input, got ${JSON.stringify(input.value)}`)
+    }
+    const traceChip = container.querySelector('[data-kg-chat-input-invocation-chip="slash"][data-kg-chat-input-invocation-token="/pipeline.trace"]')
+    if (!traceChip || input.getAttribute('data-kg-chat-input-overlay-active') !== '1' || !traceChip.getAttribute('title')?.includes('DICTIONARY-COMMAND.md')) {
+      throw new Error(`expected slash quick action prompt to render through composer invocation overlay, got ${input.outerHTML}`)
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

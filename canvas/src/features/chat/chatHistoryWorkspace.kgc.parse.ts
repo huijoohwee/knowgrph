@@ -9,6 +9,7 @@ import {
   isFrontmatterVarKeyDeclared,
   splitLeadingFrontmatterAndBody,
 } from './chatKgcFrontmatter'
+import { hasResponseOnlyKgcBody, isResponseOnlyKgcFrontmatter } from './chatKgcResponseOnlyContract'
 
 const BASE_TEMPLATE_TIER_B_KEYS = [
   'product',
@@ -113,6 +114,9 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
   if (bodyRefs.length === 0) return false
   const frontmatterKeys = extractTopLevelYamlKeys(parsedFrontmatterBody.frontmatter)
   if (isComputingFlowStructuredMarkdown(parsedFrontmatterBody.frontmatter, markdownBody)) return true
+  if (frontmatterKeys.has('kgcResponseOnly') && isResponseOnlyKgcFrontmatter(parsedFrontmatterBody.frontmatter)) {
+    return hasResponseOnlyKgcBody(markdownBody, BASE_TEMPLATE_REQUIRED_BODY_SECTIONS)
+  }
   for (const ref of bodyRefs) {
     const key = extractVarRefKey(ref)
     if (!key) continue

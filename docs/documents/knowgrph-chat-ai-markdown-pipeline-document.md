@@ -25,12 +25,14 @@ Canonical source: `docs/documents/markdown-syntax-guidelines.md`.
 
 ## Phase 2 · AI Markdown Generation
 Chat uses the provider proxy and sends:
-- Base contract system prompt (`chatResponseBaseContract.ts`; `chatKnowgrph` vs standard)
+- Base contract system prompt (`chatBaseKgcResponseContractPrompt.ts` for `chatKnowgrph`, `chatBaseResponseContractPrompt.ts` for standard chat; re-exported by `chatResponseBaseContract.ts`)
 - `packContext()` system prompt
 - Optional bounded subgraph context and workspace-wide context
 - Conversation history
 - A thin submit shell delegates the async lifecycle to `floatingPanelChatSubmitCoordinator.ts`, which composes request-build, transport, streaming, and KGC retry helpers instead of re-owning that logic inside the hook
 - Raw SSE JSON chunks remain owned by the shared streaming helper; provider extensions must not add a second streaming client stack
+- The shared Storyboard template contract is injected through `chatStoryboardTemplateContract.ts`: no-slash chat remains a plain Markdown/`response:` contract, while recognized Agentic OS invocations such as `/prd-tad.create` select the structured KGC contract and receive Storyboard slash/#/@ directive context without cloning the source template or authorizing Prod/Cloudflare.
+- Recognized invocation routes are metadata, not answer content. `chatRuntimeInvocationQuery.ts` separates the leading route token from the remaining user request before provider payload shaping, KGC profiling, storage fallback, and stream relevance, so `/prd-tad.create [attached image]` keeps PRD/TAD defaults while the model sees the remaining query/media.
 
 ### Shared Provider Contract
 - MainPanel Integrations and Settings may expose provider-specific readiness rows, but request execution must still converge on the shared FloatingPanel Chat transport path.

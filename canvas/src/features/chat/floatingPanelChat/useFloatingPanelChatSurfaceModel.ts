@@ -58,8 +58,14 @@ export const useFloatingPanelChatSurfaceModel = (args: SurfaceModelArgs) => {
     workspaceContextCacheStatus,
   }), [activeWorkspaceLabel, args.chatContextScope, args.currentNode, args.messageCount, args.sourceFiles, workspaceContextCacheStatus])
   const quickActions = React.useMemo(
-    () => createFloatingPanelChatQuickActions({ activeWorkspaceLabel, currentNode: args.currentNode }),
-    [activeWorkspaceLabel, args.currentNode],
+    () => createFloatingPanelChatQuickActions({
+      activeWorkspaceLabel,
+      currentNode: args.currentNode,
+      sourceFiles: args.sourceFiles,
+      graphData: args.graphData,
+      messageCount: args.messageCount,
+    }),
+    [activeWorkspaceLabel, args.currentNode, args.graphData, args.messageCount, args.sourceFiles],
   )
   const pipelineStages = React.useMemo(() => createFloatingPanelChatPipelineStages({
     sourceFiles: args.sourceFiles,

@@ -883,8 +883,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const workspaceMutationBlockedRef = React.useRef(false)')) {
     throw new Error('expected FlowCanvas media overlays to track mutation blocking separately from visible workspace overlay state')
   }
-  if (!text.includes('const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)')) {
-    throw new Error('expected FlowCanvas media overlays to restart passive layout only on semantic workspace overlay open/close transitions')
+  if (!text.includes('const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))') || text.includes('workspaceOverlayOpenKey') || text.includes('setWorkspaceOverlayOpenKey') || text.includes('setWorkspaceMutationBlockedKey')) {
+    throw new Error('expected FlowCanvas media overlays to restart passive layout from semantic workspace overlay selector transitions without state-key churn')
   }
   if (!text.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !storyboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlays to derive a frontmatter-aware passive layout exception while workspace overlay is open')
@@ -892,7 +892,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('if (!active || mediaLayoutItems.length === 0 || stopPassiveLayoutWhileWorkspaceOverlayOpen)')) {
     throw new Error('expected Rich Media layout loop shutdown to exempt frontmatter document mode from workspace-open passive-layout parking')
   }
-  if (!text.includes('const storyboardWidgetSurfaceRendererMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)') || !text.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+  if (!text.includes('const storyboardWidgetSurfaceRendererMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)') || !text.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Rich Media overlay drag/pan interactions to use the shared Storyboard Widget surface/Flow Canvas gate')
   }
   if (!text.includes('resolveFlowCanvasMediaOverlayInteractionPolicy')) {
@@ -919,7 +919,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(() => {')) {
     throw new Error('expected FlowCanvas media overlays to centralize cancellation of delayed interaction writes')
   }
-  const workspaceOpenCancelIndex = text.indexOf('if (workspaceMutationBlockedRef.current) cancelMediaOverlayInteractionState()')
+  const workspaceOpenCancelIndex = text.indexOf('if (workspaceMutationBlocked) cancelMediaOverlayInteractionState()')
   const schedulerCancelIndex = text.indexOf('mediaOverlayHeaderMoveSchedulerRef.current?.cancel()')
   if (workspaceOpenCancelIndex < 0 || schedulerCancelIndex < 0) {
     throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
@@ -1014,11 +1014,8 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     || !flowCanvasWheelText.includes('if (!storyboardWidgetOverlayInteractionMode) return')) {
     throw new Error('expected Storyboard Widget overlay wheel and gesture proxying to reuse the shared collective screen-authority predicate')
   }
-  if (!storyboardSharedSurfacePanText.includes("window.addEventListener('pointerdown', onPointerDown")
-    || !storyboardSharedSurfacePanText.includes("window.addEventListener('mousedown', onPointerDown")
-    || !storyboardSharedSurfacePanText.includes("window.addEventListener('mousemove', onPointerMove")
-    || !storyboardSharedSurfacePanText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')
-    || !storyboardSharedSurfacePanText.includes('STORYBOARD_WIDGET_OVERLAY_INTERACTIVE_SELECTOR')) {
+  const sharedPanFragments = ["window.addEventListener('pointerdown', onPointerDown, { passive: false, capture: true })", "window.addEventListener('mousedown', onPointerDown, { passive: false, capture: true })", "window.addEventListener('mousemove', onPointerMove, { passive: false, capture: true })", 'CANVAS_OVERLAY_PROXY_ROOT_SELECTOR', 'shouldUseCanvasOverlayBodyPan', 'CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR', 'CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR']
+  if (sharedPanFragments.some(fragment => !storyboardSharedSurfacePanText.includes(fragment))) {
     throw new Error('expected shared Storyboard Card/Widget pan owner to install guarded overlay-body pointer/mouse listeners for collective pan')
   }
   if (storyboardSharedSurfacePanText.includes('!target || !surfaceRoot.contains(target)')) {

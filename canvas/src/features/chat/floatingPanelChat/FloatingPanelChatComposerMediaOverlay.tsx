@@ -1,96 +1,61 @@
 import React from 'react'
-import { CHAT_COMMAND_OPTIONS } from '@/features/chat/chatCommandRegistry'
-import { CHAT_INVOCATION_OPTIONS } from '@/features/chat/chatInvocationRegistry'
-import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
-import {
-  AGENTIC_OS_INVOCATION_CHIP_ATTR,
-  AGENTIC_OS_INVOCATION_SOURCE_ATTR,
-  AGENTIC_OS_INVOCATION_TOKEN_ATTR,
-  buildAgenticOsInvocationChipAttrs,
-  buildAgenticOsInvocationChipTitle,
-  readAgenticOsInvocationTokenKind,
-  resolveAgenticOsInvocationToken,
-} from '@/features/agentic-os/agenticOsInvocationChips'
-import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
-import { splitInvocationTokenSegments, type InvocationTokenKind } from '@/lib/markdown/invocationTokens'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { collectFloatingPanelChatMediaTokens } from './floatingPanelChatMediaTokens'
+import { splitInvocationTokenSegments, type InvocationTokenKind } from '@/lib/markdown/invocationTokens'
+import { buildAgenticOsInvocationChipAttrs, buildAgenticOsInvocationChipTitle } from '@/features/agentic-os/agenticOsInvocationChips'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
 import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_TEXT_TOKEN_CHIP_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { CHAT_INVOCATION_OPTIONS } from '../chatInvocationRegistry'
+import { CHAT_SKILL_OPTIONS } from '../chatSkillRegistry'
 
 type ChatComposerTextPart = { kind: 'text'; text: string }
 type ChatComposerMediaPart = { kind: 'media'; raw: string; mediaKind: InlineMediaKind; label: string; sourceUrl?: string; thumbnailUrl?: string }
-type ChatComposerCommandKind = 'slash' | 'keyword' | 'binding'
-type ChatComposerCommandPart = { kind: 'command'; commandKind: ChatComposerCommandKind; text: string; source: string; agenticOsInvocation?: boolean }
 type ChatComposerMediaProjectionPart = ChatComposerTextPart | ChatComposerMediaPart
+type ChatComposerInvocationMetricKind = InvocationTokenKind
+type ChatComposerInvocationMetricPart = { kind: 'invocation'; tokenKind: ChatComposerInvocationMetricKind; text: string; displayText: string }
 type ChatComposerDisplayPart =
   | (ChatComposerTextPart & { displayText: string })
   | (ChatComposerMediaPart & { displayText: string })
-type ChatComposerOverlayPart = ChatComposerDisplayPart | ChatComposerCommandPart
+type ChatComposerOverlayPart = ChatComposerDisplayPart | ChatComposerInvocationMetricPart
 
-const MARKDOWN_IMAGE_RE = /!\[([^\]\r\n]{0,160})\]\s*\(\s*(<[^>]+>|[^)\s]+)(?:\s+["'][^)]*["'])?\s*\)/gi
-const HTML_MEDIA_RE = /<(audio|video)\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/gi
 const CHAT_COMPOSER_MEDIA_BOUNDARY = ' '
-const formatComposerSource = (args: { token: string; label?: string; summary?: string; source: string; toolName?: string }): string => [
+const CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX = '@'
+export const FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME =
+  'kg-floating-chat-composer-projected leading-6 [--kg-multiline-text-input-editor-height:6.75rem] [--kg-multiline-text-input-editor-min-height:6.75rem]'
+const FLOATING_PANEL_CHAT_COMPOSER_VISIBLE_INVOCATION_CHIP_CLASS_NAME =
+  'absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 !border-0 !px-0 shadow-[inset_0_0_0_1px_var(--kg-border)]'
+
+const formatComposerInvocationSource = (args: { token: string; label?: string; summary?: string; source: string; toolName?: string }): string => [
   args.label ? `${args.token} - ${args.label}` : args.token,
   args.summary || '',
   args.toolName ? `Tool: ${args.toolName}` : '',
   `Source: ${args.source}`,
 ].filter(Boolean).join('\n')
 
-const CHAT_COMPOSER_SLASH_TOKEN_SOURCES = new Map<string, string>([
-  ...CHAT_SKILL_OPTIONS.map(option => [
-    option.slashCommand.toLowerCase(),
-    formatComposerSource({ token: option.slashCommand, label: option.label, summary: option.summary, source: 'chat skill registry' }),
-  ] as const),
-  ...CHAT_COMMAND_OPTIONS.map(option => [
-    option.slashCommand.toLowerCase(),
-    formatComposerSource({ token: option.slashCommand, label: option.label, summary: option.summary, source: 'chat command registry' }),
-  ] as const),
-])
-const CHAT_COMPOSER_KEYWORD_TOKEN_SOURCES = new Map<string, string>(CHAT_INVOCATION_OPTIONS.map(option => [
+const CHAT_COMPOSER_SLASH_INVOCATION_SOURCES = new Map(CHAT_SKILL_OPTIONS.map(option => [
+  option.slashCommand.toLowerCase(),
+  formatComposerInvocationSource({ token: option.slashCommand, label: option.label, summary: option.summary, source: 'chat skill registry' }),
+] as const))
+
+const CHAT_COMPOSER_KEYWORD_INVOCATION_SOURCES = new Map(CHAT_INVOCATION_OPTIONS.map(option => [
   option.token.toLowerCase(),
-  formatComposerSource({
+  formatComposerInvocationSource({
     token: option.token,
     label: option.label,
     summary: option.summary,
     source: option.sourcePath || 'chat invocation registry',
     toolName: option.toolName,
   }),
-]))
-
-const cleanMediaUrl = (raw: string): string => String(raw || '').trim().replace(/^<|>$/g, '')
-const readHtmlAttr = (raw: string, name: string): string => {
-  const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(raw)
-  return String(match?.[1] ?? match?.[2] ?? match?.[3] ?? '').trim()
-}
-
-function collectComposerMediaMatches(text: string): Array<{ index: number; raw: string; mediaKind: InlineMediaKind; label: string; sourceUrl?: string; thumbnailUrl?: string }> {
-  const matches: Array<{ index: number; raw: string; mediaKind: InlineMediaKind; label: string; sourceUrl?: string; thumbnailUrl?: string }> = []
-  MARKDOWN_IMAGE_RE.lastIndex = 0
-  HTML_MEDIA_RE.lastIndex = 0
-  for (const match of text.matchAll(MARKDOWN_IMAGE_RE)) {
-    const url = cleanMediaUrl(match[2] || '')
-    if (!url) continue
-    matches.push({ index: match.index || 0, raw: match[0], mediaKind: 'image', label: String(match[1] || 'Image').trim() || 'Image', sourceUrl: url, thumbnailUrl: url })
-  }
-  for (const match of text.matchAll(HTML_MEDIA_RE)) {
-    const mediaKind = String(match[1] || '').toLowerCase() === 'audio' ? 'audio' : 'video'
-    const source = match[0]
-    const sourceUrl = cleanMediaUrl(match[2] || match[3] || match[4] || '')
-    const label = readHtmlAttr(source, 'title') || (mediaKind === 'audio' ? 'Audio' : 'Video')
-    const thumbnailUrl = mediaKind === 'video' ? readHtmlAttr(source, 'poster') || undefined : undefined
-    matches.push({ index: match.index || 0, raw: match[0], mediaKind, label, sourceUrl, thumbnailUrl })
-  }
-  return matches.sort((a, b) => a.index - b.index)
-}
+] as const))
 
 export function buildFloatingPanelChatComposerMediaParts(text: string): { hasMedia: boolean; parts: ChatComposerMediaProjectionPart[] } {
   const source = String(text || '')
-  const matches = collectComposerMediaMatches(source)
+  const matches = collectFloatingPanelChatMediaTokens(source)
   const parts: ChatComposerMediaProjectionPart[] = []
   let cursor = 0
   for (const match of matches) {
@@ -111,7 +76,13 @@ function shouldAddMediaDisplayBoundary(parts: ChatComposerMediaProjectionPart[],
 function readMediaDisplayText(parts: ChatComposerMediaProjectionPart[], index: number): string {
   const part = parts[index]
   if (!part || part.kind !== 'media') return ''
-  return shouldAddMediaDisplayBoundary(parts, index) ? `${part.label}${CHAT_COMPOSER_MEDIA_BOUNDARY}` : part.label
+  const label = readMediaDisplayLabel(part)
+  return shouldAddMediaDisplayBoundary(parts, index) ? `${label}${CHAT_COMPOSER_MEDIA_BOUNDARY}` : label
+}
+
+function readMediaDisplayLabel(part: ChatComposerMediaPart): string {
+  const label = String(part.label || '').trim() || 'media'
+  return label.startsWith(CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX) ? label : `${CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX}${label}`
 }
 
 function buildFloatingPanelChatComposerDisplayParts(text: string): { hasMedia: boolean; parts: ChatComposerDisplayPart[] } {
@@ -124,61 +95,33 @@ function buildFloatingPanelChatComposerDisplayParts(text: string): { hasMedia: b
   }
 }
 
-function readComposerCommandKind(tokenKind: InvocationTokenKind): ChatComposerCommandKind {
-  return tokenKind === 'slash' ? 'slash' : tokenKind === 'binding' ? 'binding' : 'keyword'
-}
-
-function readComposerCommandSource(token: string, tokenKind: InvocationTokenKind = readAgenticOsInvocationTokenKind(token) || 'keyword'): { commandKind: ChatComposerCommandKind; source: string; agenticOsInvocation?: boolean } | null {
-  const normalized = token.toLowerCase()
-  const agenticOsInvocation = resolveAgenticOsInvocationToken(token)
-  if (agenticOsInvocation) {
-    return {
-      commandKind: readComposerCommandKind(tokenKind),
-      source: buildAgenticOsInvocationChipTitle(token),
-      agenticOsInvocation: true,
-    }
-  }
-  const slashSource = CHAT_COMPOSER_SLASH_TOKEN_SOURCES.get(normalized)
-  if (slashSource) return { commandKind: 'slash', source: slashSource }
-  const keywordSource = CHAT_COMPOSER_KEYWORD_TOKEN_SOURCES.get(normalized)
-  if (keywordSource) return { commandKind: 'keyword', source: keywordSource }
-  return null
-}
-
-function splitComposerCommandChipParts(text: string): ChatComposerOverlayPart[] {
-  const source = String(text || '')
-  const parts: ChatComposerOverlayPart[] = []
-  for (const segment of splitInvocationTokenSegments(source)) {
-    if (segment.kind === 'text') {
-      if (segment.value) parts.push({ kind: 'text', text: segment.value, displayText: segment.value })
-      continue
-    }
-    const commandSource = readComposerCommandSource(segment.value, segment.tokenKind)
-    if (!commandSource) {
-      parts.push({ kind: 'text', text: segment.value, displayText: segment.value })
-      continue
-    }
-    parts.push({
-      kind: 'command',
-      commandKind: commandSource.commandKind,
-      text: segment.value,
-      source: commandSource.source,
-      agenticOsInvocation: commandSource.agenticOsInvocation,
-    })
-  }
-  return parts.length ? parts : [{ kind: 'text', text: source, displayText: source }]
-}
-
-export function buildFloatingPanelChatComposerOverlayParts(text: string): { hasMedia: boolean; hasCommandChips: boolean; hasOverlay: boolean; parts: ChatComposerOverlayPart[] } {
+export function buildFloatingPanelChatComposerOverlayParts(text: string): { hasMedia: boolean; hasOverlay: boolean; parts: ChatComposerOverlayPart[] } {
   const projection = buildFloatingPanelChatComposerDisplayParts(text)
-  const parts = projection.parts.flatMap(part => part.kind === 'media' ? [part] : splitComposerCommandChipParts(part.text))
-  const hasCommandChips = parts.some(part => part.kind === 'command')
+  const parts = projection.parts.flatMap(part => part.kind === 'text' ? splitComposerInvocationMetricParts(part.text) : [part])
+  const hasInvocationChips = parts.some(part => part.kind === 'invocation')
   return {
     hasMedia: projection.hasMedia,
-    hasCommandChips,
-    hasOverlay: projection.hasMedia || hasCommandChips,
+    hasOverlay: projection.hasMedia || hasInvocationChips,
     parts,
   }
+}
+
+function shouldProjectComposerInvocationMetric(tokenKind: InvocationTokenKind): tokenKind is ChatComposerInvocationMetricKind {
+  return tokenKind === 'slash' || tokenKind === 'keyword' || tokenKind === 'binding'
+}
+
+function splitComposerInvocationMetricParts(text: string): ChatComposerOverlayPart[] {
+  const segments = splitInvocationTokenSegments(text)
+  return segments.map(segment => {
+    if (segment.kind === 'text') return { kind: 'text', text: segment.value, displayText: segment.value }
+    if (!shouldProjectComposerInvocationMetric(segment.tokenKind)) return { kind: 'text', text: segment.value, displayText: segment.value }
+    return {
+      kind: 'invocation',
+      tokenKind: segment.tokenKind,
+      text: segment.value,
+      displayText: segment.value,
+    }
+  })
 }
 
 export function buildFloatingPanelChatComposerDisplayText(text: string): string {
@@ -193,10 +136,11 @@ export function resolveFloatingPanelChatComposerRawText(displayText: string, pre
   for (const part of projection.parts) {
     if (part.kind !== 'media') continue
     const fullTokenIndex = displayText.indexOf(part.displayText, cursor)
-    const labelIndex = fullTokenIndex >= 0 ? -1 : displayText.indexOf(part.label, cursor)
+    const displayLabel = readMediaDisplayLabel(part)
+    const labelIndex = fullTokenIndex >= 0 ? -1 : displayText.indexOf(displayLabel, cursor)
     if (fullTokenIndex < 0 && labelIndex < 0) return displayText
     const index = fullTokenIndex >= 0 ? fullTokenIndex : labelIndex
-    const labelEnd = fullTokenIndex >= 0 ? fullTokenIndex + part.displayText.length : labelIndex + part.label.length
+    const labelEnd = fullTokenIndex >= 0 ? fullTokenIndex + part.displayText.length : labelIndex + displayLabel.length
     const consumeBoundary = part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && displayText[labelEnd] === CHAT_COMPOSER_MEDIA_BOUNDARY
     rawText += displayText.slice(cursor, index)
     rawText += part.raw
@@ -247,7 +191,7 @@ export function mapFloatingPanelChatComposerDisplayIndexToRawIndex(text: string,
 }
 
 function readComposerOverlayPartDisplayText(part: ChatComposerOverlayPart): string {
-  return part.kind === 'media' ? part.displayText : part.text
+  return part.kind === 'text' ? part.text : part.displayText
 }
 
 function readComposerMediaSource(part: ChatComposerMediaPart): string {
@@ -257,23 +201,69 @@ function readComposerMediaSource(part: ChatComposerMediaPart): string {
   ].join('\n')
 }
 
-function readComposerCommandChipClassName(part: ChatComposerCommandPart): string {
-  if (!part.agenticOsInvocation) return `pointer-events-auto cursor-help ${CARD_MARKDOWN_PREVIEW_INLINE_TEXT_TOKEN_CHIP_CLASS_NAME} align-baseline`
+function readComposerInvocationChipClassName(part: ChatComposerInvocationMetricPart): string {
   return [
-    'pointer-events-auto cursor-help align-baseline',
+    'pointer-events-auto cursor-help no-underline',
     DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
     resolveDataViewChipClass(part.text),
   ].join(' ')
 }
 
-function readComposerCommandChipAttrs(part: ChatComposerCommandPart): Record<string, string | undefined> {
-  if (!part.agenticOsInvocation) return {}
-  const attrs = buildAgenticOsInvocationChipAttrs(part.text) || {}
-  return {
-    [AGENTIC_OS_INVOCATION_CHIP_ATTR]: attrs[AGENTIC_OS_INVOCATION_CHIP_ATTR],
-    [AGENTIC_OS_INVOCATION_TOKEN_ATTR]: attrs[AGENTIC_OS_INVOCATION_TOKEN_ATTR],
-    [AGENTIC_OS_INVOCATION_SOURCE_ATTR]: attrs[AGENTIC_OS_INVOCATION_SOURCE_ATTR],
+function readComposerInvocationSourceTitle(part: ChatComposerInvocationMetricPart): string {
+  const agenticTitle = buildAgenticOsInvocationChipTitle(part.text)
+  if (agenticTitle) return agenticTitle
+  const normalized = part.text.toLowerCase()
+  if (part.tokenKind === 'slash') {
+    const source = CHAT_COMPOSER_SLASH_INVOCATION_SOURCES.get(normalized)
+    if (source) return source
   }
+  if (part.tokenKind === 'keyword') {
+    const source = CHAT_COMPOSER_KEYWORD_INVOCATION_SOURCES.get(normalized)
+    if (source) return source
+  }
+  return formatComposerInvocationSource({
+    token: part.text,
+    label: part.tokenKind === 'binding' ? 'Binding reference' : 'Invocation token',
+    summary: 'Composer token preserved as visible invocation grammar.',
+    source: 'FloatingPanel Chat composer',
+  })
+}
+
+function renderComposerInvocationChip(part: ChatComposerInvocationMetricPart, key: string): React.ReactNode {
+  const className = readComposerInvocationChipClassName(part)
+  const sourceTitle = readComposerInvocationSourceTitle(part)
+  const agenticAttrs = buildAgenticOsInvocationChipAttrs(part.text) || {}
+  const metricAttrs = {
+    'data-kg-chat-input-invocation-kind': part.tokenKind,
+    'data-kg-chat-input-invocation-metric': 'preserve',
+    'data-kg-chat-input-invocation-token': part.text,
+  }
+  const chipAttrs = {
+    ...agenticAttrs,
+    'data-kg-chat-input-invocation-chip': part.tokenKind,
+    'data-kg-chat-input-invocation-kind': part.tokenKind,
+    'data-kg-chat-input-invocation-source': sourceTitle,
+    'data-kg-chat-input-invocation-token': part.text,
+  }
+  const children = <span className={UI_TEXT_TRUNCATE_CHIP}>{part.displayText}</span>
+  return (
+    <span
+      key={key}
+      className="relative inline-block max-w-full align-baseline"
+      {...metricAttrs}
+    >
+      <span className="whitespace-pre text-transparent">{part.displayText}</span>
+      <span
+        aria-label={sourceTitle}
+        className={`${className} ${FLOATING_PANEL_CHAT_COMPOSER_VISIBLE_INVOCATION_CHIP_CLASS_NAME}`}
+        title={sourceTitle}
+        data-kg-card-inline-keyword-pill="1"
+        {...chipAttrs}
+      >
+        {children}
+      </span>
+    </span>
+  )
 }
 
 function mapFloatingPanelChatComposerOverlayDisplayIndexToRawIndex(text: string, displayIndex: number): number {
@@ -291,6 +281,24 @@ function mapFloatingPanelChatComposerOverlayDisplayIndexToRawIndex(text: string,
     displayCursor += displayLength
   }
   return rawCursor
+}
+
+export function isFloatingPanelChatComposerProjectedCaretInsideChip(text: string, selectionStart: number, selectionEnd: number): boolean {
+  if (selectionStart !== selectionEnd) return false
+  const projection = buildFloatingPanelChatComposerOverlayParts(text)
+  if (!projection.hasOverlay) return false
+  const displayText = projection.parts.map(readComposerOverlayPartDisplayText).join('')
+  const cursor = Math.max(0, Math.min(displayText.length, Number.isFinite(selectionStart) ? Math.floor(selectionStart) : displayText.length))
+  let displayCursor = 0
+  for (const part of projection.parts) {
+    const displayPartText = readComposerOverlayPartDisplayText(part)
+    const displayEnd = displayCursor + displayPartText.length
+    const isProjectedChip = part.kind === 'media' || part.kind === 'invocation'
+    if (isProjectedChip && cursor >= displayCursor && cursor <= displayEnd) return true
+    if (isProjectedChip && cursor > displayEnd && cursor <= displayEnd + 1 && /^\s*$/.test(displayText.slice(displayEnd, cursor))) return true
+    displayCursor = displayEnd
+  }
+  return false
 }
 
 export function deleteFloatingPanelChatComposerProjectedTokenDisplayRange(args: {
@@ -332,7 +340,7 @@ export function deleteFloatingPanelChatComposerProjectedTokenDisplayRange(args: 
     const displayEnd = displayCursor + displayLength
     rawCursor = rawEnd
     displayCursor = displayEnd
-    if (part.kind === 'text') continue
+    if (part.kind !== 'media') continue
     const intersectsToken = rangeStart < displayEnd && rangeEnd > displayStart
     const deletesWhitespaceAfterToken = selectionStart === selectionEnd && args.direction === 'backward' && rangeStart === displayEnd && /\s/.test(displayText.slice(rangeStart, rangeEnd))
     const deletesWhitespaceBeforeToken = selectionStart === selectionEnd && args.direction === 'forward' && rangeEnd === displayStart && /\s/.test(displayText.slice(rangeStart, rangeEnd))
@@ -353,62 +361,29 @@ export function FloatingPanelChatComposerMediaOverlay(props: { input: string; ui
   return (
     <section
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-2 py-1 ${props.uiPanelTextFontClass}`}
+      className={`pointer-events-none absolute inset-0 z-10 overflow-hidden whitespace-pre-wrap break-words px-2 py-1 ${props.uiPanelTextFontClass} ${FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}`}
       data-kg-chat-input-overlay="1"
       data-kg-chat-input-media-overlay={projection.hasMedia ? '1' : undefined}
     >
       {projection.parts.map((part, index) => part.kind === 'media' ? (
-        projection.hasCommandChips ? (
-          <span
-            key={`media-${index}`}
-            className="relative align-baseline text-transparent"
-            data-kg-chat-input-media-metric="inline-text"
-            data-kg-chat-input-media-token={part.label}
-          >
-            <span className="whitespace-pre-wrap">{part.displayText}</span>
-            <span
-              className={`pointer-events-auto absolute left-0 top-1/2 max-w-full -translate-y-1/2 cursor-help overflow-hidden ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} !mr-0 align-baseline`}
-              data-kg-chat-input-media-chip="1"
-              data-kg-chat-input-media-render="preserve"
-              data-kg-chat-input-media-source={part.sourceUrl || part.raw}
-              title={readComposerMediaSource(part)}
-            >
-              <InlineMediaCommandThumbnail kind={part.mediaKind} thumbnailUrl={part.thumbnailUrl} variant="inline" />
-              <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{part.label}</span>
-            </span>
-          </span>
-        ) : (
           <span
             key={`media-${index}`}
             className="relative inline-block max-w-full align-baseline text-transparent"
             data-kg-chat-input-media-metric="preserve"
+            data-kg-chat-input-media-token={readMediaDisplayLabel(part)}
           >
             <span className="whitespace-pre">{part.displayText}</span>
             <span
-              className={`pointer-events-auto absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 cursor-help overflow-hidden ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} !mr-0 align-baseline`}
+              className={`pointer-events-auto absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 cursor-help overflow-hidden bg-[color:var(--kg-panel-bg)] shadow-sm ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} !mr-0 align-baseline`}
               data-kg-chat-input-media-chip="1"
               data-kg-chat-input-media-source={part.sourceUrl || part.raw}
               title={readComposerMediaSource(part)}
             >
               <InlineMediaCommandThumbnail kind={part.mediaKind} thumbnailUrl={part.thumbnailUrl} variant="inline" />
-              <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{part.label}</span>
+              <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{readMediaDisplayLabel(part)}</span>
             </span>
           </span>
-        )
-      ) : part.kind === 'command' ? (
-        <span
-          key={`command-${index}`}
-          className={readComposerCommandChipClassName(part)}
-          data-kg-chat-input-command-chip={part.commandKind}
-          data-kg-chat-input-command-metric="preserve"
-          data-kg-chat-input-command-source={part.source}
-          data-kg-chat-input-command-token={part.text}
-          title={part.source}
-          {...readComposerCommandChipAttrs(part)}
-        >
-          {part.text}
-        </span>
-      ) : <React.Fragment key={`text-${index}`}>{part.text}</React.Fragment>)}
+      ) : part.kind === 'invocation' ? renderComposerInvocationChip(part, `invocation-${index}`) : <React.Fragment key={`text-${index}`}>{part.text}</React.Fragment>)}
     </section>
   )
 }

@@ -1,5 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import {
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
+import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
+import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
 
 const readUtf8 = (relativePath: string): string => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8')
 
@@ -21,6 +27,20 @@ export function testMarkdownMediaUsesSharedResponsiveOwners() {
     'CARD_MARKDOWN_PREVIEW_MEDIA_ERROR_FRAME_CLASS_NAME',
   ]) {
     if (!ownerText.includes(name)) throw new Error(`expected card markdown preview media owner to export ${name}`)
+  }
+  if (!ownerText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
+    throw new Error('expected inline media chips to reuse the shared responsive inline row owner')
+  }
+  for (const className of [
+    UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
+    UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME,
+  ]) {
+    if (!CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME.includes(className)) {
+      throw new Error(`expected @ media chip to reuse ${className}, got ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME}`)
+    }
+    if (!DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.includes(className)) {
+      throw new Error(`expected invocation chips to reuse ${className}, got ${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME}`)
+    }
   }
   for (const snippet of [
     '.kg-card-markdown-preview-media-frame',

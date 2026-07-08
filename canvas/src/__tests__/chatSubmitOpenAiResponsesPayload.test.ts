@@ -1,4 +1,4 @@
-import { buildSubmitArgsFixture } from '@/__tests__/helpers/chatSubmitArgsFixture'
+import { buildStorageChatRelayDecisionFixture, buildSubmitArgsFixture } from '@/__tests__/helpers/chatSubmitArgsFixture'
 import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
 import { executeFloatingPanelChatSubmitCoordinator } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitCoordinator'
 import { createChatSubmitRequestSender } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitRequest'
@@ -20,9 +20,10 @@ export async function testCreateChatSubmitRequestSenderUsesOpenAiResponsesInputP
       return new Response('{}', { status: 200 })
     },
   })
+  const userPrompt = 'Generate KGC for https://example.com/reference?id=123'
   await sender('gpt-5-nano', [
     { role: 'system', content: 'base-system' },
-    { role: 'user', content: 'Generate KGC' },
+    { role: 'user', content: userPrompt },
     { role: 'assistant', content: 'Previous answer' },
   ], 'max_completion_tokens')
   if (!capturedBody) throw new Error('Expected OpenAI Responses request sender to invoke fetch')
@@ -37,6 +38,147 @@ export async function testCreateChatSubmitRequestSenderUsesOpenAiResponsesInputP
   const assistantContent = Array.isArray(input[2]?.content) ? input[2]?.content as Array<Record<string, unknown>> : []
   if (input.length !== 3 || input[0]?.role !== 'system' || userContent[0]?.type !== 'input_text' || assistantContent[0]?.type !== 'output_text') {
     throw new Error(`Expected OpenAI Responses input messages with typed text parts, got ${JSON.stringify(capturedBody.input)}`)
+  }
+  if (userContent[0]?.text !== userPrompt) {
+    throw new Error(`Expected OpenAI Responses input_text to preserve query text, got ${JSON.stringify(userContent[0])}`)
+  }
+}
+
+export async function testCreateChatSubmitRequestSenderUsesOpenAiResponsesImageInputForLocalMedia() {
+  let capturedBody: Record<string, unknown> | null = null
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/api/storage/media/')) {
+        return new Response(new Uint8Array([137, 80, 78, 71]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      }
+      return originalFetch(input, init)
+    }) as typeof fetch
+    const submitArgs = buildSubmitArgsFixture({
+      chatProvider: 'openai',
+      chatEndpointUrl: 'https://api.openai.com/v1/responses',
+      chatModel: 'gpt-5-nano',
+      chatMaxCompletionTokens: 512,
+    })
+    const sender = createChatSubmitRequestSender({
+      submitArgs,
+      requestUrl: '/__chat_proxy/v1/responses',
+      controller: new AbortController(),
+      fetchFn: async (_input, init) => {
+        capturedBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        return new Response('{}', { status: 200 })
+      },
+    })
+    const localImagePrompt = "what's in ![Image: source](<http://localhost:5180/api/storage/media/airvio/runs/upload-demo/image/source image.png?kg_media_token=secret-token>)"
+    await sender('gpt-5-nano', [
+      { role: 'system', content: 'base-system' },
+      { role: 'user', content: localImagePrompt },
+    ], 'max_completion_tokens')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+  if (!capturedBody) throw new Error('Expected OpenAI Responses request sender to invoke fetch')
+  const bodyText = JSON.stringify(capturedBody)
+  for (const forbidden of ['kg_media_token', 'secret-token', 'localhost:5180', '/api/storage/media/', 'upload-demo']) {
+    if (bodyText.includes(forbidden)) {
+      throw new Error(`Expected OpenAI Responses payload to avoid local media detail ${forbidden}`)
+    }
+  }
+  const input = Array.isArray(capturedBody.input) ? capturedBody.input as Array<Record<string, unknown>> : []
+  const userContent = Array.isArray(input[1]?.content) ? input[1]?.content as Array<Record<string, unknown>> : []
+  const textPart = userContent.find(part => part.type === 'input_text')
+  const imagePart = userContent.find(part => part.type === 'input_image')
+  if (!textPart || textPart.text !== "what's in [attached image]") {
+    throw new Error(`Expected local image markdown to become neutral input_text, got ${JSON.stringify(userContent)}`)
+  }
+  if (!imagePart || typeof imagePart.image_url !== 'string' || !imagePart.image_url.startsWith('data:image/png;base64,')) {
+    throw new Error(`Expected local image markdown to become input_image data URL, got ${JSON.stringify(userContent)}`)
+  }
+}
+
+export async function testCreateChatSubmitRequestSenderUsesStorageRelayResponsesImageInputForLocalMedia() {
+  let capturedRelayBody: Record<string, unknown> | null = null
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/api/storage/media/')) {
+        return new Response(new Uint8Array([137, 80, 78, 71]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      }
+      return originalFetch(input, init)
+    }) as typeof fetch
+    const submitArgs = buildSubmitArgsFixture({
+      chatProvider: 'openai',
+      chatAuthMode: 'serverManaged',
+      chatStorageTarget: 'chatKnowgrph',
+      chatEndpointUrl: 'https://api.openai.com/v1/responses',
+      chatModel: 'gpt-5-nano',
+      chatMaxCompletionTokens: 512,
+      storageChatRelayDecision: buildStorageChatRelayDecisionFixture({
+        kind: 'ready',
+        providerId: 'openai',
+        authMode: 'serverManaged',
+      }),
+    })
+    const sender = createChatSubmitRequestSender({
+      submitArgs,
+      requestUrl: 'https://storage.example.test/api/storage/chat/relay',
+      controller: new AbortController(),
+      fetchFn: async (_input, init) => {
+        capturedRelayBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        return new Response(JSON.stringify({
+          ok: true,
+          apiVersion: '2026-05-04',
+          workspaceId: 'kgws:test-chat',
+          providerId: 'openai',
+          authMode: 'serverManaged',
+          upstreamStatus: 200,
+          relayStatus: 'allowed',
+          body: { output_text: 'relay-ok' },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      },
+    })
+    const localImagePrompt = "what's in ![Image: source](<http://localhost:5180/api/storage/media/airvio/runs/upload-demo/image/source image.png?kg_media_token=secret-token>)"
+    await sender('gpt-5-nano', [
+      { role: 'system', content: 'base-system' },
+      { role: 'user', content: localImagePrompt },
+    ], 'max_completion_tokens')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+  if (!capturedRelayBody) throw new Error('Expected OpenAI Responses storage relay sender to invoke fetch')
+  const bodyText = JSON.stringify(capturedRelayBody)
+  for (const forbidden of ['kg_media_token', 'secret-token', 'localhost:5180', '/api/storage/media/', 'upload-demo', 'source image']) {
+    if (bodyText.includes(forbidden)) {
+      throw new Error(`Expected relay Responses payload to avoid local media detail ${forbidden}`)
+    }
+  }
+  if (capturedRelayBody.requestSurface !== 'responses') {
+    throw new Error(`Expected relay payload to declare Responses surface, got ${JSON.stringify(capturedRelayBody)}`)
+  }
+  const relayMessages = Array.isArray(capturedRelayBody.messages) ? capturedRelayBody.messages as Array<Record<string, unknown>> : []
+  if (relayMessages[1]?.content !== "what's in [attached image]") {
+    throw new Error(`Expected relay metadata messages to be sanitized, got ${JSON.stringify(relayMessages)}`)
+  }
+  const input = Array.isArray(capturedRelayBody.input) ? capturedRelayBody.input as Array<Record<string, unknown>> : []
+  const userContent = Array.isArray(input[1]?.content) ? input[1]?.content as Array<Record<string, unknown>> : []
+  const textPart = userContent.find(part => part.type === 'input_text')
+  const imagePart = userContent.find(part => part.type === 'input_image')
+  if (!textPart || textPart.text !== "what's in [attached image]") {
+    throw new Error(`Expected relay input_text to stay query-responsive, got ${JSON.stringify(userContent)}`)
+  }
+  if (!imagePart || typeof imagePart.image_url !== 'string' || !imagePart.image_url.startsWith('data:image/png;base64,')) {
+    throw new Error(`Expected relay input_image data URL, got ${JSON.stringify(userContent)}`)
   }
 }
 

@@ -5,6 +5,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   appendChatHistoryWorkspaceFile,
+  createNewChatHistoryWorkspaceFilePath,
   upsertChatHistoryWorkspaceDraft,
 } from '@/features/chat/chatHistoryWorkspace'
 import { toKgcTraceWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
@@ -20,6 +21,34 @@ const VITE_DEV_INDEX_HTML = [
   '<main id="root"></main><script type="module" src="/src/main.tsx?t=123"></script>',
   '</html>',
 ].join('\n')
+
+const LOCAL_MEDIA_IMAGE_PROMPT = 'why ![strybldr-starter-source.png](http://localhost:5180/api/storage/media/airvio/runs/upload-017d1e965528642f/image/strybldr-starter-source-017d1e965528642f.png?kg_media_token=secret)'
+
+export async function testChatHistoryWorkspaceNewKgcCollisionCreatesMatchingSessionFolder() {
+  resetWorkspaceFsForTests()
+  try {
+    const timestampMs = Date.UTC(2026, 6, 8, 4, 48, 39)
+    const args = { storageType: 'chatKnowgrph' as const, defaultLocalRootPath: '/chat-log' }
+    const firstPath = await createNewChatHistoryWorkspaceFilePath(timestampMs, args)
+    const secondPath = await createNewChatHistoryWorkspaceFilePath(timestampMs, args)
+    const parseSession = (workspacePath: string): { folder: string; file: string } | null => {
+      const match = /^\/chat-log\/(\d{8}T\d{6}Z)\/kgc_(\d{8}T\d{6}Z)\.md$/i.exec(workspacePath)
+      return match ? { folder: match[1], file: match[2] } : null
+    }
+    const firstSession = parseSession(firstPath)
+    const secondSession = parseSession(secondPath)
+    if (!firstSession || !secondSession || firstSession.folder !== firstSession.file || secondSession.folder !== secondSession.file) {
+      throw new Error(`expected KGC session folders and filenames to stay aligned, got ${JSON.stringify({ firstPath, secondPath })}`)
+    }
+    if (firstSession.folder === secondSession.folder || firstPath === secondPath) {
+      throw new Error(`expected same-second New Chat collisions to allocate a fresh session folder, got ${JSON.stringify({ firstPath, secondPath })}`)
+    }
+    const secondText = await (await getWorkspaceFs()).readFileText(secondPath)
+    if (secondText !== '') throw new Error(`expected collision-created KGC file to start empty, got ${JSON.stringify(secondText)}`)
+  } finally {
+    resetWorkspaceFsForTests()
+  }
+}
 
 export async function testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStreaming() {
   const storage = new MemoryStorage()
@@ -59,6 +88,67 @@ export async function testChatHistoryWorkspaceDraftWritesOnlyKgcTraceDuringStrea
     }
     if (fetchCalls.some(call => call.includes('kgc-trace_20260430T120000Z.md'))) {
       throw new Error('expected partial KGC draft writes to avoid mirroring kgc-trace companion drafts to the host chat-log path')
+    }
+  } finally {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testChatHistoryWorkspaceKgcTraceSanitizesLocalMediaUserText() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  try {
+    resetWorkspaceFsForTests()
+    globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
+
+    const canonicalPath = '/chat-log/20260707T234043Z/kgc_20260707T234043Z.md'
+    const tracePath = toKgcTraceWorkspacePath(canonicalPath)
+    await upsertChatHistoryWorkspaceDraft({
+      requestedPath: canonicalPath,
+      timestampMs: Date.UTC(2026, 6, 7, 23, 40, 43),
+      providerSummary: 'OpenAI · test',
+      userText: LOCAL_MEDIA_IMAGE_PROMPT,
+      assistantText: 'partial trace signal',
+      storageType: 'chatKnowgrph',
+      traceId: 'trace-local-media',
+      title: 'Knowledge Graph Canvas Storage',
+    })
+
+    const fs = await getWorkspaceFs()
+    const draftTraceText = tracePath ? await fs.readFileText(tracePath) : null
+    if (!draftTraceText || !draftTraceText.includes('why [attached image]')) {
+      throw new Error('expected KGC draft trace to preserve the neutral attached-image user intent')
+    }
+    for (const forbidden of ['kg_media_token', 'localhost:5180', 'upload-017d1e965528642f', 'strybldr-starter-source.png']) {
+      if (draftTraceText.includes(forbidden)) {
+        throw new Error(`expected KGC draft trace to sanitize local media detail: ${forbidden}`)
+      }
+    }
+
+    await appendChatHistoryWorkspaceFile({
+      requestedPath: canonicalPath,
+      timestampMs: Date.UTC(2026, 6, 7, 23, 40, 43),
+      providerSummary: 'OpenAI · test',
+      userText: LOCAL_MEDIA_IMAGE_PROMPT,
+      assistantText: 'No response content.',
+      storageType: 'chatKnowgrph',
+      traceId: 'trace-local-media',
+      title: 'Knowledge Graph Canvas Storage',
+    })
+
+    const finalTraceText = tracePath ? await fs.readFileText(tracePath) : null
+    if (!finalTraceText || !finalTraceText.includes('why [attached image]')) {
+      throw new Error('expected KGC final trace to preserve the neutral attached-image user intent')
+    }
+    for (const forbidden of ['kg_media_token', 'localhost:5180', 'upload-017d1e965528642f', 'strybldr-starter-source.png']) {
+      if (finalTraceText.includes(forbidden)) {
+        throw new Error(`expected KGC final trace to sanitize local media detail: ${forbidden}`)
+      }
     }
   } finally {
     resetWorkspaceFsForTests()

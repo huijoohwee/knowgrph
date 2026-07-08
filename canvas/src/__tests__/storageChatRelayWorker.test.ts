@@ -217,6 +217,99 @@ export async function testStorageChatRelayRouteDelegatesAndWritesAudit() {
   }
 }
 
+export async function testStorageChatRelayRouteForwardsOpenAiResponsesInput() {
+  const env = createFakeKnowgrphStorageWorkerEnv() as ReturnType<typeof createFakeKnowgrphStorageWorkerEnv> & {
+    KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL?: string
+  }
+  env.KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL = 'https://airvio.co'
+  const db = env.DB as FakeKnowgrphStorageD1Database
+  const { token, workspaceId } = await seedAuthenticatedWorkspace(db, { role: 'editor' })
+  db.workspaceProviderPolicies.set('policy:openai', {
+    id: 'policy:openai',
+    workspace_id: workspaceId,
+    provider_id: 'openai',
+    allow_server_managed: 1,
+    allow_byok: 1,
+    monthly_request_limit: null,
+    monthly_token_limit: null,
+    monthly_spend_limit_cents: null,
+    default_model: 'gpt-5-nano',
+    created_at: '2026-06-15T10:00:00.000Z',
+    updated_at: '2026-06-15T10:00:00.000Z',
+  })
+  let forwardedBody: Record<string, unknown> | null = null
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.startsWith('https://airvio.co/__chat_proxy/v1/chat/completions')) {
+        throw new Error(`Unexpected relay URL ${url}`)
+      }
+      if (readHeaderValue(init?.headers, 'x-kg-chat-provider') !== 'openai') {
+        throw new Error('Expected relay to forward the OpenAI provider header to __chat_proxy')
+      }
+      if (readHeaderValue(init?.headers, 'x-kg-chat-upstream') !== 'https://api.openai.com/v1/responses') {
+        throw new Error('Expected relay to forward the Responses upstream endpoint header')
+      }
+      forwardedBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+      return new Response(JSON.stringify({ output_text: 'pong' }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }) as typeof fetch
+    const response = await createStorageWorkerFetch(env)(`https://example.com${buildKnowgrphStorageChatRelayPath()}`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+        'x-client-request-id': 'req:test-responses-relay',
+      },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId,
+        providerId: 'openai',
+        authMode: 'serverManaged',
+        endpointUrl: 'https://api.openai.com/v1/responses',
+        model: 'gpt-5-nano',
+        messages: [{ role: 'user', content: "what's in [attached image]" }],
+        requestSurface: 'responses',
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: "what's in [attached image]" },
+              { type: 'input_image', image_url: 'data:image/png;base64,iVBORw==', detail: 'auto' },
+            ],
+          },
+        ],
+        stream: false,
+        providerOptions: { max_output_tokens: 512 },
+      }),
+    })
+    if (!response.ok) throw new Error(`Expected Responses relay route to succeed, got ${response.status}`)
+    if (!forwardedBody) throw new Error('Expected relay to forward a provider request body')
+    const bodyText = JSON.stringify(forwardedBody)
+    if (bodyText.includes('"messages"') || bodyText.includes('kg_media_token') || bodyText.includes('localhost')) {
+      throw new Error(`Expected Responses relay provider body to use input without local media leakage, got ${bodyText}`)
+    }
+    const input = Array.isArray(forwardedBody.input) ? forwardedBody.input as Array<Record<string, unknown>> : []
+    const content = Array.isArray(input[0]?.content) ? input[0]?.content as Array<Record<string, unknown>> : []
+    const imagePart = content.find(part => part.type === 'input_image')
+    if (forwardedBody.model !== 'gpt-5-nano' || forwardedBody.max_output_tokens !== 512 || !imagePart) {
+      throw new Error(`Expected Responses relay provider body to preserve model, options, and input_image, got ${bodyText}`)
+    }
+    const auditRows = Array.from(db.chatProxyAudit.values())
+    if (auditRows[0]?.provider_id !== 'openai' || auditRows[0]?.auth_mode !== 'serverManaged' || auditRows[0]?.relay_status !== 'allowed') {
+      throw new Error(`Expected audit row to capture OpenAI Responses relay status, got ${JSON.stringify(auditRows[0])}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
 export async function testStorageChatAuditRouteRequiresElevatedRole() {
   const env = createFakeKnowgrphStorageWorkerEnv()
   const db = env.DB as FakeKnowgrphStorageD1Database

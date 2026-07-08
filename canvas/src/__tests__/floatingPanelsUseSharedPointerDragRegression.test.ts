@@ -47,6 +47,9 @@ export function testFloatingPanelDefaultGeometryMatchesCanvasCommandPanel() {
   if (!toolbarToolMenuText.includes('height: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS') || !toolbarToolMenuText.includes('maxHeight: FLOATING_PANEL_CANVAS_PANEL_HEIGHT_CSS')) {
     throw new Error('expected FloatingPanel shell height to use the shared canvas panel height')
   }
+  if (toolbarToolMenuText.includes('bottomSurfaceHeightRatio') || toolbarToolMenuText.includes('safeBottomRatio')) {
+    throw new Error('expected FloatingPanel shell height not to shrink against stale bottom-surface ratio state')
+  }
   if (!toolbarToolMenuText.includes('FLOATING_PANEL_DEFAULT_MIN_WIDTH_CSS') || !toolbarToolMenuText.includes('FLOATING_PANEL_DEFAULT_WIDTH_RATIO')) {
     throw new Error('expected FloatingPanel shell width to use shared 20 percent wider geometry constants')
   }

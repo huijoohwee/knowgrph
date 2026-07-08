@@ -193,38 +193,80 @@ export const createFloatingPanelChatContextItems = (args: {
 export const createFloatingPanelChatQuickActions = (args: {
   activeWorkspaceLabel: string
   currentNode: ChatSurfaceNode
+  sourceFiles?: unknown
+  graphData?: GraphData | null | undefined
+  messageCount?: number
 }): FloatingPanelChatQuickAction[] => {
-  const actions: FloatingPanelChatQuickAction[] = [
-    {
-      id: 'review-workspace',
-      label: 'Review workspace',
-      prompt: 'Review the active workspace file. Summarize ingestion, parsing, rendering, cache, and memory risks with the smallest high-ROI next action.',
-      disabled: args.activeWorkspaceLabel === 'none',
-    },
-    {
-      id: 'trace-pipeline',
-      label: 'Trace pipeline',
-      prompt: 'Trace the current document from ingestion to parsing to canvas rendering. Identify stale data, duplicate computation, and re-render risks.',
-    },
-    {
-      id: 'ingest-url',
-      label: 'Ingest URL',
-      prompt: '/ingest-url ',
-    },
-    {
-      id: 'token-economics',
-      label: 'Token economics',
-      prompt: 'Estimate token/TCO impact for the current workflow and propose a cache-first, FOSS-friendly optimization plan.',
-    },
-  ]
+  const enabled = (Array.isArray(args.sourceFiles) ? args.sourceFiles as SourceFile[] : [])
+    .filter(file => file && file.enabled !== false)
+  const loadingCount = enabled.filter(file => file.status === 'loading').length
+  const parsedCount = enabled.filter(file => file.status === 'parsed').length
+  const errorCount = enabled.filter(file => file.status === 'error').length
+  const graphItemCount = (args.graphData?.nodes?.length || 0) + (args.graphData?.edges?.length || 0)
+  const hasWorkspace = args.activeWorkspaceLabel !== 'none'
+  const actions: FloatingPanelChatQuickAction[] = []
+  const seen = new Set<string>()
+  const addAction = (action: FloatingPanelChatQuickAction) => {
+    if (seen.has(action.id) || actions.length >= 4) return
+    seen.add(action.id)
+    actions.push(action)
+  }
+
+  if (hasWorkspace) {
+    addAction({
+      id: 'workspace-review',
+      label: '/workspace.review',
+      prompt: '/workspace.review Review the active workspace file. Summarize ingestion, parsing, rendering, cache, and memory risks with the smallest high-ROI next action.',
+    })
+  }
   if (args.currentNode) {
     const label = String(args.currentNode.label || 'selected node')
     const type = String(args.currentNode.type || 'node')
-    actions.splice(1, 0, {
-      id: 'explain-selection',
-      label: 'Explain selection',
-      prompt: `Explain selected node "${label}" (${type}) using workspace context and adjacent graph evidence.`,
+    addAction({
+      id: 'pipeline-trace',
+      label: '/pipeline.trace',
+      prompt: `/pipeline.trace Trace selected node "${label}" (${type}) through workspace context, source provenance, parser output, and adjacent graph evidence.`,
     })
   }
+  if (loadingCount > 0 || enabled.length === 0) {
+    addAction({
+      id: 'source-ingest',
+      label: '/source.ingest',
+      prompt: '/source.ingest Inspect current ingestion inputs, source provenance, loading state, and duplicate-fetch risk.',
+    })
+  }
+  if (errorCount > 0 || (enabled.length > 0 && parsedCount < enabled.length)) {
+    addAction({
+      id: 'source-parse',
+      label: '/source.parse',
+      prompt: '/source.parse Inspect current parser lifecycle, stale-parse guards, parsed graph reuse, and duplicate-computation risk.',
+    })
+  }
+  if (enabled.length > 0 || graphItemCount > 0) {
+    addAction({
+      id: 'pipeline-trace',
+      label: '/pipeline.trace',
+      prompt: '/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering. Identify stale data, duplicate computation, and re-render risks.',
+    })
+  }
+  if (graphItemCount > 0) {
+    addAction({
+      id: 'canvas-render',
+      label: '/canvas.render',
+      prompt: '/canvas.render Inspect current canvas rendering state, graph revision, re-render pressure, and loading-to-ready transitions.',
+    })
+  }
+  if ((args.messageCount || 0) > 0 || enabled.length > 0 || graphItemCount > 0) {
+    addAction({
+      id: 'token-economics',
+      label: '/cost.audit #token-economics',
+      prompt: '/cost.audit #token-economics Estimate token/TCO impact for the current workflow and propose a cache-first, FOSS-friendly optimization plan.',
+    })
+  }
+  addAction({
+    id: 'ingest-url',
+    label: '/ingest-url',
+    prompt: '/ingest-url ',
+  })
   return actions
 }

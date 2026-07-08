@@ -201,19 +201,9 @@ export type KnowgrphStorageErrorResponse = {
   code: 'bad_request' | 'conflict' | 'forbidden' | 'not_found' | 'server_error'
 }
 
-export type KnowgrphStorageChatRole =
-  | 'viewer'
-  | 'editor'
-  | 'owner'
-  | 'provider-admin'
+export type KnowgrphStorageChatRole = 'viewer' | 'editor' | 'owner' | 'provider-admin'
 
-export type KnowgrphStorageChatProviderId =
-  | 'openai'
-  | 'miromind'
-  | 'agnes-ai'
-  | 'byteplus-modelark'
-  | 'qwen'
-  | 'google-cloud'
+export type KnowgrphStorageChatProviderId = 'openai' | 'miromind' | 'agnes-ai' | 'byteplus-modelark' | 'qwen' | 'google-cloud'
 
 export type KnowgrphStorageChatAuthMode = 'serverManaged' | 'byok'
 
@@ -289,10 +279,7 @@ export type KnowgrphStorageChatAuditResponse = {
   entries: KnowgrphStorageChatAuditEntry[]
 }
 
-export type KnowgrphStorageChatRelayMessage = {
-  role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string
-}
+export type KnowgrphStorageChatRelayMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string }
 
 export type KnowgrphStorageChatRelayRequest = {
   apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
@@ -302,6 +289,8 @@ export type KnowgrphStorageChatRelayRequest = {
   endpointUrl?: string | null
   model: string
   messages: KnowgrphStorageChatRelayMessage[]
+  requestSurface?: 'chat-completions' | 'responses'
+  input?: unknown[] | null
   stream?: boolean
   byokApiKey?: string | null
   providerOptions?: Record<string, unknown> | null

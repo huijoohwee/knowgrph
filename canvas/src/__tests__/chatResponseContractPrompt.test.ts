@@ -11,7 +11,7 @@ import { CHAT_SKILL_OPTIONS, parseChatSkillSlashInvocation } from '@/features/ch
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
-import { extractKgcBlockFromAssistantText } from '@/features/chat/FloatingPanelChat.helpers'
+import { extractKgcBlockFromAssistantText } from '@/features/chat/floatingPanelChat/floatingPanelChatKgcPayload'
 import {
   resolveChatKnowgrphAttempt,
   resolveKgcCorrectionInvalidMarkdown,
@@ -152,11 +152,16 @@ export function testBuildChatSubmitPayloadMessagesPlacesCorrectionBetweenSystemA
 }
 
 export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() {
+  const requiredVariantCommands = ['/storybuilding', '/research-agent', '/video-agent', '/care-agent']
+  const resolvedVariantCommands = requiredVariantCommands.map(command => {
+    const invocation = parseChatSkillSlashInvocation(`${command} build a useful artifact`)
+    return invocation?.query === 'build a useful artifact' ? invocation.skill.slashCommand : null
+  })
+  if (resolvedVariantCommands.join('|') !== requiredVariantCommands.join('|')) {
+    throw new Error(`Expected registered chatResponseBaseContract slash variants, got ${JSON.stringify(resolvedVariantCommands)}`)
+  }
   const storybuilding = CHAT_SKILL_OPTIONS.find(option => option.id === 'storybuilding')
   if (!storybuilding) throw new Error('Expected Storybuilding chat skill to be registered')
-  if (storybuilding.slashCommand !== '/storybuilding') {
-    throw new Error(`Expected Storybuilding to expose the /storybuilding slash command, got ${storybuilding.slashCommand}`)
-  }
   const invocation = parseChatSkillSlashInvocation('/storybuilding build source-backed demo')
   if (invocation?.skill.id !== 'storybuilding' || invocation.query !== 'build source-backed demo') {
     throw new Error(`Expected /storybuilding to resolve to Storybuilding with the remaining query, got ${JSON.stringify(invocation)}`)
@@ -166,8 +171,8 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
   }
   const prompt = storybuilding.systemPrompt
   for (const snippet of [
-    'Skill: Storybuilding.',
-    'If the user message starts with `/storybuilding`',
+    'Variant: Storybuilding.',
+    'Treat `/storybuilding` as a chatResponseBaseContract variant invocation',
     'source-backed storybuilding runbook',
     'story/card lineage',
     'validation checklist',
@@ -195,42 +200,40 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
   }
 
   const context = await buildChatSubmitRequestContext({
-    submitArgs: buildSubmitArgsFixture({
-      chatStorageTarget: 'chatKnowgrph',
-      chatSkillId: 'storybuilding',
-    }),
+    submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatKnowgrph' }),
     nextMessages: [
       { id: 'assistant-pending', role: 'assistant', content: '' },
-      { id: 'user-1', role: 'user', content: 'Generate a Strybldr storybuilding demo runbook from selected source evidence.' },
+      { id: 'user-1', role: 'user', content: '/storybuilding Generate a Strybldr storybuilding demo runbook from selected source evidence.' },
     ],
     assistantMessageId: 'assistant-pending',
   })
-  if (!context.systemMessages.some(message => message.content === prompt)) {
-    throw new Error('Expected chatKnowgrph request context to include the selected Storybuilding skill prompt')
+  if (!context.systemMessages.some(message => message.content.includes(prompt) && message.content.includes('chatKnowgrph KGC contract'))) {
+    throw new Error('Expected chatKnowgrph request context to include the /storybuilding variant prompt')
   }
-
+  const researchContext = await buildChatSubmitRequestContext({
+    submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatHistory' }),
+    nextMessages: [{ id: 'user-1', role: 'user', content: '/research-agent compile claims from these notes' }],
+    assistantMessageId: 'assistant-pending',
+  })
+  if (!researchContext.systemMessages.some(message => message.content.includes('/research-agent') && message.content.includes('plain Markdown chat contract'))) {
+    throw new Error('Expected plain chat request context to include the /research-agent variant prompt')
+  }
   const inactiveSkillContext = await buildChatSubmitRequestContext({
-    submitArgs: buildSubmitArgsFixture({
-      chatStorageTarget: 'chatKnowgrph',
-      chatSkillId: null,
-    }),
+    submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatKnowgrph' }),
     nextMessages: [{ id: 'user-1', role: 'user', content: 'Plain KGC chat' }],
     assistantMessageId: 'assistant-pending',
   })
-  if (inactiveSkillContext.systemMessages.some(message => message.content === prompt)) {
-    throw new Error('Expected Storybuilding skill prompt to require an explicit slash invocation or selected skill id')
+  if (inactiveSkillContext.systemMessages.some(message => message.content.includes(prompt) || message.content.includes('/storybuilding'))) {
+    throw new Error('Expected Storybuilding variant prompt to require an explicit slash invocation')
   }
 
   const chatHistoryContext = await buildChatSubmitRequestContext({
-    submitArgs: buildSubmitArgsFixture({
-      chatStorageTarget: 'chatHistory',
-      chatSkillId: 'storybuilding',
-    }),
-    nextMessages: [{ id: 'user-1', role: 'user', content: 'Plain chat' }],
+    submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatHistory' }),
+    nextMessages: [{ id: 'user-1', role: 'user', content: '/video-agent build a transcript timeline' }],
     assistantMessageId: 'assistant-pending',
   })
-  if (chatHistoryContext.systemMessages.some(message => message.content === prompt)) {
-    throw new Error('Expected Storybuilding skill prompt to stay scoped to chatKnowgrph artifact generation')
+  if (!chatHistoryContext.systemMessages.some(message => message.content.includes('/video-agent') && message.content.includes('source-backed video reasoning package'))) {
+    throw new Error('Expected /video-agent variant prompt to work with plain chat history')
   }
 }
 
@@ -1077,7 +1080,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
   const template = buildBaseTemplateSample()
 
   const requiredPromptSnippets = [
-    'Use canonical structure, not canonical wording',
+    'use canonical structure, not canonical wording',
     'schema guidance only',
     'Stream the final document progressively',
     'Every streamed chunk must stay relevant to the active query',
@@ -1099,7 +1102,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'Do not instruct any downstream local graph patch layer to reinterpret the document',
     'Never duplicate headings or restate the same requested subsection twice under different labels',
     'Canvas-preset-only fallback output that omits canonical KGC structural blocks',
-    'Parallel grouping channels such as legacy `clusters:` or duplicate group registries beside flow.subgraphs',
+    'Parallel grouping channels such as retired `clusters:` or duplicate group registries beside flow.subgraphs',
     'n-trigger, n-pack, n-process, n-validate, n-deliver',
     'V-07',
     '## Customization Guide',
@@ -1190,7 +1193,7 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
     throw new Error('Expected deterministic fallback to remove generic TAD summary boilerplate')
   }
   if (md.includes('Monetization Focus:') || md.includes('Stack: ')) {
-    throw new Error('Expected deterministic fallback to avoid legacy canned request-specific labels')
+    throw new Error('Expected deterministic fallback to avoid stale canned request-specific labels')
   }
   if (!md.includes('`bg#FAEEDA:status {{status}}` · owner `solo founder`')) {
     throw new Error('Expected deterministic fallback body meta to reflect resolved owner while preserving unresolved status')
@@ -1423,7 +1426,7 @@ export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
     throw new Error('Expected structured KGC to resolve a concise domain from the request')
   }
   if (generated.includes('Request Intent:') || generated.includes('Monetization Focus:') || generated.includes('Stack: ')) {
-    throw new Error('Expected structured KGC persistence normalization to avoid legacy canned body injections')
+    throw new Error('Expected structured KGC persistence normalization to avoid stale canned body injections')
   }
   if (generated === canonicalTemplate) {
     throw new Error('Expected structured KGC to differ from the untouched template when request context can resolve Tier B fields')
@@ -1664,7 +1667,7 @@ export function testValidateChatMarkdownRejectsParallelGroupingChannelsBesideFlo
     'flow:\n',
     [
       'kg:subgraphs:',
-      '  - {id: legacy-sg, kind: subgraph, label: "Legacy", memberNodeIds: ["n-trigger"], parentId: null}',
+      '  - {id: invalid-sg, kind: subgraph, label: "Invalid", memberNodeIds: ["n-trigger"], parentId: null}',
       'flow:',
       '',
     ].join('\n'),
@@ -1724,16 +1727,16 @@ export function testNormalizeKgcAssistantBodyForStorageSalvagesWrappedStructured
   }
 }
 
-export function testNormalizeKgcAssistantBodyForStorageRemovesLegacyGroupingAliasesFromStructuredDocument() {
-  const aliased = buildBaseTemplateSample().replace(
+export function testNormalizeKgcAssistantBodyForStorageRejectsParallelGroupingStructuredDocument() {
+  const invalid = buildBaseTemplateSample().replace(
     'flow:\n',
     [
       'kg:subgraphs:',
-      '  - {id: legacy-sg, kind: subgraph, label: "Legacy", memberNodeIds: ["n-trigger"], parentId: null}',
+      '  - {id: invalid-sg, kind: subgraph, label: "Invalid", memberNodeIds: ["n-trigger"], parentId: null}',
       'flow:',
       '  clusters:',
-      '    - id: legacy-cluster',
-      '      label: "Legacy cluster"',
+      '    - id: invalid-cluster',
+      '      label: "Invalid cluster"',
       '      memberNodeIds: ["n-process"]',
       '',
     ].join('\n'),
@@ -1741,22 +1744,19 @@ export function testNormalizeKgcAssistantBodyForStorageRemovesLegacyGroupingAlia
   const md = normalizeKgcAssistantBodyForStorage({
     timestampMs: Date.UTC(2026, 4, 22, 16, 12, 0),
     workspacePath: '/chat-log/20260522T161200Z/kgc_20260522T161200Z.md',
-    requestText: '',
-    assistantText: aliased,
+    requestText: 'Create a clean response contract for FloatingPanel Chat.',
+    assistantText: invalid,
   })
-  if (/(^|\n)kg:subgraphs\s*:/m.test(md)) {
-    throw new Error('Expected normalization to remove top-level kg:subgraphs alias blocks')
-  }
-  if (/\n\s+clusters:\s*\n/.test(md)) {
-    throw new Error('Expected normalization to remove legacy grouping aliases nested under flow')
+  if (md.includes('invalid-sg') || md.includes('invalid-cluster') || /(^|\n)kg:subgraphs\s*:/m.test(md) || /\n\s+clusters:\s*\n/.test(md)) {
+    throw new Error('Expected invalid parallel grouping payload to be rejected instead of mutated into storage')
   }
   if (!isKgcStructuredMarkdown(md)) {
-    throw new Error('Expected normalized structured KGC with alias cleanup to remain structurally parseable')
+    throw new Error('Expected rejected parallel grouping payload to rebuild a structurally parseable KGC')
   }
   const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: null, markdown: md })
   const validation = validateChatMarkdown({ markdown: md, resolvableVarKeys })
   if (!validation.ok) {
-    throw new Error(`Expected alias-cleaned KGC to validate, got ${validation.errors[0]?.ruleId}: ${validation.errors[0]?.message}`)
+    throw new Error(`Expected canonical rebuilt KGC to validate, got ${validation.errors[0]?.ruleId}: ${validation.errors[0]?.message}`)
   }
 }
 
@@ -1783,34 +1783,34 @@ export function testExtractKgcBlockFromAssistantTextSalvagesWrappedStructuredMar
   }
 }
 
-export function testExtractKgcBlockFromAssistantTextRemovesLegacyGroupingAliases() {
-  const aliased = buildBaseTemplateSample().replace(
+export function testExtractKgcBlockFromAssistantTextPreservesParallelGroupingForValidation() {
+  const invalid = buildBaseTemplateSample().replace(
     'flow:\n',
     [
       'kg:subgraphs:',
-      '  - {id: legacy-sg, kind: subgraph, label: "Legacy", memberNodeIds: ["n-trigger"], parentId: null}',
+      '  - {id: invalid-sg, kind: subgraph, label: "Invalid", memberNodeIds: ["n-trigger"], parentId: null}',
       'flow:',
       '  groups:',
-      '    - id: legacy-group',
-      '      label: "Legacy group"',
+      '    - id: invalid-group',
+      '      label: "Invalid group"',
       '      memberNodeIds: ["n-process"]',
       '',
     ].join('\n'),
   )
-  const extracted = extractKgcBlockFromAssistantText(aliased)
+  const extracted = extractKgcBlockFromAssistantText(invalid)
   if (!extracted.kgc) {
-    throw new Error('Expected aliased structured document to keep a recovered KGC candidate')
+    throw new Error('Expected invalid structured document to keep a recovered KGC candidate for validation')
   }
-  if (/(^|\n)kg:subgraphs\s*:/m.test(extracted.kgc)) {
-    throw new Error('Expected shared recovery to remove top-level kg:subgraphs aliases')
-  }
-  if (/\n\s+groups:\s*\n/.test(extracted.kgc)) {
-    throw new Error('Expected shared recovery to remove nested legacy grouping aliases')
+  if (!/(^|\n)kg:subgraphs\s*:/m.test(extracted.kgc) || !/\n\s+groups:\s*\n/.test(extracted.kgc)) {
+    throw new Error('Expected recovery to preserve invalid grouping for validator rejection')
   }
   const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: null, markdown: extracted.kgc })
   const validation = validateChatMarkdown({ markdown: extracted.kgc, resolvableVarKeys })
-  if (!validation.ok) {
-    throw new Error(`Expected alias-cleaned extracted KGC candidate to validate, got ${validation.errors[0]?.ruleId}: ${validation.errors[0]?.message}`)
+  if (validation.ok) {
+    throw new Error('Expected preserved parallel grouping candidate to fail validation')
+  }
+  if (!validation.errors[0]?.message.includes('flow.subgraphs as the only grouping source of truth')) {
+    throw new Error(`Expected validation to reject parallel grouping, got ${validation.errors[0]?.ruleId}: ${validation.errors[0]?.message}`)
   }
 }
 

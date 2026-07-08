@@ -5,6 +5,7 @@ import {
 } from './chatKgcRequestProfile'
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
 import { toCanonicalKgcWorkspacePath } from './chatHistoryWorkspace.paths'
+import { hasResponseOnlyKgcMarker } from './chatKgcResponseOnlyContract'
 
 const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; body: string } | null => {
   const text = String(raw || '').replace(/\r\n/g, '\n')
@@ -386,7 +387,7 @@ export const enforceKgcQueryResponsiveContent = (args: {
   }
 
   let nextBody = parsed.body.trim()
-  if (shouldRegenerateQueryResponsiveBody({
+  if (!hasResponseOnlyKgcMarker(nextFrontmatter) && shouldRegenerateQueryResponsiveBody({
     body: nextBody,
     requestText: args.requestText,
     workspacePath: args.workspacePath,

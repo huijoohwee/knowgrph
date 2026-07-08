@@ -1,7 +1,7 @@
 import type { JSONValue } from '@/lib/graph/types'
 import { collectComputingFlowBodyVarKeys, findUndeclaredComputingFlowBodyRef, hasComputingFlowContract, readComputingFlowBodyRefKey } from './chatComputingFlowContract'
 import { extractSecondLevelYamlKeys, isFrontmatterVarKeyDeclared } from './chatKgcFrontmatter'
-
+import { isResponseOnlyKgcFrontmatter, readResponseOnlyKgcVariableLinkError } from './chatKgcResponseOnlyContract'
 export type ChatMarkdownValidationRuleId =
   | 'V-01'
   | 'V-02'
@@ -415,8 +415,7 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
 
 const validateCanonicalKgcFrontmatterShape = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
-  if (!parsed) return null
-  if (hasComputingFlowContract(parsed.frontmatter, parsed.body)) return null
+  if (!parsed || isResponseOnlyKgcFrontmatter(parsed.frontmatter) || hasComputingFlowContract(parsed.frontmatter, parsed.body)) return null
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
   const hasCanvasPresetOnlyKeys = CANVAS_PRESET_ONLY_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
   const hasCanonicalKgcSignals = CANONICAL_KGC_REQUIRED_FRONTMATTER_KEYS.some(key => fmKeys.has(key))
@@ -456,7 +455,7 @@ const validateCanonicalGroupingSurface = (md: string): ChatMarkdownValidationErr
   if (/(^|\n)\s*(?:clusters|cluster|groups?|layers?)\s*:/m.test(flowBlock)) {
     return {
       ruleId: 'V-03',
-      message: 'Use flow.subgraphs as the only grouping source of truth. Remove legacy group, cluster, or layer registries from flow.',
+      message: 'Use flow.subgraphs as the only grouping source of truth. Remove retired group, cluster, or layer registries from flow.',
     }
   }
   const hasCanonicalGroupingRequirement =
@@ -498,6 +497,8 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
     }
   }
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  if (isResponseOnlyKgcFrontmatter(parsed.frontmatter))
+    return ((message: string) => message ? { ruleId: 'V-03', message } : null)(readResponseOnlyKgcVariableLinkError({ frontmatterKeys: fmKeys, refs, readRefKey: readComputingFlowBodyRefKey }))
   const isBaseTemplate = isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)
   if (hasComputingFlowContract(parsed.frontmatter)) {
     const key = findUndeclaredComputingFlowBodyRef(parsed.frontmatter, refs)
@@ -551,8 +552,7 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
 
 const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
-  if (!parsed) return null
-  if (hasComputingFlowContract(parsed.frontmatter, parsed.body)) return null
+  if (!parsed || hasComputingFlowContract(parsed.frontmatter, parsed.body) || isResponseOnlyKgcFrontmatter(parsed.frontmatter)) return null
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
   if (isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)) {
     return validateBaseTemplateBodyShape(parsed.frontmatter, parsed.body)

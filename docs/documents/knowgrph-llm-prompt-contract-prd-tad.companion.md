@@ -143,6 +143,9 @@ continuation_note: Maintains TAD, validation, and implementation detail moved ou
 
 - `chatKnowgrph` -> KGC structured Markdown contract.
 - `chatHistory` -> generic chat response contract.
+- No-slash `chatKnowgrph` turns stay on the generic plain Markdown/`response:` contract; recognized Agentic OS invocations, including `/prd-tad.create`, select the structured KGC contract and add Storyboard template slash/#/@ directive context.
+- Recognized leading invocations are route metadata. Provider payload shaping, prompt context, and KGC fallback use `chatRuntimeInvocationQuery.ts` to keep the route token separate from the remaining user request, so `/prd-tad.create` can select PRD/TAD structure while the model receives the same query/media payload a no-slash turn would receive.
+- Both base prompt contracts reuse `chatStoryboardTemplateContract.ts` for `kgc-2d-renderer-storyboard-template/v1` alignment: Storyboard frontmatter intent is data, runtime readiness is proof-gated, and Prod/Cloudflare publish remains blocked until operator approval.
 - The PRD enhancement MUST NOT blur these two output modes.
 
 #### DC-02 - KGC Workspace File Identity
@@ -259,7 +262,7 @@ This document update does not itself change runtime code, but it sets the exact 
 
 ### 9.1 Safe Enhancement Targets
 
-1. `chatResponseBaseContract.ts`
+1. `chatBaseKgcResponseContractPrompt.ts`, `chatBaseResponseContractPrompt.ts`, and the `chatResponseBaseContract.ts` re-export
    - tighten anti-duplicate and anti-stale wording
    - reinforce `flow.subgraphs` as the grouping SSOT
    - reinforce request-shaped section behavior

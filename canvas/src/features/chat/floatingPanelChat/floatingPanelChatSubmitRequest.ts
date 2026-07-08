@@ -14,20 +14,26 @@ import {
   CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT,
   CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
 } from '../chatResponseBaseContract'
-import { resolveChatSkillOption } from '../chatSkillRegistry'
+import { buildChatSkillInvocationSystemPrompt, parseChatSkillSlashInvocation } from '../chatSkillRegistry'
+import { sanitizeStreamArtifactPrompt } from '../chatStreamArtifactSanitizers'
 import {
   buildBoundedGraphSystemPrompt,
   buildMarkdownNodeSnippetPrompt,
   buildWorkspaceWideContextPrompt,
 } from '../chatPromptHelpers'
 import { buildCorpusQueryEvidencePack, buildCorpusQueryEvidencePrompt } from '@/features/queryable-corpus/queryEvidencePack'
-import { buildProviderChatRequestOptions, parseLine, toShortId } from '../FloatingPanelChat.helpers'
+import { buildProviderChatRequestOptions } from './floatingPanelChatProviderOptions'
+import { parseLine, toShortId } from './floatingPanelChatRuntime'
 import type { ChatMessage } from '../FloatingPanelChatSections'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 import {
   fetchWithDurableChatStream,
   type DurableChatStreamRequestMetadata,
 } from './floatingPanelChatDurableStream'
+import {
+  buildOpenAiResponsesInput,
+  sanitizeOpenAiResponsesMessageText,
+} from './floatingPanelChatOpenAiResponsesInput'
 import {
   KNOWGRPH_STORAGE_API_VERSION,
   type KnowgrphStorageChatRelayRequest,
@@ -41,11 +47,19 @@ import {
   buildKnowgrphVdeoxplnRoutingPlan,
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 import { buildChatInvocationSystemPrompt } from '../chatInvocationRegistry'
+import {
+  buildAgenticOsRuntimeInvocationSystemPrompt,
+  buildRuntimeInvocationRoutingSystemPrompt,
+  hasRecognizedChatRuntimeInvocation,
+  resolveChatSubmitResponseContract,
+} from './floatingPanelChatSubmitProfile'
+import {
+  resolveChatRuntimeInvocationEffectiveQuery,
+  resolveChatRuntimeInvocationProviderMessageText,
+} from '../chatRuntimeInvocationQuery'
 
 export type ChatSubmitMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
-type OpenAiResponsesInputContent = { type: 'input_text' | 'output_text'; text: string }
-type OpenAiResponsesInputMessage = { type: 'message'; role: ChatSubmitMessage['role']; content: OpenAiResponsesInputContent[] }
 
 const toFiniteNumberOrUndefined = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -76,19 +90,6 @@ const buildChatSubmitTokenLimitOptions = (args: {
     : { max_tokens: args.tokenLimit }
 }
 
-const buildOpenAiResponsesInput = (messages: ChatSubmitMessage[]): OpenAiResponsesInputMessage[] =>
-  messages
-    .map(message => {
-      const text = String(message.content || '').trim()
-      const contentType: OpenAiResponsesInputContent['type'] = message.role === 'assistant' ? 'output_text' : 'input_text'
-      return {
-        type: 'message' as const,
-        role: message.role,
-        content: text ? [{ type: contentType, text }] : [],
-      }
-    })
-    .filter(message => message.content.length > 0)
-
 export const resolveInitialChatSubmitModel = (args: {
   chatProvider: string
   chatModel: string | null
@@ -104,10 +105,19 @@ export const resolveInitialChatSubmitModel = (args: {
 export const buildSubmitConversationMessages = (
   nextMessages: ChatMessage[],
   assistantMessageId: string,
+  options: { normalizeRuntimeInvocation?: boolean } = {},
 ): Array<{ role: 'user' | 'assistant'; content: string }> =>
   nextMessages
     .filter(message => message.id !== assistantMessageId)
-    .map(message => ({ role: message.role, content: message.content }))
+    .map(message => {
+      if (message.role !== 'user' || !options.normalizeRuntimeInvocation) {
+        return { role: message.role, content: message.content }
+      }
+      return {
+        role: message.role,
+        content: resolveChatRuntimeInvocationProviderMessageText(message.content),
+      }
+    })
 
 const readLastUserMessageContent = (messages: ChatMessage[], assistantMessageId: string): string => {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -153,14 +163,18 @@ export const buildChatSubmitRequestContext = async (args: {
   const includeWorkspaceContext =
     args.submitArgs.chatContextScope === 'workspace' || args.submitArgs.chatContextScope === 'hybrid'
   const userQuery = readLastUserMessageContent(args.nextMessages, args.assistantMessageId)
+  const effectiveUserQuery = resolveChatRuntimeInvocationEffectiveQuery(userQuery)
+  const responseContract = resolveChatSubmitResponseContract({
+    chatStorageTarget: args.submitArgs.chatStorageTarget,
+    userQuery,
+  })
 
   const systemMessages: Array<{ role: 'system'; content: string }> = [
     {
       role: 'system',
-      content:
-        args.submitArgs.chatStorageTarget === 'chatKnowgrph'
-          ? CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
-          : CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
+      content: responseContract === 'kgc'
+        ? CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
+        : CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
     },
     {
       role: 'system',
@@ -176,7 +190,7 @@ export const buildChatSubmitRequestContext = async (args: {
   }
   const corpusEvidencePrompt = buildCorpusQueryEvidencePrompt(buildCorpusQueryEvidencePack({
     graphData: args.submitArgs.graphData,
-    query: userQuery,
+    query: effectiveUserQuery,
     selectedNodeId: args.submitArgs.currentNode?.id || null,
     model: args.submitArgs.chatModel,
     completionTokenBudget: toFiniteNumberOrUndefined(args.submitArgs.chatMaxCompletionTokens),
@@ -196,9 +210,19 @@ export const buildChatSubmitRequestContext = async (args: {
     chatModel: args.submitArgs.chatModel,
   })
   if (invocationPrompt) systemMessages.push({ role: 'system', content: invocationPrompt })
-  if (args.submitArgs.chatStorageTarget === 'chatKnowgrph') {
-    const skill = resolveChatSkillOption(args.submitArgs.chatSkillId)
-    if (skill?.systemPrompt.trim()) systemMessages.push({ role: 'system', content: skill.systemPrompt })
+  const agenticOsInvocationPrompt = buildAgenticOsRuntimeInvocationSystemPrompt(userQuery)
+  if (agenticOsInvocationPrompt) systemMessages.push({ role: 'system', content: agenticOsInvocationPrompt })
+  const runtimeInvocationRoutingPrompt = buildRuntimeInvocationRoutingSystemPrompt(userQuery)
+  if (runtimeInvocationRoutingPrompt) systemMessages.push({ role: 'system', content: runtimeInvocationRoutingPrompt })
+  const skillInvocation = parseChatSkillSlashInvocation(userQuery)
+  if (skillInvocation) {
+    systemMessages.push({
+      role: 'system',
+      content: buildChatSkillInvocationSystemPrompt({
+        invocation: skillInvocation,
+        chatStorageTarget: args.submitArgs.chatStorageTarget,
+      }),
+    })
   }
   if (includeSelectionContext) {
     const markdownSnippet = buildMarkdownNodeSnippetPrompt(
@@ -217,35 +241,39 @@ export const buildChatSubmitRequestContext = async (args: {
     })
     if (workspaceContextPrompt) systemMessages.push({ role: 'system', content: workspaceContextPrompt })
   }
-  const vdeoxplnPlan = buildKnowgrphVdeoxplnRoutingPlan({
-    intentText: userQuery,
-    chatStorageTarget: args.submitArgs.chatStorageTarget,
-    contentTypes: [
-      args.submitArgs.chatStorageTarget === 'chatKnowgrph' ? 'kgc markdown' : 'chat response',
-      args.submitArgs.markdownText ? 'workspace document markdown' : '',
-    ],
-    requestedOutputs: args.submitArgs.chatStorageTarget === 'chatKnowgrph'
-      ? ['validated KGC Markdown', 'workspace artifact', 'GraphData', 'canvas topology snapshot']
-      : ['chat history'],
-    stateSignals: [
-      args.submitArgs.chatContextScope,
-      args.submitArgs.sourceFiles.length > 0 ? 'source evidence source files' : '',
-      args.submitArgs.graphData ? 'graph canvas topology' : '',
-      args.submitArgs.currentNode ? 'selection context' : '',
-    ],
-    sourceFileCount: args.submitArgs.sourceFiles.length,
-    hasSourceFiles: args.submitArgs.sourceFiles.length > 0,
-    hasGraphData: Boolean(args.submitArgs.graphData),
-    hasSelection: Boolean(args.submitArgs.currentNode),
-    hasWorkspaceDocument: Boolean(args.submitArgs.markdownText || args.submitArgs.markdownDocumentName),
-  })
-  const vdeoxplnPrompt = buildKnowgrphVdeoxplnChatSystemPrompt(vdeoxplnPlan)
-  if (vdeoxplnPrompt) systemMessages.push({ role: 'system', content: vdeoxplnPrompt })
+  if (hasRecognizedChatRuntimeInvocation(userQuery)) {
+    const vdeoxplnPlan = buildKnowgrphVdeoxplnRoutingPlan({
+      intentText: sanitizeStreamArtifactPrompt(effectiveUserQuery),
+      chatStorageTarget: args.submitArgs.chatStorageTarget,
+      contentTypes: [
+        responseContract === 'kgc' ? 'kgc markdown' : 'chat response',
+        args.submitArgs.markdownText ? 'workspace document markdown' : '',
+      ],
+      requestedOutputs: responseContract === 'kgc'
+        ? ['validated KGC Markdown', 'workspace artifact', 'GraphData', 'canvas topology snapshot']
+        : ['chat history'],
+      stateSignals: [
+        args.submitArgs.chatContextScope,
+        args.submitArgs.sourceFiles.length > 0 ? 'source evidence source files' : '',
+        args.submitArgs.graphData ? 'graph canvas topology' : '',
+        args.submitArgs.currentNode ? 'selection context' : '',
+      ],
+      sourceFileCount: args.submitArgs.sourceFiles.length,
+      hasSourceFiles: args.submitArgs.sourceFiles.length > 0,
+      hasGraphData: Boolean(args.submitArgs.graphData),
+      hasSelection: Boolean(args.submitArgs.currentNode),
+      hasWorkspaceDocument: Boolean(args.submitArgs.markdownText || args.submitArgs.markdownDocumentName),
+    })
+    const vdeoxplnPrompt = buildKnowgrphVdeoxplnChatSystemPrompt(vdeoxplnPlan)
+    if (vdeoxplnPrompt) systemMessages.push({ role: 'system', content: vdeoxplnPrompt })
+  }
 
   return {
     packedContext,
     systemMessages,
-    conversationMessages: buildSubmitConversationMessages(args.nextMessages, args.assistantMessageId),
+    conversationMessages: buildSubmitConversationMessages(args.nextMessages, args.assistantMessageId, {
+      normalizeRuntimeInvocation: true,
+    }),
   }
 }
 
@@ -303,7 +331,12 @@ export const createChatSubmitRequestSender = (args: {
     const storageRelayConfig = args.submitArgs.storageChatRelayDecision?.kind === 'ready'
       ? args.submitArgs.storageChatRelayDecision.config
       : null
+    const isOpenAiResponsesRequest = isOpenAiResponsesSubmit({ chatProvider: args.submitArgs.chatProvider, endpointUrl })
     if (storageRelayConfig && storageRelayProviderId && args.requestUrl === storageRelayConfig.relayUrl) {
+      const relayResponsesInput = isOpenAiResponsesRequest ? await buildOpenAiResponsesInput(messages) : null
+      const relayMessages = isOpenAiResponsesRequest
+        ? messages.map(message => ({ ...message, content: sanitizeOpenAiResponsesMessageText(message.content) }))
+        : messages
       const relayPayload: KnowgrphStorageChatRelayRequest = {
         apiVersion: KNOWGRPH_STORAGE_API_VERSION,
         workspaceId: storageRelayConfig.workspaceId,
@@ -311,7 +344,9 @@ export const createChatSubmitRequestSender = (args: {
         authMode: args.submitArgs.chatAuthMode,
         endpointUrl,
         model,
-        messages,
+        messages: relayMessages,
+        requestSurface: isOpenAiResponsesRequest ? 'responses' : 'chat-completions',
+        input: relayResponsesInput,
         stream: false,
         byokApiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
         providerOptions: {
@@ -348,10 +383,10 @@ export const createChatSubmitRequestSender = (args: {
         clientRequestId,
       }),
     }
-    const requestBody = isOpenAiResponsesSubmit({ chatProvider: args.submitArgs.chatProvider, endpointUrl })
+    const requestBody = isOpenAiResponsesRequest
       ? {
           model,
-          input: buildOpenAiResponsesInput(messages),
+          input: await buildOpenAiResponsesInput(messages),
           stream: true,
           ...providerOptions,
           ...tokenLimitOptions,

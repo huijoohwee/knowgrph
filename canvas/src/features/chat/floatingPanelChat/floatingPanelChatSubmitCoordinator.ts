@@ -1,7 +1,7 @@
 import { UI_COPY } from '@/lib/config'
 import { CHAT_AI_MARKDOWN_MAX_RETRY } from '../chatAiMarkdownSpec'
 import { upsertChatHistoryWorkspaceDraft } from '../chatHistoryWorkspace'
-import { loadAvailableModelIds, parseErrorBody } from '../FloatingPanelChat.helpers'
+import { loadAvailableModelIds, parseErrorBody } from './floatingPanelChatHttp'
 import type { ChatMessage } from '../FloatingPanelChatSections'
 import { resolveChatKnowgrphAttempt } from './floatingPanelChatKgcAttempt'
 import { handleSubmitIssueExit, resolveSubmitRuntimeFriendlyMessage } from './floatingPanelChatSubmitErrors'

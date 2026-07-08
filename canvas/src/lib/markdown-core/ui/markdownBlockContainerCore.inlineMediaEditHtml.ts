@@ -11,6 +11,7 @@ import {
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  readInlineKeywordChipToneValue,
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import {
@@ -92,7 +93,7 @@ const readRenderedMediaPillMarkdown = (node: HTMLElement): string => {
 const buildInlineInvocationEditTokenHtml = (token: string): string => {
   const invocation = findAgenticOsInvocationByToken(token)
   if (!invocation) return escapeHtml(token)
-  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${resolveDataViewChipClass(token)}`
+  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
   return [
     `<span class="${escapeHtmlAttr(className)}"`,
     ` title="${escapeHtmlAttr(buildAgenticOsInvocationSourceTitle(invocation))}"`,

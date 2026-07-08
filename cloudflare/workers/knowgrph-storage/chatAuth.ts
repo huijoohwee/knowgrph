@@ -298,6 +298,8 @@ const isChatRelayRequest = (value: unknown): value is KnowgrphStorageChatRelayRe
     && (record.authMode === 'serverManaged' || record.authMode === 'byok')
     && typeof record.model === 'string'
     && Array.isArray(record.messages)
+    && (record.requestSurface == null || record.requestSurface === 'chat-completions' || record.requestSurface === 'responses')
+    && (record.input == null || Array.isArray(record.input))
     && (record.providerOptions == null || typeof record.providerOptions === 'object')
   )
 }
@@ -365,13 +367,17 @@ export const handleChatRelay = async (
   })
   if (payload.endpointUrl) proxyHeaders.set('x-kg-chat-upstream', String(payload.endpointUrl).trim())
   if (payload.authMode === 'byok' && payload.byokApiKey) proxyHeaders.set('x-kg-chat-api-key', payload.byokApiKey.trim())
+  const useResponsesInput = payload.requestSurface === 'responses' && Array.isArray(payload.input)
+  const providerOptions = payload.providerOptions && typeof payload.providerOptions === 'object'
+    ? payload.providerOptions
+    : {}
   const requestBody = JSON.stringify({
     model: payload.model,
-    messages: payload.messages,
+    ...providerOptions,
+    ...(useResponsesInput
+      ? { input: payload.input }
+      : { messages: payload.messages }),
     stream: false,
-    ...(payload.providerOptions && typeof payload.providerOptions === 'object'
-      ? payload.providerOptions
-      : {}),
   })
   const requestBytes = new TextEncoder().encode(requestBody).byteLength
   const startedAtMs = Date.now()

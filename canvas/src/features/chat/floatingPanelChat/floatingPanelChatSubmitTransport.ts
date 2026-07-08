@@ -1,4 +1,4 @@
-import { shouldRetryWithModelFallback } from '../FloatingPanelChat.helpers'
+import { shouldRetryWithModelFallback } from './floatingPanelChatHttp'
 import { CHAT_PROVIDER_OPENAI, normalizeChatProviderId } from '@/lib/chatEndpoint'
 
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'

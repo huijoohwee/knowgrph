@@ -267,7 +267,7 @@ const upsertStructuredFrontmatterFields = (frontmatter: string, fields: Record<s
 const insertIntoFlowListBlock = (frontmatter: string, marker: string, lines: string[]): string => {
   if (lines.length === 0) return frontmatter
   const markerIndex = frontmatter.indexOf(marker)
-  if (markerIndex < 0) return `${frontmatter.trimEnd()}\n${lines.join('\n')}`
+  if (markerIndex < 0) return frontmatter
   const before = frontmatter.slice(0, markerIndex + marker.length)
   const after = frontmatter.slice(markerIndex + marker.length)
   const afterLines = after.split('\n')

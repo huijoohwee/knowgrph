@@ -48,9 +48,11 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
 4. **MainPanel MCP / Integrations readiness**
    - Owners:
      - `canvas/src/features/panels/views/McpHubView.tsx`
+     - `canvas/src/features/panels/views/knowgrphToolServerDocs.ts`
+     - `canvas/src/features/panels/views/externalMcpToolServerDocs.ts`
      - `canvas/src/features/panels/views/IntegrationsHubView.tsx`
      - `canvas/src/features/panels/views/useSettingsChatAssist.tsx`
-   - Scope: shared settings, chat readiness, and routing into the FloatingPanel Chat workflow
+   - Scope: shared settings, Knowgrph-owned tool-server readiness, external MCP tool-server readiness, chat readiness, and routing into the FloatingPanel Chat workflow
 
 Do not conflate this local stdio server with the deployed read-only Pages/browser MCP surfaces or
 with any future remote Worker MCP platform proposed elsewhere in the docs.
@@ -246,6 +248,8 @@ Then you can call:
 
 MainPanel `mcp` can show readiness and configuration snippets for external MCP surfaces such as:
 
+- Knowgrph Tool Servers for external users connecting an agent to tools inside Knowgrph through local stdio (`mcp/server.js`) or read-only Pages HTTP (`search` / `fetch`) placeholders
+- External MCP Tool Servers with provider-neutral stdio and Streamable HTTP templates, host-owned secrets, session-scoped allowlists, zero-token discovery, and deferred `knowgrph.tool.search` / `knowgrph.tool.describe` / `knowgrph.tool.call` schema access
 - Stripe MCP readiness
 - crawler access MCP readiness
 - direct API-native browser MCP snippets

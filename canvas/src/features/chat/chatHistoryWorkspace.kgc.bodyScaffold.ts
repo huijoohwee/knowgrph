@@ -1,3 +1,5 @@
+import { hasResponseOnlyKgcMarker } from './chatKgcResponseOnlyContract'
+
 const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; body: string } | null => {
   const text = String(raw || '').replace(/\r\n/g, '\n')
   const lines = text.split('\n')
@@ -36,7 +38,7 @@ const CANONICAL_PRD_SCAFFOLD = [
   '',
   '### Non-Goals',
   '',
-  'The base path does not infer missing business decisions, create alternate legacy mappings, or inject project-specific vocabulary when the request does not provide it. Domain-specific choices should be added only when the request or later context makes them explicit.',
+  'The base path does not infer missing business decisions, create alternate mappings, or inject project-specific vocabulary when the request does not provide it. Domain-specific choices should be added only when the request or later context makes them explicit.',
   '',
   '### User Stories',
   '',
@@ -66,6 +68,7 @@ export const ensureKgcBaseTemplateRequiredBodyScaffold = (markdown: string): str
   const text = String(markdown || '').replace(/\r\n/g, '\n').trim()
   const parsed = splitLeadingFrontmatterAndBody(text)
   if (!parsed || !hasBaseTemplateFrontmatter(parsed.frontmatter)) return markdown
+  if (hasResponseOnlyKgcMarker(parsed.frontmatter)) return markdown
   const body = insertCanonicalPrdScaffold(parsed.body)
   return ['---', parsed.frontmatter.trimEnd(), '---', body].join('\n').trimEnd() + '\n'
 }

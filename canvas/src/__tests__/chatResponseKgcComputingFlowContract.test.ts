@@ -471,22 +471,49 @@ export function testKgcDeterministicFallbackTraceOnlyKeepsHumanFacingNoBackfill(
     ].join('\n'),
   })
   assertValidKgc(md, 'trace-only fallback')
-  const computeNode = readComputingFlowNode(md, COMPUTING_FLOW_COMPUTE_NODE_ID)
-  const output = isPlainRecord(computeNode?.output) ? String(computeNode.output.value || '') : ''
   const responseSection = extractMarkdownSection(md, '## Response')
-  if (responseSection.trim() !== `{{${COMPUTING_FLOW_COMPUTE_NODE_ID}.output}}`) {
-    throw new Error(`Expected trace-only response body to project compute_summary output token, got: ${responseSection}`)
-  }
-  for (const snippet of ['no final assistant text', 'no answer is backfilled']) {
-    if (!output.toLowerCase().includes(snippet)) {
+  for (const snippet of ['analyze btc and gold portfolio factors', 'no final assistant text', 'no answer is backfilled']) {
+    if (!responseSection.toLowerCase().includes(snippet)) {
       throw new Error(`Expected trace-only response to preserve no-backfill message: ${snippet}`)
     }
   }
-  for (const forbidden of ['### Headless Structured Output', 'Dataflow:', 'Frontmatter keeps', 'flow.nodes', 'flow.edges']) {
-    if (extractMarkdownBody(md).includes(forbidden)) {
+  for (const forbidden of ['schema: "kgc-computing-flow/v1"', 'template_flow_demo', 'source_input', 'compute_summary', 'RichMediaPanel', '### Headless Structured Output', 'Dataflow:', 'Frontmatter keeps']) {
+    if (md.includes(forbidden)) {
       throw new Error(`Expected trace-only response body to avoid mutation narration: ${forbidden}`)
     }
   }
+}
+
+export function testKgcNoSlashImageTraceKeepsCleanSlateNoBackfill() {
+  const md = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 6, 7, 16, 57, 38),
+    workspacePath: '/chat-log/20260707T165738Z/kgc_20260707T165738Z.md',
+    requestText: 'what ![strybldr-starter-source.png](http://localhost:5181/api/storage/media/airvio/runs/upload-017d1e965528642f/image/strybldr-starter-source-017d1e965528642f.png?kg_media_token=secret)',
+    assistantText: [
+      '## Provider Stream Trace',
+      '',
+      'The provider stream is active. Incoming reasoning, tool, and assistant deltas are appended below.',
+      '',
+      '### Stream Transcript',
+      '',
+      '[signal]',
+      '- Stream events are arriving.',
+      '',
+      '### Terminal Metadata',
+      '',
+      '- SSE events: 5',
+    ].join('\n'),
+  })
+  assertValidKgc(md, 'no-slash image trace fallback')
+  const responseSection = extractMarkdownSection(md, '## Response').toLowerCase()
+  for (const required of ['for the request "what [attached image]"', 'no final assistant text', 'no answer is backfilled']) {
+    if (!responseSection.includes(required)) throw new Error(`Expected clean-slate fallback to preserve query-responsive no-backfill response: ${required}`)
+  }
+  for (const forbidden of ['kg_media_token', 'localhost:5181', 'upload-017d1e965528642f', 'mcp-response-', 'MCP Structured Response', 'strybldr-starter-source', 'schema: "kgc-computing-flow/v1"', 'template_flow_demo', 'source_input', 'compute_summary', 'RichMediaPanel', 'what [attached image Computing Flow']) {
+    if (md.includes(forbidden)) throw new Error(`Expected no-slash image trace fallback not to backfill runtime media/profile detail: ${forbidden}`)
+  }
+  if (!md.includes('what [attached image]')) throw new Error('Expected request profiling to keep a neutral attached-image placeholder')
+  if (md.includes('Named terms: what [attached image')) throw new Error('Expected attached-image placeholder not to become a named term')
 }
 
 export function testKgcComputingFlowStripsAppendedCanonicalSections() {

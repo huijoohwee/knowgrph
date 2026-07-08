@@ -360,3 +360,19 @@ export function testViteDevServerIgnoresWorkspaceMirrorOutputRoots(): void {
     throw new Error('expected derived share-export sibling root such as /docs_ to be ignored without hardcoding a URL or artifact name')
   }
 }
+
+export function testViteKgFsWriteHandlerAcceptsMirrorMkdirOnlyRequests(): void {
+  const text = readFileSync(path.resolve(process.cwd(), 'vite.config.ts'), 'utf8')
+  const mkdirBranchIndex = text.indexOf('if (mkdirOnly) {')
+  const extensionGateIndex = text.indexOf("const ext = String(path.extname(absPath) || '').toLowerCase()")
+  if (mkdirBranchIndex < 0 || extensionGateIndex < 0 || mkdirBranchIndex > extensionGateIndex) {
+    throw new Error('expected /__kg_fs_write mkdirOnly requests to be handled before file-extension validation')
+  }
+  const mkdirBranch = text.slice(mkdirBranchIndex, extensionGateIndex)
+  if (!mkdirBranch.includes('await fs.mkdir(requestedAbsPath, { recursive: true })')) {
+    throw new Error('expected /__kg_fs_write mkdirOnly requests to create the requested directory path')
+  }
+  if (!mkdirBranch.includes('if (!isAllowed(requestedAbsPath))')) {
+    throw new Error('expected /__kg_fs_write mkdirOnly requests to keep the shared allowed-root guard')
+  }
+}

@@ -299,7 +299,7 @@ It must also remain compatible with the existing downstream demo documents used 
 | `settingsView.constants.ts` | section metadata and open-panel action | Integrations surface only |
 | `floatingPanelChatSubmitRequest.ts` | shared request body creation | no Agnes fork |
 | `floatingPanelChatSubmitCoordinator.ts` | shared transport, validation retries, finalize handoff | no Agnes fork |
-| `FloatingPanelChat.helpers.ts` | shared provider option shaping and SSE delta extraction | no Agnes fork |
+| `floatingPanelChatProviderOptions.ts` + `floatingPanelChatStreamParsing.ts` | shared provider option shaping and SSE delta extraction | no Agnes fork |
 | `useFinalizeAssistantSuccess.ts` | shared markdown persist and canvas apply | downstream SSOT |
 | `graphDataDocumentActions.ts` | shared markdown and frontmatter graph apply | renderer-neutral downstream |
 | `huijoohwee/functions/__chat_proxy/[[path]].js` | production Cloudflare Pages chat proxy owner | publish-repo shared Functions only |

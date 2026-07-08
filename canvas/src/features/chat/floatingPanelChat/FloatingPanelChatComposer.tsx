@@ -1,7 +1,6 @@
 import React from 'react'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { collectMarkdownVariableBrowseRows, buildMarkdownVariableToken } from '@/features/markdown/ui/markdownVariableReferences'
-import { CHAT_COMMAND_OPTIONS } from '@/features/chat/chatCommandRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { CHAT_INVOCATION_OPTIONS, isChatInvocationToken } from '@/features/chat/chatInvocationRegistry'
 import {
@@ -33,23 +32,13 @@ import {
   buildFloatingPanelChatComposerDisplayText,
   buildFloatingPanelChatComposerOverlayParts,
   deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
+  FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME,
   FloatingPanelChatComposerMediaOverlay,
+  isFloatingPanelChatComposerProjectedCaretInsideChip,
   mapFloatingPanelChatComposerDisplayIndexToRawIndex,
   mapFloatingPanelChatComposerRawIndexToDisplayIndex,
   resolveFloatingPanelChatComposerRawText,
 } from './FloatingPanelChatComposerMediaOverlay'
-
-const FLOATING_PANEL_CHAT_COMPOSER_OVERLAY_SELECTION_STYLE = `
-textarea[data-kg-chat-input-overlay-active='1']::selection,
-textarea[data-kg-chat-input-media-overlay-active='1']::selection {
-  background: transparent;
-  color: transparent;
-}
-textarea[data-kg-chat-input-overlay-active='1']::-moz-selection,
-textarea[data-kg-chat-input-media-overlay-active='1']::-moz-selection {
-  background: transparent;
-  color: transparent;
-}`
 
 type FloatingPanelChatComposerProps = {
   input: string
@@ -66,6 +55,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const inputRef = React.useRef<HTMLTextAreaElement | null>(null)
   const [trigger, setTrigger] = React.useState<ChatComposerTrigger | null>(null)
   const [query, setQuery] = React.useState('')
+  const [selectionRange, setSelectionRange] = React.useState({ start: 0, end: 0 })
   const uploadedMediaItems = useUploadedMediaInlineCommandCandidates()
 
   const closeMenu = React.useCallback(() => {
@@ -88,6 +78,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       const cursor = mapFloatingPanelChatComposerRawIndexToDisplayIndex(next.text, next.cursor)
       input.focus({ preventScroll: true })
       input.setSelectionRange(cursor, cursor)
+      setSelectionRange({ start: cursor, end: cursor })
     })
   }, [closeMenu, props, trigger])
   const updateTrigger = React.useCallback((value: string) => {
@@ -102,14 +93,6 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       id: `skill-${option.id}`,
       label: option.slashCommand,
       group: 'Skills',
-      description: option.summary,
-      keywords: [option.label, ...option.keywords],
-      onSelect: () => applyReplacement(`${option.slashCommand} `),
-    })),
-    ...CHAT_COMMAND_OPTIONS.map(option => buildInlineCommandMenuItem({
-      id: `command-${option.id}`,
-      label: option.slashCommand,
-      group: 'Commands',
       description: option.summary,
       keywords: [option.label, ...option.keywords],
       onSelect: () => applyReplacement(`${option.slashCommand} `),
@@ -215,6 +198,15 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const hasMediaOverlay = composerOverlay.hasMedia
   const hasComposerOverlay = composerOverlay.hasOverlay
   const displayInput = React.useMemo(() => buildFloatingPanelChatComposerDisplayText(props.input), [props.input])
+  React.useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    const start = input.selectionStart ?? displayInput.length
+    const end = input.selectionEnd ?? displayInput.length
+    setSelectionRange(previous => previous.start === start && previous.end === end ? previous : { start, end })
+  }, [displayInput])
+  const projectedLayoutClassName = hasComposerOverlay ? FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME : ''
+  const hideProjectedCaret = hasComposerOverlay && isFloatingPanelChatComposerProjectedCaretInsideChip(props.input, selectionRange.start, selectionRange.end)
   const deleteProjectedTokenRange = React.useCallback((target: HTMLInputElement | HTMLTextAreaElement, direction: 'backward' | 'forward'): boolean => {
     if (!hasComposerOverlay) return false
     const next = deleteFloatingPanelChatComposerProjectedTokenDisplayRange({
@@ -231,17 +223,13 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       if (!input) return
       input.focus({ preventScroll: true })
       input.setSelectionRange(next.cursor, next.cursor)
+      setSelectionRange({ start: next.cursor, end: next.cursor })
     })
     return true
   }, [closeMenu, hasComposerOverlay, props])
 
   return (
-    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
-      {hasComposerOverlay ? (
-        <style data-kg-chat-input-overlay-selection-style="1" data-kg-chat-input-media-selection-style={hasMediaOverlay ? '1' : undefined}>
-          {FLOATING_PANEL_CHAT_COMPOSER_OVERLAY_SELECTION_STYLE}
-        </style>
-      ) : null}
+    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
       <FloatingPanelChatComposerMediaOverlay input={props.input} uiPanelTextFontClass={props.uiPanelTextFontClass} />
       <PlainTextInputEditor
         ref={inputRef}
@@ -249,8 +237,13 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
         onChange={value => {
           props.setInput(resolveFloatingPanelChatComposerRawText(value, props.input))
           updateTrigger(value)
+          const input = inputRef.current
+          setSelectionRange({ start: input?.selectionStart ?? value.length, end: input?.selectionEnd ?? value.length })
         }}
-        onSelect={event => updateTrigger(event.currentTarget.value)}
+        onSelect={event => {
+          updateTrigger(event.currentTarget.value)
+          setSelectionRange({ start: event.currentTarget.selectionStart ?? event.currentTarget.value.length, end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length })
+        }}
         onBeforeInput={event => {
           const inputType = (event.nativeEvent as InputEvent).inputType
           const direction = inputType === 'deleteContentBackward'
@@ -268,14 +261,21 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
         ariaControls={trigger ? menuListId : undefined}
         disabled={props.isLoading}
         multiline
-        className="w-full h-full border-0 rounded-none bg-transparent"
-        inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? 'text-transparent caret-[color:var(--kg-text-primary)] selection:bg-transparent' : ''}`}
+        className="relative z-0 w-full h-full border-0 rounded-none bg-transparent"
+        inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? `text-transparent ${hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}` : ''}`}
         dataAttributes={{
           'data-kg-chat-input': true,
           'data-kg-chat-input-overlay-active': hasComposerOverlay ? '1' : undefined,
           'data-kg-chat-input-media-overlay-active': hasMediaOverlay ? '1' : undefined,
         }}
         onKeyDown={event => {
+          if (hasComposerOverlay && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+            event.preventDefault()
+            event.currentTarget.setSelectionRange(0, event.currentTarget.value.length)
+            setSelectionRange({ start: 0, end: event.currentTarget.value.length })
+            closeMenu()
+            return
+          }
           if (hasComposerOverlay && (event.key === 'Backspace' || event.key === 'Delete')) {
             if (deleteProjectedTokenRange(event.currentTarget, event.key === 'Backspace' ? 'backward' : 'forward')) {
               event.preventDefault()

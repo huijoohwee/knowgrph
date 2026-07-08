@@ -29,6 +29,8 @@ import {
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { API_NATIVE_BROWSER_MCP_DOC_AREA } from './apiNativeBrowserMcpApiDocs'
+import { KNOWGRPH_TOOL_SERVER_DOC_AREA } from './knowgrphToolServerDocs'
+import { EXTERNAL_MCP_TOOL_SERVER_DOC_AREA } from './externalMcpToolServerDocs'
 import { CRAWLER_ACCESS_MCP_DOC_AREA } from './crawlerAccessMcpApiDocs'
 import { CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA } from './cloudflareAiGatewayMcpApiDocs'
 import { BYTEPLUS_MODELARK_MCP_DOC_AREA } from './byteplusModelArkMcpApiDocs'
@@ -88,6 +90,8 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'UI Density: Icons',
   MAPS_GRABMAPS_DOC_AREA,
   API_NATIVE_BROWSER_MCP_DOC_AREA,
+  KNOWGRPH_TOOL_SERVER_DOC_AREA,
+  EXTERNAL_MCP_TOOL_SERVER_DOC_AREA,
   CRAWLER_ACCESS_MCP_DOC_AREA,
   CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA,
   BYTEPLUS_MODELARK_MCP_DOC_AREA,
@@ -205,6 +209,8 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
   if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
   if (area === API_NATIVE_BROWSER_MCP_DOC_AREA) return true
+  if (area === KNOWGRPH_TOOL_SERVER_DOC_AREA) return true
+  if (area === EXTERNAL_MCP_TOOL_SERVER_DOC_AREA) return true
   if (area === CRAWLER_ACCESS_MCP_DOC_AREA) return true
   if (area === CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA) return true
   if (area === BYTEPLUS_MODELARK_MCP_DOC_AREA) return true

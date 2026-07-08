@@ -2,6 +2,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import { UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 
@@ -28,11 +29,11 @@ const fixedChipClasses: Record<string, string> = {
   '3': UI_THEME_TOKENS.status.pink,
 }
 
-const DATA_VIEW_CHIP_BASE_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} min-w-0 max-w-full overflow-hidden px-2 py-0.5 rounded border font-medium`
+const DATA_VIEW_CHIP_BASE_CLASSNAME = `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} min-w-0 max-w-full overflow-hidden px-2 rounded border font-medium`
 
-export const DATA_VIEW_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} text-[10px] leading-[15px]`
+export const DATA_VIEW_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} py-0.5 text-[10px] leading-[15px]`
 
-export const DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} [font-size:inherit] [line-height:inherit]`
+export const DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME = `${DATA_VIEW_CHIP_BASE_CLASSNAME} ${UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME} [font-size:inherit]`
 
 const hashPick = (key: string): string => {
   const s = String(key || '').trim().toLowerCase()

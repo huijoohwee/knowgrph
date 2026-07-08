@@ -4,7 +4,6 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { UiLogEntryInput } from '@/hooks/store/types'
 import type { KnowgrphStorageChatRelayDecision } from '@/lib/storage/knowgrphStorageChatClient'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
-import type { ChatSkillId } from '../chatSkillRegistry'
 
 export type FloatingPanelChatSubmitArgs = {
   historyKey: string
@@ -43,7 +42,6 @@ export type FloatingPanelChatSubmitArgs = {
   chatGraphSummaryMaxTokens: unknown
   chatGuidelineDigestMaxTokens: unknown
   chatSystemPrompt: string | null
-  chatSkillId?: ChatSkillId | null
   chatContextScope: 'selection' | 'workspace' | 'hybrid'
 
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'

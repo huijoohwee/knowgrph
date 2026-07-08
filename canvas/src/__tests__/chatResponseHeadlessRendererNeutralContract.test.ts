@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT } from '@/features/chat/chatResponseBaseContract'
 
 export function testChatResponseContractPromptRequiresHeadlessRendererNeutralOutput() {
-  const text = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatResponseBaseContract.ts'), 'utf8')
+  const text = CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
   const requiredSnippets = [
     'headless and renderer-neutral',
     'portable frontmatter plus Markdown data',

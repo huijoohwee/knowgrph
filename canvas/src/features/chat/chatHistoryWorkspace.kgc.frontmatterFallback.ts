@@ -16,6 +16,7 @@ import {
   typedBlockScalarEnvelopeLines,
 } from './chatHistoryWorkspace.kgc.fallbackCommon'
 import { buildFlowDiagramsBlock } from './chatHistoryWorkspace.kgc.flowDiagramsFallback'
+import { KGC_RESPONSE_ONLY_SCHEMA } from './chatKgcResponseOnlyContract'
 import {
   buildResponseMarkdownLines,
   buildResponseStatus,
@@ -64,11 +65,78 @@ const buildFrontmatterValidationFocus = (profile: ReturnType<typeof analyzeKgcRe
   ].filter(Boolean)
 }
 
-export const buildFrontmatter = (args: {
+const buildResponseOnlyFrontmatter = (args: {
   fileName: string
   profile: ReturnType<typeof analyzeKgcRequest>
   assistantText: string
 }): string => {
+  const product = fallbackProduct(args.profile.product)
+  const artifact = fallbackArtifact(args.profile.artifact)
+  const title = product === '{{product}}' ? artifact : `${product} · ${artifact}`
+  const graphId = `md:${slugify(args.fileName)}-response`
+  const responseMarkdownLines = buildResponseMarkdownLines({
+    profile: args.profile,
+    assistantText: args.assistantText,
+  })
+  return [
+    `title: ${JSON.stringify(title)}`,
+    `graphId: ${JSON.stringify(graphId)}`,
+    `doc_type: ${JSON.stringify(artifact)}`,
+    'date: "{{date}}"',
+    'ai_model: "model-unknown"',
+    'lang: "en-US"',
+    'kgCanvasSurfaceMode: "2d"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "storyboard"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgMultiDimTableModeEnabled: false',
+    'kgDocumentStructureBaselineLock: false',
+    'kgcResponseOnly: true',
+    `$schema: ${JSON.stringify(KGC_RESPONSE_ONLY_SCHEMA)}`,
+    'spec:',
+    '  format:        kgc-response',
+    '  version:       "1.0.0"',
+    '  parser:        yaml-frontmatter',
+    '  execution:     response',
+    '  ssot_surfaces: [response]',
+    `product: ${JSON.stringify(product)}`,
+    `domain: ${JSON.stringify(fallbackDomain(args.profile.domain, args.profile.topics))}`,
+    `subject: ${JSON.stringify(fallbackActor(args.profile.subject))}`,
+    `objective: ${JSON.stringify(fallbackObjective(args.profile.objective))}`,
+    `artifact: ${JSON.stringify(artifact)}`,
+    `owner: ${JSON.stringify(fallbackOwner(args.profile.owner))}`,
+    'version: "{{version}}"',
+    `status: ${JSON.stringify(fallbackStatus(args.profile.status))}`,
+    'response:',
+    '  key: response',
+    '  type: object',
+    '  value:',
+    `    status: ${JSON.stringify(buildResponseStatus(args.assistantText))}`,
+    `    intent: ${JSON.stringify(sanitizeRequestIntent(args.profile.intent, 320) || 'Prompt unavailable.')}`,
+    '    named_terms: []',
+    '    requested_sections: []',
+    '    markdown_body:',
+    '      key: markdown_body',
+    '      type: markdown',
+    '      value: |',
+    ...responseMarkdownLines.map(line => `        ${line}`.trimEnd()),
+  ].join('\n')
+}
+
+export const buildFrontmatter = (args: {
+  fileName: string
+  profile: ReturnType<typeof analyzeKgcRequest>
+  assistantText: string
+  responseOnly?: boolean
+}): string => {
+  if (args.responseOnly) {
+    return buildResponseOnlyFrontmatter({
+      fileName: args.fileName,
+      profile: args.profile,
+      assistantText: args.assistantText,
+    })
+  }
   const subject = fallbackActor(args.profile.subject)
   const product = fallbackProduct(args.profile.product)
   const artifact = fallbackArtifact(args.profile.artifact)
@@ -76,10 +144,15 @@ export const buildFrontmatter = (args: {
   const objective = fallbackObjective(args.profile.objective)
   const owner = fallbackOwner(args.profile.owner)
   const status = fallbackStatus(args.profile.status)
-  const graphId = `md:${slugify(args.fileName)}-pipeline`
-  const title = product === '{{product}}'
-    ? '{{product}} · AI Pipeline — Chat Response'
-    : `${product} · AI Pipeline — ${artifact}`
+  const graphId = args.responseOnly
+    ? `md:${slugify(args.fileName)}-response`
+    : `md:${slugify(args.fileName)}-pipeline`
+  const titleSubject = product === '{{product}}'
+    ? (args.profile.invocation?.label || artifact)
+    : product
+  const title = args.responseOnly
+    ? (product === '{{product}}' ? artifact : `${product} · ${artifact}`)
+    : `${titleSubject} · AI Pipeline — ${artifact}`
   const requestSummary = buildRequestSummary(args.profile)
   const contextSummary = buildFrontmatterContextSummary(args.profile)
   const requiredSections = buildRequiredSectionLabels(args.profile)
@@ -103,6 +176,7 @@ export const buildFrontmatter = (args: {
     'kgFrontmatterModeEnabled: true',
     'kgMultiDimTableModeEnabled: false',
     'kgDocumentStructureBaselineLock: false',
+    ...(args.responseOnly ? ['kgcResponseOnly: true'] : []),
     ...(renderer === 'strybldr' ? ['kgStrybldrStoryboard: true'] : []),
     '$schema: "kgc-pipeline/v1"',
     'spec:',

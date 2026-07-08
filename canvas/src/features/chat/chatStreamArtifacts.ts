@@ -12,7 +12,7 @@ import {
   normalizeChatLocalStorageRootPath,
 } from './chatStorageConfig'
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
-import { formatReasoningStepSummary } from './FloatingPanelChat.helpers'
+import { formatReasoningStepSummary } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import {
   extractKgcWorkspaceSessionId,
   formatKgcWorkspaceSessionId,
@@ -24,6 +24,7 @@ import {
   persistDereferencedChatStreamArtifacts,
   type DereferencedChatStreamArtifact,
 } from './chatStreamArtifactDereference'
+import { filterPersistableObservedUrls, sanitizeStreamArtifactPrompt } from './chatStreamArtifactSanitizers'
 import { buildShareThinkingArtifactDocument } from './shareThinkingArtifact'
 import { mergeKgcTraceSection } from './chatKgcConsolidatedArtifacts'
 
@@ -172,13 +173,15 @@ const uniqueText = (values: readonly string[]): string[] => {
 }
 
 export const buildStreamArtifactQueryRelevance = (requestText: string): StreamArtifactQueryRelevance => {
-  const intent = sanitizeRequestIntent(requestText, 320) || 'Prompt unavailable.'
   const profile = analyzeKgcRequest(requestText)
+  const intent = sanitizeRequestIntent(profile.intent, 320) || 'Prompt unavailable.'
+  const hasInvocationRoute = Boolean(profile.invocation)
   const requestedSections = Object.entries(profile.requestedSections)
     .filter(([, enabled]) => Boolean(enabled))
     .map(([key]) => REQUESTED_SECTION_LABELS[key] || key)
   const focusParts = uniqueText([
-    profile.objective && profile.objective !== sanitizeRequestIntent(requestText, 320) ? profile.objective : '',
+    intent,
+    !hasInvocationRoute && profile.objective && profile.objective !== intent ? profile.objective : '',
     profile.artifact && !GENERIC_ARTIFACT_LABELS.has(profile.artifact.toLowerCase()) ? `Artifact: ${profile.artifact}` : '',
     profile.product ? `Product: ${profile.product}` : '',
     profile.subject ? `Subject: ${profile.subject}` : '',
@@ -447,7 +450,7 @@ const buildStreamSignalSnapshot = (args: {
       sourceUrlCandidates.push(...extractUniqueUrls([event, content, ...reasoningTexts]))
     }
     if (!eventSummary) {
-      const urls = extractUniqueUrls([event])
+      const urls = filterPersistableObservedUrls(extractUniqueUrls([event]))
       if (urls.length > 0) eventSummary = `url: ${clampText(urls[0], 160)}`
     }
     if (!eventSummary) continue
@@ -472,7 +475,7 @@ const buildStreamSignalSnapshot = (args: {
     markdownProjectionLines,
     reasoningHighlights: uniqueText(reasoningHighlights).slice(0, 8),
     toolSignals: uniqueText(toolSignals).slice(0, 8),
-    sourceUrls: extractUniqueUrls(sourceUrlCandidates).slice(0, 8),
+    sourceUrls: filterPersistableObservedUrls(extractUniqueUrls(sourceUrlCandidates)).slice(0, 8),
   }
 }
 
@@ -670,7 +673,7 @@ const buildStreamLogDocument = (args: {
       label: 'Prompt Contract',
       stage: 'Lineage',
       summary: clampText(queryRelevance.intent, 180) || 'Prompt unavailable.',
-      prompt: clampText(args.requestText, 400) || 'Prompt unavailable.',
+      prompt: clampText(sanitizeStreamArtifactPrompt(args.requestText), 400) || 'Prompt unavailable.',
       order: 2,
     },
     {
@@ -767,7 +770,7 @@ const buildStreamLogDocument = (args: {
     '',
     '## Prompt',
     '',
-    wrapFence(String(args.requestText || '').trim() || 'Prompt unavailable.', 'markdown'),
+    wrapFence(sanitizeStreamArtifactPrompt(args.requestText), 'markdown'),
     '',
     '## Query Relevance',
     '',
@@ -991,7 +994,7 @@ const buildStreamReportDocument = (args: {
     '',
     '## Prompt',
     '',
-    wrapFence(String(args.requestText || '').trim() || 'Prompt unavailable.', 'markdown'),
+    wrapFence(sanitizeStreamArtifactPrompt(args.requestText), 'markdown'),
     '',
     workspaceAssistantText ? '## Stream-Aligned Workspace Output' : '## Stream-Derived Report',
     '',
@@ -1107,12 +1110,7 @@ export const renderChatStreamArtifacts = async (args: {
     timestampMs: args.timestampMs,
     defaultLocalRootPath: args.defaultLocalRootPath,
   })
-  const observedUrls = extractUniqueUrls([
-    args.requestText,
-    args.rawAssistantText,
-    String(args.workspaceAssistantText || ''),
-    ...args.rawSseEvents,
-  ])
+  const observedUrls = filterPersistableObservedUrls(extractUniqueUrls([args.requestText, args.rawAssistantText, String(args.workspaceAssistantText || ''), ...args.rawSseEvents]))
   const reportUrls = observedUrls.filter(isReportShareUrl)
   const dereferencedArtifacts = await persistDereferencedChatStreamArtifacts({
     folderPath: bundle.folderPath,
