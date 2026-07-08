@@ -1,4 +1,5 @@
 import type { MarkdownDataView } from '@/features/markdown/ui/markdownDataViewModel'
+import { coerceDataViewFieldLineMode, type DataViewFieldLineMode } from '@/lib/ui/dataViewDensity'
 import {
   coerceStructuredSourceValueColumnMode,
   type WorkspaceDataViewConfig,
@@ -84,7 +85,7 @@ export function readStructuredSourceDataViewPresentation(view: MarkdownDataView,
   return {
     visibleColumnIds: readStructuredSourceDefaultVisibleColumnIds(view, valueColumnMode),
     rowHeightPreset: viewConfig?.rowHeightPreset === 'compact' ? 'compact' as const : 'comfortable' as const,
-    fieldLineMode: viewConfig?.fieldLineMode === 'single' ? 'single' as const : 'double' as const,
+    fieldLineMode: coerceDataViewFieldLineMode(viewConfig?.fieldLineMode),
   }
 }
 
@@ -92,6 +93,6 @@ export function readStructuredSourceRowHeightPreset(raw: WorkspaceDataViewConfig
   return raw === 'compact' ? 'compact' : 'comfortable'
 }
 
-export function readStructuredSourceFieldLineMode(raw: WorkspaceDataViewConfig['fieldLineMode']): 'single' | 'double' {
-  return raw === 'single' ? 'single' : 'double'
+export function readStructuredSourceFieldLineMode(raw: WorkspaceDataViewConfig['fieldLineMode']): DataViewFieldLineMode {
+  return coerceDataViewFieldLineMode(raw)
 }

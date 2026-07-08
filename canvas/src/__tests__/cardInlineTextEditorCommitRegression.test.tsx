@@ -26,9 +26,7 @@ import {
 import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
-const readUtf8 = (relativePath: string) => {
-  return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
-}
+const readUtf8 = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 const buildFloatingBinding = (viewConfig: WorkspaceDataViewConfig): WorkspaceDataViewFloatingBinding => ({
   registrationId: 'storybook-refresh-density',
   contextLabel: 'Storyboard',

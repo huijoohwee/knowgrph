@@ -229,10 +229,10 @@ sequenceDiagram
 | Role | Component | Input schema | Output schema | Cost log | Fallback |
 |---|---|---|---|---|---|
 | Dispatcher | MCP tool entry | `{parent_node_id, chosen_option}` | Routed payload | — | Typed error on malformed input |
-| Executor | Selection Handler | `{parent_node_id, chosen_option}` | `{new_node_id, edge_id}` | — (zero-token, no cost log required) | Write failure returns typed error; no partial node/edge pair persisted |
+| Executor | Selection Handler | `{parent_node_id, chosen_option}` | `{new_node_id, edge_id, cost_log}` | `{model:"probe-tree-select", prompt_tokens:0, completion_tokens:0, cache_hits:0, estimated_cost_usd:0}` | Write failure returns typed error; no partial node/edge pair persisted |
 | Consumer | Sync Layer → Branch Selection Surface | `{new_node_id}` | Rendered new branch | — | Retry sync on next tick |
 
-**Postconditions**: new `type: probe` node and `branches-to` edge exist in the Graph Markdown Store; parent node unchanged; new node visible via Sync Layer without manual refresh.
+**Postconditions**: new `type: probe` node and `branches-to` edge exist in the Graph Markdown Store; parent node unchanged; new node visible via Sync Layer without manual refresh; local-zero token economics are returned in the tool response.
 
 #### Pipeline: `probe.evolve`
 
@@ -273,7 +273,7 @@ The generate → select → generate cycle across a full thread is the actual ag
 
 **Component**: Selection Handler
 **Responsibility**: Persists a user's chosen branch as a new node and edge in the graph store.
-**Interfaces**: `probe.select(parent_node_id, chosen_option) → {new_node_id, edge_id}`
+**Interfaces**: `probe.select(parent_node_id, chosen_option) → {new_node_id, edge_id, cost_log}`
 **Dependencies**: Graph Markdown Store, Sync Layer
 **Configuration**: node/edge schema version (`kgc-computing-flow/v1`)
 **FOSS / Vendor**: FOSS (existing store + sync stack)
@@ -303,7 +303,7 @@ The generate → select → generate cycle across a full thread is the actual ag
 
 **Interface**: `probe.select` | **Protocol**: MCP (stdio) | **Format**: JSON | **Errors**: typed error object; no partial node/edge pair ever persisted
 
-**Interface**: `probe.evolve` | **Protocol**: MCP (stdio), invoked on thread-resolution event or explicit call | **Format**: JSON | **Errors**: typed error if thread is not in a resolved state; idempotent on re-invocation
+**Interface**: `probe.evolve` | **Protocol**: MCP (stdio), invoked on thread-resolution event or explicit call | **Format**: JSON | **Errors**: typed error if thread is not in a resolved state; mutation descriptor is non-idempotent because scoring timestamps and memory-store metadata can be rewritten on re-invocation
 
 ### Architectural Decisions
 
@@ -427,14 +427,18 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 - [x] PRD-to-TAD traceability: `PRD-ProbeTree-Generate ↔ TAD-GenerationHarness-probe.generate`, `PRD-ProbeTree-Select ↔ TAD-SelectionHandler-probe.select`, `PRD-ProbeTree-Evolve ↔ TAD-EvolutionHarness-probe.evolve`
 - [x] First implementation pass: local stdio MCP tools, markdown graph persistence, checkpoint fork metadata, scoped memory exemplar write-back
 - [x] Runtime parser proof: selected `type: probe` markdown nodes parse through the existing frontmatter-flow canvas path with a `branches-to` edge
+- [x] Neutral frontmatter key proof: probe markdown parsing preserves semantic keys containing hyphens or dots instead of dropping them as stale local-only fields
 - [x] Token-budget guard proof: `probe.generate` enforces the request budget before local model invocation and degrades locally instead of overspending tokens
+- [x] Explicit zero-recall proof: `recall_top_k: 0` bypasses the scoped memory search even when matching exemplars exist
 - [x] Full-path scoring proof: `probe.evolve` scores every persisted traversed checkpoint and reports missing parent checkpoints instead of silently accepting partial paths
+- [x] Mutation descriptor proof: `probe.select` and `probe.evolve` are advertised as non-idempotent process tools so client retries cannot silently duplicate branches or rewrite scores under an idempotent contract
+- [x] Observable local economics proof: `probe.generate`, `probe.select`, and `probe.evolve` return cost logs, with zero-token local paths reporting `$0`
 - [x] Invocation routing proof: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` resolve through the shared FloatingPanel Chat invocation catalog to this source document
-- [ ] TTV validated on a clean environment
-- [ ] Token budget actuals vs. estimates (pending first sprint of real usage)
+- [x] TTV validated on a clean environment: the MCP runtime suite runs a temp-root generate→select→evolve smoke without seeded repo state, deployment, or paid calls
+- [x] Token budget actuals vs. estimates: Dev-local proof covers request budget estimates, returned prompt/completion actuals from the optional local Ollama adapter, and `$0` local select/evolve cost logs; production usage actuals remain an operating metric outside this Dev-only contract
 
 ## Implementation Snapshot — 2026-07-07
 
-The first runtime-ready Dev slice is implemented in the local stdio MCP server only. `knowgrph.probe.generate` recalls prior resolved paths from the existing memory layer and returns bounded typed options without graph mutation. A request-level `token_budget` is enforced before local model invocation; recalled exemplars are trimmed first, and budget overflow degrades to local heuristic options instead of spending tokens. When `KNOWGRPH_PROBE_TREE_MODEL` is configured, generation calls the host-owned local Ollama `/api/chat` endpoint with `stream:false` and a structured JSON format; if the adapter is unconfigured or fails, the tool returns local heuristic options with `degraded=true` rather than mutating graph state or fabricating a provider result. `knowgrph.probe.select` writes a new `type: probe` markdown node containing the selected option, `branches-to` edge, and checkpoint fork metadata while leaving the parent node unchanged; that node parses through the existing frontmatter-flow canvas path. `knowgrph.probe.evolve` walks the selected path, updates deterministic frontmatter scores, reports missing parent checkpoints, and writes one scoped exemplar back to memory for future generation.
+The first runtime-ready Dev slice is implemented in the local stdio MCP server only. `knowgrph.probe.generate` recalls prior resolved paths from the existing memory layer and returns bounded typed options without graph mutation. A request-level `token_budget` is enforced before local model invocation; recalled exemplars are trimmed first, `recall_top_k: 0` disables recall explicitly, and budget overflow degrades to local heuristic options instead of spending tokens. When `KNOWGRPH_PROBE_TREE_MODEL` is configured, generation calls the host-owned local Ollama `/api/chat` endpoint with `stream:false` and a structured JSON format; if the adapter is unconfigured or fails, the tool returns local heuristic options with `degraded=true` rather than mutating graph state or fabricating a provider result. `knowgrph.probe.select` writes a new `type: probe` markdown node containing the selected option, `branches-to` edge, checkpoint fork metadata, and a local-zero cost log while leaving the parent node unchanged; that node parses through the existing frontmatter-flow canvas path. `knowgrph.probe.evolve` walks the selected path, updates deterministic frontmatter scores, reports missing parent checkpoints, returns a local-zero cost log, and writes one scoped exemplar back to memory for future generation. The MCP descriptor marks `probe.select` and `probe.evolve` as non-idempotent process tools so host retry behavior matches their mutation semantics.
 
 The native LangGraph/StateGraph checkpointer is still intentionally deferred per ADR-2. The runtime exposes an independent probe-tree state graph definition and keeps markdown as the only persistent graph SSOT; no second datastore or deployment unit was added. The document is now invokable from the shared FloatingPanel Chat grammar through `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree`; those routes are Dev-local reference context and do not authorize Prod mirror or Cloudflare deployment.

@@ -12,6 +12,8 @@ import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspac
 import {
   DATA_VIEW_FIELD_LINE_OPTIONS,
   DATA_VIEW_ROW_HEIGHT_OPTIONS,
+  coerceDataViewFieldLineMode,
+  coerceDataViewRowHeightPreset,
   readDataViewFieldLineLabel,
   readDataViewRowHeightLabel,
 } from '@/lib/ui/dataViewDensity'
@@ -63,8 +65,8 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
     () => hasStructuredSourceValueColumnMode(props.columns),
     [props.columns],
   )
-  const rowHeightPreset = props.viewConfig.rowHeightPreset === 'compact' ? 'compact' : 'comfortable'
-  const fieldLineMode = props.viewConfig.fieldLineMode === 'double' ? 'double' : 'single'
+  const rowHeightPreset = coerceDataViewRowHeightPreset(props.viewConfig.rowHeightPreset)
+  const fieldLineMode = coerceDataViewFieldLineMode(props.viewConfig.fieldLineMode)
   const setOrientationFromWorkbench = React.useCallback((nextOrientation: 'rows' | 'columns') => {
     if (orientation === nextOrientation) return
     props.setViewConfig({
@@ -398,7 +400,7 @@ export function WorkspaceDataViewSettingsPanel(props: WorkspaceDataViewSettingsP
                     <legend className={['text-xs font-medium', UI_THEME_TOKENS.text.secondary].join(' ')}>
                       {`Field line: ${readDataViewFieldLineLabel(fieldLineMode)}`}
                     </legend>
-                    <section className="grid grid-cols-2 gap-2">
+                    <section className="grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2">
                       {DATA_VIEW_FIELD_LINE_OPTIONS.map(option => {
                         const active = fieldLineMode === option.value
                         return (

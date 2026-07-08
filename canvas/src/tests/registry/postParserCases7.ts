@@ -26,4 +26,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["strybldr.markdown.storyboard2dTemplateRuntimeReadyNeutral","@/__tests__/strybldrStoryboardTemplateValidation.test","testStrybldr2dRendererStoryboardTemplateStaysRuntimeReadyAndNeutral"],
   ["ui.flowWidget.storyboardCardTextLayout.readableLabels","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardTextLayoutKeepsSemanticLabelsReadable"],
   ["ui.flowWidget.storyboardCardTextLayout.readableChrome","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardOverlayTextLayoutUsesReadableCardChrome"],
+  ["ui.workspaceDataView.fieldLineFlex.sharedDensityModel","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexSharedDensityModel"],
+  ["ui.workspaceDataView.fieldLineFlex.tableRendersFullText","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexTableRendersFullText"],
+  ["ui.workspaceDataView.fieldLineFlex.inlineEditorUsesLayoutRows","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexInlineEditorUsesLayoutRows"],
 ]

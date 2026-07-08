@@ -53,6 +53,37 @@ test("probe.generate recalls scoped exemplars and does not mutate the markdown g
   assert.equal(await fs.readFile(path.join(storeDir, "sentinel.txt"), "utf8"), "before");
 });
 
+test("probe.generate honors explicit zero recall against a seeded memory store", async () => {
+  const rootDir = await tempRoot();
+  await fs.mkdir(path.join(rootDir, "data/memory-layer"), { recursive: true });
+  await fs.writeFile(path.join(rootDir, "data/memory-layer/local-memory-store.json"), JSON.stringify({
+    version: "knowgrph-memory-store/v0.1",
+    updated_at: "2026-07-07T00:00:00.000Z",
+    memories: [{
+      id: "mem-1",
+      memory: "Probe exemplar for procurement: Which legal approver signs off the exception?",
+      scope: { app_id: "knowgrph-probe-tree" },
+      categories: ["probe-tree"],
+      metadata: { recommended_question: "Which legal approver signs off the exception?" },
+      created_at: "2026-07-07T00:00:00.000Z",
+      updated_at: "2026-07-07T00:00:00.000Z",
+    }],
+  }, null, 2), "utf8");
+
+  const result = await generateProbeOptions({
+    thread_root_id: "procurement",
+    current_node_id: "root",
+    context_text: "procurement legal approver exception",
+    k: 2,
+    recall_top_k: 0,
+  }, { rootDir, env: {} });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.recalled_exemplars.length, 0);
+  assert.equal(result.token_budget.recalled_exemplar_count, 0);
+  assert.equal(result.options.some((option) => option.text === "Which legal approver signs off the exception?"), false);
+});
+
 test("probe.generate enforces token budget before local model invocation", async () => {
   const rootDir = await tempRoot();
   await fs.mkdir(path.join(rootDir, "data/memory-layer"), { recursive: true });
@@ -161,6 +192,7 @@ test("probe.select persists a child node with branches-to edge and leaves parent
 
   assert.equal(result.ok, true);
   assert.equal(result.parent_unchanged, true);
+  assert.equal(result.cost_log.estimated_cost_usd, 0);
   assert.match(result.node_path, /^data\/probe-tree\/threads\/thread-a\/nodes\/probe_node_/);
   assert.equal(await fs.readFile(parentPath, "utf8"), beforeParent);
 
@@ -171,6 +203,22 @@ test("probe.select persists a child node with branches-to edge and leaves parent
   assert.equal(parsed.frontmatter.edge.source, "root");
   assert.equal(parsed.frontmatter.edge.target, result.new_node_id);
   assert.equal(parsed.frontmatter.checkpoint.forked_from_node_id, "root");
+});
+
+test("probe markdown parser preserves semantic hyphen and dot frontmatter keys", () => {
+  const parsed = parseProbeMarkdown([
+    "---",
+    "semantic-key: \"enabled\"",
+    "kg.schema: \"kgc-computing-flow/v1\"",
+    "flow: {\"nodes\":[],\"edges\":[]}",
+    "---",
+    "",
+    "# Probe Node",
+  ].join("\n"));
+
+  assert.equal(parsed.frontmatter["semantic-key"], "enabled");
+  assert.equal(parsed.frontmatter["kg.schema"], "kgc-computing-flow/v1");
+  assert.deepEqual(parsed.frontmatter.flow, { nodes: [], edges: [] });
 });
 
 test("probe.evolve scores resolved path and writes a reusable memory exemplar", async () => {
@@ -201,6 +249,7 @@ test("probe.evolve scores resolved path and writes a reusable memory exemplar", 
   assert.equal(result.complete_path_scored, true);
   assert.ok(result.updated_scores.every((entry) => entry.score > 0));
   assert.match(result.exemplar_id, /^kgmem_/);
+  assert.equal(result.cost_log.estimated_cost_usd, 0);
 
   const evolved = parseProbeMarkdown(await fs.readFile(path.join(rootDir, second.node_path), "utf8"));
   assert.equal(evolved.frontmatter.status, "resolved");
@@ -209,6 +258,42 @@ test("probe.evolve scores resolved path and writes a reusable memory exemplar", 
   const memoryStore = JSON.parse(await fs.readFile(path.join(rootDir, "data/memory-layer/local-memory-store.json"), "utf8"));
   assert.equal(memoryStore.memories.length, 1);
   assert.equal(memoryStore.memories[0].metadata.terminal_node_id, second.new_node_id);
+});
+
+test("probe-tree clean-room smoke completes generate-select-evolve with observable local-zero economics", async () => {
+  const rootDir = await tempRoot();
+  const rootPath = path.join(rootDir, "data/probe-tree/threads/thread-smoke/nodes/root.md");
+  await fs.mkdir(path.dirname(rootPath), { recursive: true });
+  await fs.writeFile(rootPath, "---\nid: \"root\"\nstatus: \"active\"\nscore: 0\n---\n\n# Root\n", "utf8");
+
+  const generated = await generateProbeOptions({
+    thread_root_id: "thread-smoke",
+    current_node_id: "root",
+    context_text: "runtime-ready probe-tree clean-room smoke",
+    k: 2,
+    recall_top_k: 0,
+    token_budget: 1200,
+  }, { rootDir, env: {} });
+  const selected = await selectProbeOption({
+    thread_root_id: "thread-smoke",
+    parent_node_id: "root",
+    chosen_option: generated.options[0],
+    terminal: true,
+  }, { rootDir });
+  const evolved = await evolveProbeTree({
+    thread_root_id: "thread-smoke",
+    terminal_node_id: selected.new_node_id,
+    rating: 1,
+  }, { rootDir });
+
+  assert.equal(generated.ok, true);
+  assert.equal(generated.token_budget.within_budget, true);
+  assert.equal(generated.recalled_exemplars.length, 0);
+  assert.equal(generated.cost_log.estimated_cost_usd, 0);
+  assert.equal(selected.cost_log.estimated_cost_usd, 0);
+  assert.equal(evolved.cost_log.estimated_cost_usd, 0);
+  assert.equal(evolved.complete_path_scored, true);
+  assert.deepEqual(evolved.path_node_ids, ["root", selected.new_node_id]);
 });
 
 test("probe.evolve rejects incomplete parent checkpoints unless explicitly partial", async () => {
@@ -242,6 +327,9 @@ test("local MCP descriptors expose the probe-tree tools with mutation annotation
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeGenerate).annotations.readOnlyHint, true);
-  assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect).annotations.idempotentHint, true);
+  assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect).annotations.idempotentHint, false);
+  assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).annotations.idempotentHint, false);
+  assert.ok(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect).outputSchema.required.includes("cost_log"));
+  assert.ok(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).outputSchema.required.includes("cost_log"));
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).inputSchema.required[0], "thread_root_id");
 });

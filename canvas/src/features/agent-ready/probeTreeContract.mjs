@@ -101,7 +101,7 @@ export const PROBE_GENERATE_OUTPUT_SCHEMA = Object.freeze({
 export const PROBE_SELECT_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["contractVersion", "ok", "new_node_id", "edge_id", "node_path"],
+  required: ["contractVersion", "ok", "new_node_id", "edge_id", "node_path", "cost_log"],
   properties: {
     contractVersion: { type: "string" },
     ok: { type: "boolean" },
@@ -109,13 +109,14 @@ export const PROBE_SELECT_OUTPUT_SCHEMA = Object.freeze({
     edge_id: { type: "string" },
     node_path: { type: "string" },
     checkpoint: { type: "object", additionalProperties: true },
+    cost_log: costLogSchema,
   },
 });
 
 export const PROBE_EVOLVE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["contractVersion", "ok", "updated_scores", "exemplar_id"],
+  required: ["contractVersion", "ok", "updated_scores", "exemplar_id", "cost_log"],
   properties: {
     contractVersion: { type: "string" },
     ok: { type: "boolean" },
@@ -123,5 +124,6 @@ export const PROBE_EVOLVE_OUTPUT_SCHEMA = Object.freeze({
     exemplar_id: { type: "string" },
     complete_path_scored: { type: "boolean" },
     unscored_parent_node_ids: { type: "array", items: { type: "string" } },
+    cost_log: costLogSchema,
   },
 });

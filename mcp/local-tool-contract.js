@@ -436,7 +436,7 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES,
       withDefaults: withLocalMcpDescriptorDefaults,
       readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS,
-      processAnnotations: LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS,
+      processAnnotations: LOCAL_PROCESS_TOOL_ANNOTATIONS,
     }),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun,

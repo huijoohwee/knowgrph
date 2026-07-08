@@ -30,6 +30,11 @@ import { MarkdownDataViewCellSelectPopover } from './MarkdownDataViewCellSelectP
 import { MARKDOWN_DATA_VIEW_DEFAULT_COLUMN_WIDTH_PX, readMarkdownDataViewDefaultColumnWidth } from './markdownDataViewColumnSizing'
 import { MARKDOWN_DATA_VIEW_TABLE_STICKY_HEADER_CLASSNAME } from './markdownDataViewTableClasses'
 import {
+  MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT,
+  readMarkdownDataViewTableCellDisplayText,
+  readMarkdownDataViewTableCellPreviewText,
+} from './markdownDataViewCellPreview'
+import {
   coerceDataViewFieldLineMode,
   coerceDataViewRowHeightPreset,
   readDataViewFieldLineClassName,
@@ -69,16 +74,11 @@ const safeLinkHref = (raw: string): string | null => {
   if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:')) return v
   return null
 }
-export const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
 export const MARKDOWN_DATA_VIEW_TABLE_INITIAL_RENDER_ROW_LIMIT = 32
 export const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
 const MARKDOWN_DATA_VIEW_HIERARCHY_COLUMN_WIDTH_PX = 64
 export const MARKDOWN_DATA_VIEW_FIELD_COLUMN_ID = '__field'
-export function readMarkdownDataViewTableCellPreviewText(raw: string): string {
-  const value = String(raw || '')
-  if (value.length <= MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT) return value
-  return `${value.slice(0, MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT).trimEnd()}...`
-}
+export { MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT, readMarkdownDataViewTableCellPreviewText }
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
@@ -276,6 +276,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
         startEdit={startEdit}
         handleInlineTextCommit={handleInlineTextCommit}
         cancel={cancel}
+        fieldLineMode={fieldLineMode}
         toggleAllNestedRows={toggleAllNestedRows}
         toggleNestedRow={toggleNestedRow}
         onUpdateCell={onUpdateCell}
@@ -414,9 +415,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 const value = String(r.cells[colIndex] ?? '')
                 const rowInlineMediaCommandContext = buildInlineMediaCommandContextFromRecord(r)
                 const displayValue = readMarkdownSigilDisplayText(value)
-                const previewDisplayValue = readMarkdownDataViewTableCellPreviewText(displayValue)
-                const previewRawValue = displayValue === value ? previewDisplayValue : readMarkdownDataViewTableCellPreviewText(value)
-                const isPreviewTruncated = previewDisplayValue !== displayValue
                 const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
                 const baseKind = columnTypeToBaseKind(uiType)
                 const isEditing = editing?.rowId === r.id && editing?.colId === c.id
@@ -471,6 +469,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                 const chips = baseKind === 'multi-select' ? splitMultiValues(value) : []
                 const href = uiType === 'link' ? safeLinkHref(value) : null
                 const progressValue = uiType === 'progress' ? Number(value) : NaN
+                const renderedDisplayValue = readMarkdownDataViewTableCellDisplayText(displayValue, fieldLineMode)
+                const renderedRawValue = displayValue === value ? renderedDisplayValue : readMarkdownDataViewTableCellDisplayText(value, fieldLineMode)
+                const renderedDisplayIsTruncated = renderedDisplayValue !== displayValue
                 return (
                   <td
                     key={c.id}
@@ -502,8 +503,8 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         <span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span>
                       </section>
                     ) : href ? (
-                      <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
-                        {previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}
+                      <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer" aria-label={renderedDisplayIsTruncated ? renderedDisplayValue : undefined}>
+                        {renderedRawValue === value ? renderMarkdownSigilInlineText(value) : renderedDisplayValue}
                       </a>
                     ) : baseKind === 'select' && value ? (
                       <DataViewTagChip value={value} />
@@ -514,8 +515,8 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         ))}
                       </section>
                     ) : (
-                      <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={isPreviewTruncated ? previewDisplayValue : undefined}>
-                        {value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (canMutate ? '—' : '')}
+                      <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')} aria-label={renderedDisplayIsTruncated ? renderedDisplayValue : undefined}>
+                        {value ? (renderedRawValue === value ? renderMarkdownSigilInlineText(value) : renderedDisplayValue) : (canMutate ? '—' : '')}
                       </span>
                     ))}
                   </td>

@@ -177,11 +177,8 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   if (
     !sharedControlsText.includes('export function PanelField') ||
     !sharedControlsText.includes('export function PanelReadOnlyField') ||
-    !sharedControlsText.includes('export const PanelTextInput') ||
-    !sharedControlsText.includes('export const PanelTextarea') ||
-    !sharedControlsText.includes('export const PanelSelect') ||
-    !sharedControlsText.includes('export const PanelCheckbox') ||
-    !sharedControlsText.includes('export const PanelRangeInput') ||
+    !sharedControlsText.includes('export const PanelTextInput') || !sharedControlsText.includes('export const PanelTextarea') || !sharedControlsText.includes('export const PanelSelect') ||
+    !sharedControlsText.includes('export const PanelCheckbox') || !sharedControlsText.includes('export const PanelRangeInput') ||
     !sharedControlsText.includes("type PanelFieldVariant = 'micro' | 'section'") ||
     !sharedControlsText.includes("type PanelFieldLayout = 'block' | 'compact'") ||
     !sharedControlsText.includes("type PanelFormControlVariant = 'filled' | 'transparent'") ||
@@ -194,9 +191,8 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     dataViewDensityText.includes("'block overflow-hidden whitespace-pre-wrap break-words line-clamp-2'") ||
     !sharedControlsText.includes('readPanelChoiceSurfaceClassName') ||
     !sharedControlsText.includes('readPanelBooleanChoiceButtonClassName') ||
-    !sharedControlsText.includes('React.createContext<PanelFormDensityContextValue | null>(null)') ||
-    !sharedControlsText.includes("densityContext?.rowHeightPreset || 'compact'") ||
-    !sharedControlsText.includes('rows={nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : rows}') ||
+    !sharedControlsText.includes('React.createContext<PanelFormDensityContextValue | null>(null)') || !sharedControlsText.includes("densityContext?.rowHeightPreset || 'compact'") ||
+    !sharedControlsText.includes('const fieldLineRows = nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : 0') || !sharedControlsText.includes('rows={fieldLineRows > 0 ? fieldLineRows : rows}') ||
     !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded-md border') ||
     !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded border bg-transparent') ||
     sharedControlsText.includes('w-full resize rounded') ||
@@ -272,8 +268,7 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !dataViewFloatingStoreText.includes('WorkspaceDataViewFloatingDensity') ||
     !dataViewFloatingStoreText.includes('readBindingDensity') ||
     !dataViewFloatingStoreText.includes('bindingDensityChanged') ||
-    !dataViewFloatingStoreText.includes('setWorkspaceDataViewFloatingDensity') ||
-    !dataViewFloatingStoreText.includes('useWorkspaceDataViewFloatingDensity') ||
+    !dataViewFloatingStoreText.includes('setWorkspaceDataViewFloatingDensity') || !dataViewFloatingStoreText.includes('useWorkspaceDataViewFloatingDensity') ||
     !dataViewSettingsText.includes('setWorkspaceDataViewFloatingDensity({ rowHeightPreset: option.value, fieldLineMode })') ||
     !dataViewSettingsText.includes('setWorkspaceDataViewFloatingDensity({ rowHeightPreset, fieldLineMode: option.value })')
   ) {

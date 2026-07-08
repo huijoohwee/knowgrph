@@ -38,6 +38,12 @@ const zeroCostLog = (model = "none") => ({
 
 const estimateCompletionTokens = (k) => k * PROBE_TREE_DEFAULTS.optionCompletionTokenEstimate;
 
+const boundedInteger = ({ value, fallback, min, max }) => {
+  const raw = value === null || value === undefined || String(value).trim() === "" ? NaN : Number(value);
+  const parsed = Number.isFinite(raw) ? Math.floor(raw) : fallback;
+  return Math.max(min, Math.min(max, parsed));
+};
+
 const buildTokenBudgetReport = ({ tokenBudget, promptTokens, completionTokens, recalledCount }) => ({
   budget: tokenBudget,
   estimated_prompt_tokens: promptTokens,
@@ -101,7 +107,7 @@ export function parseProbeMarkdown(markdown) {
   if (endIndex < 0) return { frontmatter: {}, body: text };
   const frontmatter = {};
   for (const line of lines.slice(1, endIndex + 1)) {
-    const match = line.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+    const match = line.match(/^([A-Za-z0-9_.-]+):\s*(.*)$/);
     if (!match) continue;
     frontmatter[match[1]] = parseScalar(match[2]);
   }
@@ -244,9 +250,9 @@ export async function generateProbeOptions(input = {}, options = {}) {
   const currentNodeId = normalizeString(input.current_node_id);
   if (!threadRootId) throw new Error("thread_root_id is required.");
   if (!currentNodeId) throw new Error("current_node_id is required.");
-  const k = Math.max(1, Math.min(PROBE_TREE_DEFAULTS.maxOptionCount, Math.floor(Number(input.k) || PROBE_TREE_DEFAULTS.optionCount)));
-  const recallTopK = Math.max(0, Math.min(20, Math.floor(Number(input.recall_top_k) || PROBE_TREE_DEFAULTS.recallTopK)));
-  const tokenBudget = Math.max(1, Math.floor(Number(input.token_budget) || PROBE_TREE_DEFAULTS.tokenBudget));
+  const k = boundedInteger({ value: input.k, fallback: PROBE_TREE_DEFAULTS.optionCount, min: 1, max: PROBE_TREE_DEFAULTS.maxOptionCount });
+  const recallTopK = boundedInteger({ value: input.recall_top_k, fallback: PROBE_TREE_DEFAULTS.recallTopK, min: 0, max: 20 });
+  const tokenBudget = boundedInteger({ value: input.token_budget, fallback: PROBE_TREE_DEFAULTS.tokenBudget, min: 1, max: Number.MAX_SAFE_INTEGER });
   const contextText = normalizeString(input.context_text) || `${threadRootId} ${currentNodeId}`;
   const memoryResult = recallTopK > 0
     ? await searchMemoryLayerMemories({
@@ -366,6 +372,7 @@ export async function selectProbeOption(input = {}, options = {}) {
     parent_unchanged: true,
     checkpoint: frontmatter.checkpoint,
     stateGraph: buildProbeTreeStateGraphDefinition(),
+    cost_log: zeroCostLog("probe-tree-select"),
   };
 }
 
@@ -443,7 +450,7 @@ export async function evolveProbeTree(input = {}, options = {}) {
     complete_path_scored: path.unscoredParentNodeIds.length === 0,
     unscored_parent_node_ids: path.unscoredParentNodeIds,
     stateGraph: buildProbeTreeStateGraphDefinition(),
-    cost_log: zeroCostLog(),
+    cost_log: zeroCostLog("probe-tree-evolve"),
   };
 }
 

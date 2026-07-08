@@ -138,11 +138,12 @@ Canonical local tool inventory owner:
    - `knowgrph.memory.assemble_prompt` injects ranked memory results into a bounded `## Relevant Context` system-message section
    - Dev default uses local JSON storage at `KNOWGRPH_MEMORY_STORE_PATH` or `data/memory-layer/local-memory-store.json`; Mem0 credentials and provider config remain host-owned runtime inputs
 10. Probe-tree tools
-   - `knowgrph.probe.generate` recalls scoped resolved-path exemplars and returns at most four typed candidate next questions without mutating the current node; `token_budget` is enforced before a local model call, trimming recalled exemplars first and degrading to local heuristic options when the request would exceed budget
-   - `knowgrph.probe.select` persists a user-selected option as a fresh `type: probe` markdown node with an embedded `branches-to` edge and checkpoint fork metadata under `data/probe-tree`
+   - `knowgrph.probe.generate` recalls scoped resolved-path exemplars and returns at most four typed candidate next questions without mutating the current node; `token_budget` is enforced before a local model call, trimming recalled exemplars first and degrading to local heuristic options when the request would exceed budget; `recall_top_k: 0` disables recall explicitly
+   - `knowgrph.probe.select` persists a user-selected option as a fresh `type: probe` markdown node with an embedded `branches-to` edge and checkpoint fork metadata under `data/probe-tree`, and returns a local-zero `cost_log`
    - `knowgrph.probe.select` output is frontmatter-flow parseable, so the existing canvas/sync parser can project the new `type: probe` node and `branches-to` edge without a probe-specific renderer
-   - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer; incomplete parent paths are surfaced unless `allow_partial_path` is explicitly set
+   - `knowgrph.probe.evolve` scores a resolved branch path and writes one reusable exemplar through the existing memory layer; incomplete parent paths are surfaced unless `allow_partial_path` is explicitly set, and local-zero economics are returned in `cost_log`
    - `knowgrph.probe.generate` can call a host-owned local Ollama runtime when `KNOWGRPH_PROBE_TREE_MODEL` is set; it uses non-streaming structured JSON output and falls back to local heuristic options when the adapter is unconfigured or fails
+   - `knowgrph.probe.select` and `knowgrph.probe.evolve` are advertised as non-idempotent process tools because retries can create a fresh selected branch or rewrite score timestamps/memory-store metadata
    - The local runtime keeps markdown as the graph SSOT; native LangGraph checkpoint persistence remains a follow-on adapter path rather than a second datastore
 11. AI Showrunner tools
    - `knowgrph.showrunner.start_run` validates a Creative_Brief and starts a bounded dry-run or approval-gated Pipeline_Run
@@ -236,7 +237,7 @@ Then you can call:
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 - `knowgrph.superagent.run` with `{ "inputPath": "docs/documents/my-input.md", "outputDir": "data/outputs/superagent-neutral-example", "runId": "superagent-neutral-example", "providerMode": "mock" }`
 - `sealion.detect_language_variant` with `{ "text": "Saya nak buat onboarding agent untuk pengguna Singapura." }`
-- `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3, "token_budget": 1200 }`
+- `knowgrph.probe.generate` with `{ "thread_root_id": "support-intake", "current_node_id": "root", "context_text": "User needs help but has not stated constraints", "k": 3, "recall_top_k": 0, "token_budget": 1200 }`
 - `knowgrph.probe.select` with `{ "thread_root_id": "support-intake", "parent_node_id": "root", "chosen_option": { "id": "o1", "text": "Which constraint matters most right now?", "rationale": "Narrow the branch before handoff" } }`
 - `knowgrph.probe.evolve` with `{ "thread_root_id": "support-intake", "terminal_node_id": "probe_node_...", "rating": 1 }`
 - `knowgrph.video_remix.run` with `{ "mode": "live", "referenceUrl": "https://example.com/reference-video", "brief": "Remix this into a sellable launch teaser", "budgetUsd": 20 }`

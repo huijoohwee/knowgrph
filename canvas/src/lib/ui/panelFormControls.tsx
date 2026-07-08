@@ -144,11 +144,12 @@ export const PanelTextarea = React.forwardRef<HTMLTextAreaElement, PanelTextarea
   const densityContext = usePanelFormDensity()
   const nextRowHeightPreset = rowHeightPreset || densityContext?.rowHeightPreset || 'compact'
   const nextFieldLineMode = fieldLineMode || densityContext?.fieldLineMode || null
+  const fieldLineRows = nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : 0
   return (
     <textarea
       {...props}
       ref={ref}
-      rows={nextFieldLineMode ? readDataViewMultiLineControlRows(nextFieldLineMode) : rows}
+      rows={fieldLineRows > 0 ? fieldLineRows : rows}
       className={cn(
         variant === 'transparent' ? PANEL_FORM_MULTI_LINE_TRANSPARENT_CONTROL_CLASSNAME : PANEL_FORM_MULTI_LINE_FILLED_CONTROL_CLASSNAME,
         nextFieldLineMode

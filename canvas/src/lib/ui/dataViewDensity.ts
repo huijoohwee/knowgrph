@@ -1,5 +1,5 @@
 export type DataViewRowHeightPreset = 'compact' | 'comfortable'
-export type DataViewFieldLineMode = 'single' | 'double'
+export type DataViewFieldLineMode = 'single' | 'double' | 'flex'
 
 export const DATA_VIEW_ROW_HEIGHT_OPTIONS = [
   { value: 'compact', label: 'Compact', description: 'Show denser rows.' },
@@ -13,6 +13,7 @@ export const DATA_VIEW_ROW_HEIGHT_OPTIONS = [
 export const DATA_VIEW_FIELD_LINE_OPTIONS = [
   { value: 'single', label: 'Single line', description: 'Keep fields to one preview line.' },
   { value: 'double', label: 'Two lines', description: 'Allow one extra preview line.' },
+  { value: 'flex', label: 'Flex', description: 'Auto-size fields from the active layout.' },
 ] as const satisfies readonly {
   value: DataViewFieldLineMode
   label: string
@@ -32,6 +33,7 @@ export function coerceDataViewRowHeightPreset(raw: unknown): DataViewRowHeightPr
 export function parseDataViewFieldLineMode(raw: unknown): DataViewFieldLineMode | null {
   if (raw === 'single') return 'single'
   if (raw === 'double') return 'double'
+  if (raw === 'flex') return 'flex'
   return null
 }
 
@@ -44,6 +46,7 @@ export function readDataViewRowHeightLabel(preset: DataViewRowHeightPreset): str
 }
 
 export function readDataViewFieldLineLabel(mode: DataViewFieldLineMode): string {
+  if (mode === 'flex') return 'Flex'
   return mode === 'double' ? 'Two lines' : 'Single line'
 }
 
@@ -64,6 +67,7 @@ export function readDataViewHeaderPaddingClassName(preset: DataViewRowHeightPres
 }
 
 export function readDataViewFieldLineClassName(mode: DataViewFieldLineMode): string {
+  if (mode === 'flex') return 'whitespace-pre-wrap break-words'
   return mode === 'double'
     ? 'overflow-hidden whitespace-pre-wrap break-words line-clamp-2'
     : 'block truncate'
@@ -82,11 +86,13 @@ export function readDataViewMultiLineControlClassName(options: {
   fieldLineMode: DataViewFieldLineMode
 }): string {
   const rowClassName = readDataViewControlPaddingClassName(options.rowHeightPreset)
+  if (options.fieldLineMode === 'flex') return `${rowClassName} min-h-8`
   return options.fieldLineMode === 'double'
     ? `${rowClassName} min-h-12`
     : `${rowClassName} min-h-8`
 }
 
 export function readDataViewMultiLineControlRows(mode: DataViewFieldLineMode): number {
+  if (mode === 'flex') return 0
   return mode === 'double' ? 2 : 1
 }

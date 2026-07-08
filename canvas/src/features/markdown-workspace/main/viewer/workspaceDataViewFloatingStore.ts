@@ -3,7 +3,12 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewLayout } from './workspaceDataViewConfig'
 import type { WorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
-import type { DataViewFieldLineMode, DataViewRowHeightPreset } from '@/lib/ui/dataViewDensity'
+import {
+  coerceDataViewFieldLineMode,
+  coerceDataViewRowHeightPreset,
+  type DataViewFieldLineMode,
+  type DataViewRowHeightPreset,
+} from '@/lib/ui/dataViewDensity'
 
 export const WORKSPACE_DATA_VIEW_SETTINGS_PANEL_KEYS = [
   'layout',
@@ -67,8 +72,8 @@ const getSnapshot = () => currentBinding
 const getDensitySnapshot = () => currentDensity
 
 const readBindingDensity = (binding: WorkspaceDataViewFloatingBinding): WorkspaceDataViewFloatingDensity => ({
-  rowHeightPreset: binding.viewConfig.rowHeightPreset === 'compact' ? 'compact' : 'comfortable',
-  fieldLineMode: binding.viewConfig.fieldLineMode === 'double' ? 'double' : 'single',
+  rowHeightPreset: coerceDataViewRowHeightPreset(binding.viewConfig.rowHeightPreset),
+  fieldLineMode: coerceDataViewFieldLineMode(binding.viewConfig.fieldLineMode),
 })
 
 export function setWorkspaceDataViewFloatingBinding(
@@ -95,8 +100,8 @@ export function setWorkspaceDataViewFloatingBinding(
 
 export function setWorkspaceDataViewFloatingDensity(next: WorkspaceDataViewFloatingDensity) {
   const normalized: WorkspaceDataViewFloatingDensity = {
-    rowHeightPreset: next.rowHeightPreset === 'compact' ? 'compact' : 'comfortable',
-    fieldLineMode: next.fieldLineMode === 'double' ? 'double' : 'single',
+    rowHeightPreset: coerceDataViewRowHeightPreset(next.rowHeightPreset),
+    fieldLineMode: coerceDataViewFieldLineMode(next.fieldLineMode),
   }
   if (
     currentDensity.rowHeightPreset === normalized.rowHeightPreset

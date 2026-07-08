@@ -28,15 +28,11 @@ import { MarkdownDataViewNestedRowsBulkToggle } from './MarkdownDataViewNestedRo
 import { MarkdownDataViewColumnResizeHandle } from './MarkdownDataViewColumnResizeHandle'
 import { splitMultiValues } from './markdownDataViewValueUtils'
 import { MARKDOWN_DATA_VIEW_TABLE_STICKY_HEADER_CLASSNAME } from './markdownDataViewTableClasses'
+import { readMarkdownDataViewTableCellDisplayText, readMarkdownDataViewTableCellPreviewText } from './markdownDataViewCellPreview'
+import type { DataViewFieldLineMode } from '@/lib/ui/dataViewDensity'
 
 const MARKDOWN_DATA_VIEW_FIELD_COLUMN_ID = '__field'
-const MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT = 96
 const MARKDOWN_DATA_VIEW_TABLE_RENDER_ROW_INCREMENT = 32
-
-const readMarkdownDataViewTableCellPreviewText = (raw: string): string => {
-  const value = String(raw || '')
-  return value.length <= MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT ? value : `${value.slice(0, MARKDOWN_DATA_VIEW_TABLE_CELL_PREVIEW_CHAR_LIMIT).trimEnd()}...`
-}
 
 type VisibleColumnMeta = { col: MarkdownDataView['columns'][number]; index: number }
 type VisibleNestedRowState = { row: MarkdownDataView['rows'][number]; depth: number; childCount: number }
@@ -70,6 +66,7 @@ export function MarkdownDataViewColumnsTableView(props: {
   cellPaddingClassName: string
   headerPaddingClassName: string
   fieldLineClassName: string
+  fieldLineMode: DataViewFieldLineMode
   readColumnWidth: (columnId: string, fallback?: number) => number
   previewColumnResize: (columnId: string, width: number) => void
   commitColumnResize: (columnId: string, width: number) => void
@@ -158,8 +155,8 @@ export function MarkdownDataViewColumnsTableView(props: {
                     )
                   }
                   const displayValue = readMarkdownSigilDisplayText(value)
-                  const previewDisplayValue = readMarkdownDataViewTableCellPreviewText(displayValue)
-                  const previewRawValue = displayValue === value ? previewDisplayValue : readMarkdownDataViewTableCellPreviewText(value)
+                  const renderedDisplayValue = readMarkdownDataViewTableCellDisplayText(displayValue, props.fieldLineMode)
+                  const renderedRawValue = displayValue === value ? renderedDisplayValue : readMarkdownDataViewTableCellDisplayText(value, props.fieldLineMode)
                   const chips = baseKind === 'multi-select' ? splitMultiValues(value) : []
                   const href = uiType === 'link' ? safeLinkHref(value) : null
                   const progressValue = uiType === 'progress' ? Number(value) : NaN
@@ -170,11 +167,11 @@ export function MarkdownDataViewColumnsTableView(props: {
                       ) : uiType === 'progress' && Number.isFinite(progressValue) ? (
                         <section className={`${UI_RESPONSIVE_ELEMENT_ROW_CLASSNAME} gap-2`}><progress className={UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME} value={Math.max(0, Math.min(100, progressValue))} max={100} /><span className={['min-w-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}>{`${Math.round(Math.max(0, Math.min(100, progressValue)))}%`}</span></section>
                       ) : href ? (
-                        <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, props.fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">{previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue}</a>
+                        <a className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, props.fieldLineClassName, 'underline', UI_THEME_TOKENS.text.primary].join(' ')} href={href} target="_blank" rel="noreferrer">{renderedRawValue === value ? renderMarkdownSigilInlineText(value) : renderedDisplayValue}</a>
                       ) : baseKind === 'select' && value ? <DataViewTagChip value={value} /> : baseKind === 'multi-select' && chips.length ? (
                         <section className={`${uiToolbarRowScrollClassName} gap-1`}>{chips.map(v => <DataViewTagChip key={v} value={v} />)}</section>
                       ) : (
-                        <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, props.fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>{value ? (previewRawValue === value ? renderMarkdownSigilInlineText(value) : previewDisplayValue) : (props.canMutate ? '—' : '')}</span>
+                        <span className={[UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME, props.fieldLineClassName, value ? '' : UI_THEME_TOKENS.text.tertiary].join(' ')}>{value ? (renderedRawValue === value ? renderMarkdownSigilInlineText(value) : renderedDisplayValue) : (props.canMutate ? '—' : '')}</span>
                       ))}
                     </td>
                   )

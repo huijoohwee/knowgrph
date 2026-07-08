@@ -91,7 +91,7 @@ export function testWorkspaceDataViewConfigColumnCrudCleanup() {
     filterGroups: [{ id: 'g0', rules: [{ id: 'r0', columnId: 'summary', columnKind: 'text', op: 'contains', value: 'sync' }] }],
     sortRules: [{ id: 's0', columnId: 'summary', direction: 'asc' }],
     rowHeightPreset: 'compact',
-    fieldLineMode: 'double',
+    fieldLineMode: 'flex',
     graphRolesByColumnId: { summary: 'node' },
   })
   if (!base) {
@@ -112,7 +112,7 @@ export function testWorkspaceDataViewConfigColumnCrudCleanup() {
   if (duplicated.graphRolesByColumnId?.summary_copy !== 'node') {
     throw new Error('expected duplicated column to inherit graph role')
   }
-  if (duplicated.rowHeightPreset !== 'compact' || duplicated.fieldLineMode !== 'double') {
+  if (duplicated.rowHeightPreset !== 'compact' || duplicated.fieldLineMode !== 'flex') {
     throw new Error('expected duplicated config to retain density settings')
   }
 
