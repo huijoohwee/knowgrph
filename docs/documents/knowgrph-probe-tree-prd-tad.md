@@ -5,7 +5,15 @@ version: "1.0.0"
 date: "2026-07-07"
 lang: "en-US"
 frontmatter_contract: "required"
-status: "Draft"
+status: "runtime-ready"
+target_status: "runtime-ready"
+publish_policy: "Dev-only until explicit operator approval"
+invocation_id: "knowgrph.probe-tree"
+invocation_tokens:
+  slash: "/knowgrph.probe-tree"
+  hash: "#knowgrph.probe-tree"
+  at: "@knowgrph.probe-tree"
+runtime_owner: "canvas/src/features/agentic-os/agenticOsDocInvocations.ts"
 parent: "none"
 ---
 
@@ -421,6 +429,7 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 - [x] Runtime parser proof: selected `type: probe` markdown nodes parse through the existing frontmatter-flow canvas path with a `branches-to` edge
 - [x] Token-budget guard proof: `probe.generate` enforces the request budget before local model invocation and degrades locally instead of overspending tokens
 - [x] Full-path scoring proof: `probe.evolve` scores every persisted traversed checkpoint and reports missing parent checkpoints instead of silently accepting partial paths
+- [x] Invocation routing proof: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` resolve through the shared FloatingPanel Chat invocation catalog to this source document
 - [ ] TTV validated on a clean environment
 - [ ] Token budget actuals vs. estimates (pending first sprint of real usage)
 
@@ -428,4 +437,4 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 
 The first runtime-ready Dev slice is implemented in the local stdio MCP server only. `knowgrph.probe.generate` recalls prior resolved paths from the existing memory layer and returns bounded typed options without graph mutation. A request-level `token_budget` is enforced before local model invocation; recalled exemplars are trimmed first, and budget overflow degrades to local heuristic options instead of spending tokens. When `KNOWGRPH_PROBE_TREE_MODEL` is configured, generation calls the host-owned local Ollama `/api/chat` endpoint with `stream:false` and a structured JSON format; if the adapter is unconfigured or fails, the tool returns local heuristic options with `degraded=true` rather than mutating graph state or fabricating a provider result. `knowgrph.probe.select` writes a new `type: probe` markdown node containing the selected option, `branches-to` edge, and checkpoint fork metadata while leaving the parent node unchanged; that node parses through the existing frontmatter-flow canvas path. `knowgrph.probe.evolve` walks the selected path, updates deterministic frontmatter scores, reports missing parent checkpoints, and writes one scoped exemplar back to memory for future generation.
 
-The native LangGraph/StateGraph checkpointer is still intentionally deferred per ADR-2. The runtime exposes an independent probe-tree state graph definition and keeps markdown as the only persistent graph SSOT; no second datastore or deployment unit was added.
+The native LangGraph/StateGraph checkpointer is still intentionally deferred per ADR-2. The runtime exposes an independent probe-tree state graph definition and keeps markdown as the only persistent graph SSOT; no second datastore or deployment unit was added. The document is now invokable from the shared FloatingPanel Chat grammar through `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree`; those routes are Dev-local reference context and do not authorize Prod mirror or Cloudflare deployment.

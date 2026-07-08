@@ -13,6 +13,7 @@ import {
   AGENTIC_OS_DOCS_GITHUB_ROOT_URL,
   AGENTIC_OS_DOC_INVOCATIONS,
   AGENTIC_OS_SEMANTIC_INVOCATIONS,
+  KNOWGRPH_DOCS_GITHUB_ROOT_URL,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import {
@@ -31,7 +32,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 function readAgenticOsDictionaryEntries(fileName: string): string[] {
   const text = readFileSync(resolve(process.cwd(), '../../huijoohwee/agentic-os-docs', fileName), 'utf8')
-  const match = /^dictionary_entries:\n((?:  - .+\n)+)/m.exec(text)
+  const match = /^dictionary_entries:\n((?:[ ]{2}- .+\n)+)/m.exec(text)
   if (!match) throw new Error(`expected ${fileName} to expose dictionary_entries frontmatter`)
   return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean)
 }
@@ -40,8 +41,9 @@ export function testAgenticOsInvocationsUsePublicSourceLinks() {
     ...AGENTIC_OS_DOC_INVOCATIONS,
     ...AGENTIC_OS_DICTIONARY_INVOCATIONS,
   ]
+  const allowedRoots = [AGENTIC_OS_DOCS_GITHUB_ROOT_URL, KNOWGRPH_DOCS_GITHUB_ROOT_URL]
   for (const invocation of invocations) {
-    if (!invocation.sourcePath.startsWith(`${AGENTIC_OS_DOCS_GITHUB_ROOT_URL}/`)) {
+    if (!allowedRoots.some(root => invocation.sourcePath.startsWith(`${root}/`))) {
       throw new Error(`expected ${invocation.id} to use GitHub source URL, got ${invocation.sourcePath}`)
     }
     if (invocation.sourcePath.includes('/Users/') || invocation.sourcePath.includes('localhost')) {

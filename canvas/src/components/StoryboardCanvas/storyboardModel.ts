@@ -117,9 +117,11 @@ const toTitleCase = (value: string): string => {
   const normalized = normalizeText(value)
   if (!normalized) return ''
   return normalized
-    .split(/[\s_-]+/)
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(/[\s_.:/-]+/)
     .filter(Boolean)
-    .map(token => token.charAt(0).toUpperCase() + token.slice(1).toLowerCase())
+    .map(token => /^[A-Z\d]{2,}$/.test(token) ? token : token.charAt(0).toUpperCase() + token.slice(1).toLowerCase())
     .join(' ')
 }
 

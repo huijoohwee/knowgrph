@@ -12,6 +12,7 @@ export type AgenticOsDocInvocationId =
   | 'agentic-os.harness'
   | 'agentic-os.mcp-gateway'
   | 'agentic-os.validation'
+  | 'knowgrph.probe-tree'
 
 export type AgenticOsDocInvocation = {
   id: AgenticOsDocInvocationId
@@ -40,9 +41,14 @@ export type AgenticOsDictionaryInvocation = {
 }
 
 export const AGENTIC_OS_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs'
+export const KNOWGRPH_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/knowgrph/blob/main/docs/documents'
 
 const buildAgenticOsDocSourceUrl = (fileName: string): string => (
   `${AGENTIC_OS_DOCS_GITHUB_ROOT_URL}/${encodeURIComponent(fileName)}`
+)
+
+const buildKnowgrphDocSourceUrl = (fileName: string): string => (
+  `${KNOWGRPH_DOCS_GITHUB_ROOT_URL}/${encodeURIComponent(fileName)}`
 )
 
 const buildAgenticOsDocInvocation = (args: {
@@ -51,12 +57,13 @@ const buildAgenticOsDocInvocation = (args: {
   label: string
   summary: string
   keywords: readonly string[]
+  sourcePath?: string
 }): AgenticOsDocInvocation => ({
   ...args,
   slashCommand: `/${args.id}`,
   hashToken: `#${args.id}`,
   atToken: `@${args.id}`,
-  sourcePath: buildAgenticOsDocSourceUrl(args.fileName),
+  sourcePath: args.sourcePath || buildAgenticOsDocSourceUrl(args.fileName),
 })
 
 export const AGENTIC_OS_DOC_INVOCATIONS: readonly AgenticOsDocInvocation[] = [
@@ -150,6 +157,14 @@ export const AGENTIC_OS_DOC_INVOCATIONS: readonly AgenticOsDocInvocation[] = [
     label: 'Agentic OS Validation Runbook',
     summary: 'Invoke focused validation and no-regression runbook context.',
     keywords: ['validation', 'runbook', 'tests', 'regression'],
+  }),
+  buildAgenticOsDocInvocation({
+    id: 'knowgrph.probe-tree',
+    fileName: 'knowgrph-probe-tree-prd-tad.md',
+    label: 'Knowgrph Probe-Tree PRD/TAD',
+    summary: 'Invoke the runtime-ready local probe-tree PRD/TAD, MCP harness, and markdown graph contract.',
+    keywords: ['knowgrph', 'probe-tree', 'prd', 'tad', 'probe.generate', 'probe.select', 'probe.evolve', 'branches-to', 'runtime-ready'],
+    sourcePath: buildKnowgrphDocSourceUrl('knowgrph-probe-tree-prd-tad.md'),
   }),
 ] as const
 

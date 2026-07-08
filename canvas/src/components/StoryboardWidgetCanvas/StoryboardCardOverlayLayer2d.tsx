@@ -164,7 +164,7 @@ function StoryboardCardOverlayItem(props: {
           active
           title={card.title}
           actionsAriaLabel={UI_LABELS.storyboardCard}
-          titleContent={<section className="flex min-w-0 items-center gap-2">
+          titleContent={<section className="flex min-w-0 items-center gap-1.5" data-kg-storyboard-card-title-row="1">
             <CardInlineTextEditor
               value={card.lane || 'Storyboard'}
               ariaLabel={`Storyboard lane for ${card.id}`}
@@ -172,7 +172,7 @@ function StoryboardCardOverlayItem(props: {
               canEdit
               editActivation="click"
               onCommit={nextValue => onCommitLane(card, nextValue)}
-              displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
+              displayClassName="max-w-[5.75rem] shrink-0 truncate rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
               editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
             />
             <CardInlineTextEditor
@@ -182,7 +182,7 @@ function StoryboardCardOverlayItem(props: {
               canEdit
               editActivation="click"
               onCommit={nextValue => onCommitType(card, nextValue)}
-              displayClassName="shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
+              displayClassName="max-w-[8.75rem] shrink-0 truncate rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
               editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
             />
             <CardInlineTextEditor
@@ -192,7 +192,7 @@ function StoryboardCardOverlayItem(props: {
               canEdit
               editActivation="click"
               onCommit={nextValue => onCommitTitle(card, nextValue)}
-              displayClassName="min-w-0 truncate text-[11px] font-semibold leading-4"
+              displayClassName="min-w-[7rem] flex-1 truncate text-[11px] font-semibold leading-4 text-[color:var(--kg-text-primary)]"
               editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--kg-text-primary)]"
             />
           </section>}
@@ -208,13 +208,13 @@ function StoryboardCardOverlayItem(props: {
           showMinimizeToggle={false}
         />
         <section
-          className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.25rem] gap-2 p-[var(--kg-media-panel-padding,6px)]"
+          className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(4.75rem,24%)] gap-2 p-[var(--kg-media-panel-padding,6px)]"
           aria-label={`${card.title} storyboard card body`}
           data-kg-rich-media-storyboard-widget-body="1"
           data-kg-widget-body="1"
         >
           <section
-            className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-1"
+            className="flex min-h-0 flex-col gap-1.5 overflow-hidden"
             data-kg-storyboard-card-text-column="1"
             onPointerDownCapture={requestSummaryEditFromTextColumn}
             onMouseDownCapture={requestSummaryEditFromTextColumn}
@@ -233,13 +233,13 @@ function StoryboardCardOverlayItem(props: {
               rows={2}
               onCommit={nextValue => onCommitSummary(card, nextValue)}
               onMediaCommandSelect={applyInlineMediaCommandToCard}
-              displayClassName="m-0 line-clamp-2 select-none text-[10px] leading-4 text-[color:var(--kg-text-secondary)]"
+              displayClassName="m-0 line-clamp-3 select-none text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]"
               editorClassName="min-h-[3rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-1 text-[10px] leading-4 text-[color:var(--kg-text-primary)]"
             />
-            <p className="m-0 line-clamp-3 text-[9px] leading-3 text-[color:var(--kg-text-tertiary)]">
+            <p className="m-0 line-clamp-4 text-[9px] leading-3 text-[color:var(--kg-text-tertiary)]">
               {rows[1] || card.prompt || card.dialogue || card.style || ''}
             </p>
-            <footer className="flex min-w-0 items-center gap-1 text-[8px] leading-3 text-[color:var(--kg-text-tertiary)]">
+            <footer className="mt-auto flex min-w-0 items-center gap-1 border-t pt-1 text-[8px] leading-3 text-[color:var(--kg-text-tertiary)]" style={{ borderColor: 'var(--kg-border)' }}>
               {card.indexLabel ? <span className="shrink-0">{card.indexLabel}</span> : null}
               {card.typeLabel ? <span className="min-w-0 truncate">{card.typeLabel}</span> : null}
             </footer>
