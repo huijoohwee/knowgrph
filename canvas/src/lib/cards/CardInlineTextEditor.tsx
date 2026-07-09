@@ -71,7 +71,6 @@ export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null
   active.blur()
   return true
 }
-
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
     id,
@@ -183,7 +182,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       ? resolveFloatingPanelChatComposerRawText(displayText, draft, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS })
       : displayText
   ), [draft, hasProjectedInvocationOverlay])
-
+  const normalizeCommittedValueForSurface = React.useCallback((nextValue: string): string => useViewerEditSurface ? normalizeEditorValue(nextValue) : normalizeCommittedEditorValue(nextValue), [useViewerEditSurface])
   const commit = React.useCallback((forcedValue?: string) => {
     const inputValue = typeof forcedValue === 'string' ? forcedValue : inputRef.current?.value
     const rawNext = normalizeEditorValue(inputValue == null ? draft : readProjectedEditorRawValue(inputValue))
@@ -191,10 +190,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setCommandMode(null)
     setCommandQuery('')
     if (rawNext === normalizeEditorValue(value)) return
-    const next = normalizeCommittedEditorValue(rawNext)
+    const next = normalizeCommittedValueForSurface(rawNext)
     if (next === lastCommandPersistedDraftRef.current) return
     onCommit?.(next)
-  }, [draft, onCommit, readProjectedEditorRawValue, value])
+  }, [draft, normalizeCommittedValueForSurface, onCommit, readProjectedEditorRawValue, value])
 
   React.useEffect(() => {
     if (!editing || !commandMode) return
@@ -211,7 +210,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   }, [commandMode, commit, editing, isCommandMenuTarget])
 
   const persistCommandDraft = React.useCallback((nextValue: string) => {
-    const next = normalizeCommittedEditorValue(nextValue)
+    const next = normalizeCommittedValueForSurface(nextValue)
     const input = inputRef.current
     const displayNext = hasProjectedInvocationOverlay
       ? buildFloatingPanelChatComposerDisplayText(next, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS })
@@ -221,7 +220,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (next === lastCommandPersistedDraftRef.current) return
     lastCommandPersistedDraftRef.current = next
     onCommit?.(next)
-  }, [hasProjectedInvocationOverlay, onCommit, value])
+  }, [hasProjectedInvocationOverlay, normalizeCommittedValueForSurface, onCommit, value])
 
   externalCommandStateRef.current = {
     canEdit,

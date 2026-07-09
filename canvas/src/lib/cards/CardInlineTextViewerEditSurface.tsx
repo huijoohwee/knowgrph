@@ -175,11 +175,7 @@ function buildCardInlineTextViewerEditSegments(args: {
 }
 
 function normalizeVirtualMediaDraftSpacing(value: string): string {
-  return String(value || '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n[ \t]+/g, '\n')
-    .trim()
+  return String(value ?? '').replace(/\r/g, '')
 }
 
 function buildVirtualMediaChipHtml(args: {

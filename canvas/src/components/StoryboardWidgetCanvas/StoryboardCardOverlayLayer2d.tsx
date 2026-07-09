@@ -46,11 +46,10 @@ type StoryboardCardTextModel = { primaryRaw: string; primaryDisplay: string; sec
 const buildCardTextModel = (card: StoryboardCardModel): StoryboardCardTextModel => {
   const primaryRaw = card.summary || card.output || card.action || card.prompt || ''
   const secondaryRaw = card.action && card.action !== primaryRaw ? card.action : card.prompt && card.prompt !== primaryRaw ? card.prompt : ''
-  const primary = readStoryboardCardSummaryText(primaryRaw)
   const secondary = readStoryboardCardSummaryText(secondaryRaw)
   return {
     primaryRaw,
-    primaryDisplay: primary,
+    primaryDisplay: primaryRaw,
     secondaryDisplay: secondary,
   }
 }

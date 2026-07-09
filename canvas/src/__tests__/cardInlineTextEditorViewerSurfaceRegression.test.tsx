@@ -207,14 +207,14 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     if (!latest.includes('![Strybldr starter source](https://airvio.co/api/storage/media/airvio/runs/storyboard/source.png)')) {
       throw new Error(`expected Viewer WYSIWYG card edit to commit from raw source value, not the read-view display projection, got ${JSON.stringify(latest)}`)
     }
-    if (!latest.includes('/source.normalize #media')) {
-      throw new Error(`expected Viewer WYSIWYG card edit to commit canonical adjacent invocation spacing, got ${JSON.stringify(latest)}`)
+    if (!latest.includes('/source.normalize#media') || latest.includes('/source.normalize #media')) {
+      throw new Error(`expected Viewer WYSIWYG card edit to preserve compact adjacent invocation spacing, got ${JSON.stringify(latest)}`)
     }
-    if (!latest.includes('I can ... #storyboard') || !latest.includes('.. /source.normalize #media')) {
-      throw new Error(`expected Viewer WYSIWYG card edit to commit canonical punctuation-to-token spacing, got ${JSON.stringify(latest)}`)
+    if (!latest.includes('I can ...#storyboard') || !latest.includes('../source.normalize#media') || latest.includes('I can ... #storyboard') || latest.includes('.. /source.normalize')) {
+      throw new Error(`expected Viewer WYSIWYG card edit to preserve authored punctuation-to-token spacing, got ${JSON.stringify(latest)}`)
     }
-    if (!latest.includes('in #storyboard')) {
-      throw new Error(`expected Viewer WYSIWYG card edit to commit canonical word-keyword spacing, got ${JSON.stringify(latest)}`)
+    if (!latest.includes('in#storyboard') || latest.includes('in #storyboard')) {
+      throw new Error(`expected Viewer WYSIWYG card edit to preserve authored word-keyword spacing, got ${JSON.stringify(latest)}`)
     }
     if (!latest.includes(leakedAttachmentToken)) {
       throw new Error(`expected source-authored attached-media @ token to stay at its authored position after edit, got ${JSON.stringify(latest)}`)
