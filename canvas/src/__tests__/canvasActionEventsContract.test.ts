@@ -84,7 +84,6 @@ export const testCanvasActionEmittersReuseSharedCustomEventDispatcher = async ()
 
 export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   const utilsText = readUtf8('src/features/canvas/utils.ts')
-  const floatingPropsText = readUtf8('src/lib/toolbar/useFloatingPropsPanelModel.impl.ts')
   const actionsToolbarText = readUtf8('src/components/StoryboardWidget/WidgetEditorActionsToolbar.tsx')
   const launcherText = readUtf8('src/features/toolbar/ToolbarMenuLauncher.tsx')
   const floatingBridgeText = readUtf8('src/features/toolbar/floatingPanelBridge.ts')
@@ -111,11 +110,12 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   if (utilsText.includes('new CustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT')) {
     throw new Error('expected workflow run-all emitter to stop owning raw CustomEvent construction')
   }
-  if (!floatingPropsText.includes('emitFloatingPanelOpen(') || !floatingPropsText.includes('emitChatInputAppend(')) {
-    throw new Error('expected floating props panel model to keep using shared canvas action emitters')
-  }
-  if (!actionsToolbarText.includes('emitFloatingPanelOpen({ tab: \'node\', open: true })')) {
-    throw new Error('expected widget actions toolbar to keep using the shared floating panel emitter')
+  if (
+    !actionsToolbarText.includes("import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'") ||
+    !actionsToolbarText.includes('emitMainPanelOpen({') ||
+    !actionsToolbarText.includes("workflowManagerTab: 'graph' as const")
+  ) {
+    throw new Error('expected widget actions toolbar to keep using the shared main-panel sidepane emitter')
   }
   if (!utilsText.includes('requestFloatingPanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
     throw new Error('expected canvas emitters to call the shared floating panel bridge before dispatching passive events')

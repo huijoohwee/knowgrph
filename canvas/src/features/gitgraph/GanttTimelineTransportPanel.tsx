@@ -7,15 +7,18 @@ export function GanttTimelineTransportPanel({
   code,
   compact,
   mode = 'media',
+  onSelectedRowKeyChange,
 }: {
   code: string
   compact: boolean
   mode?: GanttTimelineTransportMode
+  onSelectedRowKeyChange?: (rowKey: string | null) => void
 }) {
   const transportRouteModel = useGanttTimelineTransportRouteModel({
     code,
     compact,
     mode,
+    onSelectedRowKeyChange,
   })
   return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} />
 }

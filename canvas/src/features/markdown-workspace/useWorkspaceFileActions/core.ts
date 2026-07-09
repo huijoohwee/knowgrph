@@ -229,7 +229,6 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         activateStrybldrImportSurface({
           graphData: useGraphStore.getState().graphData,
           rawText: resolvedText,
-          openFloatingPanel: true,
         })
       } catch {
         void 0

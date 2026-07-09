@@ -14,8 +14,10 @@ import {
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { MainPanelTypeIcon, resolveMainPanelInvocationSubjectIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { getIconSizeClass } from '@/lib/ui'
+import { insertTextIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT,
@@ -25,8 +27,16 @@ import {
 } from '@/lib/ui/floatingPanelCatalogLayout'
 import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { cn } from '@/lib/utils'
+import {
+  resolveSkillsCommandsGrammarProjection,
+  type SkillsCommandsGrammarGroupBy,
+  type SkillsCommandsGrammarProjection,
+} from './skillsCommandsGrammar'
 
 type SkillsCommandsViewProps = {
+  collapsedGroupKeys?: ReadonlySet<string>
+  grammarGroupBy?: SkillsCommandsGrammarGroupBy
+  onCollapsedGroupKeysChange?: React.Dispatch<React.SetStateAction<ReadonlySet<string>>>
   prefixFilter?: SkillsCommandsPrefixFilter
   searchQuery?: string
 }
@@ -45,6 +55,23 @@ type SkillsCommandsCatalogEntry = {
   kind: 'doc' | 'runtime' | 'skill' | AgenticOsDictionaryInvocationKind
   sourcePath?: string
   keywords: readonly string[]
+}
+
+type SkillsCommandsRenderEntry = {
+  grammar: SkillsCommandsGrammarProjection
+  option: SkillsCommandsCatalogEntry
+}
+
+type SkillsCommandsRenderGroup = {
+  entries: readonly SkillsCommandsRenderEntry[]
+  key: string
+  label: string
+}
+
+export type SkillsCommandsGroupKeyModel = {
+  count: number
+  key: string
+  label: string
 }
 
 const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => [
@@ -161,29 +188,101 @@ function matchesSkillsCommandsPrefixFilter(entry: SkillsCommandsCatalogEntry, pr
   return entry.token.startsWith('@')
 }
 
-export default function SkillsCommandsView({ prefixFilter = 'all', searchQuery = '' }: SkillsCommandsViewProps) {
+function resolveSkillsCommandsEntries(prefixFilter: SkillsCommandsPrefixFilter, queryRaw: string): readonly SkillsCommandsCatalogEntry[] {
+  const query = normalize(queryRaw)
+  const prefixEntries = SKILLS_COMMANDS_CATALOG.filter(option => matchesSkillsCommandsPrefixFilter(option, prefixFilter))
+  if (!query) return prefixEntries
+  return prefixEntries.filter(option => {
+    const haystack = [
+      option.label,
+      option.token,
+      option.summary,
+      option.group,
+      option.kind,
+      option.sourcePath,
+      ...option.keywords,
+    ].map(normalize).join(' ')
+    return haystack.includes(query)
+  })
+}
+
+function resolveSkillsCommandsRenderEntries(prefixFilter: SkillsCommandsPrefixFilter, queryRaw: string): readonly SkillsCommandsRenderEntry[] {
+  return resolveSkillsCommandsEntries(prefixFilter, queryRaw).map(option => ({
+    grammar: resolveSkillsCommandsGrammarProjection(option),
+    option,
+  }))
+}
+
+function groupSkillsCommandsRenderEntries(entries: readonly SkillsCommandsRenderEntry[], grammarGroupBy: SkillsCommandsGrammarGroupBy): readonly SkillsCommandsRenderGroup[] {
+  const groups = new Map<string, SkillsCommandsRenderGroup>()
+  for (const entry of entries) {
+    const facet = entry.grammar[grammarGroupBy]
+    const key = `${grammarGroupBy}:${facet.key}`
+    const current = groups.get(key)
+    if (current) {
+      groups.set(key, { ...current, entries: [...current.entries, entry] })
+      continue
+    }
+    groups.set(key, { key, label: facet.label, entries: [entry] })
+  }
+  return Array.from(groups.values())
+}
+
+export function resolveSkillsCommandsGroupKeys({
+  grammarGroupBy = 'subject',
+  prefixFilter = 'all',
+  searchQuery = '',
+}: {
+  grammarGroupBy?: SkillsCommandsGrammarGroupBy
+  prefixFilter?: SkillsCommandsPrefixFilter
+  searchQuery?: string
+}): readonly SkillsCommandsGroupKeyModel[] {
+  return groupSkillsCommandsRenderEntries(
+    resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery),
+    grammarGroupBy,
+  ).map(group => ({
+    count: group.entries.length,
+    key: group.key,
+    label: group.label,
+  }))
+}
+
+const buildSkillsCommandsGroupContentId = (groupKey: string): string => `skills-commands-group-${groupKey.replace(/[^a-z0-9_-]+/gi, '-')}`
+
+export default function SkillsCommandsView({
+  collapsedGroupKeys: controlledCollapsedGroupKeys,
+  grammarGroupBy = 'subject',
+  onCollapsedGroupKeysChange,
+  prefixFilter = 'all',
+  searchQuery = '',
+}: SkillsCommandsViewProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiIconColorClass = useGraphStore(s => s.uiIconColorClass)
-  const query = normalize(searchQuery)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const iconColorClass = uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : UI_THEME_TOKENS.icon.color
-  const entries = React.useMemo(() => {
-    const prefixEntries = SKILLS_COMMANDS_CATALOG.filter(option => matchesSkillsCommandsPrefixFilter(option, prefixFilter))
-    if (!query) return prefixEntries
-    return prefixEntries.filter(option => {
-      const haystack = [
-        option.label,
-        option.token,
-        option.summary,
-        option.group,
-        option.kind,
-        option.sourcePath,
-        ...option.keywords,
-      ].map(normalize).join(' ')
-      return haystack.includes(query)
+  const renderEntries = React.useMemo<readonly SkillsCommandsRenderEntry[]>(() => resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery), [prefixFilter, searchQuery])
+  const entryGroups = React.useMemo(() => groupSkillsCommandsRenderEntries(renderEntries, grammarGroupBy), [grammarGroupBy, renderEntries])
+  const [uncontrolledCollapsedGroupKeys, setUncontrolledCollapsedGroupKeys] = React.useState<ReadonlySet<string>>(() => new Set())
+  const collapsedGroupKeys = controlledCollapsedGroupKeys ?? uncontrolledCollapsedGroupKeys
+  const setCollapsedGroupKeys = onCollapsedGroupKeysChange ?? setUncontrolledCollapsedGroupKeys
+  const handleToggleGroup = React.useCallback((groupKey: string, nextCollapsed: boolean) => {
+    setCollapsedGroupKeys(prev => {
+      if (prev.has(groupKey) === nextCollapsed) return prev
+      const next = new Set(prev)
+      if (nextCollapsed) {
+        next.add(groupKey)
+      } else {
+        next.delete(groupKey)
+      }
+      return next
     })
-  }, [prefixFilter, query])
+  }, [setCollapsedGroupKeys])
+  const insertCatalogToken = React.useCallback((entry: SkillsCommandsCatalogEntry): boolean => {
+    const token = String(entry.token || '').trim()
+    if (!token) return false
+    return insertTextIntoActiveCardInlineTextEditor(token)
+  }, [])
 
   return (
     <section
@@ -191,49 +290,103 @@ export default function SkillsCommandsView({ prefixFilter = 'all', searchQuery =
       data-kg-floating-panel-skills-commands="true"
       data-kg-floating-panel-catalog-list="skills-commands"
       data-kg-floating-panel-skills-commands-prefix-filter={prefixFilter}
+      data-kg-floating-panel-skills-commands-grammar-group-by={grammarGroupBy}
       aria-label="Skills & Commands"
     >
       <section className="grid min-w-0 gap-1" data-kg-floating-panel-catalog-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}>
-        {entries.map(option => {
-          const iconKey = resolveMainPanelInvocationSubjectIconKey(option)
-          const metaLabel = [option.group, option.summary, option.sourcePath].filter(Boolean).join(' | ')
+        {entryGroups.map((group, index) => {
+          const groupCollapsed = collapsedGroupKeys.has(group.key)
           return (
-            <article
-              key={option.id}
-              className={floatingPanelCatalogCompactRowClassName()}
-              data-kg-floating-panel-catalog-row="skills-commands"
-              data-kg-floating-panel-catalog-row-layout={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}
-              data-kg-skill-command-row={option.id}
-              data-kg-skill-command-kind={option.kind}
-              data-kg-skill-command-token={option.token}
-              data-kg-skill-command-icon-key={iconKey}
+            <section
+              key={group.key}
+              className="min-w-0"
+              data-kg-skills-commands-grammar-group={group.key}
+              data-kg-skills-commands-grammar-group-by={grammarGroupBy}
+              data-kg-skills-commands-grammar-group-collapsed={groupCollapsed ? 'true' : 'false'}
             >
-              <span
-                className={SKILLS_COMMANDS_ICON_SLOT_CLASSNAME}
-                data-kg-skill-command-icon="1"
-                data-kg-skill-command-icon-key={iconKey}
-                data-kg-skill-command-icon-row={option.id}
-                data-kg-skill-command-icon-token={option.token}
-                data-kg-skill-command-icon-fidelity="toolbar"
-                role="img"
-                aria-label={`${option.label} icon`}
+              <CollapsibleSection
+                title={(
+                  <span className="flex min-w-0 items-center justify-between gap-2" aria-label={`Skills & Commands ${grammarGroupBy} group`}>
+                    <span className={cn('m-0 truncate text-[10px] font-semibold uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>{group.label}</span>
+                    <span className={cn('shrink-0 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{group.entries.length}</span>
+                  </span>
+                )}
+                collapsed={groupCollapsed}
+                onToggle={nextCollapsed => handleToggleGroup(group.key, nextCollapsed)}
+                defaultCollapsed={false}
+                flushTop={index === 0}
+                id={buildSkillsCommandsGroupContentId(group.key)}
+                className="mt-1 border-t pt-1"
+                headerClassName="px-0"
               >
-                <MainPanelTypeIcon
-                  iconKey={iconKey}
-                  className={cn(SKILLS_COMMANDS_ICON_GLYPH_CLASSNAME, iconSizeClass, iconColorClass)}
-                  strokeWidth={uiIconStrokeWidth}
-                />
-              </span>
-              <section className="min-w-0" aria-label={`${option.label} invocation summary`}>
-                <h3 className={floatingPanelCatalogCompactRowTitleClassName()} title={option.label}>
-                  {option.label}
-                </h3>
-                <p className={floatingPanelCatalogCompactRowMetaClassName()} title={metaLabel}>
-                  {option.group}
-                </p>
-              </section>
-              {renderSkillsCommandsTokenChip(option)}
-            </article>
+                <section className="grid min-w-0 gap-1" data-kg-skills-commands-grammar-group-rows={group.key}>
+                  {group.entries.map(({ grammar, option }) => {
+                    const iconKey = resolveMainPanelInvocationSubjectIconKey(option)
+                    const metaLabel = [option.group, option.summary, option.sourcePath].filter(Boolean).join(' | ')
+                    return (
+                      <article
+                        key={option.id}
+                        className={floatingPanelCatalogCompactRowClassName()}
+                        data-kg-floating-panel-catalog-row="skills-commands"
+                        data-kg-floating-panel-catalog-row-layout={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}
+                        data-kg-skill-command-row={option.id}
+                        data-kg-skill-command-kind={option.kind}
+                        data-kg-skill-command-token={option.token}
+                        data-kg-skill-command-icon-key={iconKey}
+                        data-kg-skill-command-grammar-subject={grammar.subject.key}
+                        data-kg-skill-command-grammar-verb={grammar.verb.key}
+                        data-kg-skill-command-grammar-object={grammar.object.key}
+                        data-kg-skill-command-insert="card-inline-text"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Insert ${option.token}`}
+                        title={`Insert ${option.token}`}
+                        onMouseDown={event => {
+                          event.preventDefault()
+                        }}
+                        onClick={event => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          insertCatalogToken(option)
+                        }}
+                        onKeyDown={event => {
+                          if (event.key !== 'Enter' && event.key !== ' ') return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          insertCatalogToken(option)
+                        }}
+                      >
+                        <span
+                          className={SKILLS_COMMANDS_ICON_SLOT_CLASSNAME}
+                          data-kg-skill-command-icon="1"
+                          data-kg-skill-command-icon-key={iconKey}
+                          data-kg-skill-command-icon-row={option.id}
+                          data-kg-skill-command-icon-token={option.token}
+                          data-kg-skill-command-icon-fidelity="toolbar"
+                          role="img"
+                          aria-label={`${option.label} icon`}
+                        >
+                          <MainPanelTypeIcon
+                            iconKey={iconKey}
+                            className={cn(SKILLS_COMMANDS_ICON_GLYPH_CLASSNAME, iconSizeClass, iconColorClass)}
+                            strokeWidth={uiIconStrokeWidth}
+                          />
+                        </span>
+                        <section className="min-w-0" aria-label={`${option.label} invocation summary`}>
+                          <h3 className={floatingPanelCatalogCompactRowTitleClassName()} title={option.label}>
+                            {option.label}
+                          </h3>
+                          <p className={floatingPanelCatalogCompactRowMetaClassName()} title={metaLabel}>
+                            {option.group}
+                          </p>
+                        </section>
+                        {renderSkillsCommandsTokenChip(option)}
+                      </article>
+                    )
+                  })}
+                </section>
+              </CollapsibleSection>
+            </section>
           )
         })}
       </section>

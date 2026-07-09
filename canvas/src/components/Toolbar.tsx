@@ -15,14 +15,12 @@ import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelec
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { emitFloatingPanelOpen, emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
-import { getToolbarRunAllFloatingPanelTab, supportsToolbarRunAll } from '@/lib/config.render'
+import { emitWorkflowResetAll, emitWorkflowRunAll } from '@/features/canvas/utils'
+import { supportsToolbarRunAll } from '@/lib/config.render'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { importStrybldrRunAllSource } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
-import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
-import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import {
   UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
@@ -42,23 +40,9 @@ const SearchPanelLazy = React.lazy(() => import('@/components/SearchPanel'));
 const ToolbarMenuLauncherLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarMenuLauncher').then(mod => ({ default: mod.ToolbarMenuLauncher })),
 );
-const TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS = 120
-const TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS = 520
 
 const emitToolbarRunAll = () => emitWorkflowRunAll({ source: 'toolbar' })
 const emitToolbarResetAll = () => emitWorkflowResetAll({ source: 'toolbar' })
-const shouldPrimeStoryboardWidgetRunAllLayoutLock = (args: {
-  canRunAll: boolean
-  canvas2dRenderer: unknown
-  runAllFloatingPanelTab: unknown
-}): boolean => {
-  return args.canRunAll && args.canvas2dRenderer === 'storyboard' && !args.runAllFloatingPanelTab
-}
-const primeStoryboardWidgetRunAllLayoutLockFromToolbar = (): void => {
-  const graphStore = useGraphStore.getState()
-  disableAutoZoomModesForUserGesture(graphStore)
-  setRunAllLayoutMutationLock(true)
-}
 
 export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const {
@@ -100,8 +84,7 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
   const canResetAll = canvas2dRenderer === 'storyboard'
-  const runAllFloatingPanelTab = getToolbarRunAllFloatingPanelTab(canvas2dRenderer)
-  const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && runAllFloatingPanelTab === 'strybldr')
+  const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && canvas2dRenderer === 'storyboard')
   const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
   const runStrybldrToolbarRunAll = React.useCallback(async () => {
     if (strybldrToolbarRunAllRunning) return
@@ -317,33 +300,15 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
       </IconButton>
       <IconButton
         className="App-toolbar__btn"
-        title={canRunAll ? 'Run all' : 'Run all (Storyboard Widget or Strybldr only)'}
-        tooltipContent={canRunAll ? 'Run all' : 'Run all (Storyboard Widget or Strybldr only)'}
-        onPointerDownCapture={() => {
-          if (shouldPrimeStoryboardWidgetRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
-            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
-          }
-        }}
+        title={canRunAll ? 'Run all' : 'Run all (Storyboard only)'}
+        tooltipContent={canRunAll ? 'Run all' : 'Run all (Storyboard only)'}
         onClick={() => {
           if (!canRunAll) {
-            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Storyboard Widget or Strybldr to run all.', ttlMs: 2200 })
+            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Storyboard to run all.', ttlMs: 2200 })
             return
           }
-          if (shouldPrimeStoryboardWidgetRunAllLayoutLock({ canRunAll, canvas2dRenderer, runAllFloatingPanelTab })) {
-            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
-          }
-          if (runAllFloatingPanelTab) {
-            const graphStore = useGraphStore.getState()
-            graphStore.setFloatingPanelView(runAllFloatingPanelTab)
-            graphStore.setFloatingPanelOpen(true)
-            if (runAllFloatingPanelTab === 'strybldr') {
-              emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true })
-              void runStrybldrToolbarRunAll()
-              return
-            }
-            emitFloatingPanelOpen({ tab: runAllFloatingPanelTab, open: true, runAllOnOpen: true })
-            window.setTimeout(emitToolbarRunAll, TOOLBAR_RUN_ALL_PANEL_DISPATCH_DELAY_MS)
-            window.setTimeout(emitToolbarRunAll, TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS)
+          if (canvas2dRenderer === 'storyboard') {
+            void runStrybldrToolbarRunAll()
             return
           }
           emitToolbarRunAll()

@@ -130,6 +130,7 @@ export function FloatingPanelCatalogHeader({
   searchControl,
   subtitle,
   title,
+  trailingActions,
 }: {
   actions?: React.ReactNode
   actionsLabel: string
@@ -137,6 +138,7 @@ export function FloatingPanelCatalogHeader({
   searchControl?: React.ReactNode
   subtitle: string
   title: string
+  trailingActions?: React.ReactNode
 }) {
   return (
     <header
@@ -153,6 +155,7 @@ export function FloatingPanelCatalogHeader({
       <section className="flex min-w-0 shrink-0 items-center justify-end gap-1" aria-label={actionsLabel}>
         {actions}
         {searchControl}
+        {trailingActions}
       </section>
     </header>
   )

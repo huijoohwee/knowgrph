@@ -454,9 +454,9 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
     throw new Error('expected pending Rich Media overlays to clear stranded residue only after the panel is no longer selected or open in shared widget state')
   }
   const overlaySurface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlaySurface.tsx'), 'utf8')
-  if (!overlaySurface.includes('selectedNodeId: overlayDraftNode?.id || pendingOverlayNode?.id || pendingOverlayNodeIdRef.current || null')) {
-    throw new Error('expected pending Storyboard Rich Media panels to keep shared port handles after pan or zoom clears selection state')
-  }
+  const sharedWidgetCanvas = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared.tsx'), 'utf8')
+  if (!overlaySurface.includes('selectedNodeId: selectedOverlayEditorNodeIdForDerivation')) throw new Error('expected pending Storyboard widget panels to derive selected overlay editor ids through the shared duplicate-suppression gate')
+  if (!sharedWidgetCanvas.includes("String(args.storyboardWidgetSurfaceId || '').trim() !== 'storyboard'") || !sharedWidgetCanvas.includes('isRichMediaPanelNode(node) ? null : selectedNodeId')) throw new Error('expected selected Storyboard Rich Media panels to stay on the canvas media overlay instead of opening a duplicate floating widget editor')
   const overlayElements = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceElements.tsx'), 'utf8')
   const pendingResolveIndex = overlayElements.indexOf('if (pending && pending === id) return args.pendingOverlayNode')
   if (pendingResolveIndex < 0 || pendingResolveIndex > overlayElements.indexOf('const found = args.renderGraphNodeById.get(id) || null')) {
@@ -499,7 +499,7 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!overlayPlacementRuntime.includes('const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)')
     || !overlayPlacementRuntime.includes('&& !hasAuthoritativeNodeWorldPos')
     || !overlayPlacementRuntime.includes('hasAuthoritativeNodeWorldPos')
-    || !overlayPlacementRuntime.includes('return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE')
+    || !readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/richMediaOverlayFrameSize.ts'), 'utf8').includes('return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE')
     || !overlayPlacementRuntime.includes('const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos')
     || !overlayPlacementRuntime.includes('screenY + frameHeight * (1 - panelScale) / 2')) {
     throw new Error('expected dropped Rich Media frontmatter panels to honor graph coordinates instead of balanced viewport fallback')
@@ -532,11 +532,10 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
     throw new Error('expected Storyboard Rich Media drop bridge to mark pending overlay nodes open in shared widget state immediately')
   }
   const richMediaDropStart = dropBridge.indexOf('const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {')
-  const richMediaImmediateOpenIndex = dropBridge.indexOf('openPendingOverlayNode(actualId)', richMediaDropStart)
-  const richMediaPendingRefIndex = dropBridge.indexOf('args.pendingOpenWidgetNodeIdRef.current = actualId', richMediaDropStart)
-  if (richMediaImmediateOpenIndex < 0 || richMediaPendingRefIndex < 0 || richMediaImmediateOpenIndex > richMediaPendingRefIndex) {
-    throw new Error('expected Storyboard Rich Media drop bridge to open pending overlay widgets before deferring to the later pending-open resolver')
-  }
+  const richMediaDropEnd = dropBridge.indexOf('\n\n  React.useEffect(() => {', richMediaDropStart)
+  const richMediaDropSlice = dropBridge.slice(richMediaDropStart, richMediaDropEnd)
+  if (richMediaDropSlice.includes('openPendingOverlayNode(actualId)') || richMediaDropSlice.includes('args.pendingOpenWidgetNodeIdRef.current = actualId')) throw new Error('forbid direct media drops from opening a duplicate Rich Media floating widget editor; the canvas media overlay is the owner')
+  if (!richMediaDropSlice.includes('args.scheduleForceSelect(actualId, { minHoldMs: 700 })')) throw new Error('expected direct media drops to keep canvas selection without mounting a duplicate floating widget editor')
 }
 
 export function testMediaPointerReleaseUsesActualCursorPoint() {

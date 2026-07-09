@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
+  AGENTIC_OS_COMMAND_INVOCATIONS,
   AGENTIC_OS_DOC_INVOCATIONS,
+  buildAgenticOsDictionaryInvocationMarkdown,
   buildAgenticOsDocBindingInvocationMarkdown,
   buildAgenticOsDocInvocationMarkdown,
   buildAgenticOsDocSemanticInvocationMarkdown,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { buildAgenticOsSlashInvocationMenuItems } from '@/features/agentic-os/agenticOsInlineCommandItems'
 import { toStableSlashMenuState } from '@/lib/markdown-core/ui/markdownBlockContainerCore.menuState'
 
 const readUtf8 = (filePath: string) => readFileSync(filePath, 'utf8')
@@ -47,5 +50,23 @@ export function testMarkdownSlashMenuActionsReuseTriggerRangeAfterMenuFocus() {
   }
   if (buildAgenticOsDocBindingInvocationMarkdown(harnessDoc) !== '@agentic-os.harness') {
     throw new Error('expected binding doc insertion to persist the canonical at token only')
+  }
+
+  const prdTadInvocation = AGENTIC_OS_COMMAND_INVOCATIONS.find(invocation => invocation.token === '/prd-tad.create')
+  if (!prdTadInvocation) throw new Error('expected Agentic OS command dictionary to expose /prd-tad.create')
+  if (buildAgenticOsDictionaryInvocationMarkdown(prdTadInvocation) !== '/prd-tad.create') {
+    throw new Error('expected dictionary command insertion to persist the canonical slash token only')
+  }
+  const selectedReplacements: string[] = []
+  const prdTadMenuItem = buildAgenticOsSlashInvocationMenuItems({
+    onSelect: replacement => selectedReplacements.push(replacement),
+  }).find(item => item.label === '/prd-tad.create')
+  if (!prdTadMenuItem) throw new Error('expected card slash command menu to expose /prd-tad.create')
+  prdTadMenuItem.onSelect()
+  if (selectedReplacements.join('|') !== '/prd-tad.create') {
+    throw new Error(`expected card slash command menu to insert only /prd-tad.create, got ${JSON.stringify(selectedReplacements)}`)
+  }
+  if (selectedReplacements.some(replacement => /https?:\/\//.test(replacement))) {
+    throw new Error(`expected card slash command menu not to persist invocation source URLs, got ${JSON.stringify(selectedReplacements)}`)
   }
 }

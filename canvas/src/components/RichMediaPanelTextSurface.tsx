@@ -1,4 +1,6 @@
+import type React from 'react'
 import { CardMediaEmptyPlaceholder, CardMediaLoadingSkeleton } from '@/lib/cards/CardMediaPreview'
+import { CardMediaDropZoneFrame } from '@/lib/cards/CardMediaDropZone'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
@@ -10,8 +12,23 @@ export function RichMediaPanelTextSurface(args: {
   props: RichMediaPanelProps
 }) {
   const { model, props } = args
+  const wrapWithMediaDropZone = (children: React.ReactNode) => (
+    props.onMediaDrop ? (
+      <CardMediaDropZoneFrame
+        ariaLabel={`Media drop zone for ${model.title}`}
+        className="h-full w-full"
+        dataAttributes={{
+          'data-kg-rich-media-media-drop-zone': '1',
+          'data-kg-rich-media-panel-id': String(props.overlayId || ''),
+        }}
+        onDropMedia={props.onMediaDrop}
+      >
+        {children}
+      </CardMediaDropZoneFrame>
+    ) : children
+  )
   if (model.showPanelInlineTextEditor) {
-    return (
+    return wrapWithMediaDropZone(
       <section
         aria-label="Rich media markdown preview"
         data-kg-rich-media-markdown-preview="1"
@@ -65,7 +82,7 @@ export function RichMediaPanelTextSurface(args: {
           displayClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden"
           editorClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden font-mono text-xs leading-5"
         />
-      </section>
+      </section>,
     )
   }
   if (model.showPanelMarkdownPreview) {
@@ -109,11 +126,11 @@ export function RichMediaPanelTextSurface(args: {
     )
   }
   if (model.isEmptyPanel) {
-    return (
+    return wrapWithMediaDropZone(
       <CardMediaEmptyPlaceholder
         variant={model.expectedEmptyPlaceholderVariant}
         richMediaDataAttrs
-      />
+      />,
     )
   }
   return null

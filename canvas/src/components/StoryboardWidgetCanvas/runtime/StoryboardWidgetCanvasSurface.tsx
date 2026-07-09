@@ -3,11 +3,11 @@ import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiv
 import FlowCanvas from '@/components/FlowCanvas'
 import { StoryboardCardOverlayLayer2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-import { deriveStoryboardCanvasRichMediaPanelNodeIds, filterGraphByExcludedNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { deriveStoryboardCanvasRichMediaPanelNodeIds, filterGraphByExcludedNodeIds, readResolvedStoryboardWidgetDropTransform } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
-import { readFlowWidgetDragPayloadFromDataTransfer } from '@/lib/storyboardWidget/widgetDrag'
+import { readFlowWidgetDragPayloadFromDataTransfer, resolveFlowWidgetDragEventReleaseClientPoint } from '@/lib/storyboardWidget/widgetDrag'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   claimMediaPointerDragDrop,
@@ -19,7 +19,6 @@ import {
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 import { screenToWorld } from '@/lib/zoom/viewport'
-import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -200,18 +199,19 @@ export default function StoryboardWidgetCanvasSurface(props: {
     const sx = clientX - rect.left
     const sy = clientY - rect.top
     if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
-    const st = useGraphStore.getState()
-    const transform = props.getLiveZoomTransform() || getEffectiveZoomStateForKey({
-      zoomViewKey: props.zoomViewKeyRef.current,
-      zoomStateByKey: st.zoomStateByKey,
-      zoomState: st.zoomState,
+    const transform = readResolvedStoryboardWidgetDropTransform({
+      getLiveZoomTransform: props.getLiveZoomTransform,
+      zoomViewKeyRef: props.zoomViewKeyRef,
+      draftGraphDataRef: { current: flowCanvasGraphDataOverride || props.renderGraphDataOverride || props.storyboardSourceGraphData || null },
+      baseGraphData: props.storyboardSourceGraphData || null,
+      useProjectedRichMediaShell: true,
     })
     return screenToWorld({
       transform,
       sx,
       sy,
     })
-  }, [props])
+  }, [flowCanvasGraphDataOverride, props])
 
   const appendMediaPanelAtClientPoint = React.useCallback((payload: import('@/lib/ui/mediaDragPayload').MediaDragPayload, clientX: number, clientY: number) => {
     if (props.geospatialWidgetPanelMode || !props.canEdit) return false
@@ -333,8 +333,9 @@ export default function StoryboardWidgetCanvasSurface(props: {
         const rect = el ? el.getBoundingClientRect() : null
         if (!rect) return
         props.setCanvasWindowOffsetFromRect(rect)
-        const sx = ev.clientX - rect.left
-        const sy = ev.clientY - rect.top
+        const release = resolveFlowWidgetDragEventReleaseClientPoint(ev.nativeEvent)
+        const sx = release.clientX - rect.left
+        const sy = release.clientY - rect.top
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
         const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
         if (props.shouldDedupeWidgetDrop(dropKey)) {
@@ -342,18 +343,8 @@ export default function StoryboardWidgetCanvasSurface(props: {
           ev.stopPropagation()
           return
         }
-        const st = useGraphStore.getState()
-        const pos = screenToWorld({
-          transform:
-            props.getLiveZoomTransform() ||
-            getEffectiveZoomStateForKey({
-              zoomViewKey: props.zoomViewKeyRef.current,
-              zoomStateByKey: st.zoomStateByKey,
-              zoomState: st.zoomState,
-            }),
-          sx,
-          sy,
-        })
+        const pos = readSurfaceDrop(release.clientX, release.clientY)
+        if (!pos) return
         props.addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
         props.upsertUiToast({
           id: 'storyboard-widget-drop-widget',

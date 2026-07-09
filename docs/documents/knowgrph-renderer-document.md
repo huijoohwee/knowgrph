@@ -407,9 +407,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Schema knobs**:
   - 2D D3 force layout reads layout-force tuning from `schema.layout.forces.*`, including `antiLineStrength`, `postFitStrength`, and `postFitAlphaMax` (plus `antiLineForce`, `antiLineAlphaMin`, `antiLineTickInterval`, `postFitForce` switches).
 - **UI surface**:
-  - The Floating Props Panel exposes a **Layout** section with numeric controls for anti-line strength, post-fit strength, and post-fit alpha max, plus a “Strong spread preset” Apply button that writes a recommended combo into the active semantic-mode schema.
+  - Layout tuning is `/`, `#`, `@` invokable through `/canvas.layout.tune #canvas-layout @layout-forces`; the command writes anti-line strength, post-fit strength, post-fit alpha max, preset, or reset values into the active schema owner.
 - **Reset behavior**:
-  - The Layout section also exposes a **Reset** button that restores layout forces to defaults per mode (Document vs Keyword) using the SSOT defaults from `defaultSchema`; toolbar **Reset** remains strictly camera/viewport Fit-to-View and must not mutate layout forces or cached positions.
+  - `/canvas.layout.tune` restores layout forces to defaults per mode (Document vs Keyword) using the SSOT defaults from `defaultSchema`; toolbar **Reset** remains strictly camera/viewport Fit-to-View and must not mutate layout forces or cached positions.
 
 ---
 

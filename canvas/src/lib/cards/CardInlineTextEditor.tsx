@@ -1,14 +1,26 @@
 import React from 'react'
 import { useWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
-import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { CardInlineTextEditingSurface } from '@/lib/cards/CardInlineTextEditingSurface'
+import { CardInlineTextDisplaySurface } from '@/lib/cards/CardInlineTextDisplaySurface'
+import {
+  CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE,
+  CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE,
+  CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE,
+  EDITOR_PROJECTED_MEDIA_ATTACHMENTS,
+  isElementEventTarget,
+  normalizeCardInlineTextDisplayClassName,
+  normalizeCommittedCardInlineEditorValue,
+  readCardInlineTextMediaCandidateKey,
+  shouldIgnoreInlineEditTarget,
+  type CardInlineTextCommandExternalState,
+  type CardInlineTextEditorProps,
+} from '@/lib/cards/CardInlineTextEditorSupport'
 import { CardInlineTextCommandMenus, type CardInlineTextCommandMenuMode } from '@/lib/cards/CardInlineTextCommandMenus'
 import { hasCardMarkdownPreviewSyntax } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CardInlineTextProjectedMediaChip } from '@/lib/cards/CardInlineTextProjectedMediaChip'
+import { focusCardInlineTextViewerSelectionSoon } from '@/lib/cards/CardInlineTextViewerEditSurface'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
-import { readDataViewFieldLineClassName } from '@/lib/ui/dataViewDensity'
-import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
-import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdown-core/ui/markdownInlineEditActivation'
-import { PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { readDataViewFieldLineClassName, readDataViewMultiLineControlClassName } from '@/lib/ui/dataViewDensity'
 import { useCardInlineTextSelectedDisplayCommand } from '@/lib/cards/cardInlineTextSelectedDisplayCommand'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import {
@@ -25,51 +37,33 @@ import {
   replaceCardInlineEditorTextRange,
 } from '@/lib/cards/cardInlineTextEditorUtils'
 import { readInlineCommandMenuSigilFromInsertedText, readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
-
-type CardInlineTextEditActivation = 'doubleClick' | 'click'
-
-type CardInlineTextEditorProps = {
-  id?: string
-  value: string
-  ariaLabel: string
-  placeholder: string
-  canEdit?: boolean
-  editActivation?: CardInlineTextEditActivation
-  editRequestKey?: string | number | null
-  multiline?: boolean
-  displayClassName?: string
-  editorClassName?: string
-  emptyClassName?: string
-  markdownPreview?: boolean | 'auto'
-  markdownCommandMenus?: boolean
-  markdownCommandContextText?: string
-  mediaCommandMode?: 'inline' | 'external'
-  openOnPointerDown?: boolean
-  rows?: number
-  showCommandLaunchers?: boolean
-  stopActivationPropagation?: boolean
-  onCommit?: (nextValue: string) => void
-  onEditingChange?: (editing: boolean) => void
-  onMediaCommandSelect?: (candidate: InlineMediaCommandCandidate) => void
-}
-
+import {
+  buildFloatingPanelChatComposerDisplayText,
+  buildFloatingPanelChatComposerOverlayParts,
+  collectTextareaInvocationMediaAttachmentCandidateChips,
+  isFloatingPanelChatComposerProjectedCaretInsideChip,
+  mapFloatingPanelChatComposerDisplayIndexToRawIndex,
+  mapFloatingPanelChatComposerRawIndexToDisplayIndex,
+  readTextareaInvocationMediaReferenceKey,
+  readTextareaInvocationProjectionTextClassName,
+  resolveFloatingPanelChatComposerRawText,
+  type TextareaInvocationProjectedMediaChip,
+} from '@/lib/ui/textareaInvocationProjection'
+import { cn } from '@/lib/utils'
 const normalizeEditorValue = normalizeCardInlineEditorValue
-const CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE = 'data-kg-card-inline-edit-input'
-const CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE = 'data-kg-card-inline-command-root'
-const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
+const normalizeCommittedEditorValue = normalizeCommittedCardInlineEditorValue
 const readInputSelection = readCardInlineEditorInputSelection
 const focusInputSelectionSoon = focusCardInlineEditorInputSelectionSoon
 const replaceTextRange = replaceCardInlineEditorTextRange
-
 export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {
   const doc = ownerDocument || (typeof document !== 'undefined' ? document : null)
   const active = doc?.activeElement
   if (!active) return false
   const elementCtor = active.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null)
   if (!elementCtor || !(active instanceof elementCtor)) return false
-  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) {
+  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], [contenteditable="true"][${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) {
     const commandRoot = active.closest(`[${CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE}]`)
-    const commandInput = commandRoot?.querySelector(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`) as HTMLElement | null
+    const commandInput = commandRoot?.querySelector(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], [contenteditable="true"][${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`) as HTMLElement | null
     if (!commandInput) return false
     commandInput.blur()
     return true
@@ -78,45 +72,11 @@ export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null
   return true
 }
 
-const isElementEventTarget = (target: EventTarget | null): target is Element => {
-  const elementCtor = target && 'ownerDocument' in target
-    ? (target as { ownerDocument?: Document | null }).ownerDocument?.defaultView?.Element
-    : typeof Element !== 'undefined'
-      ? Element
-      : null
-  return !!elementCtor && target instanceof elementCtor
-}
-
-const shouldIgnoreInlineEditTarget = (target: EventTarget | null): boolean => {
-  if (!isElementEventTarget(target)) return false
-  return !!target.closest([
-    'button',
-    'select',
-    'input',
-    'textarea',
-    'a',
-    '[role="menu"]',
-    '[role="menuitem"]',
-    '[contenteditable="true"]',
-    '[data-kg-card-media-interactive="1"]',
-  ].join(','))
-}
-
-const isCardInlineTextFieldLineClassToken = (token: string): boolean =>
-  /^(block|break-words|truncate|whitespace-nowrap|whitespace-pre-wrap)$/.test(token) || token.startsWith('line-clamp-')
-
-const normalizeCardInlineTextDisplayClassName = (className: string, multiline: boolean): string =>
-  multiline && !/\boverflow-auto\b/.test(className)
-    ? className
-        .split(/\s+/)
-        .filter(token => token && !isCardInlineTextFieldLineClassToken(token))
-        .join(' ')
-    : className
-
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
     id,
     value,
+    displayValue: displayValueProp,
     ariaLabel,
     placeholder,
     canEdit = false,
@@ -130,7 +90,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     markdownCommandMenus = true,
     markdownCommandContextText = '',
     mediaCommandMode = 'inline',
+    editorSurface = 'control',
     openOnPointerDown = false,
+    projectedMediaAttachments = null,
     rows,
     showCommandLaunchers = true,
     stopActivationPropagation = true,
@@ -142,23 +104,19 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const [draft, setDraft] = React.useState(() => normalizeEditorValue(value))
   const [commandMode, setCommandMode] = React.useState<CardInlineTextCommandMenuMode | null>(null)
   const [commandQuery, setCommandQuery] = React.useState('')
+  const [projectedSelectionRange, setProjectedSelectionRange] = React.useState({ start: 0, end: 0 })
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const viewerEditorRef = React.useRef<HTMLElement | null>(null)
   const commandRootRef = React.useRef<HTMLElement | null>(null)
   const displayRef = React.useRef<HTMLElement | null>(null)
   const lastEditRequestKeyRef = React.useRef<string | number | null>(null)
   const lastEditingRef = React.useRef(editing)
   const lastCommandPersistedDraftRef = React.useRef('')
   const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
-  const externalCommandStateRef = React.useRef({
-    canEdit,
-    draft,
-    editing,
-    multiline,
-    onCommit,
-    persistCommandDraft: (_nextValue: string) => void 0,
-    value,
-  })
+  const externalCommandStateRef = React.useRef<CardInlineTextCommandExternalState>({ canEdit, draft, editing, multiline, onCommit, persistCommandDraft: (_nextValue: string) => void 0, value })
   const editorDensity = useWorkspaceDataViewFloatingDensity()
+  const useViewerEditSurface = multiline && editorSurface === 'viewer'
+  const displaySourceValue = displayValueProp == null ? value : displayValueProp
 
   const isCommandMenuTarget = React.useCallback((target: EventTarget | null): boolean => {
     if (!isElementEventTarget(target)) return false
@@ -175,6 +133,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
 
   React.useEffect(() => {
     if (!editing) return
+    if (useViewerEditSurface) return
     const input = inputRef.current
     if (!input) return
     input.focus()
@@ -183,7 +142,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       const selection = commandMode ? commandSelectionRef.current : { start: 0, end: fallbackEnd }
       input.setSelectionRange(selection.start, selection.end)
     }
-  }, [commandMode, editing])
+  }, [commandMode, editing, useViewerEditSurface])
 
   React.useEffect(() => {
     if (editRequestKey == null) {
@@ -203,15 +162,39 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     onEditingChange?.(editing)
   }, [editing, onEditingChange])
 
-  const commit = React.useCallback(() => {
-    const next = normalizeEditorValue(inputRef.current?.value ?? draft)
+  const projectedEditorOverlay = React.useMemo(
+    () => multiline
+      ? buildFloatingPanelChatComposerOverlayParts(draft, {
+        mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS,
+        projectInvocationTokens: false,
+      })
+      : { hasMedia: false, hasOverlay: false, parts: [] },
+    [draft, multiline],
+  )
+  const hasProjectedInvocationOverlay = multiline && projectedEditorOverlay.hasOverlay
+  const projectedEditorDisplayValue = React.useMemo(
+    () => hasProjectedInvocationOverlay
+      ? buildFloatingPanelChatComposerDisplayText(draft, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS })
+      : draft,
+    [draft, hasProjectedInvocationOverlay],
+  )
+  const readProjectedEditorRawValue = React.useCallback((displayText: string): string => (
+    hasProjectedInvocationOverlay
+      ? resolveFloatingPanelChatComposerRawText(displayText, draft, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS })
+      : displayText
+  ), [draft, hasProjectedInvocationOverlay])
+
+  const commit = React.useCallback((forcedValue?: string) => {
+    const inputValue = typeof forcedValue === 'string' ? forcedValue : inputRef.current?.value
+    const rawNext = normalizeEditorValue(inputValue == null ? draft : readProjectedEditorRawValue(inputValue))
     setEditing(false)
     setCommandMode(null)
     setCommandQuery('')
-    if (next === normalizeEditorValue(value)) return
+    if (rawNext === normalizeEditorValue(value)) return
+    const next = normalizeCommittedEditorValue(rawNext)
     if (next === lastCommandPersistedDraftRef.current) return
     onCommit?.(next)
-  }, [draft, onCommit, value])
+  }, [draft, onCommit, readProjectedEditorRawValue, value])
 
   React.useEffect(() => {
     if (!editing || !commandMode) return
@@ -228,14 +211,17 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   }, [commandMode, commit, editing, isCommandMenuTarget])
 
   const persistCommandDraft = React.useCallback((nextValue: string) => {
-    const next = normalizeEditorValue(nextValue)
+    const next = normalizeCommittedEditorValue(nextValue)
     const input = inputRef.current
-    if (input && input.value !== next) input.value = next
+    const displayNext = hasProjectedInvocationOverlay
+      ? buildFloatingPanelChatComposerDisplayText(next, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS })
+      : next
+    if (input && input.value !== displayNext) input.value = displayNext
     if (next === normalizeEditorValue(value)) return
     if (next === lastCommandPersistedDraftRef.current) return
     lastCommandPersistedDraftRef.current = next
     onCommit?.(next)
-  }, [onCommit, value])
+  }, [hasProjectedInvocationOverlay, onCommit, value])
 
   externalCommandStateRef.current = {
     canEdit,
@@ -273,11 +259,25 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     return true
   }, [canEdit, stopActivationPropagation, value])
 
-  const displayValue = readMarkdownSigilDisplayText(value)
-  const showPlaceholder = !displayValue
+  const displayMediaCandidateByKey = React.useMemo(() => {
+    if (!multiline || !projectedMediaAttachments?.length) return new Map<string, TextareaInvocationProjectedMediaChip>()
+    const candidates = collectTextareaInvocationMediaAttachmentCandidateChips(projectedMediaAttachments)
+    return new Map(candidates.map(chip => [readCardInlineTextMediaCandidateKey(chip), chip]))
+  }, [multiline, projectedMediaAttachments])
+  const renderInlineMediaCandidateChip = React.useCallback(({ value }: { value: string; label: string; className: string }) => {
+    const key = readTextareaInvocationMediaReferenceKey(value)
+    const chip = key ? displayMediaCandidateByKey.get(key) : null
+    if (!chip) return null
+    return <CardInlineTextProjectedMediaChip chip={chip} index={0} />
+  }, [displayMediaCandidateByKey])
+  const displayText = readMarkdownSigilDisplayText(displaySourceValue)
+  const showPlaceholder = !displayText
+  const displayTitle = showPlaceholder
+    ? placeholder
+    : displayText
   const showMarkdownPreview =
     !showPlaceholder
-    && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(value)))
+    && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(displaySourceValue)))
   const enableMarkdownCommandMenus = markdownCommandMenus !== false && multiline === true
   const densityOwnedDisplayClassName = normalizeCardInlineTextDisplayClassName(displayClassName || '', multiline)
   const displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto') ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : ''
@@ -299,7 +299,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const openDisplayCommandMenuForSigil = React.useCallback((sigil: '/' | '@' | '#') => {
     if (!canEdit || !enableMarkdownCommandMenus) return false
     const nextDraft = normalizeEditorValue(value)
-    const cursor = nextDraft.length
+    const cursor = buildFloatingPanelChatComposerDisplayText(nextDraft, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS }).length
     setDraft(nextDraft)
     setEditing(true)
     openCommandMenuForSigilAtSelection(sigil, { start: cursor, end: cursor })
@@ -309,7 +309,49 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const closeCommandMenu = React.useCallback(() => {
     setCommandMode(null)
     setCommandQuery('')
+    if (useViewerEditSurface) {
+      focusCardInlineTextViewerSelectionSoon(viewerEditorRef, commandSelectionRef.current.end)
+      return
+    }
     focusInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+  }, [useViewerEditSurface])
+  const projectedTextareaOverlayTextClassName = React.useMemo(
+    () => readTextareaInvocationProjectionTextClassName(cn(
+      readDataViewMultiLineControlClassName({
+        rowHeightPreset: editorDensity.rowHeightPreset,
+        fieldLineMode: editorDensity.fieldLineMode,
+      }),
+      editorClassName || '',
+    )),
+    [editorClassName, editorDensity.fieldLineMode, editorDensity.rowHeightPreset],
+  )
+  const projectedTextareaShellClassName = React.useMemo(
+    () => cn('relative min-h-0 w-full', /\bh-full\b/.test(editorClassName || '') ? 'h-full' : ''),
+    [editorClassName],
+  )
+  const hideProjectedCaret = hasProjectedInvocationOverlay && isFloatingPanelChatComposerProjectedCaretInsideChip(
+    draft,
+    projectedSelectionRange.start,
+    projectedSelectionRange.end,
+    { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS, projectInvocationTokens: false },
+  )
+  const updateProjectedSelectionRange = React.useCallback((input: HTMLInputElement | HTMLTextAreaElement | null, fallbackLength = 0) => {
+    setProjectedSelectionRange({
+      start: input?.selectionStart ?? fallbackLength,
+      end: input?.selectionEnd ?? fallbackLength,
+    })
+  }, [])
+  const setProjectedCommandDraft = React.useCallback((nextValue: string) => {
+    setDraft(readProjectedEditorRawValue(nextValue))
+  }, [readProjectedEditorRawValue])
+  const persistProjectedCommandDraft = React.useCallback((nextValue: string) => {
+    persistCommandDraft(readProjectedEditorRawValue(nextValue))
+  }, [persistCommandDraft, readProjectedEditorRawValue])
+  const finishProjectedCommandDraft = React.useCallback((nextValue: string) => {
+    finishCommandDraft(readProjectedEditorRawValue(nextValue))
+  }, [finishCommandDraft, readProjectedEditorRawValue])
+  const focusViewerCommandSelection = React.useCallback((start: number, end: number = start) => {
+    focusCardInlineTextViewerSelectionSoon(viewerEditorRef, start, end)
   }, [])
 
   const buildExternalCommandTarget = React.useCallback(() => {
@@ -319,8 +361,14 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       if (!latest.canEdit || latest.multiline !== true) return false
       if (latest.editing && inputRef.current) {
         const input = inputRef.current
-        const text = normalizeEditorValue(input.value ?? latest.draft)
-        const selection = readInputSelection(input)
+        const text = normalizeEditorValue(latest.draft)
+        const displaySelection = readInputSelection(input)
+        const selection = hasProjectedInvocationOverlay
+          ? {
+            start: mapFloatingPanelChatComposerDisplayIndexToRawIndex(text, displaySelection.start, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS }),
+            end: mapFloatingPanelChatComposerDisplayIndexToRawIndex(text, displaySelection.end, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS }),
+          }
+          : displaySelection
         const lineStartIdx = text.lastIndexOf('\n', Math.max(0, selection.end) - 1) + 1
         const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, selection.end)))
         const triggerMatch = /[\/#@][A-Za-z0-9_.-]{0,96}$/.exec(preceding)
@@ -337,12 +385,12 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         })
         setDraft(next)
         latest.persistCommandDraft(next)
-        focusInputSelectionSoon(input, cursor)
+        focusInputSelectionSoon(input, hasProjectedInvocationOverlay ? mapFloatingPanelChatComposerRawIndexToDisplayIndex(next, cursor, { mediaAttachments: EDITOR_PROJECTED_MEDIA_ATTACHMENTS }) : cursor)
         return true
       }
       const current = normalizeEditorValue(latest.editing ? latest.draft : latest.value)
       const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
-      const next = `${current}${separator}${replacement}`
+      const next = normalizeCommittedEditorValue(`${current}${separator}${replacement}`)
       setDraft(next)
       lastCommandPersistedDraftRef.current = next
       latest.onCommit?.(next)
@@ -356,7 +404,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         return insertText(replacement)
       },
     }
-  }, [ariaLabel, id])
+  }, [ariaLabel, hasProjectedInvocationOverlay, id])
 
   const registerExternalCommandElementTarget = React.useCallback(() => {
     setCardInlineTextExternalCommandElementTarget(displayRef.current, buildExternalCommandTarget())
@@ -384,7 +432,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   if (editing && canEdit) {
     const commonEditorProps = {
       id,
-      value: draft,
+      value: projectedEditorDisplayValue,
       placeholder,
       spellCheck: true,
       'aria-label': ariaLabel,
@@ -393,25 +441,28 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       autoCapitalize: 'off',
       className: editorClassName,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const nextValue = event.currentTarget.value
+        const nextDisplayValue = event.currentTarget.value
+        const nextValue = readProjectedEditorRawValue(nextDisplayValue)
         if (enableMarkdownCommandMenus && !commandMode) {
           const selection = readInputSelection(event.currentTarget)
           const insertedIndex = selection.end - 1
-          const insertedText = nextValue.length === draft.length + 1 && insertedIndex >= 0
-            ? nextValue.slice(insertedIndex, selection.end)
+          const insertedText = nextDisplayValue.length === projectedEditorDisplayValue.length + 1 && insertedIndex >= 0
+            ? nextDisplayValue.slice(insertedIndex, selection.end)
             : ''
           const sigil = readInlineCommandMenuSigilFromInsertedText(insertedText)
           if (sigil) {
             const nextSelection = { start: insertedIndex, end: insertedIndex }
-            const cleaned = `${nextValue.slice(0, insertedIndex)}${nextValue.slice(selection.end)}`
-            event.currentTarget.value = cleaned
-            setDraft(cleaned)
+            const cleanedDisplay = `${nextDisplayValue.slice(0, insertedIndex)}${nextDisplayValue.slice(selection.end)}`
+            const cleanedRaw = readProjectedEditorRawValue(cleanedDisplay)
+            event.currentTarget.value = cleanedDisplay
+            setDraft(cleanedRaw)
             openCommandMenuForSigilAtSelection(sigil, nextSelection)
             focusInputSelectionSoon(event.currentTarget, nextSelection.start)
             return
           }
         }
-        setDraft(event.currentTarget.value)
+        setDraft(nextValue)
+        updateProjectedSelectionRange(event.currentTarget, nextDisplayValue.length)
       },
       onBeforeInput: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (!enableMarkdownCommandMenus || commandMode) return
@@ -424,6 +475,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       },
       onFocus: () => {
         activateExternalCommandTarget()
+        updateProjectedSelectionRange(inputRef.current, String(inputRef.current?.value || '').length)
       },
       onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const relatedTarget = event.relatedTarget
@@ -459,141 +511,89 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
           commit()
         }
       },
+      onSelect: (event: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        updateProjectedSelectionRange(event.currentTarget, event.currentTarget.value.length)
+      },
       onDoubleClick: (event: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         event.stopPropagation()
       },
       [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1',
     }
     return (
-      <section
-        ref={commandRootRef}
-        className="relative h-full min-h-0 w-full"
-        {...{ [CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE]: '1' }}
-      >
-        {multiline ? (
-          <PanelTextarea
-            {...commonEditorProps}
-            ref={inputRef as React.Ref<HTMLTextAreaElement>}
-            rows={rows ?? 3}
-            rowHeightPreset={editorDensity.rowHeightPreset}
-            fieldLineMode={editorDensity.fieldLineMode}
-          />
-        ) : (
-          <PanelTextInput
-            {...commonEditorProps}
-            ref={inputRef as React.Ref<HTMLInputElement>}
-            type="text"
-            density={editorDensity.rowHeightPreset}
-          />
-        )}
-        {enableMarkdownCommandMenus ? (
-          <CardInlineTextCommandMenus
-            commandMode={commandMode}
-            commandQuery={commandQuery}
-            commandSelectionRef={commandSelectionRef}
-            commandContextText={markdownCommandContextText}
-            draft={draft}
-            inputRef={inputRef}
-            mediaCommandMode={mediaCommandMode}
-            openCommandMenu={openCommandMenu}
-            showLaunchers={showCommandLaunchers}
-            closeCommandMenu={closeCommandMenu}
-            setCommandQuery={setCommandQuery}
-            setCommandMode={setCommandMode}
-            setDraft={setDraft}
-            onCommandDraftChange={persistCommandDraft}
-            onCommandDraftApplied={finishCommandDraft}
-            onMediaCommandSelect={onMediaCommandSelect}
-          />
-        ) : null}
-      </section>
+      <CardInlineTextEditingSurface
+        ariaLabel={ariaLabel}
+        cardInlineEditInputAttribute={CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}
+        closeCommandMenu={closeCommandMenu}
+        commandContextText={markdownCommandContextText}
+        commandMode={commandMode}
+        commandQuery={commandQuery}
+        commandRootAttribute={CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE}
+        commandRootRef={commandRootRef}
+        commandSelectionRef={commandSelectionRef}
+        commonEditorProps={commonEditorProps}
+        draft={draft}
+        editorClassName={editorClassName}
+        editorDensity={editorDensity}
+        enableMarkdownCommandMenus={enableMarkdownCommandMenus}
+        finishProjectedCommandDraft={finishProjectedCommandDraft}
+        finishCommandDraft={finishCommandDraft}
+        focusViewerCommandSelection={focusViewerCommandSelection}
+        hasProjectedInvocationOverlay={hasProjectedInvocationOverlay}
+        hideProjectedCaret={hideProjectedCaret}
+        inputRef={inputRef}
+        isCommandMenuTarget={isCommandMenuTarget}
+        mediaCommandMode={mediaCommandMode}
+        multiline={multiline}
+        onCancel={cancel}
+        onCommit={commit}
+        onCommandDraftChange={persistCommandDraft}
+        onMediaCommandSelect={onMediaCommandSelect}
+        openCommandMenu={openCommandMenu}
+        openCommandMenuForSigilAtSelection={openCommandMenuForSigilAtSelection}
+        placeholder={placeholder}
+        projectedEditorDisplayValue={projectedEditorDisplayValue}
+        projectedEditorOverlay={projectedEditorOverlay}
+        projectedMediaAttachments={projectedMediaAttachments}
+        projectedSelectionRange={projectedSelectionRange}
+        projectedTextareaOverlayTextClassName={projectedTextareaOverlayTextClassName}
+        projectedTextareaShellClassName={projectedTextareaShellClassName}
+        rows={rows}
+        setCommandMode={setCommandMode}
+        setCommandQuery={setCommandQuery}
+        setDraft={setDraft}
+        setProjectedCommandDraft={setProjectedCommandDraft}
+        showCommandLaunchers={showCommandLaunchers}
+        useViewerEditSurface={useViewerEditSurface}
+        viewerEditorRef={viewerEditorRef}
+        persistProjectedCommandDraft={persistProjectedCommandDraft}
+      />
     )
   }
 
   return (
-    <section
-      ref={displayRef}
+    <CardInlineTextDisplaySurface
+      activateExternalCommandTarget={activateExternalCommandTarget}
+      ariaLabel={ariaLabel}
+      canEdit={canEdit}
+      densityOwnedDisplayClassName={densityOwnedDisplayClassName}
+      displayLineClassName={displayLineClassName}
+      displayRef={displayRef}
+      displaySourceValue={displaySourceValue}
+      displayText={displayText}
+      displayTitle={displayTitle}
+      editActivation={editActivation}
+      emptyClassName={emptyClassName}
+      enableMarkdownCommandMenus={enableMarkdownCommandMenus}
       id={id}
-      className={[
-        densityOwnedDisplayClassName,
-        displayLineClassName,
-        canEdit ? 'cursor-text' : '',
-        showPlaceholder ? emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : '',
-      ].join(' ').trim()}
-      title={showPlaceholder ? placeholder : displayValue}
-      aria-label={ariaLabel}
-      data-kg-card-inline-edit="1"
-      data-kg-card-inline-edit-activation={editActivation}
-      data-kg-card-inline-command-display={enableMarkdownCommandMenus ? '1' : undefined}
-      tabIndex={canEdit && enableMarkdownCommandMenus ? 0 : undefined}
-      onKeyDown={event => {
-        if (!canEdit) return
-        const sigil = enableMarkdownCommandMenus ? readInlineCommandMenuSigilFromKeyEvent(event.nativeEvent) : null
-        if (!sigil) return
-        event.preventDefault()
-        if (stopActivationPropagation) event.stopPropagation()
-        activateExternalCommandTarget()
-        openDisplayCommandMenuForSigil(sigil)
-      }}
-      onDoubleClick={event => {
-        if (editActivation !== 'doubleClick') return
-        openEditorFromDisplayEvent(event)
-      }}
-      onPointerDown={event => {
-        if (!canEdit) return
-        activateExternalCommandTarget()
-        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
-        if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
-        if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
-        if (openOnPointerDown && editActivation === 'click') {
-          openEditorFromDisplayEvent(event)
-          return
-        }
-        if (stopActivationPropagation) {
-          event.stopPropagation()
-        }
-      }}
-      onPointerUp={() => {
-        if (!canEdit) return
-        activateExternalCommandTarget()
-      }}
-      onMouseDown={event => {
-        if (!canEdit) return
-        activateExternalCommandTarget()
-        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
-        if (!useMarkdownViewerActivation && shouldIgnoreInlineEditTarget(event.target)) return
-        if (editActivation !== 'click' && !useMarkdownViewerActivation && event.detail < 2) return
-        if (stopActivationPropagation) {
-          event.stopPropagation()
-        }
-      }}
-      onMouseUp={() => {
-        if (!canEdit) return
-        activateExternalCommandTarget()
-      }}
-      onClick={event => {
-        if (!canEdit) return
-        activateExternalCommandTarget()
-        const useMarkdownViewerActivation = showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
-        if (editActivation !== 'click') {
-          if (!useMarkdownViewerActivation) return
-        }
-        openEditorFromDisplayEvent(event, { useMarkdownViewerActivation })
-      }}
-      onDragStart={event => {
-        event.preventDefault()
-        event.stopPropagation()
-      }}
-    >
-      {showPlaceholder ? placeholder : showMarkdownPreview ? (
-        <CardMarkdownPreview
-          markdownText={value}
-          activeDocumentPath="/__card_inline_text_editor/preview.md"
-          className="min-w-0"
-          uiPanelTextFontClass="font-sans"
-          uiPanelMonospaceTextClass="font-mono text-xs"
-        />
-      ) : renderMarkdownSigilInlineText(value)}
-    </section>
+      onOpenEditorFromDisplayEvent={openEditorFromDisplayEvent}
+      openDisplayCommandMenuForSigil={openDisplayCommandMenuForSigil}
+      openOnPointerDown={openOnPointerDown}
+      placeholder={placeholder}
+      renderInlineMediaCandidateChip={renderInlineMediaCandidateChip}
+      showMarkdownPreview={showMarkdownPreview}
+      showPlaceholder={showPlaceholder}
+      shouldIgnoreInlineEditTarget={shouldIgnoreInlineEditTarget}
+      stopActivationPropagation={stopActivationPropagation}
+    />
   )
 })

@@ -1,4 +1,9 @@
-import { UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
+import {
+  UI_INLINE_CHIP_LABEL_15CH_CLASSNAME,
+  UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
+  UI_INLINE_MEDIA_CHIP_SHELL_15CH_CLASSNAME,
+  UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME,
+} from '@/lib/ui/textLayout'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```|\|[^\n]*\|)|!\[[^\]]*]\([^)]+?\)|(?<!!)\[[^\]]+]\([^)]+?\)|(^|[^\\])\$[^$\n]+\$|<\s*(?:iframe|img|video)\b/i
@@ -7,7 +12,7 @@ export const CARD_MARKDOWN_PREVIEW_FRAME_CLASS_NAME = 'overflow-y-auto overflow-
 export const CARD_MARKDOWN_PREVIEW_BLOCK_SPACING_CLASS_NAME = 'm-0'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CLASS_NAME = 'max-w-full h-auto object-contain'
 export const CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME =
-  `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} align-baseline gap-0.5 rounded-full border border-[color:var(--kg-border)] pl-1 pr-1.5 ${UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME} [font-size:inherit] text-[color:var(--kg-text-secondary)]`
+  `${UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} ${UI_INLINE_MEDIA_CHIP_SHELL_15CH_CLASSNAME} align-baseline gap-0.5 rounded-full border border-[color:var(--kg-border)] pl-1 pr-1.5 ${UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME} [font-size:inherit] text-[color:var(--kg-text-secondary)]`
 export const CARD_MARKDOWN_PREVIEW_INLINE_TEXT_TOKEN_CHIP_CLASS_NAME =
   'inline rounded-[0.35em] bg-[color:var(--kg-panel-action-bg)] text-[color:var(--kg-text-secondary)] shadow-[inset_0_0_0_1px_var(--kg-border)] box-decoration-clone [-webkit-box-decoration-break:clone] [font-size:inherit] [line-height:inherit]'
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME =
@@ -15,7 +20,7 @@ export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME =
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME =
   `${CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME} mr-1 max-w-full overflow-hidden`
 export const CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME =
-  'min-w-0 max-w-[9rem] truncate [line-height:inherit]'
+  `min-w-0 ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME} [line-height:inherit]`
 export const CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME = 'bg-transparent'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-frame'
 export const CARD_MARKDOWN_PREVIEW_MEDIA_EMBED_FRAME_CLASS_NAME = 'kg-card-markdown-preview-media-embed-frame'

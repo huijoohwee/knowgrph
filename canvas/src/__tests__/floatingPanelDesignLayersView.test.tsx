@@ -74,7 +74,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
   }
 }
 
-export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() {
+export async function testFloatingPanelInteractionViewIsRemovedAfterSkillsCommandsCentralization() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   const store = useGraphStore.getState()
   try {
@@ -99,7 +99,7 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
         toolMenuCardRef={{ current: null }}
         toolMenuCardStyle={{ top: 0, left: 0 }}
         onHeaderPointerDown={() => void 0}
-        requestedFloatingPanelView="interaction"
+        requestedFloatingPanelView="skillsCommands"
         requestedFloatingPanelViewSeq={2}
         onClose={() => void 0}
       />,
@@ -114,18 +114,14 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
     if (!(shellBody instanceof dom.window.HTMLElement)) {
       throw new Error('expected floating panel shell body')
     }
-    const shellClass = String(shellBody.getAttribute('class') || '')
-    if (!shellClass.includes('overflow-hidden')) {
-      throw new Error(`expected interaction view shell body to use overflow-hidden, got ${JSON.stringify(shellClass)}`)
+    const nav = dom.window.document.querySelector('nav[aria-label="Floating panel views"]')
+    const buttons = Array.from(nav?.querySelectorAll('button') || []) as HTMLButtonElement[]
+    const labels = buttons.map(button => String(button.getAttribute('aria-label') || ''))
+    if (labels.includes('Interaction') || dom.window.document.querySelector('[aria-label="Interaction panel"]')) {
+      throw new Error(`expected stale Interaction floating section to be removed, got ${JSON.stringify(labels)}`)
     }
-
-    const interactionPanel = dom.window.document.querySelector('[aria-label="Interaction panel"]')
-    if (!(interactionPanel instanceof dom.window.HTMLElement)) {
-      throw new Error('expected interaction panel to render')
-    }
-    const interactionContent = dom.window.document.querySelector('[aria-label="Interaction panel content"]')
-    if (!(interactionContent instanceof dom.window.HTMLElement)) {
-      throw new Error('expected interaction panel content to render')
+    if (!dom.window.document.querySelector('[data-kg-floating-panel-skills-commands-view="true"]')) {
+      throw new Error('expected Skills & Commands to remain the centralized invocation surface')
     }
 
     await unmountReactRoot(root, { tasks: 1 })

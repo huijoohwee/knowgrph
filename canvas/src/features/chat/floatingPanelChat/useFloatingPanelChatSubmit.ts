@@ -5,6 +5,7 @@ import {
 } from './floatingPanelChatSubmitPreflight'
 import { executeFloatingPanelChatSubmitCoordinator } from './floatingPanelChatSubmitCoordinator'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
+import { normalizeInvocationTokenSpacing } from '@/lib/markdown/invocationTokens'
 
 export type FloatingPanelChatSubmitHookDeps = {
   resolveRequestUrlOrSetError?: typeof resolveChatSubmitRequestUrlOrSetError
@@ -24,7 +25,7 @@ export const useFloatingPanelChatSubmit = (
 
   return React.useCallback<React.FormEventHandler<HTMLFormElement>>(async ev => {
     ev.preventDefault()
-    const trimmed = args.input.trim()
+    const trimmed = normalizeInvocationTokenSpacing(args.input.trim())
     if (!trimmed || args.isLoading) return
     const requestUrl = resolveRequestUrlOrSetError({
       chatModel: args.chatModel,

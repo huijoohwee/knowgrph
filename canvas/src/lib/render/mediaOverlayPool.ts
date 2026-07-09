@@ -259,6 +259,7 @@ function buildRichMediaPanelFallbackSpec(panel: RichMediaPanelOverlayState | und
   if (panel.activeTab === 'video') return { kind: 'video', url: '', interactive: false }
   if (panel.activeTab === 'audio') return { kind: 'audio', url: '', interactive: false }
   if (panel.activeTab === 'text' || panel.activeTab === 'poi') return { kind: 'iframe', url: '', interactive: false }
+  if (panel.activeTab === 'auto') return { kind: 'iframe', url: '', interactive: false }
   return null
 }
 
@@ -393,13 +394,8 @@ export function listMediaOverlayNodes(args: {
   }
 
   const bestByKey = new Map<string, Candidate>()
-  const richMediaCandidates = candidates.filter(candidate => !!candidate.panel)
-  const hasMeaningfulRichMediaPanel = richMediaCandidates.some(hasMeaningfulRichMediaPanelOverlayContent)
   for (let i = 0; i < candidates.length; i += 1) {
     const c = candidates[i]!
-    if (c.panel && hasMeaningfulRichMediaPanel && !hasMeaningfulRichMediaPanelOverlayContent(c)) {
-      continue
-    }
     const keyUrl = canonicalMediaDedupUrl(c.url || c.openUrl)
     const key = (() => {
       if (!c.panel) return `${c.kind}\n${keyUrl || c.id}`
@@ -407,7 +403,7 @@ export function listMediaOverlayNodes(args: {
       const textKey = getRichMediaPanelTextDedupKey(c)
       if (textKey) return `${c.kind}\nrich-media-text\n${textKey}`
       if (hasMeaningfulRichMediaPanelOverlayContent(c)) return `${c.kind}\nrich-media-panel\n${c.id}`
-      return `${c.kind}\nrich-media-empty-shell`
+      return `${c.kind}\nrich-media-empty-shell\n${c.id}`
     })()
     const prev = bestByKey.get(key)
     if (!prev) {

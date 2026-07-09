@@ -36,9 +36,7 @@ export type FloatingPanelOpenEventDetail = {
     | 'xr'
     | 'architecture'
     | 'eventModeling'
-    | 'strybldr'
   open?: boolean
-  runAllOnOpen?: boolean
 }
 
 export type ChatInputAppendEventDetail = {

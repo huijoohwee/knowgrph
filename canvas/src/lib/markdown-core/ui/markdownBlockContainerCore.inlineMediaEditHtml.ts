@@ -11,6 +11,7 @@ import {
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  readInlineKeywordChipLabel,
   readInlineKeywordChipToneValue,
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
@@ -19,11 +20,13 @@ import {
   AGENTIC_OS_INVOCATION_TOKEN_ATTR,
 } from '@/features/agentic-os/agenticOsInvocationChips'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
 const INLINE_MEDIA_EDIT_TOKEN_ATTR = 'data-kg-inline-media-edit-token'
 const INLINE_MEDIA_EDIT_MARKDOWN_ATTR = 'data-kg-inline-media-markdown'
 const INLINE_INVOCATION_EDIT_TOKEN_ATTR = 'data-kg-inline-invocation-edit-token'
 const INLINE_INVOCATION_EDIT_MARKDOWN_ATTR = 'data-kg-inline-invocation-markdown'
+export const INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR = 'data-kg-inline-markdown-zero-length-token'
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
@@ -92,15 +95,14 @@ const readRenderedMediaPillMarkdown = (node: HTMLElement): string => {
 
 const buildInlineInvocationEditTokenHtml = (token: string): string => {
   const invocation = findAgenticOsInvocationByToken(token)
-  if (!invocation) return escapeHtml(token)
-  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
+  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
   return [
     `<span class="${escapeHtmlAttr(className)}"`,
-    ` title="${escapeHtmlAttr(buildAgenticOsInvocationSourceTitle(invocation))}"`,
+    ` title="${escapeHtmlAttr(invocation ? buildAgenticOsInvocationSourceTitle(invocation) : token)}"`,
     ` ${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"`,
     ` ${INLINE_INVOCATION_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(token)}"`,
     ' contenteditable="false">',
-    escapeHtml(token),
+    `<span class="${escapeHtmlAttr(`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`)}">${escapeHtml(readInlineKeywordChipLabel(token))}</span>`,
     '</span>',
   ].join('')
 }
@@ -126,13 +128,13 @@ const rewriteTextNodeInvocationsForEditor = (root: HTMLElement): void => {
   let node = walker.nextNode()
   while (node) {
     const parent = (node as Text).parentElement
-    if (!parent?.closest(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) textNodes.push(node as Text)
+    if (!parent?.closest(`${INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR},[${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"]`)) textNodes.push(node as Text)
     node = walker.nextNode()
   }
   textNodes.forEach(textNode => {
     const text = String(textNode.nodeValue || '')
     const segments = splitInvocationTokenSegments(text)
-    if (!segments.some(segment => segment.kind === 'token' && findAgenticOsInvocationByToken(segment.value))) return
+    if (!segments.some(segment => segment.kind === 'token')) return
     const fragment = ownerDocument.createDocumentFragment()
     segments.forEach(segment => {
       if (segment.kind === 'text') {
@@ -140,10 +142,6 @@ const rewriteTextNodeInvocationsForEditor = (root: HTMLElement): void => {
         return
       }
       const token = segment.value
-      if (!findAgenticOsInvocationByToken(token)) {
-        fragment.append(ownerDocument.createTextNode(token))
-        return
-      }
       const wrapper = ownerDocument.createElement('span')
       wrapper.innerHTML = buildInlineInvocationEditTokenHtml(token)
       const tokenNode = wrapper.firstElementChild
@@ -222,6 +220,7 @@ export const restoreInlineMediaEditTokensInPlace = (root: HTMLElement): void => 
 
 export const INLINE_MEDIA_EDIT_TOKEN_SELECTOR = `[${INLINE_MEDIA_EDIT_TOKEN_ATTR}="1"]`
 export const INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR = `${INLINE_MEDIA_EDIT_TOKEN_SELECTOR},[${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"]`
+export const INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_SELECTOR = `[${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"]`
 
 const readInlineMediaEditTokenMarkdown = (token: Element): string =>
   normalizeEscapedInlineMediaMarkdown(String(token.getAttribute(INLINE_MEDIA_EDIT_MARKDOWN_ATTR) || token.textContent || '').replace(/\r/g, ''))
@@ -240,12 +239,17 @@ const isInlineInvocationEditTokenElement = (node: Node): node is HTMLElement =>
 const isInlineMarkdownEditTokenElement = (node: Node): node is HTMLElement =>
   isInlineMediaEditTokenElement(node) || isInlineInvocationEditTokenElement(node)
 
-const readInlineMarkdownEditTokenMarkdown = (node: Element): string =>
+const isInlineMarkdownZeroLengthTokenElement = (node: Node): node is HTMLElement =>
+  node.nodeType === Node.ELEMENT_NODE
+    && (node as Element).matches(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_SELECTOR)
+
+export const readInlineMarkdownEditTokenMarkdown = (node: Element): string =>
   isInlineMediaEditTokenElement(node)
     ? readInlineMediaEditTokenMarkdown(node)
     : readInlineInvocationEditTokenMarkdown(node)
 
 const readSerializedInlineMediaLength = (node: Node): number => {
+  if (isInlineMarkdownZeroLengthTokenElement(node)) return 0
   if (isInlineMarkdownEditTokenElement(node)) return readInlineMarkdownEditTokenMarkdown(node).length
   if (node.nodeType === Node.TEXT_NODE) return String(node.nodeValue || '').replace(/\r/g, '').length
   if (node.nodeType !== Node.ELEMENT_NODE) return 0
@@ -264,6 +268,7 @@ export const readInlineMediaEditorMarkdownText = (root: HTMLElement | null): str
   if (!root) return ''
   let out = ''
   const walk = (node: Node): void => {
+    if (isInlineMarkdownZeroLengthTokenElement(node)) return
     if (isInlineMarkdownEditTokenElement(node)) {
       out += readInlineMarkdownEditTokenMarkdown(node)
       return
@@ -301,6 +306,10 @@ const readSerializedOffsetToBoundary = (
       }
       return null
     }
+    if (isInlineMarkdownZeroLengthTokenElement(parent)) {
+      if (parent === container || parent.contains(container)) return baseOffset
+      return null
+    }
     const children = Array.from(parent.childNodes)
     let current = baseOffset
     for (let index = 0; index <= children.length; index += 1) {
@@ -315,6 +324,10 @@ const readSerializedOffsetToBoundary = (
           return current + (offset > 0 ? readInlineMarkdownEditTokenMarkdown(child).length : 0)
         }
         current += readInlineMarkdownEditTokenMarkdown(child).length
+        continue
+      }
+      if (isInlineMarkdownZeroLengthTokenElement(child)) {
+        if (child === container || child.contains(container)) return current
         continue
       }
       if (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(container)) {
@@ -373,6 +386,10 @@ const readInlineMediaOffsetSegments = (root: HTMLElement): InlineMediaOffsetSegm
     markdownOffset += markdownLength
   }
   const walk = (node: Node): void => {
+    if (isInlineMarkdownZeroLengthTokenElement(node)) {
+      push(String(node.textContent || '').replace(/\r/g, '').length, 0, true)
+      return
+    }
     if (isInlineMarkdownEditTokenElement(node)) {
       push(String(node.textContent || '').replace(/\r/g, '').length, readInlineMarkdownEditTokenMarkdown(node).length, true)
       return

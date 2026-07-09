@@ -4,7 +4,7 @@ import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/Widget
 import { StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
 import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
-import { StoryboardCardFooterScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardFooterScrollRail'
+import { StoryboardCardMetaScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { StoryboardCardMediaDropSlot2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d'
 import { readStoryboardCardSummaryText } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryText'
 import { buildFixedStoryboardCardPlacements2d, buildFixedStoryboardCardReferencePlacements2d, readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
@@ -12,6 +12,7 @@ import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useSto
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
+import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -36,23 +37,24 @@ import { readFlowWidgetPinnedInCanvas } from '@/lib/storyboardWidget/flowWidgetP
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
-
 const isScreenBoxVisible = (box: { left: number; top: number; scale: number }, size: { width: number; height: number }, viewport: { width: number; height: number }): boolean => {
   const width = Math.max(1, size.width) * Math.max(0.001, box.scale)
   const height = Math.max(1, size.height) * Math.max(0.001, box.scale)
   return width > 0 && height > 0 && box.left + width > 0 && box.top + height > 0 && box.left < viewport.width && box.top < viewport.height
 }
-
-const buildCardRows = (card: StoryboardCardModel): string[] => {
+type StoryboardCardTextModel = { primaryRaw: string; primaryDisplay: string; secondaryDisplay: string }
+const buildCardTextModel = (card: StoryboardCardModel): StoryboardCardTextModel => {
   const primaryRaw = card.summary || card.output || card.action || card.prompt || ''
   const secondaryRaw = card.action && card.action !== primaryRaw ? card.action : card.prompt && card.prompt !== primaryRaw ? card.prompt : ''
   const primary = readStoryboardCardSummaryText(primaryRaw)
   const secondary = readStoryboardCardSummaryText(secondaryRaw)
-  return [primary, secondary].filter(Boolean).slice(0, 2)
+  return {
+    primaryRaw,
+    primaryDisplay: primary,
+    secondaryDisplay: secondary,
+  }
 }
-
 const ignoreStoryboardCardAction = () => void 0
-
 function StoryboardCardOverlayItem(props: {
   card: StoryboardCardModel; node: GraphNode; pendingMedia: StoryboardCardModel['media']; storyboardWidgetSurfaceId: string
   cardMoveEnabled: boolean
@@ -67,8 +69,12 @@ function StoryboardCardOverlayItem(props: {
 }) {
   const { card, cardMoveEnabled, storyboardWidgetSurfaceId, headerPinProps, node, onCommitLane, onCommitSummary, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onRemove, onResizePointerDown, onRun, onSelect, pendingMedia, readCardSize, register, selected } = props
   const { width, height } = readCardSize(node)
-  const rows = buildCardRows(card)
+  const textModel = buildCardTextModel(card)
   const displayMedia = pendingMedia || card.media
+  const projectedMediaAttachments = React.useMemo(() => {
+    const attachment = buildStoryboardCardMediaTextareaAttachment(displayMedia, card.title || card.id)
+    return attachment ? [attachment] : null
+  }, [card.id, card.title, displayMedia])
   const [summaryEditRequestKey, setSummaryEditRequestKey] = React.useState(0)
   const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(
     displayMedia === card.media ? card : { ...card, media: displayMedia },
@@ -149,33 +155,13 @@ function StoryboardCardOverlayItem(props: {
           actionsAriaLabel={UI_LABELS.storyboardCard}
           titleContent={<section className="flex min-w-0 items-center gap-1.5" data-kg-storyboard-card-title-row="1">
             <CardInlineTextEditor
-              value={card.lane || 'Storyboard'}
-              ariaLabel={`Storyboard lane for ${card.id}`}
-              placeholder="Add lane"
-              canEdit
-              editActivation="click"
-              onCommit={nextValue => onCommitLane(card, nextValue)}
-              displayClassName="max-w-[5.75rem] shrink-0 truncate rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
-              editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
-            />
-            <CardInlineTextEditor
-              value={card.typeLabel}
-              ariaLabel={`Storyboard type for ${card.id}`}
-              placeholder="Add type"
-              canEdit
-              editActivation="click"
-              onCommit={nextValue => onCommitType(card, nextValue)}
-              displayClassName="max-w-[8.75rem] shrink-0 truncate rounded border px-1.5 py-0.5 text-[9px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
-              editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--kg-text-primary)]"
-            />
-            <CardInlineTextEditor
               value={card.title}
               ariaLabel={`Storyboard title for ${card.id}`}
               placeholder="Add title"
               canEdit
               editActivation="click"
               onCommit={nextValue => onCommitTitle(card, nextValue)}
-              displayClassName="min-w-[7rem] flex-1 truncate text-[11px] font-semibold leading-4 text-[color:var(--kg-text-primary)]"
+              displayClassName="min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]"
               editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--kg-text-primary)]"
             />
           </section>}
@@ -204,9 +190,11 @@ function StoryboardCardOverlayItem(props: {
             onMouseDownCapture={requestSummaryEditFromTextColumn}
             style={{ borderColor: 'var(--kg-border)' }}
           >
+            <StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />
             <section className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]" data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-brief="1" data-kg-storyboard-card-summary-scroll="1" onWheelCapture={event => event.stopPropagation()}>
               <CardInlineTextEditor
-                value={rows[0] || card.slugline || ''}
+                value={textModel.primaryRaw || card.slugline || ''}
+                displayValue={textModel.primaryDisplay || card.slugline || ''}
                 ariaLabel={`Summary for ${card.id}`}
                 placeholder="Add summary"
                 canEdit
@@ -216,19 +204,20 @@ function StoryboardCardOverlayItem(props: {
                 markdownPreview="auto"
                 markdownCommandContextText={storyboardCommandContextText}
                 mediaCommandMode="external"
+                editorSurface="viewer"
                 openOnPointerDown
+                projectedMediaAttachments={projectedMediaAttachments}
                 rows={2}
                 showCommandLaunchers={false}
                 onCommit={nextValue => onCommitSummary(card, nextValue)}
                 onMediaCommandSelect={applyInlineMediaCommandToCard}
                 displayClassName="m-0 h-full min-h-0 select-none overflow-auto whitespace-pre-wrap break-words text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]"
-                editorClassName="h-full min-h-[3rem] resize-none overflow-auto rounded border bg-[color:var(--kg-input-bg)] px-1.5 py-1 text-[10px] leading-4 text-[color:var(--kg-text-primary)]"
+                editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)] [scrollbar-gutter:stable]"
               />
             </section>
             <p className="m-0 max-h-[2.625rem] overflow-auto overscroll-contain text-[9px] leading-[0.875rem] text-[color:var(--kg-text-tertiary)] [scrollbar-gutter:stable]">
-              {rows[1] || card.prompt || card.dialogue || card.style || ''}
+              {textModel.secondaryDisplay || card.prompt || card.dialogue || card.style || ''}
             </p>
-            <StoryboardCardFooterScrollRail card={card} />
           </section>
           <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} onDropMedia={onDropMedia} />
         </section>
@@ -350,9 +339,11 @@ export function StoryboardCardOverlayLayer2d(props: {
   const readLatestNode = React.useCallback((id: string): GraphNode | null => {
     const key = String(id || '').trim()
     if (!key) return null
+    const renderNode = nodeById.get(key) || null
+    if (renderNode) return renderNode
     const latestGraphData = useGraphStore.getState().graphData
     const latestNodes = Array.isArray(latestGraphData?.nodes) ? latestGraphData.nodes as GraphNode[] : []
-    return latestNodes.find(item => String(item?.id || '').trim() === key) || nodeById.get(key) || null
+    return latestNodes.find(item => String(item?.id || '').trim() === key) || null
   }, [nodeById])
   const commitNodePatch = React.useCallback((card: StoryboardCardModel, patch: Partial<GraphNode>, historyLabel: string) => {
     const id = String(card.id || '').trim()
@@ -364,6 +355,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     canonicalKey: string
     historyLabel: string
     nextValue: string
+    preserveFormatting?: boolean
     propertyKeys: readonly string[]
   }) => {
     const node = readLatestNode(card.id)
@@ -373,6 +365,7 @@ export function StoryboardCardOverlayLayer2d(props: {
       propertyKeys: args.propertyKeys,
       canonicalKey: args.canonicalKey,
       nextValue: args.nextValue,
+      preserveFormatting: args.preserveFormatting,
     }) as Record<string, JSONValue>
     commitNodePatch(card, { properties: nextProperties }, args.historyLabel)
   }, [commitNodePatch, readLatestNode])
@@ -404,7 +397,8 @@ export function StoryboardCardOverlayLayer2d(props: {
     commitNodeCanonicalProperty(card, {
       canonicalKey: 'summary',
       historyLabel: 'Storyboard summary',
-      nextValue: readStoryboardCardSummaryText(nextValue),
+      nextValue,
+      preserveFormatting: true,
       propertyKeys: GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
     })
   }, [commitNodeCanonicalProperty])

@@ -289,7 +289,7 @@ export function useWorkspaceImportActions(args: {
           hydratePending: false,
           applyToGraph: true,
         })
-        activateStrybldrImportSurface({ canvas2dRenderer: 'storyboard', openFloatingPanel: true })
+        activateStrybldrImportSurface({ canvas2dRenderer: 'storyboard' })
         const focusPath = storyPath || createdPath
         if (focusPath) {
           await focusAfterImport(focusPath, { applyToGraph: true, jsonSourceText: focusPath === createdPath ? jsonSourceText : null, jobId })
@@ -437,7 +437,7 @@ export function useWorkspaceImportActions(args: {
           activateDesignEditorSurface({ openFloatingPanel: true })
         }
         if (selectedCanvas2dRenderer === 'storyboard') {
-          activateStrybldrImportSurface({ canvas2dRenderer: 'storyboard', openFloatingPanel: true })
+          activateStrybldrImportSurface({ canvas2dRenderer: 'storyboard' })
         }
 
         status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)

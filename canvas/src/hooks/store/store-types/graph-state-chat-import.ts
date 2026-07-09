@@ -53,7 +53,6 @@ export type FloatingPanelView =
   | 'view'
   | 'media'
   | 'camera'
-  | 'interaction'
   | 'design'
   | 'chat'
   | 'geo'
@@ -66,7 +65,6 @@ export type FloatingPanelView =
   | 'xr'
   | 'architecture'
   | 'eventModeling'
-  | 'strybldr'
   | 'graphTraversal'
 
 export type MermaidDiagramSelectionKind = 'flowchart' | 'gitgraph' | 'gantt' | 'timeline' | 'architecture' | 'eventmodeling'

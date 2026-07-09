@@ -20,9 +20,9 @@ import {
   GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
   GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
   GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS,
+  readGraphNodeAuthoredTextProperty,
 } from '@/lib/cards/graphNodeCardFields'
 import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
-
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
@@ -49,9 +49,7 @@ export const STORYBOARD_DIALOGUE_PROPERTY_KEYS = GRAPH_NODE_CARD_DIALOGUE_PROPER
 export const STORYBOARD_PROMPT_PROPERTY_KEYS = GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS
 const STYLE_PROPERTY_KEYS = ['style', 'look', 'treatment', 'theme', 'preset', 'variant'] as const
 const REFERENCE_PROPERTY_KEYS = ['references', 'referenceUrls', 'reference_urls', 'referenceImages', 'reference_images', 'moodboard', 'referenceLinks', 'reference_links', 'refs', 'assets', 'assetRefs', 'asset_refs'] as const
-
 type GraphNodeProperties = Record<string, JSONValue>
-
 export type StoryboardCardMedia = {
   kind: UrlMediaKind
   url: string
@@ -59,12 +57,10 @@ export type StoryboardCardMedia = {
   sourceUrl: string
   thumbnailUrl?: string | null
 }
-
 export type StoryboardCardReference = {
   kind: UrlMediaKind | 'link'
   url: string
 }
-
 export type StoryboardCardModel = {
   id: string
   title: string
@@ -92,29 +88,24 @@ export type StoryboardCardModel = {
   candidateScore: number
   structural: boolean
 }
-
 export type StoryboardLaneModel = {
   id: string
   label: string
   cards: StoryboardCardModel[]
 }
-
 export type StoryboardBoardModel = {
   semanticKey: string
   lanes: StoryboardLaneModel[]
   totalCards: number
 }
-
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
-
 const normalizeText = (value: unknown): string => {
   return String(value ?? '')
     .replace(/\s+/g, ' ')
     .trim()
 }
-
 const toTitleCase = (value: string): string => {
   const normalized = normalizeText(value)
   if (!normalized) return ''
@@ -126,13 +117,11 @@ const toTitleCase = (value: string): string => {
     .map(token => /^[A-Z\d]{2,}$/.test(token) ? token : token.charAt(0).toUpperCase() + token.slice(1).toLowerCase())
     .join(' ')
 }
-
 const readString = (value: unknown): string => {
   if (typeof value === 'string') return normalizeText(value)
   if (typeof value === 'number' || typeof value === 'boolean') return normalizeText(value)
   return ''
 }
-
 const readStringList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     const out: string[] = []
@@ -146,7 +135,6 @@ const readStringList = (value: unknown): string[] => {
   if (!text) return []
   return splitMultiValues(text)
 }
-
 const readNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim()) {
@@ -155,7 +143,6 @@ const readNumber = (value: unknown): number | null => {
   }
   return null
 }
-
 const readNodeProperties = (node: GraphNode): GraphNodeProperties => {
   return isPlainObject(node.properties) ? (node.properties as GraphNodeProperties) : {}
 }
@@ -376,11 +363,11 @@ const readCardTitle = (node: GraphNode, properties: GraphNodeProperties): string
 }
 
 const readCardSummary = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
+  return readGraphNodeAuthoredTextProperty(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
 }
 
 const readCardOutput = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, STORYBOARD_OUTPUT_PROPERTY_KEYS)
+  return readGraphNodeAuthoredTextProperty(properties, STORYBOARD_OUTPUT_PROPERTY_KEYS)
 }
 
 const readCardSlugline = (properties: GraphNodeProperties): string => {
@@ -393,15 +380,15 @@ const readCardSlugline = (properties: GraphNodeProperties): string => {
 }
 
 const readCardAction = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, STORYBOARD_ACTION_PROPERTY_KEYS)
+  return readGraphNodeAuthoredTextProperty(properties, STORYBOARD_ACTION_PROPERTY_KEYS)
 }
 
 const readCardDialogue = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, STORYBOARD_DIALOGUE_PROPERTY_KEYS)
+  return readGraphNodeAuthoredTextProperty(properties, STORYBOARD_DIALOGUE_PROPERTY_KEYS)
 }
 
 const readCardPrompt = (properties: GraphNodeProperties): string => {
-  return readFirstPropertyString(properties, STORYBOARD_PROMPT_PROPERTY_KEYS)
+  return readGraphNodeAuthoredTextProperty(properties, STORYBOARD_PROMPT_PROPERTY_KEYS)
 }
 
 const readCardStyle = (properties: GraphNodeProperties): string => {

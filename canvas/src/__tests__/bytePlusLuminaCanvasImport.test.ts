@@ -484,8 +484,8 @@ export async function testWorkspaceImportBytePlusLuminaCanvasJsonBuildsStoryboar
     if (next.canvasRenderMode !== '2d' || next.canvas2dRenderer !== 'storyboard') {
       throw new Error(`expected Lumina import to activate 2D Storyboard renderer, got ${next.canvasRenderMode}/${next.canvas2dRenderer}`)
     }
-    if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') {
-      throw new Error('expected Lumina import to open FloatingPanel Strybldr through the shared activation owner')
+    if (String(next.floatingPanelView) === 'strybldr') {
+      throw new Error('expected Lumina import to avoid stale FloatingPanel Strybldr activation')
     }
     const parsedSource = next.sourceFiles.find(file => file.name === input.name)?.parsedGraphData
     if (!parsedSource || parsedSource.nodes.length !== expectedGraphNodeCount || parsedSource.edges.length !== expectedGraphEdgeCount) {

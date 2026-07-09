@@ -827,7 +827,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   if (
     !ganttBottomText.includes('GanttTimelineTransportPanel') ||
     !ganttBottomText.includes("useMermaidGanttDocument({ purpose: 'workflow' })") ||
-    !ganttBottomText.includes('<GanttTimelineTransportPanel code={workflowGanttCode} compact={compact} mode="workflow" />') ||
+    !ganttBottomText.includes('onSelectedRowKeyChange={handleDiagramSelectedRowKeyChange}') ||
     ganttBottomText.includes('MermaidDiagramPanelView') ||
     ganttBottomText.includes('renderMode="diagram"')
   ) {

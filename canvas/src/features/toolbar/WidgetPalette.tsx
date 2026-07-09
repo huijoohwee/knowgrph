@@ -95,6 +95,7 @@ export default function WidgetPalette(args: {
                     onDragEnd={(ev) => {
                       if (dragEnabled) {
                         dispatchFlowWidgetPointerDragDropFromSession({
+                          eventType: ev.type,
                           clientX: ev.clientX,
                           clientY: ev.clientY,
                         })

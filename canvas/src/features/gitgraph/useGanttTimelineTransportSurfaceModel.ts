@@ -101,6 +101,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
   code: string
   compact: boolean
   mode: GanttTimelineTransportMode
+  onSelectedRowKeyChange?: (rowKey: string | null) => void
 }): GanttTimelineTransportSurfaceModel {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
   const rulerViewportRef = React.useRef<HTMLElement | null>(null)
@@ -117,6 +118,11 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     disabledLaneIds,
     mode: args.mode,
   })
+  const handleSelectedRowKeyChange = React.useCallback((rowKey: string) => {
+    const nextRowKey = clean(rowKey)
+    transportSession.setSelectedRowKey(nextRowKey)
+    args.onSelectedRowKeyChange?.(nextRowKey || null)
+  }, [args.onSelectedRowKeyChange, transportSession.setSelectedRowKey])
   const compactSourceTimeline = React.useMemo(() => (
     !workflowMode
     && transportSession.timelineModel.taskSpans.length > 0
@@ -371,10 +377,10 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     onDropMedia: workflowMode ? () => false : transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
-    onSelectRowKey: transportSession.setSelectedRowKey,
+    onSelectRowKey: handleSelectedRowKeyChange,
     onSelectRowPosition: (rowKey, positionMinutes) => {
       transportSession.setTransportPlaybackPosition(positionMinutes)
-      transportSession.setSelectedRowKey(rowKey)
+      handleSelectedRowKeyChange(rowKey)
     },
     onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
     playheadPercent: transportInteractionModel.playheadPercent,

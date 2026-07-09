@@ -58,6 +58,7 @@ import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
+import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
 import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
 import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
@@ -128,6 +129,7 @@ import {
   buildRichMediaPanelPreviewSpec,
   commitRichMediaPanelChange,
 } from '@/lib/render/richMediaSsot'
+import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
 import {
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
@@ -257,28 +259,13 @@ function buildStoryboardCanvasRichMediaPanelProperties(args: {
   payload: MediaDragPayload
 }): Record<string, unknown> {
   const { cleanUrl, label, maxOrder, payload } = args
-  const next = buildNodeMediaProperties({
-    extra: {
-      [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
-      [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
-      [STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true,
-      lane: STORYBOARD_EMPTY_LANE,
-      order: maxOrder + 1,
-      title: label,
-      output: '',
-      outputSrcDoc: '',
-      richMediaActiveTab: payload.kind,
-      ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
-      ...(payload.sourceKey ? { mediaSourceKey: payload.sourceKey } : {}),
-    },
-    kind: payload.kind,
-    url: cleanUrl,
-    includeCamelGeneric: true,
-  })
-  if (payload.kind === 'image') next.imageUrl = cleanUrl
-  if (payload.kind === 'video') next.videoUrl = cleanUrl
-  if (payload.kind === 'audio') next.audioUrl = cleanUrl
-  return next
+  return {
+    ...buildRichMediaPanelDroppedMediaProperties({ ...payload, url: cleanUrl, label }),
+    [STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true,
+    lane: STORYBOARD_EMPTY_LANE,
+    order: maxOrder + 1,
+    title: label,
+  }
 }
 
 function readStoryboardCanvasPanelSize(props: Record<string, unknown>): { width: number; height: number } {
@@ -337,6 +324,22 @@ function StoryboardCanvasRichMediaPanelNode(props: {
       updateNode: (_id, patch) => props.updateNode(nodeId, patch as Partial<GraphNode>),
     })
   }, [nodeId, props])
+  const handlePanelMediaDrop = React.useCallback((payload: MediaDragPayload) => {
+    const cleanUrl = readStoryboardScalar(payload.url)
+    if (!nodeId || !cleanUrl) return
+    const label = readStoryboardScalar(payload.label) || readStoryboardScalar(node.label) || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+    props.updateNode(nodeId, {
+      properties: {
+        ...nodeProps,
+        ...buildRichMediaPanelDroppedMediaProperties({ ...payload, url: cleanUrl, label }),
+        [STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true,
+        lane: nodeProps.lane || STORYBOARD_EMPTY_LANE,
+        title: label,
+      } as never,
+    })
+    props.setSelectionSource('canvas')
+    props.selectNode(nodeId)
+  }, [node.label, nodeId, nodeProps, props])
   if (!nodeId || !panel || !preview) return null
   return (
     <section
@@ -371,6 +374,7 @@ function StoryboardCanvasRichMediaPanelNode(props: {
         {...headerPinProps}
         widgetToolbarActive={props.active}
         onPanelChange={handlePanelChange}
+        onMediaDrop={handlePanelMediaDrop}
         style={{
           width: '100%',
           height: '100%',
@@ -1176,37 +1180,18 @@ export default function StoryboardCanvas({
   }, [resolveStoryboardActionTarget, selectNode, setSelectionSource, updateOpenWidgetNodeIds])
   const runStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
     const { sourceNode, resolvedCardNodeId } = resolveStoryboardActionTarget(card.id)
-    const sourceProperties = (sourceNode?.properties || {}) as Record<string, unknown>
-    const currentProperties = currentPropertiesByCardId.get(card.id) || {}
-    const isStrybldrStoryboardCard = Boolean(
-      readStoryboardScalar(sourceProperties.strybldrRunId)
-      || readStoryboardScalar(sourceProperties.strybldrSourceUnitId)
-      || readStoryboardScalar(sourceProperties.strybldrElementId)
-      || readStoryboardScalar(currentProperties.strybldrRunId)
-      || readStoryboardScalar(currentProperties.strybldrSourceUnitId)
-      || readStoryboardScalar(currentProperties.strybldrElementId),
-    )
     const runResult = runStoryboardRunAction({
       cardId: card.id,
       hasSourceNode: Boolean(sourceNode),
-      isStrybldrStoryboardCard,
       resolvedCardNodeId,
       openInSidepane: () => openStoryboardCardInSidepane(card),
-      openStrybldrPanel: () => {
-        const graphStore = useGraphStore.getState()
-        setSelectionSource('canvas')
-        selectNode(resolvedCardNodeId)
-        graphStore.setFloatingPanelView('strybldr')
-        graphStore.setFloatingPanelOpen(true)
-        emitFloatingPanelOpen({ tab: 'strybldr', open: true, runAllOnOpen: true })
-      },
       runNode: runStoryboardWorkflowNode,
     })
     if (runResult.status === 'unavailable') {
       upsertUiToast(runResult.toast)
       return
     }
-  }, [currentPropertiesByCardId, openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, selectNode, setSelectionSource, upsertUiToast])
+  }, [openStoryboardCardInSidepane, resolveStoryboardActionTarget, runStoryboardWorkflowNode, upsertUiToast])
   const generateStoryboardCardMediaFromPrompt = React.useCallback((card: StoryboardCardModel, prompt: string, parameters?: MediaLightboxPromptParameters) => {
     const cleanPrompt = readStoryboardScalar(prompt)
     if (!cleanPrompt) {
@@ -2076,6 +2061,8 @@ export default function StoryboardCanvas({
                     const displayTitle = readMarkdownSigilDisplayText(card.title)
                     const displayIndex = card.indexLabel || String(cardIndex + 1)
                     const displayMedia = resolveStoryboardDisplayMedia(card)
+                    const projectedMediaAttachment = buildStoryboardCardMediaTextareaAttachment(displayMedia, card.title || card.id)
+                    const projectedMediaAttachments = projectedMediaAttachment ? [projectedMediaAttachment] : null
                     const mediaLoadingState = readStoryboardCardMediaLoadingState(currentCardProperties)
                     const primaryReferenceUrl = resolveStoryboardCardPrimaryReferenceUrl(card)
                     const toolbarProps = buildStoryboardToolbarProps({
@@ -2475,6 +2462,7 @@ export default function StoryboardCanvas({
                                     multiline
                                     markdownPreview="auto"
                                     markdownCommandContextText={storyboardCommandContextText}
+                                    projectedMediaAttachments={projectedMediaAttachments}
                                     rows={3}
                                     onCommit={commitCardProperty('summary')}
                                     displayClassName={['m-0 mt-1 text-xs leading-5', UI_THEME_TOKENS.text.secondary].join(' ')}

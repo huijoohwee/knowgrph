@@ -1,22 +1,24 @@
 from __future__ import annotations
-
 import os
 from pathlib import Path
-
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
-
-
 BASE_URL = os.environ.get("KG_STORYBOARD_LIVE_ROUTE_BASE_URL", "http://localhost:4175").rstrip("/")
 TARGET_URL = f"{BASE_URL}/"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "storyboard-live-route-media-panel-retention.png"
 RETENTION_OBSERVATION_MS = 3000
+DEFAULT_STARTER_DOC_BASENAME = "-".join(("knowgrph", "strybldr", "starter", "template")) + ".md"
+DEFAULT_STARTER_DOC_REL_PATH = Path("docs") / DEFAULT_STARTER_DOC_BASENAME
 STARTER_DOC_PATH = Path(
     os.environ.get(
         "KG_STORYBOARD_LIVE_ROUTE_DOC_PATH",
-        str(Path(__file__).resolve().parents[3] / "huijoohwee" / "docs" / "knowgrph-strybldr-starter-template.md"),
+        str(Path(__file__).resolve().parents[3] / "huijoohwee" / DEFAULT_STARTER_DOC_REL_PATH),
     )
+)
+STARTER_DOC_WORKSPACE_NAME = os.environ.get(
+    "KG_STORYBOARD_LIVE_ROUTE_DOC_NAME",
+    str(DEFAULT_STARTER_DOC_REL_PATH),
 )
 MEDIA_CASES = (
     {
@@ -38,12 +40,8 @@ MEDIA_CASES = (
         "targetNodeId": "starter-elements-card",
     },
 )
-
-
 def css_attr_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
 def canonical_node_id_suffix(node_id: str) -> str:
     parts = [part.strip() for part in str(node_id or "").split("::") if part.strip()]
     return parts[-1] if parts else str(node_id or "").strip()
@@ -115,11 +113,11 @@ def wait_for_workspace_runtime_ready(page) -> None:
 def apply_starter_markdown(page, markdown_text: str) -> None:
     result = page.evaluate(
         """
-        async ({ text }) => {
+        async ({ name, text }) => {
           const command = window.knowgrphWorkspaceCommand
           if (!command?.applyMarkdownDocument) return { ok: false, reason: 'command-unavailable' }
           const result = await command.applyMarkdownDocument({
-            name: 'docs/knowgrph-strybldr-starter-template.md',
+            name,
             text,
             applyToGraph: true,
             forceApplyToGraph: true,
@@ -134,7 +132,7 @@ def apply_starter_markdown(page, markdown_text: str) -> None:
           return { ok: true, result }
         }
         """,
-        {"text": markdown_text},
+        {"name": STARTER_DOC_WORKSPACE_NAME, "text": markdown_text},
     )
     if not result.get("ok"):
         raise AssertionError(f"expected starter markdown apply to succeed, got {result}")

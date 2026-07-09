@@ -17,8 +17,11 @@ import {
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
+import { buildMermaidGanttWorkflowCode } from '@/lib/mermaid/mermaidDiagramCode'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
+import { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
+export { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
 import type {
   StrybldrBox,
   StrybldrCardOverride,
@@ -51,18 +54,13 @@ const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
-
 const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 const STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS = ['output', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
-
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 const escapeRegExp = (value: string): string => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
 const shortHash = (value: unknown): string => hashText(String(value ?? '')).slice(0, 12)
-
 const yamlQuote = (value: string): string => `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-
 const yamlNestedBlock = (key: string, value: Record<string, unknown>): string[] => {
   const yaml = stringifyYaml(value, {
     lineWidth: -1,
@@ -74,22 +72,17 @@ const yamlNestedBlock = (key: string, value: Record<string, unknown>): string[] 
     ...yaml.split('\n').map(line => `  ${line}`),
   ]
 }
-
 const CORPUS_MEDIA_KINDS = new Set(['code', 'sql', 'script', 'doc', 'paper', 'image', 'video', 'data', 'model', 'unknown'])
-
 const htmlAttr = (value: string): string => String(value || '')
   .replace(/&/g, '&amp;')
   .replace(/"/g, '&quot;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
-
 const htmlText = (value: string): string => String(value || '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
-
 const SVG_TEXT_LINE_LENGTH = 42
-
 const wrapSvgTextLines = (value: unknown, maxLines = 5): string[] => {
   const words = cleanText(value).split(/\s+/).filter(Boolean)
   const lines: string[] = []
@@ -107,7 +100,6 @@ const wrapSvgTextLines = (value: unknown, maxLines = 5): string[] => {
   if (line && lines.length < maxLines) lines.push(line)
   return lines.length > 0 ? lines : ['Strybldr generated image']
 }
-
 export const isStrybldrImageGenerationIntent = (value: unknown): boolean => {
   const text = cleanText(value).toLowerCase()
   if (!text) return false
@@ -119,7 +111,6 @@ export const isStrybldrImageGenerationIntent = (value: unknown): boolean => {
   const hasImageTerm = hasExplicitImageTerm || (hasFrameTerm && !hasVideoTerm)
   return hasImageTerm && (hasGenerationTerm || hasImageProviderTerm)
 }
-
 export const buildStrybldrLocalImageDataUri = (args: {
   title?: unknown
   prompt?: unknown
@@ -160,12 +151,10 @@ export const buildStrybldrLocalImageDataUri = (args: {
   ].join('')
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
-
 const readCorpusMediaKind = (value: unknown): CorpusSourceUnit['mediaKind'] => {
   const raw = cleanText(value)
   return CORPUS_MEDIA_KINDS.has(raw) ? raw as CorpusSourceUnit['mediaKind'] : 'unknown'
 }
-
 const uniqueCleanTexts = (values: readonly unknown[]): string[] => {
   const seen = new Set<string>()
   const out: string[] = []
@@ -179,7 +168,6 @@ const uniqueCleanTexts = (values: readonly unknown[]): string[] => {
   }
   return out
 }
-
 const titleCase = (value: string): string => {
   const text = cleanText(value)
   if (!text) return ''
@@ -189,18 +177,15 @@ const titleCase = (value: string): string => {
     .map(token => token.slice(0, 1).toUpperCase() + token.slice(1).toLowerCase())
     .join(' ')
 }
-
 const basenameWithoutExt = (value: string): string => {
   const base = normalizePath(value).split('/').filter(Boolean).pop() || value || 'image'
   const dot = base.lastIndexOf('.')
   return dot > 0 ? base.slice(0, dot) : base
 }
-
 export const isStrybldrStoryboardMarkdown = (text: string): boolean => {
   const raw = String(text || '')
   return STRYBLDR_FRONTMATTER_MARKER_RE.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw)
 }
-
 export const isStrybldrStoryboardGraphData = (graphData: GraphData | null | undefined): boolean => {
   const metadata = graphData?.metadata && typeof graphData.metadata === 'object'
     ? graphData.metadata as Record<string, unknown>
@@ -212,7 +197,6 @@ export const isStrybldrStoryboardGraphData = (graphData: GraphData | null | unde
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   return nodes.some(node => String(node?.properties?.strybldrRunId || node?.properties?.strybldrSourceUnitId || '').trim().length > 0)
 }
-
 export const buildStrybldrRunId = (sources: readonly Pick<StrybldrSource, 'sourceUnitId' | 'workspacePath' | 'textHash'>[]): string => {
   const signature = sources
     .map(source => [source.sourceUnitId, source.workspacePath, source.textHash].map(v => cleanText(v)).join(':'))
@@ -220,7 +204,6 @@ export const buildStrybldrRunId = (sources: readonly Pick<StrybldrSource, 'sourc
     .join('|')
   return `strybldr-${shortHash(signature || 'empty')}`
 }
-
 export const buildStrybldrWorkspaceDocumentName = (source: Pick<StrybldrSource, 'originalName' | 'relativePath'>): string => {
   const base = basenameWithoutExt(source.originalName || source.relativePath || 'storyboard')
     .replace(/[^\w.-]+/g, '-')
@@ -228,7 +211,6 @@ export const buildStrybldrWorkspaceDocumentName = (source: Pick<StrybldrSource, 
     || 'storyboard'
   return `${base}.strybldr.md`
 }
-
 export const toStrybldrSource = (unit: CorpusSourceUnit, opts?: { mediaUrl?: string | null }): StrybldrSource => ({
   sourceUnitId: cleanText(unit.id),
   workspacePath: normalizePath(unit.workspacePath),
@@ -240,7 +222,6 @@ export const toStrybldrSource = (unit: CorpusSourceUnit, opts?: { mediaUrl?: str
   textHash: cleanText(unit.textHash),
   mediaUrl: cleanText(opts?.mediaUrl) || null,
 })
-
 const sourceLabel = (source: StrybldrSource): string => titleCase(basenameWithoutExt(source.originalName || source.relativePath)) || 'Source'
 
 const sourceKindLabel = (source: Pick<StrybldrSource, 'mediaKind'>): string => {
@@ -344,7 +325,7 @@ export const serializeStrybldrStoryboardMarkdown = (doc: StrybldrStoryboardDocum
     '---',
     'kgStrybldrStoryboard: true',
     'kgCanvasRenderMode: "2d"',
-    ...'kgCanvas2dRenderer: "storyboard"\nkgDocumentSemanticMode: "document"\nkgFrontmatterModeEnabled: true\nkgMultiDimTableModeEnabled: false\nkgBottomPanelOpen: true\nkgBottomPanelTab: "timeline"\nkgFloatingPanelOpen: true\nkgFloatingPanelView: "strybldr"'.split('\n'),
+    ...'kgCanvas2dRenderer: "storyboard"\nkgDocumentSemanticMode: "document"\nkgFrontmatterModeEnabled: true\nkgMultiDimTableModeEnabled: false\nkgBottomPanelOpen: true\nkgBottomPanelTab: "gantt"\nkgFloatingPanelOpen: true\nkgFloatingPanelView: "gantt"'.split('\n'),
     `strybldrRunId: ${yamlQuote(doc.runId)}`,
     ...yamlNestedBlock(STRYBLDR_FRONTMATTER_PAYLOAD_KEY, doc as unknown as Record<string, unknown>),
     '---',
@@ -721,6 +702,20 @@ const readParsedObject = (value: unknown): StrybldrStoryboardDocument | null => 
 export const parseStrybldrStoryboardMarkdown = (text: string): StrybldrStoryboardDocument | null => {
   const rawPayload = readStrybldrStoryboardRawPayload(text)
   return rawPayload ? readParsedObject(rawPayload) : null
+}
+
+export const readStrybldrWorkflowGanttCodesFromMarkdown = (text: string): string[] => {
+  const raw = String(text || '')
+  if (
+    !raw.includes(STRYBLDR_FRONTMATTER_PAYLOAD_KEY)
+    && !raw.includes('strybldrStoryboard')
+    && !raw.includes('kgStrybldrStoryboardPayload')
+    && !STRYBLDR_JSON_FENCE_RE.test(raw)
+  ) {
+    return []
+  }
+  const code = buildStrybldrWorkflowGanttCode(parseStrybldrStoryboardMarkdown(raw))
+  return code ? [code] : []
 }
 
 const createEdge = (source: string, target: string, label: string): GraphEdge => ({
@@ -2156,18 +2151,18 @@ export const applyStrybldrVideoArtifactToGraphData = (args: {
         ...node,
         properties: {
           ...props,
-          output: asJson(output),
-          outputSrcDoc: asJson(localAnimaticHtml || null),
-          strybldrVideoArtifactPath: asJson(artifactPath || null),
-          strybldrVideoArtifactText: asJson(args.artifactText || null),
-          strybldrVideoStatus: asJson(safeStatus),
-          provider: asJson(cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-animatic'),
-          model: asJson(cleanText(args.model) || cleanText(props.model) || 'strybldr-local-animatic-v1'),
-          mediaKind: asJson(localAnimaticHtml ? 'iframe' : inferMediaKindFromResourceUrl(renderUrl || sourceUrl) || cleanText(props.mediaKind) || 'iframe'),
-          mediaUrl: asJson(renderUrl || sourceUrl || artifactPath || null),
-          renderUrl: asJson(renderUrl || null),
-          sourceUrl: asJson(sourceUrl || null),
-          references: asJson(nextReferences),
+          output,
+          outputSrcDoc: localAnimaticHtml || null,
+          strybldrVideoArtifactPath: artifactPath || null,
+          strybldrVideoArtifactText: args.artifactText || null,
+          strybldrVideoStatus: safeStatus,
+          provider: cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-animatic',
+          model: cleanText(args.model) || cleanText(props.model) || 'strybldr-local-animatic-v1',
+          mediaKind: localAnimaticHtml ? 'iframe' : inferMediaKindFromResourceUrl(renderUrl || sourceUrl) || cleanText(props.mediaKind) || 'iframe',
+          mediaUrl: renderUrl || sourceUrl || artifactPath || null,
+          renderUrl: renderUrl || null,
+          sourceUrl: sourceUrl || null,
+          references: nextReferences,
         },
       }
     }),
@@ -2212,21 +2207,21 @@ export const applyStrybldrImageArtifactToGraphData = (args: {
         ...node,
         properties: {
           ...props,
-          output: asJson(output),
-          outputSrcDoc: asJson(null),
-          outputLoading: asJson(false),
-          outputLoadingKind: asJson(null),
-          imageUrl: asJson(imageUrl),
-          strybldrImageArtifactPath: asJson(artifactPath || null),
-          strybldrImageArtifactText: asJson(args.artifactText || null),
-          strybldrImageStatus: asJson('generated'),
-          provider: asJson(cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-image'),
-          model: asJson(cleanText(args.model) || cleanText(props.model) || 'strybldr-local-image-v1'),
-          mediaKind: asJson('image'),
-          mediaUrl: asJson(imageUrl),
-          renderUrl: asJson(imageUrl),
-          sourceUrl: asJson(null),
-          references: asJson(nextReferences),
+          output,
+          outputSrcDoc: null,
+          outputLoading: false,
+          outputLoadingKind: null,
+          imageUrl,
+          strybldrImageArtifactPath: artifactPath || null,
+          strybldrImageArtifactText: args.artifactText || null,
+          strybldrImageStatus: 'generated',
+          provider: cleanText(args.provider) || cleanText(props.provider) || 'knowgrph-local-image',
+          model: cleanText(args.model) || cleanText(props.model) || 'strybldr-local-image-v1',
+          mediaKind: 'image',
+          mediaUrl: imageUrl,
+          renderUrl: imageUrl,
+          sourceUrl: null,
+          references: nextReferences,
         },
       }
     }),

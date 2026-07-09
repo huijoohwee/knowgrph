@@ -47,7 +47,6 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
-import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
 import { PanelFormDensityProvider } from '@/lib/ui/panelFormControls'
@@ -118,10 +117,9 @@ const TimelineFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgra
 const XrPanelViewLazy = React.lazy(() => import('@/features/three/XrPanelView').then(mod => ({ default: mod.XrPanelView })))
 const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/ArchitectureFloatingPanelView').then(mod => ({ default: mod.ArchitectureFloatingPanelView })))
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
-const StrybldrFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrFloatingPanelView').then(mod => ({ default: mod.StrybldrFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'view', 'camera', 'chat', 'geo', 'interaction', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'xr', 'architecture', 'eventModeling', 'strybldr'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'xr', 'architecture', 'eventModeling'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -289,7 +287,6 @@ export function ToolbarToolMenu({
   onHeaderPointerDown,
   requestedFloatingPanelView,
   requestedFloatingPanelViewSeq,
-  requestedFloatingPanelRunAllSeq,
   onClose,
 }: ToolbarToolMenuProps) {
   const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
@@ -498,7 +495,6 @@ export function ToolbarToolMenu({
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
       { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
-      { view: 'interaction', title: 'Interaction', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.interaction },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
       { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
@@ -511,7 +507,6 @@ export function ToolbarToolMenu({
       { view: 'xr', title: UI_LABELS.xr, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.xr },
       { view: 'architecture', title: 'Architecture', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.architecture },
       { view: 'eventModeling', title: 'Event Model', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.eventModeling },
-      { view: 'strybldr', title: 'Strybldr', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.strybldr },
     ],
     [],
   )
@@ -712,21 +707,6 @@ export function ToolbarToolMenu({
                 <StrybldrCameraFloatingPanelViewLazy />
               </React.Suspense>
             )}
-            {floatingPanelView === 'interaction' && (
-              <section className="h-full flex flex-col" aria-label="Interaction panel">
-                <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>
-                  <section className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</section>
-                </header>
-                <section
-                  className={cn(UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME, 'mt-1', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
-                  aria-label="Interaction panel content"
-                >
-                  <section className="px-1 pb-2">
-                    <InfiniteCanvasInteractionPanel />
-                  </section>
-                </section>
-              </section>
-            )}
             {floatingPanelView === 'design' && <DesignFloatingPanelView active={designPanelsAvailable} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>
@@ -778,11 +758,6 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'eventModeling' && (
               <React.Suspense fallback={null}>
                 <EventModelingFloatingPanelViewLazy />
-              </React.Suspense>
-            )}
-            {floatingPanelView === 'strybldr' && (
-              <React.Suspense fallback={null}>
-                <StrybldrFloatingPanelViewLazy runAllRequestSeq={requestedFloatingPanelRunAllSeq} />
               </React.Suspense>
             )}
             {floatingPanelView === 'graphTraversal' && (

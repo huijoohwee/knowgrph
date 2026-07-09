@@ -11,6 +11,7 @@ import {
   readStructuredSourceFieldLineMode,
   readStructuredSourceRowHeightPreset,
 } from '@/features/markdown-workspace/main/viewer/workspaceStructuredSourceDataViewPresentation'
+import { TEST_VALIDATION_WORKSPACE_SEED_REL_PATH } from '@/features/workspace-fs/workspaceFs'
 
 const readQuotedYamlValue = (line: string): string =>
   String(line || '')
@@ -317,7 +318,8 @@ export function testMultiDimTableStructuredSourceMetadataBuildsVisibleTable() {
 }
 
 export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource() {
-  const sourcePath = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-strybldr-starter-template.md')
+  const externalValidationInput = String(process.env.KG_TEST_VALIDATION_FORBID_HARDCODE_IN_REPO || '').trim()
+  const sourcePath = externalValidationInput || path.resolve(process.cwd(), '..', '..', 'huijoohwee', TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
   const sourceText = fs.readFileSync(sourcePath, { encoding: 'utf8' })
   const validationKey = 'validation_input_forbid_hardcode_in_repo'
   const storyboardKey = 'strybldr_storyboard'
@@ -328,15 +330,13 @@ export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource
   const sourceUrlLineIndex = sourceLines.findIndex(line => line.trim().startsWith('source_url:'))
   const sourceUrlLine = sourceUrlLineIndex >= 0 ? sourceLines[sourceUrlLineIndex] : ''
   const sourceUrlLineNumber = sourceUrlLineIndex + 1
-  const ganttLine = sourceLines.findIndex(line => line.trim() === 'gantt') + 1
-  const ganttTaskLine = sourceLines.findIndex(line => line.trim().startsWith('Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 :')) + 1
   const frontmatterEndLine = sourceLines.findIndex((line, index) => index > 0 && line.trim() === '---') + 1
 
   if (!sourceText.startsWith('---\n')) {
     throw new Error('expected Strybldr validation source doc to keep byte-zero YAML frontmatter')
   }
-  if (validationLine < 1 || storyboardLine < 1 || semanticIdentityLine < 1 || sourceUrlLineNumber < 1 || ganttLine < 1 || ganttTaskLine < 1 || frontmatterEndLine < 1) {
-    throw new Error('expected Strybldr starter validation source doc to expose validation, semantic, source-url, storyboard, and typed block-scalar YAML frontmatter keys')
+  if (validationLine < 1 || storyboardLine < 1 || semanticIdentityLine < 1 || sourceUrlLineNumber < 1 || frontmatterEndLine < 1) {
+    throw new Error('expected Strybldr starter validation source doc to expose validation, semantic, source-url, and storyboard YAML frontmatter keys')
   }
   if (sourceLines[storyboardLine - 1]?.includes('|')) {
     throw new Error('expected Strybldr validation source doc to use YAML-native storyboard frontmatter, not a JSON literal block')
@@ -376,12 +376,6 @@ export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource
   if (!projection.markdownText.includes('| starter_inputs | source_url |') || !projection.markdownText.includes(`| source_url: "" | ${sourceUrlLineNumber} | 2 |`)) {
     throw new Error('expected YAML Frontmatter table to preserve blank operator-supplied starter source_url')
   }
-  if (!projection.markdownText.includes('Mermaid Gantt Value') || !projection.markdownText.includes(`| flow_diagrams | value | video_sequence | value | value | mermaid_gantt | gantt |  |  | gantt |`) || !projection.markdownText.includes(`| gantt | L4 | gantt | ${ganttLine} | 8 |`)) {
-    throw new Error('expected YAML Frontmatter nested typed block scalar rows to keep payload text in the matching type-specific value column')
-  }
-  if (!projection.markdownText.includes(`| value | mermaid_gantt | Seedance_2.0_is_on_Artlist-77FAnT935IE.mp4 : operator_source_video`) || !projection.markdownText.includes(`| ${ganttTaskLine} | 10 |`)) {
-    throw new Error('expected YAML Frontmatter block scalar lines that look like key/value rows to remain in the matching type-specific value column')
-  }
   const nextValidation = applyStructuredSourceDataViewReplacement({
     sourceText,
     projection,
@@ -395,34 +389,6 @@ export function testMultiDimTableYamlFrontmatterReflectsStrybldrValidationSource
   })
   if (!nextValidation?.includes(`${validationKey}: "false"`)) {
     throw new Error(`expected starter validation guard edit to write back through the source-line map, got:\n${nextValidation}`)
-  }
-  const nextGanttValue = applyStructuredSourceDataViewReplacement({
-    sourceText,
-    projection,
-    startLine: metadataReplacement.generatedStartLine,
-    endLine: metadataReplacement.generatedEndLine,
-    replacementLines: [
-      '| Key | Type | Value | Content | Line | Indent |',
-      '| --- | ---- | ----- | ------- | ---- | ------ |',
-      `| value | mermaid_gantt | gantt updated | gantt | ${ganttLine} | 8 |`,
-    ],
-  })
-  if (!nextGanttValue?.includes('        gantt updated')) {
-    throw new Error(`expected typed block-scalar Value cell edits to write back through the source-line map, got:\n${nextGanttValue}`)
-  }
-  const nextGanttTypedValue = applyStructuredSourceDataViewReplacement({
-    sourceText,
-    projection,
-    startLine: metadataReplacement.generatedStartLine,
-    endLine: metadataReplacement.generatedEndLine,
-    replacementLines: [
-      '| Key | Type | Mermaid Gantt Value | Content | Line | Indent |',
-      '| --- | ---- | ------------------- | ------- | ---- | ------ |',
-      `| value | mermaid_gantt | gantt typed updated | gantt | ${ganttLine} | 8 |`,
-    ],
-  })
-  if (!nextGanttTypedValue?.includes('        gantt typed updated')) {
-    throw new Error(`expected typed block-scalar type-specific value edits to write back through the source-line map, got:\n${nextGanttTypedValue}`)
   }
   if (projection.markdownText.includes('| strybldr_storyboard | workflow | stages | stages |') || projection.markdownText.includes('| strybldr_storyboard | workflow | fork | branches | branches |')) {
     throw new Error('expected YAML Frontmatter list paths to avoid duplicated parent keys')

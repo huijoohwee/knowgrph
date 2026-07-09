@@ -521,8 +521,6 @@ const buildLuminaMarkdownSource = (args: {
     'kgStrybldrStoryboard: "true"',
     'kgCanvasRenderMode: "2d"',
     'kgCanvas2dRenderer: "storyboard"',
-    'kgFloatingPanelOpen: "true"',
-    'kgFloatingPanelView: "strybldr"',
     'source:',
     `  kind: ${yamlValue(metadata.sourceKind)}`,
     `  name: ${yamlValue(args.name)}`,

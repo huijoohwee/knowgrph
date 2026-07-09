@@ -127,8 +127,8 @@ pipeline:
     node: n-image
     label: "SenseNova image generation — MainPanel Integrations"
     actor: ["operator", "system"]
-    user_action: "Operator runs image generation widget in MainPanel Integrations → Workflow Manager → Props Panel Image widget."
-    sys_event: "POST /v1/images/generations → synchronous response with image URL or base64; follows existing Image widget pipeline (artist-xl or senseNova-img-enhance)."
+    user_action: "Operator runs image generation from MainPanel Integrations → Workflow Manager → Rich Media Panel."
+    sys_event: "POST /v1/images/generations → synchronous response with image URL or base64; follows the shared Rich Media Panel image pipeline (artist-xl or senseNova-img-enhance)."
     data_in: "prompt, model, size, n, response_format"
     data_out: "imageUrl or base64 → Rich Media Panel image tab"
     status: planned
@@ -138,7 +138,7 @@ pipeline:
     node: n-video
     label: "SenseNova video generation — MainPanel Integrations"
     actor: ["operator", "system"]
-    user_action: "Operator runs video generation widget in MainPanel Integrations → Workflow Manager → Props Panel Video widget."
+    user_action: "Operator runs video generation from MainPanel Integrations → Workflow Manager → Rich Media Panel."
     sys_event: "POST /v1/video/generations → async job_id returned; poll via SenseNova task status endpoint until completed; retrieve video URL."
     data_in: "prompt, model, reference_image (optional), duration, ratio"
     data_out: "videoUrl → Rich Media Panel video tab"
@@ -297,8 +297,8 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | Persona | Job | Success Signal |
 |---|---|---|
 | Operator | Use SenseNova text generation in FloatingPanel Chat | MainPanel Integrations shows SenseNova provider with model options; chat works end-to-end on the existing KGC path. |
-| Image producer | Generate reference images for Strybldr story beats | Image widget runs `artist-xl`; `imageUrl` flows to Rich Media Panel image tab. |
-| Video producer | Generate video clips from approved story beats | Video widget runs `SenseAnim`; async poll completes within 36×10s; `videoUrl` flows to Rich Media Panel video tab. |
+| Image producer | Generate reference images for Strybldr story beats | Rich Media Panel runs `artist-xl`; `imageUrl` flows to the image tab. |
+| Video producer | Generate video clips from approved story beats | Rich Media Panel runs `SenseAnim`; async poll completes within 36×10s; `videoUrl` flows to the video tab. |
 | Strybldr user | Run the full Text→Image→Video→VideoDB E2E pipeline | Approved Strybldr card → SenseNova text → SenseNova image → SenseNova video → VideoDB upload/index/search/stream → local publish packet. |
 | Maintainer | Keep SenseNova constants in one SSOT | `sensenovaApiDocs.ts` drives all three modality rows; `chatEndpoint.ts` resolves host/base/endpoint from one source. |
 | Auditor | Confirm no raw SenseNova credentials in browser or repo | `SENSENOVA_API_KEY` never in `localStorage`/`sessionStorage`; only the server-managed request path uses the value. |
@@ -310,8 +310,8 @@ Proceed with the MainPanel Integrations contract. The min-viable P0 scope is the
 | Trigger | Operator needs Chinese-market AI for text/image/video generation | MainPanel Integrations | No SenseNova section exists | Add `SenseNova AI API` alongside Agnes, MiroMind, BytePlus sections. |
 | Configure text | Select `sensenova` provider, choose `SenseChat-5` model, set auth in env | MainPanel Integrations | HMAC-JWT auth is unfamiliar | Surface auth method label and env var placeholders; hide JWT derivation behind the shared signer. |
 | Generate text | Run chat request from FloatingPanel Chat | FloatingPanel Chat | SSE stream might differ from OpenAI | Reuse shared SSE parser; preserve any `reasoning_steps`/metadata fields in the stream. |
-| Generate image | Run `artist-xl` in image widget | Props Panel Image widget | Synchronous response differs from BytePlus async | Follow synchronous path; emit `imageUrl` directly to Rich Media Panel. |
-| Generate video | Run `SenseAnim` in video widget | Props Panel Video widget | Async job pattern differs from Gemini Veo | Use same 36×10s circuit-breaker pattern; poll SenseNova task status endpoint. |
+| Generate image | Run `artist-xl` in Rich Media Panel | Rich Media Panel | Synchronous response differs from BytePlus async | Follow synchronous path; emit `imageUrl` directly to Rich Media Panel. |
+| Generate video | Run `SenseAnim` in Rich Media Panel | Rich Media Panel | Async job pattern differs from Gemini Veo | Use same 36×10s circuit-breaker pattern; poll SenseNova task status endpoint. |
 | Strybldr handoff | Approve beats; dispatch text→image→video sequence | Strybldr canvas | Multiple providers for three modalities | One SenseNova provider for all three; convergence at Strybldr publish packet. |
 | VideoDB E2E | VideoDB upload/index/search/stream following SenseNova generation | VideoDB REST or MCP path | Generated assets need semantic indexing | Pipe SenseNova `videoUrl` → VideoDB `upload_video` → index → search → stream → local publish packet. |
 

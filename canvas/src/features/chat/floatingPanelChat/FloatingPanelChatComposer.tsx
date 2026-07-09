@@ -230,7 +230,12 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
 
   return (
     <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
-      <FloatingPanelChatComposerMediaOverlay input={props.input} uiPanelTextFontClass={props.uiPanelTextFontClass} />
+      <FloatingPanelChatComposerMediaOverlay
+        input={props.input}
+        projectedSelectionRange={selectionRange}
+        showProjectedCaret={hideProjectedCaret}
+        uiPanelTextFontClass={props.uiPanelTextFontClass}
+      />
       <PlainTextInputEditor
         ref={inputRef}
         value={displayInput}

@@ -6,7 +6,7 @@ import {
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { splitInlineKeywordChipTokens } from '@/features/markdown/ui/dataViewChipStyles'
 import { readInvocationTokenKind, type InvocationTokenKind } from '@/lib/markdown/invocationTokens'
-import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
 export const AGENTIC_OS_INVOCATION_CHIP_ATTR = 'data-kg-agentic-os-invocation-chip'
 export const AGENTIC_OS_INVOCATION_TOKEN_ATTR = 'data-kg-agentic-os-invocation-token'
@@ -68,8 +68,8 @@ export function renderAgenticOsInvocationKeywordChip(args: {
   const token = String(args.value || '').trim()
   return renderAgenticOsInvocationAnchor({
     token,
-    className: `${args.className} cursor-pointer no-underline hover:underline`,
-    children: <span className={UI_TEXT_TRUNCATE_CHIP}>{token}</span>,
+    className: `${args.className} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} cursor-pointer no-underline hover:underline`,
+    children: <span className={`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`}>{token}</span>,
   })
 }
 

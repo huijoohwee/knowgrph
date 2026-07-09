@@ -20,15 +20,10 @@ export function activateStrybldrImportSurface(args: {
   graphData?: GraphData | null
   rawText?: string | null
   canvas2dRenderer?: string | null
-  openFloatingPanel?: boolean
 }): boolean {
   if (!shouldActivateStrybldrImportSurface(args)) return false
   const store = useGraphStore.getState()
   store.setCanvasRenderMode('2d')
   store.setCanvas2dRenderer('storyboard')
-  if (args.openFloatingPanel !== false) {
-    store.setFloatingPanelOpen(true)
-    store.setFloatingPanelView('strybldr')
-  }
   return true
 }

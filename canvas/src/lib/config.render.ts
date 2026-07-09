@@ -239,12 +239,6 @@ export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined)
   return id === 'storyboard'
 }
 
-export type ToolbarRunAllFloatingPanelTab = 'strybldr'
-
-export const getToolbarRunAllFloatingPanelTab = (id: Canvas2dRendererId | null | undefined): ToolbarRunAllFloatingPanelTab | null => {
-  return id === 'storyboard' ? 'strybldr' : null
-}
-
 export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'flow'
 }

@@ -11,7 +11,6 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
 import { buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
-
 const buildGraphWithMediaNode = (): GraphData => ({
   type: 'Graph',
   nodes: [
@@ -32,7 +31,6 @@ const buildGraphWithMediaNode = (): GraphData => ({
   ],
   edges: [],
 })
-
 const buildGraphWithConflictingSeedanceAndRichMediaPanelNodes = (): GraphData => ({
   type: 'Graph',
   nodes: [
@@ -57,7 +55,6 @@ const buildGraphWithConflictingSeedanceAndRichMediaPanelNodes = (): GraphData =>
   ],
   edges: [],
 })
-
 const buildGraphWithRichMediaPanelTextPreview = (): GraphData => ({
   type: 'Graph',
   nodes: [
@@ -74,7 +71,6 @@ const buildGraphWithRichMediaPanelTextPreview = (): GraphData => ({
   ],
   edges: [],
 })
-
 const buildMarkdown = (): string =>
   [
     '# Title',
@@ -84,15 +80,12 @@ const buildMarkdown = (): string =>
     '![Inline image](https://example.com/example.png)',
     '',
   ].join('\n')
-
 const readCommandMenuMediaRowName = (row: Element): string => {
   const input = row.querySelector('[data-kg-command-menu-media-name-input]') as HTMLInputElement | null
   const label = row.querySelector('[data-kg-command-menu-media-name-text]') as HTMLElement | null
   return String(input?.value || label?.textContent || row.textContent || '')
 }
-
 type InputHarnessWindow = Window & typeof globalThis
-
 const setInputValue = (window: InputHarnessWindow, input: HTMLInputElement, value: string) => {
   const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
   descriptor?.set?.call(input, value)
@@ -102,19 +95,16 @@ const setInputValue = (window: InputHarnessWindow, input: HTMLInputElement, valu
     : new window.Event('input', { bubbles: true }))
   input.dispatchEvent(new window.Event('change', { bubbles: true }))
 }
-
 export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
   const storage = new MemoryStorage()
   const { dom, restore: restoreDom } = initJsdomHarness()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-
   try {
     const doc = dom.window.document
     const container = doc.createElement('section')
     container.id = 'root'
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
-
     const state = useGraphStore.getState()
     try {
       state.setFrontmatterModeEnabled(false)
@@ -129,22 +119,17 @@ export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
     state.setSelectionSource(null)
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
-
     await mountReactRoot(root, React.createElement(CommandMenuCatalogPanel), { window: dom.window, frames: 8 })
-
     const rows = Array.from(doc.querySelectorAll('[data-kg-command-menu-media-source="graph"]')) as HTMLElement[]
     const graphCard = rows.find(row => readCommandMenuMediaRowName(row).includes('Node media:'))
     if (!graphCard) {
       throw new Error('graph media Command Menu row not found')
     }
-
     await act(async () => {
       graphCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
       await waitForNextFrame(dom.window)
     })
-
     const after = useGraphStore.getState()
-
     if (after.selectedNodeId !== 'n1') {
       throw new Error(`expected selectedNodeId to be "n1", got ${String(after.selectedNodeId)}`)
     }
@@ -159,7 +144,6 @@ export async function testCommandMenuGraphMediaSelectionSelectsPreviewMedia() {
         )}`,
       )
     }
-
     const renameButton = graphCard.querySelector('[data-kg-command-menu-media-rename]') as HTMLButtonElement | null
     if (!renameButton) throw new Error('expected graph media row to expose explicit rename control')
     await act(async () => {
@@ -207,6 +191,9 @@ export async function testCommandMenuMediaLayoutSelectorTogglesGridAndList() {
 
     const panel = doc.querySelector('[data-kg-media-panel="1"]') as HTMLElement | null
     if (!panel) throw new Error('expected FloatingPanel Media root')
+    if (panel.getAttribute('data-kg-floating-panel-catalog-list') !== 'media') {
+      throw new Error('expected FloatingPanel Media to reuse the shared catalog list root')
+    }
     if (panel.getAttribute('data-kg-media-layout') !== 'grid') {
       throw new Error(`expected Media layout to default to grid, got ${String(panel.getAttribute('data-kg-media-layout'))}`)
     }
@@ -363,9 +350,20 @@ export async function testCommandMenuMediaLayoutSelectorTogglesGridAndList() {
     }
     if (doc.querySelector('[data-kg-media-ktv-layout="1"]')) throw new Error('expected list layout to avoid legacy KTV three-column surface')
     if (doc.querySelector('[data-kg-media-list="1"] [role="columnheader"]')) throw new Error('expected media list layout to avoid column headers')
-    if (!doc.querySelector('[data-kg-media-list-layout="compact"]')) throw new Error('expected Media list layout to expose the compact list marker')
+    if (!doc.querySelector('[data-kg-media-list-layout="compact-list"]')) throw new Error('expected Media list layout to expose the shared compact-list marker')
+    if (!doc.querySelector('[data-kg-media-list-view="1"][data-kg-floating-panel-catalog-list-rows="compact-list"][data-kg-media-list-rows="compact-list"]')) {
+      throw new Error('expected Media list wrapper to reuse the Skills & Commands compact-list catalog contract')
+    }
     const compactRows = Array.from(doc.querySelectorAll('[data-kg-media-list-row-layout="compact-list"]')) as HTMLElement[]
     if (compactRows.length === 0) throw new Error('expected media candidates to render as compact list-view rows')
+    const firstCompactRow = compactRows[0]
+    if (
+      !firstCompactRow.className.includes('grid-cols-[1.75rem_minmax(0,1fr)_auto]') ||
+      !firstCompactRow.className.includes('shadow-sm') ||
+      !firstCompactRow.className.includes('rounded')
+    ) {
+      throw new Error('expected Media compact rows to reuse the Skills & Commands compact catalog row shell')
+    }
     if (!doc.querySelector('[data-kg-media-list-view="1"] [data-kg-media-draggable="1"]')) {
       throw new Error('expected compact list candidates to expose draggable shared media payload handles')
     }

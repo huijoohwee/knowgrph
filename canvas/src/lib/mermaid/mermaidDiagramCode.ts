@@ -215,7 +215,7 @@ const sanitizeMermaidFlowchartWorkflowId = (value: unknown, fallback: string): s
   || fallback
 )
 
-const buildMermaidGanttWorkflowCode = (
+export const buildMermaidGanttWorkflowCode = (
   args: {
     idPrefix: string
     title: string

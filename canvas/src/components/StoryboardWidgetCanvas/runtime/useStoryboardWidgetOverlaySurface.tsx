@@ -1,9 +1,5 @@
 import React from 'react'
-import {
-  deriveOpenWidgetOverlayNodeIds,
-  isCanonicalFrontmatterBuiltInWidgetNode,
-  resolveDefaultFlowWidgetPinnedInCanvas,
-} from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { deriveOpenWidgetOverlayNodeIds, deriveSelectedOverlayEditorNodeIdForDerivation, isCanonicalFrontmatterBuiltInWidgetNode, resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
@@ -33,7 +29,6 @@ import {
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import {
   getCachedStoryboardWidgetRenderGraph,
   getCachedStoryboardWidgetPlacementContext,
@@ -364,7 +359,10 @@ export function useStoryboardWidgetOverlaySurface(args: {
     [renderGraphDataOverride, sourceFiles],
   )
 
+  const selectedOverlayEditorNodeIdForDerivation = React.useMemo(() => deriveSelectedOverlayEditorNodeIdForDerivation({ overlayDraftNode, pendingOverlayNode, pendingOverlayNodeId: pendingOverlayNodeIdRef.current, renderGraphDataOverride, lastStableRenderGraphDataOverride: lastStableRenderGraphDataOverrideRef.current, nodeById: renderGraphNodeById, storyboardWidgetSurfaceId }), [overlayDraftNode, pendingOverlayNode, renderGraphDataOverride, renderGraphNodeById, storyboardWidgetSurfaceId])
+
   const overlayEditorNodeIds = React.useMemo(() => {
+    if (editorSurfaceKind === 'card') return []
     const rememberStableOverlayIds = (ids: string[]) => {
       lastStableOverlayEditorNodeIdsRef.current = ids
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = renderGraphSemanticKey
@@ -431,7 +429,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
       allowExplicitOpenWidgetNodeIds,
       eligibleNodeIds: renderGraphEligibleNodeIds,
       nodeById,
-      selectedNodeId: overlayDraftNode?.id || pendingOverlayNode?.id || pendingOverlayNodeIdRef.current || null,
+      selectedNodeId: selectedOverlayEditorNodeIdForDerivation,
     })
     if (next.length > 0) rememberStableOverlayIds(next)
     return next
@@ -440,6 +438,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
     activeSourceParsedGraphKnown,
     activeSourceSelectionKey,
     allowExplicitOpenWidgetNodeIds,
+    editorSurfaceKind,
     storyboardWidgetFrontmatterGraphAvailable,
     storyboardWidgetViewActive,
     overlayDraftNode?.id,
@@ -455,6 +454,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
     workspaceMutationBlocked,
     workspaceOverlayOpen,
     deferComposedGraphOverlayRender,
+    selectedOverlayEditorNodeIdForDerivation,
   ])
 
   React.useEffect(() => {
@@ -719,7 +719,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
       draftGraphDataRef,
       pendingOverlayNodeIdRef,
       pendingOverlayNode,
-      overlayEditorNodeIds: editorSurfaceKind === 'card' ? overlayEditorNodeIds.filter(id => { const node = renderGraphNodeById.get(id); return !!node && !isStoryboardFixedCardOwnedNode(node) }) : overlayEditorNodeIds,
+      overlayEditorNodeIds,
       connectedValuesByNodeId,
       storyboardWidgetSurfaceId, editorSurfaceKind,
       renderGraphSemanticKey,

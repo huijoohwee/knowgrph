@@ -984,7 +984,7 @@ export async function testUseFloatingPanelChatSubmitDelegatesToCoordinatorOnce()
     const streamFollowRef = { current: null as { path: string; atMs: number } | null }
     const finalizeAssistantSuccess = async () => {}
     const args = buildSubmitArgsFixture({
-      input: '  Generate KGC  ',
+      input: '  I can ...#storyboard ../soul.load#media@operator, better in#storyboard  ',
       isLoading: false,
       setChatWorkspaceStreamingState,
       streamDraftTextRef,
@@ -1000,7 +1000,7 @@ export async function testUseFloatingPanelChatSubmitDelegatesToCoordinatorOnce()
           assistantMessageId: 'assistant-1',
           requestTimestampMs: 123,
           traceId: 'trace-1',
-          nextMessages: [{ id: 'user-1', role: 'user', content: 'Generate KGC' }],
+          nextMessages: [{ id: 'user-1', role: 'user', content: 'I can ... #storyboard .. /soul.load #media @operator, better in #storyboard' }],
         }),
         executeCoordinator: async payload => {
           coordinatorCalls.push({
@@ -1041,7 +1041,7 @@ export async function testUseFloatingPanelChatSubmitDelegatesToCoordinatorOnce()
     }
     if (
       coordinatorCalls[0]?.requestUrl !== 'https://chat.example.test/v1/chat/completions' ||
-      coordinatorCalls[0]?.trimmedInput !== 'Generate KGC' ||
+      coordinatorCalls[0]?.trimmedInput !== 'I can ... #storyboard .. /soul.load #media @operator, better in #storyboard' ||
       coordinatorCalls[0]?.assistantMessageId !== 'assistant-1' ||
       !coordinatorCalls[0]?.hasStreamingWorkspaceSetter ||
       !coordinatorCalls[0]?.hasStreamingRefs ||

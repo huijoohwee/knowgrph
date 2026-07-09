@@ -5,7 +5,7 @@ import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/over
 import type { GraphData } from '@/lib/graph/types'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { shouldPreferScopedGraphDataAuthority } from '@/lib/storyboardWidget/storyboardWidgetGraphAuthority'
-import { resolveStoryboardWidgetDraftGraphDataForBaseReset } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import { buildStoryboardWidgetDraftGraphBaseSignature, resolveStoryboardWidgetDraftGraphDataForBaseReset } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 
 export function useStoryboardWidgetRenderState(args: {
   active: boolean
@@ -91,11 +91,15 @@ export function useStoryboardWidgetRenderState(args: {
   const rawRenderGraphTopologyLayoutSignature = React.useMemo(() => {
     return buildOverlayTopologyLayoutSignature(rawRenderGraphDataOverride)
   }, [rawRenderGraphDataOverride])
+  const rawRenderGraphContentSignature = React.useMemo(() => {
+    return buildStoryboardWidgetDraftGraphBaseSignature(rawRenderGraphDataOverride)
+  }, [rawRenderGraphDataOverride])
 
   const [stableRenderGraphOverride, setStableRenderGraphOverride] = React.useState<{
     documentKey: string
     graphData: GraphData | null
     topologyLayoutSignature: string
+    contentSignature: string
   } | null>(null)
 
   React.useLayoutEffect(() => {
@@ -105,6 +109,7 @@ export function useStoryboardWidgetRenderState(args: {
     }
     const nextGraph = rawRenderGraphDataOverride
     const nextTopologyLayoutSignature = rawRenderGraphTopologyLayoutSignature
+    const nextContentSignature = rawRenderGraphContentSignature
     const nextHasNodes = Array.isArray(nextGraph?.nodes) && nextGraph.nodes.length > 0
     const shouldPreserveStableDuringWorkspaceMutation =
       args.workspaceMutationBlocked
@@ -119,16 +124,19 @@ export function useStoryboardWidgetRenderState(args: {
           && !!prev?.graphData
           && prev.topologyLayoutSignature.length > 0
           && prev.topologyLayoutSignature === nextTopologyLayoutSignature
+          && prev.contentSignature === nextContentSignature
         if (preserveStableGraphAcrossFlowViewClose) return prev
         if (
           prev?.documentKey === args.activeDocumentKey
           && prev.topologyLayoutSignature === nextTopologyLayoutSignature
+          && prev.contentSignature === nextContentSignature
         ) return prev
         if (prev?.documentKey === args.activeDocumentKey && prev.graphData === nextGraph) return prev
         return {
           documentKey: args.activeDocumentKey,
           graphData: nextGraph,
           topologyLayoutSignature: nextTopologyLayoutSignature,
+          contentSignature: nextContentSignature,
         }
       })
       return
@@ -139,6 +147,7 @@ export function useStoryboardWidgetRenderState(args: {
         documentKey: args.activeDocumentKey,
         graphData: nextGraph,
         topologyLayoutSignature: nextTopologyLayoutSignature,
+        contentSignature: nextContentSignature,
       }
     })
   }, [
@@ -148,6 +157,7 @@ export function useStoryboardWidgetRenderState(args: {
     args.frontmatterOnlyPolicyActive,
     args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
+    rawRenderGraphContentSignature,
     rawRenderGraphTopologyLayoutSignature,
   ])
 
@@ -169,6 +179,7 @@ export function useStoryboardWidgetRenderState(args: {
       && stableHasNodes
       && stableRenderGraphOverride.topologyLayoutSignature.length > 0
       && stableRenderGraphOverride.topologyLayoutSignature === rawRenderGraphTopologyLayoutSignature
+      && stableRenderGraphOverride.contentSignature === rawRenderGraphContentSignature
     if (preserveStableGraphAcrossFlowViewClose) return stableGraph
     if (nextHasNodes) return nextGraph
     if (!args.frontmatterOnlyPolicyActive) return nextGraph
@@ -180,6 +191,7 @@ export function useStoryboardWidgetRenderState(args: {
     args.frontmatterOnlyPolicyActive,
     args.workspaceMutationBlocked,
     rawRenderGraphDataOverride,
+    rawRenderGraphContentSignature,
     rawRenderGraphTopologyLayoutSignature,
     stableRenderGraphOverride,
   ])

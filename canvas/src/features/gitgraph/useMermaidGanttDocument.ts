@@ -14,6 +14,7 @@ import {
   filterVideoSequenceMediaEditorGanttCode,
   filterVideoSequenceWorkflowGanttCode,
 } from '@/components/timeline/videoSequenceTimeline'
+import { readStrybldrWorkflowGanttCodesFromMarkdown } from '@/features/strybldr/strybldrStoryboard'
 
 export type MermaidGanttDocumentPurpose = 'any' | 'media' | 'workflow'
 
@@ -47,7 +48,11 @@ export function useMermaidGanttDocument({
   )
   const code = React.useMemo(
     () => {
+      const strybldrWorkflowGanttCodes = purpose === 'media'
+        ? []
+        : readStrybldrWorkflowGanttCodesFromMarkdown(markdownDocumentText || '')
       const candidates = [
+        ...strybldrWorkflowGanttCodes,
         ...readYamlFrontmatterMermaidDiagramCodes(markdownDocumentText || '', 'gantt'),
         readYamlFrontmatterMermaidCode(markdownDocumentText || ''),
         ...readFrontmatterMermaidDiagramCodes(graphData, 'gantt'),

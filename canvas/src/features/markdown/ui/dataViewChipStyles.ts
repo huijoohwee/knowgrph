@@ -61,9 +61,9 @@ export const splitInlineKeywordChipTokens = (text: string): Array<
 
 export const readInlineKeywordChipToneValue = (value: string): string => {
   const raw = String(value ?? '').trim()
-  return raw.startsWith('#') ? raw.slice(1) : raw
+  return /^[#/@]/.test(raw) ? raw.slice(1) : raw
 }
 
 export const readInlineKeywordChipLabel = (value: string): string => {
-  return readInlineKeywordChipToneValue(value)
+  return String(value ?? '').trim()
 }

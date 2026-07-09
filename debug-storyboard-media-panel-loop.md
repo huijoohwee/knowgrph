@@ -1,7 +1,7 @@
 # Debug Session: storyboard-media-panel-loop
 - **Status**: [OPEN]
 - **Issue**: Storyboard live route accepts media-panel drops into graph state, but the created Rich Media panel does not become visibly mounted and a post-drop `Maximum update depth exceeded` loop follows.
-- **Scope**: `Canvas` live route -> apply `huijoohwee/docs/knowgrph-strybldr-starter-template.md` -> drag image/video from FloatingPanel Media onto Storyboard canvas.
+- **Scope**: `Canvas` live route -> apply the operator-provided Strybldr validation document -> drag image/video from FloatingPanel Media onto Storyboard canvas.
 - **Constraint**: No business-logic modification before runtime evidence is collected.
 
 ## Symptoms

@@ -5,7 +5,7 @@ import {
 } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildFlowWidgetEligibleNodeIdSet, buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
+import { buildRichMediaPanelOverlayExcludeNodeIdSet, listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import type { GraphData } from '@/lib/graph/types'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -141,11 +141,46 @@ export function testStoryboardCardSurfaceSuppressesCanvasOwnedRichMediaBackingOv
   }
 }
 
+export function testBlankRichMediaPanelUsesPanelOverlayInsteadOfFlowNodeGlyph() {
+  const overlays = listDisplayRichMediaOverlayNodes({
+    renderMediaAsNodes: true,
+    canvas2dRenderer: 'storyboard',
+    frontmatterModeEnabled: true,
+    documentSemanticMode: 'document',
+    nodes: [{ id: 'blank-rich-media', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: {} }],
+    poolMax: 24,
+  })
+  if (overlays.length !== 1 || overlays[0]?.id !== 'blank-rich-media' || overlays[0]?.kind !== 'iframe') {
+    throw new Error(`expected blank Rich Media Panels to enter the panel overlay pool instead of rendering as FlowCanvas node glyphs, got ${JSON.stringify(overlays)}`)
+  }
+}
+
+export function testBlankRichMediaPanelsStayOverlayOwnedBesideMeaningfulPanel() {
+  const overlays = listDisplayRichMediaOverlayNodes({
+    renderMediaAsNodes: true,
+    canvas2dRenderer: 'storyboard',
+    frontmatterModeEnabled: true,
+    documentSemanticMode: 'document',
+    nodes: [
+      { id: 'blank-rich-media-a', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: {} },
+      { id: 'image-rich-media', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: { imageUrl: 'https://example.com/image.png', richMediaActiveTab: 'image' } },
+      { id: 'blank-rich-media-b', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: {} },
+    ],
+    poolMax: 24,
+  })
+  const ids = new Set(overlays.map(node => String(node.id || '').trim()))
+  if (overlays.length !== 3 || !ids.has('blank-rich-media-a') || !ids.has('image-rich-media') || !ids.has('blank-rich-media-b')) {
+    throw new Error(`expected every Rich Media Panel to stay overlay-owned instead of mutating blank panels into FlowCanvas glyphs, got ${JSON.stringify(overlays)}`)
+  }
+}
+
 export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicateOverlay() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const sharedPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx')
   const runtimeText = fs.readFileSync(runtimePath, 'utf8')
   const surfaceText = fs.readFileSync(surfacePath, 'utf8')
+  const sharedText = fs.readFileSync(sharedPath, 'utf8')
 
   if (!runtimeText.includes('openWidgetNodeIds={overlayOpenWidgetNodeIds}')) {
     throw new Error('expected Storyboard Widget runtime to pass the merged overlay widget owner ids into the shared surface for Rich Media duplicate suppression')
@@ -153,10 +188,8 @@ export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicat
   if (runtimeText.includes('() => storyboardWidgetDisplayActive ? storyboardWidgetNodeIds : openWidgetNodeIds')) {
     throw new Error('expected Storyboard Widget runtime not to drop explicit open Rich Media widgets when Storyboard display mode owns fixed cards')
   }
-  if (!runtimeText.includes('if (storyboardCardDisplayActive) {')
-    && !runtimeText.includes('if (storyboardCardDisplayActive) return openWidgetNodeIds.map')
-    || !runtimeText.includes('!isStoryboardFixedCardOwnedNode(node)')) {
-    throw new Error('expected Storyboard Card display mode to suppress stale fixed-card widget shells while preserving explicit Rich Media panels')
+  if (!runtimeText.includes('if (storyboardCardDisplayActive) return []')) {
+    throw new Error('expected Storyboard Card display mode to suppress floating widget shells, including Rich Media panels already owned by the canvas overlay')
   }
   if (!runtimeText.includes('for (let i = 0; i < storyboardWidgetNodeIds.length; i += 1) pushId(storyboardWidgetNodeIds[i])')
     || !runtimeText.includes('for (let i = 0; i < openWidgetNodeIds.length; i += 1) pushId(openWidgetNodeIds[i])')) {
@@ -176,5 +209,16 @@ export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicat
   }
   if (!surfaceText.includes('for (const id of openRichMediaPanelNodeIds) hiddenNodeIds.add(id)')) {
     throw new Error('expected open Rich Media widgets to be merged into the FlowCanvas hidden node ids instead of rendering a duplicate Rich Media overlay')
+  }
+  const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
+  const overlaySurfaceText = fs.readFileSync(overlaySurfacePath, 'utf8')
+  if (!overlaySurfaceText.includes('selectedNodeId: selectedOverlayEditorNodeIdForDerivation')) {
+    throw new Error('expected selected overlay editor node ids to pass through the shared Rich Media duplicate-suppression gate')
+  }
+  if (!sharedText.includes("String(args.storyboardWidgetSurfaceId || '').trim() !== 'storyboard'") || !sharedText.includes('isRichMediaPanelNode(node) ? null : selectedNodeId')) {
+    throw new Error('expected selected Storyboard Rich Media panels to stay canvas-owned instead of opening a duplicate floating widget shell')
+  }
+  if (!overlaySurfaceText.includes("if (editorSurfaceKind === 'card') return []")) {
+    throw new Error('expected Storyboard Card display mode to remove stale floating overlay editor shells at the shared overlay surface')
   }
 }

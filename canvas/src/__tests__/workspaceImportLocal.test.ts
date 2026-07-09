@@ -1177,15 +1177,15 @@ export async function testWorkspaceImportLocalStrybldrMarkdownActivatesRunnableR
     if (afterApply.canvas2dRenderer !== 'storyboard') {
       throw new Error(`expected local Strybldr import apply to set Storyboard renderer, got ${String(afterApply.canvas2dRenderer || '')}`)
     }
-    if (afterApply.floatingPanelOpen !== true || afterApply.floatingPanelView !== 'strybldr') {
-      throw new Error('expected local Strybldr import apply to mount the Strybldr run consumer panel')
+    if (String(afterApply.floatingPanelView) === 'strybldr') {
+      throw new Error('expected local Strybldr import apply not to mount a stale Strybldr panel')
     }
 
     await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
     const next = useGraphStore.getState()
     if (useMarkdownExplorerStore.getState().activePath !== importedPath) throw new Error(`expected local Strybldr activation to focus imported file, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
     if (next.canvas2dRenderer !== 'storyboard') throw new Error(`expected local Strybldr activation to keep Storyboard renderer, got ${String(next.canvas2dRenderer || '')}`)
-    if (next.floatingPanelOpen !== true || next.floatingPanelView !== 'strybldr') throw new Error('expected local Strybldr activation to keep the Strybldr Run all consumer mounted')
+    if (String(next.floatingPanelView) === 'strybldr') throw new Error('expected local Strybldr activation not to keep a stale Strybldr Run all panel mounted')
 
     const renderGraph = resolveActiveMarkdownBaseGraph({
       baseGraphDataRaw: next.graphData,

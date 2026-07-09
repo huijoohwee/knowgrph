@@ -25,6 +25,8 @@ import {
   isFlowWidgetPointerDragDropClaimed,
   readActiveFlowWidgetPointerDragSession,
   readFlowWidgetDragPayloadFromDataTransfer,
+  resolveFlowWidgetDragEventReleaseClientPoint,
+  resolveFlowWidgetPointerReleaseClientPoint,
   type FlowWidgetDragPayloadV1,
   type FlowWidgetPointerDragDropDetail,
   type FlowWidgetPointerDragSession,
@@ -39,7 +41,6 @@ import {
   resolveTextGenerationGlobalDefaultsForProviderFamily,
 } from '@/features/storyboard-widget-manager/registryTemplates'
 import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
-import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { requestGeospatialCurrentLocation, setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { readGeospatialCursorLngLat } from '@/lib/gympgrph/api'
@@ -48,6 +49,7 @@ import {
   isRecord,
   pickFiniteNumber,
   readFiniteGeoLatLng,
+  readResolvedStoryboardWidgetDropTransform,
 } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
@@ -77,10 +79,10 @@ function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown)
 }
 
 function readStoryboardWidgetDropRect(args: {
-  root: HTMLElement | null
+  rootRef: React.RefObject<HTMLElement | null>
   widgetDropBridgeOnly: boolean
 }): DOMRect | null {
-  const viewportEl = resolveCanvasViewportMeasureElement(args.root)
+  const viewportEl = resolveCanvasViewportMeasureElement(args.rootRef.current)
   if (viewportEl) return viewportEl.getBoundingClientRect()
   if (!args.widgetDropBridgeOnly) return null
   if (typeof document !== 'undefined') {
@@ -414,93 +416,32 @@ export function useStoryboardWidgetDropBridge(args: {
     args.overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
     args.lastDroppedWidgetNodeIdRef.current = actualId
     args.setLastDroppedWidgetToken(Date.now())
-    openPendingOverlayNode(actualId)
     useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: actualId, selectedEdgeId: null, selectedGroupId: null, selectedNodeIds: [actualId], selectedEdgeIds: [], selectedGroupIds: [] })
     args.scheduleForceSelect(actualId, { minHoldMs: 700 })
     args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, fx: x, fy: y, vx: 0, vy: 0, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
-    args.pendingOpenWidgetNodeIdRef.current = actualId
     return actualId
-  }, [args, openPendingOverlayNode])
+  }, [args])
 
   React.useEffect(() => {
     if (!(args.active || args.widgetDropCaptureEnabled)) return
     if (typeof document === 'undefined') return
     const deferredDropRafIds = new Set<number>()
     const maxDeferredDropFrames = 8
-    const readProjectedRichMediaShellTransform = () => {
-      const graphData = args.draftGraphDataRef.current || useGraphStore.getState().graphData || args.baseGraphData || null
-      const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
-      const readNodeForOverlayId = (overlayId: string) => {
-        const cleanOverlayId = String(overlayId || '').trim()
-        if (!cleanOverlayId) return null
-        return nodes.find(node => {
-          const nodeId = String(node?.id || '').trim()
-          if (!nodeId) return false
-          return nodeId === cleanOverlayId || nodeId.endsWith(`::${cleanOverlayId}`) || cleanOverlayId.endsWith(`::${nodeId}`)
-        }) || null
-      }
-      const shells = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id]'))
-      for (const shell of shells) {
-        const rect = shell.getBoundingClientRect()
-        if (!(rect.width > 0 && rect.height > 0)) continue
-        const node = readNodeForOverlayId(shell.dataset.nodeId)
-        const nodeX = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
-        const nodeY = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
-        if (nodeX == null || nodeY == null) continue
-        const kx = rect.width / RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width
-        const ky = rect.height / RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height
-        const k = Number.isFinite(kx) && kx > 0 ? kx : (Number.isFinite(ky) && ky > 0 ? ky : null)
-        if (k == null) continue
-        const x = rect.left - nodeX * k
-        const y = rect.top - nodeY * k
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-        return { k, x, y }
-      }
-      return null
-    }
-    const readResolvedDropTransform = (opts?: { allowNeutralFallback?: boolean }) => {
-      const st = useGraphStore.getState()
-      const live = args.getLiveZoomTransform()
-      const liveTransform =
-        live
-        && Number.isFinite(live.k)
-        && live.k > 0
-        && Number.isFinite(live.x)
-        && Number.isFinite(live.y)
-          ? { k: live.k, x: live.x, y: live.y }
-          : null
-      const persisted = getEffectiveZoomStateForKey({
-        zoomViewKey: args.zoomViewKeyRef.current,
-        zoomStateByKey: st.zoomStateByKey,
-        zoomState: st.zoomState,
-      })
-      const persistedTransform =
-        persisted
-        && Number.isFinite(persisted.k)
-        && persisted.k > 0
-        && Number.isFinite(persisted.x)
-        && Number.isFinite(persisted.y)
-          ? { k: persisted.k, x: persisted.x, y: persisted.y }
-          : null
-      const liveIsNeutral = !!liveTransform
-        && Math.abs(liveTransform.k - 1) <= 1e-3
-        && Math.abs(liveTransform.x) <= 0.5
-        && Math.abs(liveTransform.y) <= 0.5
-      const projectedTransform = readProjectedRichMediaShellTransform()
-      if (liveTransform && !liveIsNeutral) return liveTransform
-      if (projectedTransform) return projectedTransform
-      if (persistedTransform) return persistedTransform
-      if (liveTransform && opts?.allowNeutralFallback === true) return liveTransform
-      return null
-    }
     const readDropRect = (): DOMRect | null => {
       return readStoryboardWidgetDropRect({
-        root: args.rootRef.current,
+        rootRef: args.rootRef,
         widgetDropBridgeOnly: args.widgetDropBridgeOnly,
       })
     }
     const resolveDropPos = (sx: number, sy: number, opts?: { allowNeutralFallback?: boolean }) => {
-      const transform = readResolvedDropTransform(opts)
+      const transform = readResolvedStoryboardWidgetDropTransform({
+        getLiveZoomTransform: args.getLiveZoomTransform,
+        zoomViewKeyRef: args.zoomViewKeyRef,
+        draftGraphDataRef: args.draftGraphDataRef,
+        baseGraphData: args.baseGraphData,
+        allowNeutralFallback: opts?.allowNeutralFallback,
+        useProjectedRichMediaShell: true,
+      })
       if (!transform) return null
       return screenToWorld({
         transform,
@@ -652,15 +593,16 @@ export function useStoryboardWidgetDropBridge(args: {
       const rect = readDropRect()
       if (!rect) return
       args.setCanvasWindowOffsetFromRect(rect)
-      const sx = ev.clientX - rect.left
-      const sy = ev.clientY - rect.top
+      const release = resolveFlowWidgetDragEventReleaseClientPoint(ev)
+      const sx = release.clientX - rect.left
+      const sy = release.clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
       const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], payload)
       if (!entry) return
-      const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, ev.clientX, ev.clientY)
+      const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, release.clientX, release.clientY)
       if (status === 'await-transform') {
-        scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, ev.clientX, ev.clientY, retryOpts))
+        scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, release.clientX, release.clientY, retryOpts))
       } else if (status !== 'committed') {
         try {
           ev.preventDefault()
@@ -726,42 +668,9 @@ export function useStoryboardWidgetDropBridge(args: {
     const minPointerDragDistancePx = 6
     const deferredDropRafIds = new Set<number>()
     const maxDeferredDropFrames = 8
-    const readResolvedDropTransform = (opts?: { allowNeutralFallback?: boolean }) => {
-      const st = useGraphStore.getState()
-      const live = args.getLiveZoomTransform()
-      const liveTransform =
-        live
-        && Number.isFinite(live.k)
-        && live.k > 0
-        && Number.isFinite(live.x)
-        && Number.isFinite(live.y)
-          ? { k: live.k, x: live.x, y: live.y }
-          : null
-      const persisted = getEffectiveZoomStateForKey({
-        zoomViewKey: args.zoomViewKeyRef.current,
-        zoomStateByKey: st.zoomStateByKey,
-        zoomState: st.zoomState,
-      })
-      const persistedTransform =
-        persisted
-        && Number.isFinite(persisted.k)
-        && persisted.k > 0
-        && Number.isFinite(persisted.x)
-        && Number.isFinite(persisted.y)
-          ? { k: persisted.k, x: persisted.x, y: persisted.y }
-          : null
-      const liveIsNeutral = !!liveTransform
-        && Math.abs(liveTransform.k - 1) <= 1e-3
-        && Math.abs(liveTransform.x) <= 0.5
-        && Math.abs(liveTransform.y) <= 0.5
-      if (liveTransform && !liveIsNeutral) return liveTransform
-      if (persistedTransform) return persistedTransform
-      if (liveTransform && opts?.allowNeutralFallback === true) return liveTransform
-      return null
-    }
     const resolvePointerDropPos = (clientX: number, clientY: number, opts?: { allowNeutralFallback?: boolean }) => {
       const rect = readStoryboardWidgetDropRect({
-        root: args.rootRef.current,
+        rootRef: args.rootRef,
         widgetDropBridgeOnly: args.widgetDropBridgeOnly,
       })
       if (!rect) return { rect: null, pos: null }
@@ -770,7 +679,14 @@ export function useStoryboardWidgetDropBridge(args: {
       if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) {
         return { rect, pos: null }
       }
-      const transform = readResolvedDropTransform(opts)
+      const transform = readResolvedStoryboardWidgetDropTransform({
+        getLiveZoomTransform: args.getLiveZoomTransform,
+        zoomViewKeyRef: args.zoomViewKeyRef,
+        draftGraphDataRef: args.draftGraphDataRef,
+        baseGraphData: args.baseGraphData,
+        allowNeutralFallback: opts?.allowNeutralFallback,
+        useProjectedRichMediaShell: true,
+      })
       if (!transform) return { rect, pos: null }
       return {
         rect,
@@ -837,18 +753,32 @@ export function useStoryboardWidgetDropBridge(args: {
     const onPointerUpCapture = (ev: PointerEvent) => {
       const session = readActiveFlowWidgetPointerDragSession()
       if (!session || session.pointerId !== ev.pointerId) return
-      try {
-        clearActiveFlowWidgetPointerDragSession(ev.pointerId)
-      } catch {
-        void 0
+      const release = resolveFlowWidgetPointerReleaseClientPoint({
+        eventType: ev.type,
+        eventClientX: ev.clientX,
+        eventClientY: ev.clientY,
+        session,
+      })
+      if (!isFlowWidgetPointerDropDistanceAccepted(session, release.clientX, release.clientY)) {
+        try {
+          clearActiveFlowWidgetPointerDragSession(ev.pointerId)
+        } catch {
+          void 0
+        }
+        return
       }
-      if (!isFlowWidgetPointerDropDistanceAccepted(session, ev.clientX, ev.clientY)) return
       const commitWidget = (opts?: { allowNeutralFallback?: boolean }): 'committed' | 'await-transform' | 'rejected' => (
-        commitFlowWidgetPointerDrop(session, ev.clientX, ev.clientY, opts)
+        commitFlowWidgetPointerDrop(session, release.clientX, release.clientY, opts)
       )
       const status = commitWidget()
       if (status === 'await-transform') {
         scheduleDeferredWidgetCommit(commitWidget)
+        if (session.nativeDragStarted === true) return
+      }
+      try {
+        clearActiveFlowWidgetPointerDragSession(ev.pointerId)
+      } catch {
+        void 0
       }
     }
     const onFlowWidgetPointerDragDropCapture = (event: Event) => {

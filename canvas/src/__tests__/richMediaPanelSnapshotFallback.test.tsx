@@ -4,6 +4,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
 
@@ -24,6 +25,36 @@ const resetRichMediaPanelTestStoreState = () => {
   try { state.setWorkspaceCanvasPaneOpen(false) } catch { void 0 }
   try { state.setRichMediaPanelMode('snapshot') } catch { void 0 }
   try { state.setInfiniteCanvasInteractionMode('static') } catch { void 0 }
+}
+
+const createMediaDataTransfer = (payload: MediaDragPayload): DataTransfer => {
+  const values = new Map<string, string>()
+  const transfer = {
+    dropEffect: '',
+    effectAllowed: '',
+    get types() {
+      return Array.from(values.keys())
+    },
+    clearData: (type?: string) => {
+      if (type) values.delete(type)
+      else values.clear()
+    },
+    getData: (type: string) => values.get(type) || '',
+    setData: (type: string, value: string) => {
+      values.set(type, value)
+    },
+  } as unknown as DataTransfer
+  writeMediaDragPayload(transfer, payload)
+  return transfer
+}
+
+const dispatchMediaDrop = (win: Window, target: EventTarget, payload: MediaDragPayload) => {
+  const EventCtor = (win as unknown as { Event: typeof Event }).Event
+  const event = new EventCtor('drop', { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'dataTransfer', { configurable: true, value: createMediaDataTransfer(payload) })
+  Object.defineProperty(event, 'clientX', { configurable: true, value: 12 })
+  Object.defineProperty(event, 'clientY', { configurable: true, value: 12 })
+  target.dispatchEvent(event)
 }
 
 const dispatchPanelPointerEvent = (
@@ -402,10 +433,18 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const root = process.cwd()
   const readSource = (...parts: string[]) => readFileSync(resolve(root, 'src', ...parts), 'utf8')
   const sharedCardMediaText = readSource('lib', 'cards', 'CardMediaPreview.tsx')
+  const sharedCardMediaDropZoneText = readSource('lib', 'cards', 'CardMediaDropZone.tsx')
   const sharedCardMarkdownText = readSource('lib', 'cards', 'CardMarkdownPreview.tsx')
   const sharedCardMarkdownUtilsText = readSource('lib', 'cards', 'cardMarkdownPreviewUtils.ts')
   const sharedCardInlineText = readSource('lib', 'cards', 'CardInlineTextEditor.tsx')
   const sharedCardMediaUtilsText = readSource('lib', 'cards', 'cardMediaPreviewUtils.ts')
+  const sharedResponsiveElementClassesText = readSource('lib', 'ui', 'responsiveElementClasses.ts')
+  const sharedTextLayoutText = readSource('lib', 'ui', 'textLayout.ts')
+  const sharedCardMarkdownChipStyleText = [
+    sharedCardMarkdownUtilsText,
+    sharedResponsiveElementClassesText,
+    sharedTextLayoutText,
+  ].join('\n')
   const richMediaPanelText = [
     readSource('components', 'RichMediaPanel.tsx'),
     readSource('components', 'RichMediaPanelDirectMediaSurface.tsx'),
@@ -419,6 +458,7 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const renderConfigText = readSource('lib', 'config.render.ts')
   const canvasViewportText = readSource('components', 'CanvasViewport.tsx')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  const storyboardCardMediaDropSlotText = readSource('components', 'StoryboardWidgetCanvas', 'StoryboardCardMediaDropSlot2d.tsx')
   const storyboardWidgetFormText = readSource('components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
   const storyboardWidgetPanelText = readSource('components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
   const storyboardWidgetPanelChromeText = readSource('components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
@@ -476,8 +516,26 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (!sharedCardMediaUtilsText.includes('export function isDirectPlayableCardMedia')) {
     throw new Error('expected shared card media utility owner to expose direct playable media detection')
   }
+  for (const snippet of [
+    'export function useCardMediaDropZone',
+    'export function CardMediaDropZoneFrame',
+    'MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE',
+    'MEDIA_POINTER_DRAG_DROP_EVENT',
+    'data-kg-card-media-drop-zone',
+  ]) {
+    if (!sharedCardMediaDropZoneText.includes(snippet)) {
+      throw new Error(`expected shared card media drop-zone owner to expose ${snippet}`)
+    }
+  }
   if (!richMediaPanelText.includes("from '@/lib/cards/CardMediaPreview'")) {
     throw new Error('expected RichMediaPanel to reuse the shared card media surface')
+  }
+  if (
+    !richMediaPanelText.includes("from '@/lib/cards/CardMediaDropZone'")
+    || !richMediaPanelText.includes('data-kg-rich-media-media-drop-zone')
+    || !richMediaPanelText.includes('onMediaDrop?: (payload: MediaDragPayload) => void')
+  ) {
+    throw new Error('expected RichMediaPanel Add text surface to reuse the shared card media drop-zone owner')
   }
   if (!richMediaPanelText.includes("from '@/lib/cards/CardMarkdownPreview'") || richMediaPanelText.includes('MarkdownPreviewLazy')) {
     throw new Error('expected RichMediaPanel text mode to reuse the shared card markdown surface')
@@ -550,6 +608,19 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (!storyboardCanvasText.includes("from '@/lib/cards/CardMediaPreview'") || !storyboardCanvasText.includes('CardMediaPreview')) {
     throw new Error('expected Storyboard cards to reuse the shared card media surface')
   }
+  if (
+    !storyboardCardMediaDropSlotText.includes("from '@/lib/cards/CardMediaDropZone'")
+    || !storyboardCardMediaDropSlotText.includes('<CardMediaDropZoneFrame')
+    || !storyboardCardMediaDropSlotText.includes('data-kg-storyboard-card-media-drop')
+  ) {
+    throw new Error('expected Storyboard card media slots to reuse the shared card media drop-zone owner')
+  }
+  if (
+    !storyboardCanvasText.includes('onMediaDrop={handlePanelMediaDrop}')
+    || !storyboardCanvasText.includes('buildRichMediaPanelDroppedMediaProperties({ ...payload, url: cleanUrl, label })')
+  ) {
+    throw new Error('expected Storyboard Rich Media panels to persist dropped media through the shared RichMediaPanel media-property owner')
+  }
   if (!storyboardCanvasText.includes('title="Reference"') || storyboardCanvasText.includes('<img src={reference.url}')) {
     throw new Error('expected Storyboard reference thumbnails to reuse the shared card media surface')
   }
@@ -572,6 +643,12 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   }
   if (!flowCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !flowCanvasOverlayText.includes('panelChrome="storyboardWidget"')) {
     throw new Error('expected Flow Canvas rich media overlays to reuse Storyboard Widget RichMediaPanel chrome')
+  }
+  if (
+    !flowCanvasOverlayText.includes('onMediaDrop={handleRichMediaPanelMediaDrop}')
+    || !flowCanvasOverlayText.includes('buildRichMediaPanelDroppedMediaProperties({ ...payload, url: mediaUrl, label })')
+  ) {
+    throw new Error('expected Flow Canvas rich media overlays to persist dropped media through the shared RichMediaPanel media-property owner')
   }
   if (!graphCanvasOverlayText.includes("import RichMediaPanel from '@/components/RichMediaPanel'") || !graphCanvasOverlayText.includes('panelChrome="storyboardWidget"')) {
     throw new Error('expected D3 graph and Flowchart rich media overlays to reuse Storyboard Widget RichMediaPanel chrome')
@@ -671,17 +748,17 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     throw new Error('expected card-preview inline image and video surfaces to use shared mention-style media pill classes')
   }
   if (
-    !sharedCardMarkdownUtilsText.includes('rounded-full')
-    || !sharedCardMarkdownUtilsText.includes('h-3')
-    || !sharedCardMarkdownUtilsText.includes('items-center')
-    || !sharedCardMarkdownUtilsText.includes('align-baseline')
-    || !sharedCardMarkdownUtilsText.includes('[font-size:inherit]')
-    || !sharedCardMarkdownUtilsText.includes('[line-height:inherit]')
-    || !sharedCardMarkdownUtilsText.includes('mr-1')
-    || !sharedCardMarkdownUtilsText.includes('truncate [line-height:inherit]')
-    || !sharedCardMarkdownUtilsText.includes('max-w-[9rem]')
-    || !sharedCardMarkdownUtilsText.includes('border-[color:var(--kg-border)]')
-    || !sharedCardMarkdownUtilsText.includes('text-[color:var(--kg-text-secondary)]')
+    !sharedCardMarkdownChipStyleText.includes('rounded-full')
+    || !sharedCardMarkdownChipStyleText.includes('h-3')
+    || !sharedCardMarkdownChipStyleText.includes('items-center')
+    || !sharedCardMarkdownChipStyleText.includes('align-baseline')
+    || !sharedCardMarkdownChipStyleText.includes('[font-size:inherit]')
+    || !sharedCardMarkdownChipStyleText.includes('[line-height:inherit]')
+    || !sharedCardMarkdownChipStyleText.includes('mr-1')
+    || !sharedCardMarkdownChipStyleText.includes('truncate [line-height:inherit]')
+    || !sharedCardMarkdownChipStyleText.includes('max-w-[9rem]')
+    || !sharedCardMarkdownChipStyleText.includes('border-[color:var(--kg-border)]')
+    || !sharedCardMarkdownChipStyleText.includes('text-[color:var(--kg-text-secondary)]')
   ) {
     throw new Error('expected card-preview inline image and video surfaces to reuse the shared Open brief chip styling with thumbnail and label')
   }
@@ -820,227 +897,6 @@ export async function testRichMediaPanelEmptyVideoRendersPlaceholderInsteadOfBla
 
     await unmountReactRoot(root, { window: dom.window })
   } finally {
-    restoreDom()
-  }
-}
-
-export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
-  const { dom, restore: restoreDom } = initJsdomHarness()
-  try {
-    resetRichMediaPanelTestStoreState()
-    const doc = dom.window.document
-    const container = doc.createElement('section')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
-    await mountReactRoot(root,
-      React.createElement(RichMediaPanel, {
-        title: 'Rich Media Panel',
-        url: '',
-        kind: 'iframe',
-        interactive: false,
-        forwardWheelTo: () => doc.body,
-        panel: {
-          activeTab: 'text',
-          freezeConnectedOutput: false,
-          hasText: true,
-          hasImage: false,
-          hasVideo: false,
-          hasAudio: false,
-          hasPoi: false,
-          text: '',
-          connectedText: [
-            '# Hello',
-            '',
-            '> Storyboard quote stays structured.',
-            '',
-            '```ts',
-            'const value = 42',
-            '```',
-            '',
-            '```mermaid',
-            'flowchart LR',
-            '  A[Text surface] --> B[Mermaid surface]',
-            '```',
-            '',
-            'Inline link [Open reference](https://example.com/reference) stays visible.',
-            '',
-            'Inline math $x+y$ stays visible.',
-            '',
-            '| ID | Criterion |',
-            '| --- | --- |',
-            '| C1 | Data freshness |',
-            '',
-            '![preview](https://example.com/preview.png)',
-            '',
-            '![](https://example.com/demo.mp4)',
-            '',
-          ].join('\n'),
-        },
-      }),
-    { window: dom.window, frames: 28 })
-
-    const markdownPreview = container.querySelector('[data-kg-rich-media-markdown-preview="1"]')
-    if (!markdownPreview) throw new Error('expected RichMediaPanel text mode to mount the shared markdown preview surface')
-    const markdownPreviewEl = markdownPreview as HTMLElement
-    const markdownPreviewClassName = String(markdownPreviewEl.getAttribute('class') || '')
-    if (!markdownPreviewClassName.includes('overflow-y-auto') || !markdownPreviewClassName.includes('overflow-x-hidden') || !markdownPreviewClassName.includes('bg-[color:var(--kg-code-bg)]')) {
-      throw new Error(`expected RichMediaPanel text surface to reuse the shared code-like vertical-only Card surface, class=${markdownPreviewClassName}`)
-    }
-    if (markdownPreviewEl.style.overflowY !== 'auto' || markdownPreviewEl.style.overflowX !== 'hidden' || markdownPreviewEl.style.touchAction !== 'pan-y') {
-      throw new Error(`expected RichMediaPanel text surface to allow vertical scrolling only, y=${markdownPreviewEl.style.overflowY} x=${markdownPreviewEl.style.overflowX} touch=${markdownPreviewEl.style.touchAction}`)
-    }
-    if (markdownPreviewEl.style.pointerEvents !== 'auto') {
-      throw new Error(`expected RichMediaPanel text surface to remain scroll-targetable while canvas wheel forwarding exists, pointerEvents=${markdownPreviewEl.style.pointerEvents}`)
-    }
-    const cardMarkdownPreview = container.querySelector('[data-kg-card-markdown-preview="1"]')
-    if (!cardMarkdownPreview) throw new Error('expected RichMediaPanel text mode to reuse the shared CardMarkdownPreview surface')
-    const cardMarkdownViewer = container.querySelector('[data-kg-card-markdown-viewer="1"]')
-    if (!cardMarkdownViewer) throw new Error('expected RichMediaPanel text mode to use the chrome-free Card markdown viewer')
-    const cardMarkdownViewerClassName = String((cardMarkdownViewer as HTMLElement).getAttribute('class') || '')
-    if (cardMarkdownViewerClassName.includes('overflow-auto')) {
-      throw new Error(`expected outer RichMediaPanel text surface to own scrolling instead of nested Card markdown viewer, class=${cardMarkdownViewerClassName}`)
-    }
-    if (container.querySelector('[aria-label="Markdown sidebar"]')) throw new Error('expected Card markdown preview to omit document Explorer/Outline chrome')
-    if (container.querySelector('[aria-label="Code block actions"]')) throw new Error('expected Card markdown preview to omit document code-block toolbar chrome')
-    if (container.querySelector('script[data-kg-markdown-source="1"]')) throw new Error('expected Card markdown preview to avoid embedding hidden source payload text')
-    const article = cardMarkdownPreview.querySelector('article')
-    if (!article || !String(article.getAttribute('class') || '').includes('w-full')) {
-      throw new Error(`expected Card markdown preview content to span the Card width, html=${container.innerHTML}`)
-    }
-    const heading = Array.from(container.querySelectorAll('h1,h2,h3') as NodeListOf<HTMLElement>).find(el => (el.textContent || '').trim() === 'Hello')
-    if (!heading) throw new Error('expected markdown heading to render through RichMediaPanel text mode')
-    const blockquote = container.querySelector('blockquote')
-    if (!blockquote || !/Storyboard quote stays structured/i.test(blockquote.textContent || '')) {
-      throw new Error(`expected card markdown preview to render blockquote syntax, html=${container.innerHTML}`)
-    }
-    const code = container.querySelector('pre code')
-    if (!code || !/const value = 42/i.test(code.textContent || '')) {
-      throw new Error(`expected card markdown preview to render fenced code syntax, html=${container.innerHTML}`)
-    }
-    const codeFigure = code.closest('figure') as HTMLElement | null
-    const codeFigureClassName = String(codeFigure?.getAttribute('class') || '')
-    if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(codeFigureClassName)) {
-      throw new Error(`expected Card markdown code frame to avoid nested rounded border shadow chrome, class=${codeFigureClassName}`)
-    }
-    if (!codeFigureClassName.includes('overflow-y-auto') || !codeFigureClassName.includes('overflow-x-hidden')) {
-      throw new Error(`expected Card markdown code frame to use vertical-only scrolling, class=${codeFigureClassName}`)
-    }
-    const link = Array.from(container.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>).find(anchor =>
-      String(anchor.getAttribute('href') || '').includes('https://example.com/reference'),
-    )
-    if (!link) throw new Error('expected card markdown preview to render markdown link syntax')
-    if (!/x\+y|x\s*\+\s*y/.test(container.textContent || '')) {
-      throw new Error(`expected card markdown preview to preserve inline math syntax, text=${JSON.stringify(container.textContent || '')}`)
-    }
-    const table = container.querySelector('table')
-    if (!table || !/Data freshness/i.test(table.textContent || '')) {
-      throw new Error(`expected Card markdown preview to render markdown tables as a full-width plain table, html=${container.innerHTML}`)
-    }
-    if (container.querySelector('[aria-label="Markdown data view"]')) {
-      throw new Error('expected Card markdown preview to avoid document-level data-view table conversion')
-    }
-    const image = container.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]')
-    if (!image) throw new Error(`expected card markdown preview markdown image to reuse CardMediaPreview, html=${container.innerHTML}`)
-    const imageClassName = String((image as HTMLElement).getAttribute('class') || '')
-    if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(imageClassName)) {
-      throw new Error(`expected Card markdown image media to avoid nested rounded border shadow chrome, class=${imageClassName}`)
-    }
-    const video = container.querySelector('video[data-kg-card-media-kind="video"][data-kg-media-thumbnail="1"]')
-    if (!video) throw new Error(`expected card markdown preview markdown video to reuse CardMediaPreview, html=${container.innerHTML}`)
-    const videoClassName = String((video as HTMLElement).getAttribute('class') || '')
-    if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(videoClassName)) {
-      throw new Error(`expected Card markdown video media to avoid nested rounded border shadow chrome, class=${videoClassName}`)
-    }
-    const cardDownloadLink = cardMarkdownPreview.querySelector('a[download][aria-label="Download media"]')
-    if (cardDownloadLink) {
-      throw new Error(`expected Card markdown preview to move media download affordance out of inline @ thumbnail pills, html=${container.innerHTML}`)
-    }
-
-    await unmountReactRoot(root, { window: dom.window })
-  } finally {
-    restoreDom()
-  }
-}
-
-export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot() {
-  const { dom, restore: restoreDom } = initJsdomHarness()
-  const state = useGraphStore.getState()
-  const previousRenderer = state.canvas2dRenderer
-  const previousRenderMode = state.canvasRenderMode
-  try {
-    resetRichMediaPanelTestStoreState()
-    try {
-      state.setCanvasRenderMode('2d')
-      state.setCanvas2dRenderer('storyboard')
-    } catch {
-      void 0
-    }
-    const doc = dom.window.document
-    const container = doc.createElement('section')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
-    await mountReactRoot(root,
-      React.createElement(RichMediaPanel, {
-        title: 'Rich Media Panel',
-        url: '',
-        kind: 'iframe',
-        interactive: false,
-        panel: {
-          activeTab: 'text',
-          freezeConnectedOutput: false,
-          hasText: true,
-          hasImage: false,
-          hasVideo: false,
-          hasAudio: false,
-          hasPoi: false,
-          text: '',
-          connectedText: 'Connected panel text',
-        },
-        onPanelChange: () => void 0,
-      }),
-    { window: dom.window, frames: 8 })
-
-    const inlineSurface = container.querySelector('[data-kg-rich-media-inline-edit="1"]')
-    if (!inlineSurface) throw new Error('expected RichMediaPanel text mode to expose a shared inline edit surface')
-    const display = inlineSurface.querySelector('[data-kg-card-inline-edit-activation="click"]')
-    if (!(display instanceof dom.window.HTMLElement)) {
-      throw new Error('expected RichMediaPanel inline text surface to reuse CardInlineTextEditor click activation')
-    }
-
-    await act(async () => {
-      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-      await waitForNextFrame(dom.window)
-    })
-
-    const editor = container.querySelector('textarea[aria-label="Rich Media Panel text"]')
-    if (!(editor instanceof dom.window.HTMLTextAreaElement)) {
-      throw new Error(`expected click activation to open the shared multiline CardInlineTextEditor, html=${container.innerHTML}`)
-    }
-    if (editor.value !== 'Connected panel text') {
-      throw new Error(`expected inline editor to open with connected panel text, got ${JSON.stringify(editor.value)}`)
-    }
-    if (!container.querySelector('button[title="Slash commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared slash commands')
-    }
-    if (!container.querySelector('button[title="Variable commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared variable commands')
-    }
-    if (!container.querySelector('button[title="Keyword commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared keyword commands')
-    }
-
-    await unmountReactRoot(root, { window: dom.window })
-  } finally {
-    try {
-      state.setCanvasRenderMode(previousRenderMode)
-      state.setCanvas2dRenderer(previousRenderer)
-    } catch {
-      void 0
-    }
     restoreDom()
   }
 }

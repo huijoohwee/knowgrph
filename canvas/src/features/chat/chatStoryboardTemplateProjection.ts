@@ -110,8 +110,6 @@ export const buildStoryboardTemplateProjectionFrontmatterLines = (args: {
     'kgStrybldrStoryboard: true',
     'kgBottomPanelOpen: true',
     'kgBottomPanelTab: "timeline"',
-    'kgFloatingPanelOpen: true',
-    'kgFloatingPanelView: "strybldr"',
     'runtime_readiness:',
     '  status: "template-ready"',
     '  default_runtime: "local-dry-run-first"',

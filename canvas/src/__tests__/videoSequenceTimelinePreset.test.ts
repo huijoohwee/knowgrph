@@ -58,14 +58,14 @@ export function testCanvasFrontmatterPresetAppliesExplicitPanelRouting() {
       'kgBottomPanelOpen: true',
       'kgBottomPanelTab: "timeline"',
       'kgFloatingPanelOpen: true',
-      'kgFloatingPanelView: "strybldr"',
+      'kgFloatingPanelView: "timeline"',
       '---',
       '',
     ].join('\n'),
   })
   const next = useGraphStore.getState()
-  if (!changed || next.bottomSurfaceTab !== 'timeline' || next.bottomSurfaceCollapsed === true || next.floatingPanelView !== 'strybldr' || next.floatingPanelOpen !== true) {
-    throw new Error(`expected frontmatter panel routing to open Timeline and Strybldr panels, got ${JSON.stringify({
+  if (!changed || next.bottomSurfaceTab !== 'timeline' || next.bottomSurfaceCollapsed === true || next.floatingPanelView !== 'timeline' || next.floatingPanelOpen !== true) {
+    throw new Error(`expected frontmatter panel routing to open Timeline surfaces, got ${JSON.stringify({
       changed,
       bottomSurfaceTab: next.bottomSurfaceTab,
       bottomSurfaceCollapsed: next.bottomSurfaceCollapsed,
@@ -75,12 +75,15 @@ export function testCanvasFrontmatterPresetAppliesExplicitPanelRouting() {
   }
 }
 
-export function testStrybldrSerializerEmitsBottomPanelTimelineRouting() {
+export function testStrybldrSerializerEmitsBottomPanelGanttRouting() {
   const text = serializeStrybldrStoryboardMarkdown(buildStrybldrStoryboardDocument({
     createdAtMs: 1,
     sourceUnits: [],
   }))
-  for (const snippet of ['kgBottomPanelOpen: true', 'kgBottomPanelTab: "timeline"', 'kgFloatingPanelOpen: true', 'kgFloatingPanelView: "strybldr"']) {
+  for (const snippet of ['kgBottomPanelOpen: true', 'kgBottomPanelTab: "gantt"', 'kgFloatingPanelOpen: true', 'kgFloatingPanelView: "gantt"']) {
     if (!text.includes(snippet)) throw new Error(`expected serialized Strybldr markdown to include ${snippet}`)
+  }
+  for (const forbidden of ['kgFloatingPanelView: "strybldr"', 'kgFloatingPanelView: "timeline"']) {
+    if (text.includes(forbidden)) throw new Error(`expected serialized Strybldr markdown not to include stale FloatingPanel routing: ${forbidden}`)
   }
 }

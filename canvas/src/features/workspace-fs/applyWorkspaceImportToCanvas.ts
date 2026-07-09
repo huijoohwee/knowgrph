@@ -113,7 +113,6 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     activateStrybldrImportSurface({
       graphData,
       rawText,
-      openFloatingPanel: true,
     })
   } catch {
     void 0

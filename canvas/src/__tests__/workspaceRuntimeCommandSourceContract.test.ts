@@ -57,6 +57,8 @@ export async function testWorkspaceRuntimeCommandApplyMarkdownDocumentPromotesEx
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore: restoreDom } = initJsdomHarness()
+  const validationDocName = 'docs/runtime-command-validation.md'
+  const validationWorkspacePath = `/${validationDocName}`
   try {
     resetWorkspaceFsForTests()
     const graph = useGraphStore.getState()
@@ -64,7 +66,7 @@ export async function testWorkspaceRuntimeCommandApplyMarkdownDocumentPromotesEx
     useMarkdownExplorerStore.getState().setActivePath('/docs/workspace-readme.md')
 
     const result = await createWorkspaceRuntimeCommand().applyMarkdownDocument({
-      name: 'docs/knowgrph-strybldr-starter-template.md',
+      name: validationDocName,
       text: [
         '---',
         'kgCanvasSurfaceMode: "2d"',
@@ -84,10 +86,10 @@ export async function testWorkspaceRuntimeCommandApplyMarkdownDocumentPromotesEx
     })
 
     const activePath = useMarkdownExplorerStore.getState().activePath
-    if (activePath !== '/docs/knowgrph-strybldr-starter-template.md') {
+    if (activePath !== validationWorkspacePath) {
       throw new Error(`expected runtime markdown apply to promote explorer activePath to the applied document, got ${String(activePath || '')}`)
     }
-    if (result.markdownDocumentName !== 'docs/knowgrph-strybldr-starter-template.md' || result.applied !== true) {
+    if (result.markdownDocumentName !== validationDocName || result.applied !== true) {
       throw new Error(`expected runtime markdown apply to succeed for the promoted explorer document, got ${JSON.stringify(result)}`)
     }
   } finally {

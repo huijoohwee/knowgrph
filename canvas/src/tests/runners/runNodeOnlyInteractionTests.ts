@@ -232,6 +232,16 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
+      'ui.storyboardWidget.richMediaPanel.blankPanel.usesPanelOverlay',
+      modRichMediaOpenWidgetExclusion.testBlankRichMediaPanelUsesPanelOverlayInsteadOfFlowNodeGlyph,
+    )
+    await execTest(
+      results,
+      'ui.storyboardWidget.richMediaPanel.blankPanels.keepOverlayOwnership',
+      modRichMediaOpenWidgetExclusion.testBlankRichMediaPanelsStayOverlayOwnedBesideMeaningfulPanel,
+    )
+    await execTest(
+      results,
       'ui.storyboardWidget.richMediaPanel.sharedSurface.suppressesDuplicateOverlays',
       modRichMediaOpenWidgetExclusion.testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicateOverlay,
     )

@@ -115,23 +115,19 @@ export function testKnowgrphProbeTreeDocInvocationResolvesAcrossSlashHashAt() {
   }
 
   const propsPanelText = readFileSync(resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx'), 'utf8')
-  const propsPanelProbeTreeText = readFileSync(resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanelProbeTreeButton.tsx'), 'utf8')
-  const uiCopyText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts'), 'utf8')
   for (const expected of [
+    'WidgetPalette',
+    'data-kg-props-panel-surface="widget-palette"',
+    'filter(isPropsPanelWidgetPaletteEntry)',
+  ]) {
+    if (!propsPanelText.includes(expected)) throw new Error(`expected Props Panel cleanup to retain palette-only snippet ${expected}`)
+  }
+  for (const staleSnippet of [
     'FloatingPropsPanelProbeTreeButton',
     'disabled={!canUseNodeContext}',
+    'propsPanelProbeTree',
   ]) {
-    if (!propsPanelText.includes(expected)) throw new Error(`expected Props Panel to wire selected-card Probe-Tree invocation snippet ${expected}`)
-  }
-  for (const expected of [
-    'materializeProbeTreeBranchCardsFromGraphNode({ graphData, node })',
-    "setSelectionSource('toolbar')",
-    'selectNodesExpanded({',
-  ]) {
-    if (!propsPanelProbeTreeText.includes(expected)) throw new Error(`expected Props Panel Probe-Tree button to reuse canvas card materialization snippet ${expected}`)
-  }
-  if (!uiCopyText.includes("propsPanelProbeTree: 'Probe-Tree'")) {
-    throw new Error('expected Props Panel Probe-Tree label to live in shared UI copy')
+    if (propsPanelText.includes(staleSnippet)) throw new Error(`expected Props Panel cleanup to omit stale selected-card Probe-Tree snippet ${staleSnippet}`)
   }
 
   const propsPanelGraph: GraphData = {

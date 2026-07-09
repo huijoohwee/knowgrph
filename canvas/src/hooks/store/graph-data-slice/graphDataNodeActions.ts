@@ -78,7 +78,9 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
         const file = idx >= 0 ? sourceFiles[idx] : null
         const pg = file?.parsedGraphData || null
         if (file && pg && Array.isArray(pg.nodes)) {
-          const nextNodes = pg.nodes.map(n => (String(n.id || '') === parsed.innerId ? { ...n, ...updates } : n))
+          const previousParsedNode = pg.nodes.find(n => String(n.id || '') === parsed.innerId) || null
+          const nextParsedNode = previousParsedNode ? mergeNodeForUpdate(previousParsedNode, updates) : null
+          const nextNodes = pg.nodes.map(n => (String(n.id || '') === parsed.innerId ? nextParsedNode || { ...n, ...updates } : n))
           const nextParsedGraphData = { ...pg, nodes: nextNodes }
           let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
@@ -93,6 +95,8 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
             sourceFiles: nextSourceFiles,
             fileIndex: idx,
             parsedGraphData: nextParsedGraphData,
+            previousNode: previousParsedNode,
+            nextNode: nextParsedNode,
           })
           nextSourceFiles = textSync.sourceFiles
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
@@ -137,6 +141,8 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
       state: get(),
       sourceFiles: get().sourceFiles || [],
       parsedGraphData: nextGraphData,
+      previousNode: current || null,
+      nextNode,
     })
     set(s => ({
       ...(activeTextSync.sourceFiles !== (s.sourceFiles || []) ? { sourceFiles: activeTextSync.sourceFiles } : {}),

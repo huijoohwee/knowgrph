@@ -1,11 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import {
+  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
-import { UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_INLINE_MEDIA_CHIP_SHELL_15CH_CLASSNAME, UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
 
 const readUtf8 = (relativePath: string): string => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8')
 
@@ -30,6 +31,15 @@ export function testMarkdownMediaUsesSharedResponsiveOwners() {
   }
   if (!ownerText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME')) {
     throw new Error('expected inline media chips to reuse the shared responsive inline row owner')
+  }
+  if (!CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME.includes(UI_INLINE_CHIP_LABEL_15CH_CLASSNAME)) {
+    throw new Error(`expected @ media label to use shared 15ch chip truncation, got ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}`)
+  }
+  if (!CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME.includes(UI_INLINE_CHIP_SHELL_15CH_CLASSNAME) || !CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME.includes(UI_INLINE_MEDIA_CHIP_SHELL_15CH_CLASSNAME)) {
+    throw new Error(`expected @ media chip shell to use shared 15ch fit-content cap, got ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME}`)
+  }
+  if (!indexCssText.includes('.kg-inline-chip-label-15ch') || !indexCssText.includes('max-inline-size: min(15ch, 100%);') || !indexCssText.includes('.kg-inline-chip-shell-15ch') || !indexCssText.includes('width: fit-content;') || !indexCssText.includes('max-inline-size: min(calc(15ch + var(--kg-inline-chip-shell-extra, 1rem)), 100%);')) {
+    throw new Error('expected app CSS to cap inline / # @ chip labels and shells at 15ch while preserving responsive max width')
   }
   for (const className of [
     UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,

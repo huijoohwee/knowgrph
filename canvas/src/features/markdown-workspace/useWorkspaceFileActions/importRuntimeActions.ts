@@ -224,7 +224,6 @@ export async function activateFirstImportedWorkspaceFile(args: {
         activateStrybldrImportSurface({
           graphData: useGraphStore.getState().graphData,
           rawText: text,
-          openFloatingPanel: true,
         })
       } catch {
         void 0

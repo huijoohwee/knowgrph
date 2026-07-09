@@ -17,7 +17,12 @@ import {
   deriveFrontmatterFlowOverlayNodeIds,
   resolveGraphNodeIdByCanonicalId,
 } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import { readSnapGridScalarSize } from '@/lib/canvas/snapGridSize'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
+import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 export {
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
@@ -62,6 +67,78 @@ export function readFiniteGeoLatLng(properties: Record<string, unknown>): { lat:
   const lng = pickFiniteNumber(geoRaw?.lng)
   if (lat == null || lng == null) return null
   return { lat, lng }
+}
+
+function normalizeStoryboardWidgetDropTransform(raw: { k?: unknown; x?: unknown; y?: unknown } | null | undefined): {
+  k: number
+  x: number
+  y: number
+} | null {
+  if (!raw) return null
+  const k = Number(raw.k)
+  const x = Number(raw.x)
+  const y = Number(raw.y)
+  return Number.isFinite(k) && k > 0 && Number.isFinite(x) && Number.isFinite(y) ? { k, x, y } : null
+}
+
+export function readProjectedRichMediaShellTransform(args: {
+  draftGraphDataRef: React.MutableRefObject<GraphData | null>
+  baseGraphData: GraphData | null
+}): { k: number; x: number; y: number } | null {
+  if (typeof document === 'undefined') return null
+  const graphData = args.draftGraphDataRef.current || useGraphStore.getState().graphData || args.baseGraphData || null
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const readNodeForOverlayId = (overlayId: string) => {
+    const cleanOverlayId = String(overlayId || '').trim()
+    if (!cleanOverlayId) return null
+    return nodes.find(node => {
+      const nodeId = String(node?.id || '').trim()
+      return !!nodeId && (nodeId === cleanOverlayId || nodeId.endsWith(`::${cleanOverlayId}`) || cleanOverlayId.endsWith(`::${nodeId}`))
+    }) || null
+  }
+  const shells = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id]'))
+  for (const shell of shells) {
+    const rect = shell.getBoundingClientRect()
+    if (!(rect.width > 0 && rect.height > 0)) continue
+    const node = readNodeForOverlayId(shell.dataset.nodeId)
+    const nodeX = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
+    const nodeY = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    if (nodeX == null || nodeY == null) continue
+    const kx = rect.width / RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width
+    const ky = rect.height / RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height
+    const k = Number.isFinite(kx) && kx > 0 ? kx : (Number.isFinite(ky) && ky > 0 ? ky : null)
+    if (k == null) continue
+    const x = rect.left - nodeX * k
+    const y = rect.top - nodeY * k
+    if (Number.isFinite(x) && Number.isFinite(y)) return { k, x, y }
+  }
+  return null
+}
+
+export function readResolvedStoryboardWidgetDropTransform(args: {
+  getLiveZoomTransform: () => { k: number; x: number; y: number } | null
+  zoomViewKeyRef: React.MutableRefObject<string | null>
+  draftGraphDataRef: React.MutableRefObject<GraphData | null>
+  baseGraphData: GraphData | null
+  allowNeutralFallback?: boolean
+  useProjectedRichMediaShell?: boolean
+}): { k: number; x: number; y: number } | null {
+  const st = useGraphStore.getState()
+  const liveTransform = normalizeStoryboardWidgetDropTransform(args.getLiveZoomTransform())
+  const persistedTransform = normalizeStoryboardWidgetDropTransform(getEffectiveZoomStateForKey({
+    zoomViewKey: args.zoomViewKeyRef.current,
+    zoomStateByKey: st.zoomStateByKey,
+    zoomState: st.zoomState,
+  }))
+  const liveIsNeutral = !!liveTransform && Math.abs(liveTransform.k - 1) <= 1e-3 && Math.abs(liveTransform.x) <= 0.5 && Math.abs(liveTransform.y) <= 0.5
+  const projectedTransform = args.useProjectedRichMediaShell === true
+    ? readProjectedRichMediaShellTransform({ draftGraphDataRef: args.draftGraphDataRef, baseGraphData: args.baseGraphData })
+    : null
+  if (liveTransform && !liveIsNeutral) return liveTransform
+  if (projectedTransform) return projectedTransform
+  if (persistedTransform) return persistedTransform
+  if (liveTransform && args.allowNeutralFallback === true) return liveTransform
+  return null
 }
 
 function normalizeGraphFilterNodeIdSet(
@@ -193,6 +270,27 @@ export function deriveStoryboardCanvasRichMediaPanelNodeIds(graphData: GraphData
     if (properties[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY] === true) out.push(id)
   }
   return out
+}
+
+export function deriveSelectedOverlayEditorNodeIdForDerivation(args: {
+  overlayDraftNode?: GraphNode | null
+  pendingOverlayNode?: GraphNode | null
+  pendingOverlayNodeId?: string | null
+  renderGraphDataOverride: GraphData | null
+  lastStableRenderGraphDataOverride: GraphData | null
+  nodeById: ReadonlyMap<string, GraphNode>
+  storyboardWidgetSurfaceId: string
+}): string | null {
+  const selectedNodeId = String(args.overlayDraftNode?.id || args.pendingOverlayNode?.id || args.pendingOverlayNodeId || '').trim()
+  if (!selectedNodeId) return null
+  if (String(args.storyboardWidgetSurfaceId || '').trim() !== 'storyboard') return selectedNodeId
+  const pendingId = String(args.pendingOverlayNode?.id || '').trim()
+  const node = args.pendingOverlayNode && pendingId === selectedNodeId
+    ? args.pendingOverlayNode
+    : args.nodeById.get(selectedNodeId)
+      || resolveGraphNodeByCanonicalId(args.renderGraphDataOverride, selectedNodeId)
+      || resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, selectedNodeId)
+  return isRichMediaPanelNode(node) ? null : selectedNodeId
 }
 
 function isStoryboardWidgetOverlayExcludedNode(node: GraphNode | null | undefined): boolean {

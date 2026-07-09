@@ -5,6 +5,7 @@ import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
+  FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT,
   FloatingPanelCatalogHeader,
   FloatingPanelCatalogSearchControl,
   floatingPanelCatalogBodyClassName,
@@ -141,7 +142,20 @@ export function MediaCatalogPanelView({
   }), [mediaActions.length, mediaItemCount])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
-    <section className={floatingPanelCatalogSurfaceClassName(panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? 'compact' : undefined} data-kg-media-card-layout={catalogLayout === 'card' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1" data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR} data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR} {...animationAttributes} style={animationStyle}>
+    <section
+      className={floatingPanelCatalogSurfaceClassName(panelTextClass)}
+      aria-label="Media"
+      data-kg-floating-panel-catalog-list="media"
+      data-kg-media-layout={catalogLayout}
+      data-kg-media-list-layout={catalogLayout === 'list' ? FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT : undefined}
+      data-kg-media-card-layout={catalogLayout === 'card' ? '3-rows' : undefined}
+      data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined}
+      data-kg-media-panel="1"
+      data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
+      data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
+      {...animationAttributes}
+      style={animationStyle}
+    >
       <MediaLightbox
         open={!!lightboxItem}
         src={lightboxItem?.linkUrl || ''}
@@ -271,35 +285,41 @@ export function MediaCatalogPanelView({
         ) : null}
         <section ref={mediaListRef} tabIndex={-1} data-kg-media-list="1">
           {catalogLayout === 'list' ? (
-            <section className="grid min-w-0 gap-1" aria-label="Media list" data-kg-media-list-rows="compact" data-kg-media-list-view="1">
-            {visibleSourceMetadataItem ? <MediaSourceMetadataListRow item={visibleSourceMetadataItem} /> : null}
-            {visibleUploadedMediaItems.map(item => (
-              <UploadedMediaListRow
-                key={item.id}
-                item={item}
-                infoLabel={buildUploadedMediaInfoLabel(item)}
-                onDelete={onDeleteUploadedMedia}
-                onDragStart={onDragUploadedMedia}
-                onSelect={onSelectUploadedMedia}
-                onPreview={onPreviewUploadedMedia}
-              />
-            ))}
-            {visibleMediaItems.map(item => (
-              <MediaCandidateListRow
-                key={item.key}
-                item={item}
-                displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
-                onDragStart={onDragCommandMenuMedia}
-                onSelect={onSelectMedia}
-              />
-            ))}
-            {visibleMediaActions.map(action => (
-              <MediaActionListRow
-                key={action.id}
-                action={action}
-                onSelect={onSelectMediaAction}
-              />
-            ))}
+            <section
+              className="grid min-w-0 gap-1"
+              aria-label="Media list"
+              data-kg-floating-panel-catalog-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}
+              data-kg-media-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}
+              data-kg-media-list-view="1"
+            >
+              {visibleSourceMetadataItem ? <MediaSourceMetadataListRow item={visibleSourceMetadataItem} /> : null}
+              {visibleUploadedMediaItems.map(item => (
+                <UploadedMediaListRow
+                  key={item.id}
+                  item={item}
+                  infoLabel={buildUploadedMediaInfoLabel(item)}
+                  onDelete={onDeleteUploadedMedia}
+                  onDragStart={onDragUploadedMedia}
+                  onSelect={onSelectUploadedMedia}
+                  onPreview={onPreviewUploadedMedia}
+                />
+              ))}
+              {visibleMediaItems.map(item => (
+                <MediaCandidateListRow
+                  key={item.key}
+                  item={item}
+                  displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                  onDragStart={onDragCommandMenuMedia}
+                  onSelect={onSelectMedia}
+                />
+              ))}
+              {visibleMediaActions.map(action => (
+                <MediaActionListRow
+                  key={action.id}
+                  action={action}
+                  onSelect={onSelectMediaAction}
+                />
+              ))}
             </section>
           ) : catalogLayout === 'card' ? (
             <section className="grid min-w-0 gap-2" aria-label="Media card layout" data-kg-media-card-rows="3">

@@ -315,13 +315,7 @@ export function testWidgetEditorUsesMergedDataflowRegistry() {
 
 export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   const floatingPropsPanelPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx')
-  const floatingPropsModelPath = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'useFloatingPropsPanelModel.impl.ts')
-  const mediaSpecPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts')
-  const mediaPropertiesPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'graph-elements', 'mediaProperties.ts')
   const text = readFileSync(floatingPropsPanelPath, 'utf8')
-  const modelText = readFileSync(floatingPropsModelPath, 'utf8')
-  const mediaSpecText = readFileSync(mediaSpecPath, 'utf8')
-  const mediaPropertiesText = readFileSync(mediaPropertiesPath, 'utf8')
 
   if (!text.includes('effectiveWidgetRegistry')) {
     throw new Error('expected FloatingPropsPanel widget palette to reuse the store effective widget registry SSOT')
@@ -329,29 +323,28 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   if (text.includes('buildDataflowWidgetRegistry')) {
     throw new Error('expected FloatingPropsPanel to avoid rebuilding a duplicate merged widget registry locally')
   }
-  if (!text.includes('.filter(e => e && e.isEnabled)')) {
-    throw new Error('expected FloatingPropsPanel widget palette to filter enabled entries from the effective widget registry')
+  if (!text.includes('filter(isPropsPanelWidgetPaletteEntry)')) {
+    throw new Error('expected FloatingPropsPanel widget palette to filter entries through the shared neutral palette helper')
   }
-  if (!text.includes('NODE_MEDIA_KINDS')) {
-    throw new Error('expected FloatingPropsPanel media kind options to reuse the shared canonical node media kind list')
+  if (!text.includes('<WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />')
+    || !text.includes('data-kg-props-panel-surface="widget-palette"')) {
+    throw new Error('expected FloatingPropsPanel to stay a shared WidgetPalette host instead of re-owning local controls')
   }
-  if (!modelText.includes('DEFAULT_NODE_MEDIA_KIND')) {
-    throw new Error('expected FloatingPropsPanel model to reuse the shared default node media kind')
-  }
-  if (!modelText.includes("buildScopedGraphSemanticKey('floating-props-panel-graph'")) {
-    throw new Error('expected FloatingPropsPanel model to key lookup reuse from the shared semantic graph signature helper')
-  }
-  if (!modelText.includes('preferCurrentGraphDataRefs: true')) {
-    throw new Error('expected FloatingPropsPanel model to preserve current graph references when the semantic lookup cache refreshes')
-  }
-  if (!mediaSpecText.includes('patchNodeMediaProperties') || !mediaPropertiesText.includes('export function patchNodeMediaProperties')) {
-    throw new Error('expected mediaSpec SSOT to expose a shared node-media property patch helper')
-  }
-  if (!modelText.includes("from '@/lib/canvas/graph-elements/mediaSpec'")) {
-    throw new Error('expected FloatingPropsPanel model to import node-media helpers from the mediaSpec SSOT')
-  }
-  if (!modelText.includes('patchNodeMediaProperties({')) {
-    throw new Error('expected FloatingPropsPanel model to reuse the shared node-media property patch helper for update and add-media flows')
+  for (const staleSnippet of [
+    'useFloatingPropsPanelModel',
+    'NODE_MEDIA_KINDS',
+    'CollapsibleSection',
+    'PanelRangeInput',
+    'PanelSelect',
+    'PanelTextInput',
+    'Add Media Node',
+    'Update Media',
+    'Anti-line strength',
+    'Strong spread preset',
+  ]) {
+    if (text.includes(staleSnippet)) {
+      throw new Error(`expected FloatingPropsPanel palette-only surface to omit stale local-control snippet: ${staleSnippet}`)
+    }
   }
 }
 

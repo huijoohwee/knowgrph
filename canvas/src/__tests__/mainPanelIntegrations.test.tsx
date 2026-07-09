@@ -39,14 +39,12 @@ import {
   assertMcpHubSurfacesOpenAiMcpConfig,
   assertMcpHubMaintainsKeyTypeValueHeader,
 } from '@/__tests__/helpers/mainPanelMcpExpectations'
-
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   void raf
   const win = (globalThis as unknown as { window?: Window }).window
   if (!win) throw new Error('expected window for frame flush')
   await waitForFramesShared(win, count)
 }
-
 const renderAndFlush = async (
   root: ReturnType<typeof createRoot>,
   node: React.ReactNode,
@@ -58,16 +56,13 @@ const renderAndFlush = async (
   if (!win) throw new Error('expected window for root render flush')
   await mountReactRoot(root, node as React.ReactElement, { window: win, frames: frameCount })
 }
-
 const unmountAndFlush = async (root: ReturnType<typeof createRoot> | null) => {
   if (!root) return
   const win = (globalThis as unknown as { window?: Window }).window
   await unmountReactRoot(root, win ? { window: win } : undefined)
 }
-
 const getSelectOptionValues = (select: HTMLSelectElement): string[] =>
   Array.from(select.options).map(option => option.value).filter(Boolean)
-
 const findModelSelectsWithOption = (container: Element, optionValue: string): HTMLSelectElement[] => (
   Array.from(container.querySelectorAll('select')) as HTMLSelectElement[]
 ).filter(select => getSelectOptionValues(select).includes(optionValue))
@@ -1338,7 +1333,7 @@ export async function testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations() {
   }
 }
 
-export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
+export async function testPropsPanelPaletteOmitsGrabMapsDiscoveryWidgetCopy() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -1358,22 +1353,26 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
 
     const text = container.textContent || ''
     ;[
-      'Discovery Widget',
-      'GrabMaps Chat Discovery Widget',
-      'grabmaps/grabmaps.discovery',
+      'Rich Media Panel',
+      'default/richMediaPanel',
+      'Text Widget',
+      'default/textGeneration',
     ].forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected props panel widget palette to include canonical GrabMaps discovery widget token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected props panel widget palette to include canonical palette token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
     ;[
+      'Discovery Widget',
+      'GrabMaps Chat Discovery Widget',
+      'grabmaps/grabmaps.discovery',
       'Search Places (Run Discovery)',
       'Open MainPanel Maps',
       'maps.grabmaps.mcp.discovery.chatModel',
       'maps.grabmaps.mcp.searchPlaces.query',
     ].forEach(token => {
       if (text.includes(token)) {
-        throw new Error(`expected floating props panel to remove duplicate inline GrabMaps discovery section token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected floating props panel palette cleanup to omit GrabMaps discovery token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
   } finally {
@@ -1387,7 +1386,7 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
   }
 }
 
-export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDuplicateFloatingView() {
+export async function testPropsPanelPaletteAvoidsDiscoveryWidgetNetworkSideEffects() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()

@@ -58,8 +58,9 @@ export const GRAPH_NODE_CARD_TEXT_FIELDS: readonly GraphNodeCardTextFieldSpec[] 
   },
 ] as const
 
-const normalizeCardText = (value: unknown): string => {
-  if (typeof value === 'string') return value.replace(/\r/g, '').trim()
+const normalizeCardText = (value: unknown, options?: { preserveFormatting?: boolean }): string => {
+  const preserveFormatting = options?.preserveFormatting === true
+  if (typeof value === 'string') return preserveFormatting ? value.replace(/\r/g, '') : value.replace(/\r/g, '').trim()
   if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim()
   return ''
 }
@@ -95,11 +96,28 @@ export function readGraphNodeCanonicalTextProperty(
   return ''
 }
 
+export function readGraphNodeAuthoredTextProperty(
+  properties: Record<string, unknown>,
+  propertyKeys: readonly string[],
+): string {
+  for (const key of propertyKeys) {
+    const value = properties[key]
+    const text = normalizeCardText(value, { preserveFormatting: true })
+    if (text.trim()) return text
+    if (Array.isArray(value) && value.length > 0) {
+      const first = normalizeCardText(value[0], { preserveFormatting: true })
+      if (first.trim()) return first
+    }
+  }
+  return ''
+}
+
 export function buildGraphNodeCanonicalTextPatch(args: {
   currentProperties: Record<string, unknown>
   propertyKeys: readonly string[]
   canonicalKey: string
   nextValue: string
+  preserveFormatting?: boolean
 }): Record<string, unknown> {
   const nextProperties: Record<string, unknown> = { ...args.currentProperties }
   const nestedProperties = isPlainObject(nextProperties.properties)
@@ -109,8 +127,8 @@ export function buildGraphNodeCanonicalTextPatch(args: {
   if (nestedProperties) {
     for (const key of args.propertyKeys) delete nestedProperties[key]
   }
-  const normalizedValue = normalizeCardText(args.nextValue)
-  if (normalizedValue) {
+  const normalizedValue = normalizeCardText(args.nextValue, { preserveFormatting: args.preserveFormatting })
+  if (normalizedValue.trim()) {
     nextProperties[args.canonicalKey] = normalizedValue
     if (nestedProperties) nestedProperties[args.canonicalKey] = normalizedValue
   }

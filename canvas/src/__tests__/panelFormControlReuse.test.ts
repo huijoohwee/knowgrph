@@ -3,7 +3,7 @@ import path from 'node:path'
 
 const readUtf8 = (relativePath: string): string => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8')
 
-export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity() {
+export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   const sharedControlsText = readUtf8('src/lib/ui/panelFormControls.tsx')
   const dataViewDensityText = readUtf8('src/lib/ui/dataViewDensity.ts')
   const responsiveToolbarCssText = readUtf8('src/styles/responsive-toolbar.css')
@@ -17,7 +17,6 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const threeSizingAndWidthControlsText = readUtf8('src/features/panels/views/shared/ThreeSizingAndWidthControls.tsx')
   const threeViewBackgroundFogSectionText = readUtf8('src/features/panels/views/ThreeViewBackgroundFogSection.tsx')
   const threeViewStarfieldSectionText = readUtf8('src/features/panels/views/ThreeViewStarfieldSection.tsx')
-  const strybldrPanelText = `${readUtf8('src/features/strybldr/StrybldrFloatingPanelView.tsx')}\n${readUtf8('src/features/strybldr/StrybldrCardEditorSection.tsx')}`
   const strybldrCameraPanelText = readUtf8('src/features/strybldr/StrybldrCameraPanel.tsx')
   const strybldrCameraFloatingText = readUtf8('src/features/strybldr/StrybldrCameraFloatingPanelView.tsx')
   const dataViewSettingsText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPanel.tsx')
@@ -56,7 +55,6 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   const panelLabeledRangeCardText = readUtf8('src/features/panels/ui/PanelLabeledRangeCard.tsx')
   const panelLabeledRangeFieldText = readUtf8('src/features/panels/ui/PanelLabeledRangeField.tsx')
   const panelInlineLabeledRangeRowText = readUtf8('src/features/panels/ui/PanelInlineLabeledRangeRow.tsx')
-  const infiniteCanvasInteractionPanelText = readUtf8('src/features/canvas/InfiniteCanvasInteractionPanel.tsx')
   const schemaUiEditorRowsText = readUtf8('src/features/schema/ui/SchemaUiEditorRows.tsx')
   const mediaNodesSectionText = readUtf8('src/features/panels/views/MediaNodesSection.tsx')
   const graphFieldsPanelControlsText = readUtf8('src/features/panels/views/graph-fields/GraphFieldsPanelControls.tsx')
@@ -230,7 +228,8 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !cardInlineTextEditorText.includes('rowHeightPreset={editorDensity.rowHeightPreset}') ||
     !cardInlineTextEditorText.includes('fieldLineMode={editorDensity.fieldLineMode}') ||
     !cardInlineTextEditorText.includes('density={editorDensity.rowHeightPreset}') ||
-    !cardInlineTextEditorText.includes('multiline ? readDataViewFieldLineClassName(editorDensity.fieldLineMode)') ||
+    !cardInlineTextEditorText.includes('readDataViewFieldLineClassName(editorDensity.fieldLineMode)') ||
+    !cardInlineTextEditorText.includes('densityOwnedDisplayClassName') ||
     cardInlineTextEditorText.includes('PlainTextInputEditor')
   ) {
     throw new Error('expected shared CardInlineTextEditor to render density-aware panel text input, textarea, and display-surface primitives')
@@ -273,17 +272,6 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     !dataViewSettingsText.includes('setWorkspaceDataViewFloatingDensity({ rowHeightPreset, fieldLineMode: option.value })')
   ) {
     throw new Error('expected View density controls to publish row-height and field-line changes to the shared FloatingPanel primitive density snapshot')
-  }
-
-  if (
-    !strybldrPanelText.includes("from '@/lib/ui/panelFormControls'") || !strybldrPanelText.includes("from './StrybldrCardEditorSection'") ||
-    !strybldrPanelText.includes('PanelField') ||
-    !strybldrPanelText.includes('PanelTextInput') ||
-    !strybldrPanelText.includes('CardInlineTextEditor') ||
-    !strybldrPanelText.includes('PanelSelect') ||
-    strybldrPanelText.includes('className="mt-1 min-h-')
-  ) {
-    throw new Error('expected Strybldr floating panel card fields to consume the shared panel form controls')
   }
 
   if (
@@ -773,16 +761,16 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
   }
 
   if (
-    !floatingPropsPanelText.includes("from '@/lib/ui/panelFormControls'") ||
-    !floatingPropsPanelText.includes('PanelRangeInput') ||
-    !floatingPropsPanelText.includes('PanelTextInput') ||
-    !floatingPropsPanelText.includes('PanelSelect') ||
-    !floatingPropsPanelText.includes('readPanelBooleanChoiceButtonClassName') ||
+    floatingPropsPanelText.includes("from '@/lib/ui/panelFormControls'") ||
+    floatingPropsPanelText.includes('PanelRangeInput') ||
+    floatingPropsPanelText.includes('PanelTextInput') ||
+    floatingPropsPanelText.includes('PanelSelect') ||
+    floatingPropsPanelText.includes('readPanelBooleanChoiceButtonClassName') ||
     floatingPropsPanelText.includes('<select') ||
-    floatingPropsPanelText.includes('<input\n              value={newLabel}') ||
+    floatingPropsPanelText.includes('<input') ||
     floatingPropsPanelText.includes('type="range"')
   ) {
-    throw new Error('expected FloatingPropsPanel single-line, range, and boolean-choice controls to reuse shared panel primitives')
+    throw new Error('expected FloatingPropsPanel to stay palette-only and avoid owning local form controls')
   }
 
   if (
@@ -807,14 +795,6 @@ export function testPanelFormControlsAreSharedAcrossStrybldrAndDataViewDensity()
     panelInlineLabeledRangeRowText.includes('type="range"')
   ) {
     throw new Error('expected PanelInlineLabeledRangeRow to reuse the shared panel range primitive instead of a raw range input')
-  }
-
-  if (
-    !infiniteCanvasInteractionPanelText.includes("from '@/features/panels/ui/PanelLabeledRangeCard'") ||
-    !infiniteCanvasInteractionPanelText.includes('PanelLabeledRangeCard') ||
-    infiniteCanvasInteractionPanelText.includes('type="range"')
-  ) {
-    throw new Error('expected InfiniteCanvasInteractionPanel slider cards to reuse the shared panel labeled range-card owner instead of raw range inputs')
   }
 
   if (

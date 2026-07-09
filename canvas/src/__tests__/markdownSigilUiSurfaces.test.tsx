@@ -60,10 +60,10 @@ export const testMarkdownSigilInlineTextRendersCommandAndBindingTokens = () => {
   if ((html.match(/data-kg-card-inline-keyword-pill="1"/g) || []).length !== 6) {
     throw new Error(`expected @, /, and # tokens to reuse shared inline chip rendering, got ${html}`)
   }
-  for (const expected of ['@mediaUrl', '/ingest-url', 'memory.add', '/runtime-ready.check', '#frontmatter', '@operator']) {
+  for (const expected of ['@mediaUrl', '/ingest-url', '#memory.add', '/runtime-ready.check', '#frontmatter', '@operator']) {
     if (!html.includes(expected)) throw new Error(`expected inline sigil chip output to include ${expected}, got ${html}`)
   }
-  if ((html.match(/data-kg-agentic-os-invocation-chip="1"/g) || []).length !== 3) {
+  if ((html.match(/data-kg-agentic-os-invocation-chip="1"/g) || []).length !== 4) {
     throw new Error(`expected registered Agentic OS / # @ tokens to use the shared invocation chip marker, got ${html}`)
   }
   if (!html.includes('DICTIONARY-COMMAND.md') || !html.includes('DICTIONARY-SEMANTIC.md') || !html.includes('DICTIONARY-BINDING.md')) {

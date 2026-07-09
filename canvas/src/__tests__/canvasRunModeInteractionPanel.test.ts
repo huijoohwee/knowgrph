@@ -12,16 +12,16 @@ function expectSource(text: string, needle: string, label: string) {
 }
 
 export function testToolbarInteractionPanelIncludesRunModeControl() {
-  const panel = readSource('features/canvas/InfiniteCanvasInteractionPanel.tsx')
   const toolbarSelect = readSource('components/toolbar/InteractionModeSelect.tsx')
+  const toolbarMenu = readSource('lib/toolbar/ToolbarToolMenu.impl.tsx')
 
-  expectSource(panel, 'canvasRunMode', 'Interaction panel run mode state')
-  expectSource(panel, 'setCanvasRunMode', 'Interaction panel run mode setter')
-  expectSource(panel, 'aria-label="Run Mode"', 'Interaction panel run mode group')
-  expectSource(panel, 'Manual Run Mode', 'Interaction panel manual option')
-  expectSource(panel, 'Auto Run Mode', 'Interaction panel auto option')
-  expectSource(panel, "setCanvasRunMode('manual')", 'Interaction panel manual action')
-  expectSource(panel, "setCanvasRunMode('auto')", 'Interaction panel auto action')
+  if (
+    toolbarMenu.includes('InfiniteCanvasInteractionPanel') ||
+    toolbarMenu.includes("view: 'interaction'") ||
+    toolbarMenu.includes("floatingPanelView === 'interaction'")
+  ) {
+    throw new Error('expected stale FloatingPanel Interaction section to stay removed after Skills & Commands centralization')
+  }
   expectSource(toolbarSelect, 'Run Mode: Manual', 'Toolbar Interaction run mode manual row')
   expectSource(toolbarSelect, 'Run Mode: Auto', 'Toolbar Interaction run mode auto row')
   expectSource(toolbarSelect, "setCanvasRunMode(canvasRunMode === 'auto' ? 'manual' : 'auto')", 'Toolbar Interaction run mode toggle')

@@ -36,7 +36,6 @@ import {
 import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { buildGraphFlowOrderIndexByNodeId, resolveGraphEdgeFlowOrderDirection } from '@/lib/graph/flowOrder'
-import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
@@ -50,11 +49,10 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildStoryboardOverlayEdgePathD,
-  clampStoryboardOverlayScreenXToLocalViewportBounds,
+  readStoryboardOverlayFallbackRectAnchor,
   readStoryboardOutputCardLeftSideAnchors,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors'
 import { isStoryboardCardMediaDropOverlayEdge } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
-import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { FRONTMATTER_COLLECTIVE_ROLE_INDEX_KEY, buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
 import { resolveStoryboardWidgetFocusedEdgeIds } from '@/lib/storyboardWidget/storyboardWidgetPortRows'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
@@ -1076,16 +1074,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
         return map
       })()
 
-        const rootRect = root.getBoundingClientRect()
-        const balancedViewportPreset = resolveBalancedViewportPreset({
-          graphData: args.renderGraphDataOverride,
-          fallbackPreset: 'widgetFrontmatter',
-        })
-        const balancedMargins = computeBalancedSpreadViewportMargins({
-          viewportW: Math.max(1, Math.round(rootRect.width)),
-          viewportH: Math.max(1, Math.round(rootRect.height)),
-          preset: balancedViewportPreset,
-        })
+      const rootRect = root.getBoundingClientRect()
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
       const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
       const svgWidth = Number.isFinite(rootRect.width) ? Math.max(1, Math.round(rootRect.width)) : 1
@@ -1212,16 +1201,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
           overlayEdgeAnchorCacheRef.current.delete(anchorCacheKey)
         }
         if (!(Number.isFinite(rect.top) && Number.isFinite(rect.left) && Number.isFinite(rect.right) && Number.isFinite(rect.height) && rect.height > 0)) return null
-        const pct = Math.max(0, Math.min(100, anchorArgs.fallbackPct)) / 100
-        const baseX = anchorArgs.dir === 'out' ? rect.right : rect.left
-        const clampedX = clampStoryboardOverlayScreenXToLocalViewportBounds({
-          screenX: baseX,
-          rootLeft: baseLeft,
-          rootWidth: rootRect.width,
-          marginLeft: balancedMargins.left,
-          marginRight: balancedMargins.right,
-        })
-        return { x: clampedX, y: rect.top + pct * rect.height }
+        return readStoryboardOverlayFallbackRectAnchor({ dir: anchorArgs.dir, fallbackPct: anchorArgs.fallbackPct, rect })
       }
 
       const transientMissingEdgeAnchorParts: string[] = []

@@ -4,10 +4,14 @@ import { parse as parseYaml } from 'yaml'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } from '@/components/StoryboardCanvas/storyboardModel'
 import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { syncActiveMarkdownDocumentTextFromParsedGraph } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import {
   appendStrybldrStoryboardMarkdownElement,
   applyStrybldrImageArtifactToGraphData,
+  buildStrybldrGraphData,
   buildStrybldrStoryboardDocument,
+  buildStrybldrWorkflowGanttCode,
   buildStrybldrImageHandoffMarkdown,
   buildStrybldrLocalImageDataUri,
   buildStrybldrVideoHandoffFromGraphData,
@@ -17,6 +21,7 @@ import {
   isStrybldrImageGenerationIntent,
   mergeStrybldrElementsIntoGraphData,
   parseStrybldrStoryboardMarkdown,
+  readStrybldrWorkflowGanttCodesFromMarkdown,
   removeStrybldrStoryboardMarkdownElement,
   resolveStrybldrVideoArtifactTargetNodeId,
   serializeStrybldrStoryboardMarkdown,
@@ -39,8 +44,7 @@ import {
   toggleStrytreeLikeAction,
   unlockStrytreeNodeAction,
 } from '@/features/strybldr/strytreeWorkflow'
-import { getCanvas2dSurfaceId, getToolbarRunAllFloatingPanelTab, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
-import { BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS } from '@/features/chat/byteplusRunGeneration'
+import { getCanvas2dSurfaceId, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId, supportsToolbarRunAll } from '@/lib/config.render'
 import { parseWorkspaceStrybldrStoryboardGraphDataCached } from '@/hooks/active-graph-data/workspaceStructuredGraph'
 import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
@@ -48,7 +52,10 @@ import {
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
+import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
+import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
 import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
+import { resolveGraphNodeIdForGanttTaskSpan } from '@/features/gitgraph/ganttGraphNodeSelection'
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
@@ -244,6 +251,8 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(frontmatter, 'expected starter template to keep byte-zero YAML frontmatter')
   const frontmatterPayload = parseYaml(frontmatter.rawBlock.replace(/^---\n?/, '').replace(/\n---\s*$/, '')) as Record<string, unknown>
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgCanvas2dRenderer').trim() === 'storyboard', 'expected starter template to route to the shared Storyboard renderer')
+  assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgFloatingPanelView').trim() === 'gantt', 'expected starter template to route the shared FloatingPanel Gantt-Timeline')
+  assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'kgBottomPanelTab').trim() === 'gantt', 'expected starter template to route the shared BottomPanel Gantt-Timeline')
   assert(readYamlFrontmatterValue(frontmatter.rawBlock, 'validation_input_forbid_hardcode_in_repo').trim() === 'true', 'expected starter template to declare hardcode-free validation input mode')
   assertStrybldrStarterTemplateHasNoRepoHardcodedRuntimeMedia(text)
   assert(!text.includes('localhost:'), 'expected starter template not to store localhost media URLs')
@@ -319,6 +328,17 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(runtimeNode.properties?.mimeHint === 'text/markdown', `expected runtime mimeHint to parse, got ${String(runtimeNode.properties?.mimeHint || '')}`)
   assert(runtimeNode.properties?.['flow:widgetTypeId'] === FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID, 'expected runtime node to keep storyboard widget type id')
   assert(runtimeNode.properties?.['flow:widgetFormId'] === FLOW_STORYBOARD_ELEMENT_FORM_ID, 'expected runtime node to keep storyboard widget form id')
+}
+
+export function testStrybldrSourceBackedCardFieldCommitDoesNotUseFloatingPanel() {
+  const graphSyncText = readSource('hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts')
+  const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  const cardInlineTextEditorText = readSource('lib', 'cards', 'CardInlineTextEditor.tsx')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected Strybldr FloatingPanel card editor owner to be removed')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrCardEditorSection.tsx')), 'expected stale Strybldr panel card editor section to be removed')
+  assert(graphSyncText.includes('buildStrybldrCardOverridePatchFromGraphNodeChange'), 'expected source-backed card field commits to persist through the shared graph/frontmatter sync owner')
+  assert(storyboardCanvasText.includes('updateStrybldrStoryboardMarkdownCardOverride({'), 'expected Storyboard card edits to write Strybldr card overrides without a panel-local editor')
+  assert(cardInlineTextEditorText.includes('textareaInvocationProjection'), 'expected card field editing to reuse shared invocation/media textarea projection')
 }
 
 export function testStrybldrStoryboardAppendElementPersistsToStructuredPayload() {
@@ -756,8 +776,7 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(!renderConfigText.includes('CANVAS_2D_RENDERER_ID_BY_ALIAS'), 'expected renderer lookup to use canonical normalized tokens only')
   assert(getCanvas2dSurfaceId('storyboard') === 'storyboard', 'expected Storyboard to own the Strybldr-capable surface')
   assert(isStoryboardCanvas2dRenderer('storyboard'), 'expected shared Storyboard renderer helper to include Storyboard mode')
-  assert(supportsToolbarRunAll('storyboard'), 'expected Storyboard to reuse Toolbar Run All dispatch')
-  assert(getToolbarRunAllFloatingPanelTab('storyboard') === 'strybldr', 'expected Storyboard Run All to mount its Strybldr workflow consumer')
+  assert(supportsToolbarRunAll('storyboard'), 'expected Storyboard to reuse Toolbar Run All without mounting a duplicate Strybldr panel')
   assert(!renderConfigText.includes("'strybldr',"), 'expected renderer registry to remove the Strybldr renderer id')
   assert(!renderConfigText.includes("registryLabel: 'Strybldr'"), 'expected renderer registry to remove the Strybldr renderer menu entry')
   assert(canvasViewportText.includes('StrybldrTimelineBottomPanelLazy'), 'expected Strybldr timeline to mount as the CanvasViewport bottom panel')
@@ -808,20 +827,18 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(storyboardCanvasText.includes('ForkCompare scorecard'), 'expected ForkCompare scorecards to render in the existing Storyboard surface')
   assert(storyboardCanvasText.includes('createStrytreeCandidateRunAction'), 'expected ForkCompare fan-out action to stay in the Storyboard surface')
   assert(storyboardCanvasText.includes('publishStrytreeCandidateAction'), 'expected ForkCompare publish action to stay in the Storyboard surface')
-  const strybldrPanelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   const strybldrCameraFloatingPanelText = readSource('features', 'strybldr', 'StrybldrCameraFloatingPanelView.tsx')
   const strybldrCameraPanelText = readSource('features', 'strybldr', 'StrybldrCameraPanel.tsx')
   const strybldrCameraModelText = readSource('features', 'strybldr', 'strybldrCamera.ts')
   const cameraOrbitSphereText = readSource('lib', 'camera', 'orbitSphere.ts')
   const toolbarMenuLauncherText = readSource('features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const canvasUtilsText = readSource('features', 'canvas', 'utils.ts')
-  assert(strybldrPanelText.includes('Strybldr storytree workflow') && strybldrPanelText.includes("STRYBLDR_STORYTREE_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-2 gap-1 sm:grid-cols-4'") && !strybldrPanelText.includes('grid grid-cols-4 gap-1'), 'expected Strytree workflow actions to be reachable from the active Strybldr panel with a mobile-first action grid owner')
-  assert(strybldrPanelText.includes('Strybldr storytree filter'), 'expected Strytree filters to be reachable from the active Strybldr panel')
-  assert(strybldrPanelText.includes('Strybldr ForkCompare candidates'), 'expected ForkCompare candidate run to be reachable from the active Strybldr panel')
-  assert(!strybldrPanelText.includes('StrybldrCameraPanel') && !strybldrPanelText.includes('STRYBLDR_CAMERA_PROPERTY_KEY'), 'expected Strybldr FloatingPanel to omit duplicate Camera controls owned by the top-level Camera panel')
+  assert(storyboardCanvasText.includes('Storytree filters'), 'expected Strytree filters to stay in the Storyboard surface')
+  assert(storyboardCanvasText.includes('ForkCompare candidates'), 'expected ForkCompare candidate run to stay in the Storyboard surface')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected duplicate Strybldr FloatingPanel to be removed')
   assert(floatingPanelText.indexOf("{ view: 'view'") < floatingPanelText.indexOf("{ view: 'camera'"), 'expected FloatingPanel Camera to sit immediately to the right of View in the primary view registry')
   assert(floatingPanelText.includes("floatingPanelView === 'camera'") && floatingPanelText.includes('StrybldrCameraFloatingPanelViewLazy'), 'expected FloatingPanel Camera to render as a top-level panel view')
-  assert(toolbarMenuLauncherText.includes("tab === 'camera'") && canvasUtilsText.includes("'view' | 'camera' | 'chat'"), 'expected shared FloatingPanel open bridge to support the top-level Camera view')
+  assert(toolbarMenuLauncherText.includes("tab === 'camera'") && canvasUtilsText.includes("| 'camera'"), 'expected shared FloatingPanel open bridge to support the top-level Camera view')
   assert(uiSliceInitialStateText.includes("view === 'camera'"), 'expected store-level FloatingPanel view guard to allow the top-level Camera view')
   assert(strybldrCameraFloatingPanelText.includes('aria-label="Camera panel"') && strybldrCameraFloatingPanelText.includes('StrybldrCameraPanel') && strybldrCameraFloatingPanelText.includes('STRYBLDR_CAMERA_PROPERTY_KEY'), 'expected top-level Camera panel to reuse the Strybldr camera owner and persist graph metadata')
   assert(strybldrCameraModelText.includes('Left Side') && strybldrCameraModelText.includes('Right Side') && strybldrCameraModelText.includes('Eye Level') && strybldrCameraModelText.includes('Wide') && strybldrCameraModelText.includes('Medium') && strybldrCameraModelText.includes('Close-up'), 'expected Camera model to own side, eye-level, and shot-size labels')
@@ -888,7 +905,7 @@ export function testStrybldrRendererModeUsesSharedSurfaceRegistry() {
   assert(leftHighRay.rayTargetX > 116 && leftHighRay.rayTargetX < 117 && Math.abs(leftHighRay.rayTargetY - mediumFrame.y) < 0.001 && Math.abs(leftHighRay.rayEdgeStartY - mediumFrame.y) < 0.001 && Math.abs(leftHighRay.rayEdgeEndY - mediumFrame.y) < 0.001, 'expected upper-left diagonal ray polygon to intersect the top frame edge from the shared 3D longitude-latitude vector')
 }
 
-export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
+export function testStrybldrImportImageAndStoryboardOwnersAreWired() {
   const launchText = readSource('lib', 'toolbar', 'LaunchDropdown.impl.tsx')
   const bridgeText = readSource('features', 'markdown-explorer', 'workspaceActionBridge.ts')
   const actionsText = readSource('features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
@@ -912,31 +929,20 @@ export function testStrybldrImportImageAndFloatingPanelOwnersAreWired() {
   assert(urlImportText.includes("args.canvas2dRenderer === 'storyboard'"), 'expected URL import to create Strybldr storyboard documents through the workspace import owner')
   assert(actionsText.includes("selectedCanvas2dRenderer === 'storyboard'"), 'expected renderer-selected URL import to activate the Strybldr surface')
   assert(!fallbackText.includes(`importLocalImages${'Fallback'}`), 'expected no duplicate image import fallback outside workspace owner')
-  assert(floatingPanelText.includes('StrybldrFloatingPanelView'), 'expected Floating Panel to render the Strybldr owner view')
-  assert(floatingPanelText.includes("view: 'strybldr'"), 'expected Floating Panel view registry to include Strybldr')
+  assert(!floatingPanelText.includes('StrybldrFloatingPanelView'), 'expected Floating Panel registry to remove the duplicate Strybldr owner view')
+  assert(!floatingPanelText.includes("view: 'strybldr'"), 'expected Floating Panel view registry to omit Strybldr')
   assert(actionsText.includes('registerStrybldrImageFiles'), 'expected image import to register selected image Files for same-session local analysis')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('availableSourceUnitIds'), 'expected local analysis to address every registered imported image')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('Save card update'), 'expected Strybldr panel to expose the user update gate before generation')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('useActiveGraphRenderData(true)'), 'expected Strybldr panel Run All to reuse the active renderer graph projection')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('const graphData = activeGraphData || rawGraphData'), 'expected Strybldr panel to fall back to raw graph only when no active document graph exists')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('selectedNodeId: s.selectedNodeId'), 'expected Strybldr panel to subscribe to the shared selected node id')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('isCanonicalNodeIdEqual(nextSelectedNodeId, card.id)'), 'expected Strybldr panel card editor to follow canvas selection via canonical node ids')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('aria-label="Strybldr storyboard layout controls"'), 'expected Strybldr panel to expose storyboard layout controls')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('setStrybldrStoryboardCardAspectMode'), 'expected Strybldr panel to drive the shared storyboard card aspect setting')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('setStrybldrStoryboardBoardLayoutMode'), 'expected Strybldr panel to drive the shared storyboard board layout setting')
   assert(readSource('components', 'Toolbar.tsx').includes('supportsToolbarRunAll'), 'expected toolbar Run All support to use the shared renderer helper')
-  assert(readSource('components', 'Toolbar.tsx').includes('getToolbarRunAllFloatingPanelTab'), 'expected toolbar Run All panel mount to use the shared renderer helper')
-  assert(readSource('components', 'Toolbar.tsx').includes('TOOLBAR_RUN_ALL_PANEL_RETRY_DELAY_MS'), 'expected toolbar Run All to retry after lazy Strybldr panel mount')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('WORKFLOW_RUN_ALL_EVENT'), 'expected Strybldr panel to consume the shared Run All event')
-  assert(readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes('STRYBLDR_RUN_ALL_DEDUPE_WINDOW_MS'), 'expected Strybldr panel to dedupe toolbar Run All retry events')
-  assert(!readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx').includes("canvas2dRenderer !== 'storyboard'"), 'expected mounted Strybldr panel to keep its Run All event consumer registered')
+  assert(readSource('components', 'Toolbar.tsx').includes('createStrybldrLocalVideoArtifactFromGraphData'), 'expected Toolbar Run All to create the local Strybldr video-agent handoff directly')
+  assert(!readSource('components', 'Toolbar.tsx').includes('getToolbarRunAllFloatingPanelTab'), 'expected Toolbar Run All not to route through a Strybldr FloatingPanel helper')
+  assert(!readSource('components', 'Toolbar.tsx').includes("setFloatingPanelView(runAllFloatingPanelTab)"), 'expected Toolbar Run All not to mount a floating panel for Storyboard execution')
 }
 
 export function testStrybldrPanelCanvasSelectionKeepsNonStorytreeCardsSelectable() {
-  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
-  assert(panelText.includes("const nonStorytreeCards = cards.filter(card => card.lane !== 'Storytree')"), 'expected Strybldr panel card editor to keep Source/Storyboard cards selectable from the canvas')
-  assert(!panelText.includes("const elementCards = cards.filter(card => card.lane === 'Elements')"), 'expected Strybldr panel card editor to avoid an Elements-only selection gate')
-  assert(panelText.includes('if (!editableCards.some(card => card.id === selectedCanvasCard.id)) return'), 'expected Strybldr panel card editor to follow selected canvas cards through the selectable card owner')
+  const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
+  assert(storyboardCanvasText.includes('visibleLanes'), 'expected Source/Storyboard card selection to stay in the Storyboard canvas owner')
+  assert(!storyboardCanvasText.includes("const elementCards = cards.filter(card => card.lane === 'Elements')"), 'expected Storyboard canvas card selection to avoid an Elements-only selection gate')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected Strybldr panel selection fork to be removed')
 }
 
 export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArtifact() {
@@ -1001,7 +1007,6 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
     elapsedMs: 42,
     paidCallCount: 0,
   })
-  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   assert(handoff.prompt.includes('Approved edited product card.'), 'expected handoff prompt to read updated graph card text')
   assert(handoff.prompt.includes('Camera: Front · Eye Level · Close-up · Keep lens stable.'), 'expected handoff prompt to include saved Strybldr camera metadata')
   assert(handoff.cards.some(card => card.camera === 'Camera: Front · Eye Level · Close-up · Keep lens stable.'), 'expected handoff card to preserve camera settings as data')
@@ -1011,13 +1016,10 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
   const handoffArtifactText = readSource('features', 'strybldr', 'strybldrVideoHandoffArtifact.ts')
   assert(handoffArtifactText.includes('publishGeneratedWorkspaceEntriesToKnowgrphStorage'), 'expected generated Strybldr handoff artifacts to publish through the shared storage helper when runtime sync is enabled')
   assert(handoffArtifactText.includes('readKnowgrphStorageRuntimeSyncEnabled'), 'expected generated Strybldr handoff storage publication to stay runtime-sync gated')
-  assert(panelText.includes('generateRunVideoWithBytePlus'), 'expected Strybldr panel to reuse the BytePlus video owner')
-  assert(panelText.includes('generateRunImageWithBytePlus'), 'expected Strybldr image intent to reuse the BytePlus image owner when compatible')
-  assert(panelText.includes('runStrybldrProviderWithTimeout'), 'expected Strybldr Run All to bound external provider calls before writing fallback')
-  assert(panelText.includes('const targetNodeId = readString(selectedNodeId || selectedCard?.id)'), 'expected Strybldr Markdown output override to prefer the clicked canvas card')
-  assert(panelText.includes('targetNodeId,'), 'expected Strybldr artifact application to use the clicked canvas card target id')
-  assert(panelText.includes('notifyWorkspaceFsChanged'), 'expected Strybldr handoff artifacts to refresh Source Files')
-  assert(panelText.includes('buildStrybldrVideoHandoffMarkdown'), 'expected Strybldr panel to write structured fallback artifacts')
+  assert(handoffArtifactText.includes('createStrybldrLocalVideoArtifactFromGraphData'), 'expected Toolbar Run All to use the shared local video-agent artifact helper')
+  assert(handoffArtifactText.includes('notifyWorkspaceFsChanged'), 'expected Strybldr handoff artifacts to refresh Source Files')
+  assert(handoffArtifactText.includes('buildStrybldrVideoHandoffMarkdown'), 'expected Strybldr artifact helper to write structured fallback artifacts')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected deleted FloatingPanel not to own video handoff generation')
 
   const twoSourceDoc = buildStrybldrStoryboardDocument({
     createdAtMs: 1,
@@ -1074,7 +1076,6 @@ export async function testStrybldrVideoHandoffReusesBytePlusOwnerWithFallbackArt
 }
 
 export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReachable() {
-  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   const renderUrl = '/__chat_asset_proxy/strybldr-generated-video.mp4'
   const sourceUrl = ['https://assets.example.test', '/strybldr-generated-video.mp4'].join('')
   const generatedMarkdown = buildStrybldrVideoHandoffMarkdown({
@@ -1105,15 +1106,10 @@ export async function testStrybldrVideoHandoffKeepsProviderBackedRecreationReach
     paidCallCount: 1,
     cacheHit: false,
   })
-  assert(BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS >= 200000, `expected BytePlus video owner to expose a real task polling window, got ${BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS}`)
-  assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS'), 'expected Strybldr video handoff to reuse the BytePlus bounded polling window')
-  assert(panelText.includes('BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS + 60000'), 'expected Strybldr handoff timeout to include task polling plus asset download slack')
-  assert(!panelText.includes('VIDEO_HANDOFF_PROVIDER_TIMEOUT_MS = 6000'), 'expected Strybldr handoff not to force legitimate provider runs into fallback after six seconds')
-  assert(panelText.includes("artifactProvider = 'knowgrph-local-animatic'"), 'expected unconfigured Strybldr runs to generate a local animatic instead of a fallback-only handoff')
-  assert(panelText.includes("model = 'strybldr-local-animatic-v1'"), 'expected local Strybldr animatic generation to expose a stable model label')
-  assert(panelText.indexOf("artifactProvider = 'knowgrph-local-animatic'") < panelText.indexOf("status = 'copied'"), 'expected local generated animatic to run before source-video copy fallback')
-  assert(panelText.includes("status = 'generated'"), 'expected provider-backed Strybldr video recreation to remain a generated outcome, not fallback-only')
-  assert(panelText.includes("status === 'fallback' ? 'strybldr-video-fallback'"), 'expected playable Strybldr videos to write non-fallback artifacts')
+  const artifactText = readSource('features', 'strybldr', 'strybldrVideoHandoffArtifact.ts')
+  assert(artifactText.includes("provider: 'knowgrph-local-animatic'"), 'expected unconfigured Strybldr runs to generate a local animatic instead of a fallback-only handoff')
+  assert(artifactText.includes("model: 'strybldr-local-animatic-v1'"), 'expected local Strybldr animatic generation to expose a stable model label')
+  assert(artifactText.includes('buildVideoAgentPipeline'), 'expected local video handoff to include a provider-neutral video-agent analysis packet')
   assert(generatedMarkdown.includes('status: "generated"'), 'expected generated handoff markdown status')
   assert(generatedMarkdown.includes(`renderUrl: "${renderUrl}"`), 'expected generated handoff markdown to expose the render URL')
   assert(generatedMarkdown.includes(`sourceUrl: "${sourceUrl}"`), 'expected generated handoff markdown to preserve the source URL')
@@ -1270,15 +1266,11 @@ export async function testStrybldrRunGeneratedVideoUpdatesStoryboardCardOutputAn
 }
 
 export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia() {
-  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
   const storyboardCanvasText = readSource('components', 'StoryboardCanvas.tsx')
-  assert(panelText.includes('persistStrybldrGeneratedImageMediaAsset'), 'expected Strybldr image runs to persist generated image bytes before card writeback')
-  assert(panelText.includes('uploadMediaFileToKnowgrphStorage'), 'expected Strybldr generated images to reuse the shared Cloudflare uploaded-media storage owner')
-  assert(panelText.includes('buildUploadedMediaPanelItemFromStorage') && panelText.includes('writeStoredUploadedMediaPanelItems'), 'expected Strybldr generated images to appear through the shared synced media panel item path')
-  assert(panelText.includes('uploadNow: true'), 'expected Strybldr generated images to force the user-requested storage upload path')
-  assert(!panelText.includes('uploadGeneratedWorkspaceBlobToKnowgrphStorage'), 'expected Strybldr generated images to stop using inaccessible workspace blob URLs')
-  assert(panelText.includes("outputLoadingKind: 'image'") && panelText.includes("strybldrImageStatus: 'generating'"), 'expected Strybldr image runs to mark cards with the shared media loading state while generation is pending')
-  assert(panelText.includes('const visibleImageUrl = imageStorage.storageUrl || imageStorage.outputPath || imageUrl'), 'expected Strybldr generated image cards to prefer storage or airvio/runs URLs over inline data URLs')
+  const strybldrStoryboardText = readSource('features', 'strybldr', 'strybldrStoryboard.ts')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected image handoff persistence not to depend on a Strybldr FloatingPanel')
+  assert(strybldrStoryboardText.includes('applyStrybldrImageArtifactToGraphData'), 'expected generated image media writeback to live in the Strybldr storyboard data owner')
+  assert(strybldrStoryboardText.includes("strybldrImageStatus: 'generated'"), 'expected generated image status to persist as card data')
   assert(storyboardCanvasText.includes('CardMediaLoadingSkeleton') && storyboardCanvasText.includes('readStoryboardCardMediaLoadingState'), 'expected storyboard cards to reuse the shared in-progress media loading visuals')
   const doc = buildStrybldrStoryboardDocument({
     createdAtMs: 1,
@@ -1332,8 +1324,10 @@ export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia(
     prompt,
   })
   assert(updated, 'expected Strybldr generated image artifact to update graph data')
+  const resolvedTargetNodeId = resolveStrybldrVideoArtifactTargetNodeId({ graphData: parsed.graphData, targetNodeId: targetCard.id })
+  assert(resolvedTargetNodeId, 'expected image artifact writer to resolve a storyboard target node')
   const board = buildStoryboardBoardModel({ graphData: updated, graphRevision: 1 })
-  const card = board.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  const card = board.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === resolvedTargetNodeId)
   assert(card, 'expected generated image target card to remain visible on the storyboard')
   assert(card.output.includes('Generated Strybldr image handoff.'), `expected image artifact output on target card, got ${JSON.stringify(card.output)}`)
   assert((card.media?.kind === 'image' || card.media?.kind === 'svg') && card.media.url === imageUrl, 'expected image intent to render as image media, not local animatic iframe')
@@ -1343,7 +1337,7 @@ export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia(
   const staleAnimatic = '<main>stale local animatic</main>'
   const staleMarkdown = updateStrybldrStoryboardMarkdownCardOverride({
     text: serialized,
-    nodeId: targetCard.id,
+    nodeId: resolvedTargetNodeId,
     patch: {
       output: 'Generated Strybldr local animatic handoff.',
       outputSrcDoc: staleAnimatic,
@@ -1354,7 +1348,7 @@ export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia(
   assert(staleMarkdown, 'expected stale animatic fixture to persist before image replacement')
   const updatedMarkdown = updateStrybldrStoryboardMarkdownCardOverride({
     text: staleMarkdown,
-    nodeId: targetCard.id,
+    nodeId: resolvedTargetNodeId,
     patch: {
       output: 'Generated Strybldr image handoff.\nArtifact: /strybldr-image-test.md',
       outputSrcDoc: null,
@@ -1369,7 +1363,7 @@ export async function testStrybldrRunImageIntentUpdatesStoryboardCardImageMedia(
   assert(!updatedMarkdown.includes(staleAnimatic), 'expected image override to remove stale local animatic srcdoc')
   const reparsed = await loadGraphDataFromTextViaParser('run-image-updated.strybldr.md', updatedMarkdown, { applyToStore: false })
   const reparsedBoard = buildStoryboardBoardModel({ graphData: reparsed?.graphData || null, graphRevision: 1 })
-  const reparsedCard = reparsedBoard.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === targetCard.id)
+  const reparsedCard = reparsedBoard.lanes.flatMap(lane => lane.cards).find(candidate => candidate.id === resolvedTargetNodeId)
   assert((reparsedCard?.media?.kind === 'image' || reparsedCard?.media?.kind === 'svg') && reparsedCard.media.url === imageUrl, 'expected generated image media to survive Strybldr Markdown reparse')
   assert(!reparsedCard?.media?.srcDoc, 'expected generated image reparse not to resurrect stale iframe srcdoc')
 }
@@ -1382,12 +1376,15 @@ export function testStrybldrVideoPromptsDoNotMisrouteToImageIntent() {
 }
 
 export function testStrybldrGenerateVideoPathStaysVideoOnly() {
-  const panelText = readSource('features', 'strybldr', 'StrybldrFloatingPanelView.tsx')
-  assert(panelText.includes('title="Generate Video"'), 'expected Strybldr floating panel to expose the Generate Video action')
-  assert(!panelText.includes('const imageIntent = isStrybldrImageGenerationIntent('), 'expected Generate Video to avoid prompt-driven image intent routing')
-  assert(!panelText.includes('generateRunImageWithBytePlus('), 'expected Generate Video to avoid the image provider branch')
-  assert(!panelText.includes('Strybldr image output generated.'), 'expected Generate Video completion toast to stay video-only')
-  assert(!panelText.includes('selectedNodeId || selectedCard?.id'), 'expected Generate Video to avoid falling back to the first editable card when resolving the artifact target')
+  const toolbarText = readSource('components', 'Toolbar.tsx')
+  const toolbarMenuText = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const chatSkillRegistryText = readSource('features', 'chat', 'chatSkillRegistry.ts')
+  assert(!fs.existsSync(path.resolve(process.cwd(), 'src', 'features', 'strybldr', 'StrybldrFloatingPanelView.tsx')), 'expected Generate Video not to be owned by a Strybldr FloatingPanel')
+  assert(chatSkillRegistryText.includes("slashCommand: '/video-agent'"), 'expected video-agent invocation to be exposed through slash-command grammar')
+  assert(toolbarText.includes('createStrybldrLocalVideoArtifactFromGraphData'), 'expected Storyboard Run All to stay video-only through the local video handoff helper')
+  assert(!toolbarMenuText.includes('title="Generate Video"'), 'expected FloatingPanel toolbar not to duplicate Generate Video')
+  assert(!toolbarMenuText.includes('title="Analyze locally"'), 'expected FloatingPanel toolbar not to duplicate local analysis')
+  assert(!toolbarText.includes('generateRunImageWithBytePlus('), 'expected Storyboard Run All to avoid image-provider routing')
 }
 
 export function testStrybldrVideoArtifactTargetPrefersStoryboardFrameOverElementCard() {
@@ -1449,42 +1446,6 @@ export function testStrybldrVideoArtifactCleanupKeepsOnlyTargetOverride() {
   const targetCard = (parsed?.cards || []).find(card => card.nodeId === 'strybldr:frame:3595615238') || null
   assert(!sourceCard, 'expected stale source artifact override to be removed entirely')
   assert(targetCard?.prompt === 'keep me', `expected target card non-artifact overrides to remain, got ${JSON.stringify(targetCard)}`)
-}
-
-export function testStrybldrWorkflowEdgeSyncPersistsAuthoredStoryboardConnections() {
-  const baseText = readStrybldrStarterTemplateText()
-  const parsed = parseStrybldrStoryboardMarkdown(baseText)
-  assert(parsed, 'expected starter template to parse before workflow-edge sync')
-  const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
-    text: baseText,
-    graphData: {
-      context: 'strybldr-storyboard',
-      type: 'Graph',
-      nodes: [],
-      edges: [
-        {
-          id: 'starter-edge-1',
-          source: 'starter-source-brief-card',
-          target: 'starter-storyboard-beats-card',
-          label: 'linksTo', properties: {},
-        },
-        {
-          id: 'ignore-structural-edge',
-          source: 'strybldr:frame:3595615238',
-          target: 'starter-source-brief-card',
-          label: 'containsElement', properties: {},
-        },
-      ],
-    },
-  })
-  assert(nextText && nextText !== baseText, 'expected storyboard workflow-edge sync to persist authored edges into the structured payload')
-  const reparsed = parseStrybldrStoryboardMarkdown(String(nextText || ''))
-  assert(reparsed, 'expected synced storyboard markdown to remain parseable')
-  assert((reparsed?.edges || []).length === 1, `expected only authored element-to-element edges to persist, got ${JSON.stringify(reparsed?.edges || [])}`)
-  const authoredEdge = reparsed?.edges?.[0] || null
-  assert(authoredEdge?.id === 'starter-edge-1', `expected authored edge id to persist, got ${JSON.stringify(authoredEdge)}`)
-  assert(authoredEdge?.source === 'starter-source-brief-card' && authoredEdge?.target === 'starter-storyboard-beats-card', `expected authored storyboard edge endpoints to persist, got ${JSON.stringify(authoredEdge)}`)
-  assert(authoredEdge?.label === 'linksTo', `expected authored storyboard edge label to persist, got ${JSON.stringify(authoredEdge)}`)
 }
 
 export async function testStrybldrConsolidatedDemoGeneratesLocalPlayableAnimatic() {

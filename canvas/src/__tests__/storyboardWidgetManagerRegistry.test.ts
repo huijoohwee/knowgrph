@@ -144,7 +144,7 @@ export function testStoryboardWidgetManagerRegistryStorageRoundTrip() {
   if (reread[0].ports.length !== 1) throw new Error('expected ports to round trip')
 }
 
-export function testStoryboardWidgetManagerSeedsGenerateVideoRegistryEntry() {
+export function testStoryboardWidgetManagerSeedsDefaultRegistryEntriesAndConsolidatesPropsPanelMedia() {
   const empty = ensureDefaultWidgetRegistryEntries([], '2026-02-06T00:00:00.000Z')
   if (!empty.changed) throw new Error('expected seeding to report changed=true')
   const seeded = empty.entries
@@ -172,19 +172,24 @@ export function testStoryboardWidgetManagerSeedsGenerateVideoRegistryEntry() {
   const discoveryFound = seeded.find(
     e => e.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && e.widgetTypeId === FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID && e.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   )
-  if (seeded.length !== 4) throw new Error(`expected four neutral default palette entries, got ${seeded.length}`)
+  if (seeded.length !== 4) throw new Error(`expected four neutral default registry entries, got ${seeded.length}`)
   if (!imageFound) throw new Error('expected Image Widget mapping')
   if (!textFound) throw new Error('expected Text Widget mapping')
-  if (videoScriptFound) throw new Error('expected default palette seed to omit provider-specific Video Script Widget mapping')
-  if (openAiVideoScriptFound) throw new Error('expected default palette seed to omit provider-specific OpenAI Video Script Widget mapping')
+  if (videoScriptFound) throw new Error('expected default registry seed to omit provider-specific Video Script Widget mapping')
+  if (openAiVideoScriptFound) throw new Error('expected default registry seed to omit provider-specific OpenAI Video Script Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
-  if (storyboardElementFound) throw new Error('expected default palette seed to omit Storyboard Element mapping')
-  if (discoveryFound) throw new Error('expected default palette seed to omit GrabMaps Chat Discovery Widget mapping')
+  if (storyboardElementFound) throw new Error('expected default registry seed to omit Storyboard Element mapping')
+  if (discoveryFound) throw new Error('expected default registry seed to omit GrabMaps Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
   if (getWidgetRegistryEntryLabel(textFound) !== 'Text Widget') throw new Error('expected default text palette label to stay neutral')
   if (getWidgetRegistryEntryLabel(imageFound) !== 'Image Widget') throw new Error('expected default image palette label to stay neutral')
   if (getWidgetRegistryEntryLabel(found) !== 'Video Widget') throw new Error('expected default video palette label to stay neutral')
-  if (!seeded.every(entry => isPropsPanelWidgetPaletteEntry(entry))) throw new Error('expected every default seed to be visible in the Props Panel palette')
+  const propsPanelPaletteLabels = seeded
+    .filter(entry => isPropsPanelWidgetPaletteEntry(entry))
+    .map(entry => getWidgetRegistryEntryLabel(entry))
+  if (propsPanelPaletteLabels.join('|') !== 'Rich Media Panel|Text Widget') {
+    throw new Error(`expected Props Panel palette to consolidate Image/Video creation into Rich Media Panel, got ${propsPanelPaletteLabels.join(', ')}`)
+  }
 
   const stable = ensureDefaultWidgetRegistryEntries(seeded, '2026-02-06T00:00:00.000Z')
   if (stable.changed) throw new Error('expected seeding to be idempotent')

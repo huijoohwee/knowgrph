@@ -480,7 +480,6 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['Media Nodes', mediaNodesSection],
     ['Widget palette', widgetPalette],
     ['Field samples panel', fieldSamplesPanel],
-    ['Floating props', floatingPropsPanel],
     ['Graph fields list', graphFieldsListPanel],
     ['Help shortcuts', helpShortcutsSection],
     ['Help panel tour', helpPanelTourSection],
@@ -607,7 +606,6 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     ['Graph Fields list', graphFieldsListPanel],
     ['Graph Fields samples', fieldSamplesPanel],
     ['Workspace actions', workspaceActionsPanel],
-    ['Floating props', floatingPropsPanel],
     ['Widget palette', widgetPalette],
     ['Floating chat', floatingPanelChat],
   ] as const) {
@@ -623,7 +621,6 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   for (const [consumerName, consumerSource] of [
     ['Settings row', settingsEntryRow],
     ['Media Nodes', mediaNodesSection],
-    ['Floating props', floatingPropsPanel],
     ['Floating chat', floatingPanelChat],
     ['Default Value', graphFieldSettingSectionTexts.find(([fileName]) => fileName === 'DefaultValueSection.tsx')?.[1] || ''],
   ] as const) {
@@ -631,21 +628,8 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
       throw new Error(`Expected ${consumerName} status/action text to reuse the shared KTV status text size`)
     }
   }
-  if (
-    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME') ||
-    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_CLASSNAME') ||
-    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_WIDE_CLASSNAME') ||
-    !floatingPropsPanel.includes('UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME') ||
-    floatingPropsPanel.includes('w-[30%]') ||
-    floatingPropsPanel.includes('w-[40%]') ||
-    floatingPropsPanel.includes('w-[60%]') ||
-    floatingPropsPanel.includes('w-[70%]')
-  ) {
-    throw new Error('Expected Floating Props value editors to reuse shared responsive field row classes instead of local percentage widths')
-  }
   for (const [consumerName, consumerSource] of [
     ['Settings runtime', settingsViewRuntime],
-    ['Floating props', floatingPropsPanel],
     ['Default Value', graphFieldSettingSectionTexts.find(([fileName]) => fileName === 'DefaultValueSection.tsx')?.[1] || ''],
   ] as const) {
     if (!consumerSource.includes('PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass')) {

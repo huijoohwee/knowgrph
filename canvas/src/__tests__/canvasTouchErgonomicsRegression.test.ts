@@ -253,7 +253,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const designLayersPanelText = readUtf8(path.resolve(root, 'src/features/design/DesignLayersPanel.tsx'))
   const designDomInspectPanelText = readUtf8(path.resolve(root, 'src/features/design/DesignDomInspectPanel.tsx'))
   const storyboardCanvasText = readUtf8(path.resolve(root, 'src/components/StoryboardCanvas.tsx'))
-  const strybldrFloatingPanelViewText = readUtf8(path.resolve(root, 'src/features/strybldr/StrybldrFloatingPanelView.tsx'))
   const graphEditorOverlayText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorOverlay.tsx'))
   const graphEditorRightPanelText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorRightPanel.tsx'))
   const graphEditorToolRailText = readUtf8(path.resolve(root, 'src/features/graph-editor/GraphEditorToolRail.tsx'))
@@ -1153,20 +1152,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   ) {
     throw new Error('expected floating tool, toolbar dropdown width variants, SearchPanel, and LaunchDropdown widths/icons to live in shared responsive owners')
   }
-  if (
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_PANEL_FIELD_ROW_CLASSNAME') ||
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_CLASSNAME') ||
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_PANEL_FIELD_LABEL_WIDE_CLASSNAME') ||
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_PANEL_FIELD_VALUE_CLASSNAME') ||
-    floatingPropsPanelText.includes('w-[30%]') ||
-    floatingPropsPanelText.includes('w-[40%]') ||
-    floatingPropsPanelText.includes('w-[60%]') ||
-    floatingPropsPanelText.includes('w-[70%]')
-  ) {
-    throw new Error('expected Floating Props panel field rows to use shared responsive field classes instead of local percentage widths')
-  }
   const toolbarSettingsPanelBodyTexts = [
-    floatingPropsPanelText,
     radarGalaxyRendererSettingsText,
     designWireframeSettingsText,
     layoutModeRendererSettingsText,
@@ -1194,15 +1180,13 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !responsiveToolbarCssText.includes('--kg-toolbar-settings-panel-text-action-padding-inline') ||
     !toolbarSettingsPanelBodyTexts.every(text => text.includes('uiToolbarSettingsPanelBodyClassName')) ||
     !layoutModeRendererSettingsText.includes('uiToolbarSettingsPanelSubsectionClassName') ||
-    ![floatingPropsPanelText, layoutModeRendererSettingsText].every(text =>
-      text.includes('uiToolbarSettingsPanelFooterClassName') &&
-      text.includes('uiToolbarSettingsPanelActionGroupClassName') &&
-      text.includes('uiToolbarSettingsPanelTextActionClassName'),
-    ) ||
+    !layoutModeRendererSettingsText.includes('uiToolbarSettingsPanelFooterClassName') ||
+    !layoutModeRendererSettingsText.includes('uiToolbarSettingsPanelActionGroupClassName') ||
+    !layoutModeRendererSettingsText.includes('uiToolbarSettingsPanelTextActionClassName') ||
     toolbarSettingsPanelBodyTexts.some(text => text.includes('px-3 py-2 space-y-2')) ||
     layoutModeRendererSettingsText.includes('pt-2 border-t border-[color:var(--kg-border)] space-y-2') ||
-    [floatingPropsPanelText, layoutModeRendererSettingsText].some(text => text.includes('flex items-center justify-between gap-2 pt-1')) ||
-    [floatingPropsPanelText, layoutModeRendererSettingsText].some(text => text.includes('px-2 py-1 rounded')) ||
+    layoutModeRendererSettingsText.includes('flex items-center justify-between gap-2 pt-1') ||
+    layoutModeRendererSettingsText.includes('px-2 py-1 rounded') ||
     flowchartRendererSettingsText.includes('0.5rem, env(safe-area-inset-bottom)')
   ) {
     throw new Error('expected toolbar renderer/settings panel body spacing to live in the shared toolbar settings panel body owner')
@@ -1924,8 +1908,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !layoutModeRendererSettingsText.includes('UI_RESPONSIVE_CONTROL_HINT_CLASSNAME') ||
     !rendererPaletteSettingsText.includes('UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME') ||
     !rendererPaletteSettingsText.includes('UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME') ||
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_CONTROL_VALUE_ROW_CLASSNAME') ||
-    !floatingPropsPanelText.includes('UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME') ||
     !flowchartRendererControlsText.includes("from '@/lib/ui/responsiveControlRows'") ||
     !radarGalaxyRendererSettingsText.includes("from '@/lib/ui/responsiveControlRows'") ||
     !designWireframeSettingsText.includes("from '@/lib/ui/responsiveControlRows'") ||
@@ -1950,9 +1932,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     layoutModeRendererSettingsText.includes('valueClassName="flex items-center gap-2"') ||
     layoutModeRendererSettingsText.includes('min-w-0 flex-1 text-right') ||
     layoutModeRendererSettingsText.includes('min-w-12 text-right text-[10px]') ||
-    rendererPaletteSettingsText.includes('className="flex items-center gap-2"') ||
-    floatingPropsPanelText.includes("'flex items-center gap-2'") ||
-    floatingPropsPanelText.includes("'flex items-center gap-1'")
+    rendererPaletteSettingsText.includes('className="flex items-center gap-2"')
   ) {
     throw new Error('expected flowchart, radar, design wireframe, layout, edge type renderer, and design inspector split widths and touch target heights to live in shared responsive owner classes')
   }
@@ -2239,8 +2219,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !storyboardCanvasText.includes('UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME') ||
     !storyboardCanvasText.includes('UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME') ||
     !storyboardCanvasText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
-    !strybldrFloatingPanelViewText.includes('UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME') ||
-    !strybldrFloatingPanelViewText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
     storyboardCanvasText.includes('w-[360px]') ||
     storyboardCanvasText.includes('h-14 min-w-14 max-w-[8rem]') ||
     storyboardCanvasText.includes('max-w-[8rem]') ||
@@ -2249,11 +2227,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     storyboardCanvasText.includes('min-w-[2rem]') ||
     storyboardCanvasText.includes('inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 text-[11px]') ||
     storyboardCanvasText.includes('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]') ||
-    storyboardCanvasText.includes('mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded border px-2 text-[11px]') ||
-    strybldrFloatingPanelViewText.includes('inline-flex h-7 shrink-0 items-center justify-center rounded border px-2 text-[11px]') ||
-    strybldrFloatingPanelViewText.includes('inline-flex h-8 items-center justify-center gap-1 rounded border px-2 text-[11px]')
+    storyboardCanvasText.includes('mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded border px-2 text-[11px]')
   ) {
-    throw new Error('expected Storyboard and Strybldr lanes, badges, reference links, editors, filters, and text actions to use shared responsive owners instead of fixed desktop clamps')
+    throw new Error('expected Storyboard lanes, badges, reference links, editors, filters, and text actions to use shared responsive owners instead of fixed desktop clamps')
   }
   if (!graphDataTableBodyText.includes('UI_RESPONSIVE_STRUCTURED_EDITOR_PANEL_CLASSNAME') || graphDataTableBodyText.includes('min-w-[300px]')) {
     throw new Error('expected graph-data-table JSON cell editor to use the shared responsive structured-editor owner instead of a fixed min width')

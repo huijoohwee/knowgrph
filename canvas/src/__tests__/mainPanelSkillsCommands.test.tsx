@@ -11,6 +11,7 @@ import { CHAT_INVOCATION_OPTIONS } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'
 import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
+import { setActiveCardInlineTextExternalCommandTarget } from '@/lib/cards/cardInlineTextExternalCommands'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
 
@@ -168,8 +169,11 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
     const sharedBody = container.querySelector('[data-kg-floating-panel-catalog-body="skills-commands"]') as HTMLElement | null
     const catalogSurface = container.querySelector('[data-kg-floating-panel-skills-commands="true"]') as HTMLElement | null
     const prefixFilter = container.querySelector('[data-kg-floating-panel-skills-commands-prefix-filter="1"]')
+    const grammarGroup = container.querySelector('[data-kg-floating-panel-skills-commands-grammar-group="1"]')
     const sharedSearchToggle = container.querySelector('[data-kg-floating-panel-catalog-search-toggle="1"]') as HTMLButtonElement | null
     const skillsSearchToggle = container.querySelector('[data-kg-skills-commands-search-toggle="1"]') as HTMLButtonElement | null
+    const subjectGroupToggle = container.querySelector('[data-kg-skills-commands-grammar-toggle="subject"]') as HTMLButtonElement | null
+    const objectGroupToggle = container.querySelector('[data-kg-skills-commands-grammar-toggle="object"]') as HTMLButtonElement | null
     if (
       !panel ||
       panel.getAttribute('data-kg-floating-panel-catalog-layout') !== 'media-reuse' ||
@@ -182,20 +186,92 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
       !catalogSurface ||
       catalogSurface.className.includes('overflow-auto') ||
       !prefixFilter ||
+      prefixFilter.nextElementSibling !== grammarGroup ||
+      !grammarGroup ||
       container.querySelectorAll('[data-kg-skills-commands-prefix-toggle]').length !== 3 ||
+      container.querySelectorAll('[data-kg-skills-commands-grammar-toggle]').length !== 3 ||
+      !(subjectGroupToggle instanceof dom.window.HTMLButtonElement) ||
+      !(objectGroupToggle instanceof dom.window.HTMLButtonElement) ||
+      subjectGroupToggle.getAttribute('aria-label') !== 'Group by Subject' ||
+      subjectGroupToggle.getAttribute('aria-pressed') !== 'true' ||
+      objectGroupToggle.getAttribute('aria-pressed') !== 'false' ||
       !(sharedSearchToggle instanceof dom.window.HTMLButtonElement) ||
       skillsSearchToggle !== sharedSearchToggle
     ) {
-      throw new Error('Expected FloatingPanel Skills & Commands to reuse the shared fixed Media catalog header/search layout')
+      throw new Error('Expected FloatingPanel Skills & Commands to reuse the shared fixed Media catalog header/search layout with prefix and SVO grouping controls')
+    }
+    const groupDisclosureActions = container.querySelector('[data-kg-skills-commands-disclosure-actions="header"]') as HTMLElement | null
+    const groupDisclosureButton = groupDisclosureActions?.querySelector('button') as HTMLButtonElement | null
+    const storySubjectGroup = container.querySelector('[data-kg-skills-commands-grammar-group="subject:story"]') as HTMLElement | null
+    const agentSubjectGroup = container.querySelector('[data-kg-skills-commands-grammar-group="subject:agent"]') as HTMLElement | null
+    const storySubjectGroupToggle = storySubjectGroup?.querySelector('[role="button"][aria-controls]') as HTMLElement | null
+    const searchBeforeDisclosure = sharedSearchToggle && groupDisclosureActions
+      ? Boolean(sharedSearchToggle.compareDocumentPosition(groupDisclosureActions) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING)
+      : false
+    if (
+      !groupDisclosureActions ||
+      !sharedHeader.contains(groupDisclosureActions) ||
+      sharedBody.contains(groupDisclosureActions) ||
+      !(groupDisclosureButton instanceof dom.window.HTMLButtonElement) ||
+      groupDisclosureButton.getAttribute('aria-label') !== 'Collapse All' ||
+      !searchBeforeDisclosure ||
+      !storySubjectGroup ||
+      storySubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'false' ||
+      !(storySubjectGroupToggle instanceof dom.window.HTMLElement) ||
+      storySubjectGroupToggle.getAttribute('aria-expanded') !== 'true' ||
+      !storySubjectGroupToggle.className.includes('px-0') ||
+      !storySubjectGroupToggle.className.includes('sticky') ||
+      !storySubjectGroupToggle.className.includes('top-0') ||
+      !agentSubjectGroup ||
+      agentSubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'false'
+    ) {
+      throw new Error('Expected Skills & Commands groups to default expanded, place search before the right-edge shared header collapse-all control, and keep group disclosure sticky/aligned with rows')
+    }
+    await act(async () => {
+      storySubjectGroupToggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    if (
+      storySubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'true' ||
+      storySubjectGroupToggle.getAttribute('aria-expanded') !== 'false'
+    ) {
+      throw new Error('Expected Skills & Commands grammar groups to reuse the shared section collapse behavior')
+    }
+    await act(async () => {
+      groupDisclosureButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    if (
+      storySubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'true' ||
+      agentSubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'true' ||
+      groupDisclosureButton.getAttribute('aria-label') !== 'Expand All'
+    ) {
+      throw new Error('Expected Skills & Commands bulk disclosure to reuse the shared Collapse All action')
+    }
+    await act(async () => {
+      groupDisclosureButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    if (
+      storySubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'false' ||
+      agentSubjectGroup.getAttribute('data-kg-skills-commands-grammar-group-collapsed') !== 'false' ||
+      groupDisclosureButton.getAttribute('aria-label') !== 'Collapse All'
+    ) {
+      throw new Error('Expected Skills & Commands bulk disclosure to reuse the shared Expand All action')
     }
     const storybuildingRow = container.querySelector('[data-kg-skill-command-row="storybuilding"]') as HTMLElement | null
+    const memoryWriteRow = container.querySelector('[data-kg-skill-command-token="/memory.write"]') as HTMLElement | null
     const storybuildingIcon = storybuildingRow?.querySelector('[data-kg-skill-command-icon="1"]') as HTMLElement | null
     const storybuildingTitle = storybuildingRow?.querySelector('h3') as HTMLElement | null
     const storybuildingMeta = storybuildingRow?.querySelector('p') as HTMLElement | null
     const storybuildingToken = storybuildingRow?.querySelector('[data-kg-skill-command-slash="storybuilding"]') as HTMLElement | null
     if (
+      catalogSurface.getAttribute('data-kg-floating-panel-skills-commands-grammar-group-by') !== 'subject' ||
+      !container.querySelector('[data-kg-skills-commands-grammar-group="subject:story"]') ||
       !storybuildingRow ||
       storybuildingRow.getAttribute('data-kg-floating-panel-catalog-row-layout') !== 'compact-list' ||
+      storybuildingRow.getAttribute('data-kg-skill-command-grammar-subject') !== 'story' ||
+      storybuildingRow.getAttribute('data-kg-skill-command-grammar-verb') !== 'invoke' ||
       !storybuildingIcon ||
       storybuildingIcon.getAttribute('data-kg-skill-command-icon-fidelity') !== 'toolbar' ||
       storybuildingIcon.getAttribute('role') !== 'img' ||
@@ -214,6 +290,27 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
       storybuildingToken.className.includes('font-mono')
     ) {
       throw new Error('Expected Skills & Commands compact rows to reuse the existing responsive invocation chip')
+    }
+    if (
+      !memoryWriteRow ||
+      memoryWriteRow.getAttribute('data-kg-skill-command-grammar-subject') !== 'memory' ||
+      memoryWriteRow.getAttribute('data-kg-skill-command-grammar-verb') !== 'write' ||
+      memoryWriteRow.getAttribute('data-kg-skill-command-grammar-object') !== 'memory'
+    ) {
+      throw new Error('Expected Skills & Commands rows to expose reusable SVO grammar metadata')
+    }
+
+    await act(async () => {
+      objectGroupToggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
+    if (
+      catalogSurface.getAttribute('data-kg-floating-panel-skills-commands-grammar-group-by') !== 'object' ||
+      objectGroupToggle.getAttribute('aria-pressed') !== 'true' ||
+      subjectGroupToggle.getAttribute('aria-pressed') !== 'false' ||
+      !container.querySelector('[data-kg-skills-commands-grammar-group="object:memory"]')
+    ) {
+      throw new Error('Expected Skills & Commands SVO segmented control to switch catalog grouping to Object')
     }
 
     const slashToggle = container.querySelector('[data-kg-skills-commands-prefix-toggle="slash"]') as HTMLButtonElement | null
@@ -251,7 +348,73 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
     if (!container.querySelector(`[data-kg-skill-command-at="${messageGateway.id}"]`)) {
       throw new Error('Expected shared Skills & Commands search to keep matching @ invocation bindings')
     }
+
   } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export async function testFloatingPanelSkillsCommandsRowsInsertActiveCardInvocationTokens() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const insertedTokens: string[] = []
+
+  setActiveCardInlineTextExternalCommandTarget({
+    id: 'selected-strybldr-summary',
+    insertMedia: () => false,
+    insertText: replacement => {
+      insertedTokens.push(replacement)
+      return true
+    },
+  })
+
+  try {
+    await mountReactRoot(root, React.createElement(SkillsCommandsView, { searchQuery: '' }), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    const prdTadRow = container.querySelector('[data-kg-skill-command-token="/prd-tad.create"]') as HTMLElement | null
+    const longHorizonRow = container.querySelector('[data-kg-skill-command-token="#long-horizon-harness"]') as HTMLElement | null
+    const messageGatewayRow = container.querySelector('[data-kg-skill-command-token="@message-gateway"]') as HTMLElement | null
+    const messageGatewayChip = messageGatewayRow?.querySelector('[data-kg-skill-command-token-chip="1"]') as HTMLElement | null
+    if (!prdTadRow || !longHorizonRow || !messageGatewayRow || !messageGatewayChip) {
+      throw new Error('Expected Skills & Commands to expose reusable /, #, and @ insertion rows')
+    }
+    if (
+      prdTadRow.getAttribute('role') !== 'button' ||
+      prdTadRow.getAttribute('tabindex') !== '0' ||
+      prdTadRow.getAttribute('aria-label') !== 'Insert /prd-tad.create' ||
+      prdTadRow.getAttribute('data-kg-skill-command-insert') !== 'card-inline-text'
+    ) {
+      throw new Error('Expected Skills & Commands rows to act as accessible card inline-text insertion controls')
+    }
+
+    await act(async () => {
+      prdTadRow.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      prdTadRow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForNextFrame(dom.window)
+    })
+    await act(async () => {
+      longHorizonRow.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
+      await waitForNextFrame(dom.window)
+    })
+    await act(async () => {
+      messageGatewayChip.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForNextFrame(dom.window)
+    })
+
+    const expectedTokens = ['/prd-tad.create', '#long-horizon-harness', '@message-gateway']
+    if (insertedTokens.join('|') !== expectedTokens.join('|')) {
+      throw new Error(`Expected Skills & Commands catalog clicks to insert ${expectedTokens.join(', ')}, got ${insertedTokens.join(', ') || 'nothing'}`)
+    }
+  } finally {
+    setActiveCardInlineTextExternalCommandTarget(null)
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
@@ -296,12 +459,21 @@ export function testSkillsCommandsMovedFromMainPanelIntoFloatingPanelTab() {
     !mediaCatalogPanelView.includes("from '@/lib/ui/floatingPanelCatalogLayout'") ||
     !mediaCatalogPanelView.includes('<FloatingPanelCatalogHeader') ||
     !mediaCatalogPanelView.includes('<FloatingPanelCatalogSearchControl') ||
+    !mediaCatalogPanelView.includes('FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT') ||
+    !mediaCatalogPanelView.includes('data-kg-floating-panel-catalog-list="media"') ||
+    !mediaCatalogPanelView.includes('data-kg-floating-panel-catalog-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}') ||
+    !floatingSkillsPanel.includes('trailingActions=') ||
     !skillsCommandsView.includes('floatingPanelCatalogCompactRowClassName()') ||
     !skillsCommandsView.includes('floatingPanelCatalogCompactRowTitleClassName()') ||
     !skillsCommandsView.includes('floatingPanelCatalogCompactRowMetaClassName()') ||
     !skillsCommandsView.includes('renderAgenticOsInvocationKeywordChip') ||
     !skillsCommandsView.includes('DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME') ||
     !skillsCommandsView.includes('data-kg-skill-command-token-chip') ||
+    !skillsCommandsView.includes("from '@/features/panels/ui/CollapsibleSection'") ||
+    !floatingSkillsPanel.includes("from '@/features/panels/ui/ExpandCollapseAllButton'") ||
+    !floatingSkillsPanel.includes('data-kg-skills-commands-disclosure-actions="header"') ||
+    !skillsCommandsView.includes('headerClassName="px-0"') ||
+    skillsCommandsView.includes('stickyHeader={false}') ||
     !skillsCommandsView.includes('data-kg-floating-panel-catalog-row-layout={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}') ||
     !mediaCatalogListItems.includes('floatingPanelCatalogCompactRowTitleClassName()') ||
     !mediaCatalogListItems.includes('floatingPanelCatalogCompactRowMetaClassName()') ||
@@ -321,7 +493,14 @@ export function testSkillsCommandsMovedFromMainPanelIntoFloatingPanelTab() {
   if (!toolbar.includes("floatingPanelView === 'skillsCommands' && <FloatingPanelSkillsCommandsView />")) {
     throw new Error('Expected ToolbarToolMenu to render the first-class Skills & Commands floating view')
   }
-  if (!storeTypes.includes("| 'skillsCommands'") || !storeSlice.includes("|| view === 'skillsCommands'")) {
+  if (
+    toolbar.includes("view: 'interaction'") ||
+    toolbar.includes("floatingPanelView === 'interaction'") ||
+    toolbar.includes('InfiniteCanvasInteractionPanel')
+  ) {
+    throw new Error('Expected ToolbarToolMenu to remove the stale Interaction floating view after Skills & Commands centralization')
+  }
+  if (!storeTypes.includes("| 'skillsCommands'") || !storeSlice.includes("view === 'skillsCommands'")) {
     throw new Error('Expected FloatingPanel store types and setter whitelist to include skillsCommands')
   }
   if (!iconLibrary.includes("'floatingPanel.skillsCommands'") || !iconLibrary.includes("skillsCommands: 'floatingPanel.skillsCommands'")) {

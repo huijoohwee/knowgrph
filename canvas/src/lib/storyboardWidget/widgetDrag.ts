@@ -3,6 +3,7 @@ import {
   FLOW_WIDGET_DRAG_MIME,
   FLOW_WIDGET_DRAG_VERSION,
 } from '@/lib/config'
+import { resolveMediaPointerReleaseClientPoint } from '@/lib/ui/mediaDragPayload'
 
 export type FlowWidgetDragPayloadV1 = {
   kind: typeof FLOW_WIDGET_DRAG_KIND
@@ -22,6 +23,8 @@ export type FlowWidgetPointerDragSession = {
   pointerId: number
   startClientX: number
   startClientY: number
+  lastClientX: number
+  lastClientY: number
   nativeDragStarted: boolean
 }
 
@@ -34,6 +37,7 @@ export type FlowWidgetPointerDragDropDetail = FlowWidgetPointerDragSession & {
 }
 
 let activePointerDragSession: FlowWidgetPointerDragSession | null = null
+let activePointerDragCleanup: (() => void) | null = null
 
 function readOptionalDragShapeValue(value: unknown): string | undefined {
   const text = String(value || '').trim()
@@ -74,6 +78,7 @@ export function beginFlowWidgetPointerDragSession(args: {
   const registryEntryId = String(args.registryEntryId || '').trim()
   if (!registryEntryId) return
   if (!Number.isFinite(args.clientX) || !Number.isFinite(args.clientY)) return
+  clearActiveFlowWidgetPointerDragSession()
   const nodeTypeId = readOptionalDragShapeValue(args.nodeTypeId)
   const widgetTypeId = readOptionalDragShapeValue(args.widgetTypeId)
   const formId = readOptionalDragShapeValue(args.formId)
@@ -86,8 +91,11 @@ export function beginFlowWidgetPointerDragSession(args: {
     pointerId: Number.isFinite(args.pointerId) ? args.pointerId : -1,
     startClientX: args.clientX,
     startClientY: args.clientY,
+    lastClientX: Number.NaN,
+    lastClientY: Number.NaN,
     nativeDragStarted: false,
   }
+  installActiveFlowWidgetPointerDragTracking()
 }
 
 export function markFlowWidgetPointerDragNativeStart(pointerId?: number): void {
@@ -104,9 +112,63 @@ export function readActiveFlowWidgetPointerDragSession(): FlowWidgetPointerDragS
 }
 
 export function clearActiveFlowWidgetPointerDragSession(pointerId?: number): void {
-  if (!activePointerDragSession) return
-  if (typeof pointerId === 'number' && Number.isFinite(pointerId) && activePointerDragSession.pointerId !== pointerId) return
+  if (activePointerDragSession && typeof pointerId === 'number' && Number.isFinite(pointerId) && activePointerDragSession.pointerId !== pointerId) return
+  activePointerDragCleanup?.()
+  activePointerDragCleanup = null
   activePointerDragSession = null
+}
+
+function rememberActiveFlowWidgetPointerDragPoint(clientX: number, clientY: number): void {
+  if (!activePointerDragSession) return
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return
+  activePointerDragSession = {
+    ...activePointerDragSession,
+    lastClientX: clientX,
+    lastClientY: clientY,
+  }
+}
+
+function installActiveFlowWidgetPointerDragTracking(): void {
+  if (typeof window === 'undefined') return
+  if (typeof window.addEventListener !== 'function' || typeof window.removeEventListener !== 'function') return
+  const rememberPointer = (event: PointerEvent | MouseEvent) => {
+    rememberActiveFlowWidgetPointerDragPoint(event.clientX, event.clientY)
+  }
+  const rememberNativeDrag = (event: DragEvent) => {
+    rememberActiveFlowWidgetPointerDragPoint(event.clientX, event.clientY)
+  }
+  window.addEventListener('pointermove', rememberPointer, true)
+  window.addEventListener('mousemove', rememberPointer, true)
+  window.addEventListener('dragover', rememberNativeDrag, true)
+  activePointerDragCleanup = () => {
+    window.removeEventListener('pointermove', rememberPointer, true)
+    window.removeEventListener('mousemove', rememberPointer, true)
+    window.removeEventListener('dragover', rememberNativeDrag, true)
+  }
+}
+
+export function resolveFlowWidgetPointerReleaseClientPoint(args: {
+  eventType: string
+  eventClientX: number
+  eventClientY: number
+  session?: Pick<FlowWidgetPointerDragSession, 'lastClientX' | 'lastClientY'> | null
+}): { clientX: number; clientY: number } {
+  const session = args.session || activePointerDragSession
+  return resolveMediaPointerReleaseClientPoint({
+    eventType: args.eventType,
+    eventClientX: args.eventClientX,
+    eventClientY: args.eventClientY,
+    lastClientX: session?.lastClientX ?? Number.NaN,
+    lastClientY: session?.lastClientY ?? Number.NaN,
+  })
+}
+
+export function resolveFlowWidgetDragEventReleaseClientPoint(event: Pick<DragEvent, 'type' | 'clientX' | 'clientY'>): { clientX: number; clientY: number } {
+  return resolveFlowWidgetPointerReleaseClientPoint({
+    eventType: event.type,
+    eventClientX: event.clientX,
+    eventClientY: event.clientY,
+  })
 }
 
 export function claimFlowWidgetPointerDragDrop(detail: FlowWidgetPointerDragDropDetail | null | undefined): void {
@@ -119,16 +181,23 @@ export function isFlowWidgetPointerDragDropClaimed(detail: FlowWidgetPointerDrag
 }
 
 export function dispatchFlowWidgetPointerDragDropFromSession(args: {
+  eventType?: string
   clientX: number
   clientY: number
 }): boolean {
   if (!activePointerDragSession) return false
-  if (!Number.isFinite(args.clientX) || !Number.isFinite(args.clientY)) return false
   if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return false
+  const release = resolveFlowWidgetPointerReleaseClientPoint({
+    eventType: args.eventType || 'dragend',
+    eventClientX: args.clientX,
+    eventClientY: args.clientY,
+    session: activePointerDragSession,
+  })
+  if (!Number.isFinite(release.clientX) || !Number.isFinite(release.clientY)) return false
   const detail: FlowWidgetPointerDragDropDetail = {
     ...activePointerDragSession,
-    clientX: args.clientX,
-    clientY: args.clientY,
+    clientX: release.clientX,
+    clientY: release.clientY,
   }
   const event = typeof CustomEvent === 'function'
     ? new CustomEvent<FlowWidgetPointerDragDropDetail>(FLOW_WIDGET_POINTER_DRAG_DROP_EVENT, {

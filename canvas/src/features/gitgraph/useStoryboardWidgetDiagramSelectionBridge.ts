@@ -3,12 +3,15 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { MermaidDiagramCodeModel, MermaidStructuredDiagramKind } from '@/lib/mermaid/mermaidDiagramCode'
+import { dispatchRuntimeZoomActionSoon } from '@/lib/canvas/runtimeZoomDispatch'
+import { findMermaidDiagramRowForRowKey } from '@/lib/mermaid/mermaidDiagramSelection'
 import { buildStoryboardWidgetPortRows } from '@/lib/storyboardWidget/storyboardWidgetPortRows'
 import {
   buildStoryboardWidgetDiagramSelectionBridge,
   resolveDiagramRowKeyForStoryboardWidgetPortRow,
   resolveStoryboardWidgetPortRowKeyForDiagramRow,
 } from '@/lib/storyboardWidget/storyboardWidgetDiagramSelection'
+import { resolveGraphNodeIdForGanttDiagramRow } from './ganttGraphNodeSelection'
 
 export function useStoryboardWidgetDiagramSelectionBridge({
   graphData,
@@ -57,13 +60,27 @@ export function useStoryboardWidgetDiagramSelectionBridge({
     if ((nextPortRowKey || '') !== storyboardWidgetSelectedPortRowKey) {
       setStoryboardWidgetSelectedPortRowKey(nextPortRowKey || null)
     }
+    if (kind === 'gantt') {
+      const directRow = findMermaidDiagramRowForRowKey(diagramModel.rows, nextRowKey)
+      const directNodeId = resolveGraphNodeIdForGanttDiagramRow({ graphData, row: directRow })
+      if (directNodeId) {
+        setSelectionSource('editor')
+        if (directNodeId !== selectedNodeId) selectNode(directNodeId)
+        dispatchRuntimeZoomActionSoon('selection')
+        return
+      }
+    }
     const nextPortRow = nextPortRowKey ? portRows.find(row => row.key === nextPortRowKey) || null : null
     const nextNodeId = String(nextPortRow?.nodeId || '').trim()
     if (!nextNodeId || nextNodeId === selectedNodeId) return
     setSelectionSource('editor')
     selectNode(nextNodeId)
+    dispatchRuntimeZoomActionSoon('selection')
   }, [
     bridge,
+    diagramModel.rows,
+    graphData,
+    kind,
     storyboardWidgetSelectedPortRowKey,
     portRows,
     selectNode,

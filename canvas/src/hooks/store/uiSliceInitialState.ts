@@ -86,8 +86,7 @@ export const createUiInitialState = (
     setFloatingPanelView: (view: GraphState['floatingPanelView']) =>
       set(state => {
         const next =
-          view === 'interaction'
-          || view === 'skillsCommands'
+          view === 'skillsCommands'
           || view === 'media'
           || view === 'view'
           || view === 'camera'
@@ -101,7 +100,6 @@ export const createUiInitialState = (
           || view === 'timeline' || view === 'xr'
           || view === 'architecture'
           || view === 'eventModeling'
-          || view === 'strybldr'
           || view === 'graphTraversal'
             ? view
             : 'propsPanel'

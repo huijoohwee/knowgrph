@@ -289,7 +289,7 @@ export default function StoryboardWidgetCanvasRuntime(
       .filter(id => id && isStoryboardFixedCardOwnedNode(resolveGraphNodeByCanonicalId(storyboardCanvasGraphDataForDisplay, id) || nodeById.get(id)))
   }, [baseGraphDataRevision, draftGraphDataRevision, storyboardCanvasGraphDataForDisplay, storyboardWidgetDisplayActive, widgetRegistry])
   const overlayOpenWidgetNodeIds = React.useMemo(() => {
-    if (storyboardCardDisplayActive) return openWidgetNodeIds.map(id => String(id || '').trim()).filter((id, index, ids) => id && ids.indexOf(id) === index).filter(id => { const node = resolveGraphNodeByCanonicalId(storyboardCanvasGraphDataForDisplay, id); return !!node && !isStoryboardFixedCardOwnedNode(node) })
+    if (storyboardCardDisplayActive) return []
     if (!storyboardWidgetDisplayActive) return openWidgetNodeIds
     const next: string[] = []
     const seen = new Set<string>()
@@ -719,7 +719,7 @@ export default function StoryboardWidgetCanvasRuntime(
     setPendingOverlayNode(null)
   }, [baseGraphData, openWidgetNodeIds, pendingOverlayNode, selectedNodeId, storyboardCardsMode])
   const storyboardCanvasGraphDataOverride = storyboardCardDisplayActive
-    ? storyboardCanvasGraphDataForDisplay
+    ? appendPendingOverlayNodesToGraphData(storyboardCanvasGraphDataForDisplay, pendingOverlayNodesById) || storyboardCanvasGraphDataForDisplay
     : storyboardCardsMode
       ? (flowCanvasGraphDataWithPendingOverlays || storyboardCanvasGraphDataForDisplay)
       : flowCanvasGraphDataWithPendingOverlays

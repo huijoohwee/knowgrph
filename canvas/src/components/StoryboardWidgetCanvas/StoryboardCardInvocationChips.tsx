@@ -5,10 +5,11 @@ import {
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
 const tokenChipClassName = (token: string): string => [
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
   resolveDataViewChipClass(readInlineKeywordChipToneValue(token)),
   'max-w-[7.5rem] text-[8px]',
 ].join(' ')
@@ -25,7 +26,7 @@ export function StoryboardCardInvocationChips(props: { tokens: readonly string[]
           <li key={token} className="shrink-0 list-none">
             {chip || (
               <span className={className} title={token} data-kg-card-inline-keyword-pill="1">
-                <span className={UI_TEXT_TRUNCATE_CHIP}>{token}</span>
+                <span className={`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`}>{token}</span>
               </span>
             )}
           </li>

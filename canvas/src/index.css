@@ -17,12 +17,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.5;
   font-weight: 400;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -109,12 +107,10 @@
   --kg-kanban-card-shadow-hover: 0 10px 24px rgba(0,0,0,0.10);
   --kg-panel-action-bg: rgba(0,0,0,0.04);
   --kg-panel-action-bg-hover: #fffbeb;
-
   --kg-safe-top: env(safe-area-inset-top, 0px);
   --kg-safe-right: env(safe-area-inset-right, 0px);
   --kg-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kg-safe-left: env(safe-area-inset-left, 0px);
-
   --kg-touch-target: 44px;
   --kg-motion-duration-fast: 140ms;
   --kg-motion-duration-enter: 180ms;
@@ -131,17 +127,14 @@
   --kg-transition-group-chevron: stroke-width var(--kg-motion-fast) var(--kg-motion-ease), opacity var(--kg-motion-fast) var(--kg-motion-ease);
   --kg-transition-group-resize-dot: stroke-width var(--kg-motion-fast) var(--kg-motion-ease), fill-opacity var(--kg-motion-fast) var(--kg-motion-ease);
 }
-
 :root[data-kg-installed='1'] {
   --kg-touch-target: 48px;
 }
-
 :root[data-kg-display-mode='standalone'],
 :root[data-kg-display-mode='fullscreen'],
 :root[data-kg-display-mode='minimal-ui'] {
   overscroll-behavior: none;
 }
-
 @media (prefers-reduced-motion: reduce) {
   :root {
     --kg-motion-duration-fast: 0ms;
@@ -155,11 +148,9 @@
     --kg-motion-ease-spring: linear;
   }
 }
-
 :root[data-theme='light'] {
   color-scheme: light;
 }
-
 :root[data-theme='dark'] {
   color-scheme: dark;
   --divider-color: #4b5563;
@@ -203,14 +194,12 @@
   --kg-panel-action-bg: rgba(255,255,255,0.06);
   --kg-panel-action-bg-hover: var(--kg-canvas-accent, #60a5fa);
 }
-
 @layer components {
   [data-kg-kanban-card="1"]:hover [data-kg-kanban-actions="1"],
   [data-kg-kanban-card="1"]:focus-within [data-kg-kanban-actions="1"] {
     opacity: 1;
     pointer-events: auto;
   }
-
   [data-kg-kanban-group-header="1"]:hover [data-kg-kanban-group-actions="1"],
   [data-kg-kanban-group-header="1"]:focus-within [data-kg-kanban-group-actions="1"],
   [data-kg-kanban-group-header="1"]:hover ~ * [data-kg-kanban-group-actions="1"],
@@ -220,7 +209,6 @@
     opacity: 1;
     pointer-events: auto;
   }
-
   .kg-panel-icon-btn {
     background: transparent !important;
     border: 0 !important;
@@ -228,52 +216,42 @@
     color: var(--kg-text-secondary);
     transition: var(--kg-transition-action);
   }
-
   .kg-panel-icon-btn:hover {
     background: var(--kg-panel-action-bg-hover) !important;
   }
-
   .kg-panel-icon-btn svg {
     width: 16px;
     height: 16px;
   }
-
   .kg-panel-action-btn {
     background: var(--kg-panel-action-bg);
     border: 1px solid var(--kg-border);
     transition: var(--kg-transition-action);
     touch-action: manipulation;
   }
-
   .kg-panel-action-btn:hover {
     background: var(--kg-panel-action-bg-hover);
   }
-
   .kg-panel-action-btn:active {
     transform: translateY(1px);
   }
 }
-
 @layer utilities {
   .kg-toolbar {
     --kg-control-height: var(--kg-control-height, 28px);
   }
-
   .kg-toolbar-btn {
     height: var(--kg-control-height, 28px);
     width: var(--kg-control-height, 28px);
   }
-
   .kg-workspace-header-row {
     padding-block: var(--kg-workspace-header-pad-y, 0.5rem);
     padding-inline: var(--kg-workspace-header-pad-x, 0.75rem);
     gap: var(--kg-workspace-header-gap, 0.75rem);
   }
-
   .kg-workspace-toolbar-controls {
     gap: var(--kg-workspace-toolbar-gap, 0.25rem);
   }
-
   .kg-workspace-split-selector {
     padding: var(--kg-workspace-split-selector-pad, 0.5rem);
   }
@@ -321,6 +299,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .kg-inline-chip-label-15ch {
+    display: inline-block;
+    min-width: 0;
+    max-inline-size: min(15ch, 100%);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .kg-inline-chip-shell-15ch {
+    width: fit-content;
+    inline-size: fit-content;
+    max-width: min(calc(15ch + var(--kg-inline-chip-shell-extra, 1rem)), 100%);
+    max-inline-size: min(calc(15ch + var(--kg-inline-chip-shell-extra, 1rem)), 100%);
+  }
+
+  .kg-inline-media-chip-shell-15ch {
+    --kg-inline-chip-shell-extra: 2rem;
   }
 
   .truncate {

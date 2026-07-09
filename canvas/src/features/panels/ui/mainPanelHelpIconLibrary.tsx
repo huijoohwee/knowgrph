@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Copy, CreditCard, Cuboid, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Copy, CreditCard, Cuboid, Eraser, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, ImageIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
   Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, SquareTerminal, Table, Type as TextTypeIcon, UserX, Users,
   Workflow,
@@ -70,7 +70,6 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.view',
   'floatingPanel.media',
   'floatingPanel.camera',
-  'floatingPanel.interaction',
   'floatingPanel.design',
   'floatingPanel.chat',
   'floatingPanel.geo',
@@ -83,7 +82,6 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.xr',
   'floatingPanel.architecture',
   'floatingPanel.eventModeling',
-  'floatingPanel.strybldr',
   'floatingPanel.graphTraversal',
   ...MAIN_PANEL_INVOCATION_SUBJECT_ICON_KEYS,
   ...MAIN_PANEL_FIELD_ICON_KEYS,
@@ -329,11 +327,6 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Camera',
     Icon: Camera,
   },
-  'floatingPanel.interaction': {
-    category: 'FloatingPanel surface',
-    label: 'Interaction',
-    Icon: Hand,
-  },
   'floatingPanel.design': {
     category: 'FloatingPanel surface',
     label: 'Design',
@@ -370,11 +363,6 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
   'floatingPanel.xr': { category: 'FloatingPanel surface', label: 'XR', Icon: Cuboid },
   'floatingPanel.architecture': { category: 'FloatingPanel surface', label: 'Architecture', Icon: Network },
   'floatingPanel.eventModeling': { category: 'FloatingPanel surface', label: 'Event Model', Icon: Workflow },
-  'floatingPanel.strybldr': {
-    category: 'FloatingPanel surface',
-    label: 'Strybldr',
-    Icon: Film,
-  },
   'floatingPanel.graphTraversal': {
     category: 'FloatingPanel surface',
     label: 'Graph Traversal',
@@ -417,7 +405,6 @@ export type FloatingPanelTypeIconView =
   | 'view'
   | 'media'
   | 'camera'
-  | 'interaction'
   | 'design'
   | 'chat'
   | 'geo'
@@ -430,7 +417,6 @@ export type FloatingPanelTypeIconView =
   | 'xr'
   | 'architecture'
   | 'eventModeling'
-  | 'strybldr'
   | 'graphTraversal'
 
 export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
@@ -439,7 +425,6 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   view: 'floatingPanel.view',
   media: 'floatingPanel.media',
   camera: 'floatingPanel.camera',
-  interaction: 'floatingPanel.interaction',
   design: 'floatingPanel.design',
   chat: 'floatingPanel.chat',
   geo: 'floatingPanel.geo',
@@ -452,7 +437,6 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   xr: 'floatingPanel.xr',
   architecture: 'floatingPanel.architecture',
   eventModeling: 'floatingPanel.eventModeling',
-  strybldr: 'floatingPanel.strybldr',
   graphTraversal: 'floatingPanel.graphTraversal',
 } satisfies Record<FloatingPanelTypeIconView, MainPanelTypeIconKey>
 

@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 
 export type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
@@ -53,6 +54,7 @@ export type RichMediaPanelProps = {
   canvasOverlayPinned?: boolean
   onMediaElement?: (element: HTMLMediaElement | null) => void
   onVideoElement?: (element: HTMLVideoElement | null) => void
+  onMediaDrop?: (payload: MediaDragPayload) => void
   panel?: {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean

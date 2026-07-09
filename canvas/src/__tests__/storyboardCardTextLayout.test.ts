@@ -3,9 +3,10 @@ import path from 'node:path'
 import { JSDOM } from 'jsdom'
 
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
-import { handleStoryboardCardFooterWheelEvent } from '@/components/StoryboardWidgetCanvas/StoryboardCardFooterScrollRail'
+import { handleStoryboardCardMetaWheelEvent } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { readStoryboardCardSummaryText } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryText'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -14,6 +15,12 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
+  const authoredSummary = [
+    'Imported  source evidence for a validation-ready storyboard card.',
+    '',
+    '![Evidence frame](https://example.test/source.png)',
+    'Review   authored spacing before generation.',
+  ].join('\n')
   const graphData: GraphData = {
     type: 'application/json',
     metadata: {
@@ -32,7 +39,7 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
         label: 'Source evidence',
         properties: {
           lane: 'Source',
-          summary: 'Imported source evidence for a validation-ready storyboard card.',
+          summary: authoredSummary,
           action: 'Review and approve the source evidence before generation.',
         },
       },
@@ -51,6 +58,7 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
   }
   const board = buildStoryboardBoardModel({ graphData, graphRevision: 1 })
   const cards = board.lanes.flatMap(lane => lane.cards)
+  assert(cards.find(card => card.id === 'source-card')?.summary === authoredSummary, 'expected Storyboard card model to preserve authored summary typography, media markup, and spacing')
   assert(cards.find(card => card.id === 'source-card')?.typeLabel === 'Runtime Proof Gate', 'expected compact PascalCase type labels to render as readable semantic words')
   assert(cards.find(card => card.id === 'frame-card')?.typeLabel === 'Storyboard Frame', 'expected storyboard frame type labels to render as readable semantic words')
   assert(JSON.stringify(cards.find(card => card.id === 'source-card')?.invocationTokens) === JSON.stringify(['/source.normalize', '#frontmatter']), 'expected Source card to display stage-owned / and # invocation chips')
@@ -58,13 +66,24 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
 }
 
 export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {
-  const actual = readStoryboardCardSummaryText([
+  const rawSummary = [
     'check my hand, numb... ![空武.jpg](http://localhost:5185/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg?kg_media_token=secret)',
     '<video src="https://example.test/source.mp4" title="source clip" controls></video>',
     '<audio src="https://example.test/source.mp3" controls></audio>',
     'Review source symptoms.',
-  ].join('\n'))
+  ].join('\n')
+  const actual = readStoryboardCardSummaryText(rawSummary)
   assert(actual === 'check my hand, numb...\nReview source symptoms.', `expected Storyboard summary text to strip inline media embeds, got ${JSON.stringify(actual)}`)
+  const formattedSummary = `  ${rawSummary}\n\n  Preserve  authored   spacing.  `
+  const patch = buildGraphNodeCanonicalTextPatch({
+    currentProperties: { description: 'old summary' },
+    propertyKeys: GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
+    canonicalKey: 'summary',
+    nextValue: formattedSummary,
+    preserveFormatting: true,
+  })
+  assert(patch.summary === formattedSummary, `expected WYSIWYG summary patch to preserve raw text formatting, got ${JSON.stringify(patch.summary)}`)
+  assert(!('description' in patch), 'expected WYSIWYG summary patch to remove stale alias properties')
 }
 
 export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
@@ -74,7 +93,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   const inlineEditor = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditor.tsx'), 'utf8')
   const overlayProxy = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const overlayInteractions = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
-  const footerRail = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardFooterScrollRail.tsx'), 'utf8')
+  const metaRail = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail.tsx'), 'utf8')
   for (const snippet of [
     'data-kg-storyboard-card-title-row="1"',
     'data-kg-storyboard-card-pixel-snap="1"',
@@ -94,7 +113,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'top: box.top',
     'scale: box.scale',
     'emitStoryboardWidgetInteractionFrame()',
-    'max-w-[8.75rem] shrink-0 truncate rounded border',
+    'min-w-0 flex-1 truncate text-[12px]',
     'grid-cols-[minmax(0,1fr)_minmax(6.25rem,36%)]',
     'data-kg-storyboard-card-body-layout="brief-media"',
     'rounded border bg-[color:var(--kg-panel-bg)]/70 p-1.5',
@@ -106,30 +125,42 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'onWheelCapture={event => event.stopPropagation()}',
     'displayClassName="m-0 h-full min-h-0 select-none overflow-auto',
     'whitespace-pre-wrap break-words',
-    'editorClassName="h-full min-h-[3rem] resize-none overflow-auto',
+    'editorClassName="h-full min-h-[3rem] overflow-auto',
     'mediaCommandMode="external"',
     'showCommandLaunchers={false}',
     'max-h-[2.625rem] overflow-auto overscroll-contain',
-    '<StoryboardCardFooterScrollRail card={card} />',
+    '<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />',
     'card, runCard: onRun',
     'void runWorkflowNode?.(card.id)',
   ]) {
     assert(source.includes(snippet), `expected Storyboard card overlay to keep readable text layout snippet: ${snippet}`)
   }
+  const metaRailIndex = source.indexOf('<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />')
+  const summaryScrollIndex = source.indexOf('data-kg-storyboard-card-summary-scroll="1"')
+  assert(metaRailIndex >= 0 && summaryScrollIndex >= 0 && metaRailIndex < summaryScrollIndex, 'expected Storyboard card metadata rail to render above the summary editor')
   for (const snippet of [
     'data-kg-storyboard-card-meta-row="1"',
-    'data-kg-storyboard-card-footer-scroll="1"',
+    'data-kg-storyboard-card-meta-scroll="1"',
     'data-kg-canvas-wheel-ignore="true"',
     'data-kg-canvas-pointer-ignore="true"',
     'data-kg-media-scroll-surface="1"',
     'overflow-x-auto overflow-y-hidden overscroll-contain',
-    'handleStoryboardCardFooterWheelEvent(event, event.currentTarget)',
+    'handleStoryboardCardMetaWheelEvent(event, event.currentTarget)',
     'rail.addEventListener(\'wheel\', handleWheel, { passive: false, capture: true })',
+    '<header',
+    'border-b pb-1',
+    'max-w-[5.75rem] shrink-0 truncate rounded border',
+    'max-w-[8.75rem] shrink-0 truncate rounded border',
     '<StoryboardCardInvocationChips tokens={card.invocationTokens} />',
   ]) {
-    assert(footerRail.includes(snippet), `expected Storyboard card footer rail to own local scroll and gesture guard snippet: ${snippet}`)
+    assert(metaRail.includes(snippet), `expected Storyboard card metadata rail to own local scroll and gesture guard snippet: ${snippet}`)
   }
-  assert(!footerRail.includes('card.typeLabel'), 'expected Storyboard card footer rail not to duplicate the header-owned type label')
+  assert(!metaRail.includes('<footer'), 'expected top Storyboard card metadata rail not to use footer semantics')
+  assert(!metaRail.includes('mt-auto'), 'expected top Storyboard card metadata rail not to reserve bottom alignment')
+  assert(metaRail.includes('value={card.lane || \'Storyboard\'}'), 'expected Storyboard card metadata rail to own compact lane metadata')
+  assert(metaRail.includes('value={card.typeLabel}'), 'expected Storyboard card metadata rail to own compact type metadata')
+  assert(!source.includes('value={card.lane || \'Storyboard\'}'), 'expected Storyboard card header not to duplicate metadata rail lane metadata')
+  assert(!source.includes('value={card.typeLabel}'), 'expected Storyboard card header not to duplicate metadata rail type metadata')
   assert(surface.includes('runWorkflowNode: (nodeId: string) => Promise<void> | void'), 'expected Storyboard surface to accept the shared workflow runner for fixed card Run')
   assert(surface.includes('runWorkflowNode={props.runWorkflowNode}'), 'expected Storyboard surface to pass the shared workflow runner into fixed cards')
   assert(runtime.includes('runWorkflowNode={runWorkflowNode}'), 'expected Storyboard runtime to thread fixed card Run through the shared workflow runner')
@@ -137,12 +168,13 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(!source.includes('translate3d(${box.left}px, ${box.top}px, 0) scale(${box.scale})'), 'expected Storyboard card projection not to scale a composited transform texture at max zoom')
   assert(!source.includes("willChange: 'transform'"), 'expected Storyboard card projection not to request transform raster compositing')
   assert(!source.includes("backfaceVisibility: 'hidden'"), 'expected Storyboard card projection not to force a transformed compositor layer')
-  assert(source.includes('readStoryboardCardSummaryText(nextValue)'), 'expected Storyboard summary commits to strip media embeds before graph writeback')
+  assert(source.includes('nextValue,\n      preserveFormatting: true,'), 'expected Storyboard summary commits to preserve raw Viewer WYSIWYG text and spacing on graph writeback')
+  assert(!source.includes('nextValue: readStoryboardCardSummaryText(nextValue)'), 'expected Storyboard summary commits not to reuse read-only display projection for graph writeback')
   assert(inlineEditor.includes("multiline && !/\\boverflow-auto\\b/.test(className)"), 'expected scrollable multiline card display to keep caller-owned wrapping classes')
   assert(inlineEditor.includes("displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto')"), 'expected scrollable multiline card display to avoid density-owned truncation')
   assert(overlayProxy.includes('[data-kg-canvas-pointer-ignore="true"]'), 'expected Storyboard overlay proxy to treat pointer-ignore scroll surfaces as interactive controls')
   assert(overlayProxy.includes('[data-kg-media-scroll-surface="1"]'), 'expected Storyboard overlay proxy to treat inner scroll surfaces as interactive controls')
-  assert(overlayInteractions.includes('shouldForwardWheel: event => !isWidgetInnerPanelWheelTarget(event, root)'), 'expected Storyboard overlay wheel forwarding to yield to footer-owned scroll surfaces')
+  assert(overlayInteractions.includes('shouldForwardWheel: event => !isWidgetInnerPanelWheelTarget(event, root)'), 'expected Storyboard overlay wheel forwarding to yield to card-owned scroll surfaces')
 }
 
 export function testStoryboardCardOverlayProjectionSnapsToDevicePixels() {
@@ -172,6 +204,8 @@ export function testStoryboardCardInvocationChipsReuseSharedInvocationRenderer()
   for (const snippet of [
     'DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME',
     'renderAgenticOsInvocationKeywordChip',
+    'UI_INLINE_CHIP_SHELL_15CH_CLASSNAME',
+    'UI_INLINE_CHIP_LABEL_15CH_CLASSNAME',
     'data-kg-storyboard-card-invocation-chips="1"',
     'overflow-x-auto overflow-y-hidden',
     'overscroll-contain',
@@ -180,16 +214,16 @@ export function testStoryboardCardInvocationChipsReuseSharedInvocationRenderer()
     'data-kg-media-scroll-surface="1"',
     'className="shrink-0 list-none"',
   ]) {
-    assert(source.includes(snippet), `expected Storyboard invocation footer chips to reuse shared chip contract: ${snippet}`)
+    assert(source.includes(snippet), `expected Storyboard invocation chips to reuse shared chip contract: ${snippet}`)
   }
 }
 
-export function testStoryboardCardFooterWheelScrollsInsideRail() {
-  const dom = new JSDOM('<!doctype html><html><body><footer></footer></body></html>', { url: 'http://localhost' })
-  const footer = dom.window.document.querySelector('footer') as HTMLElement | null
-  assert(footer, 'expected footer rail fixture')
-  Object.defineProperty(footer, 'clientWidth', { configurable: true, value: 100 })
-  Object.defineProperty(footer, 'scrollWidth', { configurable: true, value: 220 })
+export function testStoryboardCardMetaWheelScrollsInsideRail() {
+  const dom = new JSDOM('<!doctype html><html><body><header></header></body></html>', { url: 'http://localhost' })
+  const rail = dom.window.document.querySelector('header') as HTMLElement | null
+  assert(rail, 'expected metadata rail fixture')
+  Object.defineProperty(rail, 'clientWidth', { configurable: true, value: 100 })
+  Object.defineProperty(rail, 'scrollWidth', { configurable: true, value: 220 })
   let prevented = 0
   let stopped = 0
   let stoppedImmediate = 0
@@ -200,11 +234,11 @@ export function testStoryboardCardFooterWheelScrollsInsideRail() {
     stopImmediatePropagation: () => { stoppedImmediate += 1 },
     stopPropagation: () => { stopped += 1 },
   } as unknown as WheelEvent
-  handleStoryboardCardFooterWheelEvent(event, footer)
-  const firstScrollLeft = Number(footer.scrollLeft)
-  assert(firstScrollLeft === 48, `expected footer wheel to scroll the rail horizontally, got ${firstScrollLeft}`)
-  assert(prevented === 1 && stopped === 1 && stoppedImmediate === 1, 'expected footer wheel to consume the event before canvas zoom or pan handlers')
-  handleStoryboardCardFooterWheelEvent({ ...event, deltaY: 400 } as unknown as WheelEvent, footer)
-  const clampedScrollLeft = Number(footer.scrollLeft)
-  assert(clampedScrollLeft === 120, `expected footer wheel to clamp to max horizontal scroll, got ${clampedScrollLeft}`)
+  handleStoryboardCardMetaWheelEvent(event, rail)
+  const firstScrollLeft = Number(rail.scrollLeft)
+  assert(firstScrollLeft === 48, `expected metadata wheel to scroll the rail horizontally, got ${firstScrollLeft}`)
+  assert(prevented === 1 && stopped === 1 && stoppedImmediate === 1, 'expected metadata wheel to consume the event before canvas zoom or pan handlers')
+  handleStoryboardCardMetaWheelEvent({ ...event, deltaY: 400 } as unknown as WheelEvent, rail)
+  const clampedScrollLeft = Number(rail.scrollLeft)
+  assert(clampedScrollLeft === 120, `expected metadata wheel to clamp to max horizontal scroll, got ${clampedScrollLeft}`)
 }

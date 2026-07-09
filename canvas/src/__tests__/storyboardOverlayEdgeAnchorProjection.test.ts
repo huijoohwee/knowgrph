@@ -1,57 +1,62 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { clampStoryboardOverlayScreenXToLocalViewportBounds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors'
+import { readStoryboardOverlayFallbackRectAnchor } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors'
 
-export function testStoryboardOverlayEdgeFallbackAnchorClampsInRootLocalSpace() {
-  const rootLeft = 240
-  const rootWidth = 1000
-  const marginLeft = 120
-  const marginRight = 80
-  const insideRightScreenX = rootLeft + rootWidth - 100
-  const clampedInside = clampStoryboardOverlayScreenXToLocalViewportBounds({
-    screenX: insideRightScreenX,
-    rootLeft,
-    rootWidth,
-    marginLeft,
-    marginRight,
+export function testStoryboardOverlayEdgeFallbackAnchorPreservesMeasuredOffViewportRect() {
+  const leftOffViewportRect = {
+    bottom: 320,
+    height: 100,
+    left: -180,
+    right: -24,
+    top: 220,
+    width: 156,
+  }
+  const leftOutputAnchor = readStoryboardOverlayFallbackRectAnchor({
+    dir: 'out',
+    fallbackPct: 50,
+    rect: leftOffViewportRect,
   })
-  if (clampedInside !== insideRightScreenX) {
-    throw new Error(`expected in-bounds card anchor to stay attached, got ${clampedInside}`)
+  if (!leftOutputAnchor || leftOutputAnchor.x !== leftOffViewportRect.right || leftOutputAnchor.y !== 270 || leftOutputAnchor.side !== 'right') {
+    throw new Error(`expected off-viewport output anchor to stay attached to measured rect right side, got ${JSON.stringify(leftOutputAnchor)}`)
   }
 
-  const leftOverflow = clampStoryboardOverlayScreenXToLocalViewportBounds({
-    screenX: rootLeft + 40,
-    rootLeft,
-    rootWidth,
-    marginLeft,
-    marginRight,
+  const rightOffViewportRect = {
+    bottom: 430,
+    height: 80,
+    left: 1180,
+    right: 1350,
+    top: 350,
+    width: 170,
+  }
+  const rightInputAnchor = readStoryboardOverlayFallbackRectAnchor({
+    dir: 'in',
+    fallbackPct: 25,
+    rect: rightOffViewportRect,
   })
-  if (leftOverflow !== rootLeft + marginLeft) {
-    throw new Error(`expected left overflow to clamp in root-local space, got ${leftOverflow}`)
+  if (!rightInputAnchor || rightInputAnchor.x !== rightOffViewportRect.left || rightInputAnchor.y !== 370 || rightInputAnchor.side !== 'left') {
+    throw new Error(`expected off-viewport input anchor to stay attached to measured rect left side, got ${JSON.stringify(rightInputAnchor)}`)
   }
 
-  const rightOverflow = clampStoryboardOverlayScreenXToLocalViewportBounds({
-    screenX: rootLeft + rootWidth + 40,
-    rootLeft,
-    rootWidth,
-    marginLeft,
-    marginRight,
+  const invalidAnchor = readStoryboardOverlayFallbackRectAnchor({
+    dir: 'out',
+    fallbackPct: 50,
+    rect: { ...leftOffViewportRect, width: 0 },
   })
-  if (rightOverflow !== rootLeft + rootWidth - marginRight) {
-    throw new Error(`expected right overflow to clamp in root-local space, got ${rightOverflow}`)
+  if (invalidAnchor) {
+    throw new Error(`expected invalid fallback rect not to produce a detached anchor, got ${JSON.stringify(invalidAnchor)}`)
   }
 }
 
-export function testStoryboardOverlayEdgeRendererUsesSharedLocalAnchorClamp() {
+export function testStoryboardOverlayEdgeRendererUsesMeasuredFallbackAnchorHelper() {
   const overlayEdges = readFileSync(
     resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlayEdges.ts'),
     'utf8',
   )
-  if (!overlayEdges.includes('clampStoryboardOverlayScreenXToLocalViewportBounds({')) {
-    throw new Error('expected Storyboard overlay edges to clamp fallback anchors through the shared local-space helper')
+  if (!overlayEdges.includes('readStoryboardOverlayFallbackRectAnchor({')) {
+    throw new Error('expected Storyboard overlay edges to resolve fallback anchors through the shared measured-rect helper')
   }
-  if (overlayEdges.includes('Math.min(Math.max(baseX, balancedMargins.left)')) {
-    throw new Error('forbid viewport-space fallback anchors clamped against root-local margins')
+  if (overlayEdges.includes('clampStoryboardOverlayScreenXToLocalViewportBounds') || overlayEdges.includes('computeBalancedSpreadViewportMargins')) {
+    throw new Error('forbid viewport-margin clamping for measured Storyboard overlay edge endpoints')
   }
 }

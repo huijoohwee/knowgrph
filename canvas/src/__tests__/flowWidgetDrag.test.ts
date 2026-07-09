@@ -173,3 +173,71 @@ export function testFlowWidgetPointerDragDispatchesDropReleaseEvent() {
     }
   }
 }
+
+export function testFlowWidgetPointerDragReleaseUsesTrackedPointForNativeDragEnd() {
+  clearActiveFlowWidgetPointerDragSession()
+  const globalWithWindow = globalThis as typeof globalThis & { window?: unknown }
+  const previousWindow = globalWithWindow.window
+  const listeners: Record<string, Array<(event: { clientX: number; clientY: number }) => void>> = {}
+  let seenDetail: FlowWidgetPointerDragDropDetail | null = null
+  const fakeWindow = {
+    addEventListener: (type: string, listener: unknown) => {
+      if (typeof listener !== 'function') return
+      listeners[type] = listeners[type] || []
+      listeners[type].push(listener as (event: { clientX: number; clientY: number }) => void)
+    },
+    removeEventListener: (type: string, listener: unknown) => {
+      if (typeof listener !== 'function') return
+      listeners[type] = (listeners[type] || []).filter(candidate => candidate !== listener)
+    },
+    dispatchEvent: (event: Event) => {
+      const detail = (event as CustomEvent<FlowWidgetPointerDragDropDetail>).detail
+      if (!detail) throw new Error('expected pointer drag drop detail')
+      seenDetail = detail
+      claimFlowWidgetPointerDragDrop(detail)
+      return true
+    },
+  }
+
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      value: fakeWindow,
+      configurable: true,
+    })
+    beginFlowWidgetPointerDragSession({
+      registryEntryId: 'qer-tracked-release',
+      nodeTypeId: 'TextGeneration',
+      widgetTypeId: 'default',
+      formId: 'textGeneration',
+      label: 'Text Widget',
+      pointerId: 12,
+      clientX: 42,
+      clientY: 48,
+    })
+    markFlowWidgetPointerDragNativeStart(12)
+    for (const listener of listeners.dragover || []) {
+      listener({ clientX: 444, clientY: 555 })
+    }
+    const claimed = dispatchFlowWidgetPointerDragDropFromSession({
+      eventType: 'dragend',
+      clientX: 0,
+      clientY: 0,
+    })
+    if (!claimed) throw new Error('expected tracked pointer drag drop release to be claimed')
+    if (!seenDetail) throw new Error('expected tracked pointer drag drop detail')
+    if (seenDetail.clientX !== 444 || seenDetail.clientY !== 555) {
+      throw new Error(`expected tracked dragover release coordinates, got ${seenDetail.clientX},${seenDetail.clientY}`)
+    }
+    if (seenDetail.registryEntryId !== 'qer-tracked-release') throw new Error('expected tracked release registryEntryId')
+  } finally {
+    clearActiveFlowWidgetPointerDragSession()
+    if (typeof previousWindow === 'undefined') {
+      delete globalWithWindow.window
+    } else {
+      Object.defineProperty(globalThis, 'window', {
+        value: previousWindow,
+        configurable: true,
+      })
+    }
+  }
+}

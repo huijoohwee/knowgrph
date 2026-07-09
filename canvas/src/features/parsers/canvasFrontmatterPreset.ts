@@ -60,7 +60,6 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
       raw === 'view' ||
       raw === 'media' ||
       raw === 'camera' ||
-      raw === 'interaction' ||
       raw === 'design' ||
       raw === 'chat' ||
       raw === 'geo' ||
@@ -73,7 +72,6 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
       raw === 'xr' ||
       raw === 'architecture' ||
       raw === 'eventModeling' ||
-      raw === 'strybldr' ||
       raw === 'graphTraversal'
       ? raw
       : undefined

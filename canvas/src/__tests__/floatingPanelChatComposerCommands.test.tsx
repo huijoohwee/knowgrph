@@ -20,10 +20,6 @@ import {
   buildFloatingPanelChatComposerDisplayText,
   buildFloatingPanelChatComposerOverlayParts,
   deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
-  isFloatingPanelChatComposerProjectedCaretInsideChip,
-  mapFloatingPanelChatComposerDisplayIndexToRawIndex,
-  mapFloatingPanelChatComposerRawIndexToDisplayIndex,
-  resolveFloatingPanelChatComposerRawText,
 } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 import { replaceChatComposerTrigger, resolveChatComposerTrigger } from '@/features/chat/floatingPanelChat/chatComposerTrigger'
 import { buildUploadedMediaInlineCommandCandidate } from '@/lib/command-menu/inlineUploadedMediaCandidates'
@@ -86,43 +82,6 @@ export function testFloatingPanelChatIngestCommandUsesSharedRegistryParser() {
   if (parseChatIngestUrlCommand('/ingest-url not-a-url') !== null) {
     throw new Error('expected invalid ingest command URL to stay rejected')
   }
-}
-export function testFloatingPanelChatComposerMediaProjectionPreservesInvocationGrammar() {
-  const raw = '/prd-tad.create ![strybldr-starter-source.png](https://example.com/media/strybldr-starter-source.png) #media'
-  const display = buildFloatingPanelChatComposerDisplayText(raw)
-  if (display !== '/prd-tad.create @strybldr-starter-source.png #media') throw new Error(`expected / @ # composer display grammar to stay intact, got ${JSON.stringify(display)}`)
-  const overlay = buildFloatingPanelChatComposerOverlayParts(raw)
-  const mediaPart = overlay.parts.find(part => part.kind === 'media')
-  const invocationMetrics = overlay.parts.flatMap(part => part.kind === 'invocation' ? [`${part.tokenKind}:${part.text}`] : [])
-  if (!overlay.hasOverlay || !mediaPart || mediaPart.displayText !== '@strybldr-starter-source.png') {
-    throw new Error(`expected @ media projection in the shared overlay, got ${JSON.stringify(overlay)}`)
-  }
-  if (JSON.stringify(invocationMetrics) !== JSON.stringify(['slash:/prd-tad.create', 'keyword:#media'])) throw new Error(`expected / and # tokens to render shared invocation chip metrics next to @ media, got ${JSON.stringify(invocationMetrics)}`)
-  const rawRoundTrip = resolveFloatingPanelChatComposerRawText(display, raw)
-  if (rawRoundTrip !== raw) {
-    throw new Error(`expected projected @ media display to resolve back to raw media markdown, got ${JSON.stringify(rawRoundTrip)}`)
-  }
-  const displayMediaStart = display.indexOf('@strybldr-starter-source.png')
-  const rawMediaStart = raw.indexOf('![')
-  if (mapFloatingPanelChatComposerDisplayIndexToRawIndex(raw, displayMediaStart) !== rawMediaStart) {
-    throw new Error('expected caret before projected @ media chip to map to the raw media start')
-  }
-  const displayMediaEnd = displayMediaStart + '@strybldr-starter-source.png'.length
-  const rawMediaEnd = raw.indexOf(' #media')
-  if (mapFloatingPanelChatComposerDisplayIndexToRawIndex(raw, displayMediaEnd) !== rawMediaEnd) {
-    throw new Error('expected caret after projected @ media chip to map to the raw media end')
-  }
-  if (mapFloatingPanelChatComposerRawIndexToDisplayIndex(raw, rawMediaEnd) !== displayMediaEnd) {
-    throw new Error('expected raw media end to map back to the projected @ media chip boundary')
-  }
-  const slashDelete = deleteFloatingPanelChatComposerProjectedTokenDisplayRange({ text: raw, selectionStart: '/prd-tad.create'.length, selectionEnd: '/prd-tad.create'.length, direction: 'backward' })
-  if (slashDelete !== null) throw new Error(`expected projected deletion to leave / invocation text non-atomic, got ${JSON.stringify(slashDelete)}`)
-  const keywordDelete = deleteFloatingPanelChatComposerProjectedTokenDisplayRange({ text: raw, selectionStart: display.length, selectionEnd: display.length, direction: 'backward' })
-  if (keywordDelete !== null) {
-    throw new Error(`expected projected deletion to leave # invocation text non-atomic, got ${JSON.stringify(keywordDelete)}`)
-  }
-  if (!isFloatingPanelChatComposerProjectedCaretInsideChip(raw, '/prd-tad.create'.length, '/prd-tad.create'.length)) throw new Error('expected leading / route caret to resolve inside the projected invocation chip')
-  if (!isFloatingPanelChatComposerProjectedCaretInsideChip(raw, display.length, display.length)) throw new Error('expected trailing # keyword caret to resolve inside the projected invocation chip')
 }
 export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContract() {
   const directives = parseChatInvocationDirectives('Use #memory.search with #media, #mcp, and #model for this request.')
@@ -352,6 +311,9 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!overlayMediaChip?.getAttribute('data-kg-chat-input-media-source')?.includes('https://example.com/media/cover.png') || !overlayMediaChip.getAttribute('title')?.includes('Source: https://example.com/media/cover.png')) {
       throw new Error(`expected Chat composer media chip to expose hover source metadata, got ${JSON.stringify(overlayMediaChip?.outerHTML || '')}`)
     }
+    if (!overlayMediaChip.querySelector('.kg-inline-chip-label-15ch')) {
+      throw new Error(`expected Chat composer @ media chip label to use shared 15ch truncation, html=${overlayMediaChip.outerHTML}`)
+    }
     const mediaMetricToken = container.querySelector('[data-kg-chat-input-media-metric="preserve"]')
     if (!mediaMetricToken) throw new Error(`expected Chat composer media chip to reserve textarea display metrics, html=${container.innerHTML}`)
     if (!String(textarea.getAttribute('class') || '').includes('text-transparent') || !String(textarea.getAttribute('class') || '').includes('z-0') || !String(textarea.getAttribute('class') || '').includes('kg-floating-chat-composer-projected') || !String(textarea.closest('.kg-multiline-text-input-editor')?.getAttribute('class') || '').includes('kg-floating-chat-composer-projected')) {
@@ -397,12 +359,34 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (mixedSlashChip || mixedKeywordChip || !mixedSlashMetric || !mixedKeywordMetric || !mixedSlashInvocationChip || !mixedKeywordInvocationChip || !mixedMediaMetricToken || !mixedMediaChipThumbnail || !mixedSlashInvocationChip.getAttribute('title')?.includes('DICTIONARY-COMMAND.md') || !mixedKeywordInvocationChip.getAttribute('title')?.includes('Media context')) {
       throw new Error(`expected mixed / # @ composer input to render hoverable shared invocation and media chips, html=${container.innerHTML}`)
     }
+    if (!mixedSlashInvocationChip.querySelector('[data-kg-textarea-invocation-token-sigil="/"]') || !mixedKeywordInvocationChip.querySelector('[data-kg-textarea-invocation-token-sigil="#"]')) {
+      throw new Error(`expected mixed / and # composer chips to preserve visible sigils under truncation, html=${container.innerHTML}`)
+    }
+    for (const invocationChip of [mixedSlashInvocationChip, mixedKeywordInvocationChip]) {
+      const label = invocationChip.querySelector('[data-kg-textarea-invocation-token-label="1"]')
+      if (!String(label?.getAttribute('class') || '').includes('kg-inline-chip-label-15ch')) {
+        throw new Error(`expected mixed / and # composer chip labels to use shared 15ch truncation, html=${invocationChip.outerHTML}`)
+      }
+      if (!String(invocationChip.getAttribute('class') || '').includes('kg-inline-chip-shell-15ch')) {
+        throw new Error(`expected mixed / and # composer chip shells to fit truncated labels without empty right-side width, html=${invocationChip.outerHTML}`)
+      }
+    }
     if (mixedMediaChipThumbnail.getAttribute('src') !== 'https://example.com/media/cover.png') {
       throw new Error(`expected mixed / # @ composer media chip to preserve its shared thumbnail renderer, got ${JSON.stringify(mixedMediaChipThumbnail.outerHTML)}`)
+    }
+    const mixedKeywordBoundary = textarea.value.indexOf('#media') + '#media'.length
+    textarea.setSelectionRange(mixedKeywordBoundary, mixedKeywordBoundary); Simulate.select(textarea); await waitForFrames(dom.window as unknown as Window, 2)
+    const mixedKeywordProjectedCaret = container.querySelector('[data-kg-textarea-invocation-projected-caret="1"][data-kg-textarea-invocation-projected-caret-kind="keyword"][data-kg-textarea-invocation-projected-caret-token="#media"]')
+    if (!mixedKeywordProjectedCaret?.closest('[data-kg-chat-input-invocation-metric="preserve"]')) {
+      throw new Error(`expected # keyword selection to render the shared projected caret marker inside the overlay chip, html=${container.innerHTML}`)
     }
     const mixedSlashBoundary = textarea.value.indexOf('/prd-tad.create') + '/prd-tad.create '.length
     textarea.setSelectionRange(mixedSlashBoundary, mixedSlashBoundary); Simulate.select(textarea); await waitForFrames(dom.window as unknown as Window, 2)
     if (!String(textarea.getAttribute('class') || '').includes('caret-transparent')) throw new Error(`expected / route caret to be hidden while overlay chip owns the visible token, class=${JSON.stringify(textarea.getAttribute('class'))}`)
+    const mixedSlashProjectedCaret = container.querySelector('[data-kg-textarea-invocation-projected-caret="1"][data-kg-textarea-invocation-projected-caret-kind="slash"][data-kg-textarea-invocation-projected-caret-token="/prd-tad.create"]')
+    if (!mixedSlashProjectedCaret?.closest('[data-kg-chat-input-invocation-metric="preserve"]')) {
+      throw new Error(`expected / route hidden native caret to get a shared projected caret marker, html=${container.innerHTML}`)
+    }
     Simulate.keyDown(textarea, { key: 'a', metaKey: true })
     if (textarea.selectionStart !== 0 || textarea.selectionEnd !== textarea.value.length || String(textarea.getAttribute('class') || '').includes('selection:bg-transparent')) {
       throw new Error(`expected Cmd+A to select the projected composer display text visibly, selection=${textarea.selectionStart}:${textarea.selectionEnd} class=${JSON.stringify(textarea.getAttribute('class'))}`)
@@ -463,6 +447,12 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (mixedMediaLabelStart < 0) throw new Error(`expected mixed composer display to contain media label ${JSON.stringify(mixedMediaLabel)}, got ${JSON.stringify(textarea.value)}`)
     const mixedMediaLabelEnd = mixedMediaLabelStart + mixedMediaLabel.length
     textarea.setSelectionRange(mixedMediaLabelEnd, mixedMediaLabelEnd)
+    Simulate.select(textarea)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const mixedMediaProjectedCaret = container.querySelector('[data-kg-textarea-invocation-projected-caret="1"][data-kg-textarea-invocation-projected-caret-kind="media"]')
+    if (!mixedMediaProjectedCaret?.closest('[data-kg-chat-input-media-metric="preserve"]')) {
+      throw new Error(`expected @ media selection to render the shared projected caret marker inside the overlay chip, html=${container.innerHTML}`)
+    }
     Simulate.keyDown(textarea, { key: 'Backspace' })
     await waitForFrames(dom.window as unknown as Window, 2)
     if (rawInput.textContent?.includes('https://example.com/media/cover.png') || rawInput.textContent?.includes('![')) {
@@ -532,6 +522,16 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     const agenticOsComposerTokens = agenticOsComposerChips.map(chip => chip.getAttribute('data-kg-agentic-os-invocation-token') || '')
     if (JSON.stringify(agenticOsComposerTokens) !== JSON.stringify(['/runtime-ready.check', '#frontmatter', '@operator']) || textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1') {
       throw new Error(`expected Chat composer to render /, #, and @ Agentic OS invocation chips, html=${container.innerHTML}`)
+    }
+    const operatorBoundary = textarea.value.indexOf('@operator') + '@operator'.length
+    textarea.setSelectionRange(operatorBoundary, operatorBoundary); Simulate.select(textarea); await waitForFrames(dom.window as unknown as Window, 2)
+    const operatorProjectedCaret = container.querySelector('[data-kg-textarea-invocation-projected-caret="1"][data-kg-textarea-invocation-projected-caret-kind="binding"][data-kg-textarea-invocation-projected-caret-token="@operator"]')
+    if (!operatorProjectedCaret?.closest('[data-kg-chat-input-invocation-metric="preserve"]')) {
+      throw new Error(`expected @ binding selection to render the shared projected caret marker inside the overlay chip, html=${container.innerHTML}`)
+    }
+    const operatorInvocationChip = container.querySelector('[data-kg-chat-input-invocation-chip="binding"][data-kg-chat-input-invocation-token="@operator"]')
+    if (!operatorInvocationChip?.querySelector('[data-kg-textarea-invocation-token-sigil="@"]')) {
+      throw new Error(`expected @ binding composer chip to preserve its visible sigil under truncation, html=${container.innerHTML}`)
     }
     textarea.value = 'i can #memory.add , /ingest-url'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)

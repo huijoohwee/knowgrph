@@ -16,6 +16,7 @@ import {
 } from './markdownBlockContainerCore.inlineMediaEditHtml'
 import { readFastInlineMarkdownDraft } from './markdownBlockContainerCore.inlineDraftSerialization'
 import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
+import { normalizeInvocationTokenSpacing } from '@/lib/markdown/invocationTokens'
 
 const DEFAULT_HIGHLIGHT_EDITOR_BG = '#FEF08A'
 
@@ -526,7 +527,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
           args.setSessionEditLineRange(null)
           return
         }
-        const replacementLines = buildReplacementLinesFromDraft(markdown)
+        const replacementLines = buildReplacementLinesFromDraft(normalizeInvocationTokenSpacing(markdown))
         // HTML inline edits can already project a transient whole-document draft into
         // the visible Markdown pane before commit. Comparing against the current
         // sourceLines would treat the final persistence step as a false no-op.
@@ -542,7 +543,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       args.setSessionEditLineRange(null)
       return
     }
-    const replacementLines = buildReplacementLinesFromDraft(draft)
+    const replacementLines = buildReplacementLinesFromDraft(normalizeInvocationTokenSpacing(draft))
     if (areReplacementLinesNoop({ sourceLines: args.sourceLines, startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })) {
       args.setEditing(false)
       args.setSessionEditLineRange(null)

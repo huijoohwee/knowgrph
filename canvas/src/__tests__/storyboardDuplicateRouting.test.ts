@@ -791,29 +791,25 @@ export function testStoryboardRunActionOpensBeforeClassifyingAvailability() {
   }
 }
 
-export function testStoryboardRunActionRoutesStrybldrCardsToStrybldrPanel() {
+export function testStoryboardRunActionRoutesStrybldrCardsThroughSharedRunPath() {
   const calls: string[] = []
   const result = runStoryboardRunAction({
     cardId: 'starter-source-brief-card',
     hasSourceNode: true,
-    isStrybldrStoryboardCard: true,
     resolvedCardNodeId: 'starter-source-brief-card',
     openInSidepane: () => {
       calls.push('open-sidepane')
       return { selectedNodeId: 'starter-source-brief-card' }
-    },
-    openStrybldrPanel: () => {
-      calls.push('open-strybldr')
     },
     runNode: nodeId => {
       calls.push(`run-flow:${nodeId}`)
     },
   })
   if (result.status !== 'started' || !result.ran || result.runNodeId !== 'starter-source-brief-card') {
-    throw new Error(`expected Strybldr storyboard card Run to start through the Strybldr panel branch, got ${JSON.stringify(result)}`)
+    throw new Error(`expected Strybldr storyboard card Run to start through the shared Storyboard run path, got ${JSON.stringify(result)}`)
   }
-  if (calls.join(',') !== 'open-strybldr') {
-    throw new Error(`expected Strybldr card Run to avoid sidepane and Storyboard Widget runner, got ${JSON.stringify(calls)}`)
+  if (calls.join(',') !== 'open-sidepane,run-flow:starter-source-brief-card') {
+    throw new Error(`expected Strybldr card Run to use sidepane plus shared runner without a panel branch, got ${JSON.stringify(calls)}`)
   }
 }
 

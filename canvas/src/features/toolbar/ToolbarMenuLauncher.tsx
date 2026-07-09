@@ -47,7 +47,6 @@ export function ToolbarMenuLauncher({
     {
       view: FloatingPanelRequestedView
       seq: number
-      runAllOnOpen: boolean
     } | null
   >(null)
 
@@ -76,12 +75,11 @@ export function ToolbarMenuLauncher({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const openRequestedFloatingPanel = (view: FloatingPanelRequestedView, options?: { runAllOnOpen?: boolean }) => {
+    const openRequestedFloatingPanel = (view: FloatingPanelRequestedView) => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
         view,
         seq: floatingPanelRequestSeqRef.current,
-        runAllOnOpen: options?.runAllOnOpen === true,
       })
       setIsToolMenuOpen(true)
     }
@@ -147,15 +145,13 @@ export function ToolbarMenuLauncher({
                       ? 'architecture'
                       : tab === 'eventModeling'
                         ? 'eventModeling'
-                        : tab === 'strybldr'
-                          ? 'strybldr'
-                          : null
+                        : null
       if (!requested) return
       if (detail?.open === false) {
         closeToolMenu()
         return
       }
-      openRequestedFloatingPanel(requested, { runAllOnOpen: detail?.runAllOnOpen === true })
+      openRequestedFloatingPanel(requested)
     }
 
     const handleFloatingPanelOpenEvent = (event: Event) => {
@@ -216,7 +212,6 @@ export function ToolbarMenuLauncher({
             onHeaderPointerDown={handleToolMenuCardPointerDown}
             requestedFloatingPanelView={floatingPanelRequestedView?.view}
             requestedFloatingPanelViewSeq={floatingPanelRequestedView?.seq}
-            requestedFloatingPanelRunAllSeq={floatingPanelRequestedView?.runAllOnOpen ? floatingPanelRequestedView.seq : undefined}
             pipelineStatus={null}
             exportStatus={null}
             onClose={closeToolMenu}

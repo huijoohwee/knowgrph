@@ -101,22 +101,19 @@ export function readStoryboardOutputCardLeftSideAnchors(args: {
   return source && target ? { source, target } : null
 }
 
-export function clampStoryboardOverlayScreenXToLocalViewportBounds(args: {
-  marginLeft: number
-  marginRight: number
-  rootLeft: number
-  rootWidth: number
-  screenX: number
-}): number {
-  const rootLeft = Number.isFinite(args.rootLeft) ? args.rootLeft : 0
-  const rootWidth = Number.isFinite(args.rootWidth) && args.rootWidth > 0 ? args.rootWidth : 1
-  const marginLeft = Number.isFinite(args.marginLeft) ? Math.max(0, args.marginLeft) : 0
-  const marginRight = Number.isFinite(args.marginRight) ? Math.max(0, args.marginRight) : 0
-  const minLocalX = Math.min(rootWidth, marginLeft)
-  const maxLocalX = Math.max(minLocalX, rootWidth - marginRight)
-  const localX = (Number.isFinite(args.screenX) ? args.screenX : rootLeft) - rootLeft
-  const clampedLocalX = Math.max(minLocalX, Math.min(maxLocalX, localX))
-  return rootLeft + clampedLocalX
+export function readStoryboardOverlayFallbackRectAnchor(args: {
+  dir: 'in' | 'out'
+  fallbackPct: number
+  rect: StoryboardOverlayRectLike
+}): StoryboardOverlayRectAnchor | null {
+  if (!isFiniteOverlayRect(args.rect)) return null
+  const pct = Math.max(0, Math.min(100, Number.isFinite(args.fallbackPct) ? args.fallbackPct : 50)) / 100
+  const side = args.dir === 'out' ? 'right' : 'left'
+  return {
+    side,
+    x: args.dir === 'out' ? args.rect.right : args.rect.left,
+    y: args.rect.top + pct * args.rect.height,
+  }
 }
 
 export function buildStoryboardOutputCardLeftSidePath(args: {

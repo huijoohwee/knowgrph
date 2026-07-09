@@ -4,6 +4,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   const source = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
   const canvasViewportSource = readFileSync(new URL('../components/CanvasViewport.tsx', import.meta.url), 'utf8')
   const storyboardWidgetRuntimeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas.runtime.tsx', import.meta.url), 'utf8')
+  const storyboardWidgetRenderStateSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRenderState.ts', import.meta.url), 'utf8')
   const storyboardWidgetGraphActionsSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts', import.meta.url), 'utf8')
   const storyboardWidgetSurfaceSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx', import.meta.url), 'utf8')
   const storyboardWidgetDropBridgeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts', import.meta.url), 'utf8')
@@ -55,10 +56,7 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
   if (canvasViewportSource.includes('StoryboardCanvasLazy')) {
     throw new Error('expected CanvasViewport to stop mounting the custom Storyboard canvas surface for the Storyboard 2D renderer')
   }
-  for (const snippet of [
-    'storyboardCardsMode = false',
-    "const storyboardCardDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'card'",
-    "const storyboardWidgetDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'widget'",
+  for (const snippet of ['storyboardCardsMode = false', "const storyboardCardDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'card'", "const storyboardWidgetDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'widget'",
     'const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {',
     'const storyboardWidgetNodeIds = React.useMemo((): string[] => {',
     'allowExplicitOpenWidgetNodeIds: storyboardWidgetDisplayActive',
@@ -72,7 +70,10 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'resolveGraphNodeByCanonicalId(baseGraphData, pendingId)',
     'pendingOverlayNodeIdRef.current = null',
     'setPendingOverlayNode(null)',
-    'const storyboardCanvasGraphDataOverride = storyboardCardDisplayActive ? appendPendingOverlayNodesToGraphData(storyboardCanvasGraphDataForDisplay, pendingOverlayNodesById) || storyboardCanvasGraphDataForDisplay : storyboardCardsMode ? (flowCanvasGraphDataWithPendingOverlays || storyboardCanvasGraphDataForDisplay) : flowCanvasGraphDataWithPendingOverlays',
+    'const storyboardCanvasGraphDataOverride = storyboardCardDisplayActive',
+    '? appendPendingOverlayNodesToGraphData(storyboardCanvasGraphDataForDisplay, pendingOverlayNodesById) || storyboardCanvasGraphDataForDisplay',
+    ': storyboardCardsMode',
+    '? (flowCanvasGraphDataWithPendingOverlays || storyboardCanvasGraphDataForDisplay)',
     'const surfaceNoGraphLoaded = storyboardCardsMode ? false : noGraphLoaded',
     'storyboardCardsMode={storyboardCardDisplayActive}',
     'storyboardWidgetMode={storyboardWidgetDisplayActive}',
@@ -84,11 +85,11 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
       throw new Error(`expected StoryboardWidgetCanvas runtime to own Storyboard card-surface snippet: ${snippet}`)
     }
   }
-  for (const snippet of [
-    "from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'",
-    "from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'",
+  for (const snippet of ["from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'", "from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'",
     "const storyboardSurfaceRouteActive = String(props.storyboardWidgetSurfaceId || '').trim() === 'storyboard' || canvas2dRenderer === 'storyboard'",
-    'const storyboardCardsActive = props.storyboardCardsMode === true && storyboardSurfaceRouteActive, storyboardSharedSurfaceActive = (props.storyboardCardsMode === true || props.storyboardWidgetMode === true) && storyboardSurfaceRouteActive',
+    'const storyboardCardsActive = props.storyboardCardsMode === true && storyboardSurfaceRouteActive',
+    'const storyboardSharedSurfaceActive =',
+    '(props.storyboardCardsMode === true || props.storyboardWidgetMode === true) && storyboardSurfaceRouteActive',
     'applyFixedStoryboardCardPlacementsToGraphData2d({',
     "from '@/components/StoryboardCanvas/storyboardModel'",
     'const board = buildStoryboardBoardModel({',
@@ -113,15 +114,18 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
       throw new Error(`expected StoryboardWidgetCanvas surface to own Storyboard fixed-card geometry snippet: ${snippet}`)
     }
   }
+  for (const snippet of ['buildStoryboardWidgetDraftGraphBaseSignature', 'const rawRenderGraphContentSignature = React.useMemo', 'prev.contentSignature === nextContentSignature', 'stableRenderGraphOverride.contentSignature === rawRenderGraphContentSignature']) {
+    if (!storyboardWidgetRenderStateSource.includes(snippet)) {
+      throw new Error(`expected StoryboardWidgetCanvas render state to refresh stable fixed-card graph on content-only edits: ${snippet}`)
+    }
+  }
   if (storyboardWidgetSurfaceSource.includes('return nodes.map(node => String(node?.id || \'\').trim()).filter(Boolean)')) {
     throw new Error('expected Storyboard fixed-card mode to hide only card-overlay nodes so dropped Rich Media Panels stay visible on FlowCanvas')
   }
   if (storyboardWidgetSurfaceSource.includes('hideNodeIds={flowCanvasHiddenNodeIds}') || storyboardWidgetSurfaceSource.includes('hidePortHandleNodeIds={flowCanvasHiddenNodeIds}')) {
     throw new Error('expected Storyboard fixed-card mode to exclude owned card nodes from the FlowCanvas graph upstream instead of masking them via hide props')
   }
-  for (const snippet of [
-    "return id === 'storyboard'",
-    'isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(canvas2dRenderer))',
+  for (const snippet of ["return id === 'storyboard'", 'isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(canvas2dRenderer))',
     'isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(normalized.canvas2dRenderer))',
     "const excludeAllRichMediaPanelNodes = !storyboardWidgetFrontmatterInteractionMode && canvas2dRenderer !== 'storyboard'",
   ]) {
@@ -209,7 +213,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'data-kg-storyboard-fixed-card="1"',
     'Storyboard card ${card.title}',
     'computeStoryboardWidgetOverlayScreenBox({',
-    'scale(${box.scale})',
+    'applyVectorPaintedOverlayBox(el, {',
+    'scale: box.scale',
     'strybldrStoryboardBoardLayoutMode',
     'visibleLanes',
     'centerLaneOffset',
@@ -303,7 +308,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     }
   }
   for (const snippet of [
-    "import { screenToWorld, worldToScreen } from '@/lib/zoom/viewport'",
+    "import { screenToWorld } from '@/lib/zoom/viewport'",
+    'computeVectorPaintedOverlayScreenBox',
     'computeStoryboardWidgetOverlayPointerGrabOffset',
     'computeStoryboardWidgetOverlayDraggedWorldPoint',
     'computeStoryboardWidgetOverlayScreenBox',
@@ -431,13 +437,8 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'FLOW_WIDGET_TYPE_ID_KEY',
     'FLOW_WIDGET_FORM_ID_KEY',
     'buildStoryboardCanvasRichMediaPanelProperties',
-    '[FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID',
-    '[FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID',
+    'buildRichMediaPanelDroppedMediaProperties({ ...payload, url: cleanUrl, label })',
     '[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true',
-    'richMediaActiveTab: payload.kind',
-    "if (payload.kind === 'image') next.imageUrl = cleanUrl",
-    "if (payload.kind === 'video') next.videoUrl = cleanUrl",
-    "if (payload.kind === 'audio') next.audioUrl = cleanUrl",
     'type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
     'appendArgs.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID',
     'appendStrybldrStoryboardMarkdownElement({',

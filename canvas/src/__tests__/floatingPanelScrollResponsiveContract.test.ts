@@ -13,7 +13,6 @@ export function testFloatingPanelScrollBodiesUseSharedResponsiveOwner() {
     'src/features/panels/ui/MainPanelSettingsPanelShell.tsx',
     'src/features/design/DesignFloatingPanelView.tsx',
     'src/features/storyboard-widget-manager/StoryboardWidgetMappingSettingsPanel.tsx',
-    'src/features/strybldr/StrybldrFloatingPanelView.tsx',
     'src/features/panels/views/graph-fields/GraphFieldsListPanelBody.tsx',
     'src/features/panels/views/graph-fields/FieldSamplesPanel.tsx',
   ]

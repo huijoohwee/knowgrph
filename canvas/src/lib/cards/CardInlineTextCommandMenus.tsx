@@ -42,6 +42,7 @@ import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPane
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { readCardInlineMediaCommandDuplicateNeedle } from '@/lib/cards/cardInlineTextEditorUtils'
+import { findInlineCommandTokenRange, focusCardInlineTextInputSelectionSoon, insertMarkdownBlockRange, readCardInlineTextInputSelection, replaceCurrentLine, replaceDraftRange } from '@/lib/cards/CardInlineTextCommandMenuUtils'
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 export type CardInlineTextCommandMenuMode = 'slash' | 'variable' | 'keyword'
 const cardInlineCommandButtonClassName = [
@@ -69,94 +70,6 @@ type CardInlineCommandMenuFrame = {
   top: number
   width: number
 }
-function readCardInlineTextInputSelection(input: HTMLInputElement | HTMLTextAreaElement | null): { start: number; end: number } {
-  if (!input) return { start: 0, end: 0 }
-  const length = String(input.value || '').length
-  const rawStart = typeof input.selectionStart === 'number' ? input.selectionStart : length
-  const rawEnd = typeof input.selectionEnd === 'number' ? input.selectionEnd : rawStart
-  const start = Math.max(0, Math.min(length, rawStart))
-  const end = Math.max(0, Math.min(length, rawEnd))
-  return { start: Math.min(start, end), end: Math.max(start, end) }
-}
-function focusCardInlineTextInputSelectionSoon(input: HTMLInputElement | HTMLTextAreaElement | null, start: number, end: number = start) {
-  if (!input) return
-  window.requestAnimationFrame(() => {
-    try {
-      input.focus({ preventScroll: true })
-      input.setSelectionRange(start, end)
-    } catch {
-      void 0
-    }
-  })
-}
-function replaceDraftRange(args: {
-  input: HTMLInputElement | HTMLTextAreaElement | null
-  draft: string
-  setDraft: (next: string) => void
-  onCommandDraftChange?: (next: string) => void
-  start: number
-  end: number
-  replacement: string
-}) {
-  const text = String(args.draft || '')
-  const start = Math.max(0, Math.min(text.length, args.start))
-  const end = Math.max(start, Math.min(text.length, args.end))
-  const next = `${text.slice(0, start)}${args.replacement}${text.slice(end)}`
-  const cursor = start + args.replacement.length
-  args.setDraft(next)
-  args.onCommandDraftChange?.(next)
-  focusCardInlineTextInputSelectionSoon(args.input, cursor)
-}
-function findInlineCommandTokenRange(args: {
-  text: string
-  selection: { start: number; end: number }
-  sigil: '@' | '/' | '#'
-}): { start: number; end: number } {
-  const text = String(args.text || '')
-  const start = Math.max(0, Math.min(text.length, args.selection.start))
-  const end = Math.max(start, Math.min(text.length, args.selection.end))
-  const selected = text.slice(start, end)
-  if (new RegExp(`^\\${args.sigil}[A-Za-z0-9_.-]{0,96}$`).test(selected)) return { start, end }
-  const preceding = text.slice(0, end)
-  const match = new RegExp(`\\${args.sigil}[A-Za-z0-9_.-]{0,96}$`).exec(preceding)
-  if (match) return { start: end - match[0].length, end }
-  return { start: end, end }
-}
-function insertMarkdownBlockRange(args: {
-  text: string
-  start: number
-  end: number
-  block: string
-}): { text: string; cursor: number } {
-  const text = String(args.text || '').replace(/\r/g, '')
-  const block = String(args.block || '').trim()
-  const start = Math.max(0, Math.min(text.length, args.start))
-  const end = Math.max(start, Math.min(text.length, args.end))
-  const before = text.slice(0, start).replace(/[ \t]+$/g, '')
-  const after = text.slice(end).replace(/^[ \t]+/g, '')
-  const prefix = before ? (before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n') : ''
-  const suffix = after ? (after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n') : ''
-  const next = `${before}${prefix}${block}${suffix}${after}`
-  return { text: next, cursor: before.length + prefix.length + block.length }
-}
-function replaceCurrentLine(args: {
-  input: HTMLInputElement | HTMLTextAreaElement | null
-  draft: string
-  setDraft: (next: string) => void
-  onCommandDraftChange?: (next: string) => void
-  prefix: string
-}) {
-  const text = String(args.draft || '')
-  const selection = readCardInlineTextInputSelection(args.input)
-  const lineStart = text.lastIndexOf('\n', Math.max(0, selection.start) - 1) + 1
-  const lineEndRaw = text.indexOf('\n', selection.end)
-  const lineEnd = lineEndRaw >= 0 ? lineEndRaw : text.length
-  const rawLine = text.slice(lineStart, lineEnd)
-  const content = rawLine
-    .replace(/^\s{0,3}(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|- \[[ xX]\]\s+)/, '')
-    .trimStart()
-  replaceDraftRange({ ...args, start: lineStart, end: lineEnd, replacement: `${args.prefix}${content}` })
-}
 export function CardInlineTextCommandMenus(props: {
   commandMode: CardInlineTextCommandMenuMode | null
   commandQuery: string
@@ -164,6 +77,8 @@ export function CardInlineTextCommandMenus(props: {
   commandContextText?: string
   draft: string
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>
+  menuAnchorRef?: React.RefObject<HTMLElement | null>
+  focusSelection?: (start: number, end?: number) => void
   mediaCommandMode?: 'inline' | 'external'
   openCommandMenu: (mode: CardInlineTextCommandMenuMode) => void
   showLaunchers?: boolean
@@ -182,7 +97,9 @@ export function CardInlineTextCommandMenus(props: {
     commandSelectionRef,
     commandContextText,
     draft,
+    focusSelection,
     inputRef,
+    menuAnchorRef,
     mediaCommandMode = 'inline',
     onCommandDraftChange,
     onCommandDraftApplied,
@@ -219,8 +136,9 @@ export function CardInlineTextCommandMenus(props: {
     }
     const updateFrame = () => {
       const input = inputRef.current
-      if (!input) return
-      const rect = input.getBoundingClientRect()
+      const anchor = menuAnchorRef?.current || input
+      if (!anchor) return
+      const rect = anchor.getBoundingClientRect()
       const viewportWidth = window.innerWidth || 0
       const viewportHeight = window.innerHeight || 0
       const gap = 6
@@ -244,7 +162,7 @@ export function CardInlineTextCommandMenus(props: {
       window.removeEventListener('resize', updateFrame)
       window.removeEventListener('scroll', updateFrame, true)
     }
-  }, [commandMode, inputRef])
+  }, [commandMode, inputRef, menuAnchorRef])
   const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
     const start = Math.max(0, Math.min(text.length, commandSelectionRef.current.start))
@@ -258,34 +176,70 @@ export function CardInlineTextCommandMenus(props: {
       start,
       end,
       replacement,
+      focusSelection,
     })
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next)
-  }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
+  }, [commandSelectionRef, draft, focusSelection, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
-    if (candidate.url) onMediaCommandSelect?.(candidate)
-    if (mediaCommandMode === 'external') {
+    const shouldRouteToExternalMediaTarget = mediaCommandMode === 'external' && !!candidate.url && typeof onMediaCommandSelect === 'function'
+    if (shouldRouteToExternalMediaTarget) {
+      onMediaCommandSelect(candidate)
+      const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
       const selection = commandSelectionRef.current
+      const selected = text.slice(
+        Math.max(0, Math.min(text.length, selection.start)),
+        Math.max(0, Math.min(text.length, selection.end)),
+      )
       const tokenRange = findInlineCommandTokenRange({ text, selection, sigil: '@' })
       const tokenText = text.slice(tokenRange.start, tokenRange.end)
-      const next = tokenText.startsWith('@') ? `${text.slice(0, tokenRange.start)}${text.slice(tokenRange.end)}` : text
-      if (next !== text) {
-        setDraft(next)
-        onCommandDraftChange?.(next)
+      if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
+        const next = tokenText.startsWith('@') ? `${text.slice(0, tokenRange.start)}${text.slice(tokenRange.end)}` : text
+        if (next !== text) {
+          setDraft(next)
+          onCommandDraftChange?.(next)
+        }
+        setCommandMode(null)
+        setCommandQuery('')
+        {
+          const focusOffset = tokenText.startsWith('@') ? tokenRange.start : commandSelectionRef.current.end
+          focusCardInlineTextInputSelectionSoon(inputRef.current, focusOffset, focusOffset, focusSelection)
+        }
+        if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
+        return
       }
+      const replaceRange = selected && !/^@[A-Za-z0-9_.-]{0,96}$/.test(selected)
+        ? { start: selection.end, end: selection.end }
+        : tokenRange
+      const replacement = buildInlineMediaEmbed({
+        kind: candidate.kind,
+        url: candidate.url,
+        thumbnailUrl: candidate.thumbnailUrl,
+        label: candidate.label,
+        selectedText: selected,
+        sourceKey: candidate.sourceKey,
+      })
+      const next = insertMarkdownBlockRange({
+        text,
+        start: replaceRange.start,
+        end: replaceRange.end,
+        block: replacement,
+      })
+      setDraft(next.text)
+      onCommandDraftChange?.(next.text)
       setCommandMode(null)
       setCommandQuery('')
-      focusCardInlineTextInputSelectionSoon(inputRef.current, tokenText.startsWith('@') ? tokenRange.start : commandSelectionRef.current.end)
-      if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
+      focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor, next.cursor, focusSelection)
+      if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
       return
     }
     const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
     if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
       setCommandMode(null)
       setCommandQuery('')
-      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end, commandSelectionRef.current.end, focusSelection)
       return
     }
     const selection = commandSelectionRef.current
@@ -312,11 +266,11 @@ export function CardInlineTextCommandMenus(props: {
     })
     setDraft(next.text)
     onCommandDraftChange?.(next.text)
-    focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor)
+    focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor, next.cursor, focusSelection)
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-  }, [commandSelectionRef, draft, inputRef, mediaCommandMode, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
+  }, [commandSelectionRef, draft, focusSelection, inputRef, mediaCommandMode, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
   const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
     const results = await uploadFilesToUploadedMediaPanel({
       files: Array.from(fileList || []),
@@ -327,7 +281,7 @@ export function CardInlineTextCommandMenus(props: {
     if (!first) {
       setCommandMode(null)
       setCommandQuery('')
-      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end)
+      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end, commandSelectionRef.current.end, focusSelection)
       return
     }
     const runtimeUrl = readUploadedMediaStorageRuntimeUrl(first.storage) || first.item.linkUrl
@@ -341,7 +295,7 @@ export function CardInlineTextCommandMenus(props: {
       description: 'Uploaded media from Cloudflare storage',
       keywords: [first.item.kind, first.item.name, first.storage.contentHash, first.storage.objectKey].filter(Boolean),
     }, { closeAfterApply: true })
-  }, [commandSelectionRef, inputRef, insertMediaCommand, setCommandMode, setCommandQuery])
+  }, [commandSelectionRef, focusSelection, inputRef, insertMediaCommand, setCommandMode, setCommandQuery])
   const slashCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const prefixById: Partial<Record<InlineSlashCommandId, string>> = {
       h1: '# ',
@@ -359,7 +313,15 @@ export function CardInlineTextCommandMenus(props: {
         onSelect: () => {
           const prefix = prefixById[action.id]
           if (prefix) {
-            replaceCurrentLine({ input: inputRef.current, draft, setDraft, onCommandDraftChange, prefix })
+            replaceCurrentLine({
+              input: inputRef.current,
+              draft,
+              setDraft,
+              onCommandDraftChange,
+              prefix,
+              selection: commandSelectionRef.current,
+              focusSelection,
+            })
             closeCommandMenu()
             return
           }
@@ -391,7 +353,7 @@ export function CardInlineTextCommandMenus(props: {
         },
       }))
     return [...baseItems, ...buildAgenticOsSlashInvocationMenuItems({ onSelect: replaceCommandSelection })]
-  }, [closeCommandMenu, commandSelectionRef, draft, inputRef, insertMediaCommand, onCommandDraftChange, replaceCommandSelection, setDraft])
+  }, [closeCommandMenu, commandSelectionRef, draft, focusSelection, inputRef, insertMediaCommand, onCommandDraftChange, replaceCommandSelection, setDraft])
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const parsed = parseInlineVariableCommandQuery(commandQuery)
     const queryKey = parsed.key
@@ -560,7 +522,7 @@ export function CardInlineTextCommandMenus(props: {
       />
     </section>
   ) : null
-  const commandMenuHost = inputRef.current?.ownerDocument?.body || (typeof document !== 'undefined' ? document.body : null)
+  const commandMenuHost = (menuAnchorRef?.current || inputRef.current)?.ownerDocument?.body || (typeof document !== 'undefined' ? document.body : null)
   return (
     <>
       <input

@@ -8,6 +8,7 @@ export function assertStoryboard2dMediaDropContract() {
   const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
   const graphStoryboardMediaDropGraphSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph.ts', import.meta.url), 'utf8')
+  const sharedCardMediaDropZoneSource = readFileSync(new URL('../lib/cards/CardMediaDropZone.tsx', import.meta.url), 'utf8')
   const graphStoryboardOverlayEdgesSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlayEdges.ts', import.meta.url), 'utf8')
   const graphStoryboardOverlayEdgeAnchorsSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors.ts', import.meta.url), 'utf8')
   const mediaDragPayloadSource = readFileSync(new URL('../lib/ui/mediaDragPayload.ts', import.meta.url), 'utf8')
@@ -80,6 +81,23 @@ export function assertStoryboard2dMediaDropContract() {
   }
   if (!flowCanvasGraphStateSource.includes("...(canvas2dRenderer === 'storyboard' ? EMPTY_STRING_ARRAY : openWidgetNodeIdsSnapshot)")) {
     throw new Error('expected Storyboard Rich Media Panel overlays to stay visible when click-selection auto-opens the node')
+  }
+  for (const snippet of [
+    'MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE',
+    'MEDIA_POINTER_DRAG_DROP_EVENT',
+    'readMediaDragPayload',
+    'readMediaPointerDragPayload',
+    'clearMediaPointerDragPayload',
+    'mediaDropRef',
+    "document.addEventListener('dragover', handleDocumentDragOver, true)",
+    "document.addEventListener('drop', handleDocumentDrop, true)",
+    "[MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE]: onDropMedia ? '1' : undefined",
+    "'data-kg-card-media-drop-zone': '1'",
+    'export function CardMediaDropZoneFrame',
+  ]) {
+    if (!sharedCardMediaDropZoneSource.includes(snippet)) {
+      throw new Error(`expected shared card media drop-zone owner to retain snippet: ${snippet}`)
+    }
   }
   for (const snippet of [
     'const authoritativeGraphNodeById = React.useMemo(() => {',
@@ -195,15 +213,20 @@ export function assertStoryboard2dMediaDropContract() {
     'setPendingMediaByCardId',
     'pendingMedia={pendingMediaByCardId[card.id] || null}',
     'const displayMedia = pendingMedia || card.media',
+    'buildStoryboardCardMediaTextareaAttachment',
+    'projectedMediaAttachments={projectedMediaAttachments}',
     'buildStoryboardInlineMediaCommandContext',
     'markdownCommandContextText={storyboardCommandContextText}',
     'mediaCommandMode="external"',
-    "value={rows[0] || card.slugline || ''}",
+    "value={textModel.primaryRaw || card.slugline || ''}",
+    "displayValue={textModel.primaryDisplay || card.slugline || ''}",
     'buildInlineMediaCommandDragPayload',
     'const applyInlineMediaCommandToCard = React.useCallback',
     'onDropMedia(card, payload)',
     'onMediaCommandSelect={applyInlineMediaCommandToCard}',
     'const readLatestNode = React.useCallback',
+    'const renderNode = nodeById.get(key) || null',
+    'if (renderNode) return renderNode',
     'const latestGraphData = useGraphStore.getState().graphData',
     'openOnPointerDown',
     'data-kg-storyboard-card-text-column="1"',
@@ -211,17 +234,10 @@ export function assertStoryboard2dMediaDropContract() {
     'event.preventDefault()',
     'editRequestKey={summaryEditRequestKey}',
     'select-none',
-    'MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE',
-    'MEDIA_POINTER_DRAG_DROP_EVENT',
-    'readMediaDragPayload',
-    'readMediaPointerDragPayload',
-    'clearMediaPointerDragPayload',
-    'mediaDropRef',
-    "document.addEventListener('dragover', handleDocumentDragOver, true)",
-    "document.addEventListener('drop', handleDocumentDrop, true)",
-    'data-kg-storyboard-card-media-drop="1"',
+    "from '@/lib/cards/CardMediaDropZone'",
+    '<CardMediaDropZoneFrame',
+    "'data-kg-storyboard-card-media-drop': '1'",
     'data-kg-storyboard-card-media-chip="1"',
-    "[MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE]: '1'",
     'InlineMediaCommandThumbnail',
     'variant="inline"',
     'mediaThumbnailDataAttr',
@@ -244,8 +260,11 @@ export function assertStoryboard2dMediaDropContract() {
       throw new Error(`expected Storyboard card summary to avoid generated inline media mutation: ${forbiddenSnippet}`)
     }
   }
-  if (!graphStoryboardCardOverlaySource.includes('readStoryboardCardSummaryText(nextValue)')) {
-    throw new Error('expected Storyboard card summary writeback to strip inline media embeds before commit')
+  if (!graphStoryboardCardOverlaySource.includes('nextValue,\n      preserveFormatting: true,')) {
+    throw new Error('expected Storyboard card summary writeback to preserve raw Viewer WYSIWYG text and spacing')
+  }
+  if (graphStoryboardCardOverlaySource.includes('nextValue: readStoryboardCardSummaryText(nextValue)')) {
+    throw new Error('expected Storyboard card summary writeback not to strip inline media embeds through the read-only display helper')
   }
 
   const overlayDropMediaIndex = graphStoryboardMediaDropHookSource.indexOf('const dropCardMedia = React.useCallback')

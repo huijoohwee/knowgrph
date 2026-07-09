@@ -11,7 +11,6 @@ export function testTwoColumnEditorGridUsesSharedMobileFirstOwner() {
     'src/features/graph-editor/panels/GraphEditorInspectorTab.tsx',
     'src/features/graph-editor/panels/GraphEditorOutlineTab.tsx',
     'src/features/panels/views/DatasetInspectorSection.tsx',
-    'src/features/canvas/InfiniteCanvasInteractionPanel.tsx',
   ]
 
   if (!ownerText.includes(`TWO_COLUMN_EDITOR_GRID_CLASS_NAME = '${ownerLiteral}'`)) {

@@ -13,7 +13,7 @@ import {
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { getSemanticHighlightSurfaceAttributes, getSemanticHighlightSurfaceClassName, resolveSemanticHighlightColors, SEMANTIC_HIGHLIGHT_SURFACES } from '@/lib/ui/semanticHighlight'
 
 type MarkdownSigilTextOptions = {
@@ -58,6 +58,7 @@ export const renderMarkdownSigilInlineText = (
       if (segment.kind === 'text') return <React.Fragment key={`text-${index}`}>{segment.value}</React.Fragment>
       const className = [
         options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
+        UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
         resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value)),
       ].join(' ')
       const customChip = options?.renderKeywordChip?.({
@@ -75,7 +76,7 @@ export const renderMarkdownSigilInlineText = (
           title={segment.value}
           data-kg-card-inline-keyword-pill="1"
         >
-          <span className={UI_TEXT_TRUNCATE_CHIP}>{readInlineKeywordChipLabel(segment.value)}</span>
+          <span className={`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`}>{readInlineKeywordChipLabel(segment.value)}</span>
         </span>
       )
     })

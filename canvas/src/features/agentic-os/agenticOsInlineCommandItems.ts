@@ -7,7 +7,6 @@ import {
   AGENTIC_OS_SEMANTIC_INVOCATIONS,
   buildAgenticOsDictionaryActionId,
   buildAgenticOsDictionaryInvocationMarkdown,
-  buildAgenticOsDictionaryInvocationReference,
   buildAgenticOsDocActionId,
   buildAgenticOsDocBindingInvocationMarkdown,
   buildAgenticOsDocInvocationMarkdown,
@@ -22,7 +21,7 @@ export const buildAgenticOsSlashInvocationMenuItems = (args: {
     group: invocation.group,
     description: invocation.summary,
     keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
-    onSelect: () => args.onSelect(buildAgenticOsDictionaryInvocationReference(invocation)),
+    onSelect: () => args.onSelect(buildAgenticOsDictionaryInvocationMarkdown(invocation)),
   })),
 ]
 

@@ -12,10 +12,11 @@ import {
   resolvePreferredComposedSourceFileFromState,
 } from '@/features/source-files/composedSourceSelection'
 import {
+  buildStrybldrCardOverridePatchFromGraphNodeChange,
   isStrybldrStoryboardMarkdown,
+  updateStrybldrStoryboardMarkdownCardOverride,
   syncStrybldrStoryboardMarkdownWorkflowEdges,
 } from '@/features/strybldr/strybldrStoryboard'
-
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
@@ -23,17 +24,14 @@ const FLOW_COMPUTE_PROPERTY_KEY = 'flow:compute'
 const FLOW_PORT_TYPES_PROPERTY_KEY = 'flow:portTypes'
 const FRONTMATTER_HANDLES_PROPERTY_KEY = 'frontmatter:handles'
 const FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY = 'frontmatter:widgetFields'
-
 type FrontmatterWidgetFieldSpec = {
   fieldKey: string
   fieldType: string
   schemaPath?: string
 }
-
 function flowYamlKey(key: string): string {
   return FLOW_YAML_PLAIN_KEY_RE.test(key) ? key : JSON.stringify(key)
 }
-
 function flowYamlInlineValue(value: unknown): string {
   if (typeof value === 'string') return JSON.stringify(value)
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null'
@@ -45,11 +43,9 @@ function flowYamlInlineValue(value: unknown): string {
     return 'null'
   }
 }
-
 function flowYamlInlineStringValue(value: string): string {
   return FLOW_YAML_PLAIN_KEY_RE.test(value) ? value : JSON.stringify(value)
 }
-
 function appendFlowYamlFieldLines(lines: string[], indent: string, key: string, value: unknown): void {
   if (typeof value === 'undefined') return
   const yamlKey = flowYamlKey(key)
@@ -60,7 +56,6 @@ function appendFlowYamlFieldLines(lines: string[], indent: string, key: string, 
   }
   lines.push(`${indent}${yamlKey}: ${flowYamlInlineValue(value)}`)
 }
-
 function inferFrontmatterFlowFieldType(value: unknown): string {
   if (typeof value === 'string') return 'string'
   if (typeof value === 'number') return 'number'
@@ -69,7 +64,6 @@ function inferFrontmatterFlowFieldType(value: unknown): string {
   if (value && typeof value === 'object') return 'object'
   return 'string'
 }
-
 function readFrontmatterWidgetFieldSpecs(node: GraphNode): FrontmatterWidgetFieldSpec[] {
   const props = (node.properties || {}) as Record<string, unknown>
   const raw = props[FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY]
@@ -91,7 +85,6 @@ function readFrontmatterWidgetFieldSpecs(node: GraphNode): FrontmatterWidgetFiel
   }
   return out
 }
-
 function readFrontmatterFlowFieldType(node: GraphNode, fieldName: string, value: unknown): string {
   const normalizedFieldName = String(fieldName || '').trim()
   if (!normalizedFieldName) return inferFrontmatterFlowFieldType(value)
@@ -110,7 +103,6 @@ function readFrontmatterFlowFieldType(node: GraphNode, fieldName: string, value:
   }
   return inferFrontmatterFlowFieldType(value)
 }
-
 function appendFlowYamlEnvelopeFieldLines(
   lines: string[],
   indent: string,
@@ -133,7 +125,6 @@ function appendFlowYamlEnvelopeFieldLines(
     `${indent}${yamlKey}: {key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}, type: ${flowYamlInlineStringValue(normalizedType)}, value: ${flowYamlInlineValue(value)}}`,
   )
 }
-
 function readFlowHandlesFromNode(node: GraphNode): Record<string, unknown> | null {
   const props = (node.properties || {}) as Record<string, unknown>
   const explicit = props[FRONTMATTER_HANDLES_PROPERTY_KEY]
@@ -154,7 +145,6 @@ function readFlowHandlesFromNode(node: GraphNode): Record<string, unknown> | nul
   if (source.length > 0) out.source = source
   return Object.keys(out).length > 0 ? out : null
 }
-
 function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   const lines: string[] = ['flow:']
   const meta = (graphData.metadata || {}) as Record<string, unknown>
@@ -225,7 +215,6 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   }
   return lines
 }
-
 function replaceTopLevelYamlSectionLines(args: {
   yamlLines: string[]
   sectionKey: string
@@ -260,7 +249,6 @@ function replaceTopLevelYamlSectionLines(args: {
     ? [...args.yamlLines.slice(0, start), ...args.sectionLines, ...args.yamlLines.slice(end)]
     : [...args.yamlLines.filter((line, index, arr) => !(arr.length === 1 && line.trim() === '')), ...args.sectionLines]
 }
-
 function buildTopLevelYamlSectionLines(sectionKey: string, sectionValue: unknown): string[] {
   const key = String(sectionKey || '').trim()
   if (!key || typeof sectionValue === 'undefined') return []
@@ -276,7 +264,6 @@ function buildTopLevelYamlSectionLines(sectionKey: string, sectionValue: unknown
   ).trimEnd()
   return dumped ? dumped.split('\n') : []
 }
-
 function readFrontmatterTimelineSectionValue(graphData: GraphData): unknown {
   const metadata = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
     ? (graphData.metadata as Record<string, unknown>)
@@ -427,6 +414,33 @@ function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): bo
   return isFrontmatterFlowGraph(graphData)
 }
 
+function syncStrybldrStoryboardMarkdownFromParsedGraph(args: {
+  text: string
+  graphData: GraphData | null | undefined
+  previousNode?: GraphNode | null
+  nextNode?: GraphNode | null
+}): string | null {
+  let nextText = args.text
+  const nodeId = String(args.nextNode?.id || args.previousNode?.id || '').trim()
+  if (nodeId) {
+    const cardPatch = buildStrybldrCardOverridePatchFromGraphNodeChange({
+      previousNode: args.previousNode,
+      nextNode: args.nextNode,
+    })
+    if (Object.keys(cardPatch).length > 0) {
+      nextText = updateStrybldrStoryboardMarkdownCardOverride({
+        text: nextText,
+        nodeId,
+        patch: cardPatch,
+      }) || nextText
+    }
+  }
+  return syncStrybldrStoryboardMarkdownWorkflowEdges({
+    text: nextText,
+    graphData: args.graphData,
+  }) || nextText
+}
+
 function findActiveMarkdownDocumentSourceFile(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']
@@ -450,6 +464,8 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']
   parsedGraphData: GraphData
+  previousNode?: GraphNode | null
+  nextNode?: GraphNode | null
 }): {
   sourceFiles: GraphState['sourceFiles']
   markdownDocumentText?: string | null
@@ -460,9 +476,11 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
   if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
   if (isStrybldrStoryboardMarkdown(activeText)) {
-    const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
+    const nextText = syncStrybldrStoryboardMarkdownFromParsedGraph({
       text: activeText,
       graphData: args.parsedGraphData,
+      previousNode: args.previousNode,
+      nextNode: args.nextNode,
     })
     if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles }
     const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
@@ -540,14 +558,18 @@ export function syncSourceFileTextFromParsedGraph(args: {
   sourceFiles: GraphState['sourceFiles']
   fileIndex: number
   parsedGraphData: GraphData
+  previousNode?: GraphNode | null
+  nextNode?: GraphNode | null
 }): { sourceFiles: GraphState['sourceFiles']; markdownDocumentText?: string | null } {
   const file = args.sourceFiles[args.fileIndex]
   if (!file || !sourceFileShouldWriteFrontmatterFlow(file)) return { sourceFiles: args.sourceFiles }
   const currentText = String(file.text || '')
   if (isStrybldrStoryboardMarkdown(currentText)) {
-    const nextText = syncStrybldrStoryboardMarkdownWorkflowEdges({
+    const nextText = syncStrybldrStoryboardMarkdownFromParsedGraph({
       text: currentText,
       graphData: args.parsedGraphData,
+      previousNode: args.previousNode,
+      nextNode: args.nextNode,
     })
     if (!nextText || nextText === currentText) return { sourceFiles: args.sourceFiles }
     const nextSourceFiles = args.sourceFiles.slice()

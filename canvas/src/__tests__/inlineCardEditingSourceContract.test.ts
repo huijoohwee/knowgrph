@@ -15,12 +15,18 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
   const graphStoreSync = readUtf8('../features/graph-inspector/lib/applyRecordCellUpdateToGraphStore.ts')
   const graphRecordDb = readUtf8('../lib/graph-record-db/graphRecordDb.impl.ts')
   const commandMenus = readUtf8('../lib/cards/CardInlineTextCommandMenus.tsx')
+  const commandMenuItems = readUtf8('../lib/command-menu/inlineCommandMenuItems.ts')
   const blockInlineMenus = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx')
   const commandCatalog = readUtf8('../lib/command-menu/inlineCommandMenuCatalog.ts')
   const storyboardModel = readUtf8('../components/StoryboardCanvas/storyboardModel.ts')
 
   for (const snippet of [
-    'PlainTextInputEditor',
+    'PanelTextInput',
+    'PanelTextarea',
+    'buildFloatingPanelChatComposerOverlayParts',
+    'FloatingPanelChatComposerMediaOverlay',
+    'TextareaInvocationMediaAttachment',
+    'projectedMediaAttachments',
     'CardInlineTextCommandMenus',
     'markdownCommandMenus = true',
     'markdownCommandMenus !== false && multiline === true',
@@ -51,9 +57,6 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     'parseInlineVariableCommandQuery',
     'collectInlineMediaCommandCandidates',
     'buildInlineMediaEmbed',
-    'thumbnailKind: candidate.kind',
-    'thumbnailUrl: candidate.thumbnailUrl',
-    'fallbackCandidate?.thumbnailUrl',
     'insert-image',
     'insert-video',
   ]) {
@@ -62,14 +65,23 @@ export function testInlineCardEditingStaysSharedAcrossSurfaces() {
     }
   }
   for (const snippet of [
+    'buildInlineMediaCommandMenuItem',
+    'candidate: InlineMediaCommandCandidate',
+    'thumbnailKind: args.candidate.kind',
+    'thumbnailUrl: args.candidate.thumbnailUrl',
+  ]) {
+    if (!commandMenuItems.includes(snippet)) {
+      throw new Error(`expected shared command menu item owner to preserve inline media thumbnail metadata: ${snippet}`)
+    }
+  }
+  for (const snippet of [
     'INLINE_SLASH_COMMAND_ACTIONS',
     'INLINE_VARIABLE_COMMAND_ACTIONS',
     'INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID',
     'INLINE_MEDIA_VARIABLE_KEY_BY_ACTION_ID',
     'mediaCommandCandidates',
+    'buildInlineMediaCommandMenuItem',
     'applyMediaCommandCandidate(candidate)',
-    'thumbnailKind: candidate.kind',
-    'thumbnailUrl: candidate.thumbnailUrl',
     'fallbackCandidate ? applyMediaCommandCandidate(fallbackCandidate) : applyTurnInto(kind)',
     'applyTurnInto(kind)',
   ]) {

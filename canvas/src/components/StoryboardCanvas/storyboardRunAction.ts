@@ -35,23 +35,10 @@ export function buildStoryboardRunUnavailableToast(args: {
 export function runStoryboardRunAction(args: {
   cardId: string
   hasSourceNode: boolean
-  isStrybldrStoryboardCard?: boolean
   resolvedCardNodeId: string
   openInSidepane: () => { selectedNodeId?: string | null } | void
-  openStrybldrPanel?: () => void
   runNode: (nodeId: string) => Promise<void> | void
 }): StoryboardRunActionResult {
-  if (args.isStrybldrStoryboardCard) {
-    const openedNodeId = String(args.resolvedCardNodeId || args.cardId || '').trim()
-    args.openStrybldrPanel?.()
-    return {
-      status: 'started',
-      ran: true,
-      openedNodeId,
-      runNodeId: openedNodeId,
-      toast: null,
-    }
-  }
   const sidepaneResult = args.openInSidepane()
   const selectedNodeId = sidepaneResult && typeof sidepaneResult === 'object' ? sidepaneResult.selectedNodeId : ''
   const openedNodeId = String(

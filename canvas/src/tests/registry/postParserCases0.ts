@@ -1,5 +1,4 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
-
 export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["policy.workspaceInitialization.docsAbsRootDefault.devOnly","@/__tests__/workspaceInitializationBuildEnvRegression.test","testWorkspaceInitializationDocsAbsRootDefaultStaysOutOfProductionBuilds"],
   ["policy.productionHtml.generatedStylesheetInlining","@/__tests__/workspaceInitializationBuildEnvRegression.test","testProductionHtmlInlinesGeneratedStylesheetAssets"],
@@ -28,6 +27,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["richMedia.panel.videoHideUntilReadyRevealsOnLoadedMetadata","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenHideUntilReady"],
   ["richMedia.panel.emptyImageRendersPlaceholder","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelEmptyImageRendersPlaceholderInsteadOfBlankMedia"],
   ["richMedia.panel.emptyVideoRendersPlaceholder","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelEmptyVideoRendersPlaceholderInsteadOfBlankMedia"],
+  ["richMedia.panel.textMode.addTextReusesMediaDropZone","@/__tests__/richMediaPanelTextModeRegression.test","testRichMediaPanelTextModeAddTextReusesMediaDropZone"],
   ["pdf.streamDecode.respectsMaxDecodeBytes","@/__tests__/pdfStreamDecodeLimit.test","testPdfReadStreamRespectsMaxDecodeBytes"],
   ["pdf.contentTokenizer.advancesOnDictDelimiters","@/__tests__/pdfContentTextTokenizerRegression.test","testPdfContentTextTokenizerAdvancesOnDictDelimiters"],
   ["pdf.http.fetchBytes.respectsMaxBytes","@/__tests__/pdfHttpLimits.test","testPdfHttpFetchBytesRespectsMaxBytes"],
@@ -313,7 +313,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["toolbar.workspaceView.selectsEditorWorkspace","@/__tests__/embeddedEditorMode.test","testToolbarWorkspaceViewDropdownSelectsEditorWorkspace"],
   ["toolbar.workspaceView.reopensEditorWorkspaceAfterInitialOpenClose","@/__tests__/embeddedEditorMode.test","testToolbarWorkspaceViewReopensEditorWorkspaceAfterInitialOpenClose"],
   ["ui.floatingPanel.designLayers.rendersAsDiv","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelDesignLayersViewRendersAsDiv"],
-  ["ui.floatingPanel.interaction.usesFullHeightShellBody","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelInteractionViewUsesFullHeightShellBody"],
+  ["ui.floatingPanel.interaction.removedAfterSkillsCommandsCentralization","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelInteractionViewIsRemovedAfterSkillsCommandsCentralization"],
   ["ui.floatingPanel.geo.clickableWhenDisabledByState","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelGeoViewRemainsClickableWhenDisabledByState"],
   ["editorShell.rendersMarkdownWorkspace","@/__tests__/embeddedEditorMode.test","testEmbeddedEditorShellRendersMarkdownWorkspace"],
   ["ui.editorWorkspace.inspector.usesSelectionInspectorWhenStoryboardWidgetNotMounted","@/__tests__/embeddedEditorMode.test","testEditorWorkspaceInspectorUsesSelectionInspectorWhenStoryboardWidgetNotMounted"],
@@ -416,7 +416,6 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["flow.presentation.labels.halo","@/__tests__/flowPresentationIncludesLabelHaloRegression.test","testFlowPresentationIncludesLabelHalo"],
   ["labels.presentation.ssotUsage","@/__tests__/labelPresentationSsotUsageRegression.test","testLabelPresentationSsotUsage"],
   ["labels.collision.d3.reuseFlowStyle","@/__tests__/d3LabelCollisionReusesFlowStyleRegression.test","testD3LabelCollisionReusesFlowStyle"],
-
   ["layout.groupBboxCollide.separatesTopParentGroups","@/__tests__/groupOverlapForce.test","testGroupBboxCollideSeparatesTopParentGroups"],
   ["graphCanvas.edgeDisplay.keywordDirected","@/__tests__/d3EdgeDisplayShared.test","testEdgeDisplayKeywordArrowRespectsKeywordDirected"],
   ["graphCanvas.edgeDisplay.schemaArrow","@/__tests__/d3EdgeDisplayShared.test","testEdgeDisplaySchemaArrowOverridesKeyword"],
@@ -506,6 +505,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["dnd.flowWidgetDragPayload.uriListFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromUriListFallback"],
   ["dnd.flowWidgetDragPayload.registryShape","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadCarriesRegistryShape"],
   ["dnd.flowWidgetDragPayload.pointerReleaseEvent","@/__tests__/flowWidgetDrag.test","testFlowWidgetPointerDragDispatchesDropReleaseEvent"],
+  ["dnd.flowWidgetDragPayload.pointerReleaseTrackedPoint","@/__tests__/flowWidgetDrag.test","testFlowWidgetPointerDragReleaseUsesTrackedPointForNativeDragEnd"],
   ["io.widgetBundle.roundtrip.includesRegistryMetadata","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleRoundtripParsesWithRegistryMetadata"],
   ["io.widgetBundle.jsonTextHelper.usesSemanticCache","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleJsonTextHelperUsesSharedSemanticCache"],
   ["io.widgetBundle.jsonTextHelper.propagatesToExplicitExportPaths","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths"],
@@ -691,8 +691,8 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["mcp.server.browserApiBridge.requiresCookieConfirmationForCookies","@/__tests__/mcpBrowserApiRuntime.test","testKnowgrphMcpBrowserBridgeRequiresCookieConfirmationForCookies"],
   ["ui.mainPanel.commerceHub.omitsGlobalResetSection","@/__tests__/mainPanelIntegrations.test","testCommerceHubOmitsGlobalResetSection"],
   ["ui.mainPanel.tabs.placeMcpImmediatelyAfterIntegrations","@/__tests__/mainPanelIntegrations.test","testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations"],
-  ["ui.mainPanel.propsPanel.ownsGrabMapsDiscoveryWidgetCopy","@/__tests__/mainPanelIntegrations.test","testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy"],
-  ["ui.mainPanel.propsPanel.discoveryWidget.keywordSearchRunsWithoutDuplicateFloatingView","@/__tests__/mainPanelIntegrations.test","testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDuplicateFloatingView"],
+  ["ui.mainPanel.propsPanel.widgetPalette.omitsGrabMapsDiscoveryWidgetCopy","@/__tests__/mainPanelIntegrations.test","testPropsPanelPaletteOmitsGrabMapsDiscoveryWidgetCopy"],
+  ["ui.mainPanel.propsPanel.widgetPalette.avoidsDiscoveryWidgetNetworkSideEffects","@/__tests__/mainPanelIntegrations.test","testPropsPanelPaletteAvoidsDiscoveryWidgetNetworkSideEffects"],
   ["ui.mainPanel.integrationsHub.anchorScrollsExactBytePlusRow","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsAnchorScrollsExactBytePlusRow"],
   ["ui.mainPanel.requestedSettingsSearch.excludesIntegrationEntries","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedSettingsSearchExcludesIntegrationEntries"],
   ["ui.mainPanel.requestedIntegrationsSearch.showsAiControls","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchShowsAiControls"],

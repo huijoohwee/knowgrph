@@ -19,7 +19,6 @@ import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMe
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { UPLOADED_MEDIA_PANEL_STORAGE_KEY } from '@/lib/storage/uploadedMediaPanelItems'
 import {
-  DATA_VIEW_CHIP_ROW_CLASSNAME,
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
@@ -79,8 +78,9 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   for (const snippet of [
     '<PanelTextarea',
     '<PanelTextInput',
-    'value: draft',
-    'setDraft(event.currentTarget.value)',
+    'value: projectedEditorDisplayValue',
+    'setDraft(nextValue)',
+    'readProjectedEditorRawValue',
     'rowHeightPreset={editorDensity.rowHeightPreset}',
     'fieldLineMode={editorDensity.fieldLineMode}',
     'density={editorDensity.rowHeightPreset}',
@@ -99,6 +99,68 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
   }
   if (!storyboardWidgetOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
     throw new Error('expected Storyboard Widget overlay pointer routing to treat shared card inline editors as interactive controls')
+  }
+}
+export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwygOwner() {
+  const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  const cardInlineEditingSurface = readUtf8('../lib/cards/CardInlineTextEditingSurface.tsx')
+  const cardInlineEditorSupport = readUtf8('../lib/cards/CardInlineTextEditorSupport.ts')
+  const viewerSurface = readUtf8('../lib/cards/CardInlineTextViewerEditSurface.tsx')
+  const markdownInlineEditHtml = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml.ts')
+  const invocationTokens = readUtf8('../lib/markdown/invocationTokens.ts')
+  const storyboardOverlay = readUtf8('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx')
+  for (const snippet of [
+    'CardInlineTextViewerEditSurface',
+    'displaySourceValue',
+    'editorSurface = \'control\'',
+    'focusCardInlineTextViewerSelectionSoon',
+  ]) {
+    if (!cardInlineEditor.includes(snippet)) {
+      throw new Error(`expected CardInlineTextEditor to route the optional edit path through the shared Viewer WYSIWYG surface: ${snippet}`)
+    }
+  }
+  if (!cardInlineEditingSurface.includes('useViewerEditSurface ? draft : projectedEditorDisplayValue')) {
+    throw new Error('expected CardInlineTextEditingSurface to preserve Viewer draft vs textarea display command-menu routing')
+  }
+  for (const snippet of [
+    "editorSurface?: 'control' | 'viewer'",
+    'displayValue?: string',
+    'export const isElementEventTarget',
+  ]) {
+    if (!cardInlineEditorSupport.includes(snippet)) {
+      throw new Error(`expected CardInlineTextEditorSupport to own shared Viewer WYSIWYG support snippet: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'rewriteRenderedInlineMediaForEditorHtml',
+    'readFastInlineMarkdownDraft',
+    'readInlineMediaEditorMarkdownText',
+    'MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS',
+    'MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS',
+    'data-kg-card-inline-wysiwyg-virtual-media-chip',
+    'data-kg-card-inline-wysiwyg-media-markdown',
+    'data-kg-card-inline-wysiwyg-media-thumbnail',
+    'INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR',
+    'pendingViewerSelections',
+  ]) {
+    if (!viewerSurface.includes(snippet)) {
+      throw new Error(`expected CardInlineTextViewerEditSurface to reuse Viewer edit initialization/serialization helpers: ${snippet}`)
+    }
+  }
+  if (!markdownInlineEditHtml.includes('if (!segments.some(segment => segment.kind === \'token\')) return')) {
+    throw new Error('expected shared Viewer inline-edit token rewriting to chip valid /, #, and @ tokens without requiring local card renderers')
+  }
+  if (!invocationTokens.includes('normalizeInvocationTokenSpacing') || !invocationTokens.includes('startsAfterAcceptedToken')) {
+    throw new Error('expected shared invocation grammar to accept compact adjacent token runs while serializing canonical / # @ spacing')
+  }
+  if (!storyboardOverlay.includes('editorSurface="viewer"')) {
+    throw new Error('expected Storyboard card summary edit mode to opt into the shared Viewer WYSIWYG surface')
+  }
+  if (!storyboardOverlay.includes('value={textModel.primaryRaw || card.slugline || \'\'}') || !storyboardOverlay.includes('displayValue={textModel.primaryDisplay || card.slugline || \'\'}')) {
+    throw new Error('expected Storyboard card summary edit mode to keep raw source value separate from read-view display projection')
+  }
+  if (!storyboardOverlay.includes('editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)] [scrollbar-gutter:stable]"')) {
+    throw new Error('expected Storyboard card summary edit mode to inherit Viewer WYSIWYG chrome instead of local textarea border/background styling')
   }
 }
 export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistrationViewConfig() {
@@ -917,8 +979,8 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
       imageInsertButton.click()
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-    if (!textarea.value.includes('](https://media.example.test/poster.jpg)')) {
-      throw new Error(`expected @ Image command to insert resolved image embed, got ${JSON.stringify(textarea.value)}`)
+    if (textarea.value.includes('![') || textarea.value.includes('https://media.example.test/poster.jpg') || !textarea.value.includes('@Image: imageUrl')) {
+      throw new Error(`expected @ Image command to show compact projected media chip text, got ${JSON.stringify(textarea.value)}`)
     }
     if (!committedValues.some(value => value.includes('](https://media.example.test/poster.jpg)'))) {
       throw new Error(`expected @ Image command to persist the resolved image embed immediately, got ${JSON.stringify(committedValues)}`)
@@ -1015,6 +1077,7 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
+  const committedValues: string[] = []
   try {
     await act(async () => {
       root.render(
@@ -1025,7 +1088,9 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
           canEdit: true,
           editActivation: 'click',
           multiline: true,
-          onCommit: () => {},
+          onCommit: next => {
+            committedValues.push(next)
+          },
         }),
       )
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -1057,223 +1122,18 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
     if (!(activeTextarea instanceof dom.window.HTMLTextAreaElement)) {
       throw new Error('expected unresolved @ Image insertion to stay in the inline text box')
     }
-    if (!activeTextarea.value.includes('![Image alt](image-url)')) {
-      throw new Error(`expected unresolved @ Image insertion to add an editable markdown placeholder, got ${JSON.stringify(activeTextarea.value)}`)
+    if (!activeTextarea.value.includes('@Image alt') || activeTextarea.value.includes('![') || activeTextarea.value.includes('image-url')) {
+      throw new Error(`expected unresolved @ Image insertion to show a compact editable media chip label, got ${JSON.stringify(activeTextarea.value)}`)
+    }
+    const mediaChip = container.querySelector('[data-kg-chat-input-media-chip="1"]')
+    if (!mediaChip || activeTextarea.getAttribute('data-kg-card-inline-edit-media-overlay') !== '1') {
+      throw new Error(`expected unresolved @ Image insertion to render through the shared card textarea media overlay, html=${container.innerHTML}`)
+    }
+    const committed = committedValues.at(-1) || ''
+    if (!committed.includes('![Image alt](image-url)') || committed.includes('@Image alt')) {
+      throw new Error(`expected unresolved @ Image insertion to persist raw markdown while displaying a chip, got ${JSON.stringify(committedValues)}`)
     }
   } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-export async function testCardInlineTextEditorAtCommandInsertsUploadedMedia() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  const committedValues: string[] = []
-  const publicUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
-  const accessUrl = `${publicUrl}?kg_media_token=token`
-  const storage = {
-    workspaceId: 'airvio',
-    runId: 'upload-demo',
-    stageId: 'image',
-    shotId: 'airvio-demo',
-    objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
-    publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-    publicUrl,
-    accessUrl,
-    contentHash: 'sha256:uploaded-at-command-demo',
-    contentType: 'image/jpeg',
-    provenance: {
-      fileName: 'airvio_.JPEG',
-      sizeBytes: 1234,
-    },
-    response: {
-      ok: true,
-      apiVersion: 1,
-      workspaceId: 'airvio',
-      artifactId: 'upload-demo:image:airvio-demo',
-      objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
-      publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-      durableR2Url: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-      contentHash: 'sha256:uploaded-at-command-demo',
-      storage: { r2: 'confirmed', d1: 'persisted', kv: 'skipped', durableObject: 'skipped' },
-      access: { cacheKey: null, expiresAtMs: null, url: accessUrl },
-    },
-  }
-  try {
-    dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
-      id: 'cloudflare-media:sha256:uploaded-at-command-demo',
-      name: 'airvio_.JPEG',
-      kind: 'image',
-      localUrl: '',
-      linkUrl: accessUrl,
-      contentType: 'image/jpeg',
-      sizeBytes: 1234,
-      status: 'synced',
-      storage,
-      error: null,
-    }]))
-    await act(async () => {
-      root.render(
-        React.createElement(CardInlineTextEditor, {
-          value: 'Review the source evidence into editable storyboard elements.',
-          ariaLabel: 'Action',
-          placeholder: 'Add action',
-          canEdit: true,
-          editActivation: 'click',
-          multiline: true,
-          onCommit: next => {
-            committedValues.push(next)
-          },
-        }),
-      )
-      await waitForFrames(dom.window, 4)
-    })
-    const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
-    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
-    await act(async () => {
-      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-      await waitForFrames(dom.window, 1)
-    })
-    const textarea = container.querySelector('textarea[aria-label="Action"]')
-    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
-    const variableButton = container.querySelector('button[title="Variable commands"]')
-    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-    await act(async () => {
-      textarea.setSelectionRange(0, 0)
-      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-      variableButton.click()
-      await waitForFrames(dom.window, 4)
-    })
-    const mediaButtons = Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[]
-    const uploadMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('New Media') && String(button.textContent || '').includes('Create or upload image, audio, or video through the shared Media storage flow'))
-    if (!(uploadMediaButton instanceof dom.window.HTMLButtonElement)) {
-      const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
-      throw new Error(`expected @ command menu to include shared New Media action, got ${buttonText}`)
-    }
-    const uploadedMediaButton = mediaButtons.find(button => String(button.textContent || '').includes('airvio_.JPEG') && String(button.textContent || '').includes('Uploaded media from FloatingPanel Media'))
-    if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) {
-      const buttonText = mediaButtons.map(button => String(button.textContent || '').replace(/\s+/g, ' ').trim()).join(' | ')
-      throw new Error(`expected @ command menu to include uploaded FloatingPanel Media item, got ${buttonText}`)
-    }
-    await act(async () => {
-      uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-      uploadedMediaButton.click()
-      await waitForFrames(dom.window, 2)
-    })
-    const latest = committedValues.at(-1) || ''
-    if (!latest.startsWith('![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=')) {
-      throw new Error(`expected @ command media insertion to commit uploaded image into Action field, got ${JSON.stringify(committedValues)}`)
-    }
-    if (!latest.includes(')\n\nReview the source evidence into editable storyboard elements.')) {
-      throw new Error(`expected @ command media insertion to keep media as its own block before existing Action text, got ${JSON.stringify(latest)}`)
-    }
-  } finally {
-    dom.window.localStorage.removeItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMedia() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  const committedValues: string[] = []
-  const publicUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
-  const accessUrl = `${publicUrl}?kg_media_token=token`
-  const initialValue = [
-    `![airvio_.JPEG](${accessUrl})`,
-    '',
-    'Review the source evidence into editable storyboard elements.',
-  ].join('\n')
-  try {
-    dom.window.localStorage.setItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY, JSON.stringify([{
-      id: 'cloudflare-media:sha256:uploaded-at-command-demo',
-      name: 'airvio_.JPEG',
-      kind: 'image',
-      localUrl: '',
-      linkUrl: accessUrl,
-      contentType: 'image/jpeg',
-      sizeBytes: 1234,
-      status: 'synced',
-      storage: {
-        workspaceId: 'airvio',
-        runId: 'upload-demo',
-        stageId: 'image',
-        shotId: 'airvio-demo',
-        objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
-        publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-        publicUrl,
-        accessUrl,
-        contentHash: 'sha256:uploaded-at-command-demo',
-        contentType: 'image/jpeg',
-        provenance: { fileName: 'airvio_.JPEG', sizeBytes: 1234 },
-        response: {
-          ok: true,
-          apiVersion: 1,
-          workspaceId: 'airvio',
-          artifactId: 'upload-demo:image:airvio-demo',
-          objectKey: 'airvio/runs/upload-demo/image/airvio-demo.jpg',
-          publicPath: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-          durableR2Url: '/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg',
-          contentHash: 'sha256:uploaded-at-command-demo',
-          storage: { r2: 'confirmed', d1: 'persisted', kv: 'skipped', durableObject: 'skipped' },
-          access: { cacheKey: null, expiresAtMs: null, url: accessUrl },
-        },
-      },
-      error: null,
-    }]))
-    await act(async () => {
-      root.render(
-        React.createElement(CardInlineTextEditor, {
-          value: initialValue,
-          ariaLabel: 'Action',
-          placeholder: 'Add action',
-          canEdit: true,
-          editActivation: 'click',
-          multiline: true,
-          onCommit: next => {
-            committedValues.push(next)
-          },
-        }),
-      )
-      await waitForFrames(dom.window, 4)
-    })
-    const display = container.querySelector('[aria-label="Action"][data-kg-card-inline-edit-activation="click"]')
-    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Action display field')
-    await act(async () => {
-      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-      await waitForFrames(dom.window, 1)
-    })
-    const textarea = container.querySelector('textarea[aria-label="Action"]')
-    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected active Action textarea')
-    const variableButton = container.querySelector('button[title="Variable commands"]')
-    if (!(variableButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected variable command launcher')
-    await act(async () => {
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
-      variableButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-      variableButton.click()
-      await waitForFrames(dom.window, 4)
-    })
-    const uploadedMediaButton = (Array.from(dom.window.document.querySelectorAll('section[aria-label="Card variable commands"] button')) as HTMLButtonElement[])
-      .find(button => String(button.textContent || '').includes('airvio_.JPEG'))
-    if (!(uploadedMediaButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded Media item in @ command menu')
-    await act(async () => {
-      uploadedMediaButton.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-      uploadedMediaButton.click()
-      await waitForFrames(dom.window, 2)
-    })
-    if (committedValues.length !== 0) {
-      throw new Error(`expected duplicate @ media insertion to no-op without mutating Action text, got ${JSON.stringify(committedValues)}`)
-    }
-  } finally {
-    dom.window.localStorage.removeItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)
     await act(async () => {
       root.unmount()
     })
@@ -1346,199 +1206,6 @@ export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuR
     restore()
   }
 }
-export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(React.Fragment, null, renderSafeHtmlBlock(
-          'Review source <video src="https://example.com/demo.mp4" title="sd123" controls></video> evidence into editable storyboard elements.',
-          {
-            activeDocumentPath: 'workspace:/card.md',
-            uiPanelTextFontClass: 'font-sans',
-            uiPanelMonospaceTextClass: 'font-mono',
-            markdownPresentationMode: false,
-            markdownCardPreviewMode: true,
-            renderNodeText: (text, key) => React.createElement(React.Fragment, { key }, text),
-            fragmentOptions: null,
-          },
-        )),
-      )
-      await new Promise(resolve => setTimeout(resolve, 0))
-    })
-    const chip = container.querySelector('[data-kg-card-inline-media-pill="1"]')
-    if (!(chip instanceof dom.window.HTMLElement)) {
-      throw new Error(`expected inline video chip in card preview, html=${container.innerHTML}`)
-    }
-    if (!chip.className.includes('mr-1') || !chip.className.includes('items-center') || !chip.className.includes('align-middle') || !chip.className.includes('text-[11px]')) {
-      throw new Error(`expected inline video chip to use centered spacing classes, got ${chip.className}`)
-    }
-    const stackWrapper = chip.closest('.space-y-1')
-    if (stackWrapper) {
-      throw new Error(`expected inline media chip to avoid vertical stack wrapper inside card paragraph, html=${container.innerHTML}`)
-    }
-    const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
-    if (text !== 'Review source sd123 evidence into editable storyboard elements.') {
-      throw new Error(`expected inline media chip to remain spaced inside paragraph text flow, got ${JSON.stringify(text)}`)
-    }
-  } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-export async function testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(CardMarkdownPreview, {
-          markdownText: [
-            'Review the source evidence into editable storyboard elements.',
-            '',
-            '![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token)',
-          ].join('\n'),
-          activeDocumentPath: '/__card_inline_text_editor/preview.md',
-        }),
-      )
-      await waitForFrames(dom.window, 8)
-    })
-    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
-    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
-    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
-    if (attachments) throw new Error(`expected standalone media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
-    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
-    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected uploaded media chip inline in the card text run, html=${container.innerHTML}`)
-    if (!String(inlineChip.textContent || '').includes('airvio_.JPEG')) {
-      throw new Error(`expected inline media chip to preserve media label, got ${JSON.stringify(inlineChip.textContent)}`)
-    }
-    const rootText = String(previewRoot.textContent || '').replace(/\s+/g, ' ').trim()
-    const chipText = String(inlineChip.textContent || '').replace(/\s+/g, ' ').trim()
-    const proseText = rootText.replace(chipText, '').replace(/\s+/g, ' ').trim()
-    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
-      throw new Error(`expected card prose preview to keep text typography separate from media label, got ${JSON.stringify({ rootText, chipText, proseText })}`)
-    }
-  } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypography() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(CardMarkdownPreview, {
-          markdownText: '![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) Review the source evidence into editable storyboard elements.',
-          activeDocumentPath: '/__card_inline_text_editor/preview.md',
-          className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
-        }),
-      )
-      await waitForFrames(dom.window, 8)
-    })
-    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
-    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
-    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
-    if (attachments) throw new Error(`expected boundary media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
-    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
-    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected boundary media to render as an inline chip, html=${container.innerHTML}`)
-    const proseText = String(previewRoot.textContent || '')
-      .replace(String(inlineChip.textContent || ''), '')
-      .replace(/\s+/g, ' ')
-      .trim()
-    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
-      throw new Error(`expected boundary media to leave prose text unchanged, got ${JSON.stringify(proseText)}`)
-    }
-    const markdownParagraph = previewRoot.querySelector('article p, .prose p')
-    if (markdownParagraph) {
-      throw new Error(`expected boundary-media prose to avoid markdown paragraph typography, html=${container.innerHTML}`)
-    }
-  } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypography() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(CardMarkdownPreview, {
-          markdownText: 'Review the ![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) #image source evidence into editable storyboard elements.',
-          activeDocumentPath: '/__card_inline_text_editor/preview.md',
-          className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
-        }),
-      )
-      await waitForFrames(dom.window, 8)
-    })
-    const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
-    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
-    const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
-    if (attachments) throw new Error(`expected inline image media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
-    const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
-    if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected inline image media to render as an inline chip, html=${container.innerHTML}`)
-    if (!inlineChip.className.includes('[font-size:inherit]') || !inlineChip.className.includes('[line-height:inherit]')) {
-      throw new Error(`expected inline image media chip to inherit surrounding card preview text metrics, got ${inlineChip.className}`)
-    }
-    for (const staleClass of ['text-[11px]', 'leading-4', 'align-middle', 'gap-1', 'px-2']) {
-      if (inlineChip.className.includes(staleClass)) {
-        throw new Error(`expected inline image media chip to avoid stale card preview spacing or text metrics ${staleClass}, got ${inlineChip.className}`)
-      }
-    }
-    for (const expectedClass of ['align-baseline', 'gap-0.5', 'pl-1', 'pr-1.5', 'py-0']) {
-      if (!inlineChip.className.includes(expectedClass)) {
-        throw new Error(`expected inline image media chip to keep compact baseline-aligned spacing ${expectedClass}, got ${inlineChip.className}`)
-      }
-    }
-    const keywordChip = previewRoot.querySelector('[data-kg-card-inline-keyword-pill="1"]')
-    if (!(keywordChip instanceof dom.window.HTMLElement)) throw new Error(`expected #keyword token to reuse the shared inline chip renderer in card preview text, html=${container.innerHTML}`)
-    if (String(keywordChip.textContent || '').trim() !== 'image') {
-      throw new Error(`expected #image chip to preserve readable keyword text, got ${JSON.stringify(keywordChip.textContent)}`)
-    }
-    for (const expectedClass of DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.split(' ')) {
-      if (expectedClass && !keywordChip.className.includes(expectedClass)) {
-        throw new Error(`expected card preview #keyword chip to reuse DataView inline-text chip class ${expectedClass}, got ${keywordChip.className}`)
-      }
-    }
-    if (keywordChip.className.includes('text-[10px]') || keywordChip.className.includes('leading-[15px]')) {
-      throw new Error(`expected card preview #keyword chip to inherit surrounding text metrics, got ${keywordChip.className}`)
-    }
-    const proseText = String(previewRoot.textContent || '')
-      .replace(String(inlineChip.textContent || ''), '')
-      .replace(String(keywordChip.textContent || ''), '')
-      .replace(/\s+/g, ' ')
-      .trim()
-    if (proseText !== 'Review the source evidence into editable storyboard elements.') {
-      throw new Error(`expected inline image media to leave prose typography text unchanged, got ${JSON.stringify(proseText)}`)
-    }
-    const markdownParagraph = previewRoot.querySelector('article p, .prose p')
-    if (markdownParagraph) {
-      throw new Error(`expected inline image media to avoid markdown paragraph typography, html=${container.innerHTML}`)
-    }
-  } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
 export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -1548,7 +1215,7 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
     await act(async () => {
       root.render(
         React.createElement(CardInlineTextEditor, {
-          value: '#storyboard #180kb',
+          value: '#storyboard #180kb @operator',
           ariaLabel: 'Output text',
           placeholder: 'Add output',
           canEdit: true,
@@ -1565,17 +1232,29 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
     if (!(chip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected #keyword token to render as inline chip on the shared card display path, html=${container.innerHTML}`)
     }
-    const numericChip = chips.find(candidate => String(candidate.textContent || '').trim() === '180kb') as HTMLElement | undefined
+    const numericChip = chips.find(candidate => String(candidate.textContent || '').trim() === '#180kb') as HTMLElement | undefined
     if (!(numericChip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected numeric-leading #keyword token to render as the same inline chip path, html=${container.innerHTML}`)
     }
-    for (const expectedClass of DATA_VIEW_CHIP_ROW_CLASSNAME.split(' ')) {
-      if (expectedClass && !chip.className.includes(expectedClass)) {
-        throw new Error(`expected inline keyword chip to reuse DataView chip class ${expectedClass}, got ${chip.className}`)
+    const bindingChip = chips.find(candidate => String(candidate.textContent || '').trim() === '@operator') as HTMLElement | undefined
+    if (!(bindingChip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected @binding token to preserve the visible @ sigil on the shared card display path, html=${container.innerHTML}`)
+    }
+    for (const candidate of [chip, numericChip, bindingChip]) {
+      if (!candidate.querySelector('.kg-inline-chip-label-15ch')) {
+        throw new Error(`expected / # @ inline chip labels to use shared 15ch truncation, html=${candidate.outerHTML}`)
+      }
+      if (!candidate.className.includes('kg-inline-chip-shell-15ch')) {
+        throw new Error(`expected / # @ inline chip shells to fit truncated labels without empty right-side width, html=${candidate.outerHTML}`)
       }
     }
-    if (!DATA_VIEW_CHIP_ROW_CLASSNAME.includes('leading-[15px]')) {
-      throw new Error(`expected shared DataView chip utility to own fixed # tag line-height, got ${DATA_VIEW_CHIP_ROW_CLASSNAME}`)
+    for (const expectedClass of DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.split(' ')) {
+      if (expectedClass && !chip.className.includes(expectedClass)) {
+        throw new Error(`expected inline keyword chip to reuse DataView inline-text chip class ${expectedClass}, got ${chip.className}`)
+      }
+    }
+    if (chip.className.includes('text-[10px]') || chip.className.includes('leading-[15px]')) {
+      throw new Error(`expected card display / # @ chips to inherit surrounding text metrics for Viewer edit parity, got ${chip.className}`)
     }
     for (const expectedClass of resolveDataViewChipClass('storyboard').split(' ')) {
       if (expectedClass && !chip.className.includes(expectedClass)) {
@@ -1586,7 +1265,7 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
       throw new Error(`expected inline keyword chip to restore rectangular chip radius, got ${chip.className}`)
     }
     const text = String(container.textContent || '').replace(/\s+/g, ' ').trim()
-    if (text !== 'storyboard 180kb') {
+    if (text !== '#storyboard #180kb @operator') {
       throw new Error(`expected inline keyword chip preview to preserve token text, got ${JSON.stringify(text)}`)
     }
   } finally {

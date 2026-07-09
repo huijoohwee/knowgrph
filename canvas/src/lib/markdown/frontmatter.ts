@@ -217,7 +217,6 @@ function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefi
     raw === 'view' ||
     raw === 'media' ||
     raw === 'camera' ||
-    raw === 'interaction' ||
     raw === 'design' ||
     raw === 'chat' ||
     raw === 'geo' ||
@@ -229,7 +228,6 @@ function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefi
     raw === 'timeline' ||
     raw === 'architecture' ||
     raw === 'eventModeling' ||
-    raw === 'strybldr' ||
     raw === 'graphTraversal'
   ) {
     return raw

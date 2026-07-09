@@ -473,8 +473,6 @@ export function isPropsPanelWidgetPaletteEntry(entry: WidgetRegistryEntry | null
   const formId = String(entry.formId || '').trim()
   return (
     (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && formId === 'textGeneration')
-    || (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID && formId === 'imageGeneration')
-    || (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && formId === 'videoGeneration')
     || (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && formId === FLOW_RICH_MEDIA_PANEL_FORM_ID)
   )
 }

@@ -298,7 +298,6 @@ export function testAll2dRenderersExposeSharedGridSnapDisplayControls() {
 export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
   const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
   const menuSource = readFileSync(new URL('../components/toolbar/canvasViewMenu.ts', import.meta.url), 'utf8')
-  const panelSource = readFileSync(new URL('../features/strybldr/StrybldrFloatingPanelView.tsx', import.meta.url), 'utf8')
   const sharedSource = readFileSync(new URL('../lib/canvas/canvasBoardLayoutDisplayControls.ts', import.meta.url), 'utf8')
   for (const snippet of [
     'CANVAS_BOARD_LAYOUT_DISPLAY_CONTROL_ID',
@@ -343,7 +342,7 @@ export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
     "label: 'Board'",
     "description: 'Toggle board layout mode'",
   ]) {
-    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden) || panelSource.includes(forbidden)) {
+    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden)) {
       throw new Error(`expected board layout Flex/Fixed ownership to avoid local literal or local logic: ${forbidden}`)
     }
   }
@@ -424,7 +423,6 @@ export function testAll2dRenderersExposeSharedBoardLayoutDisplayControl() {
 export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
   const actionsSource = readFileSync(new URL('../components/toolbar/canvasViewActions.ts', import.meta.url), 'utf8')
   const menuSource = readFileSync(new URL('../components/toolbar/canvasViewMenu.ts', import.meta.url), 'utf8')
-  const panelSource = readFileSync(new URL('../features/strybldr/StrybldrFloatingPanelView.tsx', import.meta.url), 'utf8')
   const storyboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
   const storyboardPlacementSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/storyboardCardPlacements2d.ts', import.meta.url), 'utf8')
   const sharedSource = readFileSync(new URL('../lib/canvas/canvasAspectRatioDisplayControls.ts', import.meta.url), 'utf8')
@@ -444,7 +442,7 @@ export function testAll2dRenderersExposeSharedAspectRatioDisplayControl() {
     if (!storyboardPlacementSource.includes(snippet)) throw new Error(`expected Storyboard placement helper to reuse shared Aspect utility snippet: ${snippet}`)
   }
   for (const forbidden of ['CANVAS_ASPECT_RATIO_OPTIONS', 'readCanvasAspectRatioMode', 'strybldrStoryboardCardAspectMode', 'setStrybldrStoryboardCardAspectMode', 'Strybldr storyboard layout controls', 'Strybldr storyboard card aspect ratio', '<PanelField label="Layout">', "event.target.value === '9:16' ? '9:16' : '16:9'", '<option value="16:9">16:9</option>', '<option value="9:16">9:16</option>']) {
-    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden) || panelSource.includes(forbidden)) {
+    if (actionsSource.includes(forbidden) || menuSource.includes(forbidden)) {
       throw new Error(`expected aspect ratio ownership to avoid FloatingPanel/local literal or local logic: ${forbidden}`)
     }
   }

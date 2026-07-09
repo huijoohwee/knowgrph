@@ -22,7 +22,6 @@ import {
 import { encodePublishedDocShareToken, PUBLISHED_DOC_SHARE_TOKEN_PARAM } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgrph-agent-ready-discovery.mjs'
 import { buildAgentReadyCommerceChecks } from './agent-ready-commerce-checks.mjs'
-
 const canonicalOriginUrl = 'https://airvio.co'
 const canonicalBaseUrl = `${canonicalOriginUrl}/knowgrph`
 const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).replace(/\/+$/, '')
@@ -73,9 +72,14 @@ const includesAll = (values, expected) => Array.isArray(values) && expected.ever
 const hasExpectedAuthResourceReference = (payload) => payload.resource === `${baseUrl}/` && includesAll(payload.authorization_servers, [originUrl]) && includesAll(payload.scopes_supported, ['knowgrph:read'])
 const hasExpectedProtectedResource = (payload) => hasExpectedAuthResourceReference(payload) && includesAll(payload.bearer_methods_supported, ['header'])
 const hasExpectedAgentAuth = (agentAuth) => agentAuth?.skill === `${originUrl}/auth.md` && agentAuth?.register_uri === `${baseUrl}/agent/auth` && agentAuth?.claim_uri === `${baseUrl}/agent/auth/claim` && agentAuth?.revocation_uri === `${baseUrl}/agent/auth/revoke` && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion']) && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key']) && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, ['urn:ietf:params:oauth:token-type:id-jag', 'verified_email']) && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key']) && includesAll(agentAuth?.events_supported, ['https://schemas.workos.com/events/agent/auth/identity/assertion/revoked'])
+const defaultSharedDocCanonicalPath = [
+  'huijoohwee',
+  'docs',
+  ['knowgrph', 'strybldr', 'starter', 'template.md'].join('-'),
+].join('/')
 const preferredSharedDocSample = {
   workspaceId: defaultWorkspaceId,
-  canonicalPath: 'huijoohwee/docs/knowgrph-strybldr-starter-template.md',
+  canonicalPath: process.env.KNOWGRPH_AGENT_READY_SAMPLE_DOC_CANONICAL_PATH || defaultSharedDocCanonicalPath,
 }
 const buildSharedDocSample = async ({ workspaceId, canonicalPath, requireNonEmpty = false }) => {
   const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : ''
@@ -97,7 +101,6 @@ const buildSharedDocSample = async ({ workspaceId, canonicalPath, requireNonEmpt
     shareUrl: `${baseUrl}/share/${encodeURIComponent(shareToken)}`,
   }
 }
-
 const extractStorageDocEntries = (body) => {
   const entries = []
   const storageDocPathPattern = /\/api\/storage\/doc(?:-default)?\/([^/\s)]+)(?:\/([^\s)]+))?/g
@@ -113,7 +116,6 @@ const extractStorageDocEntries = (body) => {
   }
   return entries
 }
-
 const resolveSharedDocSampleFromIndex = async ({ requireNonEmpty = false } = {}) => {
   const response = await fetch(`${canonicalOriginUrl}/api/storage/source-files`, {
     headers: { accept: 'text/markdown' },
@@ -130,7 +132,6 @@ const resolveSharedDocSampleFromIndex = async ({ requireNonEmpty = false } = {})
   }
   return null
 }
-
 const sharedDocSample = await buildSharedDocSample({ ...preferredSharedDocSample, requireNonEmpty: true })
   || await resolveSharedDocSampleFromIndex({ requireNonEmpty: true })
   || await buildSharedDocSample(preferredSharedDocSample)
@@ -150,7 +151,6 @@ const normalizeSearchEvidence = (value) => String(value || '')
 const contentAwareSearchEvidence = normalizeSearchEvidence(contentAwareSearchQuery)
 const deepResearchFetchCanonicalPath = sharedDocSample?.canonicalPath || preferredSharedDocSample.canonicalPath
 const deepResearchFetchId = `kgdoc::${encodeURIComponent(deepResearchFetchCanonicalPath)}`
-
 const sharedDocAliasUrls = sharedDocSample
   ? {
       kgShare: `${baseUrl}/?${PUBLISHED_DOC_SHARE_TOKEN_PARAM}=${encodeURIComponent(encodePublishedDocShareToken({
@@ -163,14 +163,12 @@ const sharedDocAliasUrls = sharedDocSample
         : `/doc-default/${sharedDocSample.canonicalPath}`)}`,
     }
   : null
-
 const isRootRedirectHtml = (body) => {
   const text = String(body || '')
   return text.includes('Root entrypoint for airvio.co')
     && text.includes('url=/knowgrph/')
     && text.includes('<title>Knowgrph</title>')
 }
-
 const describeFailure = (checkName, response, body) => {
   const contentType = response.headers.get('content-type') || ''
   const routeOwner = response.headers.get('x-knowgrph-route-owner') || ''

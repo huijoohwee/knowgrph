@@ -20,7 +20,7 @@
 
 ### Real Route
 1. Open the normal Canvas app route.
-2. Inject `huijoohwee/docs/knowgrph-strybldr-starter-template.md` through `window.knowgrphWorkspaceCommand.applyMarkdownDocument(...)`.
+2. Inject the operator-provided Strybldr validation document through `window.knowgrphWorkspaceCommand.applyMarkdownDocument(...)`.
 3. Create one image panel and one video panel on the Storyboard surface.
 4. Create an edge from each dropped panel to its target Storyboard card.
 5. Verify panel box stability through edge create and reopen retention.
@@ -43,13 +43,13 @@
 - `verify_storyboard_rich_media_drop_browser_smoke.py`: upgraded smoke coverage now runs both image and video drop paths through the same edge-retention and panel-box stability cycle.
 
 ## Real-Route Evidence
-- `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-starter-template.md`: confirmed authored runtime residue in the real document path:
+- Operator-provided Strybldr validation document: confirmed authored runtime residue in the real document path:
   - duplicated authored edge id `e1`,
   - authored `RichMediaPanel` runtime nodes `n1` and `n2`,
   - hardcoded `localhost` media URLs with `kg_media_token`,
   - runtime `cards:` payload overrides,
   - repeated broken guardrail lines at the end of the file.
-- `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-starter-template.md`: cleanup completed upstream so the starter template is runnable and neutral again.
+- Operator-provided Strybldr validation document: cleanup completed upstream so the starter template is runnable and neutral again.
 - `verify_storyboard_live_route_media_panel_retention.py`: canonical real-route verifier now injects the starter markdown on the normal Canvas route, creates one image panel and one video panel, verifies panel box stability during edge retention, reapplies the markdown SSOT, and proves transient panel/edge residue disappears.
 - `test:live:storyboard-media-panel-retention:browser`: exits `0` against the canonical real-route verifier.
 
