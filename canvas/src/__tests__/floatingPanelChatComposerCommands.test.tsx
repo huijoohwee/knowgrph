@@ -31,7 +31,7 @@ import type { UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStor
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 function readAgenticOsDictionaryEntries(fileName: string): string[] {
-  const text = readFileSync(resolve(process.cwd(), '../../huijoohwee/agentic-os-docs', fileName), 'utf8')
+  const text = readFileSync(resolve(process.cwd(), '../../agentic-canvas-os/docs', fileName), 'utf8')
   const match = /^dictionary_entries:\n((?:[ ]{2}- .+\n)+)/m.exec(text)
   if (!match) throw new Error(`expected ${fileName} to expose dictionary_entries frontmatter`)
   return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean)

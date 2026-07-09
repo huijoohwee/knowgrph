@@ -125,7 +125,7 @@ export const buildStoryboardTemplateProjectionFrontmatterLines = (args: {
     '  cloudflare: "blocked until operator instruction"',
     'agentic_os_contract:',
     '  version: "agentic-os-invocation-grammar/v1"',
-    '  docs_root: "huijoohwee/agentic-os-docs"',
+    '  docs_root: "agentic-canvas-os/docs"',
     '  slash_routes:',
     ...renderList('    ', CHAT_STORYBOARD_TEMPLATE_SLASH_ROUTES),
     '  semantic_routes:',

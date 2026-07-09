@@ -44,7 +44,7 @@ export type StoryboardWidgetRenderGraphLookup = {
 export type StoryboardWidgetOverlayEdgeGraphLookup = {
   graphSemanticKey: string
   graphMetaKind: string | null
-  nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }>
+  nodes: Array<{ id: unknown; metadata?: unknown; type?: unknown; properties?: unknown }>
   nodeIds: Set<string>
   defaultPortKeyByNodeId: Map<string, { in: string; out: string }>
   edgeCurveById: Map<string, { bend: number; orbitShift: number; orbital: boolean; phase: -1 | 1 } | null>
@@ -130,7 +130,7 @@ function readStoryboardWidgetGraphMetaKind(graph: GraphData | null | undefined):
 }
 
 function buildOverlayNodeHandleSignature(
-  nodes: ReadonlyArray<{ id?: unknown; type?: unknown; properties?: unknown }>,
+  nodes: ReadonlyArray<{ id?: unknown; metadata?: unknown; type?: unknown; properties?: unknown }>,
 ): string {
   if (!Array.isArray(nodes) || nodes.length === 0) return ''
   const parts = nodes
@@ -140,6 +140,7 @@ function buildOverlayNodeHandleSignature(
       return [
         id,
         String(node?.type || '').trim(),
+        hashRecordSignature32(node?.metadata || {}, { maxEntries: 24, maxDepth: 3 }),
         hashRecordSignature32(node?.properties || {}, { maxEntries: 24, maxDepth: 3 }),
       ].join(':')
     })
@@ -258,14 +259,14 @@ export function getCachedStoryboardWidgetOverlayEdgeGraph(args: {
   if (cached) return cached
 
   const overlayNodeIdSet = new Set<string>(overlayNodeIds)
-  const nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }> = []
+  const nodes: Array<{ id: unknown; metadata?: unknown; type?: unknown; properties?: unknown }> = []
   const nodeIds = new Set<string>()
   for (let i = 0; i < baseGraph.nodes.length; i += 1) {
     const node = baseGraph.nodes[i]
     const id = readCanonicalStoryboardWidgetOverlayIdentity(node?.id)
     if (!id || !canonicalNodeIdSetHas(overlayNodeIdSet, node?.id)) continue
     nodeIds.add(id)
-    nodes.push({ id, type: node?.type, properties: node?.properties })
+    nodes.push({ id, metadata: node?.metadata, type: node?.type, properties: node?.properties })
   }
 
   const defaultPortKeyByNodeId = new Map<string, { in: string; out: string }>()

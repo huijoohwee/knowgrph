@@ -1035,7 +1035,7 @@ export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
   const requiredSnippets = [
     `const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled`,
     `'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined`,
-    `'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? '1' : undefined`,
+    `'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? (props.canvasOverlayPinned === false ? '0' : '1') : undefined`,
     `'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined`,
     `'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined`,
   ]

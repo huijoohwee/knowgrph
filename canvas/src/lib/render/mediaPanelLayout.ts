@@ -1,4 +1,5 @@
 import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
+import { applyVectorPaintedOverlayBox } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 export type MediaPanelCssMetrics = {
@@ -293,13 +294,8 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1
   const display = resolvePanelBoxDisplay(el, args.display)
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const posSig = `transform|${left}|${top}|${scale}`
+  const posSig = `vector|${left}|${top}|${scale}`
   const sizeSig = `${display}|${z}|${w}|${h}`
-
-  if (display !== 'none') {
-    if (el.style.left !== '0px') el.style.left = '0px'
-    if (el.style.top !== '0px') el.style.top = '0px'
-  }
 
   const prevPosSig = BOX_POS_CACHE.get(el) || ''
   const prevSizeSig = BOX_SIZE_CACHE.get(el) || ''
@@ -317,10 +313,7 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   }
 
   if (display !== 'none' && prevPosSig !== posSig) {
-    el.style.transformOrigin = 'top left'
-    el.style.transform = scale === 1
-      ? `translate3d(${left}px, ${top}px, 0px)`
-      : `translate3d(${left}px, ${top}px, 0px) scale(${scale})`
+    applyVectorPaintedOverlayBox(el, { left, top, scale })
     BOX_POS_CACHE.set(el, posSig)
   }
 }

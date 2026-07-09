@@ -504,6 +504,8 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["dnd.flowWidgetDragPayload.applicationJsonFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromApplicationJsonFallback"],
   ["dnd.flowWidgetDragPayload.textPlainFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromTextPlainFallback"],
   ["dnd.flowWidgetDragPayload.uriListFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromUriListFallback"],
+  ["dnd.flowWidgetDragPayload.registryShape","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadCarriesRegistryShape"],
+  ["dnd.flowWidgetDragPayload.pointerReleaseEvent","@/__tests__/flowWidgetDrag.test","testFlowWidgetPointerDragDispatchesDropReleaseEvent"],
   ["io.widgetBundle.roundtrip.includesRegistryMetadata","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleRoundtripParsesWithRegistryMetadata"],
   ["io.widgetBundle.jsonTextHelper.usesSemanticCache","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleJsonTextHelperUsesSharedSemanticCache"],
   ["io.widgetBundle.jsonTextHelper.propagatesToExplicitExportPaths","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths"],

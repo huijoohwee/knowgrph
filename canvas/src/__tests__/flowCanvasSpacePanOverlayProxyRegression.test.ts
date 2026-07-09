@@ -1,5 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { JSDOM } from 'jsdom'
+
+import {
+  CANVAS_OVERLAY_PAN_OWNER_ATTR,
+  CANVAS_OVERLAY_PAN_OWNER_CANVAS,
+  isStoryboardWidgetOverlayControlTarget,
+  resolveStoryboardWidgetOverlayProxyTarget,
+  shouldUseCanvasOverlayBodyPan,
+} from '@/lib/canvas/storyboard-widget-overlay-proxy'
 
 export function testFlowCanvasSpacePanCanStartFromOverlay() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'listeners.ts')
@@ -90,12 +99,102 @@ export function testFlowCanvasOverlayBodyPanUsesViewportPanIntent() {
   if (!proxyText.includes('export const STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR')
     || !proxyText.includes('export function shouldUseCanvasOverlayBodyPan')
     || !proxyText.includes('isCanvasOverlayPanOwnedByCanvas(args.overlayRoot)')
-    || !proxyText.includes('isStoryboardWidgetOverlayControlTarget(args.target)')) {
+    || !proxyText.includes('isCanvasOverlayBodyPanBlockingTarget(args.target, args.overlayRoot)')) {
     throw new Error('expected shared overlay proxy to separate real controls from broad inline/media wrappers for canvas-owned body pan')
   }
   if (!text.includes("resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true && (overlayViewportPanIntent !== true || overlaySelectionDrag === true)")) {
     throw new Error('expected unpinned Storyboard Widget overlay body pan to proceed when overlay body viewport-pan intent is active')
   }
+}
+
+export function testFlowCanvasOverlayPointerIgnoreScrollSurfaceStaysInteractive() {
+  const dom = new JSDOM(
+    `<!doctype html><html><body>
+      <article ${CANVAS_OVERLAY_PAN_OWNER_ATTR}="${CANVAS_OVERLAY_PAN_OWNER_CANVAS}">
+        <section data-kg-overlay-body="1"></section>
+        <footer data-kg-canvas-pointer-ignore="true" data-kg-media-scroll-surface="1"></footer>
+      </article>
+    </body></html>`,
+    { url: 'http://localhost' },
+  )
+  const overlayRoot = dom.window.document.querySelector('article') as HTMLElement | null
+  const body = dom.window.document.querySelector('[data-kg-overlay-body="1"]') as HTMLElement | null
+  const footer = dom.window.document.querySelector('footer') as HTMLElement | null
+  if (!overlayRoot || !body || !footer) throw new Error('expected proxy test DOM to contain overlay body and footer surfaces')
+  if (!isStoryboardWidgetOverlayControlTarget(footer)) {
+    throw new Error('expected pointer-ignore media scroll surfaces to classify as overlay-local interactive controls')
+  }
+  if (shouldUseCanvasOverlayBodyPan({ target: footer, overlayRoot })) {
+    throw new Error('expected pointer-ignore footer scroll surfaces not to start canvas-owned overlay body pan')
+  }
+  if (!shouldUseCanvasOverlayBodyPan({ target: body, overlayRoot })) {
+    throw new Error('expected non-interactive canvas-owned overlay body surfaces to retain viewport pan intent')
+  }
+}
+
+export function testFlowCanvasRichMediaScrollBodyUsesCanvasOwnedPan() {
+  const dom = new JSDOM(
+    `<!doctype html><html><body>
+      <main data-canvas-root="1" data-kg-storyboard-widget-surface-root="storyboard"></main>
+      <section
+        data-node-id="rich-media-node"
+        data-kg-rich-media-overlay="1"
+        data-kg-storyboard-widget-mode="1"
+        data-kg-storyboard-widget-surface="storyboard"
+        data-kg-overlay-pan-owner="canvas"
+        data-kg-canvas-overlay-pinned="0"
+      >
+        <section data-kg-media-scroll-surface="1">
+          <p id="body">Generated output body</p>
+          <button id="button">Run</button>
+          <section id="editor" data-kg-rich-media-inline-edit="1">Edit</section>
+        </section>
+      </section>
+    </body></html>`,
+    { url: 'http://localhost' },
+  )
+  const document = dom.window.document
+  const canvasEl = document.querySelector('[data-canvas-root="1"]') as HTMLElement | null
+  const overlayRoot = document.querySelector('[data-kg-rich-media-overlay="1"]') as HTMLElement | null
+  const body = document.querySelector('#body') as HTMLElement | null
+  const button = document.querySelector('#button') as HTMLElement | null
+  const editor = document.querySelector('#editor') as HTMLElement | null
+  if (!canvasEl || !overlayRoot || !body || !button || !editor) throw new Error('expected Rich Media proxy test DOM to contain canvas, overlay, body, and controls')
+
+  if (!isStoryboardWidgetOverlayControlTarget(body)) {
+    throw new Error('expected generic Storyboard overlay controls to keep media scroll surfaces local for widget cards')
+  }
+  if (!shouldUseCanvasOverlayBodyPan({ target: body, overlayRoot })) {
+    throw new Error('expected canvas-owned Rich Media scroll bodies to retain shared body-drag ownership')
+  }
+  if (shouldUseCanvasOverlayBodyPan({ target: button, overlayRoot })) {
+    throw new Error('expected Rich Media buttons to stay local controls')
+  }
+  if (shouldUseCanvasOverlayBodyPan({ target: editor, overlayRoot })) {
+    throw new Error('expected Rich Media inline editors to stay local controls')
+  }
+
+  const globalDom = globalThis as typeof globalThis & { Element?: typeof Element; HTMLElement?: typeof HTMLElement }
+  const previousElement = globalDom.Element
+  const previousHTMLElement = globalDom.HTMLElement
+  globalDom.Element = dom.window.Element
+  globalDom.HTMLElement = dom.window.HTMLElement
+  const resolved = (() => {
+    try {
+      return resolveStoryboardWidgetOverlayProxyTarget({
+        target: body,
+        canvasEl,
+        storyboardWidgetSurfaceId: 'storyboard',
+      })
+    } finally {
+      if (previousElement) globalDom.Element = previousElement
+      else delete globalDom.Element
+      if (previousHTMLElement) globalDom.HTMLElement = previousHTMLElement
+      else delete globalDom.HTMLElement
+    }
+  })()
+  if (resolved.kind !== 'overlay') throw new Error('expected Rich Media body target to resolve to overlay proxy')
+  if (resolved.isInteractive) throw new Error('expected Rich Media body pan target not to resolve as a local interactive control')
 }
 
 export function testFlowCanvasStoryboardWidgetCanvasPanMovesNativeAndOverlaySurfaces() {

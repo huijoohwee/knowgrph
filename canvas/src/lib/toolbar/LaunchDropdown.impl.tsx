@@ -1,9 +1,10 @@
 import React from 'react'
-import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Image as ImageIcon, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, CloudDownload, FilePlus2, FolderOpen, FolderPlus, Image as ImageIcon, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { createNewMarkdownSourceFile } from '@/features/source-files/createNewMarkdownSourceFile'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import {
@@ -19,6 +20,7 @@ import { importLocalImagesWithWorkspaceBridgeRetry } from './launchImageImportBr
 import { LaunchDropdownImportUrlItem } from './LaunchDropdownImportUrlItem'
 import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
 import { runLaunchImportLocalFiles } from './launchImportDispatch'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
@@ -118,6 +120,27 @@ export function LaunchDropdown({
     const mod = await loadLaunchDropdownFallbackModule()
     await mod.createNewFolderFallback({ pushUiToast })
   }, [pushUiToast])
+
+  const createNewMarkdownFile = React.useCallback(async () => {
+    onClose()
+    try {
+      const createdPath = await createNewMarkdownSourceFile()
+      pushUiToast({
+        id: 'launch:new-markdown-file',
+        kind: 'success',
+        message: `Created ${createdPath}`,
+        ttlMs: UI_TOAST_TTL_MS.actionFeedback,
+      })
+    } catch (e) {
+      pushUiToast({
+        id: 'launch:new-markdown-file',
+        kind: 'error',
+        message: `New .md failed: ${String((e as { message?: unknown })?.message ?? e)}`,
+        ttlMs: UI_TOAST_TTL_MS.warningExtended,
+        dismissible: true,
+      })
+    }
+  }, [onClose, pushUiToast])
 
   const menuItemClass = cn(
     UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME,
@@ -339,6 +362,19 @@ export function LaunchDropdown({
             open={open}
             pushUiToast={pushUiToast}
           />
+
+          <li className="list-none">
+            <button
+              type="button"
+              className={menuItemClass}
+              onClick={() => {
+                void createNewMarkdownFile()
+              }}
+            >
+              <FilePlus2 className={menuIconClass} strokeWidth={1.6} />
+              <span className="truncate">New .md</span>
+            </button>
+          </li>
 
           <li className="list-none">
             <button

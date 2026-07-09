@@ -2,6 +2,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import {
+  readWorkspaceDocsMirrorRootPathSetting,
+  writeWorkspaceDocsMirrorRootPathSetting,
+} from '@/lib/workspace/workspaceStoreSyncSettings'
+import {
+  CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME,
+  CARE_AGENT_RUN_READY_DEMO_ID,
+  WORKSPACE_RUN_READY_DEMO_ENV,
+  resolveWorkspaceRunReadyDemoSeed,
+  resolveWorkspaceValidationSeedRelPath,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
 import {
   AGENTIC_OS_BINDING_INVOCATIONS,
   AGENTIC_OS_COMMAND_INVOCATIONS,
@@ -12,7 +24,9 @@ type PlainRecord = Record<string, unknown>
 
 const GITHUB_ROOT = path.resolve(process.cwd(), '..', '..')
 const CARE_AGENT_DOC_PATH = path.join(GITHUB_ROOT, 'huijoohwee', 'docs', 'knowgrph-care-agent-demo.md')
+const CARE_AGENT_DOCS_ROOT = path.dirname(CARE_AGENT_DOC_PATH)
 const RUNTIME_READY_TEST_ID = 'docs.careAgentDemo.runtimeReady'
+const RUN_READY_MODE_TEST_ID = 'docs.careAgentDemo.runReadyMode'
 
 const isRecord = (value: unknown): value is PlainRecord => (
   value != null && typeof value === 'object' && !Array.isArray(value)
@@ -74,6 +88,12 @@ const assertZeroCostRecord = (record: PlainRecord, label: string): void => {
   }
 }
 
+const assertTrueFlags = (record: PlainRecord, label: string, flags: string[]): void => {
+  for (const flag of flags) {
+    if (record[flag] !== true) throw new Error(`expected ${label}.${flag}=true, got ${String(record[flag])}`)
+  }
+}
+
 export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   const { markdownText, meta } = readCareAgentDoc()
 
@@ -91,6 +111,17 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   assertZeroCostRecord(runtimeDefaults, 'runtime_defaults')
   if (runtimeDefaults.provider_job_id !== '' || runtimeDefaults.live_result_url !== '') {
     throw new Error('expected live provider fields to stay blank until operator-approved returned evidence exists')
+  }
+
+  const runReadyDemo = asRecord(meta.run_ready_demo, 'run_ready_demo')
+  if (
+    runReadyDemo.id !== CARE_AGENT_RUN_READY_DEMO_ID
+    || runReadyDemo.env_selector !== `${WORKSPACE_RUN_READY_DEMO_ENV}=care-agent`
+    || runReadyDemo.validation_seed_path !== `/${CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME}`
+    || runReadyDemo.clean_canvas_recommended !== true
+    || runReadyDemo.source_backed !== true
+  ) {
+    throw new Error(`expected care-agent run-ready demo metadata to match the shared seed selector, got ${JSON.stringify(runReadyDemo)}`)
   }
 
   const probeTreeRuntime = asRecord(meta.probe_tree_runtime, 'probe_tree_runtime')
@@ -116,9 +147,18 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   if (probeProof.generate_mutates_graph !== false || probeProof.select_writes_type_probe_node !== true) {
     throw new Error(`expected probe-tree proof to preserve generate/select mutation contract, got ${JSON.stringify(probeProof)}`)
   }
-  if (probeProof.select_frontmatter_flow_canvas_sync !== true || probeProof.token_budget_ceiling_enforced !== true) {
-    throw new Error(`expected probe-tree proof to include canvas sync and token-budget checks, got ${JSON.stringify(probeProof)}`)
-  }
+  assertTrueFlags(probeProof, 'probe_tree_runtime.proof', [
+    'explicit_zero_recall_verified',
+    'select_frontmatter_flow_canvas_sync',
+    'select_cost_log_verified',
+    'evolve_writes_memory_exemplar',
+    'evolve_reports_incomplete_parent_path',
+    'evolve_cost_log_verified',
+    'process_descriptors_non_idempotent',
+    'semantic_frontmatter_keys_verified',
+    'clean_room_generate_select_evolve_verified',
+    'token_budget_ceiling_enforced',
+  ])
   if (probeProof.native_checkpointer_datastore !== false || probeProof.paid_call_count !== 0) {
     throw new Error(`expected probe-tree proof to avoid second datastore and paid calls, got ${JSON.stringify(probeProof)}`)
   }
@@ -134,6 +174,9 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   const bounds = asRecord(harness.bounds, 'care_agent_harness.bounds')
   if (bounds.max_iterations !== 1 || !String(bounds.circuit_breaker || '').includes('validation failure')) {
     throw new Error(`expected bounded one-pass local harness, got ${JSON.stringify(bounds)}`)
+  }
+  for (const expected of ['recall_top_k=0', 'cost_log', 'non-idempotent process tools']) {
+    if (!markdownText.includes(expected)) throw new Error(`expected care-agent body to document Probe-Tree runtime-ready proof term ${expected}`)
   }
 
   const safetyPolicy = asRecord(meta.safety_policy, 'safety_policy')
@@ -173,9 +216,26 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
 
   const runtimeProof = asRecord(meta.runtime_proof, 'runtime_proof')
   if (runtimeProof.status !== 'runtime-ready') throw new Error(`expected runtime_proof.status runtime-ready, got ${String(runtimeProof.status)}`)
+  assertTrueFlags(runtimeProof, 'runtime_proof', [
+    'probe_tree_canvas_sync_verified',
+    'probe_tree_token_budget_verified',
+    'probe_tree_zero_recall_verified',
+    'probe_tree_cost_logs_verified',
+    'probe_tree_non_idempotent_descriptors_verified',
+    'probe_tree_semantic_frontmatter_keys_verified',
+    'probe_tree_clean_room_smoke_verified',
+    'dictionary_routes_verified',
+    'semantic_html_verified',
+    'zero_cost_local_harness_verified',
+    'safety_gates_verified',
+    'live_provider_fields_blank',
+  ])
   const checks = asStringArray(runtimeProof.focused_checks, 'runtime_proof.focused_checks')
   if (!checks.includes(RUNTIME_READY_TEST_ID)) {
     throw new Error(`expected runtime_proof.focused_checks to include ${RUNTIME_READY_TEST_ID}`)
+  }
+  if (!checks.includes(RUN_READY_MODE_TEST_ID)) {
+    throw new Error(`expected runtime_proof.focused_checks to include ${RUN_READY_MODE_TEST_ID}`)
   }
   if (!checks.includes('mcp.probeTree.runtime')) {
     throw new Error('expected runtime_proof.focused_checks to include mcp.probeTree.runtime')
@@ -185,6 +245,9 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   }
   if (runtimeProof.prod_mirror_mutated !== false || runtimeProof.cloudflare_deploy_mutated !== false) {
     throw new Error(`expected runtime proof to preserve deploy boundary, got ${JSON.stringify(runtimeProof)}`)
+  }
+  if (/- \[ \]/.test(markdownText)) {
+    throw new Error('expected care-agent runtime-ready acceptance checklist to be fully checked after focused proof is surfaced')
   }
 
   const forbidden = [
@@ -200,5 +263,92 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   ]
   for (const pattern of forbidden) {
     if (pattern.test(markdownText)) throw new Error(`expected care-agent runtime-ready doc to avoid forbidden pattern ${pattern.source}`)
+  }
+}
+
+export async function testCareAgentDemoRunReadyModeLoadsSourceBackedCleanCanvasSeed() {
+  const demoSeed = resolveWorkspaceRunReadyDemoSeed(CARE_AGENT_RUN_READY_DEMO_ID)
+  if (!demoSeed) throw new Error('expected care-agent run-ready demo seed to be registered')
+  if (demoSeed.validationSeedRelPath !== CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME) {
+    throw new Error(`expected care-agent validation seed basename, got ${demoSeed.validationSeedRelPath}`)
+  }
+  if (demoSeed.sourceRoot !== 'huijoohwee/docs' || demoSeed.cleanCanvasRecommended !== true) {
+    throw new Error(`expected care-agent demo to remain source-backed and clean-canvas-ready, got ${JSON.stringify(demoSeed)}`)
+  }
+
+  const selectedByDemo = resolveWorkspaceValidationSeedRelPath({
+    explicitRelPath: '',
+    runReadyDemoId: CARE_AGENT_RUN_READY_DEMO_ID,
+    defaultRelPath: 'docs/workspace-seeds/fallback.md',
+  })
+  if (selectedByDemo !== CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME) {
+    throw new Error(`expected care-agent demo mode to select the care-agent seed, got ${selectedByDemo}`)
+  }
+
+  const selectedByExplicitOverride = resolveWorkspaceValidationSeedRelPath({
+    explicitRelPath: 'docs/operator-owned.md',
+    runReadyDemoId: CARE_AGENT_RUN_READY_DEMO_ID,
+    defaultRelPath: 'docs/workspace-seeds/fallback.md',
+  })
+  if (selectedByExplicitOverride !== 'docs/operator-owned.md') {
+    throw new Error(`expected explicit validation seed path to win over demo mode, got ${selectedByExplicitOverride}`)
+  }
+  const envBridgeText = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'config.env.ts'), 'utf8')
+  if (!envBridgeText.includes(WORKSPACE_RUN_READY_DEMO_ENV)) {
+    throw new Error(`expected browser env bridge to expose ${WORKSPACE_RUN_READY_DEMO_ENV}`)
+  }
+
+  const previousDocsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousDocsRootSetting = readWorkspaceDocsMirrorRootPathSetting()
+  const previousFetch = globalThis.fetch
+  process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = CARE_AGENT_DOCS_ROOT
+  writeWorkspaceDocsMirrorRootPathSetting(CARE_AGENT_DOCS_ROOT)
+  try {
+    const sourceText = fs.readFileSync(CARE_AGENT_DOC_PATH, 'utf8')
+    const proxyRequests: string[] = []
+    ;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(typeof input === 'string' ? input : (input as URL).toString())
+      if (url !== '/__kg_fs_list') return new Response('', { status: 404 })
+      const body = JSON.parse(String(init?.body || '{}')) as { path?: unknown }
+      const requestedPath = String(body.path || '').trim()
+      proxyRequests.push(requestedPath)
+      if (requestedPath !== CARE_AGENT_DOCS_ROOT) {
+        return new Response(JSON.stringify({ ok: true, files: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        files: [{
+          relPath: demoSeed.validationSeedRelPath,
+          text: sourceText,
+          updatedAtMs: 1710000000000,
+        }],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+    const mirroredEntries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const demoEntry = mirroredEntries.find(entry => entry.relPath === demoSeed.validationSeedRelPath) || null
+    if (!demoEntry || demoEntry.text !== sourceText) {
+      throw new Error(`expected care-agent demo mode to load the sibling docs source through the docs mirror proxy; docsRoot=${readWorkspaceDocsMirrorRootPathSetting()} requests=${JSON.stringify(proxyRequests)}`)
+    }
+    const parsed = tryParseMarkdownFrontmatterFlowGraph(demoSeed.validationSeedRelPath, demoEntry.text)
+    if (!parsed) throw new Error('expected care-agent demo seed to parse as a clean-canvas frontmatter-flow document')
+    const graphNodeIds = new Set(parsed.graphData.nodes.map(node => String(node.id || '')))
+    for (const id of ['care_source', 'care_probe', 'care_canvas', 'care_validation']) {
+      if (!graphNodeIds.has(id)) throw new Error(`expected run-ready demo seed graph to include ${id}`)
+    }
+  } finally {
+    if (previousFetch) {
+      ;(globalThis as unknown as { fetch: typeof fetch }).fetch = previousFetch
+    } else {
+      delete (globalThis as unknown as { fetch?: typeof fetch }).fetch
+    }
+    writeWorkspaceDocsMirrorRootPathSetting(previousDocsRootSetting)
+    if (typeof previousDocsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   }
 }

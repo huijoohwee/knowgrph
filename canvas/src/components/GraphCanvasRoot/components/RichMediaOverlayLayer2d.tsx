@@ -286,6 +286,7 @@ export function RichMediaOverlayLayer2d(props: {
               openUrl={n.openUrl}
               kind={kind}
               panelChrome="storyboardWidget"
+              canvasOverlayPinned={richMediaPanelPinned}
               {...headerPinProps}
               interactive={resolveRichMediaPanelInteractive({
                 nodeInteractive: n.interactive,

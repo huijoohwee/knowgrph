@@ -308,20 +308,20 @@ export async function testMarkdownPreviewViewerMediaDefaultsToInlineChip() {
     }
     const slashInvocationChip = container.querySelector('a[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="/runtime-ready.check"]') as HTMLAnchorElement | null
     if (!slashInvocationChip) throw new Error(`expected Agentic OS / invocation chip to render as functional source link, html=${container.innerHTML}`)
-    if (!slashInvocationChip.href.includes('https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs/DICTIONARY-COMMAND.md')) {
+    if (!slashInvocationChip.href.includes('https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-COMMAND.md')) {
       throw new Error(`expected Agentic OS / invocation chip to link to command dictionary source, got ${slashInvocationChip.href}`)
     }
-    if (!slashInvocationChip.getAttribute('title')?.includes('Source: https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs/DICTIONARY-COMMAND.md')) {
+    if (!slashInvocationChip.getAttribute('title')?.includes('Source: https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-COMMAND.md')) {
       throw new Error(`expected Agentic OS / invocation chip to expose hover source, got ${JSON.stringify(slashInvocationChip.outerHTML)}`)
     }
     const hashInvocationChip = container.querySelector('a[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="#frontmatter"]') as HTMLAnchorElement | null
     if (!hashInvocationChip) throw new Error(`expected Agentic OS # invocation chip to render as functional source link, html=${container.innerHTML}`)
-    if (!hashInvocationChip.href.includes('https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs/DICTIONARY-SEMANTIC.md')) {
+    if (!hashInvocationChip.href.includes('https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-SEMANTIC.md')) {
       throw new Error(`expected Agentic OS # invocation chip to link to semantic dictionary source, got ${hashInvocationChip.href}`)
     }
     const bindingInvocationChip = container.querySelector('a[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="@operator"]') as HTMLAnchorElement | null
     if (!bindingInvocationChip) throw new Error(`expected Agentic OS @ invocation chip to render as functional source link, html=${container.innerHTML}`)
-    if (!bindingInvocationChip.href.includes('https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs/DICTIONARY-BINDING.md')) {
+    if (!bindingInvocationChip.href.includes('https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-BINDING.md')) {
       throw new Error(`expected Agentic OS @ invocation chip to link to binding dictionary source, got ${bindingInvocationChip.href}`)
     }
     const inlineCodeSlashInvocationChip = Array.from(container.querySelectorAll('a[data-kg-agentic-os-invocation-chip="1"][data-kg-agentic-os-invocation-token="/memory.seed"]') as NodeListOf<HTMLAnchorElement>)

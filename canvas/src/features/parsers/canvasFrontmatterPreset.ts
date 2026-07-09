@@ -56,6 +56,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
   const readFloatingPanelView = (value: unknown): FloatingPanelView | undefined => {
     const raw = String(value || '').trim()
     return raw === 'propsPanel' ||
+      raw === 'skillsCommands' ||
       raw === 'view' ||
       raw === 'media' ||
       raw === 'camera' ||

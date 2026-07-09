@@ -2,7 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_ANCHORS, UI_COPY } from '@/lib/config'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
-import MainPanelGraphFieldsHeader from '@/features/panels/ui/MainPanelGraphFieldsHeader'
+import MainPanelGraphFieldsHeader, { type MainPanelGraphFieldsLegendEntry } from '@/features/panels/ui/MainPanelGraphFieldsHeader'
 import {
   AGENTIC_RAG_FIELD_KIND_META,
   getAgenticRagFieldKind,
@@ -113,7 +113,7 @@ export default function GraphFieldsView({
     return merged
   }, [derivedFields, graphData, settingsById])
 
-  const agenticLegend = React.useMemo(() => {
+  const agenticLegend = React.useMemo<ReadonlyArray<MainPanelGraphFieldsLegendEntry> | null>(() => {
     const kinds = new Set<string>()
     for (const field of fields) {
       const kind = getAgenticRagFieldKind(field)
@@ -121,12 +121,12 @@ export default function GraphFieldsView({
       kinds.add(kind)
     }
     if (kinds.size === 0) return null
-    const entries: string[] = []
-    if (kinds.has('chunk_text')) entries.push(AGENTIC_RAG_FIELD_KIND_META.chunk_text.legendLabel)
-    if (kinds.has('embedding')) entries.push(AGENTIC_RAG_FIELD_KIND_META.embedding.legendLabel)
-    if (kinds.has('media_url')) entries.push(AGENTIC_RAG_FIELD_KIND_META.media_url.legendLabel)
-    if (kinds.has('graphRAGPath')) entries.push(AGENTIC_RAG_FIELD_KIND_META.graphRAGPath.legendLabel)
-    return entries
+    return Object.entries(AGENTIC_RAG_FIELD_KIND_META)
+      .filter(([kind]) => kinds.has(kind))
+      .map(([kind, meta]) => ({
+        kind: kind as MainPanelGraphFieldsLegendEntry['kind'],
+        label: meta.legendLabel,
+      }))
   }, [fields])
 
   const normalizedQuery = normalized(searchQuery).trim()

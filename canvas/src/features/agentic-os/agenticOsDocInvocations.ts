@@ -1,3 +1,5 @@
+export const KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID = 'knowgrph.probe-tree' as const
+
 export type AgenticOsDocInvocationId =
   | 'agentic-os'
   | 'agentic-os.agents'
@@ -12,7 +14,7 @@ export type AgenticOsDocInvocationId =
   | 'agentic-os.harness'
   | 'agentic-os.mcp-gateway'
   | 'agentic-os.validation'
-  | 'knowgrph.probe-tree'
+  | typeof KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID
 
 export type AgenticOsDocInvocation = {
   id: AgenticOsDocInvocationId
@@ -40,7 +42,7 @@ export type AgenticOsDictionaryInvocation = {
   keywords: readonly string[]
 }
 
-export const AGENTIC_OS_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/huijoohwee/blob/main/agentic-os-docs'
+export const AGENTIC_OS_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs'
 export const KNOWGRPH_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/knowgrph/blob/main/docs/documents'
 
 const buildAgenticOsDocSourceUrl = (fileName: string): string => (
@@ -159,7 +161,7 @@ export const AGENTIC_OS_DOC_INVOCATIONS: readonly AgenticOsDocInvocation[] = [
     keywords: ['validation', 'runbook', 'tests', 'regression'],
   }),
   buildAgenticOsDocInvocation({
-    id: 'knowgrph.probe-tree',
+    id: KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID,
     fileName: 'knowgrph-probe-tree-prd-tad.md',
     label: 'Knowgrph Probe-Tree PRD/TAD',
     summary: 'Invoke the runtime-ready local probe-tree PRD/TAD, MCP harness, and markdown graph contract.',

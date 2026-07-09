@@ -109,7 +109,8 @@ export function testStoryboardWidgetFrontmatterManualPlacementAuthorityUsesShare
     throw new Error('expected frontmatter screen-authority placement to project visible zoom layout from a non-mutating screen-layout baseline')
   }
   if (!overlayPlacementRuntimeText.includes('const pos = posBaseForViewport')
-    || !overlayPlacementRuntimeText.includes('const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? floatingScreenAuthorityScale ?? panelScale')) {
+    || !overlayPlacementRuntimeText.includes('const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? panelScale')
+    || !overlayPlacementRuntimeText.includes('const appliedPanelScale = floatingScreenAuthorityScale ?? effectivePanelScale')) {
     throw new Error('expected frontmatter screen-authority placement to keep scale and projected screen position inside its placement owner')
   }
   if (!overlayPlacementRuntimeText.includes('const floatingScreenAuthorityScale = floatingRef.current && floatingUsesScreenAuthority && !frontmatterManagedNode')

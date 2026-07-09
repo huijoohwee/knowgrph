@@ -7,6 +7,9 @@ export function assertStoryboard2dMediaDropContract() {
   const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
+  const graphStoryboardMediaDropGraphSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph.ts', import.meta.url), 'utf8')
+  const graphStoryboardOverlayEdgesSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlayEdges.ts', import.meta.url), 'utf8')
+  const graphStoryboardOverlayEdgeAnchorsSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors.ts', import.meta.url), 'utf8')
   const mediaDragPayloadSource = readFileSync(new URL('../lib/ui/mediaDragPayload.ts', import.meta.url), 'utf8')
   const flowCanvasGraphStateSource = readFileSync(new URL('../components/FlowCanvas/useFlowCanvasGraphState.ts', import.meta.url), 'utf8')
   const flowCanvasMediaOverlaysSource = readFileSync(new URL('../components/FlowCanvas/FlowCanvasMediaOverlays.tsx', import.meta.url), 'utf8')
@@ -194,9 +197,8 @@ export function assertStoryboard2dMediaDropContract() {
     'const displayMedia = pendingMedia || card.media',
     'buildStoryboardInlineMediaCommandContext',
     'markdownCommandContextText={storyboardCommandContextText}',
-    'buildInlineMediaCommandChipMarkdown',
-    'const summaryDisplayValue = buildStoryboardSummaryDisplayValue',
-    'value={summaryDisplayValue}',
+    'mediaCommandMode="external"',
+    "value={rows[0] || card.slugline || ''}",
     'buildInlineMediaCommandDragPayload',
     'const applyInlineMediaCommandToCard = React.useCallback',
     'onDropMedia(card, payload)',
@@ -225,16 +227,31 @@ export function assertStoryboard2dMediaDropContract() {
     'mediaThumbnailDataAttr',
     'onDropMedia',
     'setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })',
+    'applyStoryboardCardMediaDropGraph',
+    'setGraphDataPreservingLayout(nextGraph.graphData)',
   ]) {
     if (!graphStoryboardCardOverlaySource.includes(snippet)) {
       throw new Error(`expected Storyboard media drop owner to retain snippet: ${snippet}`)
     }
   }
+  for (const forbiddenSnippet of [
+    'buildInlineMediaCommandChipMarkdown',
+    'buildStoryboardSummaryDisplayValue',
+    'readStoryboardMediaChipMarkdown',
+    'value={summaryDisplayValue}',
+  ]) {
+    if (graphStoryboardCardOverlaySource.includes(forbiddenSnippet)) {
+      throw new Error(`expected Storyboard card summary to avoid generated inline media mutation: ${forbiddenSnippet}`)
+    }
+  }
+  if (!graphStoryboardCardOverlaySource.includes('readStoryboardCardSummaryText(nextValue)')) {
+    throw new Error('expected Storyboard card summary writeback to strip inline media embeds before commit')
+  }
 
   const overlayDropMediaIndex = graphStoryboardMediaDropHookSource.indexOf('const dropCardMedia = React.useCallback')
   const overlayDropGraphPatchIndex = graphStoryboardMediaDropHookSource.indexOf('const nextProperties = buildNodeMediaProperties({', overlayDropMediaIndex)
   const overlayDropMarkdownMirrorIndex = graphStoryboardMediaDropHookSource.indexOf('const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({', overlayDropMediaIndex)
-  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout({', overlayDropMediaIndex)
+  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraph.graphData)', overlayDropMediaIndex)
   if (overlayDropMediaIndex < 0 || overlayDropGraphPatchIndex < overlayDropMediaIndex || overlayDropMarkdownMirrorIndex < overlayDropGraphPatchIndex || overlayDropGraphCommitIndex < overlayDropMarkdownMirrorIndex) {
     throw new Error('expected fixed Storyboard card media drops to build and commit visible graph media while mirroring Markdown secondarily')
   }
@@ -248,6 +265,46 @@ export function assertStoryboard2dMediaDropContract() {
   const overlayPendingMediaIndex = graphStoryboardMediaDropHookSource.indexOf('setPendingMediaByCardId(current => ({', overlayDropMediaIndex)
   if (overlayPendingMediaIndex < overlayDropMediaIndex || overlayPendingMediaIndex > overlayDropGraphPatchIndex) {
     throw new Error('expected fixed Storyboard card media drops to publish an immediate pending media preview before graph/Markdown commit work')
+  }
+  for (const snippet of [
+    'findReusableMediaPanelEdge',
+    'CARD_MEDIA_DROP_EDGE_TARGET_PORT = \'mediaUrl\'',
+    'CARD_MEDIA_DROP_PANEL_X_OFFSET = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 3)',
+    'readCardMediaDropPanelPlacement',
+    'isDropOwnedPanelNodeForCard',
+    'isCardMediaTargetEdge',
+    'isStoryboardCardMediaDropEdge',
+    'isStoryboardCardMediaDropOverlayEdge',
+    'buildRichMediaPanelDroppedMediaProperties',
+    'finalizeEdgeAuthoring',
+    '[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true',
+    'fx: panelPlacement.x',
+    '[FLOW_EDGE_SOURCE_PORT_KEY]: args.sourcePort',
+    '[FLOW_EDGE_TARGET_PORT_KEY]: CARD_MEDIA_DROP_EDGE_TARGET_PORT',
+    '[CARD_MEDIA_DROP_EDGE_KEY]: true',
+  ]) {
+    if (!graphStoryboardMediaDropGraphSource.includes(snippet)) {
+      throw new Error(`expected Storyboard card media drops to create and reuse inbound Rich Media Panel edges: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'isStoryboardCardMediaDropOverlayEdge(rawEdge, overlayNodeById.get(source) || null, target)',
+    'readStoryboardOutputCardLeftSideAnchors({ sourceCardRect: tRect, outputCardRect: sRect })',
+    'buildStoryboardOverlayEdgePathD({ outputCardLeftSide: !!semanticCardMediaOutputAnchors',
+  ]) {
+    if (!graphStoryboardOverlayEdgesSource.includes(snippet)) {
+      throw new Error(`expected Storyboard overlay media edges to use semantic nearest-side anchors: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'readNearestStoryboardOverlayAnchorSide',
+    'readStoryboardOverlayRectSideAnchor',
+    'readStoryboardOutputCardLeftSideAnchors',
+    'buildStoryboardOutputCardLeftSidePath',
+  ]) {
+    if (!graphStoryboardOverlayEdgeAnchorsSource.includes(snippet)) {
+      throw new Error(`expected Storyboard overlay edge anchor geometry to stay in the shared helper: ${snippet}`)
+    }
   }
   if (/<RichMediaPanel\b/.test(graphStoryboardCardOverlaySource)) {
     throw new Error('expected fixed Storyboard card media slots to render raw CardMediaPreview media, not RichMediaPanel chrome')

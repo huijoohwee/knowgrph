@@ -389,26 +389,22 @@ export function useRichMediaPanelSurfaceState(
   }
   const iframeSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
     background: 'transparent',
-    backfaceVisibility: 'hidden',
     border: 0,
     borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
     display: 'block',
     height: '100%',
     pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
     touchAction: 'auto',
-    WebkitBackfaceVisibility: 'hidden',
     width: '100%',
   }), [allowPanelContentPointerEvents, forwardingEnabled])
   const buildDirectMediaStyle = React.useCallback((display: 'block' | 'flex', background: string): React.CSSProperties => ({
     background,
-    backfaceVisibility: 'hidden',
     border: 0,
     borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
     display,
     height: '100%',
     pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
     position: 'relative',
-    WebkitBackfaceVisibility: 'hidden',
     width: '100%',
   }), [allowPanelContentPointerEvents, forwardingEnabled])
   const inlineSrcDocSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
@@ -461,7 +457,7 @@ export function useRichMediaPanelSurfaceState(
   ].filter(Boolean).join(' ')
   const rootAttributes = {
     'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined,
-    'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? '1' : undefined,
+    'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? (props.canvasOverlayPinned === false ? '0' : '1') : undefined,
     'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined,
     'data-kg-overlay-pan-owner': canvasOverlayPanOwnedByCollective ? 'canvas' : undefined,
     'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined,

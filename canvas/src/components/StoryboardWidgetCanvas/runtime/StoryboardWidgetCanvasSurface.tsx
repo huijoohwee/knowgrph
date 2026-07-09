@@ -3,7 +3,7 @@ import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiv
 import FlowCanvas from '@/components/FlowCanvas'
 import { StoryboardCardOverlayLayer2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-import { filterGraphByExcludedNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { deriveStoryboardCanvasRichMediaPanelNodeIds, filterGraphByExcludedNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
@@ -61,6 +61,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   beginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
   cancelPendingEdge: () => void
   finalizePendingEdge: (nodeId: string, portKey?: string | null) => void
+  runWorkflowNode: (nodeId: string) => Promise<void> | void
   inspectorPortalHost: HTMLElement | null
   inspectorElement: React.ReactNode
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
@@ -133,10 +134,14 @@ export default function StoryboardWidgetCanvasSurface(props: {
       nodeById,
       candidateRawIds: explicitOpenWidgetNodeIds,
     })
+    const storyboardCanvasRichMediaPanelNodeIds = storyboardCardsActive
+      ? deriveStoryboardCanvasRichMediaPanelNodeIds(storyboardGraphData)
+      : []
     const hiddenNodeIds = new Set<string>(fixedCardNodeIds)
     for (const id of openRichMediaPanelNodeIds) hiddenNodeIds.add(id)
+    for (const id of storyboardCanvasRichMediaPanelNodeIds) hiddenNodeIds.add(id)
     return Array.from(hiddenNodeIds)
-  }, [graphContentRevision, graphDataRevision, props.openWidgetNodeIds, props.widgetRegistry, storyboardSharedSurfaceActive, storyboardGraphData])
+  }, [graphContentRevision, graphDataRevision, props.openWidgetNodeIds, props.widgetRegistry, storyboardCardsActive, storyboardSharedSurfaceActive, storyboardGraphData])
   const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {
     const flowCanvasGraphDataOverride = storyboardSharedSurfaceActive ? storyboardGraphData : props.renderGraphDataOverride
     return flowCanvasGraphDataOverride
@@ -149,6 +154,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
       excludedNodeIds: storyboardHiddenNodeIds,
     })
   }, [readFlowCanvasBaseGraphDataOverride, storyboardHiddenNodeIds, storyboardSharedSurfaceActive])
+  const storyboardEdgeGraphData = storyboardSharedSurfaceActive ? storyboardGraphData : flowCanvasGraphDataOverride
   const flowCanvasHiddenNodeIds = storyboardSharedSurfaceActive ? storyboardHiddenNodeIds : undefined
   const storyboardSurfaceGraphSignature = React.useMemo(() => {
     return [
@@ -178,7 +184,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     storyboardHiddenNodeIds,
     storyboardSurfaceGraphSignature,
   ])
-  useStoryboardEdgeCreationRequest({ active: storyboardCardsActive, beginEdge: props.beginAddEdgeFromNode, graphData: flowCanvasGraphDataOverride })
+  useStoryboardEdgeCreationRequest({ active: storyboardCardsActive, beginEdge: props.beginAddEdgeFromNode, graphData: storyboardEdgeGraphData })
   useStoryboardSharedSurfacePan({
     active: props.active,
     emitInteractionFrame: props.emitStoryboardWidgetInteractionFrame,
@@ -361,7 +367,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     >
       <StoryboardWidgetOverlayPortHandleProvider
         active={props.canEdit}
-        graphData={flowCanvasGraphDataOverride}
+        graphData={storyboardEdgeGraphData}
         pendingEdgeSourceId={props.pendingEdgeSourceId}
         registryEntries={props.widgetRegistry}
         schema={schema}
@@ -408,6 +414,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
         getWheelForwardTarget={() => props.rootRef.current?.querySelector('[data-kg-canvas-interactive="1"]') || null}
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}
+        runWorkflowNode={props.runWorkflowNode}
         schema={schema}
         widgetRegistry={props.widgetRegistry}
       />

@@ -1,16 +1,6 @@
 import React from 'react'
 
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
-import {
-  FLOW_IMAGE_GENERATION_NODE_LABEL,
-  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
-  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-  FLOW_TEXT_GENERATION_NODE_LABEL,
-  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-  FLOW_VIDEO_GENERATION_NODE_LABEL,
-  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -19,6 +9,7 @@ import {
   beginFlowWidgetPointerDragSession,
   buildFlowWidgetDragPayload,
   clearActiveFlowWidgetPointerDragSession,
+  dispatchFlowWidgetPointerDragDropFromSession,
   markFlowWidgetPointerDragNativeStart,
   setFlowWidgetDragDataTransfer,
 } from '@/lib/storyboardWidget/widgetDrag'
@@ -80,6 +71,9 @@ export default function WidgetPalette(args: {
                       if (!dragEnabled) return
                       beginFlowWidgetPointerDragSession({
                         registryEntryId: entry.id,
+                        nodeTypeId: entry.nodeTypeId,
+                        widgetTypeId: entry.widgetTypeId,
+                        formId: entry.formId,
                         label,
                         pointerId: ev.pointerId,
                         clientX: ev.clientX,
@@ -89,11 +83,22 @@ export default function WidgetPalette(args: {
                     onDragStart={(ev) => {
                       if (!dragEnabled) return
                       markFlowWidgetPointerDragNativeStart()
-                      const payload = buildFlowWidgetDragPayload({ registryEntryId: entry.id })
+                      const payload = buildFlowWidgetDragPayload({
+                        registryEntryId: entry.id,
+                        nodeTypeId: entry.nodeTypeId,
+                        widgetTypeId: entry.widgetTypeId,
+                        formId: entry.formId,
+                      })
                       if (!payload) return
                       setFlowWidgetDragDataTransfer({ dataTransfer: ev.dataTransfer, payload, label })
                     }}
                     onDragEnd={(ev) => {
+                      if (dragEnabled) {
+                        dispatchFlowWidgetPointerDragDropFromSession({
+                          clientX: ev.clientX,
+                          clientY: ev.clientY,
+                        })
+                      }
                       clearActiveFlowWidgetPointerDragSession()
                     }}
                   >

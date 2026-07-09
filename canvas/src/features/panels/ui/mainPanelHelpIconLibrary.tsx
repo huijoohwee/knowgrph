@@ -1,12 +1,20 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Command as CommandIcon, Copy, CreditCard, Cuboid, Eraser, Film, GitBranch, Globe2, Hand, Hash,
+  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Copy, CreditCard, Cuboid, Eraser, Film, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, ImageIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
-  Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, Table, Type as TextTypeIcon, UserX, Users,
+  Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, SquareTerminal, Table, Type as TextTypeIcon, UserX, Users,
   Workflow,
 } from 'lucide-react'
 import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs'
-import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import {
+  MAIN_PANEL_FIELD_ICON_KEYS,
+  MAIN_PANEL_FIELD_ICON_META_BY_KEY,
+} from './mainPanelHelpFieldIconLibrary'
+import {
+  MAIN_PANEL_INVOCATION_SUBJECT_ICON_KEYS,
+  MAIN_PANEL_INVOCATION_SUBJECT_ICON_META_BY_KEY,
+} from './mainPanelHelpInvocationIconLibrary'
+export { resolveMainPanelInvocationSubjectIconKey } from './mainPanelHelpInvocationIconLibrary'
 
 export type MainPanelTypeIconComponent = React.ComponentType<{
   className?: string
@@ -51,7 +59,6 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.commerce',
   'mainPanel.research',
   'mainPanel.design',
-  'mainPanel.skillsCommands',
   'mainPanel.workflowManager',
   'mainPanel.dashboard',
   'mainPanel.preview',
@@ -59,6 +66,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.history',
   'mainPanel.help',
   'floatingPanel.propsPanel',
+  'floatingPanel.skillsCommands',
   'floatingPanel.view',
   'floatingPanel.media',
   'floatingPanel.camera',
@@ -77,23 +85,8 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.eventModeling',
   'floatingPanel.strybldr',
   'floatingPanel.graphTraversal',
-  'field.scope.node',
-  'field.scope.edge',
-  'field.origin.custom',
-  'field.origin.derived',
-  'field.visibility.show',
-  'field.visibility.hide',
-  'field.type.singleLineText',
-  'field.type.longText',
-  'field.type.number',
-  'field.type.decimal',
-  'field.type.checkbox',
-  'field.type.multiSelect',
-  'field.type.singleSelect',
-  'field.type.dateTime',
-  'field.type.url',
-  'field.type.currency',
-  'field.type.json',
+  ...MAIN_PANEL_INVOCATION_SUBJECT_ICON_KEYS,
+  ...MAIN_PANEL_FIELD_ICON_KEYS,
 ] as const
 
 export type MainPanelTypeIconKey = (typeof MAIN_PANEL_TYPE_ICON_KEYS)[number]
@@ -281,11 +274,6 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Design',
     Icon: Palette,
   },
-  'mainPanel.skillsCommands': {
-    category: 'MainPanel surface',
-    label: 'Skills & Commands',
-    Icon: CommandIcon,
-  },
   'mainPanel.workflowManager': {
     category: 'MainPanel surface',
     label: 'Workflow Manager',
@@ -320,6 +308,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     category: 'FloatingPanel surface',
     label: 'Props Panel',
     Icon: SlidersHorizontal,
+  },
+  'floatingPanel.skillsCommands': {
+    category: 'FloatingPanel surface',
+    label: 'Skills & Commands',
+    Icon: SquareTerminal,
   },
   'floatingPanel.view': {
     category: 'FloatingPanel surface',
@@ -387,91 +380,8 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Graph Traversal',
     Icon: GitBranch,
   },
-  'field.scope.node': {
-    category: 'Graph field type',
-    label: 'Node field',
-    Icon: Users,
-  },
-  'field.scope.edge': {
-    category: 'Graph field type',
-    label: 'Edge field',
-    Icon: GitBranch,
-  },
-  'field.origin.custom': {
-    category: 'Graph field type',
-    label: 'Custom field',
-    Icon: SlidersHorizontal,
-  },
-  'field.origin.derived': {
-    category: 'Graph field type',
-    label: 'Derived field',
-    Icon: ArrowRightLeft,
-  },
-  'field.visibility.show': {
-    category: 'Graph field type',
-    label: MARKDOWN_DATA_VIEW_COPY.showInLabel,
-    Icon: Table,
-  },
-  'field.visibility.hide': {
-    category: 'Graph field type',
-    label: MARKDOWN_DATA_VIEW_COPY.hideInLabel,
-    Icon: Eraser,
-  },
-  'field.type.singleLineText': {
-    category: 'Graph field type',
-    label: 'Single line text',
-    Icon: TextTypeIcon,
-  },
-  'field.type.longText': {
-    category: 'Graph field type',
-    label: 'Long text',
-    Icon: TextTypeIcon,
-  },
-  'field.type.number': {
-    category: 'Graph field type',
-    label: 'Number',
-    Icon: Hash,
-  },
-  'field.type.decimal': {
-    category: 'Graph field type',
-    label: 'Decimal',
-    Icon: Hash,
-  },
-  'field.type.checkbox': {
-    category: 'Graph field type',
-    label: 'Checkbox',
-    Icon: SquareCheckBig,
-  },
-  'field.type.multiSelect': {
-    category: 'Graph field type',
-    label: 'Multi-select',
-    Icon: ListChecks,
-  },
-  'field.type.singleSelect': {
-    category: 'Graph field type',
-    label: 'Single-select',
-    Icon: SquareCheckBig,
-  },
-  'field.type.dateTime': {
-    category: 'Graph field type',
-    label: 'Date Time',
-    Icon: CalendarClock,
-  },
-  'field.type.url': {
-    category: 'Graph field type',
-    label: 'URL',
-    Icon: Link2,
-  },
-  'field.type.currency': {
-    category: 'Graph field type',
-    label: 'Currency',
-    Icon: CreditCard,
-  },
-  'field.type.json': {
-    category: 'Graph field type',
-    label: 'JSON',
-    Icon: Braces,
-  },
+  ...MAIN_PANEL_INVOCATION_SUBJECT_ICON_META_BY_KEY,
+  ...MAIN_PANEL_FIELD_ICON_META_BY_KEY,
 } satisfies Record<MainPanelTypeIconKey, MainPanelTypeIconMeta>
 
 export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
@@ -482,7 +392,6 @@ export const MAIN_PANEL_TAB_TYPE_ICON_KEY_BY_TAB = {
   commerce: 'mainPanel.commerce',
   research: 'mainPanel.research',
   design: 'mainPanel.design',
-  skillsCommands: 'mainPanel.skillsCommands',
   workflowManager: 'mainPanel.workflowManager',
   dashboard: 'mainPanel.dashboard',
   preview: 'mainPanel.preview',
@@ -504,6 +413,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY = Object.fromEntries(
 
 export type FloatingPanelTypeIconView =
   | 'propsPanel'
+  | 'skillsCommands'
   | 'view'
   | 'media'
   | 'camera'
@@ -525,6 +435,7 @@ export type FloatingPanelTypeIconView =
 
 export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   propsPanel: 'floatingPanel.propsPanel',
+  skillsCommands: 'floatingPanel.skillsCommands',
   view: 'floatingPanel.view',
   media: 'floatingPanel.media',
   camera: 'floatingPanel.camera',

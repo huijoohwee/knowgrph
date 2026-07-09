@@ -11,10 +11,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import WidgetPalette from '@/features/toolbar/WidgetPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
+import FloatingPropsPanelProbeTreeButton from '@/features/toolbar/FloatingPropsPanelProbeTreeButton'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
+import { isPropsPanelWidgetPaletteEntry } from '@/features/storyboard-widget-manager/registryTemplates'
 import { NODE_MEDIA_KINDS, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import {
@@ -43,7 +45,6 @@ const FLOATING_MEDIA_DENSITY_OPTIONS = [
   { value: 'default', label: RICH_MEDIA_DISPLAY_COPY.densityDefault },
   { value: 'compact', label: RICH_MEDIA_DISPLAY_COPY.densityCompact },
 ] as const
-
 function isFloatingMediaKind(value: string): value is NodeMediaKind {
   return NODE_MEDIA_KINDS.includes(value as NodeMediaKind)
 }
@@ -63,14 +64,12 @@ export function FloatingPropsPanel() {
       s.uiPanelKeyValueInputClass
       || PANEL_TYPOGRAPHY_DEFAULTS.keyValueInputClass,
   )
-
   const effectiveWidgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const widgetPaletteEntries = React.useMemo(
-    () => (Array.isArray(effectiveWidgetRegistry) ? effectiveWidgetRegistry : []).filter(e => e && e.isEnabled),
+    () => (Array.isArray(effectiveWidgetRegistry) ? effectiveWidgetRegistry : []).filter(isPropsPanelWidgetPaletteEntry),
     [effectiveWidgetRegistry],
   )
   const widgetDragEnabled = widgetPaletteEntries.length > 0
-
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
@@ -186,7 +185,10 @@ export function FloatingPropsPanel() {
   )
 
   return (
-    <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`}>
+    <section
+      className={`${UI_RESPONSIVE_FLOATING_PANEL_SUBPANEL_CLASSNAME} ${UI_THEME_TOKENS.panel.bg}`}
+      aria-label="Props Panel"
+    >
       <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
         <section className={cn('px-2 py-1 flex items-center justify-between', UI_THEME_TOKENS.panel.bg)}>
           <span className={cn(uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary)}>Widgets</span>
@@ -303,6 +305,7 @@ export function FloatingPropsPanel() {
         <FloatingPropsPanelMenuButton onClick={doAddToChat} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelAddToChat}
         </FloatingPropsPanelMenuButton>
+        <FloatingPropsPanelProbeTreeButton disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass} />
         <FloatingPropsPanelMenuButton onClick={doStartEdgeFromNode} disabled={!canUseNodeContext} uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass} uiPanelTextFontClass={uiPanelTextFontClass}>
           {UI_COPY.propsPanelStartEdgeFromNode}
         </FloatingPropsPanelMenuButton>
@@ -642,4 +645,5 @@ export function FloatingPropsPanel() {
       </CollapsibleSection>
     </section>
   )
+
 }

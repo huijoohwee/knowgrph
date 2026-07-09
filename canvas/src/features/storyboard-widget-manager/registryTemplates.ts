@@ -25,7 +25,6 @@ import {
   STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
-  FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
@@ -47,7 +46,6 @@ import {
   FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_SCRIPT_WIDGET_LABEL,
-  FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import { getGrabMapsDiscoveryWidgetLabel, isGrabMapsDiscoveryWidgetEntry } from '@/features/storyboard-widget-manager/grabMapsDiscoveryWidget'
@@ -260,6 +258,17 @@ export function getTextGenerationWidgetLabel(args: {
   widgetTypeId?: unknown
   formId?: unknown
 }): string {
+  const formId = String(args.formId || '').trim()
+  const widgetTypeId = String(args.widgetTypeId || '').trim().toLowerCase()
+  const provider = String(args.provider || '').trim().toLowerCase()
+  if (
+    formId === 'textGeneration'
+    && !widgetTypeId.includes('byteplus')
+    && !provider.includes('byteplus')
+    && !provider.includes('modelark')
+  ) {
+    return FLOW_TEXT_GENERATION_NODE_LABEL
+  }
   return getTextGenerationProviderProfile(inferTextGenerationProviderFamily(args)).widgetLabel
 }
 
@@ -446,14 +455,28 @@ export function getWidgetRegistryEntryLabel(args: {
     if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL
     return getTextGenerationWidgetLabel(args)
   }
-  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
-  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'Image Widget'
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'Video Widget'
   if (nodeTypeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return FLOW_HTML_VIDEO_RENDERER_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   if (nodeTypeId === FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID) return FLOW_STORYBOARD_ELEMENT_NODE_LABEL
   if (nodeTypeId === FLOW_SWARM_PREDICTION_NODE_TYPE_ID) return FLOW_SWARM_PREDICTION_NODE_LABEL; if (nodeTypeId === FLOW_SHOWRUNNER_NODE_TYPE_ID) return 'AI Showrunner'
   if (nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
   return nodeTypeId || String(args.formId || '').trim() || String(args.widgetTypeId || '').trim() || FLOW_TEXT_GENERATION_NODE_LABEL
+}
+
+export function isPropsPanelWidgetPaletteEntry(entry: WidgetRegistryEntry | null | undefined): boolean {
+  if (!entry || entry.isEnabled !== true) return false
+  const widgetTypeId = String(entry.widgetTypeId || '').trim()
+  if (widgetTypeId !== 'default') return false
+  const nodeTypeId = String(entry.nodeTypeId || '').trim()
+  const formId = String(entry.formId || '').trim()
+  return (
+    (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && formId === 'textGeneration')
+    || (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID && formId === 'imageGeneration')
+    || (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && formId === 'videoGeneration')
+    || (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && formId === FLOW_RICH_MEDIA_PANEL_FORM_ID)
+  )
 }
 
 export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {

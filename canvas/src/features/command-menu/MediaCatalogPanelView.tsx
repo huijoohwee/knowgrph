@@ -1,9 +1,17 @@
 import React from 'react'
-import { Grid2X2, List, Plus } from 'lucide-react'
+import { Grid2X2, List, Plus, Rows3 } from 'lucide-react'
 import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '@/lib/command-menu/commandMenuMediaNameSync'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  FloatingPanelCatalogHeader,
+  FloatingPanelCatalogSearchControl,
+  floatingPanelCatalogBodyClassName,
+  floatingPanelCatalogSurfaceClassName,
+  matchesFloatingPanelCatalogSearch,
+  useFloatingPanelCatalogSearch,
+} from '@/lib/ui/floatingPanelCatalogLayout'
 import { MediaLightbox, type MediaLightboxPromptParameter, type MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR, MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR } from '@/lib/media/mediaFormatPreference'
 import { cn } from '@/lib/utils'
@@ -12,6 +20,7 @@ import { buildTimelineAnimationState } from '@/components/timeline/timelineAnima
 import type { MediaCatalogLayout, MediaCatalogSourceMetadataItem, MediaPanelActionSpec, UploadedMediaDescriptionDrafts, UploadedMediaFieldDrafts } from './mediaCatalogTypes'
 import { getMediaNameSyncKey, type UploadedMediaDragMetadata } from './mediaCatalogShared'
 import { MediaActionCard, MediaActionRow, MediaCandidateCard, MediaCandidateRow, MediaSourceMetadataCard, MediaSourceMetadataRow } from './mediaCatalogCandidateItems'
+import { MediaActionListRow, MediaCandidateListRow, MediaSourceMetadataListRow, UploadedMediaListRow } from './mediaCatalogListItems'
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
 
@@ -108,7 +117,22 @@ export function MediaCatalogPanelView({
   onSelectUploadedMedia,
   onUploadMediaFiles,
 }: MediaCatalogPanelViewProps) {
+  const search = useFloatingPanelCatalogSearch()
   const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
+  const normalizedSearchQuery = search.normalizedSearchQuery
+  const visibleSourceMetadataItem = sourceMetadataItem && matchesMediaSourceMetadataSearch(sourceMetadataItem, normalizedSearchQuery) ? sourceMetadataItem : null
+  const visibleUploadedMediaItems = React.useMemo(
+    () => uploadedMediaItems.filter(item => matchesUploadedMediaSearch(item, normalizedSearchQuery, buildUploadedMediaInfoLabel(item), readUploadedMediaDescription(mediaDescriptionDrafts, item), readUploadedMediaFieldText(mediaFieldDrafts, item))),
+    [mediaDescriptionDrafts, mediaFieldDrafts, normalizedSearchQuery, uploadedMediaItems],
+  )
+  const visibleMediaItems = React.useMemo(
+    () => mediaItems.filter(item => matchesCommandMediaSearch(item, readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label, normalizedSearchQuery)),
+    [mediaItems, mediaNameDrafts, normalizedSearchQuery],
+  )
+  const visibleMediaActions = React.useMemo(
+    () => mediaActions.filter(action => matchesMediaActionSearch(action, normalizedSearchQuery)),
+    [mediaActions, normalizedSearchQuery],
+  )
   const animationState = React.useMemo(() => buildTimelineAnimationState({
     active: mediaItemCount > 0,
     itemCount: mediaItemCount,
@@ -117,7 +141,7 @@ export function MediaCatalogPanelView({
   }), [mediaActions.length, mediaItemCount])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
-    <section ref={panelRef} className={cn('h-full min-h-0 overflow-auto px-1 pb-2', panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1" data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR} data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR} {...animationAttributes} style={animationStyle}>
+    <section className={floatingPanelCatalogSurfaceClassName(panelTextClass)} aria-label="Media" data-kg-media-layout={catalogLayout} data-kg-media-list-layout={catalogLayout === 'list' ? 'compact' : undefined} data-kg-media-card-layout={catalogLayout === 'card' ? '3-rows' : undefined} data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined} data-kg-media-panel="1" data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR} data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR} {...animationAttributes} style={animationStyle}>
       <MediaLightbox
         open={!!lightboxItem}
         src={lightboxItem?.linkUrl || ''}
@@ -141,95 +165,146 @@ export function MediaCatalogPanelView({
         onPromptSubmit={onGeneratePromptSubmit}
         onClose={() => onCloseGenerateLightbox()}
       />
-      <header className={cn('mb-1 flex items-center justify-between gap-2 px-1 py-1', UI_THEME_TOKENS.panel.bg)}>
-        <section className="min-w-0">
-          <h2 className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>Media</h2>
-          <p className={cn('truncate text-[10px]', UI_THEME_TOKENS.text.tertiary)}>@ image, audio, video, and rich media</p>
-        </section>
-        <section className="flex shrink-0 items-center gap-1" aria-label="Media actions">
-          <input
-            ref={uploadInputRef}
-            type="file"
-            accept="image/*,audio/*,video/*"
-            multiple
-            className="sr-only"
-            aria-label="New Media upload"
-            data-kg-media-upload-input="1"
-            onChange={event => {
-              void onUploadMediaFiles(event.currentTarget.files)
-              event.currentTarget.value = ''
+      <FloatingPanelCatalogHeader
+        title="Media"
+        subtitle="@ image, audio, video, and rich media"
+        actionsLabel="Media actions"
+        dataAttributes={{ 'data-kg-media-catalog-header': '1' }}
+        actions={(
+          <>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*,audio/*,video/*"
+              multiple
+              className="sr-only"
+              aria-label="New Media upload"
+              data-kg-media-upload-input="1"
+              onChange={event => {
+                void onUploadMediaFiles(event.currentTarget.files)
+                event.currentTarget.value = ''
+              }}
+            />
+            <button
+              type="button"
+              className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+              title="New Media"
+              aria-label="New Media"
+              data-kg-media-new-button="1"
+              onClick={onNewMedia}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+            </button>
+            <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
+              {([
+                { layout: 'list' as const, label: 'List layout', Icon: List },
+                { layout: 'card' as const, label: 'Card layout', Icon: Rows3 },
+                { layout: 'grid' as const, label: 'Grid layout', Icon: Grid2X2 },
+              ]).map(option => {
+                const Icon = option.Icon
+                return (
+                  <button
+                    key={option.layout}
+                    type="button"
+                    className={cn(
+                      'inline-flex h-full w-6 items-center justify-center border-0 px-0',
+                      catalogLayout === option.layout ? 'bg-black/10 dark:bg-white/15' : UI_THEME_TOKENS.button.hoverBg,
+                      UI_THEME_TOKENS.text.secondary,
+                    )}
+                    title={option.label}
+                    aria-label={option.label}
+                    aria-pressed={catalogLayout === option.layout}
+                    data-kg-media-layout-toggle={option.layout}
+                    onClick={() => onLayoutChange(option.layout)}
+                  >
+                    <Icon className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+                  </button>
+                )
+              })}
+            </section>
+          </>
+        )}
+        searchControl={(
+          <FloatingPanelCatalogSearchControl
+            state={search}
+            id="kg-media-catalog-search"
+            buttonLabel="Search media"
+            panelLabel="Search media catalog"
+            placeholder="Search media"
+            affordanceDataAttributes={{
+              'data-kg-media-search-affordance': '1',
+              'data-kg-media-search-overlay-anchor': '1',
             }}
+            panelDataAttributes={{
+              'data-kg-media-search-panel': 'overlay',
+              'data-kg-media-search-inline': '1',
+              'data-kg-media-search-overlay': '1',
+              'data-kg-media-search-expand-direction': 'down',
+            }}
+            inputDataAttributes={{ 'data-kg-media-search-input': '1' }}
+            clearDataAttributes={{ 'data-kg-media-search-clear': '1' }}
+            toggleDataAttributes={{ 'data-kg-media-search-toggle': '1' }}
           />
-          <button
-            type="button"
-            className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-            title="New Media"
-            aria-label="New Media"
-            data-kg-media-new-button="1"
-            onClick={onNewMedia}
+        )}
+      />
+      <section ref={panelRef} className={floatingPanelCatalogBodyClassName()} data-kg-floating-panel-catalog-body="media">
+        {importUrlPromptOpen ? (
+          <section
+            className={cn('mb-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
+            aria-label="Import media URL"
+            data-kg-media-import-url-prompt="1"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-          </button>
-          <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
-            {([
-              { layout: 'list' as const, label: 'List layout', Icon: List },
-              { layout: 'grid' as const, label: 'Grid layout', Icon: Grid2X2 },
-            ]).map(option => {
-              const Icon = option.Icon
-              return (
-                <button
-                  key={option.layout}
-                  type="button"
-                  className={cn(
-                    'inline-flex h-full w-6 items-center justify-center border-0 px-0',
-                    catalogLayout === option.layout ? 'bg-black/10 dark:bg-white/15' : UI_THEME_TOKENS.button.hoverBg,
-                    UI_THEME_TOKENS.text.secondary,
-                  )}
-                  title={option.label}
-                  aria-label={option.label}
-                  aria-pressed={catalogLayout === option.layout}
-                  data-kg-media-layout-toggle={option.layout}
-                  onClick={() => onLayoutChange(option.layout)}
-                >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-                </button>
-              )
-            })}
+            <ImportUrlPrompt
+              urlDraft={importUrlDraft}
+              onChange={onImportUrlChange}
+              onConfirm={url => {
+                void onImportUrlConfirm(url)
+              }}
+              onCancel={() => {
+                if (importUrlBusy) return
+                onImportUrlPromptOpenChange(false)
+              }}
+              confirmLabel={importUrlBusy ? 'Importing…' : 'Import URL'}
+              autoFocus
+            />
           </section>
-          <span
-            className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-            title="@ media commands"
-          >
-            @
-          </span>
-        </section>
-      </header>
-      {importUrlPromptOpen ? (
-        <section
-          className={cn('mb-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
-          aria-label="Import media URL"
-          data-kg-media-import-url-prompt="1"
-        >
-          <ImportUrlPrompt
-            urlDraft={importUrlDraft}
-            onChange={onImportUrlChange}
-            onConfirm={url => {
-              void onImportUrlConfirm(url)
-            }}
-            onCancel={() => {
-              if (importUrlBusy) return
-              onImportUrlPromptOpenChange(false)
-            }}
-            confirmLabel={importUrlBusy ? 'Importing…' : 'Import URL'}
-            autoFocus
-          />
-        </section>
-      ) : null}
-      <section ref={mediaListRef} tabIndex={-1} data-kg-media-list="1">
-        {catalogLayout === 'list' ? (
-          <section className="grid min-w-0 gap-2" aria-label="Media list" data-kg-media-list-rows="3">
-            {sourceMetadataItem ? <MediaSourceMetadataRow item={sourceMetadataItem} /> : null}
-            {uploadedMediaItems.map(item => (
+        ) : null}
+        <section ref={mediaListRef} tabIndex={-1} data-kg-media-list="1">
+          {catalogLayout === 'list' ? (
+            <section className="grid min-w-0 gap-1" aria-label="Media list" data-kg-media-list-rows="compact" data-kg-media-list-view="1">
+            {visibleSourceMetadataItem ? <MediaSourceMetadataListRow item={visibleSourceMetadataItem} /> : null}
+            {visibleUploadedMediaItems.map(item => (
+              <UploadedMediaListRow
+                key={item.id}
+                item={item}
+                infoLabel={buildUploadedMediaInfoLabel(item)}
+                onDelete={onDeleteUploadedMedia}
+                onDragStart={onDragUploadedMedia}
+                onSelect={onSelectUploadedMedia}
+                onPreview={onPreviewUploadedMedia}
+              />
+            ))}
+            {visibleMediaItems.map(item => (
+              <MediaCandidateListRow
+                key={item.key}
+                item={item}
+                displayName={readCommandMenuMediaNameDraft(mediaNameDrafts, getMediaNameSyncKey(item)) || item.label}
+                onDragStart={onDragCommandMenuMedia}
+                onSelect={onSelectMedia}
+              />
+            ))}
+            {visibleMediaActions.map(action => (
+              <MediaActionListRow
+                key={action.id}
+                action={action}
+                onSelect={onSelectMediaAction}
+              />
+            ))}
+            </section>
+          ) : catalogLayout === 'card' ? (
+            <section className="grid min-w-0 gap-2" aria-label="Media card layout" data-kg-media-card-rows="3">
+            {visibleSourceMetadataItem ? <MediaSourceMetadataRow item={visibleSourceMetadataItem} /> : null}
+            {visibleUploadedMediaItems.map(item => (
               <UploadedMediaRow
                 key={item.id}
                 item={item}
@@ -246,7 +321,7 @@ export function MediaCatalogPanelView({
                 onPreview={onPreviewUploadedMedia}
               />
             ))}
-            {mediaItems.map(item => (
+            {visibleMediaItems.map(item => (
               <MediaCandidateRow
                 key={item.key}
                 item={item}
@@ -257,18 +332,18 @@ export function MediaCatalogPanelView({
                 onRename={onRenameMedia}
               />
             ))}
-            {mediaActions.map(action => (
+            {visibleMediaActions.map(action => (
               <MediaActionRow
                 key={action.id}
                 action={action}
                 onSelect={onSelectMediaAction}
               />
             ))}
-          </section>
-        ) : (
-          <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
-            {sourceMetadataItem ? <MediaSourceMetadataCard item={sourceMetadataItem} /> : null}
-            {uploadedMediaItems.map(item => (
+            </section>
+          ) : (
+            <section className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Media grid" data-kg-media-grid="1">
+            {visibleSourceMetadataItem ? <MediaSourceMetadataCard item={visibleSourceMetadataItem} /> : null}
+            {visibleUploadedMediaItems.map(item => (
               <UploadedMediaCard
                 key={item.id}
                 item={item}
@@ -285,7 +360,7 @@ export function MediaCatalogPanelView({
                 onPreview={onPreviewUploadedMedia}
               />
             ))}
-            {mediaItems.map(item => (
+            {visibleMediaItems.map(item => (
               <MediaCandidateCard
                 key={item.key}
                 item={item}
@@ -296,16 +371,49 @@ export function MediaCatalogPanelView({
                 onRename={onRenameMedia}
               />
             ))}
-            {mediaActions.map(action => (
+            {visibleMediaActions.map(action => (
               <MediaActionCard
                 key={action.id}
                 action={action}
                 onSelect={onSelectMediaAction}
               />
             ))}
-          </section>
-        )}
+            </section>
+          )}
+        </section>
       </section>
     </section>
   )
+}
+
+function matchesMediaCatalogSearch(searchText: string, values: readonly unknown[]): boolean {
+  return matchesFloatingPanelCatalogSearch(searchText, values)
+}
+
+function matchesMediaSourceMetadataSearch(item: MediaCatalogSourceMetadataItem, searchText: string): boolean {
+  return matchesMediaCatalogSearch(searchText, [
+    item.name,
+    item.sourceUrl,
+    item.mimeHint,
+    item.importMode,
+    item.summary?.mimeType,
+    item.summary?.formatName,
+    item.summary?.primaryAudioCodec,
+    item.summary?.primaryVideoCodec,
+    item.summary?.status,
+    item.summary?.durationSeconds,
+    item.byteSize,
+  ])
+}
+
+function matchesUploadedMediaSearch(item: UploadedMediaPanelItem, searchText: string, infoLabel: string, description: string, fieldText: string): boolean {
+  return matchesMediaCatalogSearch(searchText, [item.name, item.kind, item.linkUrl, item.status, infoLabel, description, fieldText, item.storage?.objectKey, item.storage?.contentType])
+}
+
+function matchesCommandMediaSearch(item: CommandMenuRichMediaItem, displayName: string, searchText: string): boolean {
+  return matchesMediaCatalogSearch(searchText, [displayName, item.label, item.kind, item.src, item.openUrl, item.thumbnailUrl])
+}
+
+function matchesMediaActionSearch(action: MediaPanelActionSpec, searchText: string): boolean {
+  return matchesMediaCatalogSearch(searchText, [action.label, action.description, action.kind, action.id])
 }

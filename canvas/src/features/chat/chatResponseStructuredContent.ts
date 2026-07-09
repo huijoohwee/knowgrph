@@ -17,6 +17,7 @@ import {
 } from './chatResponseStructuredContentCandidates'
 import { STRUCTURED_SURFACE_INLINE_COMPUTE_NODE_ID, STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE } from './chatResponseStructuredCompute'
 import { collectStructuredFrontmatterFields, STRUCTURED_FRONTMATTER_FIELD_KEYS } from './chatResponseStructuredFrontmatter'
+import { buildStructuredCardParentEdges } from './chatResponseStructuredParentEdges'
 import { isRecord, mergeStructuredProperties, readFieldValue, readFirstString, readString, toJsonValue } from './chatResponseStructuredRecord'
 export { projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContentProjector'
 
@@ -583,6 +584,7 @@ export const extractChatResponseStructuredSurface = (assistantText: string): Cha
     const edge = normalizeStructuredEdge({ raw: rawEdges[i], index: i, nodeIdByReferenceKey, nodeSourceHandleById, nodeTargetHandleById })
     if (edge) pushEdge(edge)
   }
+  buildStructuredCardParentEdges({ nodes, nodeIdByReferenceKey, nodeSourceHandleById }).forEach(pushEdge)
   ensureStructuredSurfaceDataflow({ nodes, edges })
   nodes.forEach((node, index) => pushEdge(buildDefaultResponseEdge(node, index)))
   return Object.keys(frontmatter).length > 0 ? { nodes, edges, frontmatter } : { nodes, edges }

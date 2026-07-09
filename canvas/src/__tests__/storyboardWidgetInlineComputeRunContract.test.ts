@@ -4,6 +4,7 @@ import {
   buildStoryboardWidgetInlineComputeOutputPatch,
   resolveStoryboardWidgetWorkflowConnectedValuesInput,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
+import { buildStoryboardWidgetSourceBackedRunOutput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetSourceBackedRunOutput'
 import {
   isStoryboardWidgetWorkflowRunnableNode,
   readFlowWidgetCardRunDownstreamTargetIds,
@@ -39,6 +40,7 @@ export function testStoryboardWidgetCanvasRunsFlowComputeBeforeProviderTextBranc
     "message: 'Ran inline compute.'",
     'resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({',
     'await runWorkflowNode(targetId, { allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds })',
+    'publishStoryboardWidgetSourceBackedRunOutput({ id, node',
   ]) {
     if (!workflowActionsText.includes(snippet)) throw new Error(`expected StoryboardWidget workflow run path to include ${snippet}`)
   }
@@ -90,6 +92,13 @@ export function testStoryboardWidgetCanvasRunsFlowComputeBeforeProviderTextBranc
   if (runAllPlan.orderedNodeIds.join(',') !== 'compute_summary' || runAllPlan.phaseCounts.text !== 1) {
     throw new Error(`expected Toolbar Run all to schedule typed compute nodes, got ${JSON.stringify(runAllPlan)}`)
   }
+  const sourceBackedOutput = buildStoryboardWidgetSourceBackedRunOutput(sourceNode)
+  for (const expected of ['# Source Input', 'Run-ready card output generated from the selected InputWidget node', 'canvas:widgetCard']) {
+    if (!sourceBackedOutput.includes(expected)) {
+      throw new Error(`expected source-backed card Run output to include ${expected}, got ${sourceBackedOutput}`)
+    }
+  }
+  if (/<div\b/i.test(sourceBackedOutput)) throw new Error(`expected source-backed card Run output to avoid generic div markup, got ${sourceBackedOutput}`)
 
   const missAlphaPath = resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-missalph-demo.md')
   const missAlphaMarkdown = readFileSync(missAlphaPath, 'utf8')

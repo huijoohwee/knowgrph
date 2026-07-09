@@ -18,8 +18,31 @@ export const CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR =
 export const CANVAS_OVERLAY_PAN_OWNER_ATTR = 'data-kg-overlay-pan-owner'
 export const CANVAS_OVERLAY_PAN_OWNER_CANVAS = 'canvas'
 
-export const STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR =
-  'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"]'
+export const STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR = [
+  'input',
+  'textarea',
+  'select',
+  'button',
+  'a',
+  '[role="textbox"]',
+  '[role="button"]',
+  '[contenteditable="true"]',
+  '[data-kg-canvas-pointer-ignore="true"]',
+  '[data-kg-media-scroll-surface="1"]',
+].join(',')
+
+export const RICH_MEDIA_CANVAS_OVERLAY_CONTROL_SELECTOR = [
+  'input',
+  'textarea',
+  'select',
+  'button',
+  'a',
+  '[role="textbox"]',
+  '[role="button"]',
+  '[contenteditable="true"]',
+  '[data-kg-rich-media-inline-edit="1"]',
+  '[data-kg-canvas-pointer-ignore="true"]:not([data-kg-media-scroll-surface="1"])',
+].join(',')
 
 export const STORYBOARD_WIDGET_OVERLAY_INTERACTIVE_SELECTOR =
   `${STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR},[data-kg-card-inline-edit="1"],[${MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR}="${MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE}"]`
@@ -99,8 +122,29 @@ export function isCanvasOverlayPanOwnedByCanvas(overlayRoot: HTMLElement | null 
   return readCanvasOverlayPanOwner(overlayRoot) === CANVAS_OVERLAY_PAN_OWNER_CANVAS
 }
 
+export function isRichMediaCanvasOverlayRoot(overlayRoot: HTMLElement | null | undefined): boolean {
+  if (!overlayRoot) return false
+  try {
+    return overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+  } catch {
+    return String(overlayRoot.dataset.kgRichMediaOverlay || '').trim() === '1'
+      && String(overlayRoot.dataset.kgStoryboardWidgetMode || '').trim() === '1'
+  }
+}
+
 export function isStoryboardWidgetOverlayControlTarget(target: Element | null | undefined): boolean {
   return !!target?.closest(STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR)
+}
+
+export function isCanvasOverlayBodyPanBlockingTarget(
+  target: Element | null | undefined,
+  overlayRoot: HTMLElement | null | undefined,
+): boolean {
+  if (!target) return false
+  if (isRichMediaCanvasOverlayRoot(overlayRoot)) {
+    return !!target.closest(RICH_MEDIA_CANVAS_OVERLAY_CONTROL_SELECTOR)
+  }
+  return isStoryboardWidgetOverlayControlTarget(target)
 }
 
 export function shouldUseCanvasOverlayBodyPan(args: {
@@ -109,7 +153,7 @@ export function shouldUseCanvasOverlayBodyPan(args: {
 }): boolean {
   if (!args.target || !args.overlayRoot) return false
   if (!isCanvasOverlayPanOwnedByCanvas(args.overlayRoot)) return false
-  if (isStoryboardWidgetOverlayControlTarget(args.target)) return false
+  if (isCanvasOverlayBodyPanBlockingTarget(args.target, args.overlayRoot)) return false
   if (args.target.closest(CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR)) return false
   if (args.target.closest(CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR)) return false
   return true
@@ -235,7 +279,7 @@ export function resolveStoryboardWidgetOverlayProxyTarget(args: { target: unknow
   }
 
   const isInteractive = isCanvasOverlayPanOwnedByCanvas(overlayRoot)
-    ? isStoryboardWidgetOverlayControlTarget(el)
+    ? isCanvasOverlayBodyPanBlockingTarget(el, overlayRoot)
     : !!el.closest(STORYBOARD_WIDGET_OVERLAY_INTERACTIVE_SELECTOR)
   return { kind: 'overlay', targetEl: el, overlayRoot, isInteractive }
 }

@@ -198,6 +198,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.mainPanel.tabs.placeMcpImmediatelyAfterIntegrations","@/__tests__/mainPanelIntegrations.test","testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations"],
   ["ui.mainPanel.propsPanel.ownsGrabMapsDiscoveryWidgetCopy","@/__tests__/mainPanelIntegrations.test","testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy"],
   ["ui.mainPanel.propsPanel.discoveryWidget.keywordSearchRunsWithoutDuplicateFloatingView","@/__tests__/mainPanelIntegrations.test","testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDuplicateFloatingView"],
+  ["ui.mainPanel.propsPanel.probeTree.materializesSelectedCardBranches","@/__tests__/floatingPropsPanelProbeTree.test","testPropsPanelProbeTreeButtonMaterializesSelectedCardBranches"],
   ["ui.mainPanel.integrationsHub.anchorScrollsExactBytePlusRow","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsAnchorScrollsExactBytePlusRow"],
   ["ui.mainPanel.requestedSettingsSearch.excludesIntegrationEntries","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedSettingsSearchExcludesIntegrationEntries"],
   ["ui.mainPanel.requestedIntegrationsSearch.showsAiControls","@/__tests__/mainPanelIntegrations.test","testMainPanelRequestedIntegrationsSearchShowsAiControls"],

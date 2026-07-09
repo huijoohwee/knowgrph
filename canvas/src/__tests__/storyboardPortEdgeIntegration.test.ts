@@ -175,6 +175,9 @@ export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
   if (!runtime.includes('hasOverlayEditors={overlayEdgeHostActive}')) {
     throw new Error('expected Storyboard drag/pan/zoom frames to invalidate shared overlay-edge geometry')
   }
+  if (!cards.includes('emitStoryboardWidgetInteractionFrame()')) {
+    throw new Error('expected fixed Storyboard card screen-box writes to resync shared overlay-edge geometry')
+  }
   if (!surface.includes('props.overlayOnlyActive || props.hasOverlayEditors || storyboardCardsActive')) {
     throw new Error('expected Storyboard to mount the shared overlay-edge SVG surface')
   }

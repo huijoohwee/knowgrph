@@ -25,7 +25,7 @@ vendor, document, or domain.
 Knowgrph is the Dev source for an **Agentic Canvas OS**: a local-first control
 plane where Markdown, KTV YAML frontmatter, Source Files, Canvas, chat, and MCP
 expose the same typed runtime state. The sibling docs tree at
-`/Users/huijoohwee/Documents/GitHub/huijoohwee/agentic-os-docs` is the current
+`/Users/huijoohwee/Documents/GitHub/agentic-canvas-os/docs` is the current
 documentation control surface for this OS contract. It defines the shared `/`,
 `#`, and `@` invocation dictionaries, runtime-readiness gates, MCP gateway
 rules, harness contracts, KTV computing-flow shape, and proof ledger.
@@ -48,7 +48,7 @@ The runtime direction is:
 - Local MCP, Pages HTTP MCP, Browser WebMCP, and approved Cloudflare control
   plane owners are separate surfaces with explicit transport boundaries.
 
-This README describes the Dev repo. `agentic-os-docs` remains docs-control
+This README describes the Dev repo. `agentic-canvas-os/docs` remains docs-control
 runtime proof only; Prod mirror and Cloudflare state stay gated until the
 operator explicitly opens those lanes.
 
@@ -342,6 +342,10 @@ preserve path identity instead of inventing parallel files.
   store the durable R2 URL; never store an ephemeral provider URL as the artifact.
 - Keep generated KGC, chat logs, traces, and output manifests source-file
   addressable.
+- Use Launch -> New .md for one-click authored Markdown creation under `/docs`;
+  the action must reuse the shared Source Files creator and workspace timestamp
+  helpers, then synchronously persist the blank file through the docs mirror
+  instead of a toolbar-local file path.
 - Do not hardcode provider, path, route, or demo-specific behavior downstream
   when a shared Source Files or storage owner should handle it upstream.
 
@@ -380,7 +384,7 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 
 | Feature | Docs |
 | --- | --- |
-| Agentic Canvas OS control surface | `../huijoohwee/agentic-os-docs/` |
+| Agentic Canvas OS control surface | `../agentic-canvas-os/docs/` |
 | 2D Renderer Storyboard template | `../huijoohwee.github.io/template/knowgrph-2d-renderer-storyboard-template.md` |
 | Agentic Canvas OS PRD/TAD | `docs/documents/knowgrph-mcp-agentic-canvas-os-prd-tad.md` |
 | AI provider layer (MiroMindAI) | `docs/documents/knowgrph-api-reference/knowgrph-miromind-api-prd-tad.md` |

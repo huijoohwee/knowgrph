@@ -4,7 +4,7 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export const WORKSPACE_DOCS_SOURCE_ROOT_PATH = '/docs' as WorkspacePath
-export const WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH = '/agentic-os-docs' as WorkspacePath
+export const WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH = '/agentic-canvas-os/docs' as WorkspacePath
 export const DEFAULT_WORKSPACE_SOURCE_ROOT_PATHS: WorkspacePath[] = [
   WORKSPACE_DOCS_SOURCE_ROOT_PATH,
   WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH,

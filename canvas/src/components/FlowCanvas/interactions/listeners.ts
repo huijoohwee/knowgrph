@@ -209,7 +209,7 @@ export function bindFlowNativeInteractionListeners(args: {
     if (overlayBodyViewportPan && storyboardWidgetOverlayInteractionMode && !overlayPanOwnerCanvas) return
 
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && overlayDragHandle && button === 0 && spacePanHeld !== true) return
-    if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
+    if (resolved.kind === 'overlay' && resolved.isInteractive && !overlayBodyViewportPan && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true && (overlayViewportPanIntent !== true || overlaySelectionDrag === true)) return
 
     if (resolved.kind === 'overlay' && overlayPinnedToNode && button === 0 && spacePanHeld !== true && e.altKey !== true && overlayDragHandle) {
@@ -268,7 +268,7 @@ export function bindFlowNativeInteractionListeners(args: {
     }
 
     if (!overlayViewportPanIntent || overlaySelectionDrag) return
-    if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true) return
+    if (resolved.kind === 'overlay' && resolved.isInteractive && !overlayBodyViewportPan && button === 0 && spacePanHeld !== true) return
 
     ctx.viewportWheelController.destroy()
     cancelFlowZoomRequestAnim(runtime)

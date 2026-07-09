@@ -27,6 +27,20 @@ function setFixedRect(el: HTMLElement, args: {
   }) as DOMRect
 }
 
+function readVectorPaintedPanelBox(el: HTMLElement): { left: number; top: number; width: number; height: number } {
+  if (String(el.style.transform || '') !== 'none') throw new Error(`expected vector-painted panel transform=none, got ${el.style.transform || '(empty)'}`)
+  const left = Number.parseFloat(el.style.left || 'NaN')
+  const top = Number.parseFloat(el.style.top || 'NaN')
+  const scale = Number.parseFloat(String((el.style as CSSStyleDeclaration & { zoom?: string }).zoom || '1'))
+  const width = Number.parseFloat(el.style.width || 'NaN')
+  const height = Number.parseFloat(el.style.height || 'NaN')
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1
+  if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
+    throw new Error(`expected finite vector-painted overlay box, got ${JSON.stringify({ left, top, width, height })}`)
+  }
+  return { left, top, width: width * safeScale, height: height * safeScale }
+}
+
 export function testStoryboardWidgetCanonicalOverlayRectEntriesSkipTransientOffscreenRichMediaBeforeRank() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
@@ -188,15 +202,7 @@ export async function testStoryboardWidgetActiveSurfaceObstaclesAffectFinalRichM
     const rects = ids.map(id => {
       const el = els.get(id)
       if (!el) throw new Error(`missing overlay element for ${id}`)
-      const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-      if (!match) throw new Error(`expected translate3d transform for ${id}`)
-      const left = Number.parseFloat(match[1] || 'NaN')
-      const top = Number.parseFloat(match[2] || 'NaN')
-      const width = Number.parseFloat(el.style.width || 'NaN')
-      const height = Number.parseFloat(el.style.height || 'NaN')
-      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
-        throw new Error(`expected finite overlay box for ${id}`)
-      }
+      const { left, top, width, height } = readVectorPaintedPanelBox(el)
       return { id, left, top, right: left + width, bottom: top + height }
     })
 

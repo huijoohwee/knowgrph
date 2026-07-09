@@ -72,6 +72,7 @@ test("Feature: knowgrph-agentic-os, capability registry unions local MCP and vde
   assert.ok(result.unreachableCatalogs.includes("cloudflare_mcp_agent"));
   assert.ok(byId.has(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus));
   assert.equal(byId.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus).owningHarness, "agentic_os");
+  assert.equal(byId.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsDocsInvoke).owningHarness, "agentic_canvas_os_docs");
   assert.ok(byId.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList).sourceCatalogs.includes("local_mcp"));
   assert.ok(byId.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList).sourceCatalogs.includes("vdeoxpln"));
 });

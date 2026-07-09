@@ -43,7 +43,7 @@ function readNodeProps(node: NodeLike): Record<string, unknown> {
   return props && typeof props === 'object' && !Array.isArray(props) ? props as Record<string, unknown> : {}
 }
 
-function readFrontmatterCollectiveNodeLayout(node: NodeLike): FrontmatterCollectiveNodeLayout {
+export function readFrontmatterCollectiveNodeLayout(node: NodeLike): FrontmatterCollectiveNodeLayout {
   const props = readNodeProps(node)
   return {
     groupId: readString(props[FRONTMATTER_COLLECTIVE_GROUP_ID_KEY]),

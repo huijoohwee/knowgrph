@@ -164,7 +164,9 @@ export function CardInlineTextCommandMenus(props: {
   commandContextText?: string
   draft: string
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>
+  mediaCommandMode?: 'inline' | 'external'
   openCommandMenu: (mode: CardInlineTextCommandMenuMode) => void
+  showLaunchers?: boolean
   closeCommandMenu: () => void
   setCommandQuery: (next: string) => void
   setCommandMode: (next: CardInlineTextCommandMenuMode | null) => void
@@ -181,12 +183,14 @@ export function CardInlineTextCommandMenus(props: {
     commandContextText,
     draft,
     inputRef,
+    mediaCommandMode = 'inline',
     onCommandDraftChange,
     onCommandDraftApplied,
     onMediaCommandSelect,
     openCommandMenu,
     setCommandMode,
     setCommandQuery,
+    showLaunchers = true,
     setDraft,
   } = props
   const [menuFrame, setMenuFrame] = React.useState<CardInlineCommandMenuFrame | null>(null)
@@ -262,6 +266,21 @@ export function CardInlineTextCommandMenus(props: {
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
     if (candidate.url) onMediaCommandSelect?.(candidate)
+    if (mediaCommandMode === 'external') {
+      const selection = commandSelectionRef.current
+      const tokenRange = findInlineCommandTokenRange({ text, selection, sigil: '@' })
+      const tokenText = text.slice(tokenRange.start, tokenRange.end)
+      const next = tokenText.startsWith('@') ? `${text.slice(0, tokenRange.start)}${text.slice(tokenRange.end)}` : text
+      if (next !== text) {
+        setDraft(next)
+        onCommandDraftChange?.(next)
+      }
+      setCommandMode(null)
+      setCommandQuery('')
+      focusCardInlineTextInputSelectionSoon(inputRef.current, tokenText.startsWith('@') ? tokenRange.start : commandSelectionRef.current.end)
+      if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
+      return
+    }
     const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
     if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
       setCommandMode(null)
@@ -297,7 +316,7 @@ export function CardInlineTextCommandMenus(props: {
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-  }, [commandSelectionRef, draft, inputRef, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
+  }, [commandSelectionRef, draft, inputRef, mediaCommandMode, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
   const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
     const results = await uploadFilesToUploadedMediaPanel({
       files: Array.from(fileList || []),
@@ -557,7 +576,7 @@ export function CardInlineTextCommandMenus(props: {
           event.currentTarget.value = ''
         }}
       />
-      <menu className="absolute right-2 top-2 z-10 m-0 flex list-none gap-1 p-0" aria-label="Card inline command launchers" {...{ [CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE]: '1' }}>
+      {showLaunchers ? <menu className="absolute right-2 top-2 z-10 m-0 flex list-none gap-1 p-0" aria-label="Card inline command launchers" {...{ [CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE]: '1' }}>
         <li className="list-none">
           <button type="button" className={cardInlineCommandButtonClassName} title="Slash commands" onMouseDown={preventDefaultMouseDown} onClick={() => openCommandMenu('slash')}>
             <Slash className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.8} />
@@ -573,7 +592,7 @@ export function CardInlineTextCommandMenus(props: {
             <Hash className={UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} strokeWidth={1.8} />
           </button>
         </li>
-      </menu>
+      </menu> : null}
       {commandMenu && commandMenuHost ? createPortal(commandMenu, commandMenuHost) : commandMenu}
     </>
   )

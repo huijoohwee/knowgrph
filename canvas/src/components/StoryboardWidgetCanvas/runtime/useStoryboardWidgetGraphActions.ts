@@ -11,6 +11,10 @@ import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
+import {
+  buildFloatingPropsPanelAddedNode,
+  commitFloatingPropsPanelAddedNode,
+} from '@/lib/toolbar/floatingPropsPanelAddNode'
 
 function readDraftRevisionFloor(graphData: GraphData | null | undefined): number {
   const raw = (graphData?.metadata || {}) as Record<string, unknown>
@@ -310,20 +314,23 @@ export function useStoryboardWidgetGraphActions(args: {
       const y = Number.isFinite(nodeArgs.y) ? nodeArgs.y : 0
       const type = String(nodeArgs.type || '').trim() || 'Node'
       const label = String(nodeArgs.label || '').trim() || id
-      const nextNode: GraphNode = {
+      const nextNode = buildFloatingPropsPanelAddedNode({
         id,
-        label,
         type,
-        x,
-        y,
-        fx: Number.isFinite(nodeArgs.fx) ? Number(nodeArgs.fx) : undefined,
-        fy: Number.isFinite(nodeArgs.fy) ? Number(nodeArgs.fy) : undefined,
-        vx: Number.isFinite(nodeArgs.vx) ? Number(nodeArgs.vx) : undefined,
-        vy: Number.isFinite(nodeArgs.vy) ? Number(nodeArgs.vy) : undefined,
-        properties: (nodeArgs.properties || {}) as never,
-      }
+        label,
+        point: { x, y },
+        fx: nodeArgs.fx,
+        fy: nodeArgs.fy,
+        vx: nodeArgs.vx,
+        vy: nodeArgs.vy,
+        properties: nodeArgs.properties || {},
+      })
       const beforeIds = new Set<string>((useGraphStore.getState().graphData?.nodes || []).map(node => String(node.id || '')).filter(Boolean))
-      args.addNode(nextNode)
+      const committedId = commitFloatingPropsPanelAddedNode({
+        node: nextNode,
+        addNode: args.addNode,
+        readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+      })
       const committedGraph = useGraphStore.getState().graphData as GraphData | null
       const committedNodes = Array.isArray(committedGraph?.nodes) ? (committedGraph.nodes as GraphNode[]) : []
       const exactId = committedNodes.find(node => String(node.id || '') === id)?.id
@@ -333,7 +340,7 @@ export function useStoryboardWidgetGraphActions(args: {
         if (!nodeId || beforeIds.has(nodeId)) return false
         return String(node.type || '').trim() === type && String(node.label || '').trim() === label
       })?.id
-      const actualId = String(exactId || composedId || insertedId || '').trim()
+      const actualId = String(exactId || composedId || insertedId || committedId || '').trim()
       if (!actualId) return ''
       const liveGraphData = readLiveGraphData()
       const revisionFloor = Math.max(

@@ -16,6 +16,7 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js";
+import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js";
 import {
   addMemoryLayerMemory,
   assembleMemoryLayerPrompt,
@@ -558,6 +559,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args)); if (typeof toolName === "string" && toolName.startsWith("knowgrph.probe.")) return jsonToolResult(await runProbeTreeTool(toolName, args, { rootDir: KNOWGRPH_ROOT }));
+    if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsDocsInvoke) {
+      const payload = await runAgenticCanvasOsDocsInvokeTool(args, { rootDir: KNOWGRPH_ROOT, env: process.env });
+      return jsonToolResult(payload, payload.ok === false);
+    }
     if ([KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionDetectLanguageVariant, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionTranslateLocalize, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.sealionSafetyCheck].includes(toolName)) return jsonToolResult(await callSealionSidecarTool(toolName, args, { env: process.env }));
     if (typeof toolName === "string" && toolName.startsWith("knowgrph.showrunner.")) return runShowrunnerLocalTool(toolName, args, { rootDir: KNOWGRPH_ROOT });
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.osStatus) return runOsStatusTool(args.view, args, { rootDir: KNOWGRPH_ROOT }).then((payload) => jsonToolResult(payload, payload.ok === false));

@@ -25,42 +25,18 @@ import {
   WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
 } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
-import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaleKey, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { computeBoundedOverlayPaintScale, computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaleKey, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, readVectorPaintedOverlayPosition, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import { computeDefaultWidgetFloatingPos } from '@/components/StoryboardWidget/widgetLayout'
 import { isFrontmatterManagedOverlayNode, resolveFrontmatterBalancedFallbackPos } from '@/components/StoryboardWidget/widgetFrontmatterPlacement'
+import { readRichMediaOverlayFrameSize } from '@/components/StoryboardWidget/richMediaOverlayFrameSize'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import { computeViewportSafeInlineCenterShiftPx } from '@/lib/ui/viewportToolbarPlacement'
 import { resolveStoryboardWidgetVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { STORYBOARD_WIDGET_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
-import {
-  coerceRichMediaPanelSizePx,
-  resolveRichMediaAspectRatioValue,
-  resolveRichMediaAspectSelection,
-} from '@/lib/render/richMediaSsot'
-import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 
-type AppliedOverlayPlacement = {
-  left: number
-  top: number
-  scale: number
-  zoomK: number
-  offsetLeft: number
-  offsetTop: number
-}
-
-function readRichMediaOverlayFrameSize(node: { type?: unknown; properties?: unknown } | null | undefined): { width: number; height: number } | null {
-  if (!node || String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return null
-  const props = node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-    ? node.properties as Record<string, unknown>
-    : null
-  if (!props) return null
-  const width = Number(props['visual:width'])
-  const height = Number(props['visual:height'])
-  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE
-  return coerceRichMediaPanelSizePx({ width, height, minWidthPx: 1, minHeightPx: 1, targetAspect: resolveRichMediaAspectRatioValue(resolveRichMediaAspectSelection({ width, height })) })
-}
+type AppliedOverlayPlacement = { left: number; top: number; scale: number; zoomK: number; offsetLeft: number; offsetTop: number }
 
 function shouldUseFrontmatterBalancedFallbackForScreenAuthority(args: {
   frontmatterManagedNode: boolean
@@ -155,6 +131,8 @@ export function useWidgetPlacementRuntime(args: {
   const lastAppliedRef = React.useRef<AppliedOverlayPlacement | null>(null)
   const screenAuthorityZoomBaselineKRef = React.useRef<number | null>(null)
   const screenAuthorityLayoutZoomBaseRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
+  const storyboardPinnedZoomLayoutBaseRef = React.useRef<VectorPaintedOverlayScaleProjectionBase | null>(null)
+  const lastStoryboardPinnedTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
   const screenAuthorityHandoffPosRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
   const initialFrontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, node)
   const lastFloatingScaleKeyRef = React.useRef<string>(computeWidgetScaleKey(computeCollectiveFollowPinnedScale({
@@ -451,12 +429,7 @@ export function useWidgetPlacementRuntime(args: {
   const readCurrentOverlayScreenPlacement = React.useCallback((): { left: number; top: number } | null => {
     const el = asideRef.current
     if (!el) return null
-    const matrix = String(el.style.transform || '').match(/matrix\([^,]+,\s*[^,]+,\s*[^,]+,\s*[^,]+,\s*([-0-9.]+),\s*([-0-9.]+)\)/)
-    if (!matrix) return null
-    const tx = Number(matrix[1])
-    const ty = Number(matrix[2])
-    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return null
-    return { left: tx, top: ty }
+    return readVectorPaintedOverlayPosition(el)
   }, [])
 
   const readCurrentOverlayScreenPlacementForHandoff = React.useCallback((): { left: number; top: number } | null => {
@@ -532,7 +505,8 @@ export function useWidgetPlacementRuntime(args: {
       el.style.left = '0px'
       el.style.top = '0px'
       el.style.transformOrigin = 'top left'
-      el.style.willChange = 'transform'
+      el.style.transform = 'none'
+      ;(el.style as CSSStyleDeclaration & { zoom: string }).zoom = '1'
     }
     const frameWidth = richMediaFrameSize?.width || WIDGET_BASE_SIZE.width
     const frameHeight = richMediaFrameSize?.height || WIDGET_BASE_SIZE.height
@@ -612,6 +586,7 @@ export function useWidgetPlacementRuntime(args: {
 
     const dragOverride = pinnedDragOverrideRef.current; const worldDragOverride = worldDragOverrideRef.current
     const storyboardPinnedCardLayoutActive = !floatingRef.current && String(storyboardWidgetSurfaceId || '').trim() === 'storyboard'
+    if (!storyboardPinnedCardLayoutActive) { storyboardPinnedZoomLayoutBaseRef.current = null; lastStoryboardPinnedTransformRef.current = null }
     const currentStoredWorld = readStoredWidgetWorldPos()
     if (currentStoredWorld && !storyboardPinnedCardLayoutActive) widgetWorldPosRef.current = currentStoredWorld
     const currentStoredWorldForPlacement = storyboardPinnedCardLayoutActive || floatingUsesScreenAuthority
@@ -643,18 +618,37 @@ export function useWidgetPlacementRuntime(args: {
       sy: anchoredPosRef.current.top + autoStackOffset.top,
     })
     const effectiveStoredWorld = storedWorldFarOffscreen ? null : storedWorld
-    const worldPinned = worldDragOverride || (storyboardPinnedCardLayoutActive ? world : effectiveStoredWorld || defaultWorld)
-    const storyboardPinnedCenterWorld = richMediaFrameSize
-      ? { x: worldPinned.x + frameWidth / 2, y: worldPinned.y + frameHeight / 2 }
-      : worldPinned
-    const worldPinnedScreen = worldToScreen({ transform: placementTransform, x: worldPinned.x, y: worldPinned.y })
-    const storyboardPinnedScreenBox = storyboardPinnedCardLayoutActive
+    const worldPinnedTopLeft = worldDragOverride || (storyboardPinnedCardLayoutActive ? world : effectiveStoredWorld || defaultWorld)
+    const worldPinned = richMediaFrameSize
+      ? { x: worldPinnedTopLeft.x + frameWidth / 2, y: worldPinnedTopLeft.y + frameHeight / 2 }
+      : worldPinnedTopLeft
+    const storyboardPaintScale = computeBoundedOverlayPaintScale(zoomK)
+    const worldPinnedScreen = worldToScreen({ transform: placementTransform, x: worldPinnedTopLeft.x, y: worldPinnedTopLeft.y })
+    const storyboardPinnedRawScreenBox = storyboardPinnedCardLayoutActive
       ? computeStoryboardWidgetOverlayScreenBox({
           transform: placementTransform,
-          centerWorld: storyboardPinnedCenterWorld,
+          centerWorld: worldPinned,
+          paintScale: storyboardPaintScale,
           width: frameWidth,
           height: frameHeight,
         })
+      : null
+    const storyboardPinnedScreenBox = storyboardPinnedRawScreenBox
+      ? (() => {
+          const projected = projectVectorPaintedOverlayZoomBox({
+            previousBox: lastAppliedRef.current,
+            baseBox: storyboardPinnedZoomLayoutBaseRef.current,
+            previousTransform: lastStoryboardPinnedTransformRef.current,
+            currentTransform: placementTransform,
+            rawBox: storyboardPinnedRawScreenBox,
+            anchorX: viewportW / 2,
+            anchorY: viewportH / 2,
+            width: frameWidth,
+            height: frameHeight,
+          })
+          storyboardPinnedZoomLayoutBaseRef.current = projected.baseBox
+          return projected.box
+        })()
       : null
     const floatingWorld = worldDragOverride || effectiveStoredWorld
     const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: placementTransform, x: floatingWorld.x, y: floatingWorld.y }) : null
@@ -704,10 +698,11 @@ export function useWidgetPlacementRuntime(args: {
     const floatingScreenAuthorityScale = floatingRef.current && floatingUsesScreenAuthority && !frontmatterManagedNode
       ? screenAuthorityHandoffPos?.scale ?? lastAppliedRef.current?.scale
       : null
-    const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? floatingScreenAuthorityScale ?? panelScale
+    const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? panelScale
+    const appliedPanelScale = floatingScreenAuthorityScale ?? effectivePanelScale
     const effectiveScaled = richMediaFrameSize
-      ? { width: richMediaFrameSize.width * effectivePanelScale, height: richMediaFrameSize.height * effectivePanelScale }
-      : computeWidgetScaledSize(effectivePanelScale)
+      ? { width: richMediaFrameSize.width * appliedPanelScale, height: richMediaFrameSize.height * appliedPanelScale }
+      : computeWidgetScaledSize(appliedPanelScale)
     scaledSizeRef.current = effectiveScaled
     const screenAuthorityZoomLayoutActive = frontmatterManagedNode
       && floatingRef.current
@@ -749,7 +744,7 @@ export function useWidgetPlacementRuntime(args: {
     const updateToolbarLayout = opts?.updateToolbarLayout !== false
     const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
     if (updateToolbarLayout) setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
-    const safeEffectivePanelScale = Number.isFinite(effectivePanelScale) && effectivePanelScale > 0 ? effectivePanelScale : 1
+    const safeEffectivePanelScale = Number.isFinite(appliedPanelScale) && appliedPanelScale > 0 ? appliedPanelScale : 1
     const toolbarViewportLeft = frontmatterVisibleViewportAuthority ? screenAuthorityViewportLeft : 0
     const toolbarViewportRight = frontmatterVisibleViewportAuthority ? screenAuthorityViewportRight : viewportW
     const toolbarViewportWidth = Math.max(1, toolbarViewportRight - toolbarViewportLeft)
@@ -778,13 +773,14 @@ export function useWidgetPlacementRuntime(args: {
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0; const offsetTop = Number.isFinite(offset.top) ? offset.top : 0
     const tx = pos.left + offsetLeft; const ty = pos.top + offsetTop
     const last = lastAppliedRef.current
-    if (last && last.left === pos.left && last.top === pos.top && last.offsetLeft === offsetLeft && last.offsetTop === offsetTop && Math.abs(last.scale - effectivePanelScale) < 1e-6 && Math.abs(last.zoomK - zoomK) < 1e-6) return
-    lastAppliedRef.current = { left: pos.left, top: pos.top, scale: effectivePanelScale, zoomK, offsetLeft, offsetTop }
-    el.style.transform = `matrix(${effectivePanelScale}, 0, 0, ${effectivePanelScale}, ${tx}, ${ty})`
+    if (last && last.left === pos.left && last.top === pos.top && last.offsetLeft === offsetLeft && last.offsetTop === offsetTop && Math.abs(last.scale - appliedPanelScale) < 1e-6 && Math.abs(last.zoomK - zoomK) < 1e-6) return
+    lastAppliedRef.current = { left: pos.left, top: pos.top, scale: appliedPanelScale, zoomK, offsetLeft, offsetTop }
+    if (storyboardPinnedCardLayoutActive) lastStoryboardPinnedTransformRef.current = { k: placementTransform.k, x: placementTransform.x, y: placementTransform.y }
+    applyVectorPaintedOverlayBox(el, { left: tx, top: ty, scale: appliedPanelScale, width: frameWidth, height: frameHeight })
     if (floatingRef.current && !floatingUsesScreenAuthority && !currentStoredWorld && !widgetWorldPosRef.current && !worldDragOverride && !dragOverride) {
       const seedWorld = usableFloatingScreenPos
         ? screenToWorld({ transform: placementTransform, sx: usableFloatingScreenPos.left, sy: usableFloatingScreenPos.top })
-        : worldPinned
+        : worldPinnedTopLeft
       widgetWorldPosRef.current = seedWorld
       lastGoodWorldPosRef.current = seedWorld
       persistWorldPos(seedWorld)

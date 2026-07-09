@@ -16,10 +16,15 @@
 // source owner.
 
 import { runVideoRemix, runVideoRemixAsync } from "../../../mcp/video-remix-runtime.js";
+import {
+  AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+  AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION,
+} from "../../../mcp/agentic-canvas-os-docs-contract.mjs";
+import { buildAgenticCanvasOsDocsStaticResolutionPayload } from "../../../mcp/agentic-canvas-os-docs-core.mjs";
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
-export { KNOWGRPH_OS_STATUS_TOOL_NAME };
+export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME };
 
 export const KNOWGRPH_MCP_DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
@@ -453,9 +458,9 @@ export function buildKnowgrphMcpToolDefinitions() {
       gateId: KNOWGRPH_MCP_STAGE_GATES[tool.name] ?? null,
     },
   });
-  return [DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION].map((tool) => {
+  return [DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION].map((tool) => {
     const decorated = decorate(tool);
-    return tool.name === KNOWGRPH_OS_STATUS_TOOL_NAME
+    return tool.name === KNOWGRPH_OS_STATUS_TOOL_NAME || tool.name === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
       ? { ...decorated, annotations: { ...decorated.annotations, readOnlyHint: true } }
       : decorated;
   });
@@ -535,6 +540,14 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
   }
 
   if (toolName === KNOWGRPH_OS_STATUS_TOOL_NAME) return executeCloudflareOsStatusTool(args, { toolDefinitions: buildKnowgrphMcpToolDefinitions() });
+  if (toolName === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME) {
+    const payload = buildAgenticCanvasOsDocsStaticResolutionPayload(args);
+    return {
+      ok: payload.ok,
+      structuredContent: payload,
+      text: JSON.stringify(payload, null, 2),
+    };
+  }
 
   const gateId = KNOWGRPH_MCP_STAGE_GATES[toolName];
   if (!gateId) {

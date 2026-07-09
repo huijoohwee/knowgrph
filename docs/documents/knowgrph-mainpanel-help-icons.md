@@ -46,7 +46,6 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | mainPanel.commerce | mainPanel.commerce | Commerce operations | MainPanel tab for ACP, Stripe, Web3, OpenBOX, proof, and trace readiness. |
 | mainPanel.research | mainPanel.research | Thesis compiler | MainPanel tab for compiling selected Source Files into reviewable thesis candidates. |
 | mainPanel.design | mainPanel.design | Design surface | MainPanel tab for design renderer and page/component inspection. |
-| mainPanel.skillsCommands | mainPanel.skillsCommands | Skills and commands | MainPanel tab for skill discovery, command references, and guided operator actions. |
 | mainPanel.workflowManager | mainPanel.workflowManager | Workflow curation | MainPanel tab for graph fields, mappings, and workflow registry management. |
 | mainPanel.dashboard | mainPanel.dashboard | Surface summary | MainPanel tab for runtime status and dashboard metrics. |
 | mainPanel.preview | mainPanel.preview | Rendered preview | MainPanel tab for previewing rendered output. |
@@ -54,6 +53,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | mainPanel.history | mainPanel.history | Event review | MainPanel tab for history and log review. |
 | mainPanel.help | mainPanel.help | Operator reference | MainPanel tab for shortcuts, Command Menu catalog, workflow links, panel tour, and icon library. |
 | floatingPanel.propsPanel | floatingPanel.propsPanel | Selection properties | FloatingPanel view for node, edge, widget, and media properties. |
+| floatingPanel.skillsCommands | floatingPanel.skillsCommands | Skills and commands | FloatingPanel view for skill discovery, command references, and guided operator actions. |
 | floatingPanel.view | floatingPanel.view | Data view controls | FloatingPanel view for workspace data-view settings. |
 | floatingPanel.media | floatingPanel.media | Media list | FloatingPanel view and SSOT for current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media candidates; the full `/`, `@`, and `#` command catalog lives in MainPanel Help → Command Menu. |
 | floatingPanel.camera | floatingPanel.camera | Camera framing | FloatingPanel view for shared camera pose, framing, and shot metadata controls. |
@@ -67,10 +67,21 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.gitGraph | floatingPanel.gitGraph | Git history graph | FloatingPanel view for GitGraph history, branch topology, and commit inspection. |
 | floatingPanel.gantt | floatingPanel.gantt | Gantt planning | FloatingPanel view for Gantt-timeline inspection and planning controls. |
 | floatingPanel.timeline | floatingPanel.timeline | Timeline playback | FloatingPanel view for timeline playback and review controls. |
+| floatingPanel.xr | floatingPanel.xr | XR scene controls | FloatingPanel view for XR scene import, model inspection, and runtime controls. |
 | floatingPanel.architecture | floatingPanel.architecture | Architecture diagram | FloatingPanel view for architecture diagram inspection and structured rows. |
 | floatingPanel.eventModeling | floatingPanel.eventModeling | Event modeling | FloatingPanel view for event-modeling diagram inspection and structured rows. |
 | floatingPanel.strybldr | floatingPanel.strybldr | Image storyboard orchestration | FloatingPanel view for image reverse engineering, element cards, and video handoff. |
 | floatingPanel.graphTraversal | floatingPanel.graphTraversal | Path reasoning | FloatingPanel view for graph traversal and orchestrator workflow controls. |
+| invocation.prefix.slash | invocation.prefix.slash | Slash command fallback | Default icon for slash commands when no narrower subject applies. |
+| invocation.prefix.hash | invocation.prefix.hash | Semantic keyword fallback | Default icon for `#` semantic invocations when no narrower subject applies. |
+| invocation.prefix.at | invocation.prefix.at | Binding reference fallback | Default icon for `@` binding invocations when no narrower subject applies. |
+| invocation.subject.agent | invocation.subject.agent | Agent command | Robot icon for Chat skills and slash commands whose label or token identifies an agent. |
+| invocation.subject.story | invocation.subject.story | Story command | Subject icon for storybuilding, storyboard, script, and narrative invocations. |
+| invocation.subject.video | invocation.subject.video | Video command | Subject icon for video, film, camera, media, animatic, and render invocations. |
+| invocation.subject.research | invocation.subject.research | Research command | Subject icon for research, thesis, search, query, and evidence invocations. |
+| invocation.subject.memory | invocation.subject.memory | Memory command | Subject icon for memory, session, soul, remember, and compaction invocations. |
+| invocation.subject.profile | invocation.subject.profile | Profile command | Subject icon for profile, personality, persona, user, and MoA invocations. |
+| invocation.subject.care | invocation.subject.care | Care command | Subject icon for care, health, medical, and clinical invocations. |
 | field.scope.node | field.scope.node | Node-level property | Field attached to nodes; use for node attributes such as title or type. |
 | field.scope.edge | field.scope.edge | Edge-level property | Field attached to edges; use for relationship attributes such as weight or labels. |
 | field.origin.custom | field.origin.custom | User-defined property | Schema-defined field created by the user; stored alongside node or edge properties. |

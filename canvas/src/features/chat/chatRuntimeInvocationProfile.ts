@@ -1,4 +1,5 @@
 import {
+  KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID,
   findAgenticOsInvocationByToken,
   type AgenticOsResolvedInvocation,
 } from '@/features/agentic-os/agenticOsDocInvocations'
@@ -10,6 +11,25 @@ import {
   sanitizeRuntimeInvocationQueryText,
 } from './chatRuntimeInvocationQuery'
 import { CHAT_STORYBOARD_TEMPLATE_AGENTIC_OS_DIRECTIVE_PROMPT } from './chatStoryboardTemplateContract'
+
+const isProbeTreeInvocationToken = (token: string): boolean => (
+  String(token || '').trim().toLowerCase().replace(/^[/#@]/, '') === KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID
+)
+
+const buildProbeTreeCardMaterializationPrompt = (invocations: readonly AgenticOsResolvedInvocation[]): string => {
+  if (!invocations.some(invocation => isProbeTreeInvocationToken(invocation.token))) return ''
+  return [
+    'Probe-Tree card materialization contract:',
+    '- Treat the active request or selected card as the current probe node.',
+    '- Produce 2-4 user-selectable next-step branch cards, not only prose.',
+    '- Include one fenced yaml block rooted at `response:` with `response.structuredContent.cards`.',
+    '- Each card must include id, label, kind: text, output, parentNodeId when known, candidateOptionId, rationale, and nextAction.',
+    '- Each card output starts with the proposed next question and ends with the short rationale for selecting it.',
+    '- Use neutral tool handoff fields for `knowgrph.probe.generate` and `knowgrph.probe.select`; do not claim tool execution unless the runtime actually returned tool output.',
+    '- If a parent card/node id is present, include structuredContent.edges from that parent to each candidate card with label `candidateOption`.',
+    '- Keep the cards editable and review-first so the user can select the next branch from the canvas before any `probe.select` mutation.',
+  ].join('\n')
+}
 
 export const collectAgenticOsRuntimeInvocations = (userQuery: string): AgenticOsResolvedInvocation[] => {
   const found = new Map<string, AgenticOsResolvedInvocation>()
@@ -44,8 +64,9 @@ export const buildAgenticOsRuntimeInvocationSystemPrompt = (userQuery: string): 
     )),
     '- Treat source documents as reference context only; this does not authorize Prod mirror or Cloudflare deployment.',
     '- Keep command outputs inside the active response contract; PRD/TAD and computing-flow commands use the structured KGC scaffold when that contract is selected.',
+    buildProbeTreeCardMaterializationPrompt(invocations),
     CHAT_STORYBOARD_TEMPLATE_AGENTIC_OS_DIRECTIVE_PROMPT,
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }
 
 export const buildRuntimeInvocationRoutingSystemPrompt = (userQuery: string): string => {

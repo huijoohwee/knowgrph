@@ -4,12 +4,10 @@ import {
   buildGenerateImageRegistryDraft,
   buildGenerateTextRegistryDraft,
   buildGenerateVideoRegistryDraft,
-  buildBytePlusVideoScriptRegistryDraft,
-  buildOpenAiVideoScriptRegistryDraft,
   buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/storyboard-widget-manager/registryTemplates'
-import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'; import { buildAnnotationEngineRegistryDraft } from '@/features/visual-annotation-engine/annotationWidget'
+import { buildAnnotationEngineRegistryDraft } from '@/features/visual-annotation-engine/annotationWidget'
 import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
 import {
   buildGrabMapsDiscoveryRegistryDraft,
@@ -401,6 +399,33 @@ export function normalizeWidgetRegistryEntries(entries: WidgetRegistryEntry[]): 
   return out
 }
 
+const DEPRECATED_GLOBAL_DEFAULT_WIDGET_REGISTRY_KEYS = new Set<string>([
+  `${FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID}:default:${FLOW_HTML_VIDEO_RENDERER_FORM_ID}`,
+  `${FLOW_TEXT_GENERATION_NODE_TYPE_ID}:default:${FLOW_VIDEO_SCRIPT_FORM_ID}`,
+  `${FLOW_TEXT_GENERATION_NODE_TYPE_ID}:default:${FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID}`,
+  `${FLOW_TEXT_GENERATION_NODE_TYPE_ID}:default:textGeneration.openai`,
+  `${FLOW_TEXT_GENERATION_NODE_TYPE_ID}:default:textGeneration.deerflow`,
+  `${FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID}:default:${FLOW_VIDEO_TRANSCRIBER_FORM_ID}`,
+  `${FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID}:default:${FLOW_STORYBOARD_ELEMENT_FORM_ID}`,
+  `${FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID}:${FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID}:${FLOW_GRABMAPS_DISCOVERY_FORM_ID}`,
+])
+
+function buildWidgetRegistryShapeKey(entry: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId'>): string {
+  return `${trimOrEmpty(entry.nodeTypeId)}:${trimOrEmpty(entry.widgetTypeId)}:${trimOrEmpty(entry.formId)}`
+}
+
+function pruneDeprecatedGlobalDefaultWidgetRegistryEntries(entries: WidgetRegistryEntry[]): {
+  entries: WidgetRegistryEntry[]
+  changed: boolean
+} {
+  const prev = Array.isArray(entries) ? entries : []
+  const next = prev.filter(entry => !DEPRECATED_GLOBAL_DEFAULT_WIDGET_REGISTRY_KEYS.has(buildWidgetRegistryShapeKey(entry)))
+  return {
+    entries: next,
+    changed: next.length !== prev.length,
+  }
+}
+
 function ensureDefaultRegistryEntry(args: {
   entries: WidgetRegistryEntry[]
   nodeTypeId: string
@@ -501,8 +526,9 @@ export function ensureDefaultWidgetRegistryEntries(
   entries: WidgetRegistryEntry[],
   nowIso?: string,
 ): { entries: WidgetRegistryEntry[]; changed: boolean } {
+  const pruned = pruneDeprecatedGlobalDefaultWidgetRegistryEntries(entries)
   const seededImage = ensureDefaultRegistryEntry({
-    entries,
+    entries: pruned.entries,
     nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
     formId: 'imageGeneration',
     draft: buildGenerateImageRegistryDraft(),
@@ -522,92 +548,21 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildGenerateTextRegistryDraft(),
     nowIso,
   })
-  const seededHtmlVideoRenderer = ensureDefaultRegistryEntry({
-    entries: seededText.entries,
-    nodeTypeId: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
-    formId: FLOW_HTML_VIDEO_RENDERER_FORM_ID,
-    draft: buildHtmlVideoRendererRegistryDraft(),
-    nowIso,
-  })
-  const seededVideoScript = ensureDefaultRegistryEntry({
-    entries: seededHtmlVideoRenderer.entries,
-    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    formId: FLOW_VIDEO_SCRIPT_FORM_ID,
-    draft: buildBytePlusVideoScriptRegistryDraft(),
-    nowIso,
-  })
-  const seededOpenAiText = ensureDefaultRegistryEntry({
-    entries: seededVideoScript.entries,
-    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    formId: 'textGeneration.openai',
-    draft: buildTextGenerationRegistryDraft({
-      providerFamily: 'openai',
-      widgetTypeId: 'default',
-      formId: 'textGeneration.openai',
-    }),
-    nowIso,
-  })
-  const seededDeerFlowText = ensureDefaultRegistryEntry({
-    entries: seededOpenAiText.entries,
-    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    formId: 'textGeneration.deerflow',
-    draft: buildTextGenerationRegistryDraft({
-      providerFamily: 'deerflow',
-      widgetTypeId: 'default',
-      formId: 'textGeneration.deerflow',
-    }),
-    nowIso,
-  })
-  const seededOpenAiVideoScript = ensureDefaultRegistryEntry({
-    entries: seededDeerFlowText.entries,
-    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    formId: FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
-    draft: buildOpenAiVideoScriptRegistryDraft(),
-    nowIso,
-  })
-  const seededVideoTranscriber = ensureDefaultRegistryEntry({
-    entries: seededOpenAiVideoScript.entries,
-    nodeTypeId: FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
-    formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
-    draft: buildVideoTranscriberRegistryDraft(),
-    nowIso,
-  })
-  const seededStoryboardElement = ensureDefaultRegistryEntry({
-    entries: seededVideoTranscriber.entries,
-    nodeTypeId: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
-    formId: FLOW_STORYBOARD_ELEMENT_FORM_ID,
-    draft: buildStoryboardElementRegistryDraft(),
-    nowIso,
-  })
   const seededRichMediaPanel = ensureDefaultRegistryEntry({
-    entries: seededStoryboardElement.entries,
+    entries: seededText.entries,
     nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
     formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
     draft: buildRichMediaPanelRegistryDraft(),
     nowIso,
   })
-  const seededGrabMapsDiscovery = ensureDefaultRegistryEntry({
-    entries: seededRichMediaPanel.entries,
-    nodeTypeId: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
-    formId: FLOW_GRABMAPS_DISCOVERY_FORM_ID,
-    draft: buildGrabMapsDiscoveryRegistryDraft(),
-    nowIso,
-  })
   return {
-    entries: seededGrabMapsDiscovery.entries,
+    entries: seededRichMediaPanel.entries,
     changed:
-      seededImage.changed
+      pruned.changed
+      || seededImage.changed
       || seededVideo.changed
       || seededText.changed
-      || seededHtmlVideoRenderer.changed
-      || seededVideoScript.changed
-      || seededOpenAiText.changed
-      || seededDeerFlowText.changed
-      || seededOpenAiVideoScript.changed
-      || seededVideoTranscriber.changed
-      || seededStoryboardElement.changed
-      || seededRichMediaPanel.changed
-      || seededGrabMapsDiscovery.changed,
+      || seededRichMediaPanel.changed,
   }
 }
 

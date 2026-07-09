@@ -149,8 +149,23 @@ const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readWorkspaceDocsMirrorRootPathSetting())
 }
 
-const readWorkspaceInitializationAgenticOsDocsAbsRoot = (): string =>
-  readWorkspaceMirrorBaseAbsRoot() ? `${readWorkspaceMirrorBaseAbsRoot()}/agentic-os-docs` : ''
+const AGENTIC_CANVAS_OS_DOCS_REPOSITORY_FOLDER_NAME = 'docs'
+const AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT_NAME = 'agentic-canvas-os/docs'
+
+const readAbsParentRoot = (absRoot: string): string => {
+  const normalized = normalizeAbsRoot(absRoot)
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length <= 1) return ''
+  return `/${parts.slice(0, -1).join('/')}`
+}
+
+const readWorkspaceInitializationAgenticOsDocsAbsRoot = (): string => {
+  const explicit = normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT', ''))
+  if (explicit) return explicit
+  const docsMirrorBaseRoot = readWorkspaceMirrorBaseAbsRoot()
+  const repositoryParentRoot = readAbsParentRoot(docsMirrorBaseRoot)
+  return repositoryParentRoot ? `${repositoryParentRoot}/agentic-canvas-os/${AGENTIC_CANVAS_OS_DOCS_REPOSITORY_FOLDER_NAME}` : ''
+}
 
 const readWorkspaceInitializationChatLogAbsRoot = (): string => {
   const explicit = normalizeAbsRoot(readEnvString('VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT', ''))
@@ -1532,7 +1547,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   if (docsAbsRoot) {
     const rootMirrorEntries = [
       ...await readWorkspaceMirrorRootEntries({ absRoot: docsAbsRoot, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
-      ...await readWorkspaceMirrorRootEntries({ absRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot(), workspaceRootName: 'agentic-os-docs', readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
+      ...await readWorkspaceMirrorRootEntries({ absRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot(), workspaceRootName: AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT_NAME, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
     ]
     if (rootMirrorEntries.length > 0) {
       if (!preferCompleteDataset) return rootMirrorEntries

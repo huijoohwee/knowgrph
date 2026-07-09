@@ -5,7 +5,7 @@ import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaPrope
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 
-export function isRichMediaPanelNode(node: GraphNode | null | undefined): boolean {
+export function isRichMediaPanelNode(node: { type?: unknown } | null | undefined): boolean {
   return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 }
 

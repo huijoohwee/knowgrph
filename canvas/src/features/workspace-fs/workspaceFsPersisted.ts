@@ -14,10 +14,10 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldPreserveFallbackWorkspaceSeedText,
 } from './workspaceFs'
-import { upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
-import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
-import { ensureWorkspaceDocsMirrorFolder, upsertWorkspaceDocsMirrorText } from './workspaceSeedProvider'
+import { ensureWorkspaceDocsMirrorFolder, readWorkspaceInitializationDocsMirrorEntries, upsertWorkspaceDocsMirrorText, upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
+import { loadWorkspaceSourceIndex } from './sourceIndex'
+import { buildWorkspaceDocsMirrorSourceOwnedPathSet } from './workspaceDocsMirrorSourceOwnership'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsJson, lsRemove, lsSetBool } from '@/lib/persistence'
 import {
@@ -35,10 +35,7 @@ const docsMirrorFolderFlushTimers = new Map<WorkspacePath, number>()
 const docsMirrorTextFlushTimers = new Map<WorkspacePath, number>()
 const docsMirrorPendingTextByPath = new Map<WorkspacePath, string>()
 
-type WorkspaceEntryRow = WorkspaceEntry
-type WorkspaceRecordMap = {
-  entries: WorkspaceEntryRow
-}
+type WorkspaceRecordMap = { entries: WorkspaceEntry }
 type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
 type WorkspaceFsDb = PersistedCollectionDb<WorkspaceRecordMap>
 let dbSingleton: Promise<WorkspaceFsDb> | null = null
@@ -49,7 +46,7 @@ const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
   [GEOSPATIAL_WORKSPACE_SEED_PATH, GEOSPATIAL_WORKSPACE_SEED_BASENAME],
 ])
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
-const WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/agentic-os-docs')
+const WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/agentic-canvas-os/docs')
 const readChatLocalStorageRootPath = (): WorkspacePath => {
   const value = lsJson<string>(
     LS_KEYS.chatLocalStorageRootPath,
@@ -71,10 +68,7 @@ const normalizeUpdatedAtMs = (value: unknown, fallback = Date.now()): number => 
   if (!Number.isFinite(n) || n < 0) return Math.max(0, Math.floor(fallback))
   return Math.floor(n)
 }
-
-const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null => {
-  return WORKSPACE_SEED_BASENAME_BY_PATH.get(path) || null
-}
+const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null => WORKSPACE_SEED_BASENAME_BY_PATH.get(path) || null
 
 const normalizeDocsMirrorRelPath = (value: string): string => {
   const normalized = String(value || '')
@@ -100,7 +94,7 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
 
 const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
-  if (normalizedRelPath === 'agentic-os-docs' || normalizedRelPath.startsWith('agentic-os-docs/')) return normalizeWorkspacePath(`/${normalizedRelPath}`)
+  if (normalizedRelPath === 'agentic-canvas-os/docs' || normalizedRelPath.startsWith('agentic-canvas-os/docs/')) return normalizeWorkspacePath(`/${normalizedRelPath}`)
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
@@ -213,6 +207,7 @@ const syncWorkspaceDocsMirrorEntries = async (
     }
   }
   if (desiredEntriesByPath.size === 0) return false
+  const sourceOwnedDocsPaths = buildWorkspaceDocsMirrorSourceOwnedPathSet(loadWorkspaceSourceIndex())
   const existingRows = await collections.entries.find().exec()
   let changed = false
   for (let i = 0; i < existingRows.length; i += 1) {
@@ -221,6 +216,10 @@ const syncWorkspaceDocsMirrorEntries = async (
     const existingPath = normalizeWorkspacePath(String(row.get('path') || ''))
     if (!existingPath.startsWith(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`)) continue
     const desired = desiredEntriesByPath.get(existingPath) || null
+    if (sourceOwnedDocsPaths.has(existingPath)) {
+      desiredEntriesByPath.delete(existingPath)
+      continue
+    }
     if (!desired) {
       await row.remove()
       changed = true

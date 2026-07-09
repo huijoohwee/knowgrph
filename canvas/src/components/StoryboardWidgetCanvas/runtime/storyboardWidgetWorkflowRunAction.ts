@@ -16,10 +16,7 @@ import { getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
-import {
-  FLOW_SHOWRUNNER_NODE_TYPE_ID,
-  runShowrunnerWidgetProperties,
-} from '@/features/ai-showrunner/showrunnerFlowNode'
+import { FLOW_SHOWRUNNER_NODE_TYPE_ID, runShowrunnerWidgetProperties } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-video-renderer/htmlVideoEngineRegistry'
 import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
 import { runAnnotationFlowNode, toAnnotationPreviewSrcDoc, toMarkdownSummary, type AnnotationRunResult } from '@/features/visual-annotation-engine'
@@ -40,6 +37,7 @@ import {
   isStoryboardWidgetWorkflowRunnableNode,
   resolveStoryboardWidgetWorkflowDownstreamRunTargetIds,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
+import { publishStoryboardWidgetSourceBackedRunOutput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetSourceBackedRunOutput'
 import {
   areStoryboardWidgetWorkflowRecordValuesEqual,
   setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds,
@@ -909,7 +907,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         return
       }
 
-      console.warn(`[storyboardWidget] runWorkflowNode: no handler for node type "${String(node.type || '').trim()}" (id: "${id}"). Skipping.`)
+      publishStoryboardWidgetSourceBackedRunOutput({ id, node, publishTextRunOutputToRichMediaPanel, updateRunOutputForKnownNodeIds, upsertUiToast: args.upsertUiToast })
     } catch (error) {
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
       args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })

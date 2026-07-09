@@ -1,4 +1,9 @@
-import { deriveOpenWidgetOverlayNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import {
+  deriveOpenWidgetOverlayNodeIds,
+  deriveStoryboardCanvasRichMediaPanelNodeIds,
+  filterGraphByExcludedNodeIds,
+} from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildFlowWidgetEligibleNodeIdSet, buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
 import type { GraphData } from '@/lib/graph/types'
@@ -83,6 +88,59 @@ export function testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForStoryboard
   }
 }
 
+export function testStoryboardCardSurfaceSuppressesCanvasOwnedRichMediaBackingOverlay() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'care-panel',
+        type: 'RichMediaPanel',
+        label: 'Patient Coach Panel',
+        properties: {
+          [STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true,
+          'flow:widgetFormId': 'richMediaPanel',
+          richMediaActiveTab: 'text',
+        },
+      },
+      {
+        id: 'standalone-panel',
+        type: 'RichMediaPanel',
+        label: 'Standalone Rich Media Panel',
+        properties: { 'flow:widgetFormId': 'richMediaPanel' },
+      },
+      {
+        id: 'care-source',
+        type: 'InputWidget',
+        label: 'Care Source',
+        properties: { lane: 'Source' },
+      },
+    ],
+    edges: [
+      { id: 'care-source-to-panel', source: 'care-source', target: 'care-panel', label: 'output', properties: {} },
+      { id: 'care-source-to-standalone', source: 'care-source', target: 'standalone-panel', label: 'reference', properties: {} },
+    ],
+  }
+  const canvasOwnedPanelIds = deriveStoryboardCanvasRichMediaPanelNodeIds(graphData)
+  if (canvasOwnedPanelIds.length !== 1 || canvasOwnedPanelIds[0] !== 'care-panel') {
+    throw new Error(`expected only Storyboard canvas-owned Rich Media panels to be excluded from the backing FlowCanvas graph, got ${JSON.stringify(canvasOwnedPanelIds)}`)
+  }
+
+  const filtered = filterGraphByExcludedNodeIds({
+    graphData,
+    excludedNodeIds: canvasOwnedPanelIds,
+  })
+  const retainedNodeIds = new Set((filtered?.nodes || []).map(node => String(node.id || '').trim()))
+  if (retainedNodeIds.has('care-panel')) {
+    throw new Error('expected the Storyboard-owned Rich Media panel to be removed from FlowCanvas materialization')
+  }
+  if (!retainedNodeIds.has('standalone-panel') || !retainedNodeIds.has('care-source')) {
+    throw new Error('expected non-Storyboard Rich Media panels and source nodes to remain renderable in FlowCanvas')
+  }
+  if ((filtered?.edges || []).some(edge => String(edge.target || '') === 'care-panel')) {
+    throw new Error('expected edges into the suppressed Storyboard-owned Rich Media panel to be pruned with the node')
+  }
+}
+
 export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicateOverlay() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
@@ -107,9 +165,14 @@ export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicat
   if (!surfaceText.includes("import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'")) {
     throw new Error('expected Storyboard shared surface to reuse the upstream Rich Media overlay exclusion helper')
   }
+  if (!surfaceText.includes('deriveStoryboardCanvasRichMediaPanelNodeIds')
+    || !surfaceText.includes('const storyboardCanvasRichMediaPanelNodeIds = storyboardCardsActive')
+    || !surfaceText.includes('for (const id of storyboardCanvasRichMediaPanelNodeIds) hiddenNodeIds.add(id)')) {
+    throw new Error('expected Storyboard Card display mode to hide canvas-owned Rich Media panels from FlowCanvas so the backing panel cannot shadow the Storyboard-owned panel')
+  }
   if (!surfaceText.includes('props.storyboardWidgetMode === true && Array.isArray(props.openWidgetNodeIds)')
     || !surfaceText.includes('candidateRawIds: explicitOpenWidgetNodeIds')) {
-    throw new Error('expected Storyboard shared surface to suppress duplicate Rich Media overlays only when Widget display owns the shared widget shell')
+    throw new Error('expected Storyboard shared surface to keep the explicit open-widget Rich Media duplicate suppression path')
   }
   if (!surfaceText.includes('for (const id of openRichMediaPanelNodeIds) hiddenNodeIds.add(id)')) {
     throw new Error('expected open Rich Media widgets to be merged into the FlowCanvas hidden node ids instead of rendering a duplicate Rich Media overlay')

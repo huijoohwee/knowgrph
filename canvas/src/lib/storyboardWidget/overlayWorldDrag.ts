@@ -1,6 +1,10 @@
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
+import {
+  computeVectorPaintedOverlayScreenBox,
+  type VectorPaintedOverlayScreenBox,
+} from '@/lib/canvas/vectorPaintedOverlayProjection'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { screenToWorld, worldToScreen } from '@/lib/zoom/viewport'
+import { screenToWorld } from '@/lib/zoom/viewport'
 
 export type StoryboardWidgetOverlayDragPoint = {
   x: number
@@ -13,11 +17,7 @@ export type StoryboardWidgetOverlayDragTransform = {
   y: number
 }
 
-export type StoryboardWidgetOverlayScreenBox = {
-  left: number
-  top: number
-  scale: number
-}
+export type StoryboardWidgetOverlayScreenBox = VectorPaintedOverlayScreenBox
 
 export function readStoryboardWidgetOverlayCanvasOffset(el: Element | null): { left: number; top: number } {
   const rect = el?.getBoundingClientRect()
@@ -78,22 +78,11 @@ export function computeStoryboardWidgetOverlayDraggedWorldPoint(args: {
 export function computeStoryboardWidgetOverlayScreenBox(args: {
   transform: StoryboardWidgetOverlayDragTransform | null
   centerWorld: StoryboardWidgetOverlayDragPoint
+  devicePixelRatio?: number
+  paintScale?: number
+  snapToDevicePixels?: boolean
   width: number
   height: number
 }): StoryboardWidgetOverlayScreenBox {
-  const width = Number.isFinite(args.width) ? Math.max(1, args.width) : 1
-  const height = Number.isFinite(args.height) ? Math.max(1, args.height) : 1
-  const centerX = Number.isFinite(args.centerWorld.x) ? args.centerWorld.x : 0
-  const centerY = Number.isFinite(args.centerWorld.y) ? args.centerWorld.y : 0
-  const topLeft = worldToScreen({
-    transform: args.transform,
-    x: centerX - width / 2,
-    y: centerY - height / 2,
-  })
-  const scale = args.transform && Number.isFinite(args.transform.k) ? Math.max(0.001, args.transform.k) : 1
-  return {
-    left: topLeft.sx,
-    top: topLeft.sy,
-    scale,
-  }
+  return computeVectorPaintedOverlayScreenBox(args)
 }

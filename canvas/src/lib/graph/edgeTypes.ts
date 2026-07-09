@@ -388,9 +388,113 @@ export const buildEdgePathD = (args: {
   return `M${sx},${sy} L${sx},${my - r} Q${sx},${my} ${xA},${my} L${xB},${my} Q${tx},${my} ${tx},${my + r} L${tx},${ty}`
 }
 
+const shouldUseForwardFlowTrack = (args: {
+  rankdir?: 'TB' | 'LR' | null
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+}): boolean => {
+  if (args.rankdir === 'TB') return args.ty < args.sy - 0.01
+  return args.tx < args.sx - 0.01
+}
+
+const readForwardFlowTrackMetrics = (args: {
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+}) => {
+  const dx = args.tx - args.sx
+  const dy = args.ty - args.sy
+  const laneGap = Math.max(36, Math.min(160, Math.abs(dx) * 0.2 + Math.abs(dy) * 0.08))
+  const cornerRadius = Math.min(24, Math.max(2, Math.min(Math.max(Math.abs(dx), Math.abs(dy)) * 0.5, laneGap * 0.18)))
+  return { dx, dy, laneGap, cornerRadius }
+}
+
+const buildForwardFlowTrackPathD = (args: {
+  rankdir?: 'TB' | 'LR' | null
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+}): string => {
+  const { dx, dy, laneGap, cornerRadius } = readForwardFlowTrackMetrics(args)
+  if (args.rankdir === 'TB') {
+    const laneY = Math.max(args.sy, args.ty) + laneGap
+    const horizontalSign = dx >= 0 ? 1 : -1
+    if (Math.abs(dx) < 0.01) {
+      const trackX = args.sx + Math.max(36, laneGap * 0.5)
+      return `M${args.sx},${args.sy} L${args.sx},${laneY} L${trackX},${laneY} L${trackX},${args.ty} L${args.tx},${args.ty}`
+    }
+    return `M${args.sx},${args.sy} L${args.sx},${laneY - cornerRadius} Q${args.sx},${laneY} ${args.sx + horizontalSign * cornerRadius},${laneY} L${args.tx - horizontalSign * cornerRadius},${laneY} Q${args.tx},${laneY} ${args.tx},${laneY - cornerRadius} L${args.tx},${args.ty}`
+  }
+  const laneX = Math.max(args.sx, args.tx) + laneGap
+  const verticalSign = dy >= 0 ? 1 : -1
+  if (Math.abs(dy) < 0.01) {
+    const trackY = args.sy + Math.max(36, laneGap * 0.5)
+    return `M${args.sx},${args.sy} L${laneX},${args.sy} L${laneX},${trackY} L${args.tx},${trackY} L${args.tx},${args.ty}`
+  }
+  return `M${args.sx},${args.sy} L${laneX - cornerRadius},${args.sy} Q${laneX},${args.sy} ${laneX},${args.sy + verticalSign * cornerRadius} L${laneX},${args.ty - verticalSign * cornerRadius} Q${laneX},${args.ty} ${laneX - cornerRadius},${args.ty} L${args.tx},${args.ty}`
+}
+
+export const buildForwardFlowEdgePathD = (args: {
+  curve?: EdgePathCurveOptions | null
+  edgeType: GlobalEdgeType
+  flowForwardTrack?: boolean
+  rankdir?: 'TB' | 'LR' | null
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+}): string => {
+  const sx = Number.isFinite(args.sx) ? args.sx : 0
+  const sy = Number.isFinite(args.sy) ? args.sy : 0
+  const tx = Number.isFinite(args.tx) ? args.tx : sx
+  const ty = Number.isFinite(args.ty) ? args.ty : sy
+  if (args.flowForwardTrack && shouldUseForwardFlowTrack({ rankdir: args.rankdir, sx, sy, tx, ty })) {
+    return buildForwardFlowTrackPathD({ rankdir: args.rankdir, sx, sy, tx, ty })
+  }
+  return buildEdgePathD({ ...args, sx, sy, tx, ty })
+}
+
+const traceForwardFlowTrackOnCanvas = (args: {
+  ctx: CanvasRenderingContext2D
+  rankdir?: 'TB' | 'LR' | null
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+}) => {
+  const { dx, dy, laneGap, cornerRadius } = readForwardFlowTrackMetrics(args)
+  args.ctx.moveTo(args.sx, args.sy)
+  if (args.rankdir === 'TB') {
+    const laneY = Math.max(args.sy, args.ty) + laneGap
+    const horizontalSign = dx >= 0 ? 1 : -1
+    if (Math.abs(dx) < 0.01) {
+      const trackX = args.sx + Math.max(36, laneGap * 0.5)
+      args.ctx.lineTo(args.sx, laneY); args.ctx.lineTo(trackX, laneY); args.ctx.lineTo(trackX, args.ty); args.ctx.lineTo(args.tx, args.ty)
+      return
+    }
+    args.ctx.lineTo(args.sx, laneY - cornerRadius); args.ctx.quadraticCurveTo(args.sx, laneY, args.sx + horizontalSign * cornerRadius, laneY)
+    args.ctx.lineTo(args.tx - horizontalSign * cornerRadius, laneY); args.ctx.quadraticCurveTo(args.tx, laneY, args.tx, laneY - cornerRadius); args.ctx.lineTo(args.tx, args.ty)
+    return
+  }
+  const laneX = Math.max(args.sx, args.tx) + laneGap
+  const verticalSign = dy >= 0 ? 1 : -1
+  if (Math.abs(dy) < 0.01) {
+    const trackY = args.sy + Math.max(36, laneGap * 0.5)
+    args.ctx.lineTo(laneX, args.sy); args.ctx.lineTo(laneX, trackY); args.ctx.lineTo(args.tx, trackY); args.ctx.lineTo(args.tx, args.ty)
+    return
+  }
+  args.ctx.lineTo(laneX - cornerRadius, args.sy); args.ctx.quadraticCurveTo(laneX, args.sy, laneX, args.sy + verticalSign * cornerRadius)
+  args.ctx.lineTo(laneX, args.ty - verticalSign * cornerRadius); args.ctx.quadraticCurveTo(laneX, args.ty, laneX - cornerRadius, args.ty); args.ctx.lineTo(args.tx, args.ty)
+}
+
 export const traceEdgePathOnCanvas = (args: {
   ctx: CanvasRenderingContext2D
   edgeType: GlobalEdgeType
+  flowForwardTrack?: boolean
   sx: number
   sy: number
   tx: number
@@ -405,6 +509,10 @@ export const traceEdgePathOnCanvas = (args: {
   const ty = Number.isFinite(args.ty) ? args.ty : sy
   const type = normalizeGlobalEdgeType(args.edgeType)
   const axis = resolveAxis(args.rankdir, sx, sy, tx, ty)
+  if (args.flowForwardTrack && shouldUseForwardFlowTrack({ rankdir: args.rankdir, sx, sy, tx, ty })) {
+    traceForwardFlowTrackOnCanvas({ ctx, rankdir: args.rankdir, sx, sy, tx, ty })
+    return
+  }
   const dx = tx - sx
   const dy = ty - sy
   const dist = Math.max(1, Math.hypot(dx, dy))

@@ -3,6 +3,7 @@ import { updateStrybldrStoryboardMarkdownCardOverride } from '@/features/strybld
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
+import { applyStoryboardCardMediaDropGraph } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
@@ -107,15 +108,11 @@ export function useStoryboardCardMediaDrop2d(args: {
         label: 'Storyboard media',
       })
     }
-    if (graphData?.nodes?.some(item => readStoryboardScalar2d(item?.id) === card.id)) {
-      setGraphDataPreservingLayout({
-        ...graphData,
-        nodes: graphData.nodes.map(item => (
-          readStoryboardScalar2d(item?.id) === card.id
-            ? { ...item, properties: nextProperties as never }
-            : item
-        )),
-      })
+    const nextGraph = graphData?.nodes?.some(item => readStoryboardScalar2d(item?.id) === card.id)
+      ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData, media: { ...payload, url } })
+      : null
+    if (nextGraph) {
+      setGraphDataPreservingLayout(nextGraph.graphData)
       addHistory('Storyboard media')
       return
     }

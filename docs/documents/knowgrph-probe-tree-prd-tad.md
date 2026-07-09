@@ -14,6 +14,21 @@ invocation_tokens:
   hash: "#knowgrph.probe-tree"
   at: "@knowgrph.probe-tree"
 runtime_owner: "canvas/src/features/agentic-os/agenticOsDocInvocations.ts"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "storyboard"
+kgFrontmatterModeEnabled: true
+storyboardDisplay: "2D Renderer: Storyboard"
+storyboardMermaidMapping:
+  kind: "storyboard-probe-tree-flowchart/v1"
+  direction: "TB"
+  owner: "canvas/src/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart.ts"
+index:
+  mermaid: |
+    flowchart TB
+      probe_root["Root: initial ask"] -->|probe.generate| probe_options["Candidate options"]
+      probe_options -->|probe.select| probe_selected["Selected probe node"]
+      probe_selected -->|branches-to| probe_terminal["Resolved terminal node"]
+      probe_terminal -->|probe.evolve| probe_memory["Scoped exemplar memory"]
 parent: "none"
 ---
 
@@ -236,7 +251,7 @@ sequenceDiagram
 
 #### Pipeline: `probe.evolve`
 
-**Topology pattern**: Sequential (triggered once per thread, on resolution) | **Max iterations**: 1 pass over the resolved path per invocation | **Circuit-breaker**: exits after scoring the traversed path once; re-invocation on the same resolved thread is idempotent (score overwrite, not accumulation)
+**Topology pattern**: Sequential (triggered once per thread, on resolution) | **Max iterations**: 1 pass over the resolved path per invocation | **Circuit-breaker**: exits after scoring the traversed path once; re-invocation on the same resolved thread is non-idempotent because scoring timestamps and memory-store metadata can be rewritten
 **Token budget**: 0 prompt + 0 completion = $0.00/call — scoring is a deterministic heuristic (path length, terminal-node type reached), not a model call; recall-layer write is an embedding/index operation, not a generation call
 
 | Role | Component | Input schema | Output schema | Cost log | Fallback |
@@ -326,7 +341,46 @@ No new deployment unit. `probe.generate`/`probe.select`/`probe.evolve` ship as n
 
 ### Architecture Diagrams
 
-See Topology and Orchestration/Harness Flow diagrams above.
+See Topology and Orchestration/Harness Flow diagrams above, plus the worked example below.
+
+#### Worked Example: Resolved Thread as `flowchart TB`
+
+A resolved probe-tree thread is rendered as a `flowchart TB`, not a `gitGraph`: probe-tree is a pure fan-out tree with no merges, and `gitGraph` cannot label edges with the option text or rationale that makes a thread legible. `flowchart TB` stays inside the diagram-type mapping already established in Architecture Diagram Standards (topology and orchestration flows both use `flowchart`/`sequenceDiagram`) — no new diagram type is introduced for probe-tree.
+
+```mermaid
+flowchart TB
+  Root(["Root: initial ask"])
+  Q1{"Q1: newly diagnosed
+or recurrent?"}
+  Q2a["selected: newly diagnosed"]
+  Q2b["explored, not selected:
+recurrent"]
+  Q3{"Q2: stage known?"}
+  Term(["Terminal: resolved
+score: 0.86"])
+
+  Root --> Q1
+  Q1 -- selected --> Q2a
+  Q1 -. abandoned .-> Q2b
+  Q2a --> Q3
+  Q3 -- selected --> Term
+
+  classDef selected fill:#2d6cdf,color:#fff
+  classDef abandoned fill:#e8e8e8,color:#888,stroke-dasharray: 4 3
+  classDef terminal fill:#1a9c5c,color:#fff
+  class Q2a selected
+  class Q2b abandoned
+  class Term terminal
+```
+
+**Reading the diagram**:
+- Solid edges + `selected` styling mark the traversed path — what `probe.select` actually persisted as `type: probe` nodes and `branches-to` edges.
+- Dashed edges + `abandoned` styling mark candidates `probe.generate` offered but the user did not pick. These stay visible deliberately: they are exactly the signal `probe.evolve` should learn not to resurface for similar future threads.
+- The terminal node's `score` is the value `probe.evolve` writes back to frontmatter on resolution, and is what gets referenced when this path is later recalled as an exemplar.
+
+**Runtime mapping contract**: this document declares `kgCanvas2dRenderer: "storyboard"` and an `index.mermaid` `flowchart TB` seed in frontmatter so opening the PRD/TAD through the existing frontmatter-flow path lands on **2D Renderer: Storyboard** without a custom document renderer. Runtime Probe-Tree toolbar materialization uses `storyboardProbeTreeMermaidFlowchart.ts` to serialize the selected Storyboard graph to the same `flowchart TB` subset, store it in graph metadata, and parse it back through the shared frontmatter-flow parser. The mappable subset is intentionally small: stable node IDs, quoted node labels, `-->|label|` edges, and class styling for visual emphasis. This keeps Storyboard ↔ Mermaid bidirectional without a second canvas format, downstream aliases, or provider calls.
+
+**Scope note**: `flowchart TB` is the canonical diagram shape for probe-tree documentation and the Mermaid bridge. `gitGraph` is intentionally not used for probe-tree; it remains the correct diagram type elsewhere in the system (KGC-Provenance's per-node version history: `parent_sha`/`branch`/`author`/`ts`), which is genuine file-revision history rather than turn-to-turn branching, and the two should not be visually conflated.
 
 ### Component Inventory
 
@@ -338,6 +392,7 @@ See Topology and Orchestration/Harness Flow diagrams above.
 | Substrate | Graph Orchestration Engine (probe-tree graph def) | `mcp/probe-tree-runtime.js` | Implemented — independent probe-tree state graph definition with markdown checkpoint metadata |
 | Schema | `type: probe` node + `branches-to` edge | `canvas/src/features/agent-ready/probeTreeContract.mjs` | Implemented — selected branches persist as markdown graph nodes under `data/probe-tree` |
 | Integration | MCP tool registration | `mcp/local-tool-contract.js`, `mcp/probe-tree-tool-contract.js`, `mcp/server.js` | Implemented — local stdio only |
+| Canvas bridge | Storyboard ↔ Mermaid flowchart mapping | `canvas/src/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart.ts` | Implemented — selected Storyboard graph serializes to `flowchart TB` and parses back through frontmatter-flow |
 
 ---
 
@@ -434,6 +489,9 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 - [x] Mutation descriptor proof: `probe.select` and `probe.evolve` are advertised as non-idempotent process tools so client retries cannot silently duplicate branches or rewrite scores under an idempotent contract
 - [x] Observable local economics proof: `probe.generate`, `probe.select`, and `probe.evolve` return cost logs, with zero-token local paths reporting `$0`
 - [x] Invocation routing proof: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` resolve through the shared FloatingPanel Chat invocation catalog to this source document
+- [x] AI/LLM response projection proof: `response.structuredContent.cards` with `parentNodeId` materializes selectable downstream cards and infers `candidateOption` edges even when the model omits a duplicate explicit edge list
+- [x] Individual Storyboard card Run proof: a selected card toolbar Run invokes the shared Storyboard workflow runner and materializes a source-backed Rich Media Panel output when no provider or inline-compute handler is configured
+- [x] Storyboard ↔ Mermaid proof: Probe-Tree Storyboard materialization stores a deterministic `flowchart TB`, and the same Mermaid subset parses back to canvas graph data with stable node IDs and `candidateOption` edges
 - [x] TTV validated on a clean environment: the MCP runtime suite runs a temp-root generate→select→evolve smoke without seeded repo state, deployment, or paid calls
 - [x] Token budget actuals vs. estimates: Dev-local proof covers request budget estimates, returned prompt/completion actuals from the optional local Ollama adapter, and `$0` local select/evolve cost logs; production usage actuals remain an operating metric outside this Dev-only contract
 
@@ -442,3 +500,7 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 The first runtime-ready Dev slice is implemented in the local stdio MCP server only. `knowgrph.probe.generate` recalls prior resolved paths from the existing memory layer and returns bounded typed options without graph mutation. A request-level `token_budget` is enforced before local model invocation; recalled exemplars are trimmed first, `recall_top_k: 0` disables recall explicitly, and budget overflow degrades to local heuristic options instead of spending tokens. When `KNOWGRPH_PROBE_TREE_MODEL` is configured, generation calls the host-owned local Ollama `/api/chat` endpoint with `stream:false` and a structured JSON format; if the adapter is unconfigured or fails, the tool returns local heuristic options with `degraded=true` rather than mutating graph state or fabricating a provider result. `knowgrph.probe.select` writes a new `type: probe` markdown node containing the selected option, `branches-to` edge, checkpoint fork metadata, and a local-zero cost log while leaving the parent node unchanged; that node parses through the existing frontmatter-flow canvas path. `knowgrph.probe.evolve` walks the selected path, updates deterministic frontmatter scores, reports missing parent checkpoints, returns a local-zero cost log, and writes one scoped exemplar back to memory for future generation. The MCP descriptor marks `probe.select` and `probe.evolve` as non-idempotent process tools so host retry behavior matches their mutation semantics.
 
 The native LangGraph/StateGraph checkpointer is still intentionally deferred per ADR-2. The runtime exposes an independent probe-tree state graph definition and keeps markdown as the only persistent graph SSOT; no second datastore or deployment unit was added. The document is now invokable from the shared FloatingPanel Chat grammar through `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree`; those routes are Dev-local reference context and do not authorize Prod mirror or Cloudflare deployment.
+
+The Storyboard clean-canvas surface is run-ready at individual-card granularity: selected fixed Storyboard cards reuse the same workflow runner as Storyboard Widget and Run All. If the selected node has a provider, inline compute, or downstream runnable target, the runner follows that shared path; if it is a source/proof card with no configured compute handler, it generates a local-zero-cost, source-backed Rich Media Panel output from the node's authored frontmatter fields. This keeps Care Source and similar cards demoable without hardcoded fixtures, browser-only state, provider calls, or a second execution path.
+
+The AI/LLM response path is source-backed at the shared response-projector layer: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` prompt for `response.structuredContent.cards`, and cards carrying `parentNodeId` materialize as selectable downstream cards with inferred `candidateOption` edges. The Storyboard/Mermaid bridge is now source-backed instead of illustrative-only. The PRD/TAD frontmatter selects `2D Renderer: Storyboard` and provides an `index.mermaid` `flowchart TB` seed; the runtime Probe-Tree toolbar stores the generated Storyboard graph as Mermaid metadata and verifies that the same stable-ID subset parses back to graph nodes and `candidateOption` edges.

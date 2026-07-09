@@ -34,7 +34,6 @@ const CommerceHubViewLazy = React.lazy(() => import('./views/CommerceHubView'))
 const ResearchCompilerViewLazy = React.lazy(() => import('./views/ResearchCompilerView'))
 const CollaborationViewLazy = React.lazy(() => import('./views/CollaborationView'))
 const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
-const SkillsCommandsViewLazy = React.lazy(() => import('@/features/panels/views/SkillsCommandsView'))
 const StoryboardWidgetManagerViewLazy = React.lazy(() => import('@/features/panels/views/StoryboardWidgetManagerView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
@@ -430,23 +429,6 @@ export default function MainPanel({
             <React.Suspense fallback={null}>
               <DesignEditorMainPanelViewLazy />
             </React.Suspense>
-          )}
-        </section>
-        <section
-          className="h-full min-h-0"
-          role="tabpanel"
-          id="main-panel-skillsCommands-panel"
-          aria-labelledby="main-panel-skillsCommands-tab"
-          hidden={tab !== 'skillsCommands'}
-        >
-          {tab === 'skillsCommands' && (
-            <MainPanelBody header={null}>
-              <section className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
-                <React.Suspense fallback={null}>
-                  <SkillsCommandsViewLazy searchQuery={search} />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
           )}
         </section>
         <section

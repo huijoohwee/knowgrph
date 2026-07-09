@@ -30,10 +30,11 @@ export type MediaOverlayLayoutViewport = {
   height: number
 }
 
-export function initializeMediaOverlayShell(element: HTMLElement, left: number, top: number): void {
+export function initializeMediaOverlayShell(element: HTMLElement, _left: number, _top: number): void {
   if (element.dataset.kgOverlayHasPos === '1') return
   element.style.display = 'none'
-  element.style.transform = `translate(${Math.max(-99999, -left)}px, ${Math.max(-99999, -top)}px)`
+  element.style.transform = 'none'
+  ;(element.style as CSSStyleDeclaration & { zoom: string }).zoom = '1'
   element.style.width = '1px'
   element.style.height = '1px'
 }
@@ -104,7 +105,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let collectiveCenterWarmupAttempts = 0
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
   const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale?: number }>()
-  const zoomLayoutBaseBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale: number }>()
+  const zoomLayoutBaseBoxById = new Map<string, { left: number; top: number; w: number; h: number; scale: number; layoutScale: number }>()
   let scheduleCollectiveLayoutUpdate: () => void = () => void 0
 
   const quantizePanelPos = (v: number) => {
@@ -118,7 +119,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const rawK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
     const rawX = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
     const rawY = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
-    const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6
+    const previousTransform = lastTransform
+    const scaleChanged = !!previousTransform && Math.abs(previousTransform.k - rawK) > 1e-6
     lastTransform = { k: rawK, x: rawX, y: rawY }
     const k = typeof args.computeSizingZoomK === 'function' ? args.computeSizingZoomK(rawK) : rawK
     const layoutViewport = resolveMediaOverlayLayoutViewport({
@@ -232,11 +234,15 @@ export function startMediaOverlayLayoutLoop2d(args: {
               w: previousBox.w,
               h: previousBox.h,
               scale: 1,
+              layoutScale: 1,
             }
             if (!existingBase) zoomLayoutBaseBoxById.set(id, base)
+            const panelLayoutScale = w / Math.max(1, base.w)
             return projectCollectiveScreenLayoutForZoom({
               base: { left: base.left, top: base.top, scale: base.scale },
               scale: w / Math.max(1, base.w),
+              baseLayoutScale: base.layoutScale,
+              layoutScale: panelLayoutScale,
               anchorX: layoutViewport.left + layoutViewport.width / 2,
               anchorY: layoutViewport.top + layoutViewport.height / 2,
               baseWidth: base.w,
@@ -489,6 +495,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
           w: nextBox.w,
           h: nextBox.h,
           scale: 1,
+          layoutScale: 1,
         })
       }
       try {

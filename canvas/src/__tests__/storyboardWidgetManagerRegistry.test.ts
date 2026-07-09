@@ -12,6 +12,7 @@ import {
   getWidgetRegistryEntryLabel,
   inferTextGenerationProviderFamily,
   getTextGenerationWidgetLabel,
+  isPropsPanelWidgetPaletteEntry,
   listVisibleWidgetRegistryPortsForPropsEditor,
   normalizeTextGenerationWidgetPropertiesForProviderFamily,
   resolveEffectiveTextGenerationWidgetProperties,
@@ -171,20 +172,19 @@ export function testStoryboardWidgetManagerSeedsGenerateVideoRegistryEntry() {
   const discoveryFound = seeded.find(
     e => e.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && e.widgetTypeId === FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID && e.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   )
-  if (!imageFound) throw new Error('expected BytePlus Image Widget mapping')
+  if (seeded.length !== 4) throw new Error(`expected four neutral default palette entries, got ${seeded.length}`)
+  if (!imageFound) throw new Error('expected Image Widget mapping')
   if (!textFound) throw new Error('expected Text Widget mapping')
-  if (!videoScriptFound) throw new Error('expected BytePlus Video Script Widget mapping')
-  if (!openAiVideoScriptFound) throw new Error('expected OpenAI Video Script Widget mapping')
+  if (videoScriptFound) throw new Error('expected default palette seed to omit provider-specific Video Script Widget mapping')
+  if (openAiVideoScriptFound) throw new Error('expected default palette seed to omit provider-specific OpenAI Video Script Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
-  if (!storyboardElementFound) throw new Error('expected Storyboard Element mapping')
-  const storyboardPortKeys = new Set(storyboardElementFound.ports.map(port => `${port.direction}:${port.portKey}`))
-  for (const portKey of ['mediaUrl', 'imageUrl', 'videoUrl']) {
-    if (!storyboardPortKeys.has(`input:${portKey}`) || !storyboardPortKeys.has(`output:${portKey}`)) {
-      throw new Error(`expected Storyboard Element to expose reusable input/output media port ${portKey}`)
-    }
-  }
-  if (!discoveryFound) throw new Error('expected GrabMaps Chat Discovery Widget mapping')
+  if (storyboardElementFound) throw new Error('expected default palette seed to omit Storyboard Element mapping')
+  if (discoveryFound) throw new Error('expected default palette seed to omit GrabMaps Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
+  if (getWidgetRegistryEntryLabel(textFound) !== 'Text Widget') throw new Error('expected default text palette label to stay neutral')
+  if (getWidgetRegistryEntryLabel(imageFound) !== 'Image Widget') throw new Error('expected default image palette label to stay neutral')
+  if (getWidgetRegistryEntryLabel(found) !== 'Video Widget') throw new Error('expected default video palette label to stay neutral')
+  if (!seeded.every(entry => isPropsPanelWidgetPaletteEntry(entry))) throw new Error('expected every default seed to be visible in the Props Panel palette')
 
   const stable = ensureDefaultWidgetRegistryEntries(seeded, '2026-02-06T00:00:00.000Z')
   if (stable.changed) throw new Error('expected seeding to be idempotent')
@@ -272,23 +272,25 @@ export function testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts() {
   }
 }
 
-export function testStoryboardWidgetManagerSeedsOpenAiTextRegistryEntry() {
+export function testStoryboardWidgetManagerDoesNotSeedOpenAiTextRegistryEntry() {
   const seeded = ensureDefaultWidgetRegistryEntries([], '2026-02-06T00:00:00.000Z')
   const openAiEntry = seeded.entries.find(entry => entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && entry.formId === 'textGeneration.openai')
-  if (!openAiEntry) throw new Error('expected default widget registry seed to include OpenAI text widget entry')
-  const fieldKeys = new Set((openAiEntry.fields || []).map(field => field.fieldKey))
+  if (openAiEntry) throw new Error('expected default widget registry seed to omit OpenAI text widget entry')
+  const openAiDraft = buildTextGenerationRegistryDraft({ providerFamily: 'openai' })
+  const fieldKeys = new Set((openAiDraft.fields || []).map(field => field.fieldKey))
   ;['chatMessagesJson', 'chatResponseFormatJson', 'chatToolsJson'].forEach(key => {
-    if (!fieldKeys.has(key)) throw new Error(`expected seeded OpenAI text widget entry to expose ${key}`)
+    if (!fieldKeys.has(key)) throw new Error(`expected OpenAI text widget draft to expose ${key}`)
   })
 }
 
-export function testStoryboardWidgetManagerSeedsDeerFlowTextRegistryEntry() {
+export function testStoryboardWidgetManagerDoesNotSeedDeerFlowTextRegistryEntry() {
   const seeded = ensureDefaultWidgetRegistryEntries([], '2026-02-06T00:00:00.000Z')
   const deerflowEntry = seeded.entries.find(entry => entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && entry.formId === 'textGeneration.deerflow')
-  if (!deerflowEntry) throw new Error('expected default widget registry seed to include DeerFlow text widget entry')
-  const fieldKeys = new Set((deerflowEntry.fields || []).map(field => field.fieldKey))
+  if (deerflowEntry) throw new Error('expected default widget registry seed to omit DeerFlow text widget entry')
+  const deerflowDraft = buildTextGenerationRegistryDraft({ providerFamily: 'deerflow' })
+  const fieldKeys = new Set((deerflowDraft.fields || []).map(field => field.fieldKey))
   ;['chatProvider', 'chatEndpointUrl', 'chatModel', 'chatMessagesJson', 'chatResponseFormatJson'].forEach(key => {
-    if (!fieldKeys.has(key)) throw new Error(`expected seeded DeerFlow text widget entry to expose ${key}`)
+    if (!fieldKeys.has(key)) throw new Error(`expected DeerFlow text widget draft to expose ${key}`)
   })
   const normalized = normalizeTextGenerationWidgetPropertiesForProviderFamily({
     providerFamily: 'deerflow',
@@ -306,20 +308,28 @@ export function testStoryboardWidgetManagerSeedsDeerFlowTextRegistryEntry() {
   }
 }
 
-export function testStoryboardWidgetManagerSeedsGrabMapsDiscoveryRegistryEntry() {
+export function testStoryboardWidgetManagerDoesNotSeedGrabMapsDiscoveryRegistryEntry() {
   const seeded = ensureDefaultWidgetRegistryEntries([], '2026-02-06T00:00:00.000Z')
   const discoveryEntry = seeded.entries.find(
     entry => entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && entry.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   )
-  if (!discoveryEntry) throw new Error('expected default widget registry seed to include GrabMaps Chat Discovery Widget entry')
-  const fieldKeys = new Set((discoveryEntry.fields || []).map(field => field.fieldKey))
-  ;['chatModel', 'searchQuery', 'searchCountry', 'nearbyRadiusKm', 'nearbyRankBy'].forEach(key => {
-    if (!fieldKeys.has(key)) throw new Error(`expected seeded GrabMaps Chat Discovery Widget entry to expose ${key}`)
-  })
-  const label = getWidgetRegistryEntryLabel(discoveryEntry)
-  if (label !== 'GrabMaps Chat Discovery Widget') {
-    throw new Error(`expected shared widget label helper to classify GrabMaps Chat Discovery Widget, got ${String(label)}`)
-  }
+  if (discoveryEntry) throw new Error('expected default widget registry seed to omit GrabMaps Chat Discovery Widget entry')
+  const normalized = normalizeWidgetRegistryEntries([
+    {
+      id: 'grabmaps-discovery',
+      isEnabled: true,
+      nodeTypeId: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+      widgetTypeId: FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
+      formId: FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+      fields: [{ fieldKey: 'searchQuery', fieldType: 'text', schemaPath: 'properties.searchQuery' }],
+      ports: [{ direction: 'input' as const, portKey: 'query_in', schemaPath: 'properties.searchQuery' }],
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    },
+  ] as any)
+  const normalizedDiscovery = normalized.find(entry => entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID)
+  if (!normalizedDiscovery) throw new Error('expected document-provided GrabMaps Chat Discovery Widget entry to stay normalizable')
+  const label = getWidgetRegistryEntryLabel(normalizedDiscovery)
+  if (label !== 'GrabMaps Chat Discovery Widget') throw new Error(`expected explicit discovery widget label to stay specific, got ${String(label)}`)
 }
 
 export function testStoryboardWidgetManagerCanonicalizesConflictingGrabMapsDiscoveryRegistryEntry() {

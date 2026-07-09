@@ -479,10 +479,10 @@ export function testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection(
   if (!runtimeSceneText.includes('const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${visibleViewport.left},${visibleViewport.top},${visibleViewport.width}x${visibleViewport.height}|${bucketSignature}`')) {
     throw new Error('expected storyboard widget runtime scene layout signature to exclude zoom-key churn for overlay auto-seeding')
   }
-  if (!mediaLoopText.includes('const scaleChanged = !!lastTransform && Math.abs(lastTransform.k - rawK) > 1e-6')) {
+  if (!mediaLoopText.includes('const previousTransform = lastTransform') || !mediaLoopText.includes('const scaleChanged = !!previousTransform && Math.abs(previousTransform.k - rawK) > 1e-6')) {
     throw new Error('expected rich media overlay layout loop to detect zoom-scale changes separately from pan changes')
   }
-  assertTextIncludes(mediaLoopText, ['scaleLayoutOnZoom?: boolean', 'zoomLayoutBaseBoxById', 'projectCollectiveScreenLayoutForZoom({'], 'expected rich media overlay layout loop to support proportional zoom layout projection')
+  assertTextIncludes(mediaLoopText, ['scaleLayoutOnZoom?: boolean', 'zoomLayoutBaseBoxById', 'projectCollectiveScreenLayoutForZoom({', 'baseLayoutScale: base.layoutScale', 'const panelLayoutScale = w / Math.max(1, base.w)', 'layoutScale: panelLayoutScale'], 'expected rich media overlay layout loop to support proportional zoom layout projection')
   assertTextIncludes(mediaOverlaysText, ['scaleLayoutOnZoom: storyboardWidgetSurfaceRendererMode'], 'expected Storyboard Widget shared rich-media overlays to opt into proportional zoom layout projection')
 }
 
@@ -492,7 +492,6 @@ type ProbeRect = {
   width: number
   height: number
 }
-
 function measureCollectiveMetrics(rects: ProbeRect[]) {
   const centroid = rects.reduce((acc, rect) => ({
     x: acc.x + rect.left + rect.width / 2,

@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -84,6 +84,7 @@ Canonical local tool inventory owner:
 
 - `search` — searches published Knowgrph Source Files and returns stable `kgdoc:` ids with citation-ready result URLs
 - `fetch` — fetches the complete published Source File markdown for an id returned by `search`, returning both `content` and `text`
+- `knowgrph.agentic_canvas_os.docs.invoke` — resolves Agentic Canvas OS docs invocation tokens (`/`, `#`, `@`) from the sibling `agentic-canvas-os/docs` SSOT; local stdio reads `FACTS.md` and the three dictionary files from disk, while the Worker registry exposes the same read-only tool identity for source-resolution metadata
 - `prompts/list` / `prompts/get` — expose read-only prompt templates that guide MCP hosts to use `search`/`fetch` or `inspect_agent_surface`; prompts do not introduce a second execution path
 - `resources/templates/list` — exposes the shared `kgdoc://source-file/{id}` template for Source Files returned by `search`
 - `resources/read` — reads either `ui://knowgrph/agent-ready` as MCP Apps HTML or `kgdoc://source-file/{id}` as Source Files `text/markdown` through the existing `fetch` executor
@@ -126,6 +127,9 @@ Canonical local tool inventory owner:
    - The native `headless-browser` adapter is inspired by Hyperframes without copying it: Playwright captures seeked HTML frames and an operator-provided FFmpeg binary encodes MP4
    - Runtime knobs: `KNOWGRPH_HTML_VIDEO_FFMPEG_BIN` (default `ffmpeg`), `KNOWGRPH_HTML_VIDEO_FFMPEG_VIDEO_CODEC` (default `mpeg4` to avoid forcing GPL codecs), and `KNOWGRPH_HTML_VIDEO_MAX_FRAMES` (safety bound)
    - The browser Storyboard Widget path writes successful video results through `writeRichMediaWidgetRunOutputArtifact` and the existing Source Files/rich-media manifest owner
+   - Selected Storyboard card Run reuses the shared Storyboard workflow runner; cards without a provider or inline-compute handler generate a local-zero-cost, source-backed Rich Media Panel output from authored node fields
+   - Probe-Tree chat/model responses that return `response.structuredContent.cards` with `parentNodeId` materialize selectable downstream cards and infer `candidateOption` edges through the shared structured-response projector
+   - Probe-Tree Storyboard branch materialization stores a deterministic Mermaid `flowchart TB` bridge through `storyboardProbeTreeMermaidFlowchart.ts`, and the same subset parses back through the frontmatter-flow graph path
 8. Visual annotation tools
    - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
    - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local

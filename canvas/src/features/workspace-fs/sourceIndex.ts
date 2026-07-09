@@ -1,5 +1,5 @@
 import { LS_KEYS } from '@/lib/config'
-import { lsJson, lsSetJsonCoalesced } from '@/lib/persistence'
+import { lsJson, lsSetJson, lsSetJsonCoalesced } from '@/lib/persistence'
 import type { WorkspacePath } from './types'
 import { normalizeWorkspacePath } from './path'
 
@@ -8,17 +8,36 @@ export type WorkspaceEntrySource =
   | { kind: 'url'; url: string }
 
 export type WorkspaceSourceIndex = Record<string, WorkspaceEntrySource>
+export type WorkspaceSourceIndexWriteOptions = {
+  persist?: 'coalesced' | 'sync'
+}
 
 let cachedSourceIndex: WorkspaceSourceIndex | null = null
 let cachedSourceIndexRev = 0
 
-const noteNextSourceIndex = (next: WorkspaceSourceIndex): WorkspaceSourceIndex => {
+const persistSourceIndex = (
+  next: WorkspaceSourceIndex,
+  options?: WorkspaceSourceIndexWriteOptions,
+): WorkspaceSourceIndex => {
+  if (options?.persist === 'sync') {
+    lsSetJson(LS_KEYS.markdownWorkspaceSourcesByPath, next)
+    lsSetJsonCoalesced(LS_KEYS.markdownWorkspaceSourcesByPath, next, { delayMs: 0 })
+    return next
+  }
   cachedSourceIndex = next
-  cachedSourceIndexRev += 1
   // Let the shared runtime+persistence scheduler coalesce bursts naturally (last-write-wins).
   // Avoid rev-based signatures that defeat cross-cycle suppression/dedupe.
   lsSetJsonCoalesced(LS_KEYS.markdownWorkspaceSourcesByPath, next)
   return next
+}
+
+const noteNextSourceIndex = (
+  next: WorkspaceSourceIndex,
+  options?: WorkspaceSourceIndexWriteOptions,
+): WorkspaceSourceIndex => {
+  cachedSourceIndex = next
+  cachedSourceIndexRev += 1
+  return persistSourceIndex(next, options)
 }
 
 const areEntrySourcesEqual = (a: WorkspaceEntrySource | null, b: WorkspaceEntrySource | null): boolean => {
@@ -76,7 +95,11 @@ export function resolveWorkspaceSourceIndexSnapshot(
   return readReusableWorkspaceSourceIndexSnapshot(sourcesByPath) || loadWorkspaceSourceIndex()
 }
 
-export function setWorkspaceEntrySource(path: WorkspacePath, source: WorkspaceEntrySource | null): WorkspaceSourceIndex {
+export function setWorkspaceEntrySource(
+  path: WorkspacePath,
+  source: WorkspaceEntrySource | null,
+  options?: WorkspaceSourceIndexWriteOptions,
+): WorkspaceSourceIndex {
   const key = normalizeWorkspacePath(path)
   if (!key) return loadWorkspaceSourceIndex()
   const existing = loadWorkspaceSourceIndex()
@@ -84,12 +107,15 @@ export function setWorkspaceEntrySource(path: WorkspacePath, source: WorkspaceEn
     if (!(key in existing)) return existing
     const next: WorkspaceSourceIndex = { ...existing }
     delete next[key]
-    return noteNextSourceIndex(next)
+    return noteNextSourceIndex(next, options)
   }
   const prev = existing[key] || null
-  if (areEntrySourcesEqual(prev, source)) return existing
+  if (areEntrySourcesEqual(prev, source)) {
+    if (options?.persist === 'sync') persistSourceIndex(existing, options)
+    return existing
+  }
   const next: WorkspaceSourceIndex = { ...existing, [key]: source }
-  return noteNextSourceIndex(next)
+  return noteNextSourceIndex(next, options)
 }
 
 export function bulkSetWorkspaceEntrySources(items: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>): WorkspaceSourceIndex {

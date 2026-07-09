@@ -3,6 +3,7 @@ import React from 'react'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { beginRichMediaPanelResizeDrag, RichMediaPanelResizeHandle } from '@/components/RichMediaPanelResizeHandle'
 import { installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from '@/components/RichMediaPanelOverlayDrag'
+import { isWidgetInnerPanelWheelTarget } from '@/lib/canvas/widgetInnerPanelScrolling'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
@@ -55,6 +56,7 @@ export function useStoryboardCardOverlayWheelForwarding(args: {
       forwardWheelBeforeScrollableTarget: true,
       forwardWheelTo: args.getWheelForwardTarget,
       forwardedFlagKey: '__kgStoryboardCardWheelForwarded',
+      shouldForwardWheel: event => !isWidgetInnerPanelWheelTarget(event, root),
       stopPropagationOnForward: true,
       stopPropagationOnPreventZoom: false,
     })
@@ -71,7 +73,7 @@ export function useStoryboardCardOverlayInteractions2d(args: {
   updateNode: (id: string, patch: Partial<GraphNode>) => void
 }) {
   const dragSchedulerRef = React.useRef(createRafValueScheduler((next: { id: string; point: CardPoint }) => {
-    args.updateNode(next.id, { x: next.point.x, y: next.point.y, fx: next.point.x, fy: next.point.y })
+    args.updateNode(next.id, { x: next.point.x, y: next.point.y })
   }))
   const resizeSchedulerRef = React.useRef(createRafValueScheduler((next: { el: HTMLElement | null; height: number; id: string; node: GraphNode; width: number }) => {
     if (next.el) {
@@ -102,7 +104,7 @@ export function useStoryboardCardOverlayInteractions2d(args: {
         const grid = readSnapGridConfigFromSchema(args.schema)
         const snapped = grid.enabled ? snapPointToGrid(latest, grid) : latest
         args.setDragVisualOverride?.(id, snapped)
-        args.updateNode(id, { x: snapped.x, y: snapped.y, fx: snapped.x, fy: snapped.y })
+        args.updateNode(id, { x: snapped.x, y: snapped.y })
         args.addHistory('Storyboard card move')
       },
     })

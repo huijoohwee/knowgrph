@@ -69,7 +69,9 @@ export const buildDeterministicBaseTemplateKgcTurn = (args: BaseFallbackArgs): s
   const profile = analyzeKgcRequest(args.requestText)
   const assistantText = String(args.assistantText || '')
   const responseSurface = extractChatResponseStructuredSurface(assistantText)
-  const responseOnly = shouldUseResponseOnlyBaseTemplate({ profile, requestText: args.requestText, assistantText })
+  const responseOnly = responseSurface
+    ? false
+    : shouldUseResponseOnlyBaseTemplate({ profile, requestText: args.requestText, assistantText })
   const outputProfile = responseOnly ? projectResponseOnlyProfile(profile, assistantText) : profile
   const useComputingFlowResponse = (
     outputProfile.signals.computingFlow ||

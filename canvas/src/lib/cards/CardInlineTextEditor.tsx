@@ -43,8 +43,10 @@ type CardInlineTextEditorProps = {
   markdownPreview?: boolean | 'auto'
   markdownCommandMenus?: boolean
   markdownCommandContextText?: string
+  mediaCommandMode?: 'inline' | 'external'
   openOnPointerDown?: boolean
   rows?: number
+  showCommandLaunchers?: boolean
   stopActivationPropagation?: boolean
   onCommit?: (nextValue: string) => void
   onEditingChange?: (editing: boolean) => void
@@ -100,6 +102,17 @@ const shouldIgnoreInlineEditTarget = (target: EventTarget | null): boolean => {
   ].join(','))
 }
 
+const isCardInlineTextFieldLineClassToken = (token: string): boolean =>
+  /^(block|break-words|truncate|whitespace-nowrap|whitespace-pre-wrap)$/.test(token) || token.startsWith('line-clamp-')
+
+const normalizeCardInlineTextDisplayClassName = (className: string, multiline: boolean): string =>
+  multiline && !/\boverflow-auto\b/.test(className)
+    ? className
+        .split(/\s+/)
+        .filter(token => token && !isCardInlineTextFieldLineClassToken(token))
+        .join(' ')
+    : className
+
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
     id,
@@ -116,8 +129,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     markdownPreview = false,
     markdownCommandMenus = true,
     markdownCommandContextText = '',
+    mediaCommandMode = 'inline',
     openOnPointerDown = false,
     rows,
+    showCommandLaunchers = true,
     stopActivationPropagation = true,
     onCommit,
     onEditingChange,
@@ -162,10 +177,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     if (!editing) return
     const input = inputRef.current
     if (!input) return
-    const ownerWindow = input.ownerDocument?.defaultView as (Window & { HTMLElement?: { prototype?: { attachEvent?: unknown; detachEvent?: unknown } } }) | null
-    const elementProto = ownerWindow?.HTMLElement?.prototype
-    if (elementProto && typeof elementProto.attachEvent !== 'function') elementProto.attachEvent = () => void 0
-    if (elementProto && typeof elementProto.detachEvent !== 'function') elementProto.detachEvent = () => void 0
     input.focus()
     if ('selectionStart' in input && typeof input.value === 'string') {
       const fallbackEnd = input.value.length
@@ -268,6 +279,8 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     !showPlaceholder
     && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(value)))
   const enableMarkdownCommandMenus = markdownCommandMenus !== false && multiline === true
+  const densityOwnedDisplayClassName = normalizeCardInlineTextDisplayClassName(displayClassName || '', multiline)
+  const displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto') ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : ''
 
   const openCommandMenuAtSelection = React.useCallback((mode: CardInlineTextCommandMenuMode, selection: { start: number; end: number }, seedQuery: string = '') => {
     commandSelectionRef.current = selection
@@ -398,7 +411,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
             return
           }
         }
-        setDraft(nextValue)
+        setDraft(event.currentTarget.value)
       },
       onBeforeInput: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (!enableMarkdownCommandMenus || commandMode) return
@@ -481,7 +494,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
             commandContextText={markdownCommandContextText}
             draft={draft}
             inputRef={inputRef}
+            mediaCommandMode={mediaCommandMode}
             openCommandMenu={openCommandMenu}
+            showLaunchers={showCommandLaunchers}
             closeCommandMenu={closeCommandMenu}
             setCommandQuery={setCommandQuery}
             setCommandMode={setCommandMode}
@@ -500,8 +515,8 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       ref={displayRef}
       id={id}
       className={[
-        displayClassName || '',
-        multiline ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : '',
+        densityOwnedDisplayClassName,
+        displayLineClassName,
         canEdit ? 'cursor-text' : '',
         showPlaceholder ? emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : '',
       ].join(' ').trim()}

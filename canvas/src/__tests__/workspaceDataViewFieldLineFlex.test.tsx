@@ -122,6 +122,7 @@ export async function testWorkspaceDataViewFieldLineFlexInlineEditorUsesLayoutRo
           editActivation="click"
           multiline
           rows={4}
+          displayClassName="line-clamp-4 truncate whitespace-pre-wrap break-words"
           onCommit={() => void 0}
         />,
       )

@@ -309,10 +309,14 @@ export async function testWorkspaceSeedProviderConfiguredDocsRootPrecedesStorage
   await withFetchAndEnv({
     VITE_KNOWGRPH_STORAGE_BASE_URL: 'https://storage.example.test',
     VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: '/virtual/workspace/docs',
-  }, (async input => {
+  }, (async (input, init) => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
     capturedUrls.push(url)
     if (url === '/__kg_fs_list') {
+      const body = JSON.parse(String(init?.body || '{}')) as { path?: unknown }
+      if (String(body.path || '').trim() !== '/virtual/workspace/docs') {
+        return new Response(JSON.stringify({ ok: true, files: [] }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
       return new Response(JSON.stringify({
         ok: true,
         files: [{
@@ -423,9 +427,13 @@ export async function testWorkspaceSeedProviderConfiguredDocsRootDedupesBurstRea
   await withFetchAndEnv({
     VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: '/virtual/workspace/docs-burst-dedupe',
     VITE_KNOWGRPH_STORAGE_BASE_URL: undefined,
-  }, (async input => {
+  }, (async (input, init) => {
     const url = String(typeof input === 'string' ? input : (input as URL).toString())
     if (url !== '/__kg_fs_list') return new Response('', { status: 404 })
+    const body = JSON.parse(String(init?.body || '{}')) as { path?: unknown }
+    if (String(body.path || '').trim() !== '/virtual/workspace/docs-burst-dedupe') {
+      return new Response(JSON.stringify({ ok: true, files: [] }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
     docsRootFetches += 1
     return new Response(JSON.stringify({
       ok: true,

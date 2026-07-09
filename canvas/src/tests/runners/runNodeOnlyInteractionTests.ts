@@ -147,6 +147,11 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
+      'ui.toolbar.launch.newMarkdown.sharedDocsCreator',
+      modLaunchImportContract.testLaunchDropdownNewMarkdownUsesSharedDocsCreator,
+    )
+    await execTest(
+      results,
       'ui.workspaceEditor.overlay.d3SceneLayoutWrites.gated',
       modWorkspaceOverlayContract.testWorkspaceEditorOverlayGatesD3SceneLayoutWrites,
     )
@@ -219,6 +224,16 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
       results,
       'ui.storyboardWidget.richMediaPanel.graphState.noStoreGraphFallback',
       modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForStoryboardWidgetWhenOverrideIsEmpty,
+    )
+    await execTest(
+      results,
+      'ui.storyboardWidget.richMediaPanel.storyboardCanvasOwnedPanels.hideFlowBackingOverlay',
+      modRichMediaOpenWidgetExclusion.testStoryboardCardSurfaceSuppressesCanvasOwnedRichMediaBackingOverlay,
+    )
+    await execTest(
+      results,
+      'ui.storyboardWidget.richMediaPanel.sharedSurface.suppressesDuplicateOverlays',
+      modRichMediaOpenWidgetExclusion.testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicateOverlay,
     )
 
     const modGdtDrag = await import('../../__tests__/graphDataTableDragUsesSharedPointerDragRegression.test')

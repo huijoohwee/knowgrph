@@ -26,7 +26,7 @@ import {
   testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix,
   testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners,
 } from '@/__tests__/richMediaSurfaceCoverage.test'
-import { testStoryboardWidgetScreenAuthorityPanPreservesTranslateScaleTransforms } from '@/__tests__/storyboardWidgetScreenAuthorityTransformScaleRegression.test'
+import { testStoryboardWidgetScreenAuthorityPanUsesVectorPaintedDom } from '@/__tests__/storyboardWidgetScreenAuthorityTransformScaleRegression.test'
 import { testStaticRichMediaPanelPreviewRendersImageVideoAndIframe } from '@/__tests__/staticRichMediaPanelPreview.test'
 
 async function main() {
@@ -49,7 +49,7 @@ async function main() {
 
   testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix()
   testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners()
-  testStoryboardWidgetScreenAuthorityPanPreservesTranslateScaleTransforms()
+  testStoryboardWidgetScreenAuthorityPanUsesVectorPaintedDom()
   await testStaticRichMediaPanelPreviewRendersImageVideoAndIframe()
 
   console.log('OK subsetRichMediaSmoke')

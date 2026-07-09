@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { computeBoundedOverlayPaintScale } from '@/lib/canvas/overlayWidgetZoom'
 import {
   GRAPH_ELEMENT_FIT_ROLE_BOUNDS_ONLY,
   GRAPH_ELEMENT_FIT_ROLE_PROPERTY,
@@ -26,8 +27,11 @@ export const buildStoryboardTransform = (value: { k?: unknown; x?: unknown; y?: 
 export const isSameStoryboardTransform = (a: d3.ZoomTransform, b: d3.ZoomTransform): boolean =>
   Math.abs(a.k - b.k) < 1e-6 && Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
 
+export const resolveStoryboardPaintScale = (zoomK: number): number =>
+  computeBoundedOverlayPaintScale(zoomK)
+
 export const buildStoryboardTransformCss = (transform: d3.ZoomTransform): string =>
-  `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`
+  `translate(${transform.x}px, ${transform.y}px) scale(${resolveStoryboardPaintScale(transform.k)})`
 
 export const buildStoryboardTransformKey = (transform: d3.ZoomTransform): string =>
   `${transform.x.toFixed(3)}:${transform.y.toFixed(3)}:${transform.k.toFixed(5)}`

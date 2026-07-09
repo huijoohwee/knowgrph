@@ -117,6 +117,7 @@ import { WorkspaceDataViewNewRecordButton } from '@/features/markdown-workspace/
 import { UI_COPY } from '@/lib/config'
 import { createUniqueId } from '@/lib/ids'
 import { createStoryboardWidgetWorkflowNodeRunner, resolveStoryboardWidgetBaseGraphKind } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
+import { resolveStoryboardPaintScale } from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'
 import { openWorkflowManagerMappingForNode } from '@/features/storyboard-widget-manager/openWorkflowManagerMappingForNode'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
@@ -1038,11 +1039,9 @@ export default function StoryboardCanvas({
   const handleDropStoryboardCanvasMediaNode = React.useCallback((payload: MediaDragPayload, clientX: number, clientY: number) => {
     const cleanUrl = readStoryboardScalar(payload.url)
     if (!cleanUrl) return
-    const rect = boardScrollRef.current?.getBoundingClientRect()
-    const transform = storyboardZoom.transform
-    const zoomScale = Number.isFinite(transform.k) && transform.k > 0 ? transform.k : 1
-    const x = rect ? Math.round((clientX - rect.left - transform.x) / zoomScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 2) : 0
-    const y = rect ? Math.round((clientY - rect.top - transform.y) / zoomScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2) : 0
+    const rect = boardScrollRef.current?.getBoundingClientRect(); const transform = storyboardZoom.transform; const paintScale = resolveStoryboardPaintScale(transform.k)
+    const x = rect ? Math.round((clientX - rect.left - transform.x) / paintScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 2) : 0
+    const y = rect ? Math.round((clientY - rect.top - transform.y) / paintScale - RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 2) : 0
     const baseGraphData = storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }
     const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
     const beforeIds = new Set<string>(nodes.map(node => String(node.id || '').trim()).filter(Boolean))

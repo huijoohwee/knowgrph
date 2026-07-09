@@ -23,6 +23,8 @@
     "doc:generate-workspace-export-reference": "tsx src/cli/generate-workspace-export-reference.ts",
     "predev": "npm run prepare:linked-packages && npm run fix:entities-sourcemaps && npm run build:settings",
     "dev": "vite --configLoader runner",
+    "predev:care-agent": "npm run predev",
+    "dev:care-agent": "VITE_KNOWGRPH_RUN_READY_DEMO=care-agent vite --configLoader runner",
     "predev:5173": "npm run predev",
     "dev:5173": "vite --configLoader runner --port 5173 --strictPort",
     "prebuild": "npm run prepare:linked-packages && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:preview:update\"; else npm --prefix .. run docs:preview:update && tsx src/cli/lint-doc.ts; fi",

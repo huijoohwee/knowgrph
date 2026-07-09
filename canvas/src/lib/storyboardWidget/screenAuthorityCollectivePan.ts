@@ -13,6 +13,10 @@ import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetSta
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
+import {
+  applyVectorPaintedOverlayPosition,
+  readVectorPaintedOverlayPosition,
+} from '@/lib/canvas/vectorPaintedOverlayProjection'
 
 export type StoryboardWidgetScreenAuthorityPanSnapshot = {
   surfaceId: string
@@ -40,46 +44,6 @@ export function shouldUseStoryboardWidgetScreenAuthorityCollectivePan(args: {
     })
 }
 
-function readOverlayTransformPosition(el: HTMLElement): { left: number; top: number } | null {
-  const transform = String(el.style.transform || '').trim()
-  const matrix = transform.match(/matrix\([^,]+,\s*[^,]+,\s*[^,]+,\s*[^,]+,\s*([-0-9.]+),\s*([-0-9.]+)\)/)
-  if (matrix) {
-    const left = Number(matrix[1])
-    const top = Number(matrix[2])
-    if (Number.isFinite(left) && Number.isFinite(top)) return { left, top }
-  }
-  const translate = transform.match(/translate(?:3d)?\(\s*([-0-9.]+)px,\s*([-0-9.]+)px/)
-  if (translate) {
-    const left = Number(translate[1])
-    const top = Number(translate[2])
-    if (Number.isFinite(left) && Number.isFinite(top)) return { left, top }
-  }
-  const rect = el.getBoundingClientRect()
-  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null
-  return { left: rect.left, top: rect.top }
-}
-
-function readOverlayTransformScale(el: HTMLElement): number {
-  const transform = String(el.style.transform || '').trim()
-  const matrix = transform.match(/matrix\(\s*([-0-9.]+),/)
-  if (matrix) {
-    const scale = Number(matrix[1])
-    if (Number.isFinite(scale) && scale > 0) return scale
-  }
-  const scaleFunction = transform.match(/(?:^|\s)scale\(\s*([-0-9.]+)\s*\)/)
-  if (scaleFunction) {
-    const scale = Number(scaleFunction[1])
-    if (Number.isFinite(scale) && scale > 0) return scale
-  }
-  return 1
-}
-
-function applyOverlayTransformPosition(el: HTMLElement, pos: { left: number; top: number }): void {
-  if (!Number.isFinite(pos.left) || !Number.isFinite(pos.top)) return
-  const scale = readOverlayTransformScale(el)
-  el.style.transform = `matrix(${scale}, 0, 0, ${scale}, ${pos.left}, ${pos.top})`
-}
-
 function applyScreenAuthorityPanDomPositions(args: {
   surfaceId: string
   screenByNodeId: Record<string, { left: number; top: number }>
@@ -96,7 +60,7 @@ function applyScreenAuthorityPanDomPositions(args: {
     if (!id) continue
     const next = args.screenByNodeId[id]
     if (!next) continue
-    applyOverlayTransformPosition(root, next)
+    applyVectorPaintedOverlayPosition(root, next)
   }
 }
 
@@ -158,7 +122,7 @@ export function readStoryboardWidgetScreenAuthorityPanSnapshot(args: {
     const root = roots[i]
     const id = readCanvasOverlayNodeId(root)
     if (!id) continue
-    const pos = readOverlayTransformPosition(root)
+    const pos = readVectorPaintedOverlayPosition(root)
     if (!pos) continue
     if (readCanvasOverlayPinnedState(root)) {
       const world = screenToWorld({ transform: args.transform, sx: pos.left, sy: pos.top })

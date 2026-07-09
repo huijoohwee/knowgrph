@@ -812,7 +812,7 @@ export default function StoryboardWidgetCanvasRuntime(
       noGraphLoaded={surfaceNoGraphLoaded}
       toolMode={toolMode}
       pendingEdgeSourceId={pendingEdgeSourceId}
-      beginAddEdgeFromNode={beginAddEdgeFromNode} cancelPendingEdge={cancelPendingEdge} finalizePendingEdge={finalizePendingEdge}
+      beginAddEdgeFromNode={beginAddEdgeFromNode} cancelPendingEdge={cancelPendingEdge} finalizePendingEdge={finalizePendingEdge} runWorkflowNode={runWorkflowNode}
       inspectorPortalHost={inspectorPortalHost}
       inspectorElement={inspectorElement}
       widgetRegistry={widgetRegistry}

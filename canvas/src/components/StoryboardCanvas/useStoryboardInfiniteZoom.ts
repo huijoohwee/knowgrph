@@ -22,6 +22,7 @@ import {
   buildStoryboardTransformKey,
   isSameStoryboardTransform,
   readStoryboardInfiniteMetrics,
+  resolveStoryboardPaintScale,
 } from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'
 import { resolveStoryboardInfiniteZoomRequestTransform } from '@/components/StoryboardCanvas/storyboardInfiniteZoomRequest'
 
@@ -256,7 +257,7 @@ export function useStoryboardInfiniteZoom(args: {
     let frame: number | null = null
     const syncNow = () => {
       frame = null
-      const nextMetrics = readStoryboardInfiniteMetrics(element, transformRef.current.k)
+      const nextMetrics = readStoryboardInfiniteMetrics(element, resolveStoryboardPaintScale(transformRef.current.k))
       setMetrics(prev => {
         if (prev.signature === nextMetrics.signature) return prev
         return nextMetrics

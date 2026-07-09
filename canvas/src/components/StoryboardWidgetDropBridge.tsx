@@ -3,6 +3,10 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
+import {
+  buildFloatingPropsPanelAddedNode,
+  commitFloatingPropsPanelAddedNode,
+} from '@/lib/toolbar/floatingPropsPanelAddNode'
 import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
 import {
   EMPTY_WIDGET_REGISTRY,
@@ -85,16 +89,19 @@ export default function StoryboardWidgetDropBridge(props: {
       const y = Number.isFinite(nodeArgs.y) ? nodeArgs.y : 0
       const type = String(nodeArgs.type || '').trim() || 'Node'
       const label = String(nodeArgs.label || '').trim() || id
-      const nextNode: GraphNode = {
+      const nextNode = buildFloatingPropsPanelAddedNode({
         id,
-        label,
         type,
-        x,
-        y,
-        properties: (nodeArgs.properties || {}) as never,
-      }
+        label,
+        point: { x, y },
+        properties: nodeArgs.properties || {},
+      })
       const beforeIds = new Set<string>((useGraphStore.getState().graphData?.nodes || []).map(node => String(node.id || '')).filter(Boolean))
-      addNode(nextNode)
+      const committedId = commitFloatingPropsPanelAddedNode({
+        node: nextNode,
+        addNode,
+        readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+      })
       const committedGraph = useGraphStore.getState().graphData as GraphData | null
       const committedNodes = Array.isArray(committedGraph?.nodes) ? (committedGraph.nodes as GraphNode[]) : []
       const exactId = committedNodes.find(node => String(node.id || '') === id)?.id
@@ -104,7 +111,7 @@ export default function StoryboardWidgetDropBridge(props: {
         if (!nodeId || beforeIds.has(nodeId)) return false
         return String(node.type || '').trim() === type && String(node.label || '').trim() === label
       })?.id
-      const actualId = String(exactId || composedId || insertedId || id).trim() || id
+      const actualId = String(exactId || composedId || insertedId || committedId || id).trim() || id
       reservedNodeIdsRef.current.delete(id)
       reservedNodeIdsRef.current.delete(actualId)
       return actualId

@@ -16,3 +16,38 @@ export function testLaunchImportFallbackSnapshotsFileListBeforeClearingInput() {
     throw new Error('expected Launch import folder fallback to snapshot FileList before clearing input')
   }
 }
+
+export function testLaunchDropdownNewMarkdownUsesSharedDocsCreator() {
+  const p = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
+  const text = readFileSync(p, 'utf8')
+  const helper = readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'createNewMarkdownSourceFile.ts'), 'utf8')
+  const timestampHelper = readFileSync(resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceTimestamp.ts'), 'utf8')
+
+  const required = [
+    'createNewMarkdownSourceFile()',
+    '<FilePlus2 className={menuIconClass} strokeWidth={1.6} />',
+    '<span className="truncate">New .md</span>',
+    "id: 'launch:new-markdown-file'",
+  ]
+  const missing = required.filter(snippet => !text.includes(snippet))
+  if (missing.length) {
+    throw new Error(`expected Launch dropdown New .md to use the shared docs creator: ${missing.join(', ')}`)
+  }
+
+  const helperRequired = [
+    'WORKSPACE_DOCS_SOURCE_ROOT_PATH',
+    'formatWorkspaceUtcSessionTimestamp',
+    'ensureWorkspaceFolderTreeIfMissing',
+    'setWorkspaceEntrySource',
+  ]
+  const helperMissing = helperRequired.filter(snippet => !helper.includes(snippet))
+  if (helperMissing.length) {
+    throw new Error(`expected source-file creator to own docs-root timestamped markdown creation: ${helperMissing.join(', ')}`)
+  }
+  if (helper.includes("name: 'note.md'") || helper.includes('WORKSPACE_ROOT_PATH')) {
+    throw new Error('expected new markdown source helper to remove the stale root note.md hardcode')
+  }
+  if (!timestampHelper.includes('formatWorkspaceUtcSessionTimestamp')) {
+    throw new Error('expected Launch markdown creation to reuse the shared workspace UTC timestamp helper')
+  }
+}

@@ -304,44 +304,25 @@ export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
     if (!latest.includes('Review source evidence.\n![Image](image-url)')) {
       throw new Error(`expected FloatingPanel Media image action to insert into active Action field, got ${latest}`)
     }
-    const commandAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:command:runtime-ready.check"]')
-    if (!(commandAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS /runtime-ready.check action row')
-    if (commandAction.getAttribute('data-kg-command-menu-prefix') !== '/') {
-      throw new Error(`expected command dictionary media action to expose / prefix, got ${commandAction.getAttribute('data-kg-command-menu-prefix')}`)
-    }
+    const audioAction = container.querySelector('[data-kg-command-menu-media-action="insert-audio"]')
+    if (!(audioAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media audio action row')
     await act(async () => {
-      commandAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      audioAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 2)
     })
-    const latestCommandInvoke = committedValues.at(-1) || ''
-    if (!latestCommandInvoke.includes('/runtime-ready.check')) {
-      throw new Error(`expected FloatingPanel Media / dictionary action to insert shared command dictionary token, got ${latestCommandInvoke}`)
+    const latestAudioInvoke = committedValues.at(-1) || ''
+    if (!latestAudioInvoke.includes('<audio src="audio-url" title="Audio" controls></audio>')) {
+      throw new Error(`expected FloatingPanel Media audio action to insert media embed, got ${latestAudioInvoke}`)
     }
-    if (latestCommandInvoke.includes('[Runtime-ready check](') || latestCommandInvoke.includes('DICTIONARY-COMMAND.md')) {
-      throw new Error(`expected FloatingPanel Media / dictionary action to avoid duplicate dictionary link indicators, got ${latestCommandInvoke}`)
-    }
-    const semanticAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:semantic:frontmatter"]')
-    if (!(semanticAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS #frontmatter action row')
-    if (semanticAction.getAttribute('data-kg-command-menu-prefix') !== '#') {
-      throw new Error(`expected semantic dictionary media action to expose # prefix, got ${semanticAction.getAttribute('data-kg-command-menu-prefix')}`)
-    }
-    const bindingAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-invocation:binding:operator"]')
-    if (!(bindingAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS @operator action row')
-    if (bindingAction.getAttribute('data-kg-command-menu-prefix') !== '@') {
-      throw new Error(`expected binding dictionary media action to expose @ prefix, got ${bindingAction.getAttribute('data-kg-command-menu-prefix')}`)
-    }
-    const agenticOsAction = container.querySelector('[data-kg-command-menu-media-action="agentic-os-doc:agentic-os.runtime"]')
-    if (!(agenticOsAction instanceof dom.window.HTMLElement)) throw new Error('expected FloatingPanel Media Agentic OS runtime doc action row')
-    await act(async () => {
-      agenticOsAction.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-      await waitForFrames(dom.window, 2)
-    })
-    const latestDocInvoke = committedValues.at(-1) || ''
-    if (!latestDocInvoke.includes('/agentic-os.runtime')) {
-      throw new Error(`expected FloatingPanel Media Agentic OS doc action to insert shared slash token, got ${latestDocInvoke}`)
-    }
-    if (latestDocInvoke.includes('[Agentic OS Runtime Readiness](') || latestDocInvoke.includes('#agentic-os.runtime @agentic-os.runtime')) {
-      throw new Error(`expected FloatingPanel Media Agentic OS doc action to avoid prose-mutating title/hash/binding triplets, got ${latestDocInvoke}`)
+    for (const staleActionId of [
+      'agentic-os-invocation:command:runtime-ready.check',
+      'agentic-os-invocation:semantic:frontmatter',
+      'agentic-os-invocation:binding:operator',
+      'agentic-os-doc:agentic-os.runtime',
+    ]) {
+      if (container.querySelector(`[data-kg-command-menu-media-action="${staleActionId}"]`)) {
+        throw new Error(`expected FloatingPanel Media to move non-media invocation action ${staleActionId} into Skills & Commands`)
+      }
     }
   } finally {
     await act(async () => {

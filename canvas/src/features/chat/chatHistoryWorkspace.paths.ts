@@ -1,6 +1,7 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { formatWorkspaceUtcCompactTimestamp, formatWorkspaceUtcSessionTimestamp } from '@/features/workspace-fs/workspaceTimestamp'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from './chatStorageConfig'
 
@@ -21,21 +22,12 @@ export const resolveFilePrefix = (args?: { storageType?: 'chatKnowgrph' | 'chatH
 const sessionAutoPathByScope = new Map<string, WorkspacePath>()
 const sessionAutoInFlightByScope = new Map<string, Promise<WorkspacePath>>()
 
-const pad2 = (n: number): string => String(n).padStart(2, '0')
 const formatCompactTimestamp = (timestampMs: number): string => {
-  const d = new Date(Number.isFinite(timestampMs) ? timestampMs : Date.now())
-  const yyyy = String(d.getUTCFullYear())
-  const mm = pad2(d.getUTCMonth() + 1)
-  const dd = pad2(d.getUTCDate())
-  const hh = pad2(d.getUTCHours())
-  const min = pad2(d.getUTCMinutes())
-  const sec = pad2(d.getUTCSeconds())
-  return `${yyyy}${mm}${dd}${hh}${min}${sec}`
+  return formatWorkspaceUtcCompactTimestamp(timestampMs)
 }
 
 export const formatKgcWorkspaceSessionId = (timestampMs: number): string => {
-  const compact = formatCompactTimestamp(timestampMs)
-  return `${compact.slice(0, 8)}T${compact.slice(8, 14)}Z`
+  return formatWorkspaceUtcSessionTimestamp(timestampMs)
 }
 
 const normalizeKgcTimestampToken = (value: string): string => {

@@ -18,10 +18,16 @@ import {
   getFlowTextGenerationSeedPrompt,
 } from '@/lib/config'
 import {
+  FLOW_WIDGET_POINTER_DRAG_DROP_EVENT,
+  claimFlowWidgetPointerDragDrop,
   clearActiveFlowWidgetPointerDragSession,
   hasFlowWidgetDragType,
+  isFlowWidgetPointerDragDropClaimed,
   readActiveFlowWidgetPointerDragSession,
   readFlowWidgetDragPayloadFromDataTransfer,
+  type FlowWidgetDragPayloadV1,
+  type FlowWidgetPointerDragDropDetail,
+  type FlowWidgetPointerDragSession,
 } from '@/lib/storyboardWidget/widgetDrag'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -68,6 +74,56 @@ function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown)
   const parts = id.split('::').map(part => part.trim()).filter(Boolean)
   const suffix = parts.length > 1 ? parts[parts.length - 1] : ''
   if (suffix) out.add(suffix)
+}
+
+function readStoryboardWidgetDropRect(args: {
+  root: HTMLElement | null
+  widgetDropBridgeOnly: boolean
+}): DOMRect | null {
+  const viewportEl = resolveCanvasViewportMeasureElement(args.root)
+  if (viewportEl) return viewportEl.getBoundingClientRect()
+  if (!args.widgetDropBridgeOnly) return null
+  if (typeof document !== 'undefined') {
+    const surfaces = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-storyboard-widget-surface-root]'))
+    const activeSurface = surfaces.find(surface => {
+      const rect = surface.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0
+    })
+    if (activeSurface) return activeSurface.getBoundingClientRect()
+  }
+  const w = typeof window !== 'undefined' ? window.innerWidth : 0
+  const h = typeof window !== 'undefined' ? window.innerHeight : 0
+  if (!(Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0)) return null
+  return {
+    left: 0, top: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0,
+    toJSON: () => ({}),
+  } as DOMRect
+}
+
+function sameWidgetRegistryShape(
+  entry: WidgetRegistryEntry,
+  payload: Pick<FlowWidgetDragPayloadV1, 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
+): boolean {
+  const nodeTypeId = String(payload.nodeTypeId || '').trim()
+  const widgetTypeId = String(payload.widgetTypeId || '').trim()
+  const formId = String(payload.formId || '').trim()
+  return !!nodeTypeId
+    && !!widgetTypeId
+    && !!formId
+    && String(entry.nodeTypeId || '').trim() === nodeTypeId
+    && String(entry.widgetTypeId || '').trim() === widgetTypeId
+    && String(entry.formId || '').trim() === formId
+}
+
+function resolveWidgetRegistryEntryForDrop(
+  registry: ReadonlyArray<WidgetRegistryEntry>,
+  payload: Pick<FlowWidgetDragPayloadV1, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
+): WidgetRegistryEntry | null {
+  const entries = Array.isArray(registry) ? registry : []
+  const registryEntryId = String(payload.registryEntryId || '').trim()
+  const byId = entries.find(entry => entry && entry.isEnabled && entry.id === registryEntryId) || null
+  if (byId) return byId
+  return entries.find(entry => entry && entry.isEnabled && sameWidgetRegistryShape(entry, payload)) || null
 }
 
 export function useStoryboardWidgetDropBridge(args: {
@@ -438,27 +494,10 @@ export function useStoryboardWidgetDropBridge(args: {
       return null
     }
     const readDropRect = (): DOMRect | null => {
-      const viewportEl = resolveCanvasViewportMeasureElement(args.rootRef.current)
-      if (viewportEl) return viewportEl.getBoundingClientRect()
-      if (args.widgetDropBridgeOnly) {
-        if (typeof document !== 'undefined') {
-          const surfaces = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-storyboard-widget-surface-root]'))
-          const activeSurface = surfaces.find(surface => {
-            const rect = surface.getBoundingClientRect()
-            return rect.width > 0 && rect.height > 0
-          })
-          if (activeSurface) return activeSurface.getBoundingClientRect()
-        }
-        const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        const h = typeof window !== 'undefined' ? window.innerHeight : 0
-        if (!(Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0)) return null
-        return {
-          left: 0, top: 0, right: w, bottom: h, width: w, height: h, x: 0, y: 0,
-          toJSON: () => ({}),
-        } as DOMRect
-      }
-      const el = resolveCanvasViewportMeasureElement(args.rootRef.current)
-      return el ? el.getBoundingClientRect() : null
+      return readStoryboardWidgetDropRect({
+        root: args.rootRef.current,
+        widgetDropBridgeOnly: args.widgetDropBridgeOnly,
+      })
     }
     const resolveDropPos = (sx: number, sy: number, opts?: { allowNeutralFallback?: boolean }) => {
       const transform = readResolvedDropTransform(opts)
@@ -617,7 +656,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const sy = ev.clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
-      const entry = (args.widgetRegistryRef.current || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
+      const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], payload)
       if (!entry) return
       const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, ev.clientX, ev.clientY)
       if (status === 'await-transform') {
@@ -632,6 +671,7 @@ export function useStoryboardWidgetDropBridge(args: {
         }
         return
       }
+      clearActiveFlowWidgetPointerDragSession()
       try {
         ev.preventDefault()
         ev.stopPropagation()
@@ -720,7 +760,10 @@ export function useStoryboardWidgetDropBridge(args: {
       return null
     }
     const resolvePointerDropPos = (clientX: number, clientY: number, opts?: { allowNeutralFallback?: boolean }) => {
-      const rect = resolveCanvasViewportMeasureElement(args.rootRef.current)?.getBoundingClientRect() || null
+      const rect = readStoryboardWidgetDropRect({
+        root: args.rootRef.current,
+        widgetDropBridgeOnly: args.widgetDropBridgeOnly,
+      })
       if (!rect) return { rect: null, pos: null }
       const sx = clientX - rect.left
       const sy = clientY - rect.top
@@ -754,6 +797,43 @@ export function useStoryboardWidgetDropBridge(args: {
       activeRafId = window.requestAnimationFrame(tick)
       deferredDropRafIds.add(activeRafId)
     }
+    const isFlowWidgetPointerDropDistanceAccepted = (
+      session: Pick<FlowWidgetPointerDragSession, 'startClientX' | 'startClientY'>,
+      clientX: number,
+      clientY: number,
+    ) => {
+      if (!Number.isFinite(session.startClientX) || !Number.isFinite(session.startClientY)) return true
+      const dx = clientX - session.startClientX
+      const dy = clientY - session.startClientY
+      return Math.hypot(dx, dy) >= minPointerDragDistancePx
+    }
+    const commitFlowWidgetPointerDrop = (
+      session: Pick<FlowWidgetPointerDragSession, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
+      clientX: number,
+      clientY: number,
+      opts?: { allowNeutralFallback?: boolean },
+    ): 'committed' | 'await-transform' | 'rejected' => {
+      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return 'rejected'
+      const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], session)
+      if (!entry) return 'rejected'
+      const { rect, pos } = resolvePointerDropPos(clientX, clientY, opts)
+      if (!rect) return opts?.allowNeutralFallback ? 'rejected' : 'await-transform'
+      const sx = clientX - rect.left
+      const sy = clientY - rect.top
+      if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
+      const dropKey = `${session.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
+      if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
+      if (!pos) return 'await-transform'
+      args.setCanvasWindowOffsetFromRect(rect)
+      addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
+      args.upsertUiToast({
+        id: 'storyboard-widget-drop-widget',
+        kind: 'neutral',
+        message: `Created ${entry.nodeTypeId} node.`,
+        ttlMs: 1500,
+      })
+      return 'committed'
+    }
     const onPointerUpCapture = (ev: PointerEvent) => {
       const session = readActiveFlowWidgetPointerDragSession()
       if (!session || session.pointerId !== ev.pointerId) return
@@ -762,43 +842,47 @@ export function useStoryboardWidgetDropBridge(args: {
       } catch {
         void 0
       }
-      if (session.nativeDragStarted) return
-      const dx = ev.clientX - session.startClientX
-      const dy = ev.clientY - session.startClientY
-      if (Math.hypot(dx, dy) < minPointerDragDistancePx) return
-      const entry = (args.widgetRegistryRef.current || []).find(e => e && e.isEnabled && e.id === session.registryEntryId) || null
-      if (!entry) return
-      const commitWidget = (opts?: { allowNeutralFallback?: boolean }): 'committed' | 'await-transform' | 'rejected' => {
-        const { rect, pos } = resolvePointerDropPos(ev.clientX, ev.clientY, opts)
-        if (!rect) return opts?.allowNeutralFallback ? 'rejected' : 'await-transform'
-        const sx = ev.clientX - rect.left
-        const sy = ev.clientY - rect.top
-        if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-        const dropKey = `${session.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
-        if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
-        if (!pos) return 'await-transform'
-        args.setCanvasWindowOffsetFromRect(rect)
-        addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
-        args.upsertUiToast({
-          id: 'storyboard-widget-drop-widget',
-          kind: 'neutral',
-          message: `Created ${entry.nodeTypeId} node.`,
-          ttlMs: 1500,
-        })
-        return 'committed'
-      }
+      if (!isFlowWidgetPointerDropDistanceAccepted(session, ev.clientX, ev.clientY)) return
+      const commitWidget = (opts?: { allowNeutralFallback?: boolean }): 'committed' | 'await-transform' | 'rejected' => (
+        commitFlowWidgetPointerDrop(session, ev.clientX, ev.clientY, opts)
+      )
       const status = commitWidget()
       if (status === 'await-transform') {
         scheduleDeferredWidgetCommit(commitWidget)
       }
     }
+    const onFlowWidgetPointerDragDropCapture = (event: Event) => {
+      const detail = (event as CustomEvent<FlowWidgetPointerDragDropDetail>).detail
+      if (!detail || isFlowWidgetPointerDragDropClaimed(detail)) return
+      if (!isFlowWidgetPointerDropDistanceAccepted(detail, detail.clientX, detail.clientY)) return
+      const commitWidget = (opts?: { allowNeutralFallback?: boolean }): 'committed' | 'await-transform' | 'rejected' => (
+        commitFlowWidgetPointerDrop(detail, detail.clientX, detail.clientY, opts)
+      )
+      const status = commitWidget()
+      if (status === 'await-transform') {
+        scheduleDeferredWidgetCommit(commitWidget)
+      } else if (status !== 'committed') {
+        return
+      }
+      claimFlowWidgetPointerDragDrop(detail)
+      clearActiveFlowWidgetPointerDragSession(detail.pointerId)
+      try {
+        event.preventDefault()
+        event.stopPropagation()
+        ;(event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+      } catch {
+        void 0
+      }
+    }
     document.addEventListener('pointerup', onPointerUpCapture, true)
+    window.addEventListener(FLOW_WIDGET_POINTER_DRAG_DROP_EVENT, onFlowWidgetPointerDragDropCapture, true)
     return () => {
       if (typeof window !== 'undefined') {
         for (const rafId of deferredDropRafIds) window.cancelAnimationFrame(rafId)
       }
       deferredDropRafIds.clear()
       document.removeEventListener('pointerup', onPointerUpCapture, true)
+      window.removeEventListener(FLOW_WIDGET_POINTER_DRAG_DROP_EVENT, onFlowWidgetPointerDragDropCapture, true)
     }
   }, [addNodeFromRegistryAtWorld, args])
 

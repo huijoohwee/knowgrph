@@ -1,5 +1,5 @@
 import React from 'react'
-import { INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID, INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID, INLINE_VARIABLE_COMMAND_ACTIONS } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { INLINE_VARIABLE_COMMAND_ACTIONS, type InlineVariableCommandId } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { type CommandMenuRichMediaItem, renameCommandMenuRichMediaMarkdownHref, useCommandMenuRichMediaInventory } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, useCommandMenuMediaNameDrafts, writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -15,20 +15,23 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { MediaLightboxPromptParameters } from '@/lib/ui/MediaLightbox'
 import { buildMediaLightboxPromptParameters } from '@/lib/ui/mediaLightboxPromptParameters'
-import { insertMediaIntoActiveCardInlineTextEditor, insertTextIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
-import {
-  buildAgenticOsDictionaryInvocationMarkdown,
-  buildAgenticOsDocInvocationMarkdown,
-  findAgenticOsDictionaryInvocationByActionId,
-  findAgenticOsDocInvocationByActionId,
-} from '@/features/agentic-os/agenticOsDocInvocations'
+import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { MEDIA_LIBRARY_OPEN_TOP_EVENT } from '@/features/canvas/utils'
 import { buildVideoSequenceTimelineImportMarkdown } from '@/features/markdown-workspace/workspaceImport/videoSequenceTimelineImport'
+import { selectMediaCatalogAction } from './mediaCatalogActionSelection'
 import { MediaCatalogPanelView } from './MediaCatalogPanelView'
-import { MEDIA_GENERATE_MEDIA_ACTION_ID, MEDIA_IMPORT_URL_ACTION_ID, MEDIA_NEW_ACTIONS, readStoredMediaCatalogLayout, readStoredMediaDescriptionDrafts, readStoredMediaFieldDrafts, writeStoredMediaCatalogLayout, writeStoredMediaDescriptionDrafts, writeStoredMediaFieldDrafts, type MediaCatalogLayout, type MediaCatalogSourceMetadataItem, type MediaPanelActionSpec, type UploadedMediaDescriptionDrafts, type UploadedMediaFieldDrafts } from './mediaCatalogTypes'
+import { MEDIA_NEW_ACTIONS, readStoredMediaCatalogLayout, readStoredMediaDescriptionDrafts, readStoredMediaFieldDrafts, writeStoredMediaCatalogLayout, writeStoredMediaDescriptionDrafts, writeStoredMediaFieldDrafts, type MediaCatalogLayout, type MediaCatalogSourceMetadataItem, type MediaPanelActionSpec, type UploadedMediaDescriptionDrafts, type UploadedMediaFieldDrafts } from './mediaCatalogTypes'
 import { buildUploadedMediaMarkdown } from './mediaCatalogUploadedItems'
 import { getUploadedMediaDescriptionKey, buildCommandMenuMediaDragPayload, buildUploadedMediaDragPayload, getMediaNameSyncKey, readRichMediaInsertUrl, startMediaDrag, type UploadedMediaDragMetadata } from './mediaCatalogShared'
 import { buildProceduralMediaMarkdown, generateProceduralMediaArtifact, readProceduralMediaGenerationSettings, type ProceduralMediaArtifact } from './proceduralMediaGenerator'
+
+const MEDIA_INLINE_INSERT_ACTION_IDS: readonly InlineVariableCommandId[] = ['insert-image', 'insert-audio', 'insert-video']
+type MediaInlineInsertAction = (typeof INLINE_VARIABLE_COMMAND_ACTIONS)[number]
+
+const MEDIA_INLINE_INSERT_ACTIONS = MEDIA_INLINE_INSERT_ACTION_IDS
+  .map(actionId => INLINE_VARIABLE_COMMAND_ACTIONS.find(action => action.id === actionId))
+  .filter((action): action is MediaInlineInsertAction => !!action)
+
 export function MediaCatalogPanel() {
   const panelTypography = usePanelTypography()
   const panelRef = React.useRef<HTMLElement | null>(null)
@@ -116,7 +119,7 @@ export function MediaCatalogPanel() {
   const mediaActions = React.useMemo(
     () => [
       ...MEDIA_NEW_ACTIONS,
-      ...INLINE_VARIABLE_COMMAND_ACTIONS.filter(action => action.id === 'insert-image' || action.id === 'insert-video'),
+      ...MEDIA_INLINE_INSERT_ACTIONS,
     ],
     [],
   )
@@ -488,43 +491,14 @@ export function MediaCatalogPanel() {
     startMediaDrag(event, buildUploadedMediaDragPayload(item, metadata))
   }, [])
   const handleSelectMediaAction = React.useCallback((action: MediaPanelActionSpec) => {
-    const dictionaryInvocation = findAgenticOsDictionaryInvocationByActionId(action.id)
-    if (dictionaryInvocation) {
-      const inserted = insertTextIntoActiveCardInlineTextEditor(buildAgenticOsDictionaryInvocationMarkdown(dictionaryInvocation))
-      if (inserted) return
-      pushUiToast({ id: 'agentic-os-dictionary-invocation', kind: 'neutral', message: `${dictionaryInvocation.token} ready for / # @ insertion in an active card or editor`, ttlMs: UI_TOAST_TTL_MS.actionFeedback, dismissible: false })
-      return
-    }
-    const agenticOsDoc = findAgenticOsDocInvocationByActionId(action.id)
-    if (agenticOsDoc) {
-      const inserted = insertTextIntoActiveCardInlineTextEditor(buildAgenticOsDocInvocationMarkdown(agenticOsDoc))
-      if (inserted) return
-      pushUiToast({ id: 'agentic-os-doc-invocation', kind: 'neutral', message: `${agenticOsDoc.atToken} ready for / # @ insertion in an active card or editor`, ttlMs: UI_TOAST_TTL_MS.actionFeedback, dismissible: false })
-      return
-    }
-    if (action.id === INLINE_UPLOAD_MEDIA_VARIABLE_ACTION_ID) {
-      uploadInputRef.current?.click()
-      return
-    }
-    if (action.id === MEDIA_IMPORT_URL_ACTION_ID) {
-      setImportUrlPromptOpen(true)
-      return
-    }
-    if (action.id === MEDIA_GENERATE_MEDIA_ACTION_ID) {
-      setGenerateLightboxOpen(true)
-      return
-    }
-    const mediaKind = INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID[action.id as keyof typeof INLINE_MEDIA_INSERT_KIND_BY_VARIABLE_ACTION_ID]
-    if (!mediaKind) return
-    const inserted = insertMediaIntoActiveCardInlineTextEditor({
-      kind: mediaKind,
-      url: '',
-      label: action.label,
-      sourceKey: action.id,
+    selectMediaCatalogAction({
+      action,
+      setGenerateLightboxOpen,
+      setImportUrlPromptOpen,
+      setMermaidFocus,
+      uploadInputRef,
     })
-    if (inserted) return
-    setMermaidFocus(null)
-  }, [pushUiToast, setMermaidFocus])
+  }, [setMermaidFocus])
   const handleRenameMedia = React.useCallback((item: CommandMenuRichMediaItem, nextName: string) => {
     const owner = item.renameOwner
     const name = String(nextName || '').trim()

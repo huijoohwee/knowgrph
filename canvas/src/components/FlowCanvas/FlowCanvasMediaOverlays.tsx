@@ -783,7 +783,7 @@ export default function FlowCanvasMediaOverlays(args: {
               srcDoc={node.srcDoc}
               openUrl={node.openUrl}
               kind={node.kind}
-              panelChrome="storyboardWidget"
+              panelChrome="storyboardWidget" canvasOverlayPinned={richMediaPanelPinned}
               {...richMediaPanelHeaderToolbar.panelProps}
               interactive={resolveRichMediaPanelInteractive({ nodeInteractive: node.interactive, renderMediaAsNodes, infiniteCanvasInteractionMode, canvasRenderMode: '2d', canvas2dRenderer, frontmatterModeEnabled, documentSemanticMode })}
               panel={node.panel}

@@ -21,6 +21,7 @@ import {
   GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
   GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS,
 } from '@/lib/cards/graphNodeCardFields'
+import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
 
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
@@ -80,6 +81,7 @@ export type StoryboardCardModel = {
   style: string
   tags: string[]
   meta: string[]
+  invocationTokens: string[]
   sourceModelLabel: string
   sourcePromptLabel: string
   href: string
@@ -447,7 +449,7 @@ const computeCandidateScore = (args: {
   return score
 }
 
-const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardModel => {
+const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: ReadonlyMap<string, readonly string[]>): StoryboardCardModel => {
   const properties = readNodeProperties(node)
   const media = readStoryboardMedia(node, properties)
   const references = readStoryboardReferences(properties, media)
@@ -479,6 +481,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number): StoryboardCardMode
     style,
     tags,
     meta,
+    invocationTokens: readStoryboardCardInvocationTokens(node, lane, stageTokensByLane),
     sourceModelLabel: readSourceModelLabel(properties),
     sourcePromptLabel: readSourcePromptLabel(properties),
     href: readStoryboardHref(properties, media),
@@ -550,6 +553,7 @@ export const buildStoryboardBoardModel = (args: {
   const semanticKey = buildStoryboardSemanticKey(args)
   const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
   const cardNodes = nodes.filter(node => !isStoryboardCanvasRichMediaPanelNode(node))
+  const stageTokensByLane = buildStoryboardInvocationTokensByLane(args.graphData)
   const connectedValuesByNodeId = args.connectedValuesByNodeId || (
     args.widgetRegistry
       ? computeRichMediaOverlayConnectedValuesByNodeId({
@@ -565,6 +569,7 @@ export const buildStoryboardBoardModel = (args: {
   const allCards = cardNodes.map((node, index) => buildCardModel(
     resolveStoryboardRenderNode({ node, connectedValuesByNodeId }),
     index,
+    stageTokensByLane,
   ))
   const cards = selectRenderableCards(allCards)
   const lanesById = new Map<string, StoryboardLaneModel>()

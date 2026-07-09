@@ -11,7 +11,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getRichMediaPanelViewTitle } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, ExternalLink, GitMerge, HelpCircle, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
+import { Copy, Eraser, ExternalLink, GitBranch, GitMerge, HelpCircle, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import { unwrapUserProvidedText } from '@/lib/url'
 
@@ -37,6 +37,7 @@ export type WidgetEditorActionsToolbarProps = {
     updateKvEntry: boolean
     openInSidepane: boolean
     enableHandles: boolean
+    probeTree: boolean
     convertToLoop: boolean
     duplicate: boolean
     clearOutput: boolean
@@ -54,6 +55,7 @@ export type WidgetEditorActionsToolbarProps = {
   onHelp: () => void
   onRemove: () => void
   onEnableHandlesForAllInputs?: () => void
+  onProbeTree?: () => void
   onConvertToLoopNode: () => void
   onUpdateKvEntry?: () => void
   onOpenInSidepane?: () => void
@@ -77,6 +79,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
     onHelp,
     onRemove,
     onEnableHandlesForAllInputs,
+    onProbeTree,
     onConvertToLoopNode,
     onUpdateKvEntry,
     onOpenInSidepane,
@@ -87,6 +90,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
   const showUpdateKvEntryAction = actionVisibility.updateKvEntry !== false
   const showOpenInSidepaneAction = actionVisibility.openInSidepane !== false
   const showEnableHandlesAction = actionVisibility.enableHandles !== false
+  const showProbeTreeAction = actionVisibility.probeTree !== false
   const showConvertToLoopAction = actionVisibility.convertToLoop !== false
   const showDuplicateAction = actionVisibility.duplicate !== false
   const showClearOutputAction = actionVisibility.clearOutput !== false
@@ -239,6 +243,18 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
             className="App-toolbar__btn"
           >
             <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
+
+        {showProbeTreeAction && onProbeTree ? (
+          <IconButton
+            title={UI_LABELS.probeTree}
+            tooltipContent={UI_COPY.flowWidgetProbeTree}
+            showTooltip
+            onClick={onProbeTree}
+            className="App-toolbar__btn"
+          >
+            <GitBranch className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
           </IconButton>
         ) : null}
 

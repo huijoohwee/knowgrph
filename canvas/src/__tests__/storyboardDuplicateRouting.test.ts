@@ -901,8 +901,7 @@ export function testStoryboardToolbarActionBindingsForwardCardScopedCallbacks() 
   bindings.onClearOutput()
   bindings.onHelp()
   bindings.onRemove()
-  bindings.onUpdateKvEntry()
-  bindings.onConvertToLoopNode()
+  bindings.onUpdateKvEntry(); bindings.onProbeTree(); bindings.onConvertToLoopNode()
   if (calls.join(',') !== 'run:card-bind,sidepane:card-bind,duplicate:card-bind,clear:card-bind,help,remove:card-bind,mapping:card-bind,loop:card-bind') {
     throw new Error(`expected storyboard toolbar bindings to forward the card-scoped callbacks in order, got ${JSON.stringify(calls)}`)
   }

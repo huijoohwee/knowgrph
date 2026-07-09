@@ -12,6 +12,10 @@ import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import {
+  buildFloatingPropsPanelAddedNode,
+  commitFloatingPropsPanelAddedNode,
+} from '@/lib/toolbar/floatingPropsPanelAddNode'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -371,20 +375,13 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     if (!graphLookup || !nodeContextId) return
     const start = graphLookup.nodeById.get(nodeContextId) || null
     if (!start) return
-    const tpl = (schema?.templates?.node || {})[newType] || {}
-    const newNodeId = createId('n')
     const center = getCanvasCenterGraphPoint()
-    const node: GraphNode = {
-      id: newNodeId,
-      label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
-      type: newType || 'entity',
-      x: center.x,
-      y: center.y,
-      fx: center.x,
-      fy: center.y,
-      properties: { ...(tpl || {}) },
-    }
-    addNode(node)
+    const node = buildFloatingPropsPanelAddedNode({ schema, type: newType, label: newLabel, point: center, pinToPoint: true })
+    const newNodeId = commitFloatingPropsPanelAddedNode({
+      node,
+      addNode,
+      readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+    }) || node.id
     const edgeId = createId('e')
     const edge: GraphEdge = {
       id: edgeId,
@@ -483,42 +480,29 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [edgeContextId, graphLookup, openMarkdownProvenanceInEditor, resolveMarkdownProvenance, setSelectionSource])
 
   const doAddNode = React.useCallback(() => {
-    const tpl = (schema?.templates?.node || {})[newType] || {}
-    const newNodeId = createId('n')
     const center = getCanvasCenterGraphPoint()
-    const node: GraphNode = {
-      id: newNodeId,
-      label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
-      type: newType || 'entity',
-      x: center.x,
-      y: center.y,
-      fx: center.x,
-      fy: center.y,
-      properties: { ...(tpl || {}) },
-    }
-    addNode(node)
-    setSelectionSource('toolbar')
-    selectNode(newNodeId)
+    const node = buildFloatingPropsPanelAddedNode({ schema, type: newType, label: newLabel, point: center, pinToPoint: true })
+    commitFloatingPropsPanelAddedNode({
+      node,
+      addNode,
+      setSelectionSource,
+      selectNode,
+      selectionSource: 'toolbar',
+      readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+    })
   }, [addNode, newLabel, newType, schema, selectNode, setSelectionSource])
 
   const doAddNodePlusEdgeFromSelected = React.useCallback(() => {
     if (!graphLookup || !nodeContextId) return
     const start = graphLookup.nodeById.get(nodeContextId) || null
     if (!start) return
-    const tpl = (schema?.templates?.node || {})[newType] || {}
-    const newNodeId = createId('n')
     const center = getCanvasCenterGraphPoint()
-    const node: GraphNode = {
-      id: newNodeId,
-      label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
-      type: newType || 'entity',
-      x: center.x,
-      y: center.y,
-      fx: center.x,
-      fy: center.y,
-      properties: { ...(tpl || {}) },
-    }
-    addNode(node)
+    const node = buildFloatingPropsPanelAddedNode({ schema, type: newType, label: newLabel, point: center, pinToPoint: true })
+    const newNodeId = commitFloatingPropsPanelAddedNode({
+      node,
+      addNode,
+      readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+    }) || node.id
     const resolvedEdgeLabel = String(newEdgeLabel || defaultEdgeLabel || 'link').trim() || 'link'
     const newEdgeId = createId('e')
     const edge: GraphEdge = {
@@ -544,7 +528,6 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
 
   const doAddMediaNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
-    const newNodeId = createId('n')
     const props = buildNodeMediaProperties({
       extra: (tpl || {}) as Record<string, unknown>,
       kind: mediaKind,
@@ -552,19 +535,22 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       interactive: mediaInteractive,
     }) as GraphNode['properties']
     const center = getCanvasCenterGraphPoint()
-    const node: GraphNode = {
-      id: newNodeId,
-      label: String((newLabel ?? (tpl as { label?: unknown }).label) || 'Node'),
-      type: newType || 'entity',
-      x: center.x,
-      y: center.y,
-      fx: center.x,
-      fy: center.y,
-      properties: props,
-    }
-    addNode(node)
-    setSelectionSource('toolbar')
-    selectNode(newNodeId)
+    const node = buildFloatingPropsPanelAddedNode({
+      schema,
+      type: newType,
+      label: newLabel,
+      point: center,
+      properties: props as Record<string, unknown>,
+      pinToPoint: true,
+    })
+    commitFloatingPropsPanelAddedNode({
+      node,
+      addNode,
+      setSelectionSource,
+      selectNode,
+      selectionSource: 'toolbar',
+      readGraphData: () => useGraphStore.getState().graphData as GraphData | null,
+    })
   }, [addNode, mediaInteractive, mediaKind, mediaUrl, newLabel, newType, schema, selectNode, setSelectionSource])
 
   return {

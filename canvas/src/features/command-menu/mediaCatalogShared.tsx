@@ -6,6 +6,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { beginMediaPointerDragPayload, finishMediaPointerDragPayloadForEvent, writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { MediaDownloadOverlay, MediaInfoOverlay, MediaKindOverlay, MediaOpenLinkOverlay } from '@/lib/ui/MediaKindOverlay'
 import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
+import {
+  FLOATING_PANEL_CATALOG_COMPACT_ICON_FRAME_CLASSNAME,
+  FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT,
+  floatingPanelCatalogCompactIconFrameClassName,
+  floatingPanelCatalogCompactRowClassName,
+} from '@/lib/ui/floatingPanelCatalogLayout'
 import { isPreferredRasterImageFormat, readPreferredImageFormat } from '@/lib/media/mediaFormatPreference'
 import { buildRuntimeStorageMediaAccessUrl, normalizeRuntimeStorageMediaUrl } from '@/lib/storage/runtimeMediaUrl'
 import { useTimelineMediaReaderSummary } from '@/components/timeline/timelineMediaReader'
@@ -159,6 +165,8 @@ const readNativeVideoMediaThumbnailMetadataAttrs = (thumbnail: ReturnType<typeof
 
 export const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
 export const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
+export const MEDIA_COMPACT_LIST_ROW_LAYOUT = FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT
+export const MEDIA_COMPACT_LIST_ICON_FRAME_CLASSNAME = FLOATING_PANEL_CATALOG_COMPACT_ICON_FRAME_CLASSNAME
 
 export function mediaListThumbnailFrameClassName(extraClassName?: string): string {
   return cn(
@@ -167,6 +175,10 @@ export function mediaListThumbnailFrameClassName(extraClassName?: string): strin
     UI_THEME_TOKENS.input.bg,
     extraClassName,
   )
+}
+
+export function mediaCompactListIconFrameClassName(extraClassName?: string): string {
+  return floatingPanelCatalogCompactIconFrameClassName(extraClassName)
 }
 
 export function MediaThumbnailCaption(props: {
@@ -423,6 +435,10 @@ export function mediaListItemClassName(): string {
     UI_THEME_TOKENS.panel.bg,
     UI_THEME_TOKENS.button.hoverBg,
   )
+}
+
+export function mediaCompactListItemClassName(): string {
+  return floatingPanelCatalogCompactRowClassName()
 }
 
 export function getCommandMenuMediaSourceLabel(item: CommandMenuRichMediaItem): string {

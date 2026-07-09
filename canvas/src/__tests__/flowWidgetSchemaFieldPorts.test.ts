@@ -437,7 +437,7 @@ export const testFrontmatterImageWidgetReusesCanonicalRegistryRowsAndSingleHandl
   assertFrontmatterBuiltInWidgetIdentityPattern({
     host,
     registryEntry,
-    expectedIdentityLabel: 'BytePlus Image Widget',
+    expectedIdentityLabel: 'Image Widget',
   })
 
   const text = host.textContent || ''
@@ -472,7 +472,7 @@ export const testFrontmatterTextWidgetUsesCanonicalWidgetIdentityPattern = async
   assertFrontmatterBuiltInWidgetIdentityPattern({
     host,
     registryEntry,
-    expectedIdentityLabel: 'BytePlus Text Widget',
+    expectedIdentityLabel: 'Text Widget',
   })
 
   root.unmount()
@@ -499,7 +499,7 @@ export const testFrontmatterVideoWidgetUsesCanonicalWidgetIdentityPattern = asyn
   assertFrontmatterBuiltInWidgetIdentityPattern({
     host,
     registryEntry,
-    expectedIdentityLabel: 'BytePlus Video Widget',
+    expectedIdentityLabel: 'Video Widget',
   })
 
   root.unmount()

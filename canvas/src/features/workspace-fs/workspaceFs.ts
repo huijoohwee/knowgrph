@@ -2,6 +2,7 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import { WORKSPACE_RUN_READY_DEMO_ENV, resolveWorkspaceValidationSeedRelPath } from './workspaceRunReadyDemos'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
   buildShadowFileEntry,
@@ -242,9 +243,17 @@ export const WORKSPACE_README_SEED_REL_PATH = WORKSPACE_README_SEED_REL_PATH_CAN
 export const WORKSPACE_README_SEED_PATH = normalizeWorkspacePath(WORKSPACE_README_SEED_BASENAME)
 export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH =
   buildInitializationSeedRelPathCandidates(DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME)[0] || DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME
+const TEST_VALIDATION_WORKSPACE_SEED_EXPLICIT_REL_PATH = readEnvString(
+  'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
+  '',
+)
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
-  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  resolveWorkspaceValidationSeedRelPath({
+    explicitRelPath: TEST_VALIDATION_WORKSPACE_SEED_EXPLICIT_REL_PATH,
+    runReadyDemoId: readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''),
+    defaultRelPath: DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  }),
 )
 const TEST_VALIDATION_WORKSPACE_REQUESTED_BASENAME =
   workspaceBasename(normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)) || DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME

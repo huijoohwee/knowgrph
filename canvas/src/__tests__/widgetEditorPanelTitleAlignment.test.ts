@@ -107,7 +107,7 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (bytePlusText !== 'BytePlus Text Widget') throw new Error(`expected BytePlus Text Widget, got ${bytePlusText}`)
+  if (bytePlusText !== 'Text Widget') throw new Error(`expected Text Widget, got ${bytePlusText}`)
 
   const openAiText = resolveWidgetNodeTitle({
     node: makeNode({ id: 'text-2', type: 'TextGeneration', label: 'Text Widget', properties: { chatProvider: 'openai' } }),

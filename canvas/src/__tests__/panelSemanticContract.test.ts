@@ -1485,7 +1485,9 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
     'CommandMenuCatalogPanel.tsx',
     'MediaCatalogPanel.tsx',
     'MediaCatalogPanelView.tsx',
+    'mediaCatalogActionSelection.ts',
     'mediaCatalogCandidateItems.tsx',
+    'mediaCatalogListItems.tsx',
     'mediaCatalogShared.tsx',
     'mediaCatalogTypes.ts',
     'mediaCatalogUploadedFields.tsx',
@@ -1557,8 +1559,23 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (
     !commandCatalogPanelText.includes('data-kg-media-layout-selector')
     || !commandCatalogPanelText.includes('data-kg-media-layout-toggle')
+    || !commandCatalogPanelText.includes('data-kg-media-search-toggle')
+    || !commandCatalogPanelText.includes('data-kg-media-search-affordance')
+    || !commandCatalogPanelText.includes('data-kg-media-search-overlay-anchor')
+    || !commandCatalogPanelText.includes('data-kg-media-search-panel')
+    || !commandCatalogPanelText.includes('data-kg-media-search-inline')
+    || !commandCatalogPanelText.includes('data-kg-media-search-overlay')
+    || !commandCatalogPanelText.includes('data-kg-media-search-expand-direction')
+    || !commandCatalogPanelText.includes('data-kg-media-search-input')
+    || commandCatalogPanelText.includes('title="@ media commands"')
+    || commandCatalogPanelText.includes('<span>Search</span>')
     || !commandCatalogPanelText.includes('data-kg-media-grid')
     || !commandCatalogPanelText.includes('data-kg-media-list-layout')
+    || !commandCatalogPanelText.includes('data-kg-media-card-layout')
+    || !commandCatalogPanelText.includes('Card layout')
+    || !commandCatalogPanelText.includes('MEDIA_COMPACT_LIST_ROW_LAYOUT')
+    || !commandCatalogPanelText.includes('data-kg-media-list-row-layout={MEDIA_COMPACT_LIST_ROW_LAYOUT}')
+    || !commandCatalogPanelText.includes('data-kg-media-list-view-row="1"')
     || !commandCatalogPanelText.includes('data-kg-media-list-row-layout="3-rows"')
     || !commandCatalogPanelText.includes('data-kg-media-list-row-section="title"')
     || !commandCatalogPanelText.includes('data-kg-media-list-row-section="meta"')

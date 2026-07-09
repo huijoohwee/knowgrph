@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveMainPanelInvocationSubjectIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 
 const readUtf8 = (absPath: string): string => {
   return fs.readFileSync(absPath, { encoding: 'utf8' })
@@ -19,18 +20,26 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
   const staleSsotPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelTypeIcons.tsx')
   const libraryPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelHelpIconLibrary.tsx')
   const guardTestPath = path.resolve(root, 'src', '__tests__', 'mainPanelHelpIconLibrarySsot.test.ts')
-  const ssotText = readUtf8(libraryPath)
+  const rootLibraryText = readUtf8(libraryPath)
+  const ssotText = [
+    rootLibraryText,
+    readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelHelpFieldIconLibrary.tsx')),
+    readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'mainPanelHelpInvocationIconLibrary.tsx')),
+  ].join('\n')
   const collaborationText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'CollaborationView.tsx'))
   const settingsEntryText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SettingsEntryRow.tsx'))
   const mainPanelText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'MainPanel.tsx'))
   const floatingPanelText = readUtf8(path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'))
   const helpIconsText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'HelpIconsSection.tsx'))
+  const graphFieldsHeaderText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'ui', 'MainPanelGraphFieldsHeader.tsx'))
+  const graphFieldsViewText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx'))
+  const skillsCommandsText = readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', 'SkillsCommandsView.tsx'))
   const sourceTexts = collectSourceFiles(path.resolve(root, 'src')).map(absPath => [absPath, readUtf8(absPath)] as const)
   const staleImportHits = sourceTexts
     .filter(([absPath, text]) => absPath !== guardTestPath && text.includes('@/features/panels/ui/mainPanelTypeIcons'))
     .map(([absPath]) => path.relative(root, absPath))
 
-  if (!ssotText.includes('MAIN_PANEL_TYPE_ICON_META_BY_KEY')) {
+  if (!rootLibraryText.includes('MAIN_PANEL_TYPE_ICON_META_BY_KEY')) {
     throw new Error('Expected MainPanel Help Icon Library metadata to have a shared SSOT')
   }
   if (fs.existsSync(staleSsotPath)) {
@@ -39,7 +48,7 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
   if (staleImportHits.length > 0) {
     throw new Error(`Expected no stale mainPanelTypeIcons imports, found: ${staleImportHits.join(', ')}`)
   }
-  if (!ssotText.includes('export const MAIN_PANEL_TYPE_ICON_KEYS') || !ssotText.includes('export type MainPanelTypeIconKey = (typeof MAIN_PANEL_TYPE_ICON_KEYS)[number]')) {
+  if (!rootLibraryText.includes('export const MAIN_PANEL_TYPE_ICON_KEYS') || !rootLibraryText.includes('export type MainPanelTypeIconKey = (typeof MAIN_PANEL_TYPE_ICON_KEYS)[number]')) {
     throw new Error('Expected MainPanel Type icon keys to be the SSOT for the icon-key type')
   }
   if (ssotText.includes('MAIN_PANEL_HELP_TYPE_ICON_KEYS')) {
@@ -59,6 +68,9 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
     'mainPanel.settings',
     'floatingPanel.chat',
     'floatingPanel.graphTraversal',
+    'invocation.subject.agent',
+    'invocation.subject.video',
+    'invocation.subject.memory',
     'ktv.type.static',
     'ktv.type.style',
     'ktv.type.action',
@@ -76,6 +88,37 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
   ].forEach(token => {
     if (!ssotText.includes(token)) {
       throw new Error(`Expected MainPanel Help Icon Library to include ${token}`)
+    }
+  })
+  ;[
+    {
+      input: { label: 'Video Agent', token: '/video-agent', summary: 'Chat skill', group: 'Chat skill', kind: 'skill' },
+      expected: 'invocation.subject.agent',
+    },
+    {
+      input: { label: 'Storybuilding', token: '/storybuilding', summary: 'Chat skill', group: 'Chat skill', kind: 'skill' },
+      expected: 'invocation.subject.story',
+    },
+    {
+      input: { label: 'Memory compact', token: '/memory.compact', summary: 'Agentic OS command dictionary', group: 'Agentic OS command dictionary', kind: 'semantic' },
+      expected: 'invocation.subject.memory',
+    },
+    {
+      input: { label: 'Personality overlay', token: '/personality.overlay', summary: 'Agentic OS command dictionary', group: 'Agentic OS command dictionary', kind: 'semantic' },
+      expected: 'invocation.subject.profile',
+    },
+    {
+      input: { label: 'MoA', token: '/moa', summary: 'Agentic OS command dictionary', group: 'Agentic OS command dictionary', kind: 'semantic' },
+      expected: 'invocation.subject.profile',
+    },
+    {
+      input: { label: 'Runtime proof', token: '#runtime-proof', summary: 'Runtime invocation', group: 'Runtime invocation', kind: 'runtime' },
+      expected: 'invocation.prefix.hash',
+    },
+  ].forEach(({ input, expected }) => {
+    const actual = resolveMainPanelInvocationSubjectIconKey(input)
+    if (actual !== expected) {
+      throw new Error(`Expected ${JSON.stringify(input)} to resolve to ${expected}, received ${actual}`)
     }
   })
 
@@ -96,6 +139,45 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
   }
   if (!helpIconsText.includes("from '@/features/panels/ui/mainPanelHelpIconLibrary'")) {
     throw new Error('Expected HelpIconsSection to render the MainPanel Help Icon Library directly')
+  }
+  if (!graphFieldsHeaderText.includes("from '@/features/panels/ui/mainPanelHelpIconLibrary'") || !graphFieldsHeaderText.includes('<MainPanelTypeIcon')) {
+    throw new Error('Expected Graph Fields header legend icons to reuse the MainPanel Help Icon Library')
+  }
+  if (!graphFieldsHeaderText.includes('GRAPH_FIELDS_AGENTIC_LEGEND_ICON_KEY_BY_KIND') || !graphFieldsHeaderText.includes('field.type.longText') || !graphFieldsHeaderText.includes('field.type.url')) {
+    throw new Error('Expected Graph Fields agentic legend kinds to map to shared Help Icon Library field icons')
+  }
+  if (!graphFieldsViewText.includes('MainPanelGraphFieldsLegendEntry') || !graphFieldsViewText.includes('AGENTIC_RAG_FIELD_KIND_META')) {
+    throw new Error('Expected GraphFieldsView to pass source-owned AgenticRAG kind IDs into the shared icon legend')
+  }
+  if (
+    !ssotText.includes('MAIN_PANEL_FIELD_ICON_KEYS')
+    || !ssotText.includes('MAIN_PANEL_FIELD_ICON_META_BY_KEY')
+    || !ssotText.includes('MAIN_PANEL_INVOCATION_SUBJECT_ICON_KEYS')
+    || !ssotText.includes('resolveMainPanelInvocationSubjectIconKey')
+    || !ssotText.includes('MAIN_PANEL_INVOCATION_SUBJECT_ICON_META_BY_KEY')
+  ) {
+    throw new Error('Expected Help Icon Library to centralize field and Skills & Commands subject icons')
+  }
+  if (
+    skillsCommandsText.includes("from 'lucide-react'")
+    || !skillsCommandsText.includes('resolveMainPanelInvocationSubjectIconKey')
+    || !skillsCommandsText.includes('<MainPanelTypeIcon')
+    || !skillsCommandsText.includes('uiIconColorClass')
+    || !skillsCommandsText.includes('UI_THEME_TOKENS.icon.color')
+    || !skillsCommandsText.includes('kg-skill-command-icon')
+    || !skillsCommandsText.includes('kg-skill-command-icon-glyph')
+    || !skillsCommandsText.includes('data-kg-skill-command-icon="1"')
+    || !skillsCommandsText.includes('data-kg-skill-command-icon-row={option.id}')
+    || !skillsCommandsText.includes('data-kg-skill-command-icon-token={option.token}')
+    || !skillsCommandsText.includes('data-kg-skill-command-icon-fidelity="toolbar"')
+    || !skillsCommandsText.includes('role="img"')
+    || !skillsCommandsText.includes('aria-label={`${option.label} icon`}')
+    || !skillsCommandsText.includes('data-kg-skill-command-icon-key')
+  ) {
+    throw new Error('Expected SkillsCommandsView rows to reuse subject-based icons from the Help Icon Library')
+  }
+  if (skillsCommandsText.includes('floatingPanelCatalogCompactIconFrameClassName')) {
+    throw new Error('Expected SkillsCommandsView icons to avoid the framed catalog thumbnail slot and reuse Toolbar icon fidelity')
   }
   if (!settingsEntryText.includes('resolveMainPanelSettingTypeIconKey') || !settingsEntryText.includes('<MainPanelTypeIcon')) {
     throw new Error('Expected SettingsEntryRow to reuse the MainPanel Type icon resolver')

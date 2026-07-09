@@ -12,6 +12,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import type { WidgetEditorSurfaceKind } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/storyboardWidget/widgetPlacementAuthority'
+import { STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY } from '@/components/StoryboardCanvas/storyboardModel'
 import {
   deriveFrontmatterFlowOverlayNodeIds,
   resolveGraphNodeIdByCanonicalId,
@@ -179,6 +180,19 @@ export function filterGraphByIncludedNodeIds(args: {
     : []
   const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
   return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes, edges }, retainedNodeIds)
+}
+
+export function deriveStoryboardCanvasRichMediaPanelNodeIds(graphData: GraphData | null | undefined): string[] {
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const out: string[] = []
+  for (const node of nodes) {
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
+    const properties = isRecord(node.properties) ? node.properties : {}
+    if (properties[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY] === true) out.push(id)
+  }
+  return out
 }
 
 function isStoryboardWidgetOverlayExcludedNode(node: GraphNode | null | undefined): boolean {

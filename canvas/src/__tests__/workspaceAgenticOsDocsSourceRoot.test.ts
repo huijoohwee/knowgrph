@@ -17,8 +17,8 @@ export function testWorkspaceSourceRootPathsIncludeAgenticOsDocsRoot(): void {
     process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = path.join(os.tmpdir(), 'kg-root', 'docs')
     writeWorkspaceImportShareExportRootPathSetting('/docs_')
     const roots = resolveWorkspaceSourceRootPaths()
-    if (!roots.includes('/agentic-os-docs')) {
-      throw new Error(`expected sibling agentic-os-docs root to participate in workspace source roots, got ${roots.join(', ')}`)
+    if (!roots.includes('/agentic-canvas-os/docs')) {
+      throw new Error(`expected sibling agentic-canvas-os/docs root to participate in workspace source roots, got ${roots.join(', ')}`)
     }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
@@ -32,9 +32,11 @@ export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirro
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-agentic-docs-mirror-'))
   const docsRoot = path.join(tmpRoot, 'docs')
-  const agenticDocsRoot = path.join(tmpRoot, 'agentic-os-docs')
+  const agenticDocsRoot = path.join(tmpRoot, 'agentic-canvas-os', 'docs')
+  const previousAgenticDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
   try {
     process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = docsRoot
+    process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = agenticDocsRoot
     await fsPromises.mkdir(docsRoot, { recursive: true })
     await fsPromises.mkdir(agenticDocsRoot, { recursive: true })
     await fsPromises.writeFile(path.join(docsRoot, 'workspace-readme.md'), '# Docs Root\n')
@@ -43,11 +45,13 @@ export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirro
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
     const relPaths = new Set(mirrored.map(entry => entry.relPath))
     if (!relPaths.has('workspace-readme.md')) throw new Error(`expected canonical docs root entry to stay unprefixed, got ${JSON.stringify([...relPaths])}`)
-    if (!relPaths.has('agentic-os-docs/RUNTIME-READINESS.md')) throw new Error(`expected sibling agentic-os-docs entry to keep its workspace root prefix, got ${JSON.stringify([...relPaths])}`)
-    if (relPaths.has('RUNTIME-READINESS.md')) throw new Error('expected sibling agentic-os-docs entry not to flatten into the docs root')
+    if (!relPaths.has('agentic-canvas-os/docs/RUNTIME-READINESS.md')) throw new Error(`expected sibling agentic-canvas-os/docs entry to keep its workspace root prefix, got ${JSON.stringify([...relPaths])}`)
+    if (relPaths.has('RUNTIME-READINESS.md')) throw new Error('expected sibling agentic-canvas-os/docs entry not to flatten into the docs root')
   } finally {
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousAgenticDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = previousAgenticDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
     await fsPromises.rm(tmpRoot, { recursive: true, force: true })
   }
 }

@@ -19,6 +19,7 @@
     "hooks:install": "node ./scripts/install-git-hooks.mjs",
     "postinstall": "npm run hooks:install",
     "dev": "npm run dev --workspace=@knowgrph/canvas --",
+    "demo:care-agent": "npm run dev:care-agent --workspace=@knowgrph/canvas --",
     "dev:all": "bash scripts/dev-all.sh",
     "build": "npm run build --workspace=@knowgrph/canvas",
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm run build --workspace=@knowgrph/canvas",

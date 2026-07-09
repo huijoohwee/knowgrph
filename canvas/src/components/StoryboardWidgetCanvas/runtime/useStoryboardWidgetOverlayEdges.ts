@@ -35,29 +35,10 @@ import {
 } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import { buildGraphFlowOrderIndexByNodeId, resolveGraphEdgeFlowOrderDirection } from '@/lib/graph/flowOrder'
 import { resolveBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
-import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
-
-// #region debug-point B:overlay-edges
-const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
-const reportStoryboardMediaPanelLoopOverlayEdgesDebug = (args: {
-  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
-  location: string
-  msg: string
-  data?: Record<string, unknown>
-}) => {
-  reportRuntimeTrace({
-    scope: STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE,
-    runId: 'runtime',
-    hypothesisId: args.hypothesisId,
-    location: args.location,
-    msg: args.msg,
-    data: args.data || {},
-  })
-}
-// #endregion
 import {
   type StoryboardWidgetQeTraceWindow,
   isStoryboardWidgetQeTraceEnabled,
@@ -67,8 +48,14 @@ import {
   getCachedStoryboardWidgetOverlayEdgeGraph,
   readCanonicalStoryboardWidgetOverlayIdentity,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import {
+  buildStoryboardOverlayEdgePathD,
+  clampStoryboardOverlayScreenXToLocalViewportBounds,
+  readStoryboardOutputCardLeftSideAnchors,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeAnchors'
+import { isStoryboardCardMediaDropOverlayEdge } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
-import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
+import { FRONTMATTER_COLLECTIVE_ROLE_INDEX_KEY, buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
 import { resolveStoryboardWidgetFocusedEdgeIds } from '@/lib/storyboardWidget/storyboardWidgetPortRows'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 
@@ -147,6 +134,7 @@ const STORYBOARD_WIDGET_OVERLAY_EDGE_OPACITY = '0.82'
 const STORYBOARD_WIDGET_OVERLAY_EDGE_DIMMED_OPACITY = '0.16'
 const STORYBOARD_WIDGET_MEDIA_SCROLL_SURFACE_SELECTOR = '[data-kg-media-scroll-surface="1"]'
 const STORYBOARD_WIDGET_RICH_MEDIA_RENDER_SURFACE_SELECTOR = '[data-kg-rich-media-render-surface="1"]'
+const STORYBOARD_WIDGET_OVERLAY_FLOW_ORDER_EXTRA_KEYS = [FRONTMATTER_COLLECTIVE_ROLE_INDEX_KEY] as const
 
 function roundOverlayEdgeGeometryValue(value: number): number {
   return Math.round(value * 100) / 100
@@ -933,6 +921,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
         return { ...edge, stroke, strokeWidth }
       })
       const overlayNodeById = buildFrontmatterOverlayNodeLookup(nodes)
+      const overlayFlowOrderByNodeId = buildGraphFlowOrderIndexByNodeId(nodes, { rankdir, extraOrderKeys: STORYBOARD_WIDGET_OVERLAY_FLOW_ORDER_EXTRA_KEYS })
 
       if (nodeIds.size === 0) {
         pushOverlayEdgeTrace('empty-filtered-edge-set', {
@@ -1225,9 +1214,13 @@ export function useStoryboardWidgetOverlayEdges(args: {
         if (!(Number.isFinite(rect.top) && Number.isFinite(rect.left) && Number.isFinite(rect.right) && Number.isFinite(rect.height) && rect.height > 0)) return null
         const pct = Math.max(0, Math.min(100, anchorArgs.fallbackPct)) / 100
         const baseX = anchorArgs.dir === 'out' ? rect.right : rect.left
-        const clampedX = anchorArgs.dir === 'out'
-          ? Math.min(Math.max(baseX, balancedMargins.left), Math.max(balancedMargins.left, rootRect.width - balancedMargins.right))
-          : Math.max(Math.min(baseX, Math.max(balancedMargins.left, rootRect.width - balancedMargins.right)), balancedMargins.left)
+        const clampedX = clampStoryboardOverlayScreenXToLocalViewportBounds({
+          screenX: baseX,
+          rootLeft: baseLeft,
+          rootWidth: rootRect.width,
+          marginLeft: balancedMargins.left,
+          marginRight: balancedMargins.right,
+        })
         return { x: clampedX, y: rect.top + pct * rect.height }
       }
 
@@ -1235,6 +1228,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
       const pending = pendingEdgePreviewRef.current
       const cursor = pendingEdgeCursorRef.current
       const wantsPending = pending.toolMode === 'addEdge' && !!pending.sourceId && !!cursor && Date.now() - cursor.ts < 4000
+      let cachedStartPoint: PendingEdgeStartPointSnapshot | null = null
       if (!wantsPending) {
         if (overlayPendingEdgePathRef.current) {
           try {
@@ -1253,7 +1247,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
               return Date.now() - snapshot.ts <= 1500 ? snapshot.rect : null
             })()
           : null
-        const cachedStartPoint = sourceId
+        cachedStartPoint = sourceId
           ? (() => {
               const snapshot = pendingEdgeStartPointRef.current
               if (!snapshot) return null
@@ -1262,23 +1256,6 @@ export function useStoryboardWidgetOverlayEdges(args: {
             })()
           : null
         const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) || cachedSourceRect : null
-        if (!sRect) {
-          // #region debug-point C:pending-edge-missing-source-rect
-          reportStoryboardMediaPanelLoopOverlayEdgesDebug({
-            hypothesisId: 'B',
-            location: 'useStoryboardWidgetOverlayEdges.ts:pending-edge-missing-source-rect',
-            msg: 'pending overlay edge preview could not resolve source overlay rect',
-            data: {
-              pendingSourceId: String(pending.sourceId || '').trim(),
-              canonicalSourceId: sourceId,
-              overlayRectCount: overlayRectsByNodeId.size,
-              overlayRectNodeIds: Array.from(overlayRectsByNodeId.keys()).slice(0, 12),
-              cachedSourceRectAvailable: !!cachedSourceRect,
-              cachedStartPointAvailable: !!cachedStartPoint,
-            },
-          })
-          // #endregion
-        }
         if ((sRect || cachedStartPoint) && cursor) {
           const handleKey = String(
             pending.sourcePortKey
@@ -1346,43 +1323,32 @@ export function useStoryboardWidgetOverlayEdges(args: {
         const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: e.targetPortKey || FLOW_HANDLE_DEFAULT_EDGE_ID })
         const sPct = topPctByNodeAndHandle.get(source)?.get(outHandleId) ?? 50
         const tPct = topPctByNodeAndHandle.get(target)?.get(inHandleId) ?? 50
-        const sAnchor = readAnchor({
-          nodeId: source,
-          dir: 'out',
-          portKey: e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID,
-          fallbackRect: sRect,
-          fallbackPct: sPct,
-        })
-        const tAnchor = readAnchor({
-          nodeId: target,
-          dir: 'in',
-          portKey: e.targetPortKey || FLOW_HANDLE_DEFAULT_EDGE_ID,
-          fallbackRect: tRect,
-          fallbackPct: tPct,
-        })
+        const rawEdge = graphLookup?.rawEdgeById.get(edgeId) || null
+        const semanticCardMediaOutputAnchors = isStoryboardCardMediaDropOverlayEdge(rawEdge, overlayNodeById.get(source) || null, target)
+          ? readStoryboardOutputCardLeftSideAnchors({ sourceCardRect: tRect, outputCardRect: sRect })
+          : null
+        const sAnchor = semanticCardMediaOutputAnchors?.source || readAnchor({ nodeId: source, dir: 'out', portKey: e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID, fallbackRect: sRect, fallbackPct: sPct })
+        const tAnchor = semanticCardMediaOutputAnchors?.target || readAnchor({ nodeId: target, dir: 'in', portKey: e.targetPortKey || FLOW_HANDLE_DEFAULT_EDGE_ID, fallbackRect: tRect, fallbackPct: tPct })
         const sx = (sAnchor ? sAnchor.x : sRect.right) - baseLeft
         const tx = (tAnchor ? tAnchor.x : tRect.left) - baseLeft
         const sy = (sAnchor ? sAnchor.y : sRect.top + (Math.max(0, Math.min(100, sPct)) / 100) * sRect.height) - baseTop
         const ty = (tAnchor ? tAnchor.y : tRect.top + (Math.max(0, Math.min(100, tPct)) / 100) * tRect.height) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
         const overlayCurve = edgeCurveById.get(edgeId) || null
-        const rawEdge = graphLookup?.rawEdgeById.get(edgeId) || null
         const frontmatterShotEdgeCrowdingLift = resolveFrontmatterOverlayEdgeCrowdingLiftPx({
           graphMetaKind, edge: rawEdge, sourceNode: overlayNodeById.get(source) || null, targetNode: overlayNodeById.get(target) || null,
           sourceId: source, targetId: target, sourceY: sy, targetY: ty, sourceHeight: sRect.height, targetHeight: tRect.height,
         })
         const adjustedSy = frontmatterShotEdgeCrowdingLift > 0 ? sy - frontmatterShotEdgeCrowdingLift : sy
         const adjustedTy = frontmatterShotEdgeCrowdingLift > 0 ? ty + frontmatterShotEdgeCrowdingLift * 0.25 : ty
+        const flowForwardTrack = resolveGraphEdgeFlowOrderDirection({
+          edgeLabel: rawEdge?.label || e.edgeType,
+          sourceId: source,
+          targetId: target,
+          orderByNodeId: overlayFlowOrderByNodeId,
+        }) === 'forward'
 
-        const d = buildEdgePathD({
-          edgeType: globalEdgeType,
-          sx,
-          sy: adjustedSy,
-          tx,
-          ty: adjustedTy,
-          rankdir,
-          curve: overlayCurve || readEdgePathCurveOptions(e as unknown as GraphEdge, schema),
-        })
+        const d = buildStoryboardOverlayEdgePathD({ outputCardLeftSide: !!semanticCardMediaOutputAnchors, flowForwardTrack, edgeType: globalEdgeType, sx, sy: adjustedSy, tx, ty: adjustedTy, rankdir, curve: overlayCurve || readEdgePathCurveOptions(e as unknown as GraphEdge, schema) })
         keep.add(edgeId)
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
         const stroke = e.stroke
@@ -1458,6 +1424,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
         missingAnchorCount: transientMissingEdgeAnchorParts.length,
         keptEdgeCount: keep.size,
         existingPathCount: overlayEdgePathByIdRef.current.size,
+        cachedStartPointAvailable: !!cachedStartPoint,
         svgWidth: svgWidth,
         svgHeight: svgHeight,
         svgWidthAttr: svg.getAttribute('width') || '',

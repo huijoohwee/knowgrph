@@ -24,6 +24,7 @@ import { z } from "zod";
 
 import {
   buildKnowgrphMcpToolDefinitions,
+  AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   KNOWGRPH_MCP_CONTRACT_VERSION,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
@@ -183,6 +184,13 @@ const OS_STATUS_INPUT = {
   cloudflareMcpUrl: z.string().optional(),
 };
 
+const AGENTIC_CANVAS_OS_DOCS_INPUT = {
+  token: z.string().optional(),
+  query: z.string().optional(),
+  includeContent: z.boolean().optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+};
+
 // ---------------------------------------------------------------------------
 // Output schemas (R14.4 / Property 26).
 //
@@ -292,6 +300,19 @@ const OS_STATUS_OUTPUT = {
   cost_log: z.record(z.unknown()).optional(),
   errorCode: z.string().optional(),
   message: z.string().optional(),
+};
+
+const AGENTIC_CANVAS_OS_DOCS_OUTPUT = {
+  ok: z.boolean().optional(),
+  docsRoot: z.string().optional(),
+  sourceRootUrl: z.string().optional(),
+  absoluteDocsRoot: z.string().optional(),
+  token: z.string().optional(),
+  invocation: z.record(z.unknown()).nullable().optional(),
+  catalog: z.array(z.record(z.unknown())).optional(),
+  counts: z.record(z.unknown()).optional(),
+  truncated: z.boolean().optional(),
+  error: z.record(z.unknown()).optional(),
 };
 
 type ToolHandlerArgs = Record<string, unknown>;
@@ -410,6 +431,7 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
     register("knowgrph.video_remix.publish", PUBLISH_INPUT, PUBLISH_OUTPUT);
     register("knowgrph.video_remix.checkout", CHECKOUT_INPUT, CHECKOUT_OUTPUT);
     register(KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_INPUT, OS_STATUS_OUTPUT);
+    register(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENTIC_CANVAS_OS_DOCS_INPUT, AGENTIC_CANVAS_OS_DOCS_OUTPUT);
   }
 }
 

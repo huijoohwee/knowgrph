@@ -25,6 +25,7 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   probeGenerate: KNOWGRPH_PROBE_TREE_TOOL_NAMES.generate,
   probeSelect: KNOWGRPH_PROBE_TREE_TOOL_NAMES.select,
   probeEvolve: KNOWGRPH_PROBE_TREE_TOOL_NAMES.evolve,
+  agenticCanvasOsDocsInvoke: "knowgrph.agentic_canvas_os.docs.invoke",
   showrunnerStartRun: "knowgrph.showrunner.start_run",
   showrunnerRunStatus: "knowgrph.showrunner.run_status",
   showrunnerPostChoice: "knowgrph.showrunner.post_choice",

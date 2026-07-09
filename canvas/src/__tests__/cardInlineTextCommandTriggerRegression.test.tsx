@@ -134,6 +134,7 @@ export async function testCardInlineTextEditorDisplaySurfaceSigilOpensVariableCo
           canEdit: true,
           editActivation: 'click',
           multiline: true,
+          showCommandLaunchers: false,
           markdownCommandContextText: 'mediaUrl: "https://media.example.test/storyboard-display.jpg"',
         }),
       )
@@ -142,6 +143,9 @@ export async function testCardInlineTextEditorDisplaySurfaceSigilOpensVariableCo
 
     const display = container.querySelector('[data-kg-card-inline-command-display="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared command display surface')
+    if (container.querySelector('menu[aria-label="Card inline command launchers"]')) {
+      throw new Error('expected display command test surface to hide visible / @ # launcher icons')
+    }
     await act(async () => {
       display.focus()
       display.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
@@ -157,6 +161,9 @@ export async function testCardInlineTextEditorDisplaySurfaceSigilOpensVariableCo
     const textarea = container.querySelector('textarea[aria-label="Storyboard display summary"]')
     if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
       throw new Error('expected display-surface @ command to open shared textarea editor')
+    }
+    if (container.querySelector('menu[aria-label="Card inline command launchers"]')) {
+      throw new Error('expected hidden launcher setting to preserve editor keyboard commands without visible / @ # icons')
     }
     const variableMenu = dom.window.document.querySelector('section[aria-label="Card variable commands"]')
     if (!(variableMenu instanceof dom.window.HTMLElement)) {

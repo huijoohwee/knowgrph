@@ -53,6 +53,10 @@ export function computeWidgetScale(
   return clamp(k, PINNED_MIN_SCALE, PINNED_MAX_SCALE)
 }
 
+export function computeBoundedOverlayPaintScale(zoomK: number): number {
+  return computeWidgetScale(zoomK, null, { mode: 'floating' })
+}
+
 export function computeWidgetScaledSize(scale: number): { width: number; height: number } {
   const s = Number.isFinite(scale) ? scale : 1
   return {
@@ -64,6 +68,8 @@ export function computeWidgetScaledSize(scale: number): { width: number; height:
 export function projectCollectiveScreenLayoutForZoom(args: {
   base: { left: number; top: number; scale: number }
   scale: number
+  baseLayoutScale?: number
+  layoutScale?: number
   anchorX: number
   anchorY: number
   baseWidth: number
@@ -71,11 +77,17 @@ export function projectCollectiveScreenLayoutForZoom(args: {
 }): { left: number; top: number } {
   const baseScale = Number.isFinite(args.base.scale) && args.base.scale > 0 ? args.base.scale : 1
   const nextScale = Number.isFinite(args.scale) && args.scale > 0 ? args.scale : baseScale
+  const baseLayoutScale = Number.isFinite(args.baseLayoutScale) && Number(args.baseLayoutScale) > 0
+    ? Number(args.baseLayoutScale)
+    : baseScale
+  const nextLayoutScale = Number.isFinite(args.layoutScale) && Number(args.layoutScale) > 0
+    ? Number(args.layoutScale)
+    : nextScale
   const baseWidth = Math.max(1, Number(args.baseWidth) || 1)
   const baseHeight = Math.max(1, Number(args.baseHeight) || 1)
   const anchorX = Number.isFinite(args.anchorX) ? args.anchorX : 0
   const anchorY = Number.isFinite(args.anchorY) ? args.anchorY : 0
-  const ratio = nextScale / Math.max(0.001, baseScale)
+  const ratio = nextLayoutScale / Math.max(0.001, baseLayoutScale)
   const baseCenterX = args.base.left + (baseWidth * baseScale) / 2
   const baseCenterY = args.base.top + (baseHeight * baseScale) / 2
   const nextCenterX = anchorX + (baseCenterX - anchorX) * ratio

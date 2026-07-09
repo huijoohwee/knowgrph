@@ -213,6 +213,7 @@ function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefi
   const raw = String(value || '').trim()
   if (
     raw === 'propsPanel' ||
+    raw === 'skillsCommands' ||
     raw === 'view' ||
     raw === 'media' ||
     raw === 'camera' ||

@@ -45,17 +45,18 @@ export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() 
 
 export const testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing = testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing
 
-function readTranslatedPanelBox(el: HTMLElement): { left: number; top: number; width: number; height: number } {
-  const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-  if (!match) throw new Error(`expected translate3d transform, got ${el.style.transform || '(empty)'}`)
-  const left = Number.parseFloat(match[1] || 'NaN')
-  const top = Number.parseFloat(match[2] || 'NaN')
+function readVectorPaintedPanelBox(el: HTMLElement): { left: number; top: number; width: number; height: number } {
+  if (String(el.style.transform || '') !== 'none') throw new Error(`expected vector-painted panel transform=none, got ${el.style.transform || '(empty)'}`)
+  const left = Number.parseFloat(el.style.left || 'NaN')
+  const top = Number.parseFloat(el.style.top || 'NaN')
+  const scale = Number.parseFloat(String((el.style as CSSStyleDeclaration & { zoom?: string }).zoom || '1'))
   const width = Number.parseFloat(el.style.width || 'NaN')
   const height = Number.parseFloat(el.style.height || 'NaN')
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1
   if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
-    throw new Error(`expected finite overlay box, got ${JSON.stringify({ left, top, width, height })}`)
+    throw new Error(`expected finite vector-painted overlay box, got ${JSON.stringify({ left, top, width, height })}`)
   }
-  return { left, top, width, height }
+  return { left, top, width: width * safeScale, height: height * safeScale }
 }
 
 export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscreenPositions() {
@@ -97,7 +98,7 @@ export async function testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscre
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
-    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const boxes = ids.map(id => readVectorPaintedPanelBox(els.get(id)!))
     if (!boxes.every(box => box.left < -120 && box.top < -80)) {
       throw new Error(`expected infinite-canvas Rich Media overlays to remain offscreen instead of bouncing to viewport bounds: ${JSON.stringify(boxes)}`)
     }
@@ -156,7 +157,7 @@ export async function testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverla
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
-    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const boxes = ids.map(id => readVectorPaintedPanelBox(els.get(id)!))
     const uniquePositions = new Set(boxes.map(box => `${Math.round(box.left)}:${Math.round(box.top)}`))
     if (uniquePositions.size < 2) {
       throw new Error(`expected manual frontmatter overlays to reseed away from a single stacked position, got ${JSON.stringify(boxes)}`)
@@ -221,7 +222,7 @@ export async function testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontma
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
-    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const boxes = ids.map(id => readVectorPaintedPanelBox(els.get(id)!))
     const uniquePositions = new Set(boxes.map(box => `${Math.round(box.left)}:${Math.round(box.top)}`))
     if (uniquePositions.size < 2) {
       throw new Error(`expected missing-center manual frontmatter overlays to receive balanced fallback positions, got ${JSON.stringify(boxes)}`)
@@ -286,7 +287,7 @@ export async function testMediaOverlayLayoutLoop2dFallbackDoesNotDeferMixedManua
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
-    const boxes = ids.map(id => readTranslatedPanelBox(els.get(id)!))
+    const boxes = ids.map(id => readVectorPaintedPanelBox(els.get(id)!))
     for (const box of boxes) {
       if (box.left < visibleLeft || box.left + box.width > viewportW || box.top < 24 || box.top + box.height > viewportH) {
         throw new Error(`expected mixed-center frontmatter overlay inside pane-aware visible viewport without warmup deferral, got ${JSON.stringify(boxes)}`)
@@ -382,11 +383,8 @@ export async function testMediaOverlayLayoutLoop2dAvoidsSingleVerticalCluster() 
       const id = ids[i]!
       const el = els.get(id)
       if (!el) throw new Error('missing overlay element')
-      const m = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-      if (!m) throw new Error(`expected translate3d transform for ${id}`)
-      const left = Number.parseFloat(m[1] || 'NaN')
-      if (!Number.isFinite(left)) throw new Error(`expected finite left for ${id}`)
-      leftValues.push(Math.round(left))
+      const box = readVectorPaintedPanelBox(el)
+      leftValues.push(Math.round(box.left))
     }
     const uniqueColumns = new Set(leftValues)
     if (uniqueColumns.size < 2) {
@@ -449,15 +447,7 @@ export async function testMediaOverlayLayoutLoop2dKeepsDenseCollectiveCenteredWi
     const rects = ids.map(id => {
       const el = els.get(id)
       if (!el) throw new Error(`missing overlay element for ${id}`)
-      const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-      if (!match) throw new Error(`expected translate3d transform for ${id}`)
-      const left = Number.parseFloat(match[1] || 'NaN')
-      const top = Number.parseFloat(match[2] || 'NaN')
-      const width = Number.parseFloat(el.style.width || 'NaN')
-      const height = Number.parseFloat(el.style.height || 'NaN')
-      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
-        throw new Error(`expected finite overlay box for ${id}`)
-      }
+      const { left, top, width, height } = readVectorPaintedPanelBox(el)
       return { id, left, top, right: left + width, bottom: top + height, width, height }
     })
 
@@ -564,15 +554,7 @@ export async function testMediaOverlayLayoutLoop2dKeepsMixedCollectiveClearOfWid
     const rects = ids.map(id => {
       const el = els.get(id)
       if (!el) throw new Error(`missing overlay element for ${id}`)
-      const match = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-      if (!match) throw new Error(`expected translate3d transform for ${id}`)
-      const left = Number.parseFloat(match[1] || 'NaN')
-      const top = Number.parseFloat(match[2] || 'NaN')
-      const width = Number.parseFloat(el.style.width || 'NaN')
-      const height = Number.parseFloat(el.style.height || 'NaN')
-      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) {
-        throw new Error(`expected finite overlay box for ${id}`)
-      }
+      const { left, top, width, height } = readVectorPaintedPanelBox(el)
       return { id, left, top, right: left + width, bottom: top + height, width, height }
     })
 

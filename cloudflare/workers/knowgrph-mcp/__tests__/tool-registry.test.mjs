@@ -21,13 +21,14 @@ import {
   buildKnowgrphMcpToolDefinitions,
   collectApprovedGateIds,
   executeKnowgrphMcpTool,
+  AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_MCP_STAGE_GATES,
   KNOWGRPH_MCP_STAGE_TOOL_NAMES,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
 } from "../tool-registry.mjs";
 
-test("tool surface lists the Director, all five stage tools, and OS status", () => {
+test("tool surface lists the Director, all five stage tools, OS status, and docs invocation", () => {
   const definitions = buildKnowgrphMcpToolDefinitions();
   const names = definitions.map((tool) => tool.name);
   assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
@@ -35,7 +36,8 @@ test("tool surface lists the Director, all five stage tools, and OS status", () 
     assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
   }
   assert.ok(names.includes(KNOWGRPH_OS_STATUS_TOOL_NAME));
-  assert.equal(definitions.length, 7);
+  assert.ok(names.includes(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME));
+  assert.equal(definitions.length, 8);
 });
 
 test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
@@ -46,6 +48,7 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
     KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
     ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
     KNOWGRPH_OS_STATUS_TOOL_NAME,
+    AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   ];
   const listedNames = definitions.map((tool) => tool.name);
   for (const expected of expectedNames) {
@@ -148,6 +151,25 @@ test("OS status Cloudflare capabilities view self-lists the OS tool", () => {
 
   assert.equal(result.ok, true);
   assert.ok(ids.has(KNOWGRPH_OS_STATUS_TOOL_NAME));
+});
+
+test("Agentic Canvas OS docs invocation is cataloged remotely as read-only", () => {
+  const definitions = buildKnowgrphMcpToolDefinitions();
+  const descriptor = definitions.find((tool) => tool.name === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME);
+
+  assert.ok(descriptor, "docs invocation descriptor must exist");
+  assert.equal(descriptor.annotations.readOnlyHint, true);
+  assert.equal(descriptor.inputSchema.properties.token.type, "string");
+});
+
+test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", () => {
+  const result = executeKnowgrphMcpTool(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, {
+    token: "/query",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.structuredContent?.invocation?.token, "/query");
+  assert.equal(result.structuredContent?.invocation?.sourcePath, "DICTIONARY-COMMAND.md#/query");
 });
 
 test("Director tool: live mode without approvals halts with zero paid calls (Property 2 / R2.3 sanity check)", () => {

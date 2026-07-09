@@ -176,6 +176,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
       || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
     )
   const minimapOverlaySurface = activeSurface === '3d' ? '3d' : '2d'
+  const bridgeOnlyWidgetDropActive = !documentSwitchBlocksCanvas
+    && !geospatialOverlayOwnsViewport
+    && canvasRenderMode === '2d'
+    && active2dSurface !== 'storyboard'
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
 
@@ -232,6 +236,15 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
           </section>
         )}
+        {bridgeOnlyWidgetDropActive ? (
+          <section
+            className="absolute inset-0 z-[30] pointer-events-none"
+            aria-hidden="true"
+            data-kg-storyboard-widget-drop-bridge="canvas"
+          >
+            <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
+          </section>
+        ) : null}
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
           <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
