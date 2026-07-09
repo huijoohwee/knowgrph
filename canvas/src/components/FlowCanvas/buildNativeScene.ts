@@ -16,6 +16,7 @@ import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { buildGraphFlowOrderIndexByNodeId, resolveGraphEdgeFlowOrderDirection } from '@/lib/graph/flowOrder'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -125,6 +126,10 @@ export function buildAndSetFlowNativeScene(args: {
     cacheScope: 'flow-canvas-build-native-scene-input-graph',
     graphData: g,
   })
+  const flowOrderByNodeId = buildGraphFlowOrderIndexByNodeId(
+    nodeList as ReadonlyArray<{ id?: unknown; metadata?: unknown; properties?: unknown }>,
+    { rankdir: args.rankdir },
+  )
 
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
   const inputNodeById = inputGraphLookup?.nodeById || new Map<string, GraphNode>()
@@ -386,7 +391,7 @@ export function buildAndSetFlowNativeScene(args: {
     return !!best && best.depth >= 0
   }
   for (let i = 0; i < edgeList.length; i += 1) {
-    const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
+    const e = edgeList[i] as { id?: unknown; label?: unknown; source?: unknown; target?: unknown; properties?: unknown; type?: unknown }
     const edgeId = String(e?.id || '').trim()
     const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
     if (!edgeId || !source || !target) continue
@@ -407,6 +412,7 @@ export function buildAndSetFlowNativeScene(args: {
           '')) ||
       ''
     const label = computedLabel.trim()
+    const rawEdgeLabel = String(e.label || '').trim()
 
     const edgeSocketType = (() => {
       const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
@@ -468,6 +474,12 @@ export function buildAndSetFlowNativeScene(args: {
     const sourceHasParent = nodeHasParentLikeGroup(source)
     const targetHasParent = nodeHasParentLikeGroup(target)
     const drawAboveNodes = sourceHasParent || targetHasParent
+    const flowForwardTrack = resolveGraphEdgeFlowOrderDirection({
+      edgeLabel: rawEdgeLabel || edgeSocketType || label,
+      sourceId: source,
+      targetId: target,
+      orderByNodeId: flowOrderByNodeId,
+    }) === 'forward'
 
     edges.push({
       id: edgeId,
@@ -485,6 +497,7 @@ export function buildAndSetFlowNativeScene(args: {
       ...((svgPathTx || svgPathTy) && svgPathD ? { svgPathTx, svgPathTy } : {}),
       ...(labelX != null && labelY != null ? { labelX, labelY } : {}),
       ...(drawAboveNodes ? { drawAboveNodes: true } : {}),
+      ...(flowForwardTrack ? { flowForwardTrack: true } : {}),
     })
   }
 

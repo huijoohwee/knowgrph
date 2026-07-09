@@ -40,4 +40,5 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.workspaceDataView.fieldLineFlex.sharedDensityModel","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexSharedDensityModel"],
   ["ui.workspaceDataView.fieldLineFlex.tableRendersFullText","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexTableRendersFullText"],
   ["ui.workspaceDataView.fieldLineFlex.inlineEditorUsesLayoutRows","@/__tests__/workspaceDataViewFieldLineFlex.test","testWorkspaceDataViewFieldLineFlexInlineEditorUsesLayoutRows"],
+  ["edgeType.forwardFlow.sharedAcross2dRendererSurfaces","@/__tests__/edgeTypeSsot2dRenderers.test","testForwardFlowEdgeRoutingSharedAcross2dRendererSurfaces"],
 ]

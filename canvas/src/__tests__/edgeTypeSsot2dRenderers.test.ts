@@ -1,5 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { buildForwardFlowEdgePathD } from '@/lib/graph/edgeTypes'
+
+const readFirstLineCoordinate = (pathD: string, axis: 'x' | 'y'): number | null => {
+  const match = /^M[^L]+ L(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/.exec(pathD)
+  if (!match) return null
+  const value = Number(axis === 'x' ? match[1] : match[2])
+  return Number.isFinite(value) ? value : null
+}
 
 export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   const edgeTypesPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'edgeTypes.ts')
@@ -18,6 +26,12 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   const designWireframeText = readFileSync(designWireframePath, 'utf8')
   const storyboardWidgetPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayEdges.ts')
   const storyboardWidgetText = readFileSync(storyboardWidgetPath, 'utf8')
+  const storyboardAnchorPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlayEdgeAnchors.ts')
+  const storyboardAnchorText = readFileSync(storyboardAnchorPath, 'utf8')
+  const flowScenePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'buildNativeScene.ts')
+  const flowSceneText = readFileSync(flowScenePath, 'utf8')
+  const flowRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'nativeRuntime.ts')
+  const flowRuntimeText = readFileSync(flowRuntimePath, 'utf8')
   const d3LinksPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'layers', 'links.ts')
   const d3LinksText = readFileSync(d3LinksPath, 'utf8')
 
@@ -99,7 +113,84 @@ export function testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters() {
   if (!storyboardWidgetText.includes('const globalEdgeType = readGlobalEdgeType(schema)')) {
     throw new Error('expected Storyboard Widget overlay edge type to derive from shared global edge-type SSOT')
   }
+  if (!edgeTypesText.includes('export const buildForwardFlowEdgePathD')) {
+    throw new Error('expected shared 2D edge owner to expose forward-flow path construction')
+  }
+  if (!edgeTypesText.includes('flowForwardTrack?: boolean')) {
+    throw new Error('expected shared 2D edge owner to carry the forward-flow routing flag')
+  }
+  if (!storyboardAnchorText.includes('return buildForwardFlowEdgePathD(args)')) {
+    throw new Error('expected Storyboard overlay edges to use shared forward-flow path construction')
+  }
+  if (storyboardAnchorText.includes('buildStoryboardForwardTrackPath')) {
+    throw new Error('expected Storyboard overlay edges not to keep a local forward-track path fork')
+  }
+  if (!flowSceneText.includes('buildGraphFlowOrderIndexByNodeId') || !flowSceneText.includes('resolveGraphEdgeFlowOrderDirection')) {
+    throw new Error('expected Flow native scene construction to derive forward-flow edges from the shared flow-order helper')
+  }
+  if (!flowSceneText.includes('flowForwardTrack')) {
+    throw new Error('expected Flow native scene edges to carry shared forward-flow routing state')
+  }
+  if (!flowRuntimeText.includes('flowForwardTrack?: boolean') || !flowRuntimeText.includes('flowForwardTrack: e.flowForwardTrack === true')) {
+    throw new Error('expected Flow native runtime to pass shared forward-flow routing state into the shared edge tracer')
+  }
   if (!d3LinksText.includes("readEffectiveEdgeTypeFor2dRenderer({ schema, canvas2dRenderer: 'd3' })")) {
     throw new Error('expected Flowchart/D3 renderer edge path type resolution to reuse the shared 2D edge-type helper')
+  }
+}
+
+export function testForwardFlowEdgeRoutingSharedAcross2dRendererSurfaces() {
+  const lrSourceX = 520
+  const lrPath = buildForwardFlowEdgePathD({
+    edgeType: 'smoothstep',
+    flowForwardTrack: true,
+    rankdir: 'LR',
+    sx: lrSourceX,
+    sy: 180,
+    tx: 120,
+    ty: 180,
+  })
+  const lrBaselinePath = buildForwardFlowEdgePathD({
+    edgeType: 'smoothstep',
+    rankdir: 'LR',
+    sx: lrSourceX,
+    sy: 180,
+    tx: 120,
+    ty: 180,
+  })
+  const lrFirstX = readFirstLineCoordinate(lrPath, 'x')
+  const lrBaselineFirstX = readFirstLineCoordinate(lrBaselinePath, 'x')
+  if (lrFirstX == null || lrFirstX <= lrSourceX) {
+    throw new Error(`expected shared LR forward-flow path to move forward first, got ${lrPath}`)
+  }
+  if (lrBaselineFirstX == null || lrBaselineFirstX >= lrSourceX) {
+    throw new Error(`expected baseline LR smoothstep path to preserve normal reverse geometry, got ${lrBaselinePath}`)
+  }
+
+  const tbSourceY = 520
+  const tbPath = buildForwardFlowEdgePathD({
+    edgeType: 'smoothstep',
+    flowForwardTrack: true,
+    rankdir: 'TB',
+    sx: 180,
+    sy: tbSourceY,
+    tx: 180,
+    ty: 120,
+  })
+  const tbBaselinePath = buildForwardFlowEdgePathD({
+    edgeType: 'smoothstep',
+    rankdir: 'TB',
+    sx: 180,
+    sy: tbSourceY,
+    tx: 180,
+    ty: 120,
+  })
+  const tbFirstY = readFirstLineCoordinate(tbPath, 'y')
+  const tbBaselineFirstY = readFirstLineCoordinate(tbBaselinePath, 'y')
+  if (tbFirstY == null || tbFirstY <= tbSourceY) {
+    throw new Error(`expected shared TB forward-flow path to move forward first, got ${tbPath}`)
+  }
+  if (tbBaselineFirstY == null || tbBaselineFirstY >= tbSourceY) {
+    throw new Error(`expected baseline TB smoothstep path to preserve normal reverse geometry, got ${tbBaselinePath}`)
   }
 }

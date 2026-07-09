@@ -58,8 +58,8 @@ export type FlowNativeEdge = {
   labelX?: number
   labelY?: number
   drawAboveNodes?: boolean
+  flowForwardTrack?: boolean
 }
-
 export type FlowNativeScene = {
   nodes: FlowNativeNode[]
   edges: FlowNativeEdge[]
@@ -781,9 +781,9 @@ const drawEdge = (
   const edgesCfg = rt.presentation.edges
   const routingCfg = edgesCfg.routing
   const useOrtho = edgeType === 'step' && routingCfg.enabled && routingCfg.mode === 'ortho'
-  const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+  const useObstacles = useOrtho && e.flowForwardTrack !== true && routingCfg.obstacleAvoidance
   const obstacles = useObstacles && args.routingObstacles ? args.routingObstacles : []
-  const points = useOrtho
+  const points = useOrtho && e.flowForwardTrack !== true
     ? routeFlowEdgeOrtho({
         rankdir,
         start: { x: sxx, y: syy },
@@ -810,7 +810,7 @@ const drawEdge = (
       sy: syy,
       tx: txx,
       ty: tyy,
-      rankdir,
+      rankdir, flowForwardTrack: e.flowForwardTrack === true,
       curve: readEdgePathCurveOptions(e as unknown as GraphEdge, null),
     })
   }
@@ -1031,7 +1031,7 @@ const drawEdgeLabels = (
     const syy = rankdir === 'LR' ? s.y + sAxis * s.height : s.y + s.height
     const tyy = rankdir === 'LR' ? t.y + tAxis * t.height : t.y
 
-    const points = useOrtho
+    const points = useOrtho && e.flowForwardTrack !== true
       ? routeFlowEdgeOrtho({
           rankdir,
           start: { x: sxx, y: syy },
