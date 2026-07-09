@@ -1,5 +1,5 @@
 import {
-  buildEdgePathD,
+  buildForwardFlowEdgePathD,
   type EdgePathCurveOptions,
   type GlobalEdgeType,
 } from '@/lib/graph/edgeTypes'
@@ -138,29 +138,6 @@ export function buildStoryboardOutputCardLeftSidePath(args: {
   return `M${sx},${sy} L${cornerStartX},${sy} Q${tx},${sy} ${tx},${cornerEndY} L${tx},${ty}`
 }
 
-function buildStoryboardForwardTrackPath(args: {
-  sx: number
-  sy: number
-  tx: number
-  ty: number
-}): string {
-  const sx = Number.isFinite(args.sx) ? args.sx : 0
-  const sy = Number.isFinite(args.sy) ? args.sy : 0
-  const tx = Number.isFinite(args.tx) ? args.tx : sx
-  const ty = Number.isFinite(args.ty) ? args.ty : sy
-  const dx = tx - sx
-  const dy = ty - sy
-  const laneGap = Math.max(36, Math.min(160, Math.abs(dx) * 0.2 + Math.abs(dy) * 0.08))
-  const laneX = Math.max(sx, tx) + laneGap
-  const verticalSign = dy >= 0 ? 1 : -1
-  const cornerRadius = Math.min(24, Math.max(2, Math.min(Math.abs(dy) * 0.5, laneGap * 0.18)))
-  if (Math.abs(dy) < 0.01) {
-    const trackY = sy + Math.max(36, laneGap * 0.5)
-    return `M${sx},${sy} L${laneX},${sy} L${laneX},${trackY} L${tx},${trackY} L${tx},${ty}`
-  }
-  return `M${sx},${sy} L${laneX - cornerRadius},${sy} Q${laneX},${sy} ${laneX},${sy + verticalSign * cornerRadius} L${laneX},${ty - verticalSign * cornerRadius} Q${laneX},${ty} ${laneX - cornerRadius},${ty} L${tx},${ty}`
-}
-
 export function buildStoryboardOverlayEdgePathD(args: {
   curve?: EdgePathCurveOptions | null
   edgeType: GlobalEdgeType
@@ -173,6 +150,5 @@ export function buildStoryboardOverlayEdgePathD(args: {
   ty: number
 }): string {
   if (args.outputCardLeftSide) return buildStoryboardOutputCardLeftSidePath({ source: { x: args.sx, y: args.sy }, target: { x: args.tx, y: args.ty } })
-  if (args.flowForwardTrack && args.rankdir === 'LR' && args.tx < args.sx - 0.01) return buildStoryboardForwardTrackPath(args)
-  return buildEdgePathD(args)
+  return buildForwardFlowEdgePathD(args)
 }
