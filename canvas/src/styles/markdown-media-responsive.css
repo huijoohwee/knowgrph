@@ -37,3 +37,15 @@
   align-items: center;
   justify-content: center;
 }
+
+[data-kg-card-inline-chip-density='compact'] .kg-inline-chip-shell-15ch {
+  --kg-inline-chip-shell-extra: 0.7em;
+  padding-block: 0;
+  padding-inline: 0.35em;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+[data-kg-card-inline-chip-density='compact'] .kg-inline-chip-label-15ch {
+  line-height: inherit;
+}

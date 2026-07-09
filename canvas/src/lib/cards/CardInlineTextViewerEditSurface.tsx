@@ -357,6 +357,7 @@ export function CardInlineTextViewerEditSurface(props: {
   className?: string
   commandMode: unknown
   editorRef: React.RefObject<HTMLElement | null>
+  inlineChipDensity?: 'regular' | 'compact'
   inputProxyRef: React.RefObject<HTMLTextAreaElement | null>
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
   isCommandMenuTarget: (target: EventTarget | null) => boolean
@@ -451,6 +452,7 @@ export function CardInlineTextViewerEditSurface(props: {
           '[overflow-wrap:anywhere] [caret-color:var(--kg-text-primary)]',
           props.className,
         )}
+        data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
         data-kg-card-inline-viewer-edit-surface="1"
         {...{ [props.cardInlineEditInputAttribute]: '1' }}
         onBeforeInput={event => {

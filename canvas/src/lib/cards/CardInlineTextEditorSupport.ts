@@ -5,6 +5,7 @@ import { normalizeCardInlineEditorValue } from '@/lib/cards/cardInlineTextEditor
 import { readTextareaInvocationMediaReferenceKey, type TextareaInvocationProjectedMediaChip, type TextareaInvocationMediaAttachment } from '@/lib/ui/textareaInvocationProjection'
 
 export type CardInlineTextEditActivation = 'doubleClick' | 'click'
+export type CardInlineTextChipDensity = 'regular' | 'compact'
 
 export type CardInlineTextEditorProps = {
   id?: string
@@ -24,6 +25,7 @@ export type CardInlineTextEditorProps = {
   markdownCommandContextText?: string
   mediaCommandMode?: 'inline' | 'external'
   editorSurface?: 'control' | 'viewer'
+  inlineChipDensity?: CardInlineTextChipDensity
   openOnPointerDown?: boolean
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
   rows?: number

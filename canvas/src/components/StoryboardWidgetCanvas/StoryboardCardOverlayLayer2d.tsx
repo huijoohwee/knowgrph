@@ -204,6 +204,7 @@ function StoryboardCardOverlayItem(props: {
                 markdownCommandContextText={storyboardCommandContextText}
                 mediaCommandMode="external"
                 editorSurface="viewer"
+                inlineChipDensity="compact"
                 openOnPointerDown
                 projectedMediaAttachments={projectedMediaAttachments}
                 rows={2}

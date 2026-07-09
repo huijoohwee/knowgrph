@@ -92,6 +92,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   const runtime = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
   const inlineEditor = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditor.tsx'), 'utf8')
   const inlineEditorSupport = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditorSupport.ts'), 'utf8')
+  const mediaResponsiveCss = fs.readFileSync(path.resolve(process.cwd(), 'src/styles/markdown-media-responsive.css'), 'utf8')
   const overlayProxy = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const overlayInteractions = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
   const metaRail = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail.tsx'), 'utf8')
@@ -128,6 +129,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'whitespace-pre-wrap break-words',
     'editorClassName="h-full min-h-[3rem] overflow-auto',
     'mediaCommandMode="external"',
+    'inlineChipDensity="compact"',
     'showCommandLaunchers={false}',
     'max-h-[2.625rem] overflow-auto overscroll-contain',
     '<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />',
@@ -169,6 +171,8 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(!source.includes('translate3d(${box.left}px, ${box.top}px, 0) scale(${box.scale})'), 'expected Storyboard card projection not to scale a composited transform texture at max zoom')
   assert(!source.includes("willChange: 'transform'"), 'expected Storyboard card projection not to request transform raster compositing')
   assert(!source.includes("backfaceVisibility: 'hidden'"), 'expected Storyboard card projection not to force a transformed compositor layer')
+  assert(mediaResponsiveCss.includes("[data-kg-card-inline-chip-density='compact'] .kg-inline-chip-shell-15ch") && mediaResponsiveCss.includes('line-height: inherit') && mediaResponsiveCss.includes('padding-block: 0'), 'expected compact Card inline chip density to inherit Storyboard summary text metrics')
+  assert(inlineEditor.includes("inlineChipDensity = 'regular'") && inlineEditor.includes('inlineChipDensity={inlineChipDensity}'), 'expected CardInlineTextEditor to keep compact chip density explicit and opt-in')
   assert(source.includes('nextValue,\n      preserveFormatting: true,'), 'expected Storyboard summary commits to preserve raw Viewer WYSIWYG text and spacing on graph writeback')
   assert(!source.includes('nextValue: readStoryboardCardSummaryText(nextValue)'), 'expected Storyboard summary commits not to reuse read-only display projection for graph writeback')
   assert(inlineEditorSupport.includes("multiline && !/\\boverflow-auto\\b/.test(className)"), 'expected scrollable multiline card display to keep caller-owned wrapping classes')

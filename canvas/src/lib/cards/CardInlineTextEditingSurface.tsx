@@ -1,6 +1,7 @@
 import React from 'react'
 import { CardInlineTextCommandMenus, type CardInlineTextCommandMenuMode } from '@/lib/cards/CardInlineTextCommandMenus'
 import { CardInlineTextViewerEditSurface } from '@/lib/cards/CardInlineTextViewerEditSurface'
+import type { CardInlineTextChipDensity } from '@/lib/cards/CardInlineTextEditorSupport'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { readInlineCommandMenuSigilFromInsertedText, readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
 import { readDataViewMultiLineControlClassName, type DataViewFieldLineMode, type DataViewRowHeightPreset } from '@/lib/ui/dataViewDensity'
@@ -29,6 +30,7 @@ type CardInlineTextEditingSurfaceProps = {
   hasProjectedInvocationOverlay: boolean
   hideProjectedCaret: boolean
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>
+  inlineChipDensity: CardInlineTextChipDensity
   isCommandMenuTarget: (target: EventTarget | null) => boolean
   mediaCommandMode: 'inline' | 'external'
   multiline: boolean
@@ -61,7 +63,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
     ariaLabel, cardInlineEditInputAttribute, closeCommandMenu, commandContextText, commandMode, commandQuery, commandRootAttribute,
     commandRootRef, commandSelectionRef, commonEditorProps, draft, editorClassName, editorDensity, enableMarkdownCommandMenus,
     finishProjectedCommandDraft, finishCommandDraft, focusViewerCommandSelection, hasProjectedInvocationOverlay, hideProjectedCaret, inputRef,
-    isCommandMenuTarget, mediaCommandMode, multiline, onCancel, onCommit, onCommandDraftChange, onMediaCommandSelect, openCommandMenu,
+    inlineChipDensity, isCommandMenuTarget, mediaCommandMode, multiline, onCancel, onCommit, onCommandDraftChange, onMediaCommandSelect, openCommandMenu,
     openCommandMenuForSigilAtSelection, placeholder, projectedEditorDisplayValue, projectedEditorOverlay, projectedMediaAttachments,
     projectedSelectionRange, projectedTextareaOverlayTextClassName, projectedTextareaShellClassName, rows, setCommandMode, setCommandQuery,
     setDraft, setProjectedCommandDraft, showCommandLaunchers, useViewerEditSurface, viewerEditorRef, persistProjectedCommandDraft,
@@ -78,6 +80,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
             commandMode={commandMode}
             editorRef={viewerEditorRef}
             inputProxyRef={inputRef as React.RefObject<HTMLTextAreaElement | null>}
+            inlineChipDensity={inlineChipDensity}
             projectedMediaAttachments={projectedMediaAttachments}
             isCommandMenuTarget={isCommandMenuTarget}
             onCancel={onCancel}

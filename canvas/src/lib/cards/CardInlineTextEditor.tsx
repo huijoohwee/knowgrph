@@ -90,6 +90,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     markdownCommandContextText = '',
     mediaCommandMode = 'inline',
     editorSurface = 'control',
+    inlineChipDensity = 'regular',
     openOnPointerDown = false,
     projectedMediaAttachments = null,
     rows,
@@ -116,12 +117,10 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const editorDensity = useWorkspaceDataViewFloatingDensity()
   const useViewerEditSurface = multiline && editorSurface === 'viewer'
   const displaySourceValue = displayValueProp == null ? value : displayValueProp
-
   const isCommandMenuTarget = React.useCallback((target: EventTarget | null): boolean => {
     if (!isElementEventTarget(target)) return false
     return !!commandRootRef.current?.contains(target) || !!target.closest(`[${CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE}]`)
   }, [])
-
   React.useEffect(() => {
     if (editing) return
     setDraft(normalizeEditorValue(value))
@@ -540,6 +539,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         hasProjectedInvocationOverlay={hasProjectedInvocationOverlay}
         hideProjectedCaret={hideProjectedCaret}
         inputRef={inputRef}
+        inlineChipDensity={inlineChipDensity}
         isCommandMenuTarget={isCommandMenuTarget}
         mediaCommandMode={mediaCommandMode}
         multiline={multiline}
@@ -584,6 +584,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       emptyClassName={emptyClassName}
       enableMarkdownCommandMenus={enableMarkdownCommandMenus}
       id={id}
+      inlineChipDensity={inlineChipDensity}
       onOpenEditorFromDisplayEvent={openEditorFromDisplayEvent}
       openDisplayCommandMenuForSigil={openDisplayCommandMenuForSigil}
       openOnPointerDown={openOnPointerDown}

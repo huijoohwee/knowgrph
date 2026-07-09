@@ -80,6 +80,7 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
           canEdit: true,
           editActivation: 'click',
           editorSurface: 'viewer',
+          inlineChipDensity: 'compact',
           multiline: true,
           markdownPreview: 'auto',
           projectedMediaAttachments: [{
@@ -96,6 +97,9 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     })
     const display = container.querySelector('[aria-label="Summary for workspace-source"][data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected card summary display surface')
+    if (display.getAttribute('data-kg-card-inline-chip-density') !== 'compact') {
+      throw new Error(`expected compact Storyboard card display to keep inline chips on surrounding text metrics, html=${display.outerHTML}`)
+    }
     const readMediaChip = display.querySelector('[data-kg-card-inline-display-media-chip="1"]') as HTMLElement | null
     if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== `@${attachmentLabel}`) {
       throw new Error(`expected read-mode Card textarea to render source-authored @ media in-place, html=${display.innerHTML}`)
@@ -118,6 +122,9 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     const viewerEditor = container.querySelector('[data-kg-card-inline-viewer-edit-surface="1"][contenteditable="true"]')
     if (!(viewerEditor instanceof dom.window.HTMLElement)) {
       throw new Error(`expected card summary edit mode to mount the Viewer WYSIWYG contenteditable surface, html=${container.innerHTML}`)
+    }
+    if (viewerEditor.getAttribute('data-kg-card-inline-chip-density') !== 'compact') {
+      throw new Error(`expected compact Storyboard card Viewer editor to keep inline chips on surrounding text metrics, html=${viewerEditor.outerHTML}`)
     }
     const viewerEditorClassName = viewerEditor.getAttribute('class') || ''
     if (!viewerEditorClassName.includes('bg-transparent') || viewerEditorClassName.includes('bg-[color:var(--kg-input-bg)]') || viewerEditorClassName.includes('rounded border')) {

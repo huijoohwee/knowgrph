@@ -5,7 +5,7 @@ import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdow
 import { readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import type { CardInlineTextEditActivation } from '@/lib/cards/CardInlineTextEditorSupport'
+import type { CardInlineTextChipDensity, CardInlineTextEditActivation } from '@/lib/cards/CardInlineTextEditorSupport'
 
 type CardInlineTextDisplaySurfaceProps = {
   activateExternalCommandTarget: () => void
@@ -21,6 +21,7 @@ type CardInlineTextDisplaySurfaceProps = {
   emptyClassName?: string
   enableMarkdownCommandMenus: boolean
   id?: string
+  inlineChipDensity: CardInlineTextChipDensity
   onOpenEditorFromDisplayEvent: (event: React.MouseEvent<HTMLElement>, options?: { useMarkdownViewerActivation?: boolean }) => boolean
   openDisplayCommandMenuForSigil: (sigil: '/' | '@' | '#') => boolean
   openOnPointerDown: boolean
@@ -49,6 +50,7 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
       aria-label={props.ariaLabel}
       data-kg-card-inline-edit="1"
       data-kg-card-inline-edit-activation={props.editActivation}
+      data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
       data-kg-card-inline-command-display={props.enableMarkdownCommandMenus ? '1' : undefined}
       tabIndex={props.canEdit && props.enableMarkdownCommandMenus ? 0 : undefined}
       onKeyDown={event => {
