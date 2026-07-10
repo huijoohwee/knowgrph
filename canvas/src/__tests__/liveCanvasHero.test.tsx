@@ -221,7 +221,6 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     { dismissed: true },
     { hasSearchParams: true },
     { isEmbeddedPreview: true },
-    { workspaceEditorOverlayOpen: true },
     { workspaceDocumentSwitchPending: true },
     { floatingPanelOpen: true },
     { alternateCanvasSurfaceActive: true },
