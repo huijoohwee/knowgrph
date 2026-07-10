@@ -64,9 +64,6 @@ export type LocalSettingsChatReadinessSurfaceSnapshot = {
   integrationProviderLabels?: string[]
   integrationEnabled: boolean
   integrationOpenTab: string
-  pixverseVideoEnabled: boolean
-  pixverseVideoStrategy: string
-  pixverseVideoTransport: string
   isRefreshingChatModels: boolean
   chatModelsStatus: string | null
   discoveredChatModelCount: number

@@ -106,6 +106,11 @@ export function isSameVectorPaintedOverlayTransform(
   return Math.abs(a.k - b.k) < 1e-6 && Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
 }
 
+function isNeutralVectorPaintedOverlayTransform(transform: VectorPaintedOverlayTransform | null): boolean {
+  if (!transform) return true
+  return Math.abs(transform.k - 1) < 1e-6 && Math.abs(transform.x) < 1e-6 && Math.abs(transform.y) < 1e-6
+}
+
 function projectRawScreenBoxToPaintedLayout(args: {
   anchorX: number
   anchorY: number
@@ -159,6 +164,9 @@ export function projectVectorPaintedOverlayZoomBox(args: {
     top: normalizedRawBox.top,
     scale: normalizedRawBox.scale,
     layoutScale: normalizedRawBox.scale,
+  }
+  if (previousBox && isNeutralVectorPaintedOverlayTransform(args.previousTransform) && !isNeutralVectorPaintedOverlayTransform(args.currentTransform)) {
+    return { box: { left: previousBox.left, top: previousBox.top, scale: previousBox.scale }, baseBox: args.baseBox || fallbackBase }
   }
   if (previousBox && isSameVectorPaintedOverlayTransform(args.previousTransform, args.currentTransform)) {
     return { box: { left: previousBox.left, top: previousBox.top, scale: previousBox.scale }, baseBox: args.baseBox || fallbackBase }

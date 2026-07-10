@@ -3,10 +3,10 @@ import { AnchorOverlay } from '@/lib/ui/overlay'
 import { uiToolbarRowScrollListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import {
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_DOC_INVOCATIONS,
   buildAgenticOsDictionaryActionId,
   buildAgenticOsDocActionId,
+  getAgenticOsBindingInvocations,
+  getAgenticOsDocInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   buildAgenticOsSemanticInvocationActionMenuItems,
@@ -154,7 +154,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       candidate,
       onSelect: () => applyMediaCommandCandidate(candidate),
     }))
-    const docItems = AGENTIC_OS_DOC_INVOCATIONS.map(doc => buildInlineCommandMenuItem({
+    const docItems = getAgenticOsDocInvocations().map(doc => buildInlineCommandMenuItem({
       id: `agentic-os-doc-at-${doc.id}`,
       label: doc.atToken,
       group: 'Agentic OS docs',
@@ -162,7 +162,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       keywords: [doc.label, doc.slashCommand, doc.hashToken, doc.sourcePath, ...doc.keywords],
       onSelect: () => applyTurnInto(buildAgenticOsDocActionId(doc)),
     }))
-    const bindingItems = AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => buildInlineCommandMenuItem({
+    const bindingItems = getAgenticOsBindingInvocations().map(invocation => buildInlineCommandMenuItem({
       id: `agentic-os-binding-${invocation.id}`,
       label: invocation.token,
       group: invocation.group,

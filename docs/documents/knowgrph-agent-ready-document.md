@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.3.2
+version: 1.3.3
 status: implemented
 created: 2026-05-29
 updated: 2026-07-10
@@ -51,13 +51,12 @@ The **MCP Gateway** is a discovery-first federation over four existing surfaces 
 HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
 fifth monolithic proxy tier (see `knowgrph-agentic-os-prd-tad.md` ADR-4). Agents discover capabilities
 via DNS-AID → Link headers → `.well-known` MCP server card → surface selection by trust boundary.
-
+MCP-compatible hosts including Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, and BytePlus ModelArk can use public discovery for read-only installation and the control plane for approval-gated grammar invocation. MainPanel claims remain `documented` or `browser-published` unless a `runtime-executable` owner is named.
 For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
 `https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
 The public install endpoint truth stays read-only retrieval/inspection plus prompt/resource/template
 discovery, while the separate control-plane surface now advertises remote Agentic Canvas OS docs
 invocation through `knowgrph.agentic_canvas_os.docs.invoke` in current source-owned discovery metadata.
-
 The **Agentic OS** (`knowgrph.os.status`) provides read-only cross-harness visibility: process list,
 capability union, cost summary, gate catalog, and circuit-breaker bounds — at zero token cost per call.
 
@@ -382,7 +381,7 @@ and the prod mirror remains a downstream artifact rather than a hand-edited sour
 | Auth.md validation | `scripts/check-auth-md.mjs` | Implemented |
 | DNS-AID record contract and live check | `scripts/dns-aid-records.mjs`, `scripts/check-dns-aid-cloudflare.mjs` | Implemented |
 | DNS-AID publish tooling | `scripts/publish-dns-aid-cloudflare.mjs` | Implemented |
-| MainPanel MCP/integrations shells | `MainPanel.tsx`, `McpHubView.tsx`, `IntegrationsHubView.tsx`, `SettingsView.tsx` | Implemented |
+| MainPanel MCP/integrations shells | `MainPanel.tsx`, `McpHubView.tsx`, `IntegrationsHubView.tsx`, `SettingsView.tsx` | Implemented as UI shells; readiness claims inside them may be `documented` or `browser-published` rather than `runtime-executable` |
 | Chat submit and response validation pipeline | `useFloatingPanelChatSubmit.ts`, submit coordinator helpers, KGC validation, `chatResponseStructuredContent`, Canvas apply bridge | Implemented |
 | Prod mirror sync | `scripts/sync-pages-knowgrph.mjs` | Implemented |
 
@@ -599,6 +598,7 @@ Checks:
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.3 | 2026-07-10 | Added explicit MCP-compatible LLM readiness language for Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, BytePlus ModelArk, and similar hosts, while preserving the `/knowgrph/mcp` discovery vs `/knowgrph/control-plane/mcp` orchestration boundary. |
 | 1.3.2 | 2026-07-10 | Updated the implemented baseline to reflect current source truth: `/knowgrph/mcp` remains the canonical public install/discovery URL, while `/knowgrph/control-plane/mcp` advertises approval-gated orchestration plus remote `knowgrph.agentic_canvas_os.docs.invoke` grammar lookup in control-plane discovery metadata. |
 | 1.3.1 | 2026-07-10 | Documented public remote exposure and discovery coherence: `/knowgrph/mcp` is the canonical install/discovery URL, `/knowgrph/control-plane/mcp` remains orchestration-only, and remote `/`, `#`, `@` grammar exposure remains a planned enhancement. |
 | 1.3.0 | 2026-07-03 | Added follow-on PRD/TAD link, PRD-AR-16..18 (HITL durable store, live golden path, dashboard Canvas), Track A/B/C component inventory and validation commands. |

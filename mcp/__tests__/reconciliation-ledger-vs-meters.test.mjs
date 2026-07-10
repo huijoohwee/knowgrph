@@ -66,7 +66,7 @@ const LIVE_APPROVED_ARGS = Object.freeze({
 
 const ASSETS = Object.freeze([
   { shotId: "shot-1", ledgerEventId: "ledger-1", provider: "byteplus", costCents: 120 },
-  { shotId: "shot-2", ledgerEventId: "ledger-2", provider: "pixverse", costCents: 80 },
+  { shotId: "shot-2", ledgerEventId: "ledger-2", provider: "external_video_provider", costCents: 80 },
 ]);
 
 // ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ test("deriveLedgerEventsFromAssets: one event per asset carrying id, provider, a
   const events = deriveLedgerEventsFromAssets(ASSETS);
   assert.equal(events.length, 2);
   assert.deepEqual(events.map((e) => e.ledgerEventId), ["ledger-1", "ledger-2"]);
-  assert.deepEqual(events.map((e) => e.provider), ["byteplus", "pixverse"]);
+  assert.deepEqual(events.map((e) => e.provider), ["byteplus", "external_video_provider"]);
   assert.deepEqual(events.map((e) => e.costCents), [120, 80]);
 });
 

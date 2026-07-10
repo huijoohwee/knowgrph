@@ -2,7 +2,7 @@ import type { InvocationTokenKind } from '@/lib/markdown/invocationTokens'
 import { buildAgenticOsInvocationChipTitle } from '@/features/agentic-os/agenticOsInvocationChips'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
 import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
-import { CHAT_INVOCATION_OPTIONS } from '@/features/chat/chatInvocationRegistry'
+import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 
 type ComposerInvocationSourcePart = {
@@ -20,17 +20,6 @@ const formatComposerInvocationSource = (args: { token: string; label?: string; s
 const CHAT_COMPOSER_SLASH_INVOCATION_SOURCES = new Map(CHAT_SKILL_OPTIONS.map(option => [
   option.slashCommand.toLowerCase(),
   formatComposerInvocationSource({ token: option.slashCommand, label: option.label, summary: option.summary, source: 'chat skill registry' }),
-] as const))
-
-const CHAT_COMPOSER_KEYWORD_INVOCATION_SOURCES = new Map(CHAT_INVOCATION_OPTIONS.map(option => [
-  option.token.toLowerCase(),
-  formatComposerInvocationSource({
-    token: option.token,
-    label: option.label,
-    summary: option.summary,
-    source: option.sourcePath || 'chat invocation registry',
-    toolName: option.toolName,
-  }),
 ] as const))
 
 export function readComposerInvocationChipClassName(part: Pick<ComposerInvocationSourcePart, 'text'>): string {
@@ -51,7 +40,16 @@ export function readComposerInvocationSourceTitle(part: ComposerInvocationSource
     if (source) return source
   }
   if (part.tokenKind === 'keyword') {
-    const source = CHAT_COMPOSER_KEYWORD_INVOCATION_SOURCES.get(normalized)
+    const source = new Map(getChatInvocationOptions().map(option => [
+      option.token.toLowerCase(),
+      formatComposerInvocationSource({
+        token: option.token,
+        label: option.label,
+        summary: option.summary,
+        source: option.sourcePath || 'chat invocation registry',
+        toolName: option.toolName,
+      }),
+    ] as const)).get(normalized)
     if (source) return source
   }
   return formatComposerInvocationSource({

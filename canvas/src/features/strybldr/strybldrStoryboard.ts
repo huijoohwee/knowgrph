@@ -54,7 +54,7 @@ const DEFAULT_STRYBLDR_REMOTE_VIDEO_FRAME_SECONDS = 0
 const asJson = (value: unknown): JSONValue => value as JSONValue
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
-const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
+const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'style', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
 const STRYBLDR_VIDEO_ARTIFACT_OVERRIDE_TEXT_KEYS = ['output', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const normalizePath = (raw: unknown): string => String(raw || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
@@ -1763,7 +1763,7 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
     const source = doc.sources.find(item => item.sourceUnitId === element.sourceUnitId) || null
     const elementId = cleanText(element.id) || `strybldr:element:${shortHash(`${element.sourceUnitId}:${element.label}:${element.order}`)}`
     const media = source ? buildStrybldrSourceMediaFields(source) : null
-    const mediaUrl = media?.mediaUrl || cleanText(source?.originalName)
+    const mediaUrl = media?.mediaUrl || cleanText(source?.originalName), userAuthoredElement = element.evidenceKind === 'user-edit'
     nodes.push(withStrybldrD3StoryboardCardSurface(applyStrybldrCardOverride({
       id: elementId,
       label: element.label,
@@ -1772,9 +1772,9 @@ export const buildStrybldrGraphData = (doc: StrybldrStoryboardDocument): GraphDa
         title: asJson(element.label),
         lane: asJson(resolveStrybldrElementLane({ element, workflow: doc.workflow })),
         order: asJson(element.order),
-        summary: asJson(element.summary || `${element.label} extracted from ${source?.originalName || 'image source'}.`),
-        action: asJson(element.action || 'Edit this element before video generation.'),
-        prompt: asJson(element.prompt || `Animate ${element.label} as a distinct storyboard element.`),
+        summary: asJson(element.summary || (userAuthoredElement ? '' : `${element.label} extracted from ${source?.originalName || 'image source'}.`)),
+        action: asJson(element.action || (userAuthoredElement ? '' : 'Edit this element before video generation.')),
+        prompt: asJson(element.prompt || (userAuthoredElement ? '' : `Animate ${element.label} as a distinct storyboard element.`)),
         mediaUrl: asJson(mediaUrl),
         sourceUrl: asJson(media?.sourceUrl || null),
         renderUrl: asJson(media?.renderUrl || null),

@@ -68,7 +68,7 @@ traceability:
 2. **Per-device cache**: minimal browser cache only; it is not canonical persistence
 3. **Concurrent edit layer**: PocketBase + Yjs when ≥2 users edit the same file at the same time
 4. **Save bridge**: server-side bridge serializes saved Yjs state and commits to GitHub; collaborators never touch Git directly
-5. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API owned by Drizzle schema/contracts for read/export/runtime metadata only
+5. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API using `drizzle-orm` queries and Wrangler SQL migrations for read/export/runtime metadata only
 6. **Generated binary artifact store**: Cloudflare R2 owns generated image/video/binary bytes; D1 owns the sibling Markdown manifest that points to the R2 object through the Worker blob route
 7. **Future scale-up path**: PostgreSQL only when server-side retrieval clearly outgrows D1/PocketBase responsibilities
 
@@ -151,7 +151,7 @@ FloatingPanel Media is the rich-media catalog, not a storage settings panel. Upl
 
 - GitHub `docs/**` stays the authoring source of truth; docs do not drift into a database-first workflow.
 - GitHub stays SSOT for both solo and collaborative authoring; D1 is a runtime read/export cache, not an authoring SSOT.
-- D1 + Drizzle keep the shared-store step operationally lean while moving schema ownership to typed Worker code.
+- D1 + Wrangler SQL migrations keep the shared-store step operationally lean while `drizzle-orm` typed Worker code owns runtime access.
 - Browser cache remains bounded and non-canonical, so storage drift is neutralized at the source.
 - Token savings come from chunk reuse, graph snapshot reuse, and bounded pull/push contracts.
 - D1 write cost stays lean: read-first ensure* guards, pull skips writes on no-change, sync_events capped at 24h TTL, 120s poll interval.

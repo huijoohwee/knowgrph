@@ -39,13 +39,11 @@ import { EXA_MCP_DOC_AREA } from './exaMcpApiDocs'
 import { FEISHU_BASE_MCP_DOC_AREA } from './feishuBaseMcpApiDocs'
 import { LARK_APP_MCP_DOC_AREA } from './larkAppMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
-import { PIXVERSE_MCP_DOC_AREA } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA } from './miromindMcpApiDocs'
 import { SEALION_MCP_DOC_AREA } from './sealionMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { VIDEODB_MCP_DOC_AREA } from './videodbMcpApiDocs'
 import { OPERATOR_DEPLOY_MCP_DOC_AREA } from '@/features/settings/operatorDeploySsot'
-import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA } from '@/features/integrations/pixverseVideoGenerationSsot'
 import { VIDEODB_API_DOC_AREA } from '@/features/integrations/videodbSsot'
 import { SENSENOVA_API_DOC_AREA } from '@/features/integrations/sensenovaSsot'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
@@ -167,7 +165,6 @@ export function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolea
     || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
-    || area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
     || area === SENSENOVA_API_DOC_AREA
     || area === VIDEODB_API_DOC_AREA
     || area === MIROMIND_API_DOC_AREA
@@ -219,7 +216,6 @@ export function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
   if (area === FEISHU_BASE_MCP_DOC_AREA) return true
   if (area === LARK_APP_MCP_DOC_AREA) return true
   if (area === STRIPE_MCP_DOC_AREA) return true
-  if (area === PIXVERSE_MCP_DOC_AREA) return true
   if (area === MIROMIND_MCP_DOC_AREA) return true
   if (area === SEALION_MCP_DOC_AREA) return true
   if (area === KNOWGRPH_VDEOXPLN_DOC_AREA) return true

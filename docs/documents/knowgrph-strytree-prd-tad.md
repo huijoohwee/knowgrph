@@ -26,7 +26,7 @@ orientation:
 constraints:
   - "production access state must be server-owned"
   - "credit-token ledger must not trust client mutation"
-  - "PixVerse credentials must never ship to the browser"
+  - "external video provider credentials must never ship to the browser"
   - "story edges derive from parent_node_id unless a later graph index is justified"
   - "static prototype behavior must be documented separately from target implementation"
   - "no new paid dependency without ADR-level TCO comparison"
@@ -39,7 +39,7 @@ tags:
   - "strytree"
   - "storytree"
   - "interactive-story-graph"
-  - "pixverse"
+  - "external_video_provider"
   - "credit-ledger"
   - "payments"
   - "cloudflare-d1"
@@ -49,7 +49,7 @@ tags:
   - "branch-candidate-workbench"
 related:
   - "huijoohwee.github.io/guidelines/prd-tad-guidelines.md"
-  - "docs/documents/knowgrph-pixverse-mcp-prd-tad.md"
+  - "docs/documents/knowgrph-strytree-prd-tad.md"
   - "docs/documents/knowgrph-strybldr-prd-tad.md"
   - "docs/documents/knowgrph-agentic-commerce-prd-tad.md"
   - "docs/documents/knowgrph-mainpanel-commerce-prd-tad.md"
@@ -109,9 +109,9 @@ This combined PRD/TAD follows `guidelines/prd-tad-guidelines.md` (repo root of `
 The document has two jobs:
 
 1. Record what the observed Strytree prototype actually does without retaining the prototype URL in this repo.
-2. Define the production Knowgrph contract for a Strytree-style interactive storytree with real access control, persistence, wallet/credit-token accounting, payment settlement, graph rendering, and PixVerse generation harnessing.
+2. Define the production Knowgrph contract for a Strytree-style interactive storytree with real access control, persistence, wallet/credit-token accounting, payment settlement, graph rendering, and external video provider generation harnessing.
 
-The observed page is a static edge-hosted HTML/CSS/vanilla-JS app. It has convincing UI behavior but no real auth, no database, no durable wallet, no real payment settlement, and no active PixVerse generation in the live configuration. This PRD/TAD preserves the useful product pattern while replacing mock client state with server-owned ledgers and auditable data flows.
+The observed page is a static edge-hosted HTML/CSS/vanilla-JS app. It has convincing UI behavior but no real auth, no database, no durable wallet, no real payment settlement, and no active external video provider generation in the live configuration. This PRD/TAD preserves the useful product pattern while replacing mock client state with server-owned ledgers and auditable data flows.
 
 ---
 
@@ -135,7 +135,7 @@ The observed page is a static edge-hosted HTML/CSS/vanilla-JS app. It has convin
 | Auth | None |
 | Payment | Mocked client-side unlock toast |
 | Credit tokens | Mocked client-side integer counter |
-| PixVerse | API path scaffolded but `DEMO_MODE: true` and empty API key |
+| external video provider | API path scaffolded but `DEMO_MODE: true` and empty API key |
 
 ### Prototype State Object
 
@@ -236,14 +236,14 @@ toast("paid mock: creator CNY 1.5, platform CNY 0.4")
 
 No payment processor is called. No creator balance is credited. No platform fee is booked. `paidUnlocks` is not durably incremented.
 
-### Prototype PixVerse Behavior
+### Prototype external video provider Behavior
 
 The live configuration has:
 
 ```js
-PIXVERSE_API_KEY: ""
+EXTERNAL_VIDEO_PROVIDER_API_KEY: ""
 DEMO_MODE: true
-PIXVERSE_BASE: "https://app-api.pixverse.ai"
+EXTERNAL_VIDEO_PROVIDER_BASE: "https://app-api.external_video_provider.ai"
 ```
 
 The code includes a real generation path for `/openapi/v2/video/fusion/generate` and polling through `/openapi/v2/video/result/{video_id}`, but the live page falls back to preset demo results because demo mode is enabled and the API key is empty.
@@ -287,7 +287,7 @@ If Knowgrph implements a Strytree-style storytree with:
 - an append-only credit-token ledger,
 - webhook-confirmed token purchases,
 - transactional branch unlocks,
-- PixVerse calls behind a harness boundary,
+- external video provider calls behind a harness boundary,
 - and client-side SVG rendering fed by signed graph snapshots,
 
 then users can co-create and monetize story branches without trusting mutable browser state, while Knowgrph keeps the MVP within a low-TCO Cloudflare topology.
@@ -310,7 +310,7 @@ then users can co-create and monetize story branches without trusting mutable br
 | Discover | User opens the story tree. | SVG storytree canvas | Dense branches can be hard to scan. | Compute deterministic layout and status coloring from graph state. |
 | Preview | User selects a branch. | Node panel | Full video may be protected. | Always show free synopsis and entitlement-aware preview. |
 | Commit | User chooses to generate or unlock. | Generate modal or unlock button | Users need cost clarity before spending. | Quote credit-token or currency cost before server commit. |
-| Generate | User writes a continuation. | PixVerse harness modal | Provider calls are slow and paid. | Debit/hold credits transactionally and refund on failed provider job. |
+| Generate | User writes a continuation. | external video provider harness modal | Provider calls are slow and paid. | Debit/hold credits transactionally and refund on failed provider job. |
 | Publish | User accepts generated result. | Storytree update | New branch must survive reload and sync. | Persist node, media artifact, and parent edge in one server transaction. |
 | Return | User revisits later. | Same account/session | Client-only unlocks vanish. | Durable entitlement and wallet ledger restore state. |
 
@@ -365,7 +365,7 @@ As a co-creator, I want generation cost to be debited fairly and refunded on fai
 **PRD-STR-E03-AC-01** — Pre-call debit or hold
 Given a user has a wallet balance, when generation starts, then the server creates an idempotent ledger debit or hold before calling the provider.
 
-> **`/goal` translation**: `ledger-debit tests pass: a ledger event of type generation_debit exists in D1 before any PixVerse API call is initiated; no provider call is made when ledger insert fails`
+> **`/goal` translation**: `ledger-debit tests pass: a ledger event of type generation_debit exists in D1 before any external video provider API call is initiated; no provider call is made when ledger insert fails`
 
 **PRD-STR-E03-AC-02** — Success finalization
 Given the provider succeeds, when the generated result is attached, then the hold is finalized or the debit remains committed.
@@ -427,7 +427,7 @@ Given insufficient balance, when unlock is requested, then no entitlement or cre
 
 > **`/goal` translation**: `insufficient-balance tests pass: unlock request when balance < unlock_price_credits returns 402 with error code insufficient_balance and no strytree_unlocks or ledger row is written`
 
-### PRD-STR-E06 - PixVerse Generation Harness
+### PRD-STR-E06 - external video provider Generation Harness
 
 As a co-creator, I want inherited characters and scenes to be assembled into a bounded generation request, so that visual continuity survives branch forks.
 
@@ -442,12 +442,12 @@ Given a user submits prompt, selected characters, scene, model, duration, and ca
 > **`/goal` translation**: `harness-validation tests pass: malformed generation requests are rejected at the schema validation step with a typed error and no ledger debit or provider call occurs`
 
 **PRD-STR-E06-AC-03** — Server-side credentials
-Given PixVerse credentials are configured, when generation is submitted, then the Worker or local harness calls PixVerse using server-side secrets, not browser-exposed keys.
+Given external video provider credentials are configured, when generation is submitted, then the Worker or local harness calls external video provider using server-side secrets, not browser-exposed keys.
 
-> **`/goal` translation**: `credential-audit passes: build scan of client bundle finds no PIXVERSE_API_KEY string; Worker integration test confirms provider call uses env-injected secret`
+> **`/goal` translation**: `credential-audit passes: build scan of client bundle finds no EXTERNAL_VIDEO_PROVIDER_API_KEY string; Worker integration test confirms provider call uses env-injected secret`
 
 **PRD-STR-E06-AC-04** — Structured fallback on provider failure
-Given PixVerse is unavailable, when generation is requested, then the system returns a structured fallback artifact with prompt, asset refs, cost event, and error reason.
+Given external video provider is unavailable, when generation is requested, then the system returns a structured fallback artifact with prompt, asset refs, cost event, and error reason.
 
 > **`/goal` translation**: `fallback tests pass: simulated provider 5xx returns status failed, a structured fallback_artifact JSON, and a refund ledger event; no R2 write is attempted`
 
@@ -507,7 +507,7 @@ User Impact: 1–5 (pain severity × frequency). Reach: estimated sessions/month
 | **Must** | Server-owned credit-token ledger | 5 | 50 | 8 | 0 | 0 | 31.3 | Required before any real payment or generation spend. |
 | **Must** | Payment webhook-to-ledger crediting | 5 | 30 | 10 | 0 | 0 | 15.0 | Prevents client-side balance fraud. |
 | **Must** | Unlock transaction with entitlement and split | 5 | 30 | 10 | 0 | 0 | 15.0 | Required for monetization claims. |
-| **Must** | PixVerse server-side harness boundary | 5 | 30 | 12 | 0 | 5 | 8.8 | Prevents browser key exposure; bounds provider spend. |
+| **Must** | external video provider server-side harness boundary | 5 | 30 | 12 | 0 | 5 | 8.8 | Prevents browser key exposure; bounds provider spend. |
 | **Should** | ForkCompare branch candidate workbench | 4 | 40 | 8 | 0 | 3 | 14.5 | Reuses existing card/SVG surfaces to improve branch quality per credit spent. |
 | **Should** | Async job queue for generation polling | 4 | 30 | 6 | 0 | 0 | 20.0 | Decouples HTTP from provider poll; required for > 30 s generation. |
 | **Should** | Atomic credit debit via Durable Object or Postgres lock | 4 | 30 | 5 | 0 | 0 | 24.0 | Prevents double-spend under concurrent requests. |
@@ -515,7 +515,7 @@ User Impact: 1–5 (pain severity × frequency). Reach: estimated sessions/month
 | **Could** | Durable Objects for live collaborative branch editing | 3 | 10 | 16 | 0 | 0 | 1.9 | Valuable later; not required for async story publishing. |
 | **Could** | Graph analytics ranking and recommendations | 2 | 20 | 14 | 0 | 2 | 2.5 | Useful after activity data exists. |
 | **Won't** | Client-owned wallet mutation | 0 | — | — | — | — | 0.0 | Security anti-pattern. |
-| **Won't** | Exposing PixVerse API key in static HTML | 0 | — | — | — | — | 0.0 | Credential leakage anti-pattern. |
+| **Won't** | Exposing external video provider API key in static HTML | 0 | — | — | — | — | 0.0 | Credential leakage anti-pattern. |
 
 ### Min-Viable Scope
 
@@ -529,7 +529,7 @@ The smallest production-grade slice is:
 6. Async job queue (Cloudflare Queue) decoupling generation submission from provider polling.
 7. Stripe or existing Knowgrph commerce checkout with webhook-confirmed wallet credit.
 8. Transactional branch unlock entitlement.
-9. PixVerse generation behind a server-side harness with debit/refund.
+9. external video provider generation behind a server-side harness with debit/refund.
 
 ### Recommended Add-On Scope
 
@@ -587,12 +587,12 @@ flowchart TB
   R2["Cloudflare R2 media store"]
   KV["Workers KV cache / flags / budget counters"]
   Queue["Cloudflare Queue (async generation jobs)"]
-  Consumer["Queue Consumer Worker (PixVerse poll + R2 write)"]
+  Consumer["Queue Consumer Worker (external video provider poll + R2 write)"]
   CandidateScorer["Candidate scorecard harness"]
   Commerce["Commerce adapter and Stripe Checkout"]
   Webhook["Payment webhook handler"]
   Ledger["Credit-token ledger service"]
-  Pixverse["PixVerse provider API"]
+  external video provider["external video provider provider API"]
   Audit["Audit and cost events"]
 
   Browser --> Auth
@@ -608,7 +608,7 @@ flowchart TB
   Worker --> Ledger
   Worker --> Queue
   Queue --> Consumer
-  Consumer --> Pixverse
+  Consumer --> external video provider
   Consumer --> CandidateScorer
   CandidateScorer --> D1
   Consumer --> R2
@@ -627,7 +627,7 @@ The client remains responsible for local interaction, SVG layout, preview UI, an
 | Discover | Fetch public story | Story snapshot read | Storytree Snapshot API |
 | Preview | Open node panel | Entitlement hint and media URL | Access Policy Service |
 | Commit | Quote spend | Cost quote read | Credit Ledger Service |
-| Generate | Submit generation | Debit/hold -> PixVerse job -> artifact | Generation Harness |
+| Generate | Submit generation | Debit/hold -> external video provider job -> artifact | Generation Harness |
 | Compare | Request candidate alternatives | Bounded fan-out -> candidate scorecards -> selected merge | ForkCompare Workbench |
 | Publish | Attach result | Generation result -> node insert -> graph snapshot | Story Graph Service |
 | Purchase | Buy credits | Checkout session -> webhook -> ledger credit | Commerce Adapter |
@@ -649,10 +649,10 @@ The client remains responsible for local interaction, SVG layout, preview UI, an
 | API | Credit Ledger Service | Owns all credit-token balance mutations; atomic debit via Durable Object with D1 audit persistence. | `StrytreeCreditLedgerActor`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | API | Commerce Adapter | Creates checkout sessions and receives signed webhooks. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts`; `cloudflare/workers/knowgrph-payment/index.ts` |
 | API | Unlock Transaction Service | Debits wallet and grants entitlement atomically. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
-| API | Generation Harness | Validates PixVerse payload, debits/refunds, enqueues job, handles fallback. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| API | Generation Harness | Validates external video provider payload, debits/refunds, enqueues job, handles fallback. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | API | Candidate Run Service | Validates candidate fan-out, quotes cost, creates candidate run rows, and coordinates publish of one selected candidate. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | API | Candidate Scorecard Harness | Scores completed candidates for continuity, inherited asset coverage, moderation state, latency, and credit cost without adding hidden model calls. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts`; `canvas/src/features/strybldr/strybldrStoryboard.ts` |
-| Async | Async Job Queue | Decouples generation submission from provider polling; consumer Worker polls PixVerse and writes R2. | `cloudflare/workers/knowgrph-payment/index.ts`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
+| Async | Async Job Queue | Decouples generation submission from provider polling; consumer Worker polls external video provider and writes R2. | `cloudflare/workers/knowgrph-payment/index.ts`; `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | API | Audit Event Service | Records all value-changing actions with idempotency key, actor, and cost fields where Strytree routes mutate state. | `cloudflare/workers/knowgrph-payment/strytreeApi.ts` |
 | Data | D1 | Relational graph, wallet ledger, entitlements, audit events. | Cloudflare D1 |
 | Data | R2 | Videos, posters, thumbnails, prompt artifacts, provider outputs. | Cloudflare R2 |
@@ -731,7 +731,7 @@ CREATE TABLE strytree_assets (
   asset_type TEXT NOT NULL,
   name TEXT NOT NULL,
   ref_name TEXT,
-  pixverse_img_id TEXT,
+  external_provider_image_id TEXT,
   object_key TEXT,
   prompt_prefix TEXT,
   negative_prompt TEXT,
@@ -973,7 +973,7 @@ sequenceDiagram
 
 **Trigger**: User confirms `Generate - 5 credits` in the modal.
 
-**Actors**: Browser, Strytree Worker, Auth Middleware, Ledger Service, Cloudflare Queue, Queue Consumer Worker, PixVerse Provider, R2, D1.
+**Actors**: Browser, Strytree Worker, Auth Middleware, Ledger Service, Cloudflare Queue, Queue Consumer Worker, external video provider Provider, R2, D1.
 
 **Happy path**:
 1. Browser posts prompt, parent node id, selected assets, generation options, and idempotency key.
@@ -982,8 +982,8 @@ sequenceDiagram
 4. Ledger Service records generation debit or hold with idempotency key.
 5. Worker enqueues a typed generation job message to Cloudflare Queue; returns `202 Accepted` with `job_id` immediately.
 6. Browser polls `GET /api/strytree/generation-jobs/:jobId` for status.
-7. Queue Consumer Worker dequeues the message, calls PixVerse with server-side credentials.
-8. Consumer polls PixVerse within bounded timeout; writes result media to R2.
+7. Queue Consumer Worker dequeues the message, calls external video provider with server-side credentials.
+8. Consumer polls external video provider within bounded timeout; writes result media to R2.
 9. Consumer updates `strytree_generation_jobs` status to `succeeded` and records artifact keys.
 10. Browser sees `succeeded` on next poll; user previews result.
 11. User publishes result; Worker inserts a new node with `parent_node_id` and media keys.
@@ -1011,7 +1011,7 @@ sequenceDiagram
   participant L as Ledger Service
   participant Q as Cloudflare Queue
   participant C as Consumer Worker
-  participant H as PixVerse Provider
+  participant H as external video provider Provider
   participant R as R2
   participant D as D1
 
@@ -1026,7 +1026,7 @@ sequenceDiagram
     W-->>B: { status: queued | processing }
   end
   Q->>C: Dequeue job message
-  C->>H: Submit PixVerse payload (server-side key)
+  C->>H: Submit external video provider payload (server-side key)
   H-->>C: Poll result (max 60 attempts)
   C->>R: Store media artifact
   C->>D: Update generation_job status=succeeded
@@ -1291,7 +1291,7 @@ Response:
   "scorecards": [
     {
       "candidate_id": "cand_001",
-      "provider": "pixverse",
+      "provider": "external_video_provider",
       "status": "succeeded",
       "credit_cost": 5,
       "elapsed_ms": 64000,
@@ -1480,9 +1480,9 @@ Response:
 
 ## C8. AI Harness Contract
 
-### Component: PixVerse Generation Harness
+### Component: external video provider Generation Harness
 
-**Responsibility**: The harness validates a typed Strytree generation request, constructs the provider payload, executes a bounded PixVerse job when server-side credentials and media refs exist, stores R2 result manifests, and emits cost/audit logs. If credentials are absent in local/demo mode, the same Queue consumer writes a provider-safe local manifest without exposing any provider key to the browser.
+**Responsibility**: The harness validates a typed Strytree generation request, constructs the provider payload, executes a bounded external video provider job when server-side credentials and media refs exist, stores R2 result manifests, and emits cost/audit logs. If credentials are absent in local/demo mode, the same Queue consumer writes a provider-safe local manifest without exposing any provider key to the browser.
 
 **Input schema**:
 
@@ -1530,7 +1530,7 @@ Response:
 
 ```json
 {
-  "provider": "pixverse",
+  "provider": "external_video_provider",
   "model": "v6",
   "credit_cost": 5,
   "provider_cost_usd_estimate": 0,
@@ -1548,7 +1548,7 @@ Strytree uses two token concepts:
 - App credit tokens: spendable wallet credits for generation and unlock.
 - AI/model tokens: provider/LLM accounting fields required by the PRD/TAD guideline.
 
-PixVerse video calls may not expose LLM prompt/completion tokens. The harness still records prompt length, credit cost, provider job duration, and estimated provider cost. If a future LLM prompt enhancer is added, it must emit `{ model, prompt_tokens, completion_tokens, cache_hits, estimated_cost_usd }`.
+external video provider video calls may not expose LLM prompt/completion tokens. The harness still records prompt length, credit cost, provider job duration, and estimated provider cost. If a future LLM prompt enhancer is added, it must emit `{ model, prompt_tokens, completion_tokens, cache_hits, estimated_cost_usd }`.
 
 **Orchestration topology**:
 
@@ -1558,7 +1558,7 @@ Fan-out / sequential: the HTTP Worker (fan-out leg) validates, debits, and enque
 flowchart LR
   Validate["Validate request schema"]
   Debit["Debit or hold app credits"]
-  Assemble["Assemble PixVerse payload"]
+  Assemble["Assemble external video provider payload"]
   Enqueue["Enqueue job to CF Queue"]
   Return202["Return 202 Accepted to browser"]
 
@@ -1694,7 +1694,7 @@ flowchart LR
 - `max_candidates <= 3`
 - `max_provider_calls <= 3`
 - `max_scorecard_passes = 1`
-- provider polling inherits the 60-poll bound from the PixVerse harness
+- provider polling inherits the 60-poll bound from the external video provider harness
 
 **Circuit breaker**:
 
@@ -1784,7 +1784,7 @@ The candidate workbench must remain a projection of server candidate-run state, 
 |---|---|---|---|---|---|
 | Ingest | Generation endpoint (HTTP Worker) | Prompt/options/assets + JWT | Job row + debit + queue message | D1 (ledger + job) | Schema validation; 402 on insufficient balance |
 | Enqueue | Cloudflare Queue | Typed job message | Queue delivery to consumer | CF Queue (at-least-once) | Retry on consumer failure; dead-letter on max retries |
-| Transform | Queue Consumer Worker → PixVerse | Typed harness payload | Provider job id | D1 (job status) | Refund on provider failure; structured fallback artifact |
+| Transform | Queue Consumer Worker → external video provider | Typed harness payload | Provider job id | D1 (job status) | Refund on provider failure; structured fallback artifact |
 | Store | Artifact writer (consumer) | Provider video URL/blob | R2 object key | R2 | Object write retry; fallback if R2 unavailable |
 | Serve | Generation status endpoint | Job id + JWT | Status/result JSON | D1 | 404 on missing job; 401 on wrong owner |
 
@@ -1804,7 +1804,7 @@ The candidate workbench must remain a projection of server candidate-run state, 
 | Attribute | Scenario | Pattern | Validation |
 |---|---|---|---|
 | Security | User modifies token balance in browser. | Server-owned ledger; UI balance read-only. | Unit tests reject client-supplied balance. |
-| Security | PixVerse key leaked through static JS. | Server-side harness secrets only. | Build scan for provider secrets in client bundle. |
+| Security | external video provider key leaked through static JS. | Server-side harness secrets only. | Build scan for provider secrets in client bundle. |
 | Consistency | Duplicate webhook arrives. | Provider event id and idempotency key unique constraints. | Replay webhook fixture twice. |
 | Consistency | Double-click unlock button. | Idempotent unlock key and unique `(user_id, node_id)`. | Parallel unlock test. |
 | Performance | Story tree loads under normal branch counts. | KV cached snapshot plus client SVG layout. | Browser smoke with 100, 500, 1000 nodes. |
@@ -1831,7 +1831,7 @@ MVP deployment path:
 4. Add Cloudflare Queue binding and consumer Worker for async generation jobs.
 5. Use D1 migrations for schema.
 6. Use R2 for generated media and reference assets.
-7. Use environment-backed secrets for payment and PixVerse credentials.
+7. Use environment-backed secrets for payment and external video provider credentials.
 8. Add ForkCompare candidate tables and routes only after the secure generation/ledger path is green.
 9. Keep ForkCompare UI inside existing Strybldr/Storyboard/Strytree surfaces; no new frontend graph dependency.
 10. Sync to prod mirror with the canonical pages sync path.
@@ -1989,7 +1989,7 @@ Store `parent_node_id` on `strytree_nodes` as the edge SSOT. Add a separate edge
 - Negative: Non-tree features need migration.
 - Neutral: A future edge table can be backfilled from `parent_node_id`.
 
-## ADR-004: Keep PixVerse behind a harness, never in browser code
+## ADR-004: Keep external video provider behind a harness, never in browser code
 
 **Status**: Accepted / implementation contract
 
@@ -1997,32 +1997,32 @@ Store `parent_node_id` on `strytree_nodes` as the edge SSOT. Add a separate edge
 
 ### Context
 
-The prototype includes a direct browser `fetch` path to PixVerse with an API token header, but live demo mode leaves the key empty. Production must not expose provider credentials.
+The prototype includes a direct browser `fetch` path to external video provider with an API token header, but live demo mode leaves the key empty. Production must not expose provider credentials.
 
 ### Decision
 
-Put all PixVerse calls behind a Worker or local harness boundary with typed payload validation, bounded polling, server-side credentials, cost logs, and structured fallback.
+Put all external video provider calls behind a Worker or local harness boundary with typed payload validation, bounded polling, server-side credentials, cost logs, and structured fallback.
 
 ### Alternatives Considered
 
-1. Direct browser PixVerse call: fast prototype but leaks credentials and spend control.
+1. Direct browser external video provider call: fast prototype but leaks credentials and spend control.
 2. Local-only MCP harness: useful for dev but not enough for public hosted product.
 3. FOSS video provider only: avoids vendor lock-in but may not match target capability.
 
 ### TCO Impact
 
-| Dimension | Chosen Option (Worker harness + PixVerse) | Best FOSS Alternative (CogVideoX / Wan2.1 self-hosted) | Delta / 12 months |
+| Dimension | Chosen Option (Worker harness + external video provider) | Best FOSS Alternative (CogVideoX / Wan2.1 self-hosted) | Delta / 12 months |
 |---|---|---|---|
 | Infra cost | $0/mo (CF Worker included in free tier) | $20–80/mo (GPU compute for video gen) | −$0 CF / +GPU if FOSS |
 | Egress cost | Variable (R2 media egress; CF-internal = $0) | Variable (self-hosted egress) | Comparable |
-| Token cost | Provider variable (PixVerse per-video credit) | $0 direct; GPU compute cost | PixVerse cost vs GPU cost at volume |
-| Vendor risk | Medium/high (PixVerse pricing and availability) | Low (FOSS weights; self-host) | Mitigated by adapter boundary enabling swap |
+| Token cost | Provider variable (external video provider per-video credit) | $0 direct; GPU compute cost | external video provider cost vs GPU cost at volume |
+| Vendor risk | Medium/high (external video provider pricing and availability) | Low (FOSS weights; self-host) | Mitigated by adapter boundary enabling swap |
 
 ### Consequences
 
 - Positive: Protects credentials and gives cost control.
 - Negative: Adds backend work and provider status handling.
-- Neutral: Harness can support BytePlus/PixVerse alternatives.
+- Neutral: Harness can support BytePlus/external video provider alternatives.
 
 ## ADR-005: Credit purchases settle through payment webhooks before wallet credit
 
@@ -2110,11 +2110,11 @@ At MVP load (solo dev + early users), the DO free tier (100k req/day) is suffici
 
 ### Context
 
-PixVerse generation jobs can take 30–120 seconds. Cloudflare Workers have a 30-second CPU time limit on the free tier (extended to 30 minutes on paid, but still a single HTTP request lifetime). Keeping provider polling inside the HTTP request Worker causes timeouts for most real-world generation jobs. The client cannot receive the result synchronously.
+external video provider generation jobs can take 30–120 seconds. Cloudflare Workers have a 30-second CPU time limit on the free tier (extended to 30 minutes on paid, but still a single HTTP request lifetime). Keeping provider polling inside the HTTP request Worker causes timeouts for most real-world generation jobs. The client cannot receive the result synchronously.
 
 ### Decision
 
-Use Cloudflare Queue to decouple the generation submission (HTTP Worker, synchronous, fast) from generation polling (Queue Consumer Worker, async, bounded). The HTTP Worker validates, debits, inserts a job row, enqueues a typed message, and returns `202 Accepted { job_id }`. The Consumer Worker dequeues, polls PixVerse (max 60 attempts at configurable interval), writes R2 artifacts, and updates the job row. The browser polls `GET /api/strytree/generation-jobs/:jobId` for status.
+Use Cloudflare Queue to decouple the generation submission (HTTP Worker, synchronous, fast) from generation polling (Queue Consumer Worker, async, bounded). The HTTP Worker validates, debits, inserts a job row, enqueues a typed message, and returns `202 Accepted { job_id }`. The Consumer Worker dequeues, polls external video provider (max 60 attempts at configurable interval), writes R2 artifacts, and updates the job row. The browser polls `GET /api/strytree/generation-jobs/:jobId` for status.
 
 ### Alternatives Considered
 
@@ -2205,7 +2205,7 @@ The add-on must not introduce a new graph-rendering runtime, hosted database SDK
 - [x] Features prioritized via MoSCoW with ROI score formula and per-feature calculation
 - [x] Min-viable scope explicitly stated (9-point list)
 - [x] Recommended add-on documented: ForkCompare Branch Candidate Workbench with bounded fan-out, scorecards, merge semantics, and stack guard
-- [x] Token budget: PixVerse video calls do not expose LLM tokens; cost log records credit_cost, elapsed_ms, estimated_cost_usd per call; $0 LLM token cost for MVP
+- [x] Token budget: external video provider video calls do not expose LLM tokens; cost log records credit_cost, elapsed_ms, estimated_cost_usd per call; $0 LLM token cost for MVP
 - [x] Monthly TCO estimated at $0 (CF D1/R2/KV/Queue free tier + Oracle Always Free ARM)
 - [x] FOSS-first decisions recorded: FOSS alternatives named in every ADR
 
@@ -2234,7 +2234,7 @@ The add-on must not introduce a new graph-rendering runtime, hosted database SDK
 - [x] Generation-job route debits before enqueue; Queue consumer writes R2 artifacts on success and refund/fallback ledger state on provider failure
 - [x] Provider budget circuit breaker blocks generation before ledger debit or queue enqueue when KV spend reaches configured daily limit
 - [x] ForkCompare candidate-run dependency guard added to prevent new graph/database/hosting stack drift
-- [x] Live PixVerse API credentialed polling is wired behind the same Queue consumer contract
+- [x] Live external video provider API credentialed polling is wired behind the same Queue consumer contract
 - [x] Signed provider webhook fixture invokes the same Strytree checkout settlement owner after signature verification
 
 ## Suggested Implementation Goals
@@ -2244,7 +2244,7 @@ The add-on must not introduce a new graph-rendering runtime, hosted database SDK
 
 /goal Strytree ledger tests pass for purchase_credit webhook, generation_debit, provider_failure_refund, unlock_debit, creator_credit, platform_fee, and duplicate idempotency replay — verified by test/strytree/ledger; no test modifies client-side balance state
 
-/goal Strytree generation harness uses server-side PixVerse credentials, validates typed payloads at the HTTP Worker, enqueues to CF Queue, and the consumer Worker writes R2 artifacts and returns structured fallback on provider failure — verified by test/strytree/generation; build scan confirms no PIXVERSE_API_KEY in client bundle
+/goal Strytree generation harness uses server-side external video provider credentials, validates typed payloads at the HTTP Worker, enqueues to CF Queue, and the consumer Worker writes R2 artifacts and returns structured fallback on provider failure — verified by test/strytree/generation; build scan confirms no EXTERNAL_VIDEO_PROVIDER_API_KEY in client bundle
 
 /goal Strytree auth-gate tests pass: all write endpoints return 401 without a valid session token and no ledger event or D1 write occurs — verified by test/strytree/auth, or stop after 10 turns
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import { CardInlineTextCommandMenus, type CardInlineTextCommandMenuMode } from '@/lib/cards/CardInlineTextCommandMenus'
-import { CardInlineTextViewerEditSurface } from '@/lib/cards/CardInlineTextViewerEditSurface'
+import { MarkdownInlineTextEditSurface } from '@/lib/markdown-core/ui/MarkdownInlineTextEditSurface'
+import type { MarkdownContentEditablePoint } from '@/lib/markdown-core/ui/markdownContentEditableSurface'
 import type { CardInlineTextChipDensity } from '@/lib/cards/CardInlineTextEditorSupport'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { readInlineCommandMenuSigilFromInsertedText, readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
@@ -25,7 +26,6 @@ type CardInlineTextEditingSurfaceProps = {
   editorDensity: { rowHeightPreset: DataViewRowHeightPreset; fieldLineMode: DataViewFieldLineMode }
   enableMarkdownCommandMenus: boolean
   finishProjectedCommandDraft: (nextValue: string) => void
-  finishCommandDraft: (nextValue: string) => void
   focusViewerCommandSelection: (start: number, end?: number) => void
   hasProjectedInvocationOverlay: boolean
   hideProjectedCaret: boolean
@@ -33,6 +33,7 @@ type CardInlineTextEditingSurfaceProps = {
   inlineChipDensity: CardInlineTextChipDensity
   isCommandMenuTarget: (target: EventTarget | null) => boolean
   mediaCommandMode: 'inline' | 'external'
+  initialViewerSelectionPointRef?: React.MutableRefObject<MarkdownContentEditablePoint | null>
   multiline: boolean
   onCancel: () => void
   onCommit: (forcedValue?: string) => void
@@ -62,62 +63,64 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
   const {
     ariaLabel, cardInlineEditInputAttribute, closeCommandMenu, commandContextText, commandMode, commandQuery, commandRootAttribute,
     commandRootRef, commandSelectionRef, commonEditorProps, draft, editorClassName, editorDensity, enableMarkdownCommandMenus,
-    finishProjectedCommandDraft, finishCommandDraft, focusViewerCommandSelection, hasProjectedInvocationOverlay, hideProjectedCaret, inputRef,
-    inlineChipDensity, isCommandMenuTarget, mediaCommandMode, multiline, onCancel, onCommit, onCommandDraftChange, onMediaCommandSelect, openCommandMenu,
+    finishProjectedCommandDraft, focusViewerCommandSelection, hasProjectedInvocationOverlay, hideProjectedCaret, inputRef,
+    inlineChipDensity, isCommandMenuTarget, mediaCommandMode, initialViewerSelectionPointRef, multiline, onCancel, onCommit, onCommandDraftChange, onMediaCommandSelect, openCommandMenu,
     openCommandMenuForSigilAtSelection, placeholder, projectedEditorDisplayValue, projectedEditorOverlay, projectedMediaAttachments,
     projectedSelectionRange, projectedTextareaOverlayTextClassName, projectedTextareaShellClassName, rows, setCommandMode, setCommandQuery,
     setDraft, setProjectedCommandDraft, showCommandLaunchers, useViewerEditSurface, viewerEditorRef, persistProjectedCommandDraft,
   } = props
   return (
     <section ref={commandRootRef} className="relative h-full min-h-0 w-full" {...{ [commandRootAttribute]: '1' }}>
-      {multiline ? (
-        useViewerEditSurface ? (
-          <CardInlineTextViewerEditSurface
-            value={draft}
-            ariaLabel={ariaLabel}
-            placeholder={placeholder}
-            className={cn(editorClassName, readDataViewMultiLineControlClassName({ rowHeightPreset: editorDensity.rowHeightPreset, fieldLineMode: editorDensity.fieldLineMode }))}
-            commandMode={commandMode}
-            editorRef={viewerEditorRef}
-            inputProxyRef={inputRef as React.RefObject<HTMLTextAreaElement | null>}
-            inlineChipDensity={inlineChipDensity}
-            projectedMediaAttachments={projectedMediaAttachments}
-            isCommandMenuTarget={isCommandMenuTarget}
-            onCancel={onCancel}
-            onCommit={onCommit}
-            onDraftChange={setDraft}
-            onFocus={commonEditorProps.onFocus}
-            onOpenCommandMenuForSigilAtSelection={openCommandMenuForSigilAtSelection}
-            readCommandSigilFromKeyEvent={readInlineCommandMenuSigilFromKeyEvent}
-            readCommandSigilFromInsertedText={readInlineCommandMenuSigilFromInsertedText}
-            cardInlineEditInputAttribute={cardInlineEditInputAttribute}
-          />
-        ) : (
-          <section className={projectedTextareaShellClassName} data-kg-card-inline-text-projected-textarea={hasProjectedInvocationOverlay ? '1' : undefined}>
-            {hasProjectedInvocationOverlay ? (
-              <FloatingPanelChatComposerMediaOverlay
-                input={draft}
-                mediaAttachments={null}
-                overlayChromeClassName=""
-                projectInvocationTokens={false}
-                projectedLayoutClassName={TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME}
-                projectedSelectionRange={projectedSelectionRange}
-                showProjectedCaret={hideProjectedCaret}
-                uiPanelTextFontClass={projectedTextareaOverlayTextClassName}
-              />
-            ) : null}
-            <PanelTextarea
-              {...commonEditorProps}
-              ref={inputRef as React.Ref<HTMLTextAreaElement>}
-              rows={rows ?? 3}
-              rowHeightPreset={editorDensity.rowHeightPreset}
-              fieldLineMode={editorDensity.fieldLineMode}
-              className={cn(editorClassName, hasProjectedInvocationOverlay ? ['relative z-0 text-transparent', hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'].join(' ') : '')}
-              data-kg-card-inline-edit-projected-overlay={hasProjectedInvocationOverlay ? '1' : undefined}
-              data-kg-card-inline-edit-media-overlay={projectedEditorOverlay.hasMedia ? '1' : undefined}
+      {useViewerEditSurface ? (
+        <MarkdownInlineTextEditSurface
+          value={draft}
+          ariaLabel={ariaLabel}
+          placeholder={placeholder}
+          className={inlineChipDensity === 'compact' ? editorClassName : cn(editorClassName, multiline ? readDataViewMultiLineControlClassName({ rowHeightPreset: editorDensity.rowHeightPreset, fieldLineMode: editorDensity.fieldLineMode }) : '')}
+          commandMode={commandMode}
+          editorRef={viewerEditorRef}
+          enableMarkdownCommandMenus={enableMarkdownCommandMenus}
+          inputProxyRef={inputRef as React.RefObject<HTMLTextAreaElement | null>}
+          initialSelectionPointRef={initialViewerSelectionPointRef}
+          inlineChipDensity={inlineChipDensity}
+          multiline={multiline}
+          projectedMediaAttachments={projectedMediaAttachments}
+          isCommandMenuTarget={isCommandMenuTarget}
+          onCancel={onCancel}
+          onCommit={onCommit}
+          onDraftChange={setDraft}
+          onFocus={commonEditorProps.onFocus}
+          onSelectionChange={selection => { commandSelectionRef.current = selection }}
+          onOpenCommandMenuForSigilAtSelection={openCommandMenuForSigilAtSelection}
+          readCommandSigilFromKeyEvent={readInlineCommandMenuSigilFromKeyEvent}
+          readCommandSigilFromInsertedText={readInlineCommandMenuSigilFromInsertedText}
+          cardInlineEditInputAttribute={cardInlineEditInputAttribute}
+        />
+      ) : multiline ? (
+        <section className={projectedTextareaShellClassName} data-kg-card-inline-text-projected-textarea={hasProjectedInvocationOverlay ? '1' : undefined}>
+          {hasProjectedInvocationOverlay ? (
+            <FloatingPanelChatComposerMediaOverlay
+              input={draft}
+              mediaAttachments={null}
+              overlayChromeClassName=""
+              projectInvocationTokens={false}
+              projectedLayoutClassName={TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME}
+              projectedSelectionRange={projectedSelectionRange}
+              showProjectedCaret={hideProjectedCaret}
+              uiPanelTextFontClass={projectedTextareaOverlayTextClassName}
             />
-          </section>
-        )
+          ) : null}
+          <PanelTextarea
+            {...commonEditorProps}
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            rows={rows ?? 3}
+            rowHeightPreset={editorDensity.rowHeightPreset}
+            fieldLineMode={editorDensity.fieldLineMode}
+            className={cn(editorClassName, hasProjectedInvocationOverlay ? ['relative z-0 text-transparent', hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'].join(' ') : '')}
+            data-kg-card-inline-edit-projected-overlay={hasProjectedInvocationOverlay ? '1' : undefined}
+            data-kg-card-inline-edit-media-overlay={projectedEditorOverlay.hasMedia ? '1' : undefined}
+          />
+        </section>
       ) : (
         <PanelTextInput {...commonEditorProps} ref={inputRef as React.Ref<HTMLInputElement>} type="text" density={editorDensity.rowHeightPreset} />
       )}
@@ -128,6 +131,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
           commandSelectionRef={commandSelectionRef}
           commandContextText={commandContextText}
           draft={useViewerEditSurface ? draft : projectedEditorDisplayValue}
+          sourceDraft={draft}
           inputRef={inputRef}
           menuAnchorRef={useViewerEditSurface ? viewerEditorRef : undefined}
           focusSelection={useViewerEditSurface ? focusViewerCommandSelection : undefined}
@@ -139,7 +143,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
           setCommandMode={setCommandMode}
           setDraft={useViewerEditSurface ? setDraft : setProjectedCommandDraft}
           onCommandDraftChange={useViewerEditSurface ? onCommandDraftChange : persistProjectedCommandDraft}
-          onCommandDraftApplied={useViewerEditSurface ? finishCommandDraft : finishProjectedCommandDraft}
+          onCommandDraftApplied={useViewerEditSurface ? undefined : finishProjectedCommandDraft}
           onMediaCommandSelect={onMediaCommandSelect}
         />
       ) : null}

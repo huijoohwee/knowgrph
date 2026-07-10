@@ -21,8 +21,12 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
     || !text.includes('onCommit={setCompactPreviewText}')
     || !text.includes('editActivation="click"')
     || !text.includes('markdownPreview="auto"')
+    || !text.includes('markdownCommandContextText={propertiesInlineMediaCommandContext}')
+    || !text.includes('editorSurface="viewer"')
+    || !text.includes('inlineChipDensity="compact"')
+    || !text.includes('openOnPointerDown')
   ) {
-    throw new Error('expected Widget compact preview text edits to reuse the shared Storyboard Card inline editor')
+    throw new Error('expected Widget compact preview text edits to reuse the shared Viewer WYSIWYG inline editor')
   }
   if (text.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')) {
     throw new Error('expected Widget compact preview to avoid a parallel markdown/read-only branch outside the shared Card inline editor')

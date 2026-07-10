@@ -115,11 +115,6 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
         ...DEFAULT_INTEGRATION_CONFIGS.aiChat,
         enabled: true,
       },
-      pixverseVideo: {
-        ...DEFAULT_INTEGRATION_CONFIGS.pixverseVideo,
-        enabled: true,
-        strategy: 'transition-video',
-      },
     }))
 
     const container = dom.window.document.createElement('section')
@@ -146,12 +141,9 @@ export async function testLocalMainPanelChatCanvasPipelineUsesRenderedIntegratio
     }
     if (
       settingsChatReadinessSnapshot?.integrationEnabled !== true ||
-      settingsChatReadinessSnapshot.integrationOpenTab !== 'chat' ||
-      settingsChatReadinessSnapshot.pixverseVideoEnabled !== true ||
-      settingsChatReadinessSnapshot.pixverseVideoStrategy !== 'transition-video' ||
-      settingsChatReadinessSnapshot.pixverseVideoTransport !== 'mcp-stdio'
+      settingsChatReadinessSnapshot.integrationOpenTab !== 'chat'
     ) {
-      throw new Error(`expected rendered Integrations settings snapshot to expose normalized chat and PixVerse routing, got ${JSON.stringify(settingsChatReadinessSnapshot)}`)
+      throw new Error(`expected rendered Integrations settings snapshot to expose normalized chat routing, got ${JSON.stringify(settingsChatReadinessSnapshot)}`)
     }
 
     const inspection = inspectLocalMainPanelChatCanvasPipeline({

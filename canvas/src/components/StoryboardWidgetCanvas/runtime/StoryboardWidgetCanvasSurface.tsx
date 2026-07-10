@@ -69,7 +69,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   getLiveZoomTransform: () => { k: number; x: number; y: number } | null
   zoomViewKeyRef: React.MutableRefObject<string | null>
   addNodeFromRegistryAtWorld: (args: { entry: WidgetRegistryEntry; x: number; y: number }) => void
-  addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; x: number; y: number }) => string
+  addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => string
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
@@ -220,7 +220,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     if (!mediaUrl) return false
     const pos = readSurfaceDrop(clientX, clientY)
     if (!pos) return false
-    const actualId = props.addRichMediaPanelFromMediaAtWorld({ media: { ...payload, url: mediaUrl }, x: pos.x, y: pos.y })
+    const actualId = props.addRichMediaPanelFromMediaAtWorld({ media: { ...payload, url: mediaUrl }, releaseClientPoint: { clientX, clientY }, x: pos.x, y: pos.y })
     if (!actualId) return false
     props.upsertUiToast({ id: 'storyboard-widget-drop-media', kind: 'neutral', message: 'Created Rich Media Panel node.', ttlMs: 1500 })
     clearMediaPointerDragPayload()

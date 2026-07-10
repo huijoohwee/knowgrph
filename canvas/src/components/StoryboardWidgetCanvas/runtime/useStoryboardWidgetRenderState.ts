@@ -24,8 +24,13 @@ export function useStoryboardWidgetRenderState(args: {
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
   const draftDocumentKeyRef = React.useRef<string | null>(null)
+  const appliedBaseGraphDataRef = React.useRef<GraphData | null>(null)
   const storyboardWidgetBaseGraphDataRef = React.useRef(args.storyboardWidgetBaseGraphData)
   storyboardWidgetBaseGraphDataRef.current = args.storyboardWidgetBaseGraphData
+  const storyboardWidgetBaseContentSignature = React.useMemo(
+    () => buildStoryboardWidgetDraftGraphBaseSignature(args.storyboardWidgetBaseGraphData),
+    [args.storyboardWidgetBaseGraphData],
+  )
 
   const draftGraphDataRevision = React.useMemo(() => {
     const draft = draftGraphData
@@ -41,6 +46,7 @@ export function useStoryboardWidgetRenderState(args: {
       const hadDraft = draftGraphDataRef.current !== null || draftDocumentKeyRef.current !== null
       draftGraphDataRef.current = null
       draftDocumentKeyRef.current = null
+      appliedBaseGraphDataRef.current = null
       if (hadDraft) setDraftGraphData(null)
       return
     }
@@ -50,7 +56,9 @@ export function useStoryboardWidgetRenderState(args: {
       previousDocumentKey: draftDocumentKeyRef.current,
       currentDraftGraphData: draftGraphDataRef.current,
       nextBaseGraphData: base,
+      previousBaseGraphData: appliedBaseGraphDataRef.current,
     })
+    appliedBaseGraphDataRef.current = base
     draftDocumentKeyRef.current = args.activeDocumentKey
     draftGraphDataRef.current = nextDraft
     if (nextDraft === base) {
@@ -58,7 +66,7 @@ export function useStoryboardWidgetRenderState(args: {
       return
     }
     setDraftGraphData(prev => (prev === nextDraft ? prev : nextDraft))
-  }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive])
+  }, [args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, storyboardWidgetBaseContentSignature])
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
     const baseForRender = args.storyboardWidgetBaseGraphData || args.baseGraphData

@@ -91,7 +91,7 @@ flowchart TD
 
 Rules:
 - Rollback is operator configuration, not source-code aliasing.
-- Existing OpenAI, BytePlus, Gemini, PixVerse, and non-DeerFlow paths remain independent.
+- Existing OpenAI, BytePlus, Gemini, external video provider, and non-DeerFlow paths remain independent.
 - Source Files created by DeerFlow import remain ordinary workspace files.
 
 ## Release Checklist

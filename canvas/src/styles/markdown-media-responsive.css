@@ -49,3 +49,7 @@
 [data-kg-card-inline-chip-density='compact'] .kg-inline-chip-label-15ch {
   line-height: inherit;
 }
+
+[data-kg-card-inline-chip-density='compact'] [data-kg-card-inline-keyword-pill='1'] {
+  line-height: inherit;
+}

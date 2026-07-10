@@ -22,7 +22,6 @@ const parseQuotedYamlScalar = (value) => {
   }
   return text;
 };
-
 const extractFrontmatter = (markdown) => {
   const lines = String(markdown || "").split(/\r?\n/);
   if (lines[0] !== FRONTMATTER_BOUNDARY) return "";
@@ -237,3 +236,35 @@ export const buildAgenticCanvasOsDocsStaticResolutionPayload = (args = {}) => (
     },
   })
 );
+
+export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}) => {
+  const fetchDoc = async (fileName) => {
+    try {
+      const url = `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/${fileName}`;
+      const res = await fetch(url, {
+        cf: { cacheTtl: 300, cacheEverything: true }
+      });
+      if (!res.ok) return "";
+      return await res.text();
+    } catch {
+      return "";
+    }
+  };
+
+  const [facts, command, semantic, binding] = await Promise.all([
+    fetchDoc("FACTS.md"),
+    fetchDoc("DICTIONARY-COMMAND.md"),
+    fetchDoc("DICTIONARY-SEMANTIC.md"),
+    fetchDoc("DICTIONARY-BINDING.md"),
+  ]);
+
+  return buildAgenticCanvasOsDocsInvokePayload({
+    ...args,
+    docsContentByFileName: {
+      "FACTS.md": facts,
+      "DICTIONARY-COMMAND.md": command,
+      "DICTIONARY-SEMANTIC.md": semantic,
+      "DICTIONARY-BINDING.md": binding,
+    },
+  });
+};

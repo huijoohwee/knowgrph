@@ -1,4 +1,5 @@
 import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { buildInlineMediaUrlIdentityKey } from '@/lib/command-menu/inlineMediaUrlIdentity'
 
 export type TextareaInvocationMediaAttachment = {
   mediaKind: InlineMediaKind
@@ -17,21 +18,12 @@ export type TextareaInvocationProjectedMediaChip = {
 }
 
 const CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX = '@'
-const TEXTAREA_INVOCATION_MEDIA_REFERENCE_RE = /@[A-Za-z0-9][A-Za-z0-9._-]*/g
+const TEXTAREA_INVOCATION_MEDIA_REFERENCE_RE = /@[\p{L}\p{N}][\p{L}\p{N}._-]*/gu
+const TEXTAREA_INVOCATION_MEDIA_REFERENCE_START_BOUNDARY_RE = /[\p{L}\p{N}_/-]/u
+const TEXTAREA_INVOCATION_MEDIA_REFERENCE_END_BOUNDARY_RE = /[\p{L}\p{N}_-]/u
 
 export function normalizeMediaProjectionUrlKey(value: unknown): string {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-  try {
-    const parsed = new URL(raw, 'https://kg.local')
-    parsed.searchParams.delete('kg_media_token')
-    const pathAndQuery = `${parsed.pathname}${parsed.search}`.toLowerCase()
-    return parsed.origin === 'https://kg.local'
-      ? pathAndQuery
-      : `${parsed.origin}${pathAndQuery}`.toLowerCase()
-  } catch {
-    return (raw.split('?kg_media_token=')[0] || raw).toLowerCase()
-  }
+  return buildInlineMediaUrlIdentityKey(value)
 }
 
 export function readMediaAttachmentLabel(attachment: TextareaInvocationMediaAttachment): string {
@@ -46,7 +38,7 @@ export function readMediaAttachmentLabel(attachment: TextareaInvocationMediaAtta
 }
 
 export const readTextareaInvocationMediaReferenceKey = (value: string): string =>
-  String(value || '').trim().replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  String(value || '').trim().replace(/^@+/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
 
 export function readTextareaInvocationMediaDisplayLabelFromLabel(label: string): string {
   const normalized = String(label || '').trim() || 'media'
@@ -57,12 +49,12 @@ export function readTextareaInvocationMediaDisplayLabelFromLabel(label: string):
 
 function isTextareaInvocationMediaReferenceStartBoundary(source: string, index: number): boolean {
   if (index <= 0) return true
-  return !/[A-Za-z0-9_/-]/.test(source[index - 1] || '')
+  return !TEXTAREA_INVOCATION_MEDIA_REFERENCE_START_BOUNDARY_RE.test(source[index - 1] || '')
 }
 
 function isTextareaInvocationMediaReferenceEndBoundary(source: string, index: number): boolean {
   if (index >= source.length) return true
-  return !/[A-Za-z0-9_-]/.test(source[index] || '')
+  return !TEXTAREA_INVOCATION_MEDIA_REFERENCE_END_BOUNDARY_RE.test(source[index] || '')
 }
 
 function sourceContainsExactTextareaInvocationMediaReference(source: string, label: string): boolean {

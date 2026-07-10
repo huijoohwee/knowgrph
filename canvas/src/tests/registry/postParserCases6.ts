@@ -48,6 +48,8 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["chat.responseContract.storage.kgcNewChatCollisionSessionFolder","@/__tests__/chatHistoryWorkspacePersistence.test","testChatHistoryWorkspaceNewKgcCollisionCreatesMatchingSessionFolder"],
   ["chat.responseContract.storage.kgcTraceUserMediaSanitized","@/__tests__/chatHistoryWorkspacePersistence.test","testChatHistoryWorkspaceKgcTraceSanitizesLocalMediaUserText"],
   ["ui.floatingPanelChat.composer.slashVariableMenus","@/__tests__/floatingPanelChatComposerCommands.test","testFloatingPanelChatComposerReusesSlashAndVariableMenus"],
+  ["ui.floatingPanelChat.composer.remoteGrammarWiring","@/__tests__/floatingPanelRemoteGrammarCommands.test","testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar"],
+  ["ui.floatingPanelChat.composer.remoteGrammarSharedLookup","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarHydratesSharedInvocationLookups"],
   ["ui.floatingPanelChat.message.mediaChip","@/__tests__/floatingPanelChatSourceFileLink.test","testFloatingPanelChatRendersUserMediaMarkdownAsInlineChip"],
   ["ui.floatingPanelChat.relayStatus.visibleSeparateFromConnectivity","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterShowsRelayStatusSeparatelyFromEndpointConnectivity"],
   ["ui.floatingPanelChat.footer.errorDedupe","@/__tests__/floatingPanelChatFooterErrorDedupe.test","testFloatingPanelChatFooterSuppressesDuplicateConnectivityError"],

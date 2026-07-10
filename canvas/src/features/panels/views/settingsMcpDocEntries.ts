@@ -93,13 +93,6 @@ import {
   getStripeMcpApiRowAnchorId,
 } from './stripeMcpApiDocs'
 import {
-  PIXVERSE_MCP_DOC_AREA,
-  PIXVERSE_MCP_DOC_ENTRIES,
-  PIXVERSE_MCP_LOCAL_CONFIG_KEY,
-  buildPixVerseLocalMcpConfigJson,
-  getPixVerseMcpApiRowAnchorId,
-} from './pixverseMcpApiDocs'
-import {
   MIROMIND_MCP_DOC_AREA,
   MIROMIND_MCP_DOC_ENTRIES,
   getMiroMindMcpApiRowAnchorId,
@@ -154,7 +147,6 @@ export function buildMcpDocEntries(
     ...FEISHU_BASE_MCP_DOC_ENTRIES,
     ...LARK_APP_MCP_DOC_ENTRIES,
     ...STRIPE_MCP_DOC_ENTRIES,
-    ...PIXVERSE_MCP_DOC_ENTRIES,
     ...MIROMIND_MCP_DOC_ENTRIES,
     ...SEALION_MCP_DOC_ENTRIES,
     ...KNOWGRPH_VDEOXPLN_DOC_ENTRIES,
@@ -193,8 +185,6 @@ export function buildMcpVirtualEntry(
         ? getLarkAppMcpApiRowAnchorId(entry.meta.key)
       : area === STRIPE_MCP_DOC_AREA
         ? getStripeMcpApiRowAnchorId(entry.meta.key)
-      : area === PIXVERSE_MCP_DOC_AREA
-        ? getPixVerseMcpApiRowAnchorId(entry.meta.key)
       : area === MIROMIND_MCP_DOC_AREA
         ? getMiroMindMcpApiRowAnchorId(entry.meta.key)
       : area === SEALION_MCP_DOC_AREA
@@ -244,9 +234,7 @@ export function buildMcpVirtualEntry(
                 ? buildExaRemoteMcpConfigJson(values)
                 : entry.meta.key === LARK_APP_MCP_REMOTE_CONFIG_KEY
                   ? buildLarkAppRemoteMcpConfigJson()
-                : entry.meta.key === PIXVERSE_MCP_LOCAL_CONFIG_KEY
-                  ? buildPixVerseLocalMcpConfigJson(values)
-                  : entry.meta.key === SEALION_MCP_REMOTE_CONFIG_KEY
+                : entry.meta.key === SEALION_MCP_REMOTE_CONFIG_KEY
                     ? buildSealionMcpRemoteConfigJson()
                   : entry.meta.key === VIDEODB_MCP_UVX_CONFIG_KEY
                     ? buildVideodbUvxMcpConfigJson(values)

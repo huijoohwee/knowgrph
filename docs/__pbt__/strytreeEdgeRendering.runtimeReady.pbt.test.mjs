@@ -192,7 +192,7 @@ test('runtime-ready: dependency manifest unchanged for this spec (exact known su
     '@x402/core', '@x402/evm', '@x402/hono', 'drizzle-orm', 'hono', 'jsonwebtoken', 'yjs',
   ].sort(), 'runtime dependencies must be the pre-existing set (no spec additions)')
   assert.deepEqual(Object.keys(pkg.devDependencies || {}).sort(), [
-    'drizzle-kit', 'fast-check',
+    'fast-check',
   ].sort(), 'devDependencies must be the pre-existing set (no spec additions)')
 })
 

@@ -6,6 +6,8 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_storyboard_rich_media_drop_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_storyboard_rich_media_drop_browser_smoke.py', import.meta.url), 'utf8')
+  const geometrySource = readFileSync(new URL('../../scripts/storyboard_edge_smoke_geometry.py', import.meta.url), 'utf8')
+  const browserSmokeSource = `${verifierSource}\n${geometrySource}`
 
   for (const snippet of [
     "pathname === '/__smoke__/storyboard-rich-media-drop'",
@@ -69,7 +71,7 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
     'expected {source_kind} drop to preserve existing authored nodes',
     "data-kg-storyboard-widget-surface-root=\"storyboard\"",
   ]) {
-    if (!verifierSource.includes(snippet)) {
+    if (!browserSmokeSource.includes(snippet)) {
       throw new Error(`expected storyboard browser verifier to assert the real drag surface contract: ${snippet}`)
     }
   }

@@ -1,5 +1,11 @@
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES } from '@/features/memory/aiAgentsMemoryLayerContract.mjs'
-import { AGENTIC_OS_DOC_INVOCATIONS, AGENTIC_OS_SEMANTIC_INVOCATIONS, type AgenticOsDocInvocationId } from '@/features/agentic-os/agenticOsDocInvocations'
+import {
+  AGENTIC_OS_DOC_INVOCATIONS,
+  AGENTIC_OS_SEMANTIC_INVOCATIONS,
+  getAgenticOsDocInvocations,
+  getAgenticOsSemanticInvocations,
+  type AgenticOsDocInvocationId,
+} from '@/features/agentic-os/agenticOsDocInvocations'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -10,6 +16,7 @@ export type ChatInvocationId =
   | 'mcp'
   | 'model'
   | AgenticOsDocInvocationId
+  | string
 
 export type ChatInvocationOption = {
   id: ChatInvocationId
@@ -57,15 +64,44 @@ export const CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
   })),
 ]
 
-const CHAT_INVOCATION_BY_TOKEN = new Map(CHAT_INVOCATION_OPTIONS.map(option => [option.token.toLowerCase(), option]))
+export const getChatInvocationOptions = (): readonly ChatInvocationOption[] => {
+  const liveDocOptions = getAgenticOsDocInvocations().map(doc => ({
+    id: doc.id,
+    token: doc.hashToken,
+    label: doc.label,
+    summary: doc.summary,
+    keywords: doc.keywords,
+    sourcePath: doc.sourcePath,
+    slashCommand: doc.slashCommand,
+    atToken: doc.atToken,
+  }))
+  const liveSemanticOptions = getAgenticOsSemanticInvocations()
+    .filter(invocation => !BASE_CHAT_INVOCATION_TOKENS.has(invocation.token.toLowerCase()))
+    .map(invocation => ({
+      id: invocation.id as ChatInvocationId,
+      token: invocation.token as `#${string}`,
+      label: invocation.label,
+      summary: invocation.summary,
+      keywords: invocation.keywords,
+      sourcePath: invocation.sourcePath,
+    }))
+  return [
+    ...BASE_CHAT_INVOCATION_OPTIONS,
+    ...liveDocOptions,
+    ...liveSemanticOptions,
+  ]
+}
 
-export const isChatInvocationToken = (token: string): boolean => CHAT_INVOCATION_BY_TOKEN.has(String(token || '').toLowerCase())
+export const isChatInvocationToken = (token: string): boolean => (
+  getChatInvocationOptions().some(option => option.token.toLowerCase() === String(token || '').toLowerCase())
+)
 
 export const parseChatInvocationDirectives = (raw: unknown): ChatInvocationOption[] => {
   const text = String(raw || '')
+  const optionsByToken = new Map(getChatInvocationOptions().map(option => [option.token.toLowerCase(), option]))
   const found = new Map<ChatInvocationId, ChatInvocationOption>()
   for (const match of text.matchAll(/(^|\s)(#[A-Za-z0-9_.-]+)/g)) {
-    const option = CHAT_INVOCATION_BY_TOKEN.get(String(match[2] || '').toLowerCase())
+    const option = optionsByToken.get(String(match[2] || '').toLowerCase())
     if (option && !found.has(option.id)) found.set(option.id, option)
   }
   return [...found.values()]

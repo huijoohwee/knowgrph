@@ -68,7 +68,7 @@ import {
   type MediaDragPayload,
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
-
+import { recordMediaDropScreenAnchor } from '@/lib/ui/mediaDropScreenAnchors'
 function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
   const id = String(rawId || '').trim()
   if (!id) return
@@ -77,7 +77,6 @@ function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown)
   const suffix = parts.length > 1 ? parts[parts.length - 1] : ''
   if (suffix) out.add(suffix)
 }
-
 function readStoryboardWidgetDropRect(args: {
   rootRef: React.RefObject<HTMLElement | null>
   widgetDropBridgeOnly: boolean
@@ -379,7 +378,7 @@ export function useStoryboardWidgetDropBridge(args: {
     [args, openPendingOverlayNode, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
 
-  const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {
+  const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     const mediaUrl = String(payload.media.url || '').trim()
     if (!mediaUrl) return ''
@@ -410,6 +409,7 @@ export function useStoryboardWidgetDropBridge(args: {
       return ''
     }
     args.reservedNodeIdsRef.current.add(actualId)
+    if (payload.releaseClientPoint) recordMediaDropScreenAnchor(actualId, payload.releaseClientPoint)
     args.setOverlayNodeIdOverride(actualId)
     args.pendingOverlayNodeIdRef.current = actualId
     args.overlayNodeIdOverrideWasSelectedRef.current = false
@@ -483,7 +483,7 @@ export function useStoryboardWidgetDropBridge(args: {
       if (!pos) return 'await-transform'
       const mediaUrl = String(mediaPayload.url || '').trim()
       if (!mediaUrl) return 'rejected'
-      const actualId = addRichMediaPanelFromMediaAtWorld({ media: { ...mediaPayload, url: mediaUrl }, x: pos.x, y: pos.y })
+      const actualId = addRichMediaPanelFromMediaAtWorld({ media: { ...mediaPayload, url: mediaUrl }, releaseClientPoint: { clientX, clientY }, x: pos.x, y: pos.y })
       if (!actualId) return 'rejected'
       args.upsertUiToast({
         id: 'storyboard-widget-drop-media',

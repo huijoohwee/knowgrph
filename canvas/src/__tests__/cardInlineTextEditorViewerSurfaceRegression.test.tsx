@@ -83,6 +83,8 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
           inlineChipDensity: 'compact',
           multiline: true,
           markdownPreview: 'auto',
+          displayClassName: 'm-0 h-full min-h-0 select-none overflow-auto whitespace-pre-wrap break-words text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]',
+          editorClassName: 'h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)] [scrollbar-gutter:stable]',
           projectedMediaAttachments: [{
             mediaKind: 'image',
             label: attachmentLabel,
@@ -129,6 +131,16 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     const viewerEditorClassName = viewerEditor.getAttribute('class') || ''
     if (!viewerEditorClassName.includes('bg-transparent') || viewerEditorClassName.includes('bg-[color:var(--kg-input-bg)]') || viewerEditorClassName.includes('rounded border')) {
       throw new Error(`expected Viewer card edit mode to reuse transparent Workspace Viewer edit chrome, got ${viewerEditorClassName}`)
+    }
+    for (const expectedClass of ['text-[10px]', 'leading-4', 'overflow-auto']) {
+      if (!viewerEditorClassName.includes(expectedClass)) {
+        throw new Error(`expected compact Viewer card edit mode to preserve caller-owned ${expectedClass}, got ${viewerEditorClassName}`)
+      }
+    }
+    for (const staleClass of ['px-2', 'px-3', 'py-1', 'py-1.5', 'text-xs', 'min-h-8']) {
+      if (viewerEditorClassName.includes(staleClass)) {
+        throw new Error(`expected compact Viewer card edit mode not to append DataView control class ${staleClass}, got ${viewerEditorClassName}`)
+      }
     }
     const visibleTextarea = container.querySelector('textarea[aria-label="Summary for workspace-source"]')
     if (visibleTextarea) {
@@ -237,10 +249,10 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
 export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsetsStable() {
   const { dom, restore } = initJsdomHarness()
   const {
-    CardInlineTextViewerEditSurface,
-    focusCardInlineTextViewerSelectionSoon,
-    buildCardInlineTextViewerEditHtml,
-  } = await import('@/lib/cards/CardInlineTextViewerEditSurface')
+    MarkdownInlineTextEditSurface,
+    focusMarkdownInlineTextSelectionSoon,
+    buildMarkdownInlineTextEditHtml,
+  } = await import('@/lib/markdown-core/ui/MarkdownInlineTextEditSurface')
   const {
     INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR,
     getInlineMediaEditorMarkdownSelectionOffsets,
@@ -252,30 +264,32 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
   const root = createRoot(container)
   const editorRef = React.createRef<HTMLElement>()
   const proxyRef = React.createRef<HTMLTextAreaElement>()
+  const committedValues: string[] = []
   const mediaAttachments = [{
     mediaKind: 'image' as const,
     label: 'strybldr-starter-source-017d1e965528642f.png',
     sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached.png',
     thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached-thumb.png',
   }]
-  const initialValue = 'I can ... #storyboard ..'
+  const initialValue = 'I and\n![buddydrone.jpg](https://airvio.co/api/storage/media/airvio/runs/storyboard/buddydrone.jpg)\ncan see that #storyboard is as interesting as /cost.audit'
   const nextValue = 'I can ... #storyboard /soul.load ..'
   const nextCursor = nextValue.indexOf('/soul.load') + '/soul.load'.length
   let setHarnessValue: ((next: string) => void) | null = null
   function Harness() {
     const [value, setValue] = React.useState(initialValue)
     setHarnessValue = setValue
-    return React.createElement(CardInlineTextViewerEditSurface, {
+    return React.createElement(MarkdownInlineTextEditSurface, {
       value,
       ariaLabel: 'Summary for workspace-source',
       placeholder: 'Add summary',
       commandMode: null,
       editorRef,
       inputProxyRef: proxyRef,
+      inlineChipDensity: 'compact',
       projectedMediaAttachments: mediaAttachments,
       isCommandMenuTarget: () => false,
       onCancel: () => void 0,
-      onCommit: () => void 0,
+      onCommit: value => committedValues.push(value),
       onDraftChange: setValue,
       onFocus: () => void 0,
       onOpenCommandMenuForSigilAtSelection: () => void 0,
@@ -294,8 +308,18 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
       throw new Error(`expected attachment-only media not to be appended into Viewer edit text without an authored @ token, html=${editor.innerHTML}`)
     }
+    if (editor.querySelector('br')) {
+      throw new Error(`expected compact Viewer edit surface to flatten media-adjacent source line breaks, html=${editor.innerHTML}`)
+    }
     await act(async () => {
-      focusCardInlineTextViewerSelectionSoon(editorRef, nextCursor, nextCursor)
+      Simulate.blur(editor, { relatedTarget: null })
+      await waitForFrames(dom.window, 4)
+    })
+    if (committedValues.at(-1) !== initialValue) {
+      throw new Error(`expected no-op compact Viewer blur to preserve raw source line breaks, got ${JSON.stringify(committedValues)}`)
+    }
+    await act(async () => {
+      focusMarkdownInlineTextSelectionSoon(editorRef, nextCursor, nextCursor)
       setHarnessValue?.(nextValue)
     })
     await act(async () => {
@@ -305,7 +329,7 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (!offsets || offsets.startOffset !== nextCursor || offsets.endOffset !== nextCursor) {
       throw new Error(`expected /, #, @ chip re-render to preserve command caret at ${nextCursor}, got ${JSON.stringify(offsets)}`)
     }
-    directProbe.innerHTML = buildCardInlineTextViewerEditHtml({
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: nextValue,
       projectedMediaAttachments: mediaAttachments,
     })
@@ -313,8 +337,19 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (directText.includes('@strybldr-starter-source-017d1e965528642f.png')) {
       throw new Error(`expected attachment-only @ media chip not to be appended into card edit text, text=${JSON.stringify(directText)}`)
     }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: 'I and\n![buddydrone.jpg](https://airvio.co/api/storage/media/airvio/runs/storyboard/buddydrone.jpg)\ncan see that #storyboard is as interesting as /cost.audit\n',
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: mediaAttachments,
+    })
+    if (directProbe.querySelector('br')) {
+      throw new Error(`expected compact Viewer card edit HTML to flatten media-adjacent soft line breaks, html=${directProbe.innerHTML}`)
+    }
+    if (String(directProbe.textContent || '').replace(/\s+/g, ' ').trim() !== 'I and buddydrone.jpg can see that #storyboard is as interesting as /cost.audit') {
+      throw new Error(`expected compact Viewer card edit text to keep media, /, and # inline, html=${directProbe.innerHTML}`)
+    }
     const authoredMediaValue = `I can ... #storyboard @strybldr-starter-source-017d1e965528642f.png /soul.load ..`
-    directProbe.innerHTML = buildCardInlineTextViewerEditHtml({
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: authoredMediaValue,
       projectedMediaAttachments: mediaAttachments,
     })
@@ -331,6 +366,188 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     const authoredMediaThumbnail = authoredMediaChip.querySelector('[data-kg-card-inline-wysiwyg-media-thumbnail="1"]') as HTMLElement | null
     if (!(authoredMediaThumbnail instanceof dom.window.HTMLElement) || authoredMediaThumbnail.hasAttribute('aria-hidden') || !authoredMediaThumbnail.getAttribute('aria-label')) {
       throw new Error(`expected authored @ media chip thumbnail to stay visible to selection tooling, html=${authoredMediaChip.outerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: 'Generate a text response for the active request.\n@空武.jpg',
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: [{
+        mediaKind: 'image',
+        label: '空武.jpg',
+        sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+        thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+      }],
+    })
+    if (directProbe.querySelector('br')) {
+      throw new Error(`expected compact Viewer edit surface to flatten Unicode @ media soft line breaks, html=${directProbe.innerHTML}`)
+    }
+    const unicodeAuthoredMediaChip = directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(unicodeAuthoredMediaChip instanceof dom.window.HTMLElement) || unicodeAuthoredMediaChip.getAttribute('data-kg-card-inline-wysiwyg-media-markdown') !== '@空武.jpg') {
+      throw new Error(`expected Unicode @ media token to render and serialize as authored Viewer media chip, html=${directProbe.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: 'Generate a text response for the active request.\n\n@空武.jpg',
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: [{
+        mediaKind: 'image',
+        label: '空武.jpg',
+        sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+        thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+      }],
+    })
+    if (directProbe.querySelector('br')) {
+      throw new Error(`expected compact Viewer edit surface to flatten blank-line Unicode @ media soft breaks, html=${directProbe.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: 'Generate a text response for the active request.\n\n![空武.jpg](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg)',
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: [{
+        mediaKind: 'image',
+        label: '空武.jpg',
+        sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+        thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+      }],
+    })
+    if (directProbe.querySelector('br')) {
+      throw new Error(`expected compact Viewer edit surface to flatten blank-line markdown media soft breaks, html=${directProbe.innerHTML}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorViewerSurfaceKeepsFocusedDomWhenRenderedDraftMatches() {
+  const { dom, restore } = initJsdomHarness()
+  const {
+    MarkdownInlineTextEditSurface,
+    buildMarkdownInlineTextEditHtml,
+  } = await import('@/lib/markdown-core/ui/MarkdownInlineTextEditSurface')
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const editorRef = React.createRef<HTMLElement>()
+  const proxyRef = React.createRef<HTMLTextAreaElement>()
+  const committedValues: string[] = []
+  const initialValue = 'can see #storyboard'
+  const nextValue = 'can 123 see #storyboard'
+  function Harness() {
+    const [value, setValue] = React.useState(initialValue)
+    return React.createElement(MarkdownInlineTextEditSurface, {
+      value,
+      ariaLabel: 'Summary for workspace-runtime',
+      placeholder: 'Add summary',
+      commandMode: null,
+      editorRef,
+      inputProxyRef: proxyRef,
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: null,
+      isCommandMenuTarget: () => false,
+      onCancel: () => void 0,
+      onCommit: value => committedValues.push(value),
+      onDraftChange: setValue,
+      onFocus: () => void 0,
+      onOpenCommandMenuForSigilAtSelection: () => void 0,
+      readCommandSigilFromKeyEvent: () => null,
+      readCommandSigilFromInsertedText: () => null,
+      cardInlineEditInputAttribute: 'data-test-card-inline-input',
+    })
+  }
+  const findFirstTextNode = (root: HTMLElement): Text | null => {
+    const walker = root.ownerDocument.createTreeWalker(root, dom.window.NodeFilter.SHOW_TEXT)
+    let node = walker.nextNode()
+    while (node) {
+      if (String(node.nodeValue || '').includes('can')) return node as Text
+      node = walker.nextNode()
+    }
+    return null
+  }
+  try {
+    await act(async () => {
+      root.render(React.createElement(Harness))
+      await waitForFrames(dom.window, 8)
+    })
+    const editor = editorRef.current
+    if (!editor) throw new Error('expected Viewer edit surface')
+    const firstTextNode = findFirstTextNode(editor)
+    if (!firstTextNode) throw new Error(`expected editable text node before invocation chip, html=${editor.innerHTML}`)
+    firstTextNode.nodeValue = 'can 123 see '
+    const expectedHtml = buildMarkdownInlineTextEditHtml({ value: nextValue, inlineChipDensity: 'compact' })
+    if (editor.innerHTML !== expectedHtml) {
+      throw new Error(`expected browser DOM edit to match the rendered draft without needing a DOM rewrite, got ${editor.innerHTML}`)
+    }
+    await act(async () => {
+      Simulate.input(editor)
+      await waitForFrames(dom.window, 8)
+    })
+    if (findFirstTextNode(editor) !== firstTextNode) {
+      throw new Error(`expected focused Viewer input render to keep the existing DOM text node when HTML already matches, html=${editor.innerHTML}`)
+    }
+    await act(async () => {
+      Simulate.blur(editor, { relatedTarget: null })
+      await waitForFrames(dom.window, 4)
+    })
+    if (committedValues.at(-1) !== nextValue) {
+      throw new Error(`expected blur commit to preserve the latest typed draft, got ${JSON.stringify(committedValues)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: 'Runtime Gate',
+          ariaLabel: 'Storyboard title for workspace-runtime',
+          placeholder: 'Add title',
+          canEdit: true,
+          editActivation: 'click',
+          editorSurface: 'viewer',
+          inlineChipDensity: 'compact',
+          displayClassName: 'min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]',
+          editorClassName: 'min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]',
+          onCommit: value => committedValues.push(value),
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+    const display = container.querySelector('[aria-label="Storyboard title for workspace-runtime"][data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard title display to use the shared card inline display surface')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+      await waitForFrames(dom.window, 8)
+    })
+    const viewerEditor = container.querySelector('[data-kg-card-inline-viewer-edit-surface="1"][contenteditable="true"]')
+    if (!(viewerEditor instanceof dom.window.HTMLElement)) throw new Error(`expected title edit to open the shared Viewer contenteditable surface, html=${container.innerHTML}`)
+    if (viewerEditor.getAttribute('aria-multiline') !== 'false') {
+      throw new Error(`expected title Viewer edit surface to stay single-line, html=${viewerEditor.outerHTML}`)
+    }
+    if (container.querySelector('input[aria-label="Storyboard title for workspace-runtime"]')) {
+      throw new Error('expected title edit not to reopen the legacy PanelTextInput surface')
+    }
+    const hiddenProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]')
+    if (!(hiddenProxy instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected single-line Viewer title edit to keep the hidden command proxy')
+    await act(async () => {
+      viewerEditor.textContent = 'Runtime Gateway'
+      Simulate.input(viewerEditor)
+      Simulate.keyDown(viewerEditor, { key: 'Enter' })
+      await waitForFrames(dom.window, 4)
+    })
+    if (committedValues.at(-1) !== 'Runtime Gateway') {
+      throw new Error(`expected Enter to commit single-line Viewer title edits, got ${JSON.stringify(committedValues)}`)
     }
   } finally {
     await act(async () => {

@@ -7,9 +7,9 @@ compatibility_flags = [ "nodejs_compat" ]
 enabled = true
 
 [vars]
-STRYTREE_PIXVERSE_BASE_URL = "https://app-api.pixverse.ai"
-STRYTREE_PIXVERSE_MAX_POLLS = "60"
-STRYTREE_PIXVERSE_POLL_INTERVAL_MS = "1500"
+STRYTREE_EXTERNAL_VIDEO_PROVIDER_BASE_URL = "https://api.external-video-provider.invalid"
+STRYTREE_EXTERNAL_VIDEO_PROVIDER_MAX_POLLS = "60"
+STRYTREE_EXTERNAL_VIDEO_PROVIDER_POLL_INTERVAL_MS = "1500"
 STRYTREE_DAILY_PROVIDER_BUDGET_CENTS = "0"
 SELLER_ID = "airvio.co"
 CHECKOUT_BASE_URL = "https://airvio.co"

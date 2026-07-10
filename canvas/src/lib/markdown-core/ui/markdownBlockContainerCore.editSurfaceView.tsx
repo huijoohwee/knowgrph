@@ -20,11 +20,9 @@ import {
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
 import { MarkdownBlockContainerCommentPreviewOverlay } from './markdownBlockContainerCore.commentPreviewOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
+import { MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS } from './markdownContentEditableSurface'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
-
-export const MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS =
-  '[caret-color:inherit] focus:outline-none focus-visible:outline-none'
 
 export const MarkdownBlockContainerEditSurfaceView = (props: {
   editing: boolean

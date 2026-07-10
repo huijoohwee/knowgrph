@@ -22,7 +22,6 @@ import {
   getChatRecommendedModelHint,
   normalizeChatProviderId,
 } from '@/lib/chatEndpoint'
-import { parseIntegrationConfigsJson } from '@/features/integrations/config'
 import {
   buildHistoryKey,
   persistChatExchangeLog,
@@ -129,7 +128,6 @@ export default function FloatingPanelChat() {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)
-  const integrationConfigsJson = useGraphStore(s => s.integrationConfigsJson)
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
@@ -232,14 +230,6 @@ export default function FloatingPanelChat() {
     return `${chatProviderLabel} · ${chatProviderRegion} · ${modelLabel}`
   }, [chatModel, chatProviderLabel, chatProviderRegion])
   const chatProviderHint = React.useMemo(() => getChatRecommendedModelHint(chatProvider), [chatProvider])
-  const pixverseVideoConfig = React.useMemo(() => parseIntegrationConfigsJson(integrationConfigsJson).pixverseVideo, [integrationConfigsJson])
-  const chatProviderHintWithPixVerse = React.useMemo(() => {
-    const pixverseHint = pixverseVideoConfig.enabled
-      ? `PixVerse ${String(pixverseVideoConfig.strategy || 'auto')} is armed for rich-media runs.`
-      : ''
-    if (chatProviderHint && pixverseHint) return `${chatProviderHint} ${pixverseHint}`
-    return pixverseHint || chatProviderHint
-  }, [chatProviderHint, pixverseVideoConfig.enabled, pixverseVideoConfig.strategy])
   const storageChatProviderId = React.useMemo(
     () => toKnowgrphStorageChatProviderId(chatProvider),
     [chatProvider],
@@ -406,7 +396,7 @@ export default function FloatingPanelChat() {
       connectivity,
       connectivityDetail,
       chatProviderSummary,
-      chatProviderHint: chatProviderHintWithPixVerse || null,
+      chatProviderHint: chatProviderHint || null,
       chatContextScope,
       chatStorageTarget,
       chatKnowgrphWorkspacePath,
@@ -455,7 +445,7 @@ export default function FloatingPanelChat() {
     chatHistoryWorkspacePath,
     chatKnowgrphCloudUrl,
     chatKnowgrphWorkspacePath,
-    chatProviderHintWithPixVerse,
+    chatProviderHint,
     chatProviderSummary,
     chatStorageTarget,
     connectivity,

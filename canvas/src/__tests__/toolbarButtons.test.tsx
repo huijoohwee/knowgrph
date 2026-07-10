@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import IconButton from '@/components/IconButton'
+import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const tick = async () => {
@@ -86,6 +87,86 @@ export async function testIconButtonStopsPropagation() {
 
     if (buttonClicks !== 1) throw new Error(`expected button click handler once, got ${buttonClicks}`)
     if (parentClicks !== 0) throw new Error(`expected parent click handler to remain 0, got ${parentClicks}`)
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testWidgetActionToolbarIconsRemainSelectableAndClickable() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const clicks = { run: 0, duplicate: 0, remove: 0 }
+    const readRemoveClicks = () => clicks.remove
+    const noop = () => void 0
+    const root = createRoot(container)
+    root.render(
+      <WidgetEditorActionsToolbar
+        visible
+        ariaLabel="Storyboard card actions"
+        iconSizeClass="h-3.5 w-3.5"
+        iconStrokeWidth={1.8}
+        active
+        enableHandlesDisabled
+        convertToLoopDisabled={false}
+        duplicateDisabled={false}
+        actionVisibility={{
+          run: true,
+          updateKvEntry: false,
+          openInSidepane: false,
+          enableHandles: false,
+          probeTree: false,
+          convertToLoop: false,
+          duplicate: true,
+          clearOutput: false,
+          help: false,
+          remove: true,
+        }}
+        onRun={() => { clicks.run += 1 }}
+        onDuplicate={() => { clicks.duplicate += 1 }}
+        onClearOutput={noop}
+        onHelp={noop}
+        onRemove={() => { clicks.remove += 1 }}
+        onConvertToLoopNode={noop}
+      />,
+    )
+
+    await tick()
+
+    const toolbar = dom.window.document.querySelector('nav[data-kg-bubble-toolbar="1"][aria-label="Storyboard card actions"]')
+    if (!toolbar) throw new Error('expected Widget actions toolbar to expose the bubble-toolbar surface')
+    const runButton = dom.window.document.querySelector('button[data-kg-toolbar-action="run"][data-kg-selection-surface="bubble-toolbar-action"]')
+    if (!(runButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected Run action button to expose a selectable toolbar action surface')
+    const runIcon = runButton.querySelector('[data-kg-toolbar-action-icon="run"][role="img"]')
+    if (!(runIcon instanceof dom.window.HTMLElement)) throw new Error('expected Run action to expose a selectable icon wrapper')
+    if (runIcon.getAttribute('aria-hidden') === 'true') throw new Error('expected Run icon wrapper not to be aria-hidden decoration')
+    const runSvg = runIcon.querySelector('svg')
+    if (!runSvg || runSvg.getAttribute('aria-hidden') === 'true') throw new Error('expected Run icon SVG not to be hidden from selection tooling')
+
+    runIcon.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    runIcon.dispatchEvent(new dom.window.MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }))
+    await tick()
+    if (clicks.run !== 1) throw new Error(`expected Run action to fire from icon pointer activation, got ${clicks.run}`)
+
+    const duplicateIcon = dom.window.document.querySelector('[data-kg-toolbar-action-icon="duplicate"]')
+    if (!(duplicateIcon instanceof dom.window.HTMLElement)) throw new Error('expected Duplicate action to expose a selectable icon wrapper')
+    duplicateIcon.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    await tick()
+    if (clicks.duplicate !== 1) throw new Error(`expected Duplicate action to fire from icon click activation, got ${clicks.duplicate}`)
+
+    const removeIcon = dom.window.document.querySelector('[data-kg-toolbar-action-icon="remove"]')
+    if (!(removeIcon instanceof dom.window.HTMLElement)) throw new Error('expected Remove action to expose a selectable icon wrapper')
+    removeIcon.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    await tick()
+    const removeClicksAfterPointerDown = readRemoveClicks()
+    if (removeClicksAfterPointerDown !== 0) throw new Error(`expected Remove action not to fire from toolbar pointer-down capture, got ${removeClicksAfterPointerDown}`)
+    removeIcon.dispatchEvent(new dom.window.MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }))
+    await tick()
+    if (clicks.remove !== 1) throw new Error(`expected Remove action to fire once from pointer activation, got ${clicks.remove}`)
 
     root.unmount()
   } finally {

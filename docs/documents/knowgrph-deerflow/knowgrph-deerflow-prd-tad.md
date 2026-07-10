@@ -38,7 +38,7 @@
 
 ## Problem Statement
 
-Workflow builders need DeerFlow to be discoverable and usable without leaving Knowgrph, while the rest of the Canvas keeps the same provider-neutral contracts used by OpenAI, BytePlus, Gemini, PixVerse, and future providers.
+Workflow builders need DeerFlow to be discoverable and usable without leaving Knowgrph, while the rest of the Canvas keeps the same provider-neutral contracts used by OpenAI, BytePlus, Gemini, external video provider, and future providers.
 
 The shipped baseline solves this by exposing `deerflowApi.*` rows in MainPanel Integrations, normalizing `deerflow` through the shared chat endpoint helpers, seeding a DeerFlow text widget through Storyboard Widget registry templates, and routing rich-media generation through the existing `runRichMediaWidgetGeneration()` owner.
 

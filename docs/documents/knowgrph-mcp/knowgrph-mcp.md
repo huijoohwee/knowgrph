@@ -36,12 +36,12 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 | MCP Apps resource/server-readiness | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` + `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` + `cloudflare/pages/knowgrph-agent-ready.mjs` + `mcp/server.js` | native `io.modelcontextprotocol/ui` capability, `ui://knowgrph/agent-ready`, `text/html;profile=mcp-app`, `kgdoc://source-file/{id}`, mirrored no-auth `securitySchemes`, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, `prompts/list`, `prompts/get`, `resources/templates/list`, `resources/list`, `resources/read`, and `mcpAppsServerReadiness` |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | shared seven-tool WebMCP injection on `/knowgrph` HTML routes; `inspect_agent_surface` reads structured content through `/knowgrph/mcp` |
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/main.tsx` | page-load install with descriptor-complete shared tools, `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, and browser-local E2E readiness inspectors |
-| MainPanel MCP / Integrations | Shipped | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell |
+| MainPanel MCP / Integrations | Shipped as a mixed `documented` + `browser-published` shell | `canvas/src/features/panels/views/SettingsView.tsx` + `useSettingsChatAssist.tsx` | thin readiness and routing shell; rows become `runtime-executable` only when a named runtime owner actually registers the capability |
 | Cloudflare AI Gateway MCP docs surface | Shipped | `canvas/src/features/panels/views/cloudflareAiGatewayMcpApiDocs.ts` | MainPanel MCP operator docs for `https://ai-gateway.mcp.cloudflare.com/mcp`, AI Gateway endpoint patterns, log-inspection tools, and secret/account boundary |
 | FloatingPanel Chat -> Canvas pipeline | Shipped | `canvas/src/features/chat/*` + parser/store owners | validated KGC Markdown or literal MCP structured response -> Editor Workspace -> Canvas apply path |
 | MCP Gateway (discovery contract) | **Implemented** — four-surface federation + `knowgrph.os.status` | [`knowgrph-agentic-os-prd-tad.md`](https://github.com/huijoohwee/knowgrph/blob/main/docs/documents/knowgrph-agentic-os-prd-tad.md) v0.4.1 |
 | Agentic OS follow-on (HITL / live stages / dashboard) | **Spec-complete** — local HITL + live clients implemented; Worker deploy proof pending | [`knowgrph-agentic-os-follow-on-prd-tad.md`](knowgrph-agentic-os-follow-on-prd-tad.md) |
-| Agentic Canvas OS dashboard contract | Planned extension over shipped owners | `knowgrph-mcp-agentic-os-prd-tad.md` + companion | Canvas UI/cross-repo agent build and control dashboard; dry-run first; Track C in follow-on doc |
+| Agentic Canvas OS dashboard contract | **Implemented** — direct remote grammar queries over MCP | `knowgrph-mcp-agentic-os-prd-tad.md` + companion | Canvas UI/cross-repo agent build and control dashboard; uses `/api/invoke` on the `knowgrph` control plane |
 | Remote Worker MCP platform | Planned extension | none in repo yet | must not be documented as implemented |
 
 ---
@@ -57,6 +57,34 @@ Knowgrph should present one low-friction public remote MCP install story:
 - `knowgrph.agentic_canvas_os.docs.invoke` is now part of the current control-plane truth: docs should treat it as remote-live on `https://airvio.co/knowgrph/control-plane/mcp` while keeping `https://airvio.co/knowgrph/mcp` as the canonical basic install/discovery endpoint.
 
 This coherence rule keeps setup simple for Claude-compatible MCP hosts, Qwen Code, Kimi CLI, ModelArk, and similar Streamable HTTP clients without forcing them to guess which URL owns installation versus orchestration.
+
+## MCP-compatible LLM readiness
+
+MCP-compatible LLM hosts are ready to use the shipped discovery and control-plane
+surfaces today.
+
+- Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, BytePlus ModelArk, and
+  similar MCP-capable hosts can install `https://airvio.co/knowgrph/mcp` for
+  read-only discovery, retrieval, prompt discovery, and resource discovery.
+- Those same hosts can use
+  `https://airvio.co/knowgrph/control-plane/mcp` for approval-gated
+  orchestration and remote `knowgrph.agentic_canvas_os.docs.invoke` calls.
+- Local stdio MCP continues to expose the same grammar tool for repo-local
+  hosts that want `/`, `#`, and `@` invocation without the remote control-plane
+  surface.
+
+The readiness boundary is intentional: the canonical public install endpoint
+stays read-only, while live remote `/`, `#`, and `@` grammar invocation is
+available on the separate control-plane MCP surface.
+
+MainPanel readiness remains intentionally narrower:
+
+- MainPanel MCP can mix `documented` setup rows with `browser-published`
+  readiness rows
+- MainPanel Integrations should describe the full Settings-backed provider
+  universe unless a narrower subset is explicitly marked as scoped
+- planned bridge ids must not be described as `runtime-executable` until a
+  runtime owner ships them
 
 ---
 

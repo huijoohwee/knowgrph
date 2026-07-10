@@ -821,28 +821,6 @@ export async function testMainPanelRequestedIntegrationsSearchDropsProseVirtualV
       throw new Error(`expected BytePlus prompt row to render an empty configurable input, got ${textEditors.map(input => input.value).join(' | ')}`)
     }
 
-    await renderAndFlush(
-      root,
-      React.createElement(MainPanel, {
-        requestedTab: 'integrations',
-        requestedSearchQuery: 'pixverseVideoApi.transition_flow',
-      } as never),
-      anyWindow.requestAnimationFrame,
-      6,
-    )
-
-    text = container.textContent || ''
-    if (!text.includes('pixverseVideoApi.transition_flow')) {
-      throw new Error(`expected PixVerse transition_flow row in integrations search, got ${JSON.stringify(text)}`)
-    }
-    if (text.includes('Multi-scene plans derive transition-aware prompts')) {
-      throw new Error('expected PixVerse transition_flow Value cell to avoid hardcoded explanatory text')
-    }
-    textEditors = Array.from(container.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
-    const pixVerseTransitionInput = textEditors.find(input => input.value === '')
-    if (!pixVerseTransitionInput) {
-      throw new Error(`expected PixVerse transition_flow row to render an empty configurable input, got ${textEditors.map(input => input.value).join(' | ')}`)
-    }
   } finally {
     try {
       await unmountAndFlush(root)

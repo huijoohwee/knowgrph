@@ -97,6 +97,28 @@ export function testStoryboardWidgetBaseResetSkipsEquivalentNewerBaseRefresh() {
   if (changedResolved !== changedBase) throw new Error('expected changed newer base graph to replace the active draft graph')
 }
 
+export function testStoryboardWidgetBaseResetReconcilesCanonicalContentIntoNewerDraft() {
+  const previousBase = graphWithNodeProperties(3, { prompt: 'Original prompt.', stable: 'base' })
+  previousBase.nodes[0] = { ...previousBase.nodes[0]!, x: 0, y: 0 }
+  const currentDraft = graphWithNodeProperties(8, { prompt: 'Original prompt.', stable: 'base', draftOnly: 'preserved' })
+  currentDraft.nodes[0] = { ...currentDraft.nodes[0]!, x: 48, y: 32 }
+  const nextBase = graphWithNodeProperties(4, { prompt: 'Canonical edited prompt.', stable: 'base' })
+  nextBase.nodes[0] = { ...nextBase.nodes[0]!, x: 0, y: 0 }
+  const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'docs/example.md::',
+    previousDocumentKey: 'docs/example.md::',
+    currentDraftGraphData: currentDraft,
+    nextBaseGraphData: nextBase,
+    previousBaseGraphData: previousBase,
+  })
+  const node = resolved?.nodes[0]
+  const properties = (node?.properties || {}) as Record<string, unknown>
+  if (properties.prompt !== 'Canonical edited prompt.') throw new Error(`expected canonical base text to replace the stale draft value, got ${String(properties.prompt)}`)
+  if (properties.draftOnly !== 'preserved') throw new Error('expected base reconciliation to preserve draft-only properties')
+  if (node?.x !== 48 || node?.y !== 32) throw new Error(`expected base reconciliation to preserve draft-only layout, got ${node?.x},${node?.y}`)
+  if (readGraphDataRevision(resolved) <= readGraphDataRevision(currentDraft)) throw new Error('expected reconciled draft revision to outrank both authorities')
+}
+
 export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity() {
   const source = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRenderState.ts'), 'utf8')
   if (!source.includes('const storyboardWidgetBaseGraphDataRef = React.useRef(args.storyboardWidgetBaseGraphData)')) {
@@ -104,5 +126,8 @@ export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDeriv
   }
   if (source.includes('[args.activeDocumentKey, args.baseGraphDataRevision, args.editorRuntimeActive, args.storyboardWidgetBaseGraphData]')) {
     throw new Error('expected derived graph object identity to stay out of the draft reset effect dependencies')
+  }
+  if (!source.includes('storyboardWidgetBaseContentSignature')) {
+    throw new Error('expected derived base content changes to retrigger draft reconciliation without object-identity churn')
   }
 }

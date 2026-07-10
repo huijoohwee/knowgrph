@@ -76,7 +76,8 @@
     "hygiene:audit": "node ./scripts/check-hygiene-compliance.mjs --all",
     "hygiene:layout": "node ./scripts/check-hygiene-compliance.mjs --layout-only",
     "hygiene:chunks": "node ./scripts/check-hygiene-compliance.mjs --chunks",
-    "conflict:check": "npm run hygiene:check && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs",
+    "test:publish-sync:contract": "node --test scripts/__tests__/sync-pages-stale-asset-cleanup.test.mjs",
+    "conflict:check": "npm run hygiene:check && npm run test:publish-sync:contract && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs",
     "api-index:generate": "npx tsx --tsconfig canvas/tsconfig.json canvas/src/cli/generateApiCodebaseIndex.ts",
     "api-index:check": "npx tsx --tsconfig canvas/tsconfig.json canvas/src/cli/generateApiCodebaseIndex.ts --check",
     "preview": "npm run preview --workspace=@knowgrph/canvas --",
@@ -112,7 +113,6 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10",
     "fast-check": "3.23.2"
   }
 }

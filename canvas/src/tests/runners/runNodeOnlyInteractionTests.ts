@@ -222,6 +222,21 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
+      'ui.storyboardWidget.richMediaPanel.remove.closesCanonicalFloatingPanelIds',
+      modRichMediaOpenWidgetExclusion.testStoryboardWidgetRemoveClosesCanonicalRichMediaPanelIds,
+    )
+    await execTest(
+      results,
+      'ui.richMediaPanel.overlayRemove.resolvesCanonicalOpenWidgetIds',
+      modRichMediaOpenWidgetExclusion.testFlowCanvasRichMediaOverlayRemoveResolvesCanonicalOpenWidgetIds,
+    )
+    await execTest(
+      results,
+      'ui.storyboardWidget.cardOverlayRemove.resolvesCanonicalCardIds',
+      modRichMediaOpenWidgetExclusion.testStoryboardCardOverlayRemoveResolvesCanonicalCardIds,
+    )
+    await execTest(
+      results,
       'ui.storyboardWidget.richMediaPanel.graphState.noStoreGraphFallback',
       modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForStoryboardWidgetWhenOverrideIsEmpty,
     )

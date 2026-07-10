@@ -121,9 +121,9 @@ export function testStrytreePaymentWorkerDeclaresCloudflareRuntimeBindings() {
   const worker = readRepoFile('cloudflare', 'workers', 'knowgrph-payment', 'index.ts')
   const requiredWranglerFragments = [
     '[vars]',
-    'STRYTREE_PIXVERSE_BASE_URL = "https://app-api.pixverse.ai"',
-    'STRYTREE_PIXVERSE_MAX_POLLS = "60"',
-    'STRYTREE_PIXVERSE_POLL_INTERVAL_MS = "1500"',
+    'STRYTREE_EXTERNAL_VIDEO_PROVIDER_BASE_URL = "https://api.external-video-provider.invalid"',
+    'STRYTREE_EXTERNAL_VIDEO_PROVIDER_MAX_POLLS = "60"',
+    'STRYTREE_EXTERNAL_VIDEO_PROVIDER_POLL_INTERVAL_MS = "1500"',
     'STRYTREE_DAILY_PROVIDER_BUDGET_CENTS = "0"',
     'pattern = "airvio.co/api/strytree*"',
     '[[d1_databases]]',

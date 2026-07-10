@@ -10,6 +10,7 @@ import {
   buildExternalMcpStreamableHttpConfigJson,
   getExternalMcpToolServerRowAnchorId,
 } from '@/features/panels/views/externalMcpToolServerDocs'
+import { assertDeferredExternalMcpBridgeIdsStayDocumentedContract } from '@/__tests__/helpers/mainPanelMcpExpectations'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -79,6 +80,7 @@ export async function testMcpHubSurfacesExternalToolServerGatewayRows() {
       'externalMcp.tool.bridge_ids',
       'externalMcp.config.stdio_template',
       'externalMcp.config.streamable_http_template',
+      'externalMcp.copy.boundary',
       EXTERNAL_MCP_TOOL_SERVER_PLACEHOLDER_ENV,
     ].forEach(token => {
       if (!text.includes(token)) throw new Error(`expected external MCP hub row ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
@@ -137,12 +139,8 @@ export function testExternalMcpSsotRowsCoverDeferredDiscoveryAndBoundaries() {
   const bridgeEntry = EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'externalMcp.tool.bridge_ids')
   const boundaryEntry = EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'externalMcp.copy.boundary')
   const combined = `${bridgeEntry?.value || ''}\n${bridgeEntry?.details.responsibility || ''}\n${boundaryEntry?.value || ''}\n${boundaryEntry?.details.responsibility || ''}`
-  ;[
-    'knowgrph.tool.search',
-    'knowgrph.tool.describe',
-    'knowgrph.tool.call',
-    'Forbid copied external gateway code',
-  ].forEach(token => {
-    if (!combined.includes(token)) throw new Error(`expected external MCP row contract to include ${JSON.stringify(token)}, got ${JSON.stringify(combined)}`)
-  })
+  assertDeferredExternalMcpBridgeIdsStayDocumentedContract(combined)
+  if (!combined.includes('Forbid copied external gateway code')) {
+    throw new Error(`expected external MCP row contract to include copy-boundary guard, got ${JSON.stringify(combined)}`)
+  }
 }

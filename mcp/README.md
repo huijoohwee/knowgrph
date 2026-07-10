@@ -52,7 +52,10 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
      - `canvas/src/features/panels/views/externalMcpToolServerDocs.ts`
      - `canvas/src/features/panels/views/IntegrationsHubView.tsx`
      - `canvas/src/features/panels/views/useSettingsChatAssist.tsx`
-   - Scope: shared settings, Knowgrph-owned tool-server readiness, external MCP tool-server readiness, chat readiness, and routing into the FloatingPanel Chat workflow
+   - Scope: shared settings, Knowgrph-owned tool-server readiness, external MCP
+     tool-server readiness, chat readiness, and routing into the FloatingPanel
+     Chat workflow. Readiness claims must be labeled as `documented`,
+     `browser-published`, or `runtime-executable`.
 
 Do not conflate this local stdio server with the deployed read-only Pages/browser MCP surfaces or
 with any future remote Worker MCP platform proposed elsewhere in the docs.
@@ -262,7 +265,7 @@ Then you can call:
 MainPanel `mcp` can show readiness and configuration snippets for external MCP surfaces such as:
 
 - Knowgrph Tool Servers for external users connecting an agent to tools inside Knowgrph through local stdio (`mcp/server.js`) or read-only Pages HTTP (`search` / `fetch`) placeholders
-- External MCP Tool Servers with provider-neutral stdio and Streamable HTTP templates, host-owned secrets, session-scoped allowlists, zero-token discovery, and deferred `knowgrph.tool.search` / `knowgrph.tool.describe` / `knowgrph.tool.call` schema access
+- External MCP Tool Servers with provider-neutral stdio and Streamable HTTP templates, host-owned secrets, session-scoped allowlists, zero-token discovery, and planned deferred bridge targets such as `knowgrph.tool.search` / `knowgrph.tool.describe` / `knowgrph.tool.call`
 - Stripe MCP readiness
 - crawler access MCP readiness
 - direct API-native browser MCP snippets
@@ -270,9 +273,13 @@ MainPanel `mcp` can show readiness and configuration snippets for external MCP s
 That MainPanel documentation layer does **not** replace this local stdio server. Instead:
 
 - MainPanel readiness docs explain how to connect supported MCP surfaces
+- documented bridge ids remain setup contracts until a runtime owner actually registers them
 - this README explains how to run the local `mcp/server.js` server itself
 - the richer browser-local Chat -> KGC -> Canvas pipeline stays owned by the canvas chat and parser
   helpers, not by a duplicate MCP-only pipeline
+
+For the canonical readiness rubric and release gate, see
+`docs/documents/knowgrph-mainpanel-readiness-rubric.md`.
 
 ### Direct API-native browser MCP config
 

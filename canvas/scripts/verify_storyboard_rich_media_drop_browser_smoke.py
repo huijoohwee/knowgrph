@@ -6,6 +6,8 @@ from pathlib import Path
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
 
+from storyboard_edge_smoke_geometry import expect_pending_storyboard_edge_visible, read_storyboard_edge_screen_endpoints
+
 
 BASE_URL = os.environ.get("KG_STORYBOARD_DROP_SMOKE_BASE_URL", "http://localhost:4176").rstrip("/")
 TARGET_URL = f"{BASE_URL}/?kgPath=%2F__smoke__%2Fstoryboard-rich-media-drop"
@@ -211,20 +213,6 @@ def read_storyboard_edge_ids(page):
     )
 
 
-def read_storyboard_edge_box(page, edge_id: str):
-    box = page.evaluate(
-        """(edgeId) => { const selector = `[data-kg-overlay-edge-id="${CSS.escape(edgeId)}"], [data-kg-storyboard-canvas-edge-id="${CSS.escape(edgeId)}"]`; const el = document.querySelector(selector); if (!el) return null; const rect = el.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }""",
-        arg=edge_id,
-    )
-    if not box:
-        raise AssertionError(f"expected Storyboard edge geometry for {edge_id}")
-    return box
-
-
-def expect_pending_storyboard_edge_visible(page) -> None:
-    page.wait_for_selector('[data-kg-overlay-pending-edge="true"]', state="attached", timeout=5000)
-
-
 def expect_storyboard_card_boxes_unchanged(before, after) -> None:
     if set(before) != set(after):
         raise AssertionError(f"expected Storyboard card identity to remain stable, before={list(before)} after={list(after)}")
@@ -251,6 +239,7 @@ def drag_rich_media_port_to_storyboard_card(page, source_node_id: str, target_no
     )
     source = page.locator(source_selector).first
     expect(source).to_be_visible(timeout=15000)
+    page.wait_for_timeout(120)
     source_box = source.bounding_box()
     if not source_box:
         raise AssertionError(f"expected source port geometry for {source_node_id}")
@@ -350,15 +339,15 @@ def assert_storyboard_edge_panel_open_retention(page, node_id: str, target_node_
         raise AssertionError(f"expected selected/open dropped panel to retain Storyboard edge visibility, got {sorted(retained_edges)}")
     reopened_box = read_visible_rich_media_shell_box(page, node_id)
     expect_rich_media_shell_box_stable(selected_box, reopened_box, "after select/open retention")
-    edge_box_before_pan_zoom = read_storyboard_edge_box(page, created_edge_id)
+    edge_endpoints_before_pan_zoom = read_storyboard_edge_screen_endpoints(page, created_edge_id)
     apply_storyboard_pan_zoom(page)
     retained_edges = set(read_storyboard_edge_ids(page))
     if created_edge_id not in retained_edges:
         raise AssertionError(f"expected selected/open dropped panel to retain Storyboard edge visibility after pan/zoom, got {sorted(retained_edges)}")
     panel_box_after_pan_zoom = read_visible_rich_media_shell_box(page, node_id)
-    edge_box_after_pan_zoom = read_storyboard_edge_box(page, created_edge_id)
+    edge_endpoints_after_pan_zoom = read_storyboard_edge_screen_endpoints(page, created_edge_id)
     panel_delta = ((panel_box_after_pan_zoom["x"] - reopened_box["x"]) ** 2 + (panel_box_after_pan_zoom["y"] - reopened_box["y"]) ** 2) ** 0.5
-    edge_delta = ((edge_box_after_pan_zoom["x"] - edge_box_before_pan_zoom["x"]) ** 2 + (edge_box_after_pan_zoom["y"] - edge_box_before_pan_zoom["y"]) ** 2) ** 0.5
+    edge_delta = ((edge_endpoints_after_pan_zoom["source"]["x"] - edge_endpoints_before_pan_zoom["source"]["x"]) ** 2 + (edge_endpoints_after_pan_zoom["source"]["y"] - edge_endpoints_before_pan_zoom["source"]["y"]) ** 2) ** 0.5
     if panel_delta > 4 and edge_delta < max(2, panel_delta * 0.15):
         raise AssertionError(f"expected Storyboard edge geometry to follow Rich Media panel after pan/zoom, panel_delta={panel_delta:.2f} edge_delta={edge_delta:.2f}")
     expect_visible_rich_media_shell_ports(page, node_id)

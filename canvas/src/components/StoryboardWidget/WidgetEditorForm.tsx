@@ -1149,7 +1149,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
                 editActivation="click"
                 multiline
                 rows={6}
-                markdownPreview="auto"
+                markdownPreview="auto" markdownCommandContextText={propertiesInlineMediaCommandContext} editorSurface="viewer" inlineChipDensity="compact" openOnPointerDown
                 onCommit={setCompactPreviewText}
                 displayClassName={compactPreviewEditorClass}
                 editorClassName={compactPreviewEditorClass}

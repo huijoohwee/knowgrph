@@ -20,9 +20,9 @@ export function testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarke
 
 export function testWebpageClientConvertQualityGateDoesNotFlagNormalMarkdown() {
   const normal = [
-    '# Pencil',
+    '# Canvas Studio',
     '',
-    '| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) | [Prompt Gallery](/gallery) | [Docs](/docs) | [Download Pencil](/download) |',
+    '| [Studio Home](/) | [Downloads](/downloads) | [Pricing](/pricing) | [Prompt Gallery](/gallery) | [Docs](/docs) | [Download Studio](/download) |',
     '| --- | --- | --- | --- | --- | --- |',
     '',
     'Backed by',

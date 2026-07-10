@@ -114,7 +114,7 @@ live-without-approvals halt, dry-run resolution).
 
 The full HITL_Gate_Service (token issuance, single-use enforcement, 15-min
 validity window) is implemented in spec task 4.x. Stage harness wiring
-(Exa / BytePlus / PixVerse / Stripe) lands in spec task 3.x.
+(Exa / BytePlus / external video provider / Stripe) lands in spec task 3.x.
 
 ## Local development
 

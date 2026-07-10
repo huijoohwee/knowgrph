@@ -149,7 +149,7 @@ export function testCanvasPanelFunctionsAreAgenticOsInvokable() {
       throw new Error(`Expected FloatingPanel Chat composer to consume ${registryName}`)
     }
   }
-  if (!skillsCommandsView.includes('CHAT_INVOCATION_OPTIONS') || !skillsCommandsView.includes('AGENTIC_OS_COMMAND_INVOCATIONS') || !skillsCommandsView.includes('AGENTIC_OS_BINDING_INVOCATIONS')) {
+  if (!skillsCommandsView.includes('getChatInvocationOptions') || !skillsCommandsView.includes('getAgenticOsCommandInvocations') || !skillsCommandsView.includes('getAgenticOsBindingInvocations')) {
     throw new Error('Expected Skills & Commands to consume shared /, #, and @ invocation registries')
   }
 

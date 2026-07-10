@@ -51,6 +51,59 @@ export const CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE = 'data-kg-card-inline-comm
 export const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 export const EDITOR_PROJECTED_MEDIA_ATTACHMENTS = null
 
+export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {
+  const doc = ownerDocument || (typeof document !== 'undefined' ? document : null)
+  const active = doc?.activeElement
+  if (!active) return false
+  const elementCtor = active.ownerDocument?.defaultView?.HTMLElement || (typeof HTMLElement !== 'undefined' ? HTMLElement : null)
+  if (!elementCtor || !(active instanceof elementCtor)) return false
+  if (!active.matches(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], [contenteditable="true"][${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`)) {
+    const commandRoot = active.closest(`[${CARD_INLINE_TEXT_COMMAND_ROOT_ATTRIBUTE}]`)
+    const commandInput = commandRoot?.querySelector(`input[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], textarea[${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}], [contenteditable="true"][${CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE}]`) as HTMLElement | null
+    if (!commandInput) return false
+    commandInput.blur()
+    return true
+  }
+  active.blur()
+  return true
+}
+
+type OpenCardInlineTextEditorEntry = {
+  commit: (forcedValue?: string) => void
+  readValue?: () => string | null
+}
+
+const openCardInlineTextEditorRegistry = new Map<string, OpenCardInlineTextEditorEntry>()
+
+export const buildCardInlineTextEditorOwnerKey = (args: { id?: string; ariaLabel: string }): string =>
+  String(args.id || args.ariaLabel || '').trim()
+
+export function registerOpenCardInlineTextEditor(
+  ownerKey: string,
+  commit: (forcedValue?: string) => void,
+  readValue?: () => string | null,
+): () => void {
+  const key = String(ownerKey || '').trim()
+  if (!key) return () => void 0
+  commitOpenCardInlineTextEditorsExcept(key)
+  const entry: OpenCardInlineTextEditorEntry = { commit, readValue }
+  openCardInlineTextEditorRegistry.set(key, entry)
+  return () => {
+    if (openCardInlineTextEditorRegistry.get(key) === entry) {
+      openCardInlineTextEditorRegistry.delete(key)
+    }
+  }
+}
+
+export function commitOpenCardInlineTextEditorsExcept(ownerKey: string): void {
+  const currentKey = String(ownerKey || '').trim()
+  Array.from(openCardInlineTextEditorRegistry.entries()).forEach(([key, entry]) => {
+    if (key === currentKey) return
+    const value = entry.readValue?.()
+    entry.commit(typeof value === 'string' ? value : undefined)
+  })
+}
+
 export const normalizeCommittedCardInlineEditorValue = (value: string): string => normalizeInvocationTokenSpacing(normalizeCardInlineEditorValue(value))
 
 export const isElementEventTarget = (target: EventTarget | null): target is Element => {

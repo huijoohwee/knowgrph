@@ -3,6 +3,7 @@ import React from 'react'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { beginRichMediaPanelResizeDrag, RichMediaPanelResizeHandle } from '@/components/RichMediaPanelResizeHandle'
 import { installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from '@/components/RichMediaPanelOverlayDrag'
+import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
 import { isWidgetInnerPanelWheelTarget } from '@/lib/canvas/widgetInnerPanelScrolling'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
@@ -12,8 +13,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 type CardSize = { width: number; height: number }
 type CardPoint = { x: number; y: number }
 
-export const isStoryboardHeaderDragBlockedTarget = (target: Element | null): boolean =>
-  target?.closest('input,textarea,select,button,a,summary,[contenteditable="true"],[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]') != null
+export const isStoryboardHeaderDragBlockedTarget = shouldStoryboardWidgetHeaderYieldToInteractiveTarget
 
 export function StoryboardCardResizeHandle(props: {
   onPointerDown: React.PointerEventHandler<HTMLButtonElement>

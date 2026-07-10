@@ -2,7 +2,7 @@ import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPo
 
 export function testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable() {
   const input = [
-    '# Pencil',
+    '# Canvas Studio',
     '',
     'Design canvas',
     'Infinite design canvas',
@@ -48,15 +48,15 @@ export function testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets() 
 
 export function testWebpageMarkdownPostprocessCoalescesNavLinksToTable() {
   const input = [
-    '# Pencil',
+    '# Canvas Studio',
     '',
-    '[Pencil Logo](/) [Downloads](/downloads) [Pricing](/pricing) [Prompt Gallery](/gallery) [Docs](/docs) [Download Pencil](/download)',
+    '[Studio Home](/) [Downloads](/downloads) [Pricing](/pricing) [Prompt Gallery](/gallery) [Docs](/docs) [Download Studio](/download)',
     '',
     'Backed by',
     '',
   ].join('\n')
   const out = postprocessWebpageMarkdownSsot(input)
-  if (!out.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
+  if (!out.includes('| [Studio Home](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
     throw new Error('expected nav links to be coalesced into a table header row')
   }
   if (!out.includes('| --- | --- | --- |')) throw new Error('expected nav table separator row')
@@ -65,15 +65,15 @@ export function testWebpageMarkdownPostprocessCoalescesNavLinksToTable() {
 
 export function testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable() {
   const input = [
-    '# Pencil',
+    '# Canvas Studio',
     '',
     '<section style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px">',
-    '<a href="/">Pencil Logo</a>',
+    '<a href="/">Studio Home</a>',
     '<a href="/downloads">Downloads</a>',
     '<a href="/pricing">Pricing</a>',
     '<a href="/gallery">Prompt Gallery</a>',
     '<a href="/docs">Docs</a>',
-    '<a href="/download">Download Pencil</a>',
+    '<a href="/download">Download Studio</a>',
     '</section>',
     '',
     'Backed by',
@@ -81,7 +81,7 @@ export function testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable() {
   ].join('\n')
   const out = postprocessWebpageMarkdownSsot(input)
   if (/<\s*div\b/i.test(out)) throw new Error('expected no raw semantic wrapper html in output')
-  if (!out.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
+  if (!out.includes('| [Studio Home](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
     throw new Error('expected html grid nav block to coalesce into a markdown table')
   }
   if (!out.includes('| --- | --- | --- |')) throw new Error('expected nav table separator row')

@@ -6,7 +6,7 @@
 // dispatch per-shot generation through the existing Strytree/BytePlus queue and
 // return one stored asset reference + one Credit_Ledger event per completed
 // shot. The harness wires the Render_Harness contract onto the reused payment
-// worker assets (`strytreeApi.ts`: BytePlus/PixVerse queue, R2 media bucket,
+// worker assets (`strytreeApi.ts`: BytePlus/external video provider queue, R2 media bucket,
 // `StrytreeCreditLedgerActor`) THROUGH INJECTABLE SEAMS (render-providers.js)
 // so the local runtime makes ZERO live network calls; the live wiring is
 // integration task 9.2.

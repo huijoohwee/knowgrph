@@ -5,6 +5,7 @@ import {
   UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME,
 } from '@/lib/ui/textLayout'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+export { normalizeCardInlineMediaSoftLineBreaks } from '@/lib/cards/cardInlineTextViewerDraftProjection'
 
 const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```|\|[^\n]*\|)|!\[[^\]]*]\([^)]+?\)|(?<!!)\[[^\]]+]\([^)]+?\)|(^|[^\\])\$[^$\n]+\$|<\s*(?:iframe|img|video)\b/i
 

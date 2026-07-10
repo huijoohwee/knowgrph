@@ -7,10 +7,11 @@ export const GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS = ['action', 'direction', 'bea
 export const GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS = ['dialogue', 'voiceover', 'vo', 'quote', 'line', 'speakerLine', 'speaker_line', 'narration', 'narrationText', 'voiceOver'] as const
 export const GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS = ['prompt', 'imagePrompt', 'visualPrompt', 'brief', 'visualBrief', 'visual_brief', 'artDirection'] as const
 export const GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS = ['output', 'result', 'response', 'transcript', 'outputText', 'output_text'] as const
+export const GRAPH_NODE_CARD_STYLE_PROPERTY_KEYS = ['style', 'look', 'treatment', 'theme', 'preset', 'variant'] as const
 
 type GraphNodeProperties = Record<string, JSONValue>
 
-export type GraphNodeCardTextFieldId = 'summary' | 'output' | 'action' | 'dialogue' | 'prompt'
+export type GraphNodeCardTextFieldId = 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style'
 
 export type GraphNodeCardTextFieldSpec = {
   id: GraphNodeCardTextFieldId
@@ -55,6 +56,13 @@ export const GRAPH_NODE_CARD_TEXT_FIELDS: readonly GraphNodeCardTextFieldSpec[] 
     canonicalKey: 'prompt',
     propertyKeys: GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
     placeholder: 'Add prompt',
+  },
+  {
+    id: 'style',
+    label: 'Style',
+    canonicalKey: 'style',
+    propertyKeys: GRAPH_NODE_CARD_STYLE_PROPERTY_KEYS,
+    placeholder: 'Add style',
   },
 ] as const
 

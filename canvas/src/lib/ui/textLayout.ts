@@ -10,4 +10,4 @@ export const UI_INLINE_MEDIA_CHIP_SHELL_15CH_CLASSNAME = 'kg-inline-media-chip-s
 
 export const UI_INLINE_CHIP_GROUP_CLASSNAME = 'inline-flex min-w-0 flex-wrap items-center gap-1'
 
-export const UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME = 'py-0 leading-5'
+export const UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME = 'py-0 [line-height:inherit]'

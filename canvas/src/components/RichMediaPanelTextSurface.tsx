@@ -73,6 +73,7 @@ export function RichMediaPanelTextSurface(args: {
           rows={8}
           markdownPreview="auto"
           markdownCommandMenus
+          editorSurface="viewer"
           markdownCommandContextText={model.panelMarkdownCommandContextText}
           onCommit={nextValue => {
             const nextText = String(nextValue || '')

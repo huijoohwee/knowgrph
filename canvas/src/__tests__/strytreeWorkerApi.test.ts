@@ -1334,14 +1334,14 @@ export async function testStrytreeGenerationBudgetCircuitBreakerStopsBeforeDebit
   }
 }
 
-export async function testStrytreeGenerationQueuePollsPixVerseWhenServerCredentialsExist() {
+export async function testStrytreeGenerationQueuePollsExternalVideoProviderWhenServerCredentialsExist() {
   const { env, db, queue, bucket } = seedStrytreeEnv()
   const runtimeEnv = env as Record<string, unknown>
   const providerCalls: Array<{ url: string; method?: string; apiKey?: string | null; body?: unknown }> = []
-  runtimeEnv.STRYTREE_PIXVERSE_API_KEY = 'server-side-pixverse-key'
-  runtimeEnv.STRYTREE_PIXVERSE_MAX_POLLS = '3'
-  runtimeEnv.STRYTREE_PIXVERSE_POLL_INTERVAL_MS = '0'
-  runtimeEnv.STRYTREE_PIXVERSE_FETCH = async (input: string | Request, init?: RequestInit): Promise<Response> => {
+  runtimeEnv.STRYTREE_EXTERNAL_VIDEO_PROVIDER_API_KEY = 'server-side-external-video-provider-key'
+  runtimeEnv.STRYTREE_EXTERNAL_VIDEO_PROVIDER_MAX_POLLS = '3'
+  runtimeEnv.STRYTREE_EXTERNAL_VIDEO_PROVIDER_POLL_INTERVAL_MS = '0'
+  runtimeEnv.STRYTREE_EXTERNAL_VIDEO_PROVIDER_FETCH = async (input: string | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === 'string' ? input : input.url
     providerCalls.push({
       url,
@@ -1370,11 +1370,11 @@ export async function testStrytreeGenerationQueuePollsPixVerseWhenServerCredenti
   const create = await worker.fetch(
     new Request('https://airvio.co/api/strytree/generation-jobs', {
       method: 'POST',
-      headers: sessionHeaders('generation-live-pixverse-1'),
+      headers: sessionHeaders('generation-live-external-video-provider-1'),
       body: JSON.stringify({
         story_id: 'story_alpha',
         parent_node_id: 'node_root',
-        prompt: 'Generate a PixVerse-backed branch continuation with inherited assets.',
+        prompt: 'Generate an external-provider-backed branch continuation with inherited assets.',
         image_references: [
           { type: 'subject', img_id: 101, ref_name: 'archivist' },
           { type: 'background', img_id: 202, ref_name: 'archive_hall' },
@@ -1392,7 +1392,7 @@ export async function testStrytreeGenerationQueuePollsPixVerseWhenServerCredenti
   const createBody = await create.json() as { job_id?: string }
   await runWorkerQueue(runtimeEnv, queue.messages[0])
   if (providerCalls.length !== 2) throw new Error(`expected submit and poll provider calls, got ${JSON.stringify(providerCalls)}`)
-  if (!providerCalls.every(call => call.apiKey === 'server-side-pixverse-key')) {
+  if (!providerCalls.every(call => call.apiKey === 'server-side-external-video-provider-key')) {
     throw new Error(`expected provider calls to use server-side env API key, got ${JSON.stringify(providerCalls)}`)
   }
   const submit = providerCalls[0]
@@ -1400,8 +1400,8 @@ export async function testStrytreeGenerationQueuePollsPixVerseWhenServerCredenti
     throw new Error(`expected fusion generation endpoint, got ${submit.url}`)
   }
   const submitBody = submit.body as { image_references?: unknown[]; prompt?: string }
-  if (submitBody.image_references?.length !== 2 || !String(submitBody.prompt || '').includes('PixVerse-backed')) {
-    throw new Error(`expected typed PixVerse payload with inherited refs, got ${JSON.stringify(submitBody)}`)
+  if (submitBody.image_references?.length !== 2 || !String(submitBody.prompt || '').includes('external-provider-backed')) {
+    throw new Error(`expected typed external provider payload with inherited refs, got ${JSON.stringify(submitBody)}`)
   }
   const job = db.generationJobs.get(String(createBody.job_id))
   if (job?.status !== 'succeeded' || job.provider_job_id !== '987654') {
@@ -1409,7 +1409,7 @@ export async function testStrytreeGenerationQueuePollsPixVerseWhenServerCredenti
   }
   if (bucket.objects.size !== 2) throw new Error(`expected provider result manifests in R2, got ${bucket.objects.size}`)
   const videoManifest = String(bucket.objects.values().next().value || '')
-  if (!videoManifest.includes('pixverse-live-poll') || !videoManifest.includes('987654')) {
+  if (!videoManifest.includes('external-video-provider-live-poll') || !videoManifest.includes('987654')) {
     throw new Error(`expected R2 manifest to record live provider proof, got ${videoManifest}`)
   }
 }

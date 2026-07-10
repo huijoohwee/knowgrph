@@ -153,7 +153,7 @@ The browser should stop calling `airvio.co/__chat_proxy/*` directly once authent
 
 ### Storage Worker: `knowgrph-storage`
 
-Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`. The Worker owns the D1 schema/query layer through Drizzle; browser storage is cache-only and is not the canonical persistence surface.
+Route owner: `cloudflare/workers/knowgrph-storage`. Cloudflare route: `airvio.co/api/storage/*`. The Worker owns the D1 query layer through `drizzle-orm` and schema through Wrangler SQL migrations; browser storage is cache-only and is not the canonical persistence surface.
 
 Canonical public/browser URL space stays on `https://airvio.co/api/storage/*`. Server-side readers inside Cloudflare Pages or future MCP Workers should fetch from `https://knowgrph-storage.huijoohwee.workers.dev` to avoid custom-domain self-fetch rewrites while reusing the same Worker implementation and D1 data.
 
@@ -233,6 +233,16 @@ Checkout creation accepts `successUrl`, `cancelUrl`, optional `workspaceId`, and
 Knowgrph integrates with external AI, video, map, payment, and local MCP providers across `MainPanel Integrations`, `MainPanel MCP`, Vite middleware, local stdio MCP, and Cloudflare Workers. Provider credentials must flow through the owning server, host, or in-memory BYOK path without hardcoded literals, generated fixture credentials, browser persistence, downstream mirror patches, or compatibility aliases.
 
 This section is the canonical API credential contract for Dev. Prod mirrors and Cloudflare deployments consume validated artifacts only after the Dev owner is updated and proven.
+
+For MainPanel surfaces, credential/setup documentation must also respect the
+MainPanel readiness rubric:
+
+- `documented` for setup-only guidance
+- `browser-published` for browser-readable readiness payloads
+- `runtime-executable` only when a runtime owner actually registers the route or tool
+
+MainPanel credential rows and connection snippets must not be described as
+`runtime-executable` merely because the UI renders them.
 
 ---
 
@@ -395,7 +405,9 @@ Use the narrowest canonical owner:
 
 #### 2. Canonical credential names only
 
-Use one documented env key per credential owner. If an owner still reads old fallback names, remove those reads in the same source area before documenting the integration as runtime-ready.
+Use one documented env key per credential owner. If an owner still reads old
+fallback names, remove those reads in the same source area before documenting
+the integration as `runtime-executable`.
 
 #### 3. Runtime data only from live responses
 

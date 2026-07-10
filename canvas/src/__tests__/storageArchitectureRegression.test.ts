@@ -5,13 +5,13 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
   const packagePath = resolve(process.cwd(), '..', 'package.json')
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
     dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
+    scripts?: Record<string, string>
   }
   if (!packageJson.dependencies?.['drizzle-orm']) {
     throw new Error('expected knowgrph root package to declare drizzle-orm for the D1 storage worker')
   }
-  if (!packageJson.devDependencies?.['drizzle-kit']) {
-    throw new Error('expected knowgrph root package to declare drizzle-kit for D1 schema ownership')
+  if (!packageJson.scripts?.['storage:d1:migrate:remote']?.includes('wrangler d1 migrations apply')) {
+    throw new Error('expected knowgrph root package to declare Wrangler-driven D1 migration ownership')
   }
 }
 

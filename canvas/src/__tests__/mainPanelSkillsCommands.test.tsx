@@ -7,11 +7,12 @@ import {
   AGENTIC_OS_COMMAND_INVOCATIONS,
   AGENTIC_OS_DOC_INVOCATIONS,
 } from '@/features/agentic-os/agenticOsDocInvocations'
-import { CHAT_INVOCATION_OPTIONS } from '@/features/chat/chatInvocationRegistry'
+import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'
 import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
 import { setActiveCardInlineTextExternalCommandTarget } from '@/lib/cards/cardInlineTextExternalCommands'
+import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
 
@@ -87,7 +88,7 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     const hashEntries = container.querySelectorAll('[data-kg-skill-command-hash]')
     const atEntries = container.querySelectorAll('[data-kg-skill-command-at]')
     const expectedSlashCount = CHAT_SKILL_OPTIONS.length + AGENTIC_OS_COMMAND_INVOCATIONS.length + AGENTIC_OS_DOC_INVOCATIONS.length
-    const expectedHashCount = CHAT_INVOCATION_OPTIONS.length
+    const expectedHashCount = getChatInvocationOptions().length
     const expectedAtCount = AGENTIC_OS_BINDING_INVOCATIONS.length + AGENTIC_OS_DOC_INVOCATIONS.length
     if (slashEntries.length !== expectedSlashCount || hashEntries.length !== expectedHashCount || atEntries.length !== expectedAtCount) {
       throw new Error(`Expected Skills & Commands to render all / # @ entries, got slash=${slashEntries.length}/${expectedSlashCount} hash=${hashEntries.length}/${expectedHashCount} at=${atEntries.length}/${expectedAtCount}`)
@@ -96,7 +97,7 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
       throw new Error('Expected Skills & Commands catalog rows to reuse the shared FloatingPanel catalog compact-list layout')
     }
     const superagentRun = AGENTIC_OS_COMMAND_INVOCATIONS.find(invocation => invocation.token === '/superagent.run')
-    const longHorizonHarness = CHAT_INVOCATION_OPTIONS.find(invocation => invocation.token === '#long-horizon-harness')
+    const longHorizonHarness = getChatInvocationOptions().find(invocation => invocation.token === '#long-horizon-harness')
     const messageGateway = AGENTIC_OS_BINDING_INVOCATIONS.find(invocation => invocation.token === '@message-gateway')
     const harnessDoc = AGENTIC_OS_DOC_INVOCATIONS.find(invocation => invocation.id === 'agentic-os.harness')
     if (!superagentRun || !longHorizonHarness || !messageGateway || !harnessDoc) {
@@ -146,6 +147,54 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+  }
+}
+
+export async function testSkillsCommandsViewHydratesRemoteGrammarCatalogEntries() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAgenticOsRemoteGrammarCatalogEntries([
+    {
+      token: '#remote-display',
+      kind: 'semantic',
+      label: 'Remote display',
+      summary: 'Remote-only semantic entry surfaced in Skills & Commands',
+      sourcePath: 'DICTIONARY-SEMANTIC.md#remote-display',
+      sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-SEMANTIC.md#remote-display',
+      keywords: ['remote', 'display'],
+    },
+    {
+      token: '@remote-display',
+      kind: 'binding',
+      label: 'Remote display binding',
+      summary: 'Remote-only binding entry surfaced in Skills & Commands',
+      sourcePath: 'DICTIONARY-BINDING.md#remote-display',
+      sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-BINDING.md#remote-display',
+      keywords: ['remote', 'display'],
+    },
+  ])
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('section')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  try {
+    await mountReactRoot(root, React.createElement(SkillsCommandsView, { searchQuery: 'remote display' }), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const remoteHash = Array.from<HTMLElement>(container.querySelectorAll<HTMLElement>('[data-kg-skill-command-hash]'))
+      .find(node => node.textContent?.trim() === '#remote-display')
+    const remoteAt = Array.from<HTMLElement>(container.querySelectorAll<HTMLElement>('[data-kg-skill-command-at]'))
+      .find(node => node.textContent?.trim() === '@remote-display')
+    if (!remoteHash || !remoteAt) {
+      throw new Error(`Expected Skills & Commands view to surface remote-only grammar entries, html=${container.innerHTML}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
 }
 

@@ -582,3 +582,5 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     restore()
   }
 }
+
+export { testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar, testRemoteAgenticOsGrammarHydratesSharedInvocationLookups } from './floatingPanelRemoteGrammarCommands.test'

@@ -10,7 +10,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getRichMediaPanelViewTitle } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, ExternalLink, GitBranch, GitMerge, HelpCircle, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
+import { Copy, Eraser, ExternalLink, GitBranch, GitMerge, HelpCircle, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2, type LucideIcon } from 'lucide-react'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import { unwrapUserProvidedText } from '@/lib/url'
 
@@ -61,6 +61,89 @@ export type WidgetEditorActionsToolbarProps = {
   maxWidthPx?: number
 }
 
+type WidgetToolbarActionId =
+  | 'run'
+  | 'clear-output'
+  | 'import-url'
+  | 'rich-media-view'
+  | 'open-external'
+  | 'update-kv-entry'
+  | 'open-sidepane'
+  | 'enable-handles'
+  | 'probe-tree'
+  | 'convert-loop'
+  | 'duplicate'
+  | 'help'
+  | 'remove'
+
+type WidgetToolbarActionButtonProps = {
+  activateOnPointerDown?: boolean
+  actionId: WidgetToolbarActionId
+  className?: string
+  disabled?: boolean
+  icon: LucideIcon
+  iconSizeClass: string
+  iconStrokeWidth: number
+  importUrl?: boolean
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
+  onPointerDown?: React.PointerEventHandler<HTMLButtonElement>
+  title: string
+  tooltipContent?: string
+}
+
+const WidgetToolbarActionButton = React.forwardRef<HTMLButtonElement, WidgetToolbarActionButtonProps>(function WidgetToolbarActionButton(props, ref) {
+  const Icon = props.icon
+  const pointerActivatedRef = React.useRef(false)
+  const handlePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    props.onPointerDown?.(event)
+    if (event.defaultPrevented) return
+    if (props.disabled || props.activateOnPointerDown !== true || event.button !== 0) return
+    pointerActivatedRef.current = true
+    props.onClick?.(event as unknown as React.MouseEvent<HTMLButtonElement>)
+  }, [props])
+  const handleClick = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (pointerActivatedRef.current) {
+      pointerActivatedRef.current = false
+      return
+    }
+    props.onClick?.(event)
+  }, [props])
+  return (
+    <IconButton
+      ref={ref}
+      title={props.title}
+      tooltipContent={props.tooltipContent || props.title}
+      showTooltip
+      disabled={props.disabled}
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      className={props.className}
+      data-kg-bubble-toolbar-action={props.actionId}
+      data-kg-import-url={props.importUrl ? '1' : undefined}
+      data-kg-selection-surface="bubble-toolbar-action"
+      data-kg-toolbar-action={props.actionId}
+      data-kg-toolbar-action-label={props.title}
+    >
+      <span
+        role="img"
+        aria-label={`${props.title} icon`}
+        className="inline-flex shrink-0 items-center justify-center"
+        data-kg-bubble-toolbar-icon="1"
+        data-kg-selection-surface="bubble-toolbar-icon"
+        data-kg-toolbar-action-icon={props.actionId}
+      >
+        <Icon
+          className={props.iconSizeClass}
+          strokeWidth={props.iconStrokeWidth}
+          aria-hidden={false}
+          focusable={false}
+          data-kg-toolbar-action-icon-svg={props.actionId}
+        />
+      </span>
+    </IconButton>
+  )
+})
+
 export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorActionsToolbar(args: WidgetEditorActionsToolbarProps) {
   const {
     visible,
@@ -109,6 +192,20 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
     if (initial && initial !== importUrlDraft) setImportUrlDraft(initial)
   }, [args.importUrlAction?.initialUrl, args.importUrlAction?.visible, importUrlDraft, importUrlOpen])
 
+  const handleToolbarPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    try {
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+    if (event.button !== 0) return
+    try {
+      event.preventDefault()
+    } catch {
+      void 0
+    }
+  }, [])
+
   if (!visible) return null
   return (
     <>
@@ -118,91 +215,92 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
           args.navClassName || '',
         )}
         aria-label={args.ariaLabel || UI_LABELS.flowWidgetActions}
+        data-kg-bubble-toolbar="1"
+        data-kg-selection-surface="bubble-toolbar"
         style={{
           ...(typeof maxWidthPx === 'number' && Number.isFinite(maxWidthPx) && maxWidthPx > 0 ? { maxWidth: `${maxWidthPx}px` } : undefined),
           ...(args.navStyle || {}),
         }}
-        onPointerDownCapture={e => {
-          try {
-            e.stopPropagation()
-          } catch {
-            void 0
-          }
-        }}
+        onPointerDownCapture={handleToolbarPointerDownCapture}
       >
         {showRunAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="run"
             title={UI_COPY.flowWidgetRun}
             tooltipContent={UI_COPY.flowWidgetRun}
-            showTooltip
             onPointerDown={() => {
               commitActiveCardInlineTextEditor()
             }}
             onClick={onRun}
             className="App-toolbar__btn"
-          >
-            <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Play}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showClearOutputAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="clear-output"
             title={UI_LABELS.clearOutput}
             tooltipContent={UI_COPY.flowWidgetClearOutput}
-            showTooltip
             onClick={onClearOutput}
             className="App-toolbar__btn"
-          >
-            <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Eraser}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {args.importUrlAction?.visible ? (
-          <IconButton
+          <WidgetToolbarActionButton
             ref={importUrlButtonRef}
+            actionId="import-url"
             title="Import URL"
             tooltipContent="Import URL"
-            showTooltip
             onClick={() => setImportUrlOpen(prev => !prev)}
             className={cn(
               'App-toolbar__btn',
               importUrlOpen ? UI_THEME_TOKENS.icon.active : '',
             )}
-            data-kg-import-url="1"
-          >
-            <Link className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Link}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+            importUrl
+          />
         ) : null}
 
         {richMediaViewToggle?.visible ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="rich-media-view"
             title={getRichMediaPanelViewTitle(richMediaViewToggle.isKtvRows)}
             tooltipContent={richMediaViewToggle.isKtvRows ? UI_COPY.flowWidgetRichMediaPanelView : UI_COPY.flowWidgetRichMediaKtvRows}
-            showTooltip
             onClick={richMediaViewToggle.onToggle}
             className={cn('App-toolbar__btn text-[11px]', richMediaViewToggle.isKtvRows ? UI_THEME_TOKENS.icon.active : '')}
-          >
-            <SplitSquareVertical className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={SplitSquareVertical}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {openExternalAction?.visible ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="open-external"
             title={openExternalAction.label || 'Open source'}
             tooltipContent={openExternalAction.label || 'Open source'}
-            showTooltip
             onClick={openExternalAction.onOpen}
             className="App-toolbar__btn"
-          >
-            <ExternalLink className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={ExternalLink}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showUpdateKvEntryAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="update-kv-entry"
             title={UI_LABELS.updateKvEntry}
             tooltipContent={UI_LABELS.updateKvEntry}
-            showTooltip
             onClick={onUpdateKvEntry || (() => {
               emitMainPanelOpen({
                 tab: 'workflowManager' as const,
@@ -210,16 +308,17 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
               })
             })}
             className="App-toolbar__btn"
-          >
-            <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={PanelRightOpen}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showOpenInSidepaneAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="open-sidepane"
             title={UI_LABELS.openInSidepane}
             tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
-            showTooltip
             onClick={onOpenInSidepane || (() => {
               emitMainPanelOpen({
                 tab: 'workflowManager' as const,
@@ -228,81 +327,88 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
               })
             })}
             className="App-toolbar__btn"
-          >
-            <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={PanelRightOpen}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showEnableHandlesAction && !enableHandlesDisabled && onEnableHandlesForAllInputs ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="enable-handles"
             title={UI_LABELS.enableHandlesForAllInputs}
             tooltipContent={UI_COPY.flowWidgetEnableHandles}
-            showTooltip
             onClick={onEnableHandlesForAllInputs}
             className="App-toolbar__btn"
-          >
-            <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Share2}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showProbeTreeAction && onProbeTree ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="probe-tree"
             title={UI_LABELS.probeTree}
             tooltipContent={UI_COPY.flowWidgetProbeTree}
-            showTooltip
             onClick={onProbeTree}
             className="App-toolbar__btn"
-          >
-            <GitBranch className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={GitBranch}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showConvertToLoopAction && !convertToLoopDisabled ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="convert-loop"
             title={UI_LABELS.convertToLoopNode}
             tooltipContent={UI_COPY.flowWidgetConvertToLoop}
-            showTooltip
             onClick={onConvertToLoopNode}
             className="App-toolbar__btn"
-          >
-            <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={GitMerge}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showDuplicateAction && !duplicateDisabled ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="duplicate"
             title={UI_LABELS.duplicate}
             tooltipContent={UI_COPY.flowWidgetDuplicate}
-            showTooltip
             onClick={onDuplicate}
             className="App-toolbar__btn"
-          >
-            <Copy className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Copy}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showHelpAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="help"
             title={UI_LABELS.help}
             tooltipContent={UI_COPY.flowWidgetHelp}
-            showTooltip
             onClick={onHelp}
             className="App-toolbar__btn"
-          >
-            <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={HelpCircle}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
 
         {showRemoveAction ? (
-          <IconButton
+          <WidgetToolbarActionButton
+            actionId="remove"
             title={UI_LABELS.removeNode}
             tooltipContent={UI_COPY.flowWidgetRemoveNode}
-            showTooltip
             onClick={onRemove}
             className={cn('App-toolbar__btn', UI_THEME_TOKENS.status.error.split(' ').slice(0, 2).join(' '))}
-          >
-            <Trash2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+            icon={Trash2}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+          />
         ) : null}
       </nav>
 

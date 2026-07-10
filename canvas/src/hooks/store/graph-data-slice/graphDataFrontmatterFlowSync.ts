@@ -17,6 +17,7 @@ import {
   updateStrybldrStoryboardMarkdownCardOverride,
   syncStrybldrStoryboardMarkdownWorkflowEdges,
 } from '@/features/strybldr/strybldrStoryboard'
+import { appendStrybldrStoryboardNodeSource, isStrybldrStoryboardNodeSourceOwned } from '@/hooks/store/graph-data-slice/strybldrStoryboardNodeSourceSync'
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
@@ -273,12 +274,10 @@ function readFrontmatterTimelineSectionValue(graphData: GraphData): unknown {
     : null
   return frontmatterMeta?.timeline
 }
-
 function graphDataHasFlowTopology(graphData: GraphData | null | undefined): boolean {
   return (Array.isArray(graphData?.nodes) && graphData!.nodes.length > 0)
     || (Array.isArray(graphData?.edges) && graphData!.edges.length > 0)
 }
-
 function frontmatterTextHasFlowTopology(rawText: string): boolean {
   const block = extractYamlFrontmatterBlock(rawText)
   if (!block) return false
@@ -294,7 +293,6 @@ function frontmatterTextHasFlowTopology(rawText: string): boolean {
     return false
   }
 }
-
 function upsertTopLevelFrontmatterSectionMarkdownText(args: {
   rawText: string
   sectionKey: string
@@ -421,8 +419,12 @@ function syncStrybldrStoryboardMarkdownFromParsedGraph(args: {
   nextNode?: GraphNode | null
 }): string | null {
   let nextText = args.text
+  if (!args.previousNode && args.nextNode) {
+    nextText = appendStrybldrStoryboardNodeSource(nextText, args.nextNode)
+  }
   const nodeId = String(args.nextNode?.id || args.previousNode?.id || '').trim()
-  if (nodeId) {
+  const sourceOwnedNode = args.nextNode || args.previousNode
+  if (nodeId && (!args.previousNode || isStrybldrStoryboardNodeSourceOwned(sourceOwnedNode))) {
     const cardPatch = buildStrybldrCardOverridePatchFromGraphNodeChange({
       previousNode: args.previousNode,
       nextNode: args.nextNode,
@@ -440,7 +442,6 @@ function syncStrybldrStoryboardMarkdownFromParsedGraph(args: {
     graphData: args.graphData,
   }) || nextText
 }
-
 function findActiveMarkdownDocumentSourceFile(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']

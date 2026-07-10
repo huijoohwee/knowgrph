@@ -91,7 +91,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   const widgetPalette = readUtf8(path.resolve(root, 'src', 'features', 'toolbar', 'WidgetPalette.tsx'))
   const floatingPanelChat = readUtf8(path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChat.tsx'))
   const floatingPanelChatSections = readUtf8(path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx'))
-  const mainPanelDocMappedValueSources = ['agnesApiDocs.ts', 'miromindApiDocs.ts', 'pixverseMcpApiDocs.ts', 'stripeMcpApiDocs.ts', 'stripePaymentApiDocs.ts', 'crawlerAccessMcpApiDocs.ts', 'miromindMcpApiDocs.ts'].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
+  const mainPanelDocMappedValueSources = ['agnesApiDocs.ts', 'miromindApiDocs.ts', 'stripeMcpApiDocs.ts', 'stripePaymentApiDocs.ts', 'crawlerAccessMcpApiDocs.ts', 'miromindMcpApiDocs.ts'].map(fileName => readUtf8(path.resolve(root, 'src', 'features', 'panels', 'views', fileName)))
   const graphStatsPanel = readUtf8(path.resolve(root, 'src', 'features', 'graph-stats', 'GraphStatsPanel.tsx'))
   const settingsUi = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'ui.tsx'))
   const settingsChatProviderInput = readUtf8(path.resolve(root, 'src', 'features', 'settings', 'chatProviderSettingInput.tsx'))
@@ -429,12 +429,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   ) {
     throw new Error('Expected all MainPanel doc-mapped Value cells to resolve through editable neutral virtual settings')
   }
-  for (const proseDefault of ['Required. Image generation prompt text.', 'Required. Video generation prompt text. Max 1024 tokens. Supports audio prompts.', 'States that Qwen reuses the canonical Knowgrph chat request message assembly.', 'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.', 'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.', 'Multi-scene plans derive transition-aware prompts and a synthesized last-frame upload so PixVerse transition_video can connect scenes without introducing a second canvas schema.']) {
+  for (const proseDefault of ['Required. Image generation prompt text.', 'Required. Video generation prompt text. Max 1024 tokens. Supports audio prompts.', 'States that Qwen reuses the canonical Knowgrph chat request message assembly.', 'Documents the optional provider request field without creating a second MainPanel-to-canvas pipeline.', 'Pins Google Cloud to the canonical FloatingPanel Chat -> Workspace -> Source Files -> markdown/frontmatter -> canvas path.']) {
     if (isMainPanelVirtualSettingConfigDefault(proseDefault)) {
       throw new Error(`Expected prose virtual default to be rejected before it reaches a KTV Value cell: ${proseDefault}`)
     }
   }
-  for (const configDefault of ['frontmatter_kgc_markdown', 'delta.content', 'delta.reasoning_steps', 'Singapore', 'google-cloud', 'PROJECT_ID', 'pixverse', 'v5']) {
+  for (const configDefault of ['frontmatter_kgc_markdown', 'delta.content', 'delta.reasoning_steps', 'Singapore', 'google-cloud', 'PROJECT_ID', 'v5']) {
     if (!isMainPanelVirtualSettingConfigDefault(configDefault)) {
       throw new Error(`Expected concise config literal to remain usable as a KTV Value default: ${configDefault}`)
     }
@@ -1056,7 +1056,6 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
   }
   for (const staleHardcodedMainPanelDescription of [
     'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
-    'MainPanel MCP documents local PixVerse MCP readiness',
     'MainPanel Maps remains backend/system/API-facing',
   ]) {
     if (settingsViewConstants.includes(staleHardcodedMainPanelDescription) || settingsEntryRowValue.includes(staleHardcodedMainPanelDescription)) {
@@ -1069,7 +1068,6 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     "value: 'Reasoning chunks arrive in delta.reasoning_steps",
     "value: 'Each SSE data frame is expected to carry",
     "value: 'When chatStorageTarget is chatKnowgrph",
-    "value: 'MainPanel MCP documents PixVerse local stdio setup",
     "value: 'Use restricted API key permissions only",
     "value: 'MainPanel MCP is ready to accept payment",
     "value: 'Cloudflare zone policy owns Pay Per Crawl",

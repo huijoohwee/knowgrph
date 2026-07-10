@@ -32,7 +32,7 @@ linked_docs:
   - "../knowgrph-superagent-harness.md"
   - "../knowgrph-agent-ready-prd-tad.md"
 external_adapters:
-  cloudflare: "control plane (Workers McpAgent, Pages, D1, R2, AI Gateway) — holds all keys"
+  cloudflare: "control plane (Workers McpAgent, Pages, D1, R2, AI Gateway) — handles /api/invoke grammar queries"
   byteplus: "default model/media provider — chat (agnes/seed), image (seedream), video (seedance) via Cloudflare AI Gateway"
   stripe: "payments, subscriptions, and financial workflow readiness"
 forbidden_adapters:

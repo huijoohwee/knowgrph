@@ -1,6 +1,7 @@
 import React from 'react'
 import { ensureWordSelectionInRoot, expandSelectionSegmentAt, findFirstSelectableSegment } from './markdownBlockContainerCore.interaction'
 import { reportMarkdownEditParityProbe } from './markdownEditParityProbe'
+import { readMarkdownContentEditableCaretRangeFromPoint } from './markdownContentEditableSurface'
 
 export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
   editable: boolean
@@ -261,45 +262,9 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
     if (!point) return
     const root = args.editorRef.current
     if (!root) return
-    const getRange = (): Range | null => {
-      const docAny = document as unknown as {
-        caretRangeFromPoint?: (x: number, y: number) => Range | null
-      }
-      const caretFromPointAny = document as unknown as {
-        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
-      }
-      if (typeof caretFromPointAny.caretPositionFromPoint === 'function') {
-        try {
-          const pos = caretFromPointAny.caretPositionFromPoint(point.x, point.y)
-          if (!pos) return null
-          const range = document.createRange()
-          range.setStart(pos.offsetNode, pos.offset)
-          range.collapse(true)
-          return range
-        } catch {
-          return null
-        }
-      }
-      if (typeof docAny.caretRangeFromPoint === 'function') {
-        try {
-          return docAny.caretRangeFromPoint(point.x, point.y)
-        } catch {
-          return null
-        }
-      }
-      return null
-    }
-    const range = getRange()
-    const hasPointCaretApi = (() => {
-      const docAny = document as unknown as {
-        caretRangeFromPoint?: unknown
-        caretPositionFromPoint?: unknown
-      }
-      return (
-        typeof docAny.caretPositionFromPoint === 'function' ||
-        typeof docAny.caretRangeFromPoint === 'function'
-      )
-    })()
+    const pointCaret = readMarkdownContentEditableCaretRangeFromPoint(root, point)
+    const range = pointCaret.range
+    const hasPointCaretApi = pointCaret.supported
     const buildApproximateRangeInRoot = (): Range | null => {
       const text = String(root.textContent || '')
       if (!text) return null

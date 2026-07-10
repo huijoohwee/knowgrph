@@ -1,3 +1,5 @@
+import { createAgenticOsInvocationCatalogRuntime } from './agenticOsInvocationCatalogRuntime'
+
 export const KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID = 'knowgrph.probe-tree' as const
 
 export type AgenticOsDocInvocationId =
@@ -452,8 +454,22 @@ export const AGENTIC_OS_DICTIONARY_INVOCATIONS: readonly AgenticOsDictionaryInvo
   ...AGENTIC_OS_BINDING_INVOCATIONS,
 ] as const
 
+const invocationCatalogRuntime = createAgenticOsInvocationCatalogRuntime({
+  docs: AGENTIC_OS_DOC_INVOCATIONS,
+  commands: AGENTIC_OS_COMMAND_INVOCATIONS,
+  semantics: AGENTIC_OS_SEMANTIC_INVOCATIONS,
+  bindings: AGENTIC_OS_BINDING_INVOCATIONS,
+  dictionaryActionIdPrefix: AGENTIC_OS_DICTIONARY_INVOCATION_ACTION_ID_PREFIX,
+  buildDictionaryInvocation: buildAgenticOsDictionaryInvocation,
+})
+
+export const getAgenticOsDocInvocations = invocationCatalogRuntime.getDocs
+export const getAgenticOsCommandInvocations = invocationCatalogRuntime.getCommands
+export const getAgenticOsSemanticInvocations = invocationCatalogRuntime.getSemantics
+export const getAgenticOsBindingInvocations = invocationCatalogRuntime.getBindings
+export const getAgenticOsDictionaryInvocations = invocationCatalogRuntime.getDictionary
 export const getAgenticOsCanvasInteractionPanelInvocations = (): readonly AgenticOsDictionaryInvocation[] => (
-  AGENTIC_OS_DICTIONARY_INVOCATIONS.filter(invocation => invocation.keywords.includes(AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD))
+  getAgenticOsDictionaryInvocations().filter(invocation => invocation.keywords.includes(AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD))
 )
 
 export type AgenticOsResolvedInvocation = {
@@ -467,29 +483,7 @@ export type AgenticOsResolvedInvocation = {
 export const findAgenticOsInvocationByToken = (token: string): AgenticOsResolvedInvocation | null => {
   const value = String(token || '').trim()
   if (!value) return null
-  const doc = AGENTIC_OS_DOC_INVOCATIONS.find(invocation => (
-    invocation.slashCommand === value
-    || invocation.hashToken === value
-    || invocation.atToken === value
-  ))
-  if (doc) {
-    return {
-      kind: 'doc',
-      token: value,
-      label: doc.label,
-      summary: doc.summary,
-      sourcePath: doc.sourcePath,
-    }
-  }
-  const dictionaryInvocation = AGENTIC_OS_DICTIONARY_INVOCATIONS.find(invocation => invocation.token === value)
-  if (!dictionaryInvocation) return null
-  return {
-    kind: dictionaryInvocation.kind,
-    token: value,
-    label: dictionaryInvocation.label,
-    summary: dictionaryInvocation.summary,
-    sourcePath: dictionaryInvocation.sourcePath,
-  }
+  return invocationCatalogRuntime.findByToken(value)
 }
 
 export const buildAgenticOsInvocationSourceTitle = (invocation: AgenticOsResolvedInvocation): string => (
@@ -504,7 +498,7 @@ export const findAgenticOsDocInvocationByActionId = (actionId: string): AgenticO
   const id = String(actionId || '').startsWith(AGENTIC_OS_DOC_INVOCATION_ACTION_ID_PREFIX)
     ? String(actionId).slice(AGENTIC_OS_DOC_INVOCATION_ACTION_ID_PREFIX.length)
     : ''
-  return AGENTIC_OS_DOC_INVOCATIONS.find(doc => doc.id === id) || null
+  return getAgenticOsDocInvocations().find(doc => doc.id === id) || null
 }
 
 export const buildAgenticOsDocActionId = (doc: AgenticOsDocInvocation): string => (
@@ -516,10 +510,7 @@ export const buildAgenticOsDictionaryActionId = (invocation: AgenticOsDictionary
 )
 
 export const findAgenticOsDictionaryInvocationByActionId = (actionId: string): AgenticOsDictionaryInvocation | null => {
-  const id = String(actionId || '').startsWith(AGENTIC_OS_DICTIONARY_INVOCATION_ACTION_ID_PREFIX)
-    ? String(actionId).slice(AGENTIC_OS_DICTIONARY_INVOCATION_ACTION_ID_PREFIX.length)
-    : ''
-  return AGENTIC_OS_DICTIONARY_INVOCATIONS.find(invocation => invocation.id === id) || null
+  return invocationCatalogRuntime.findDictionaryByActionId(String(actionId || ''))
 }
 
 export const buildAgenticOsDocInvocationMarkdown = (doc: AgenticOsDocInvocation): string => (

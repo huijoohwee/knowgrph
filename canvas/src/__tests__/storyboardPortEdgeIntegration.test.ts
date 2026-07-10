@@ -17,9 +17,7 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-
 const buildTestImageDataUri = (semanticId: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><title>${semanticId}</title></svg>`)}`
-
 export function testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard() {
   const imageUrl = buildTestImageDataUri('media-source')
   const graphData: GraphData = {
@@ -58,7 +56,6 @@ export function testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard() 
     to: { nodeId: 'storyboard-target', portKey: 'mediaUrl' },
   })
   if (authored.kind !== 'create') throw new Error(`expected a typed Rich Media to Storyboard edge, got ${authored.kind}`)
-
   const registry = [
     { ...buildRichMediaPanelRegistryDraft(), id: 'rich-media', updatedAt: '2026-06-27T00:00:00.000Z' },
     { ...buildStoryboardElementRegistryDraft(), id: 'storyboard', updatedAt: '2026-06-27T00:00:00.000Z' },
@@ -73,7 +70,6 @@ export function testStoryboardRichMediaPortEdgeProjectsReferenceImageIntoCard() 
     throw new Error(`expected connected reference image in target card, got ${JSON.stringify(targetCard?.media)}`)
   }
 }
-
 export function testStoryboardCardPortEdgeProjectsImageOutputIntoRichMediaPanel() {
   const imageUrl = buildTestImageDataUri('storyboard-source')
   const graphData: GraphData = {
@@ -113,7 +109,6 @@ export function testStoryboardCardPortEdgeProjectsImageOutputIntoRichMediaPanel(
     to: { nodeId: 'media-target', portKey: 'imageUrl' },
   })
   if (authored.kind !== 'create') throw new Error(`expected typed Storyboard to Rich Media edge, got ${authored.kind}`)
-
   const registry = [
     { ...buildRichMediaPanelRegistryDraft(), id: 'rich-media', updatedAt: '2026-06-27T00:00:00.000Z' },
     { ...buildStoryboardElementRegistryDraft(), id: 'storyboard', updatedAt: '2026-06-27T00:00:00.000Z' },
@@ -129,7 +124,6 @@ export function testStoryboardCardPortEdgeProjectsImageOutputIntoRichMediaPanel(
     throw new Error(`expected Card image output in Rich Media Panel target, got ${JSON.stringify(imageValue)}`)
   }
 }
-
 export function testStoryboardPropsPanelEdgeRequestUsesSharedOverlayAuthoring() {
   const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
   const requestBridge = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardEdgeCreationRequest.ts'), 'utf8')
@@ -288,6 +282,7 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
     || !mediaOverlays.includes('richMediaPanelHeaderToolbar.activate()')) {
     throw new Error('expected Rich Media overlay pointer selection to feed the shared port-handle owner')
   }
+  if (!mediaOverlays.includes('const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds)') || !mediaOverlays.includes('openWidgetNodeIds.some(openNodeId => isCanonicalNodeIdEqual(openNodeId, node.id))')) throw new Error('expected open Rich Media overlay panels to keep shared port handles visible through pan/zoom selection normalization')
   if (!headerToolbar.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(nodeId) ? prev : [...prev, nodeId]))')) {
     throw new Error('expected Rich Media overlay reselection on Storyboard to reopen the panel in shared open-widget state')
   }
@@ -531,11 +526,12 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (!dropBridge.includes('useGraphStore.getState().updateOpenWidgetNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))')) {
     throw new Error('expected Storyboard Rich Media drop bridge to mark pending overlay nodes open in shared widget state immediately')
   }
-  const richMediaDropStart = dropBridge.indexOf('const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; x: number; y: number }) => {')
+  const richMediaDropStart = dropBridge.indexOf('const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {')
   const richMediaDropEnd = dropBridge.indexOf('\n\n  React.useEffect(() => {', richMediaDropStart)
   const richMediaDropSlice = dropBridge.slice(richMediaDropStart, richMediaDropEnd)
   if (richMediaDropSlice.includes('openPendingOverlayNode(actualId)') || richMediaDropSlice.includes('args.pendingOpenWidgetNodeIdRef.current = actualId')) throw new Error('forbid direct media drops from opening a duplicate Rich Media floating widget editor; the canvas media overlay is the owner')
   if (!richMediaDropSlice.includes('args.scheduleForceSelect(actualId, { minHoldMs: 700 })')) throw new Error('expected direct media drops to keep canvas selection without mounting a duplicate floating widget editor')
+  if (!richMediaDropSlice.includes('recordMediaDropScreenAnchor(actualId, payload.releaseClientPoint)')) throw new Error('expected direct media drops to preserve the release-point screen anchor through the first overlay layout frame')
 }
 
 export function testMediaPointerReleaseUsesActualCursorPoint() {
@@ -595,4 +591,7 @@ export function testStoryboardPortHandleActivationForbidsTimingBasedDuplicateEdg
   if (!dragSource.includes("document.addEventListener('mousemove', moveMouse, true)") || !dragSource.includes("document.addEventListener('mouseup', finishMouse, true)")) {
     throw new Error('expected pointer-owned source drag sessions to continue consuming mouse move/up events without re-opening a duplicate mouse drag')
   }
+  if (!dragSource.includes('function consumeFlowPortHandleDragEvent(event: Event): void') || !dragSource.includes('consumeFlowPortHandleDragEvent(event)') || !dragSource.includes('stopImmediatePropagation')) throw new Error('expected active source-handle drag move/up events to be consumed before canvas pan/zoom handlers can mutate Storyboard card projection')
+  if (!dragSource.includes('shouldFreezeProjectionForFlowPortHandleDrag') || !dragSource.includes('FLOW_PORT_HANDLE_PROJECTION_SETTLE_FREEZE_MS')) throw new Error('expected source-handle edge creation to expose a projection freeze window for fixed Storyboard cards')
+  if (!handles.includes('e.preventDefault()')) throw new Error('expected source-handle pointer/mouse down to prevent browser/canvas default drag handling')
 }

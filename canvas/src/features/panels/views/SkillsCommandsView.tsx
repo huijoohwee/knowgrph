@@ -1,12 +1,14 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react'
 import {
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_DOC_INVOCATIONS,
+  getAgenticOsBindingInvocations,
+  getAgenticOsCommandInvocations,
+  getAgenticOsDocInvocations,
   type AgenticOsDictionaryInvocationKind,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { CHAT_INVOCATION_OPTIONS } from '@/features/chat/chatInvocationRegistry'
+import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import {
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
@@ -84,7 +86,7 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     kind: 'skill' as const,
     keywords: option.keywords,
   })),
-  ...AGENTIC_OS_COMMAND_INVOCATIONS.map(invocation => ({
+  ...getAgenticOsCommandInvocations().map(invocation => ({
     id: invocation.id,
     label: invocation.label,
     token: invocation.token,
@@ -94,7 +96,7 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     sourcePath: invocation.sourcePath,
     keywords: invocation.keywords,
   })),
-  ...AGENTIC_OS_DOC_INVOCATIONS.map(doc => ({
+  ...getAgenticOsDocInvocations().map(doc => ({
     id: `doc:${doc.id}:slash`,
     label: doc.label,
     token: doc.slashCommand,
@@ -104,7 +106,7 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     sourcePath: doc.sourcePath,
     keywords: [doc.hashToken, doc.atToken, ...doc.keywords],
   })),
-  ...CHAT_INVOCATION_OPTIONS.map(option => ({
+  ...getChatInvocationOptions().map(option => ({
     id: `hash:${option.id}`,
     label: option.label,
     token: option.token,
@@ -118,7 +120,7 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     sourcePath: option.sourcePath,
     keywords: [option.slashCommand || '', option.atToken || '', option.toolName || '', ...option.keywords],
   })),
-  ...AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => ({
+  ...getAgenticOsBindingInvocations().map(invocation => ({
     id: invocation.id,
     label: invocation.label,
     token: invocation.token,
@@ -128,7 +130,7 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     sourcePath: invocation.sourcePath,
     keywords: invocation.keywords,
   })),
-  ...AGENTIC_OS_DOC_INVOCATIONS.map(doc => ({
+  ...getAgenticOsDocInvocations().map(doc => ({
     id: `doc:${doc.id}:at`,
     label: doc.label,
     token: doc.atToken,
@@ -139,8 +141,6 @@ const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => 
     keywords: [doc.slashCommand, doc.hashToken, ...doc.keywords],
   })),
 ]
-
-const SKILLS_COMMANDS_CATALOG = buildSkillsCommandsCatalog()
 
 const tokenPrefixDataAttribute = (entry: SkillsCommandsCatalogEntry): Record<string, string> => {
   if (entry.token.startsWith('/')) return { 'data-kg-skill-command-slash': entry.id }
@@ -190,7 +190,7 @@ function matchesSkillsCommandsPrefixFilter(entry: SkillsCommandsCatalogEntry, pr
 
 function resolveSkillsCommandsEntries(prefixFilter: SkillsCommandsPrefixFilter, queryRaw: string): readonly SkillsCommandsCatalogEntry[] {
   const query = normalize(queryRaw)
-  const prefixEntries = SKILLS_COMMANDS_CATALOG.filter(option => matchesSkillsCommandsPrefixFilter(option, prefixFilter))
+  const prefixEntries = buildSkillsCommandsCatalog().filter(option => matchesSkillsCommandsPrefixFilter(option, prefixFilter))
   if (!query) return prefixEntries
   return prefixEntries.filter(option => {
     const haystack = [
@@ -256,6 +256,7 @@ export default function SkillsCommandsView({
   prefixFilter = 'all',
   searchQuery = '',
 }: SkillsCommandsViewProps) {
+  useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiIconColorClass = useGraphStore(s => s.uiIconColorClass)

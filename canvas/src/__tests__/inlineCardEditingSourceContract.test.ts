@@ -5,7 +5,11 @@ const readUtf8 = (relativePath: string) => {
 }
 
 export function testInlineCardEditingStaysSharedAcrossSurfaces() {
-  const sharedEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  const sharedEditor = [
+    readUtf8('../lib/cards/CardInlineTextEditor.tsx'),
+    readUtf8('../lib/cards/CardInlineTextEditingSurface.tsx'),
+    readUtf8('../lib/cards/CardInlineTextDisplaySurface.tsx'),
+  ].join('\n')
   const animatic = readUtf8('../components/AnimaticCanvas.tsx')
   const markdownKanban = readUtf8('../features/markdown/ui/kanban/KanbanCard.tsx')
   const graphKanban = readUtf8('../features/graph-data-table/ui/GraphDataTableKanbanView.tsx')

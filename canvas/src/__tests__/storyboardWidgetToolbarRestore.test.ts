@@ -47,8 +47,14 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     'flowWidgetHelp',
     'flowWidgetRemoveNode',
     'flowWidgetRun',
-    '<Play className={iconSizeClass}',
-    '<GitBranch className={iconSizeClass}',
+    'const WidgetToolbarActionButton = React.forwardRef<HTMLButtonElement, WidgetToolbarActionButtonProps>',
+    'data-kg-toolbar-action={props.actionId}',
+    'data-kg-toolbar-action-icon={props.actionId}',
+    'aria-hidden={false}',
+    'actionId="run"',
+    'icon={Play}',
+    'actionId="probe-tree"',
+    'icon={GitBranch}',
     'onClick={onRun}',
     'onClick={onProbeTree}',
   ]
@@ -66,14 +72,17 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (!overlayText.includes('absolute left-1/2 z-10 ${pointerPolicy.toolbarPointerEventsClassName}')) {
     throw new Error('expected widget tiny floating toolbar anchor to keep explicit stacking and pointer-event visibility')
   }
-  if (!overlayText.includes('const [toolbarSideClamp, setToolbarSideClamp] = React.useState(false)')) {
-    throw new Error('expected Rich Media widget toolbar to track side clamping state')
+  if (overlayText.includes('toolbarSideClamp')) {
+    throw new Error('expected widget tiny floating toolbar to remove stale Rich Media side-clamp state')
   }
-  if (!overlayText.includes('const nextToolbarSideClamp = pos.left + effectiveScaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportW')) {
-    throw new Error('expected Rich Media widget toolbar to clamp inside the widget when right-side placement would clip')
+  if (overlayText.includes('WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX') || overlayText.includes('WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX')) {
+    throw new Error('expected widget tiny floating toolbar to remove stale Rich Media side placement constants')
   }
-  if (!overlayText.includes('isRichMediaPanelWidget\n              ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`')) {
-    throw new Error('expected Rich Media widget toolbar anchor to branch into side-docked placement while preserving default center toolbar behavior for other widgets')
+  if (overlayText.includes('translateY(-50%)') || overlayText.includes('left: toolbarSideClamp')) {
+    throw new Error('expected widget tiny floating toolbar to remove stale side-docked Rich Media placement math')
+  }
+  if (!overlayText.includes('className={`absolute left-1/2 z-10 ${pointerPolicy.toolbarPointerEventsClassName}`}')) {
+    throw new Error('expected Rich Media and default widgets to reuse the same above-center toolbar anchor')
   }
   if (!overlayText.includes('computeViewportSafeInlineCenterShiftPx')
     || !overlayText.includes('toolbarInlineShiftPx')

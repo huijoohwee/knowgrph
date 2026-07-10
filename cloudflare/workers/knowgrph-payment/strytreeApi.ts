@@ -15,12 +15,12 @@ export type StrytreeWorkerEnv = Record<string, unknown> & {
   STRYTREE_MEDIA_BUCKET?: unknown
   STRYTREE_PROVIDER_BUDGET_KV?: unknown
   STRYTREE_PROVIDER_MODE?: unknown
-  STRYTREE_PIXVERSE_API_KEY?: unknown
-  PIXVERSE_API_KEY?: unknown
-  STRYTREE_PIXVERSE_BASE_URL?: unknown
-  STRYTREE_PIXVERSE_MAX_POLLS?: unknown
-  STRYTREE_PIXVERSE_POLL_INTERVAL_MS?: unknown
-  STRYTREE_PIXVERSE_FETCH?: unknown
+  STRYTREE_EXTERNAL_VIDEO_PROVIDER_API_KEY?: unknown
+  EXTERNAL_VIDEO_PROVIDER_API_KEY?: unknown
+  STRYTREE_EXTERNAL_VIDEO_PROVIDER_BASE_URL?: unknown
+  STRYTREE_EXTERNAL_VIDEO_PROVIDER_MAX_POLLS?: unknown
+  STRYTREE_EXTERNAL_VIDEO_PROVIDER_POLL_INTERVAL_MS?: unknown
+  STRYTREE_EXTERNAL_VIDEO_PROVIDER_FETCH?: unknown
   STRYTREE_DAILY_PROVIDER_BUDGET_CENTS?: unknown
   STRYTREE_PROVIDER_SPEND_KV_KEY?: unknown
   STRYTREE_CHECKOUT_WEBHOOK_SECRET?: unknown
@@ -57,12 +57,12 @@ type StrytreeLedgerMutationResult = {
 
 type FetchLike = (input: string | Request, init?: RequestInit) => Promise<Response>
 
-type PixVerseProviderRequest = {
+type ExternalVideoProviderRequest = {
   endpoint: string
   body: Record<string, unknown>
 }
 
-type PixVerseProviderResult = {
+type ExternalVideoProviderResult = {
   videoId: string
   status: number
   videoUrl: string | null
@@ -119,7 +119,7 @@ type StrytreeAssetRow = {
   asset_type: string
   name: string
   ref_name: string | null
-  pixverse_img_id: string | null
+  external_provider_image_id: string | null
   object_key: string | null
   prompt_prefix: string | null
   negative_prompt: string | null
@@ -233,10 +233,10 @@ const STRYTREE_API_VERSION = '2026-05-31.strytree.v1'
 const CANDIDATE_CREDIT_COST = 5
 const GENERATION_CREDIT_COST = 5
 const MAX_CANDIDATES = 3
-const PIXVERSE_DEFAULT_BASE_URL = 'https://app-api.pixverse.ai'
-const PIXVERSE_GENERATING_STATUS = 5
-const PIXVERSE_SUCCESS_STATUS = 1
-const PIXVERSE_FAILED_STATUSES = new Set([7, 8])
+const EXTERNAL_VIDEO_PROVIDER_DEFAULT_BASE_URL = 'https://api.external-video-provider.invalid'
+const EXTERNAL_VIDEO_PROVIDER_GENERATING_STATUS = 5
+const EXTERNAL_VIDEO_PROVIDER_SUCCESS_STATUS = 1
+const EXTERNAL_VIDEO_PROVIDER_FAILED_STATUSES = new Set([7, 8])
 const STRYTREE_WEBHOOK_TOLERANCE_SECONDS = 5 * 60
 const STRYTREE_PAYMENT_PACKAGES: Record<string, StrytreePaymentPackage> = {
   credits_20: { id: 'credits_20', creditAmount: 20, amountTotal: 500, currency: 'usd' },
@@ -393,8 +393,8 @@ const readNumberField = (value: unknown): number | null => {
   return Number.isFinite(numberValue) ? numberValue : null
 }
 
-const readPixVerseFetch = (env: StrytreeWorkerEnv): FetchLike => {
-  const fetchOverride = env.STRYTREE_PIXVERSE_FETCH
+const readExternalVideoProviderFetch = (env: StrytreeWorkerEnv): FetchLike => {
+  const fetchOverride = env.STRYTREE_EXTERNAL_VIDEO_PROVIDER_FETCH
   return typeof fetchOverride === 'function' ? fetchOverride as FetchLike : fetch
 }
 
@@ -427,7 +427,7 @@ const assertProviderBudgetAllowsGeneration = async (
   return null
 }
 
-const buildPixVerseImageReferences = (value: unknown): Array<Record<string, unknown>> => {
+const buildExternalVideoProviderImageReferences = (value: unknown): Array<Record<string, unknown>> => {
   if (!Array.isArray(value)) return []
   return value.flatMap(item => {
     const record = asRecord(item)
@@ -443,9 +443,9 @@ const buildPixVerseImageReferences = (value: unknown): Array<Record<string, unkn
   })
 }
 
-const buildPixVerseGenerationRequest = (
+const buildExternalVideoProviderGenerationRequest = (
   requestPayload: Record<string, unknown>,
-): PixVerseProviderRequest | null => {
+): ExternalVideoProviderRequest | null => {
   const options = asRecord(requestPayload.options) || {}
   const prompt = normalizeString(requestPayload.prompt)
   if (!prompt) return null
@@ -453,7 +453,7 @@ const buildPixVerseGenerationRequest = (
   const duration = readNumberField(requestPayload.duration || options.duration || options.duration_seconds) || 5
   const quality = normalizeString(requestPayload.quality || options.quality) || '540p'
   const seed = readNumberField(requestPayload.seed || options.seed) || 123456789
-  const imageReferences = buildPixVerseImageReferences(requestPayload.image_references || options.image_references)
+  const imageReferences = buildExternalVideoProviderImageReferences(requestPayload.image_references || options.image_references)
   if (imageReferences.length > 0) {
     return {
       endpoint: '/openapi/v2/video/fusion/generate',
@@ -573,7 +573,7 @@ const readStoryNodes = async (db: D1DatabaseLike, storyId: string): Promise<Stry
 const readStoryAssets = async (db: D1DatabaseLike, storyId: string): Promise<StrytreeAssetRow[]> =>
   queryAll<StrytreeAssetRow>(
     db,
-    `SELECT id, story_id, owner_node_id, asset_type, name, ref_name, pixverse_img_id,
+    `SELECT id, story_id, owner_node_id, asset_type, name, ref_name, external_provider_image_id,
        object_key, prompt_prefix, negative_prompt, created_at
      FROM strytree_assets
      WHERE story_id = ?
@@ -1212,7 +1212,7 @@ const handleCreateGenerationJob = async (
     metadata: {
       story_id: story.id,
       parent_node_id: parentNode.id,
-      provider: 'pixverse',
+      provider: 'external_video_provider',
     },
     nowIso,
   })
@@ -1237,7 +1237,7 @@ const handleCreateGenerationJob = async (
       'queued',
       ledgerEventId,
       null,
-      'pixverse',
+      'external_video_provider',
       null,
       requestJson,
       null,
@@ -1298,17 +1298,17 @@ const readJsonResponse = async (response: Response): Promise<Record<string, unkn
   }
 }
 
-const readPixVerseVideoId = (body: Record<string, unknown>): string => {
+const readExternalVideoProviderVideoId = (body: Record<string, unknown>): string => {
   const response = asRecord(body.Resp) || body
   return normalizeString(response.video_id || response.id)
 }
 
-const readPixVerseStatus = (body: Record<string, unknown>): number => {
+const readExternalVideoProviderStatus = (body: Record<string, unknown>): number => {
   const response = asRecord(body.Resp) || body
   return normalizeNumber(response.status)
 }
 
-const readPixVerseVideoUrl = (body: Record<string, unknown>): string | null => {
+const readExternalVideoProviderVideoUrl = (body: Record<string, unknown>): string | null => {
   const response = asRecord(body.Resp) || body
   return normalizeString(response.url) || null
 }
@@ -1316,25 +1316,25 @@ const readPixVerseVideoUrl = (body: Record<string, unknown>): string | null => {
 const sleep = (ms: number): Promise<void> =>
   ms <= 0 ? Promise.resolve() : new Promise(resolve => setTimeout(resolve, ms))
 
-const runPixVerseProviderIfConfigured = async (
+const runExternalVideoProviderIfConfigured = async (
   env: StrytreeWorkerEnv,
   job: StrytreeGenerationJobRow,
   requestPayload: Record<string, unknown>,
-): Promise<PixVerseProviderResult | null> => {
+): Promise<ExternalVideoProviderResult | null> => {
   const providerMode = normalizeString(env.STRYTREE_PROVIDER_MODE).toLowerCase()
-  const forceLive = providerMode === 'live' || providerMode === 'pixverse'
-  const apiKey = readEnvString(env, 'STRYTREE_PIXVERSE_API_KEY', 'PIXVERSE_API_KEY')
+  const forceLive = providerMode === 'live' || providerMode === 'external_video_provider'
+  const apiKey = readEnvString(env, 'STRYTREE_EXTERNAL_VIDEO_PROVIDER_API_KEY', 'EXTERNAL_VIDEO_PROVIDER_API_KEY')
   if (!apiKey) {
-    if (forceLive) throw new StrytreeProviderError('missing_pixverse_api_key', 'PixVerse provider mode requires a server-side API key.')
+    if (forceLive) throw new StrytreeProviderError('missing_external_video_provider_api_key', 'External video provider mode requires a server-side API key.')
     return null
   }
-  const providerRequest = buildPixVerseGenerationRequest(requestPayload)
+  const providerRequest = buildExternalVideoProviderGenerationRequest(requestPayload)
   if (!providerRequest) {
-    if (forceLive) throw new StrytreeProviderError('missing_pixverse_media_reference', 'PixVerse live mode requires image_references or img_id in the generation payload.')
+    if (forceLive) throw new StrytreeProviderError('missing_external_video_provider_media_reference', 'External video provider live mode requires image_references or img_id in the generation payload.')
     return null
   }
-  const fetcher = readPixVerseFetch(env)
-  const baseUrl = (readEnvString(env, 'STRYTREE_PIXVERSE_BASE_URL') || PIXVERSE_DEFAULT_BASE_URL).replace(/\/+$/g, '')
+  const fetcher = readExternalVideoProviderFetch(env)
+  const baseUrl = (readEnvString(env, 'STRYTREE_EXTERNAL_VIDEO_PROVIDER_BASE_URL') || EXTERNAL_VIDEO_PROVIDER_DEFAULT_BASE_URL).replace(/\/+$/g, '')
   const submittedAtMs = Date.now()
   const submitResponse = await fetcher(`${baseUrl}${providerRequest.endpoint}`, {
     method: 'POST',
@@ -1348,14 +1348,14 @@ const runPixVerseProviderIfConfigured = async (
   const submitJson = await readJsonResponse(submitResponse)
   if (!submitResponse.ok || normalizeNumber(submitJson.ErrCode) > 0) {
     throw new StrytreeProviderError(
-      'pixverse_submit_failed',
-      normalizeString(submitJson.ErrMsg) || `PixVerse submit failed with HTTP ${submitResponse.status}.`,
+      'external_video_provider_submit_failed',
+      normalizeString(submitJson.ErrMsg) || `External video provider submit failed with HTTP ${submitResponse.status}.`,
     )
   }
-  const videoId = readPixVerseVideoId(submitJson)
-  if (!videoId) throw new StrytreeProviderError('pixverse_missing_video_id', 'PixVerse submit response did not include a video id.')
-  const maxPolls = Math.max(1, Math.floor(readEnvNumber(env, 'STRYTREE_PIXVERSE_MAX_POLLS', 60)))
-  const intervalMs = Math.floor(readEnvNumber(env, 'STRYTREE_PIXVERSE_POLL_INTERVAL_MS', 1500))
+  const videoId = readExternalVideoProviderVideoId(submitJson)
+  if (!videoId) throw new StrytreeProviderError('external_video_provider_missing_video_id', 'External video provider submit response did not include a video id.')
+  const maxPolls = Math.max(1, Math.floor(readEnvNumber(env, 'STRYTREE_EXTERNAL_VIDEO_PROVIDER_MAX_POLLS', 60)))
+  const intervalMs = Math.floor(readEnvNumber(env, 'STRYTREE_EXTERNAL_VIDEO_PROVIDER_POLL_INTERVAL_MS', 1500))
   let lastJson: Record<string, unknown> = submitJson
   for (let attempt = 0; attempt < maxPolls; attempt += 1) {
     if (attempt > 0) await sleep(intervalMs)
@@ -1370,29 +1370,29 @@ const runPixVerseProviderIfConfigured = async (
     lastJson = pollJson
     if (!pollResponse.ok || normalizeNumber(pollJson.ErrCode) > 0) {
       throw new StrytreeProviderError(
-        'pixverse_poll_failed',
-        normalizeString(pollJson.ErrMsg) || `PixVerse poll failed with HTTP ${pollResponse.status}.`,
+        'external_video_provider_poll_failed',
+        normalizeString(pollJson.ErrMsg) || `External video provider poll failed with HTTP ${pollResponse.status}.`,
       )
     }
-    const status = readPixVerseStatus(pollJson)
-    if (status === PIXVERSE_SUCCESS_STATUS) {
+    const status = readExternalVideoProviderStatus(pollJson)
+    if (status === EXTERNAL_VIDEO_PROVIDER_SUCCESS_STATUS) {
       return {
         videoId,
         status,
-        videoUrl: readPixVerseVideoUrl(pollJson),
+        videoUrl: readExternalVideoProviderVideoUrl(pollJson),
         responseJson: pollJson,
         submittedAtMs,
         completedAtMs: Date.now(),
       }
     }
-    if (PIXVERSE_FAILED_STATUSES.has(status)) {
-      throw new StrytreeProviderError('pixverse_generation_failed', `PixVerse generation ended with status ${status}.`)
+    if (EXTERNAL_VIDEO_PROVIDER_FAILED_STATUSES.has(status)) {
+      throw new StrytreeProviderError('external_video_provider_generation_failed', `External video provider generation ended with status ${status}.`)
     }
-    if (status !== PIXVERSE_GENERATING_STATUS && attempt === maxPolls - 1) {
-      throw new StrytreeProviderError('pixverse_unknown_status', `PixVerse generation ended with unknown status ${status}.`)
+    if (status !== EXTERNAL_VIDEO_PROVIDER_GENERATING_STATUS && attempt === maxPolls - 1) {
+      throw new StrytreeProviderError('external_video_provider_unknown_status', `External video provider generation ended with unknown status ${status}.`)
     }
   }
-  throw new StrytreeProviderError('pixverse_poll_timeout', `PixVerse generation did not finish after ${maxPolls} poll attempts. Last response: ${stableJson(lastJson)}`)
+  throw new StrytreeProviderError('external_video_provider_poll_timeout', `External video provider generation did not finish after ${maxPolls} poll attempts. Last response: ${stableJson(lastJson)}`)
 }
 
 const completeGenerationJobSuccess = async (
@@ -1400,7 +1400,7 @@ const completeGenerationJobSuccess = async (
   env: StrytreeWorkerEnv,
   job: StrytreeGenerationJobRow,
   nowIso: string,
-  providerResult: PixVerseProviderResult | null,
+  providerResult: ExternalVideoProviderResult | null,
 ): Promise<void> => {
   const bucket = env.STRYTREE_MEDIA_BUCKET as R2BucketLike | undefined
   if (typeof bucket?.put !== 'function') {
@@ -1411,13 +1411,13 @@ const completeGenerationJobSuccess = async (
   const requestPayload = parseJsonRecord(job.request_json)
   const artifact = stableJson({
     job_id: job.id,
-    provider: 'pixverse',
+    provider: 'external_video_provider',
     provider_job_id: providerResult?.videoId || null,
     prompt: normalizeString(requestPayload.prompt),
     generated_at: nowIso,
-    mode: providerResult ? 'pixverse-live-poll' : 'server-side-provider-safe-artifact',
+    mode: providerResult ? 'external-video-provider-live-poll' : 'server-side-provider-safe-artifact',
     source_url: providerResult?.videoUrl || null,
-    pixverse_status: providerResult?.status || null,
+    external_provider_status: providerResult?.status || null,
     elapsed_ms: providerResult ? Math.max(0, providerResult.completedAtMs - providerResult.submittedAtMs) : 0,
     provider_response: providerResult?.responseJson || null,
   })
@@ -1455,7 +1455,7 @@ const completeGenerationJobSuccess = async (
       video_object_key: videoObjectKey,
       thumbnail_object_key: thumbnailObjectKey,
       provider_job_id: providerResult?.videoId || null,
-      mode: providerResult ? 'pixverse-live-poll' : 'server-side-provider-safe-artifact',
+      mode: providerResult ? 'external-video-provider-live-poll' : 'server-side-provider-safe-artifact',
     },
     nowIso,
   })
@@ -1550,7 +1550,7 @@ export const processStrytreeQueueMessage = async (
     return 'processed'
   }
   try {
-    const providerResult = await runPixVerseProviderIfConfigured(env, job, requestPayload)
+    const providerResult = await runExternalVideoProviderIfConfigured(env, job, requestPayload)
     await completeGenerationJobSuccess(db, env, job, nowIso, providerResult)
   } catch (err) {
     const messageText = err instanceof Error ? err.message : 'Strytree generation artifact write failed.'
@@ -1626,7 +1626,7 @@ const handleStoryTree = async (
       asset_type: asset.asset_type,
       name: asset.name,
       ref_name: asset.ref_name,
-      pixverse_img_id: asset.pixverse_img_id,
+      external_provider_image_id: asset.external_provider_image_id,
       object_key: asset.object_key,
     })),
     stats: {

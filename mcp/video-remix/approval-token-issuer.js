@@ -39,7 +39,7 @@
 // Merging render into `paid-model-call` would also weaken single-use token
 // semantics — one `paid-model-call` token could not independently authorize
 // research, storyboard, AND render — and `paid-model-call` (provider token/API
-// spend) is a different risk class from `render-action` (BytePlus/PixVerse
+// spend) is a different risk class from `render-action` (BytePlus/external video provider
 // render-queue spend) in the `APPROVAL_GATES` catalog. The design Glossary's
 // five-item list is therefore an INCOMPLETE enumeration; the canonical catalog
 // is the `APPROVAL_GATES` set (six gates) that `buildApprovalGates` projects

@@ -59,6 +59,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
       placeholder={placeholder || ''}
       canEdit
       editActivation="click"
+      editorSurface="viewer"
       multiline={multiline}
       markdownPreview={multiline ? 'auto' : undefined}
       markdownCommandContextText={markdownCommandContextText}

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext } from '@/components/StoryboardCanvas/storyboardModel'
+import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanvas/storyboardCardTextModel'
 import { collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { syncActiveMarkdownDocumentTextFromParsedGraph } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -18,6 +19,7 @@ import {
   buildStrybldrVideoHandoffMarkdown,
   applyStrybldrVideoArtifactToGraphData,
   clearStrybldrVideoArtifactMarkdownOverrides,
+  createNextStrybldrStoryboardMarkdownNodeId,
   isStrybldrImageGenerationIntent,
   mergeStrybldrElementsIntoGraphData,
   parseStrybldrStoryboardMarkdown,
@@ -50,6 +52,8 @@ import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import { extractYamlFrontmatterHeaderBlock, readYamlFrontmatterValue } from '@/lib/markdown/frontmatter'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
@@ -219,6 +223,114 @@ export async function testStrybldrStoryboardSummaryEditSyncPersistsCardOverride(
   assert(reparsedSourceNode?.properties?.action === nextAction, `expected reindex to keep edited source action, got ${String(reparsedSourceNode?.properties?.action || '')}`)
   assert(reparsedSourceNode?.properties?.prompt === nextPrompt, `expected reindex to keep edited source prompt, got ${String(reparsedSourceNode?.properties?.prompt || '')}`)
   assert(reparsedSourceNode?.properties?.order === nextOrder, `expected reindex to keep edited source order, got ${String(reparsedSourceNode?.properties?.order || '')}`)
+}
+
+export function testStrybldrAddedCardSyncPersistsAndRehydrates() {
+  const text = readStrybldrStarterTemplateText()
+  const parsedDocument = parseStrybldrStoryboardMarkdown(text)
+  assert(parsedDocument, 'expected starter template to parse before adding a card')
+  const graph = buildStrybldrGraphData(parsedDocument)
+  const nodeId = createNextStrybldrStoryboardMarkdownNodeId({ text })
+  assert(nodeId, 'expected source-owned next card id')
+  const order = Math.max(0, ...parsedDocument.elements.map(element => Number(element.order)).filter(Number.isFinite)) + 1
+  const prompt = 'Generate a source-owned response for the active request.'
+  const semanticValues = Object.fromEntries(['dialogue', 'style', 'chatModel', 'mediaUrl'].map(key => [key, `source-owned-${key}`]))
+  const nextNode: GraphNode = {
+    id: nodeId,
+    type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    label: FLOW_TEXT_GENERATION_NODE_LABEL,
+    properties: {
+      title: FLOW_TEXT_GENERATION_NODE_LABEL,
+      lane: 'Text Generation',
+      order,
+      prompt,
+      ...semanticValues,
+    },
+  }
+  const sourceFiles = [{
+    id: 'active-strybldr-source',
+    enabled: true,
+    name: STRYBLDR_STARTER_TEMPLATE_NAME,
+    text,
+    source: { path: STRYBLDR_STARTER_TEMPLATE_REFERENCE },
+    parsedGraphData: graph,
+  }] as never
+  const textSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+    state: {
+      markdownDocumentName: STRYBLDR_STARTER_TEMPLATE_REFERENCE,
+      markdownDocumentText: text,
+    } as never,
+    sourceFiles,
+    parsedGraphData: { ...graph, nodes: [...graph.nodes, nextNode] },
+    nextNode,
+  })
+  const nextText = String(textSync.markdownDocumentText || '')
+  assert(nextText && nextText !== text, 'expected canonical node creation to update the Strybldr source')
+  assert(textSync.sourceFiles[0]?.text === nextText, 'expected the active source file to receive the added card')
+  const reparsedDocument = parseStrybldrStoryboardMarkdown(nextText)
+  const persistedElement = reparsedDocument?.elements.find(element => element.id === nodeId)
+  const persistedCard = reparsedDocument?.cards?.find(card => card.nodeId === nodeId)
+  assert(persistedElement?.prompt === prompt, `expected added card prompt in source element, got ${JSON.stringify(persistedElement)}`)
+  assert(persistedCard?.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID, `expected added card type override, got ${JSON.stringify(persistedCard)}`)
+  assert(persistedCard?.lane === 'Text Generation', `expected added card lane override, got ${JSON.stringify(persistedCard)}`)
+  for (const [key, value] of Object.entries(semanticValues)) {
+    assert(persistedCard?.[key as keyof typeof persistedCard] === value, `expected added card ${key} override, got ${JSON.stringify(persistedCard)}`)
+  }
+  const rehydratedGraph = buildStrybldrGraphData(reparsedDocument!)
+  const rehydratedNode = rehydratedGraph.nodes.find(node => String(node.id || '') === nodeId)
+  assert(rehydratedNode, 'expected added source card to rematerialize after parse')
+  assert(rehydratedNode.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID, `expected rehydrated card type, got ${String(rehydratedNode.type || '')}`)
+  assert(rehydratedNode.properties?.prompt === prompt, `expected rehydrated prompt, got ${String(rehydratedNode.properties?.prompt || '')}`)
+  assert(!String(rehydratedNode.properties?.summary || '').trim(), 'expected user-authored prompt cards not to receive a generated summary that changes the edit target')
+  assert(!String(rehydratedNode.properties?.action || '').trim(), 'expected user-authored prompt cards not to receive a generated action that changes the edit target')
+  for (const [key, value] of Object.entries(semanticValues)) {
+    assert(rehydratedNode.properties?.[key] === value, `expected rehydrated ${key}, got ${String(rehydratedNode.properties?.[key] || '')}`)
+  }
+  const card = buildStoryboardBoardModel({ graphData: rehydratedGraph, graphRevision: 1, widgetRegistry: [] }).lanes
+    .flatMap(lane => lane.cards)
+    .find(candidate => candidate.id === nodeId)
+  const textModel = card ? buildStoryboardCardTextModel(card) : null
+  assert(textModel?.primaryField.id === 'prompt', `expected rehydrated prompt card to keep Prompt as its Viewer edit target, got ${textModel?.primaryField.id || 'missing'}`)
+}
+
+export function testStrybldrExistingUnownedCardEditDoesNotBackfillSource() {
+  const text = readStrybldrStarterTemplateText()
+  const parsedDocument = parseStrybldrStoryboardMarkdown(text)
+  assert(parsedDocument, 'expected starter template to parse before checking the no-backfill boundary')
+  const graph = buildStrybldrGraphData(parsedDocument)
+  const nodeId = createNextStrybldrStoryboardMarkdownNodeId({ text })
+  assert(nodeId, 'expected a neutral unowned node id')
+  const previousPrompt = `unowned-${nodeId}`
+  const previousNode: GraphNode = {
+    id: nodeId,
+    type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    label: FLOW_TEXT_GENERATION_NODE_LABEL,
+    properties: { prompt: previousPrompt },
+  }
+  const nextNode: GraphNode = {
+    ...previousNode,
+    properties: { prompt: `edited-${previousPrompt}` },
+  }
+  const graphWithUnownedNode = { ...graph, nodes: [...graph.nodes, previousNode] }
+  const sourceFiles = [{
+    id: 'active-strybldr-source',
+    enabled: true,
+    name: STRYBLDR_STARTER_TEMPLATE_NAME,
+    text,
+    source: { path: STRYBLDR_STARTER_TEMPLATE_REFERENCE },
+    parsedGraphData: graphWithUnownedNode,
+  }] as never
+  const textSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+    state: { markdownDocumentName: STRYBLDR_STARTER_TEMPLATE_REFERENCE, markdownDocumentText: text } as never,
+    sourceFiles,
+    parsedGraphData: { ...graphWithUnownedNode, nodes: [...graph.nodes, nextNode] },
+    previousNode,
+    nextNode,
+  })
+  assert(textSync.sourceFiles[0]?.text === text, 'expected editing an unowned existing node not to infer or mutate Strybldr source ownership')
+  const reparsed = parseStrybldrStoryboardMarkdown(textSync.sourceFiles[0]?.text || '')
+  assert(!reparsed?.elements.some(element => element.id === nodeId), 'expected no edit-time element backfill')
+  assert(!reparsed?.cards?.some(card => card.nodeId === nodeId), 'expected no edit-time card override backfill')
 }
 
 export function testStrybldrWorkflowEdgeSyncPersistsAuthoredStoryboardConnections() {

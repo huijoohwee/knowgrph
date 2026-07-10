@@ -231,7 +231,7 @@ export function assertMcpHubMaintainsKeyTypeValueHeader(container: Element): voi
     throw new Error(`expected MCP hub KTV header to remain KeyTypeValue, got ${JSON.stringify(text)}`)
   }
 }
-
+export { assertDeferredExternalMcpBridgeIdsStayDocumentedContract } from './mainPanelMcpDeferredBridgeExpectations'
 export function assertMapsHubOmitsGrabMapsMcpConfig(text: string): void {
   ;[
     'grabmaps.mcp.url',

@@ -6819,7 +6819,7 @@ export default defineConfig(({ command }) => {
                   return 'settings-mcp-docs'
                 }
                 const settingsMcpDocModuleMatch = moduleId.match(
-                  /\/src\/features\/panels\/views\/(apiNativeBrowserMcpApiDocs|cloudflareAiGatewayMcpApiDocs|crawlerAccessMcpApiDocs|exaMcpApiDocs|feishuBaseMcpApiDocs|grabmapsMcpApiDocs|larkAppMcpApiDocs|miromindMcpApiDocs|openaiMcpApiDocs|operatorDeployMcpApiDocs|pixverseMcpApiDocs|stripeMcpApiDocs|vdeoxplnMcpApiDocs)\.ts$/,
+                  /\/src\/features\/panels\/views\/(apiNativeBrowserMcpApiDocs|cloudflareAiGatewayMcpApiDocs|crawlerAccessMcpApiDocs|exaMcpApiDocs|feishuBaseMcpApiDocs|grabmapsMcpApiDocs|larkAppMcpApiDocs|miromindMcpApiDocs|openaiMcpApiDocs|operatorDeployMcpApiDocs|stripeMcpApiDocs|vdeoxplnMcpApiDocs)\.ts$/,
                 )
                 if (settingsMcpDocModuleMatch) {
                   return `settings-${settingsMcpDocModuleMatch[1]}`

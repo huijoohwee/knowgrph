@@ -3,6 +3,12 @@ import {
   deriveStoryboardCanvasRichMediaPanelNodeIds,
   filterGraphByExcludedNodeIds,
 } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import {
+  deriveStoryboardWidgetNodeRemoval,
+  isStoryboardWidgetNodeRemovalTarget,
+} from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetNodeDraftActions'
+import { resolveFlowCanvasRichMediaOverlayRemoval } from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'
+import { resolveStoryboardCardOverlayRemoval } from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'
 import { STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildFlowWidgetEligibleNodeIdSet, buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { buildRichMediaPanelOverlayExcludeNodeIdSet, listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
@@ -71,6 +77,142 @@ export function testDeriveOpenWidgetOverlayNodeIdsKeepsRichMediaPanelsWhenExplic
 
   if (ids.length !== 2 || ids[0] !== 'p-media' || ids[1] !== 'w-text') {
     throw new Error(`expected overlay node id derivation to preserve explicitly opened RichMediaPanel widget ids, got ${JSON.stringify(ids)}`)
+  }
+}
+
+export function testStoryboardWidgetRemoveClosesCanonicalRichMediaPanelIds() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'workspace-source::rich-media-panel',
+        type: 'RichMediaPanel',
+        label: 'Rich Media Panel',
+        properties: { 'flow:widgetFormId': 'richMediaPanel' },
+      },
+      {
+        id: 'source-node',
+        type: 'InputWidget',
+        label: 'Source',
+        properties: {},
+      },
+    ],
+    edges: [
+      { id: 'source-to-rich', source: 'source-node', target: 'workspace-source::rich-media-panel', label: 'output', properties: {} },
+    ],
+    metadata: { kind: 'frontmatter-flow' },
+  }
+
+  const removal = deriveStoryboardWidgetNodeRemoval({
+    graphData,
+    nodeId: 'rich-media-panel',
+  })
+
+  if (removal.removedNodeIds.length !== 1 || removal.removedNodeIds[0] !== 'workspace-source::rich-media-panel') {
+    throw new Error(`expected canonical Rich Media Panel suffix remove to resolve the workspace-qualified graph node, got ${JSON.stringify(removal.removedNodeIds)}`)
+  }
+  const nextNodeIds = (removal.nextGraphData?.nodes || []).map(node => String(node.id || '').trim())
+  if (nextNodeIds.includes('workspace-source::rich-media-panel') || !nextNodeIds.includes('source-node')) {
+    throw new Error(`expected remove to prune only the Rich Media Panel node, got ${JSON.stringify(nextNodeIds)}`)
+  }
+  if ((removal.nextGraphData?.edges || []).length !== 0) {
+    throw new Error(`expected remove to prune incident Rich Media Panel edges, got ${JSON.stringify(removal.nextGraphData?.edges || [])}`)
+  }
+
+  const remainingOpenWidgetNodeIds = ['rich-media-panel', 'workspace-source::rich-media-panel', 'source-node'].filter(nodeId => {
+    return !isStoryboardWidgetNodeRemovalTarget({ nodeId, removalNodeIds: removal.removedNodeIds })
+  })
+  if (remainingOpenWidgetNodeIds.length !== 1 || remainingOpenWidgetNodeIds[0] !== 'source-node') {
+    throw new Error(`expected canonical Rich Media Panel remove to close every equivalent floating widget id, got ${JSON.stringify(remainingOpenWidgetNodeIds)}`)
+  }
+}
+
+export function testFlowCanvasRichMediaOverlayRemoveResolvesCanonicalOpenWidgetIds() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'workspace-source::n10',
+        type: 'RichMediaPanel',
+        label: 'Rich Media Panel',
+        properties: { 'flow:widgetFormId': 'richMediaPanel' },
+      },
+      {
+        id: 'source-node',
+        type: 'InputWidget',
+        label: 'Source',
+        properties: {},
+      },
+    ],
+    edges: [],
+    metadata: { kind: 'frontmatter-flow' },
+  }
+
+  const removal = resolveFlowCanvasRichMediaOverlayRemoval({
+    graphData,
+    nodeId: 'n10',
+    openWidgetNodeIds: ['n10', 'workspace-source::n10', 'source-node'],
+    selectedNodeId: 'workspace-source::n10',
+  })
+
+  if (!removal) throw new Error('expected Rich Media overlay remove resolver to return a removal contract')
+  if (removal.targetNodeId !== 'workspace-source::n10') {
+    throw new Error(`expected canonical Rich Media overlay remove target, got ${removal.targetNodeId}`)
+  }
+  if (removal.nextOpenWidgetNodeIds.length !== 1 || removal.nextOpenWidgetNodeIds[0] !== 'source-node') {
+    throw new Error(`expected canonical Rich Media overlay remove to close equivalent open widget ids, got ${JSON.stringify(removal.nextOpenWidgetNodeIds)}`)
+  }
+  if (removal.clearSelection !== true) {
+    throw new Error('expected canonical Rich Media overlay remove to clear equivalent selected node ids')
+  }
+}
+
+export function testStoryboardCardOverlayRemoveResolvesCanonicalCardIds() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'workspace-source::n8',
+        type: 'TextGeneration',
+        label: 'Text Widget',
+        properties: { 'flow:widgetFormId': 'textGeneration' },
+      },
+      {
+        id: 'workspace-runtime',
+        type: 'Validation',
+        label: 'Runtime Gate',
+        properties: {},
+      },
+    ],
+    edges: [
+      { id: 'runtime-to-card', source: 'workspace-runtime', target: 'workspace-source::n8', label: 'output', properties: {} },
+    ],
+    metadata: { kind: 'frontmatter-flow' },
+  }
+
+  const removal = resolveStoryboardCardOverlayRemoval({
+    graphData,
+    cardId: 'n8',
+    openWidgetNodeIds: ['n8', 'workspace-source::n8', 'workspace-runtime'],
+    selectedNodeId: 'n8',
+  })
+
+  if (!removal) throw new Error('expected Storyboard card overlay remove resolver to return a removal contract')
+  if (removal.removedNodeIds.length !== 1 || removal.removedNodeIds[0] !== 'workspace-source::n8') {
+    throw new Error(`expected canonical Storyboard card remove to resolve the workspace-qualified graph node, got ${JSON.stringify(removal.removedNodeIds)}`)
+  }
+  const nextNodeIds = (removal.nextGraphData?.nodes || []).map(node => String(node.id || '').trim())
+  if (nextNodeIds.includes('workspace-source::n8') || !nextNodeIds.includes('workspace-runtime')) {
+    throw new Error(`expected Storyboard card remove to prune only the selected card node, got ${JSON.stringify(nextNodeIds)}`)
+  }
+  if ((removal.nextGraphData?.edges || []).length !== 0) {
+    throw new Error(`expected Storyboard card remove to prune incident edges, got ${JSON.stringify(removal.nextGraphData?.edges || [])}`)
+  }
+  if (removal.nextOpenWidgetNodeIds.length !== 1 || removal.nextOpenWidgetNodeIds[0] !== 'workspace-runtime') {
+    throw new Error(`expected Storyboard card remove to close equivalent open widget ids, got ${JSON.stringify(removal.nextOpenWidgetNodeIds)}`)
+  }
+  if (removal.clearSelection !== true) {
+    throw new Error('expected Storyboard card remove to clear equivalent selected node ids')
   }
 }
 

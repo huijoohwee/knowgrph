@@ -59,6 +59,7 @@ export type StrybldrCardOverride = {
   action?: string | null
   dialogue?: string | null
   prompt?: string | null
+  style?: string | null
   chatModel?: string | null
   outputSrcDoc?: string | null
   imageUrl?: string | null

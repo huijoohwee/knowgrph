@@ -33,6 +33,71 @@ export async function testMarkdownViewerInlineEditInvocationChipToneMatchesReadS
         throw new Error(`expected edit token not to switch to raw sigil tone ${rawOnlyClass}, class=${editToken.className}`)
       }
     }
+    const { createElement } = await import('react')
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const {
+      INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME,
+      InlineMediaCommandThumbnail,
+      readInlineMediaCommandThumbnailClassName,
+    } = await import('@/lib/command-menu/InlineMediaCommandThumbnail')
+    root.innerHTML = rewriteRenderedInlineMediaForEditorHtml('<img src="https://media.example.test/scene.jpg" alt="Scene">')
+    const thumbnail = root.querySelector('[data-kg-inline-media-edit-token="1"] [data-kg-inline-command-thumbnail="image"]') as HTMLElement | null
+    const thumbnailImage = thumbnail?.querySelector('img') as HTMLImageElement | null
+    const expectedThumbnailClass = readInlineMediaCommandThumbnailClassName({ hasThumbnail: true, kind: 'image', variant: 'inline' })
+    if (
+      !thumbnail
+      || thumbnail.className !== expectedThumbnailClass
+      || thumbnail.getAttribute('aria-label') !== 'Scene'
+      || thumbnail.hasAttribute('aria-hidden')
+      || thumbnailImage?.className !== INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME
+    ) {
+      throw new Error(`expected Viewer edit media token to reuse read-surface thumbnail geometry, html=${root.innerHTML}`)
+    }
+    const selectableThumbnailMarkup = renderToStaticMarkup(createElement(InlineMediaCommandThumbnail, {
+      kind: 'image',
+      thumbnailAlt: 'Storyboard source frame',
+      thumbnailUrl: 'https://media.example.test/source-frame.jpg',
+      variant: 'inline',
+    }))
+    if (!selectableThumbnailMarkup.includes('aria-label="Storyboard source frame"') || selectableThumbnailMarkup.includes('aria-hidden="true"')) {
+      throw new Error(`expected shared media thumbnail wrapper to remain labeled and visible to selection tooling, html=${selectableThumbnailMarkup}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownContentEditableSurfaceSharesPointSelectionRuntime() {
+  const { restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const {
+      applyMarkdownContentEditableSelection,
+      readMarkdownContentEditableCaretRangeFromPoint,
+    } = await import('@/lib/markdown-core/ui/markdownContentEditableSurface')
+    const root = document.createElement('section')
+    const textNode = document.createTextNode('shared viewer text')
+    root.appendChild(textNode)
+    document.body.appendChild(root)
+    Object.defineProperty(document, 'caretRangeFromPoint', {
+      configurable: true,
+      value: () => {
+        const range = document.createRange()
+        range.setStart(textNode, 7)
+        range.collapse(true)
+        return range
+      },
+    })
+    const result = readMarkdownContentEditableCaretRangeFromPoint(root, { x: 24, y: 12 })
+    if (!result.supported || !result.range || result.range.startContainer !== textNode || result.range.startOffset !== 7) {
+      throw new Error('expected shared point-selection helper to resolve an in-surface caret range')
+    }
+    if (!applyMarkdownContentEditableSelection(root, result.range)) {
+      throw new Error('expected shared contenteditable selection application to succeed')
+    }
+    const selection = document.getSelection()
+    if (!selection || selection.anchorNode !== textNode || selection.anchorOffset !== 7) {
+      throw new Error('expected shared selection application to place the caret at the resolved point')
+    }
   } finally {
     restore()
   }

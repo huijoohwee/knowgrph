@@ -80,7 +80,7 @@ It is not a mandate to add a new MainPanel tab, a new graph mutation service, a 
 
 ## Executive Summary
 
-Knowgrph needs web search and page-fetch evidence inside the same MCP-aware operator surface that already handles local MCP, Stripe MCP, GrabMaps MCP, API-native browser MCP, PixVerse MCP, MiroMind MCP, and native agent-ready tooling. Exa MCP is the right external search connector because it offers hosted MCP search/fetch tools and an open-source server reference.
+Knowgrph needs web search and page-fetch evidence inside the same MCP-aware operator surface that already handles local MCP, Stripe MCP, GrabMaps MCP, API-native browser MCP, external video provider MCP, MiroMind MCP, and native agent-ready tooling. Exa MCP is the right external search connector because it offers hosted MCP search/fetch tools and an open-source server reference.
 
 The product risk is not search capability. The risk is integration sprawl: copied URLs, stale tool names, browser-stored API keys, direct graph mutation from untrusted web content, and parallel MCP paths. The integration must therefore:
 

@@ -74,18 +74,21 @@ export function testPlainTextInputEditorUsesReactChangeContract() {
 }
 export function testCardInlineTextEditorPreservesSharedMultilineCommitContract() {
   const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
+  const cardInlineEditingSurface = readUtf8('../lib/cards/CardInlineTextEditingSurface.tsx')
+  const cardInlineDisplaySurface = readUtf8('../lib/cards/CardInlineTextDisplaySurface.tsx')
+  const sharedEditorRuntime = `${cardInlineEditor}\n${cardInlineEditingSurface}\n${cardInlineDisplaySurface}`
   const storyboardWidgetOverlayProxy = readUtf8('../lib/canvas/storyboard-widget-overlay-proxy.ts')
   for (const snippet of [
     '<PanelTextarea',
     '<PanelTextInput',
     'value: projectedEditorDisplayValue',
-    'setDraft(nextValue)',
+    'updateDraft(nextValue)',
     'readProjectedEditorRawValue',
     'rowHeightPreset={editorDensity.rowHeightPreset}',
     'fieldLineMode={editorDensity.fieldLineMode}',
     'density={editorDensity.rowHeightPreset}',
     "editActivation = 'doubleClick'",
-    'data-kg-card-inline-edit-activation={editActivation}',
+    'data-kg-card-inline-edit-activation={props.editActivation}',
     'onPointerDown={event => {',
     'shouldOpenMarkdownViewerInlineEditorFromReadClick',
     'onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {',
@@ -93,74 +96,12 @@ export function testCardInlineTextEditorPreservesSharedMultilineCommitContract()
     "if (multiline && event.key === 'Enter' && (event.metaKey || event.ctrlKey))",
     'onCommit?.(next)',
   ]) {
-    if (!cardInlineEditor.includes(snippet)) {
+    if (!sharedEditorRuntime.includes(snippet)) {
       throw new Error(`expected CardInlineTextEditor to preserve the shared multiline commit contract: ${snippet}`)
     }
   }
   if (!storyboardWidgetOverlayProxy.includes('[data-kg-card-inline-edit="1"]')) {
     throw new Error('expected Storyboard Widget overlay pointer routing to treat shared card inline editors as interactive controls')
-  }
-}
-export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwygOwner() {
-  const cardInlineEditor = readUtf8('../lib/cards/CardInlineTextEditor.tsx')
-  const cardInlineEditingSurface = readUtf8('../lib/cards/CardInlineTextEditingSurface.tsx')
-  const cardInlineEditorSupport = readUtf8('../lib/cards/CardInlineTextEditorSupport.ts')
-  const viewerSurface = readUtf8('../lib/cards/CardInlineTextViewerEditSurface.tsx')
-  const markdownInlineEditHtml = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml.ts')
-  const invocationTokens = readUtf8('../lib/markdown/invocationTokens.ts')
-  const storyboardOverlay = readUtf8('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx')
-  for (const snippet of [
-    'CardInlineTextViewerEditSurface',
-    'displaySourceValue',
-    'editorSurface = \'control\'',
-    'focusCardInlineTextViewerSelectionSoon',
-  ]) {
-    if (!cardInlineEditor.includes(snippet)) {
-      throw new Error(`expected CardInlineTextEditor to route the optional edit path through the shared Viewer WYSIWYG surface: ${snippet}`)
-    }
-  }
-  if (!cardInlineEditingSurface.includes('useViewerEditSurface ? draft : projectedEditorDisplayValue')) {
-    throw new Error('expected CardInlineTextEditingSurface to preserve Viewer draft vs textarea display command-menu routing')
-  }
-  for (const snippet of [
-    "editorSurface?: 'control' | 'viewer'",
-    'displayValue?: string',
-    'export const isElementEventTarget',
-  ]) {
-    if (!cardInlineEditorSupport.includes(snippet)) {
-      throw new Error(`expected CardInlineTextEditorSupport to own shared Viewer WYSIWYG support snippet: ${snippet}`)
-    }
-  }
-  for (const snippet of [
-    'rewriteRenderedInlineMediaForEditorHtml',
-    'readFastInlineMarkdownDraft',
-    'readInlineMediaEditorMarkdownText',
-    'MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS',
-    'MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS',
-    'data-kg-card-inline-wysiwyg-virtual-media-chip',
-    'data-kg-card-inline-wysiwyg-media-markdown',
-    'data-kg-card-inline-wysiwyg-media-thumbnail',
-    'INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR',
-    'pendingViewerSelections',
-  ]) {
-    if (!viewerSurface.includes(snippet)) {
-      throw new Error(`expected CardInlineTextViewerEditSurface to reuse Viewer edit initialization/serialization helpers: ${snippet}`)
-    }
-  }
-  if (!markdownInlineEditHtml.includes('if (!segments.some(segment => segment.kind === \'token\')) return')) {
-    throw new Error('expected shared Viewer inline-edit token rewriting to chip valid /, #, and @ tokens without requiring local card renderers')
-  }
-  if (!invocationTokens.includes('normalizeInvocationTokenSpacing') || !invocationTokens.includes('startsAfterAcceptedToken')) {
-    throw new Error('expected shared invocation grammar to accept compact adjacent token runs while serializing canonical / # @ spacing')
-  }
-  if (!storyboardOverlay.includes('editorSurface="viewer"')) {
-    throw new Error('expected Storyboard card summary edit mode to opt into the shared Viewer WYSIWYG surface')
-  }
-  if (!storyboardOverlay.includes('value={textModel.primaryRaw || card.slugline || \'\'}') || !storyboardOverlay.includes('displayValue={textModel.primaryDisplay || card.slugline || \'\'}')) {
-    throw new Error('expected Storyboard card summary edit mode to keep raw source value separate from read-view display projection')
-  }
-  if (!storyboardOverlay.includes('editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)] [scrollbar-gutter:stable]"')) {
-    throw new Error('expected Storyboard card summary edit mode to inherit Viewer WYSIWYG chrome instead of local textarea border/background styling')
   }
 }
 export async function testWorkspaceDataViewFloatingDensityResyncsSameRegistrationViewConfig() {
@@ -249,6 +190,7 @@ export async function testCardInlineTextEditorAllowsSharedClickActivation() {
           ariaLabel: 'Card title',
           placeholder: 'Add title',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           onCommit: () => void 0,
         }),
@@ -291,6 +233,7 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           multiline: true,
           rows: 3,
           onCommit: value => committedValues.push(value),
@@ -340,6 +283,7 @@ export async function testCommandMenuMediaPanelActionInvokesActiveCardField() {
             ariaLabel: 'Action text',
             placeholder: 'Add action',
             canEdit: true,
+            editorSurface: 'control',
             multiline: true,
             rows: 3,
             onCommit: value => committedValues.push(value),
@@ -408,6 +352,7 @@ export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick
             ariaLabel: 'Action text',
             placeholder: 'Add action',
             canEdit: true,
+            editorSurface: 'control',
             multiline: true,
             rows: 3,
             onCommit: value => committedValues.push(value),
@@ -493,6 +438,7 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
             ariaLabel: 'Action text',
             placeholder: 'Add action',
             canEdit: true,
+            editorSurface: 'control',
             multiline: true,
             rows: 3,
             onCommit: value => committedValues.push(value),
@@ -583,6 +529,7 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
             ariaLabel: 'Action',
             placeholder: 'Add action',
             canEdit: true,
+            editorSurface: 'control',
             editActivation: 'click',
             multiline: true,
             rows: 3,
@@ -593,6 +540,7 @@ export async function testCardInlineTextEditorSelectionOverridesStaleMediaTarget
             ariaLabel: 'Dialogue',
             placeholder: 'Add dialogue',
             canEdit: true,
+            editorSurface: 'control',
             editActivation: 'click',
             multiline: true,
             rows: 3,
@@ -652,6 +600,7 @@ export async function testCardInlineTextEditorMultilineRowsFollowViewDensity() {
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           rows: 3,
@@ -710,6 +659,7 @@ export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity()
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           rows: 3,
@@ -743,7 +693,7 @@ export async function testCardInlineTextEditorDisplaySurfaceFollowsViewDensity()
     restore()
   }
 }
-export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCardSurfaceAndTextarea() {
+export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareViewerSurface() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -780,13 +730,13 @@ export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareCar
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-    const textarea = container.querySelector('textarea[aria-label="Widget value"]')
-    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Storyboard Widget value to open a shared textarea')
-    if (textarea.rows !== 2 || !textarea.className.includes('min-h-12') || !textarea.className.includes('resize-y')) {
-      throw new Error(`expected Storyboard Widget textarea to use two-line panel density instead of caller rows, got rows=${textarea.rows} class=${textarea.className}`)
+    const editor = container.querySelector('[contenteditable="true"][data-kg-card-inline-viewer-edit-surface="1"][aria-label="Widget value"]')
+    if (!(editor instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard Widget value to open the shared Viewer edit surface')
+    if (!editor.className.includes('min-h-12')) {
+      throw new Error(`expected Storyboard Widget Viewer edit surface to use two-line panel density, class=${editor.className}`)
     }
-    if (textarea.className.split(/\s+/).includes('resize')) {
-      throw new Error(`expected Storyboard Widget textarea resizing to keep width fixed with resize-y, got class=${textarea.className}`)
+    if (editor.className.split(/\s+/).includes('resize')) {
+      throw new Error(`expected Storyboard Widget Viewer edit surface not to enable unconstrained two-axis resizing, class=${editor.className}`)
     }
   } finally {
     setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })
@@ -814,6 +764,7 @@ export async function testCardInlineTextEditorCanPropagateActivationClick() {
           ariaLabel: 'Metric target',
           placeholder: 'Add target',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           stopActivationPropagation: false,
           onCommit: () => void 0,
@@ -857,6 +808,7 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
           ariaLabel: 'Widget text',
           placeholder: 'Add text',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           markdownCommandContextText: [
@@ -979,9 +931,6 @@ export async function testCardInlineTextEditorMarkdownCommandMenusApplySlashAndV
       imageInsertButton.click()
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-    if (textarea.value.includes('![') || textarea.value.includes('https://media.example.test/poster.jpg') || !textarea.value.includes('@Image: imageUrl')) {
-      throw new Error(`expected @ Image command to show compact projected media chip text, got ${JSON.stringify(textarea.value)}`)
-    }
     if (!committedValues.some(value => value.includes('](https://media.example.test/poster.jpg)'))) {
       throw new Error(`expected @ Image command to persist the resolved image embed immediately, got ${JSON.stringify(committedValues)}`)
     }
@@ -1013,6 +962,7 @@ export async function testCardInlineTextEditorVideoCommandPersistsPosterThumbnai
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           markdownCommandContextText: 'videoUrl: "https://www.youtube.com/watch?v=demoVideoId"',
@@ -1086,6 +1036,7 @@ export async function testCardInlineTextEditorGenericMediaPlaceholderStaysEditab
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           onCommit: next => {
@@ -1156,6 +1107,7 @@ export async function testCardInlineTextEditorMediaCommandsUseSharedCommandMenuR
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           markdownPreview: 'auto',
@@ -1219,6 +1171,7 @@ export async function testCardInlineTextEditorKeywordTokenUsesInlineChipDisplay(
           ariaLabel: 'Output text',
           placeholder: 'Add output',
           canEdit: true,
+          editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
           markdownPreview: 'auto',
@@ -1280,6 +1233,7 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
+  const committedValues: string[] = []
   try {
     await act(async () => {
       root.render(
@@ -1288,26 +1242,23 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
           ariaLabel: 'Action text',
           placeholder: 'Add action',
           canEdit: true,
+          editorSurface: 'control',
           multiline: true,
           markdownPreview: 'auto',
-          onCommit: () => {},
+          onCommit: value => committedValues.push(value),
         }),
       )
       await new Promise(resolve => setTimeout(resolve, 0))
       await new Promise(resolve => setTimeout(resolve, 0))
     })
     const display = container.querySelector('[data-kg-card-inline-edit-activation="doubleClick"]')
-    if (!(display instanceof dom.window.HTMLElement)) {
-      throw new Error('expected shared card editor display surface to preserve default double-click activation')
-    }
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected shared card editor display surface to preserve default double-click activation')
     const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
-    if (!(previewRoot instanceof dom.window.HTMLElement)) {
-      throw new Error('expected markdown preview read surface to render inside the shared card editor display')
-    }
-    const previewImage = previewRoot.querySelector('img[data-kg-media-thumbnail="1"]')
-    if (!(previewImage instanceof dom.window.HTMLImageElement)) {
-      throw new Error('expected markdown preview media thumbnail to render inside the shared card editor display')
-    }
+    if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error('expected markdown preview read surface to render inside the shared card editor display')
+    const previewMediaChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(previewMediaChip instanceof dom.window.HTMLElement)) throw new Error('expected markdown preview media chip to render inside the shared card editor display')
+    const previewThumbnail = previewMediaChip.querySelector('[data-kg-inline-command-thumbnail="image"]')
+    if (!(previewThumbnail instanceof dom.window.HTMLElement)) throw new Error('expected markdown preview media chip to reuse the shared inline thumbnail owner')
     await act(async () => {
       previewRoot.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, detail: 1 }))
       previewRoot.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 1 }))
@@ -1315,12 +1266,13 @@ export async function testCardInlineTextEditorMarkdownPreviewOneClickReopensDefa
       await new Promise(resolve => setTimeout(resolve, 0))
     })
     const textarea = container.querySelector('textarea[aria-label="Action text"]')
-    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) {
-      throw new Error('expected one click on the markdown preview read surface to reopen the default shared inline editor')
-    }
-    if (!textarea.value.includes('![image](https://media.example.test/poster.jpg)')) {
-      throw new Error(`expected reopened editor to preserve the inserted image markdown, got ${JSON.stringify(textarea.value)}`)
-    }
+    if (!(textarea instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected one click on the markdown preview read surface to reopen the default shared inline editor')
+    if (!textarea.value.includes('@image') || textarea.value.includes('![')) throw new Error(`expected reopened default editor to show compact media projection, got ${JSON.stringify(textarea.value)}`)
+    await act(async () => {
+      Simulate.blur(textarea, { relatedTarget: null })
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    if (committedValues.length > 0) throw new Error(`expected unchanged projected editor reopen not to mutate raw image markdown, got ${JSON.stringify(committedValues)}`)
   } finally {
     await act(async () => {
       root.unmount()

@@ -1,9 +1,9 @@
 import {
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR, INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME, readInlineMediaCommandThumbnailClassName } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
 import {
   buildAgenticOsInvocationSourceTitle,
@@ -61,6 +61,11 @@ const buildInlineMediaEditTokenHtml = (args: {
 }): string => {
   const label = readCardMarkdownPreviewMediaLabel(args.alt || args.title, args.kind === 'audio' ? 'Audio' : args.kind === 'video' ? 'Video' : 'Image')
   const markdown = readMediaMarkdown(args.kind, args.src, args.alt || args.title || label)
+  const hasThumbnail = args.kind === 'image' && !!args.src
+  const thumbnailClassName = readInlineMediaCommandThumbnailClassName({ hasThumbnail, kind: args.kind, variant: 'inline' })
+  const thumbnailBody = hasThumbnail
+    ? `<img src="${escapeHtmlAttr(args.src)}" alt="" class="${escapeHtmlAttr(INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME)}" loading="lazy" decoding="async" draggable="false">`
+    : ''
   return [
     `<span class="${escapeHtmlAttr(`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} isolate !overflow-visible`)}"`,
     ` title="${escapeHtmlAttr(label)}"`,
@@ -68,7 +73,7 @@ const buildInlineMediaEditTokenHtml = (args: {
     ` ${INLINE_MEDIA_EDIT_TOKEN_ATTR}="1"`,
     ` ${INLINE_MEDIA_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(markdown)}"`,
     ' contenteditable="false">',
-    `<span class="${escapeHtmlAttr(`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME} inline-flex items-center justify-center bg-black/5 text-[color:var(--kg-text-secondary)]`)}" aria-hidden="true"></span>`,
+    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(label)}" ${INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR}="${escapeHtmlAttr(args.kind)}">${thumbnailBody}</span>`,
     `<span class="${escapeHtmlAttr(CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME)}">${escapeHtml(label)}</span>`,
     '</span>',
   ].join('')
@@ -344,7 +349,7 @@ const readSerializedOffsetToBoundary = (
 export const getInlineMediaEditorMarkdownSelectionOffsets = (
   root: HTMLElement | null,
 ): { startOffset: number; endOffset: number } | null => {
-  if (!root || !root.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)) return null
+  if (!root) return null
   const selection = typeof window !== 'undefined' ? window.getSelection() : null
   if (!selection || selection.rangeCount <= 0) return null
   const range = selection.getRangeAt(0)

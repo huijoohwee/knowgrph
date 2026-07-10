@@ -43,6 +43,20 @@ function readFlowPortSocketType(nodeProps: unknown, dir: 'in' | 'out', portKey: 
   return pickString(bucket[pk])
 }
 
+export function orderFlowPortHandlesByCenterPriority<T extends { topPct: number; id?: string }>(handles: ReadonlyArray<T> | null | undefined): T[] {
+  const list = Array.isArray(handles) ? handles.filter(Boolean) : []
+  return list
+    .map((handle, index) => ({ handle, index }))
+    .sort((a, b) => {
+      const centerDistance = Math.abs(Number(a.handle.topPct) - 50) - Math.abs(Number(b.handle.topPct) - 50)
+      if (Number.isFinite(centerDistance) && centerDistance !== 0) return centerDistance
+      const vertical = Number(a.handle.topPct) - Number(b.handle.topPct)
+      if (Number.isFinite(vertical) && vertical !== 0) return vertical
+      return a.index - b.index
+    })
+    .map(entry => entry.handle)
+}
+
 function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string; properties?: unknown }> {
   const out: Array<{ id: string; source: string; target: string; properties?: unknown }> = []
   for (let i = 0; i < raw.length; i += 1) {
@@ -282,6 +296,11 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
           } catch {
             void 0
           }
+          try {
+            e.preventDefault()
+          } catch {
+            void 0
+          }
           if (!clickable) return
           const startedDrag =
             p.dir === 'out'
@@ -294,6 +313,11 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
         onMouseDown={e => {
           try {
             e.stopPropagation()
+          } catch {
+            void 0
+          }
+          try {
+            e.preventDefault()
           } catch {
             void 0
           }
@@ -343,6 +367,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
 
   const hasAny = (handles.in?.length || 0) + (handles.out?.length || 0) > 0
   if (!hasAny) return null
+  const outputHandlesByCenterPriority = orderFlowPortHandlesByCenterPriority(handles.out)
 
   return (
     <nav
@@ -356,7 +381,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
         ))}
       </section>
       <section className={cn('absolute inset-y-0 right-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
-        {(handles.out || []).map((h, idx) => (
+        {outputHandlesByCenterPriority.map((h, idx) => (
           <Dot key={h.id} handleId={h.id} dir="out" idx={idx} topPct={h.topPct} />
         ))}
       </section>

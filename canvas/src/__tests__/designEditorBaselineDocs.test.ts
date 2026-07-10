@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 const readRepoFile = (repoRelativePath: string): string =>
   readFileSync(resolve(process.cwd(), '..', repoRelativePath), 'utf8')
 
-export function testOpenPencilDesignPrdTadUsesImplementedDesignOwners(): void {
-  const docs = readRepoFile('docs/documents/knowgrph-open-pencil-inspired-prd-tad.md')
+export function testDesignEditorBaselinePrdTadUsesImplementedDesignOwners(): void {
+  const docs = readRepoFile('docs/documents/knowgrph-design-editor-baseline-prd-tad.md')
   const owners = [
     'canvas/src/features/panels/mainPanelTabs.ts',
     'canvas/src/features/panels/MainPanel.tsx',

@@ -14,7 +14,6 @@ import { GOOGLE_CLOUD_API_DOC_AREA, GOOGLE_CLOUD_API_DOCS_URL } from './googleCl
 import { BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA, BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusImageGenerationSsot'
 import { BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA, BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { GEMINI_VIDEO_GENERATION_API_DOC_AREA, GEMINI_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/geminiVideoGenerationSsot'
-import { PIXVERSE_VIDEO_GENERATION_API_DOC_AREA, PIXVERSE_VIDEO_GENERATION_API_DOCS_URL } from '@/features/integrations/pixverseVideoGenerationSsot'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
@@ -30,7 +29,6 @@ import { EXA_MCP_DOC_AREA, EXA_MCP_DOCS_URL } from './exaMcpApiDocs'
 import { FEISHU_BASE_MCP_DOC_AREA, FEISHU_BASE_MCP_DOCS_URL } from './feishuBaseMcpApiDocs'
 import { LARK_APP_MCP_DOC_AREA, LARK_APP_MCP_DOCS_URL } from './larkAppMcpApiDocs'
 import { STRIPE_MCP_DOC_AREA } from './stripeMcpApiDocs'
-import { PIXVERSE_MCP_DOC_AREA, PIXVERSE_MCP_DOCS_URL } from './pixverseMcpApiDocs'
 import { MIROMIND_MCP_DOC_AREA, MIROMIND_MCP_DOCS_URL } from './miromindMcpApiDocs'
 import { KNOWGRPH_VDEOXPLN_DOC_AREA } from './vdeoxplnMcpApiDocs'
 import { VIDEODB_MCP_DOC_AREA, VIDEODB_MCP_DOCS_URL } from './videodbMcpApiDocs'
@@ -151,12 +149,6 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     openPanel: () => emitPropsPanelOpen(),
   },
-  [PIXVERSE_VIDEO_GENERATION_API_DOC_AREA]: {
-    docsUrl: PIXVERSE_VIDEO_GENERATION_API_DOCS_URL,
-    docsLabel: 'Open PixVerse Video Generation Docs',
-    panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
-  },
   [BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA]: {
     docsUrl: BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL,
     docsLabel: 'Open BytePlus Image Generation API Docs',
@@ -213,12 +205,6 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsLabel: 'Open Stripe MCP Docs',
     panelLabel: 'Open MainPanel Commerce',
     openPanel: () => emitMainPanelOpen({ tab: 'commerce', searchQuery: 'stripeApi.checkout' }),
-  },
-  [PIXVERSE_MCP_DOC_AREA]: {
-    docsUrl: PIXVERSE_MCP_DOCS_URL,
-    docsLabel: 'Open PixVerse MCP Docs',
-    panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
   },
   [MIROMIND_MCP_DOC_AREA]: {
     docsUrl: MIROMIND_MCP_DOCS_URL,

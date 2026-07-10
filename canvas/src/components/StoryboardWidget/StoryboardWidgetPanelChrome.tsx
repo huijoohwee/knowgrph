@@ -7,6 +7,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_RESPONSIVE_PANEL_HEADER_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
 import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react'
 
 export function StoryboardWidgetPanelChromeHeader(props: {
@@ -109,6 +110,14 @@ export function StoryboardWidgetPanelChromeHeader(props: {
       void 0
     }
   }, [])
+  const handleHeaderPointerDown = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
+    if (shouldStoryboardWidgetHeaderYieldToInteractiveTarget(event.target)) return
+    onHeaderPointerDown?.(event)
+  }, [onHeaderPointerDown])
+  const handleHeaderMouseDown = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    if (shouldStoryboardWidgetHeaderYieldToInteractiveTarget(event.target)) return
+    onHeaderMouseDown?.(event)
+  }, [onHeaderMouseDown])
 
   return (
     <header
@@ -124,8 +133,8 @@ export function StoryboardWidgetPanelChromeHeader(props: {
       data-kg-flow-node-drag-handle={dragHandle ? 'true' : undefined}
       data-kg-canvas-overlay-drag-handle={dragHandle ? 'true' : undefined}
       data-kg-rich-media-storyboard-widget-header={richMediaHeader ? '1' : undefined}
-      onPointerDown={onHeaderPointerDown}
-      onMouseDown={onHeaderMouseDown}
+      onPointerDown={handleHeaderPointerDown}
+      onMouseDown={handleHeaderMouseDown}
     >
       <section
         className={cn('flex items-center justify-between gap-2', minimized ? 'h-full' : '')}

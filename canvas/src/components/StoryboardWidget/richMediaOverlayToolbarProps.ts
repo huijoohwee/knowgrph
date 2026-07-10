@@ -35,7 +35,7 @@ export function buildSharedRichMediaOverlayToolbarProps(args?: {
     ariaLabel: 'Rich Media Panel actions',
     actionVisibility: RICH_MEDIA_OVERLAY_ACTION_VISIBILITY,
     navClassName: args?.navClassName,
-    placement: 'flow-rich-media-right-middle',
+    placement: 'flow-widget-above-center',
     active: true,
     enableHandlesDisabled: true,
     convertToLoopDisabled: true,

@@ -262,6 +262,7 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
           sourceFiles: nextSourceFiles,
           fileIndex: idx,
           parsedGraphData: nextParsedGraphData,
+          nextNode: layerNode,
         })
         nextSourceFiles = textSync.sourceFiles
         const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
@@ -302,6 +303,7 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
       state: currentState,
       sourceFiles,
       parsedGraphData: nextGraphData,
+      nextNode: withTpl,
     })
     // #region debug-point D:graph-data-node-add-sync
     if (

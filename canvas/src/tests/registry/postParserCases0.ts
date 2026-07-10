@@ -1,6 +1,4 @@
-import type { TestCaseTuple } from '../runner/testRunnerTypes'
-export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
-  ["policy.workspaceInitialization.docsAbsRootDefault.devOnly","@/__tests__/workspaceInitializationBuildEnvRegression.test","testWorkspaceInitializationDocsAbsRootDefaultStaysOutOfProductionBuilds"],
+import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [["policy.workspaceInitialization.docsAbsRootDefault.devOnly","@/__tests__/workspaceInitializationBuildEnvRegression.test","testWorkspaceInitializationDocsAbsRootDefaultStaysOutOfProductionBuilds"],
   ["policy.productionHtml.generatedStylesheetInlining","@/__tests__/workspaceInitializationBuildEnvRegression.test","testProductionHtmlInlinesGeneratedStylesheetAssets"],
   ["pdf.normalizeExtractedMarkdown.joinsSpacedLetters","@/__tests__/pdfExtractedTextNormalize.test","testNormalizePdfExtractedMarkdownJoinsSpacedLetters"],
   ["pdf.normalizeExtractedMarkdown.fixesBrokenWordsAndNumbers","@/__tests__/pdfExtractedTextNormalize.test","testNormalizePdfExtractedMarkdownFixesBrokenWordsAndNumbers"],
@@ -483,6 +481,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.flowWidget.beatByBeat.titleUsesTemplateHeading","@/__tests__/flowWidgetBeatByBeatTitleUsesTemplateHeading.test","testFlowWidgetBeatByBeatTitleUsesTemplateHeading"],
   ["ui.flowWidget.frontmatterFlow.dataLabelTitle","@/__tests__/widgetEditorPanelTitleAlignment.test","testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes"],
   ["ui.flowWidget.portHandles.gutterRendersWhenEnabled","@/__tests__/flowWidgetPortHandleGutter.test","testFlowWidgetRendersPortHandleGutterWhenEnabled"],
+  ["ui.flowWidget.portHandles.outputDomOrderPrefersCenterLane","@/__tests__/flowWidgetPortHandleGutter.test","testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane"],
   ["ui.flowWidget.schemaFieldPorts.renderRowHandles","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetSchemaFieldPortsRenderRowHandles"],
   ["ui.flowWidget.textGeneration.omitsLegacySmartMediaRows","@/__tests__/flowWidgetSchemaFieldPorts.test","testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows"],
   ["parser.frontmatterVideo.rejectsLegacyWidgetTypeAlias","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFlowBlockRejectsLegacyVideoWidgetTypeAlias"],

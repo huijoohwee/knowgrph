@@ -4,7 +4,10 @@ export type InvocationTokenSegment =
   | { kind: 'text'; value: string }
   | { kind: 'token'; value: string; tokenKind: InvocationTokenKind }
 
-export const INVOCATION_TOKEN_RE = /(?:#[A-Za-z0-9][A-Za-z0-9._-]{0,63}|[@/][A-Za-z][A-Za-z0-9._-]{0,63})/g
+export const INVOCATION_TOKEN_RE = /(?:#[\p{L}\p{N}][\p{L}\p{N}._-]{0,63}|[@/]\p{L}[\p{L}\p{N}._-]{0,63})/gu
+const INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE = /[\p{L}\p{N}_/-]/u
+const INVOCATION_TOKEN_NEXT_BOUNDARY_RE = /[\p{L}\p{N}_-]/u
+const INVOCATION_TOKEN_COMPACT_KEYWORD_PREVIOUS_RE = /[\p{L}\p{N}_.-]/u
 
 export const readInvocationTokenKind = (value: string): InvocationTokenKind | null => {
   const token = String(value || '').trim()
@@ -32,8 +35,8 @@ export const splitInvocationTokenSegments = (text: string): InvocationTokenSegme
     const previous = start > 0 ? raw[start - 1] || '' : ''
     const next = end < raw.length ? raw[end] || '' : ''
     const startsAfterAcceptedToken = start === lastAcceptedTokenEnd
-    const startsCompactKeyword = tokenKind === 'keyword' && previous && /[A-Za-z0-9_.-]/.test(previous)
-    if ((previous && /[A-Za-z0-9_/-]/.test(previous) && !startsAfterAcceptedToken && !startsCompactKeyword) || (next && /[A-Za-z0-9_-]/.test(next))) continue
+    const startsCompactKeyword = tokenKind === 'keyword' && previous && INVOCATION_TOKEN_COMPACT_KEYWORD_PREVIOUS_RE.test(previous)
+    if ((previous && INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE.test(previous) && !startsAfterAcceptedToken && !startsCompactKeyword) || (next && INVOCATION_TOKEN_NEXT_BOUNDARY_RE.test(next))) continue
     if (start > last) out.push({ kind: 'text', value: raw.slice(last, start) })
     out.push({ kind: 'token', value: token, tokenKind })
     last = end

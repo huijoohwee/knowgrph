@@ -38,7 +38,7 @@ export const MEDIA_BUCKET_PREFIX = "strytree/generation";
 export const DEFAULT_MEDIA_BUCKET = KNOWGRPH_MEDIA_BUCKET; // "knowgrph-media"
 
 // Provider identities (R8.4). The deterministic LIVE-path mock represents the
-// BytePlus/PixVerse render queue; the zero-spend mock is the R8.5 fallback.
+// BytePlus/external video provider render queue; the zero-spend mock is the R8.5 fallback.
 export const PROVIDER_BYTEPLUS_QUEUE = "byteplus-queue";
 export const PROVIDER_MOCK = "mock";
 
@@ -115,7 +115,7 @@ export function renderLedgerEventId(runId, shotId) {
 }
 
 /**
- * Build the DEFAULT deterministic render-queue client (the BytePlus/PixVerse
+ * Build the DEFAULT deterministic render-queue client (the BytePlus/external video provider
  * live-path seam). It performs NO network call: it synchronously resolves a
  * stable media asset reference and a fixed per-shot provider spend, modeling
  * what the live queue + R2 round-trip WOULD produce. Integration task 9.2

@@ -23,6 +23,54 @@ import { clearRichMediaOutputProperties, resolveRichMediaWidgetKind } from '@/fe
 import { createUniqueId } from '@/lib/ids'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import {
+  isCanonicalNodeIdEqual,
+  resolveGraphNodeByCanonicalId,
+} from '@/lib/graph/canonicalNodeIds'
+
+export function deriveStoryboardWidgetNodeRemoval(args: {
+  graphData: GraphData | null | undefined
+  nodeId: unknown
+}): {
+  nextGraphData: GraphData | null
+  removedNodeIds: string[]
+} {
+  const graphData = args.graphData
+  const id = String(args.nodeId || '').trim()
+  if (!graphData || !id) {
+    return { nextGraphData: graphData || null, removedNodeIds: [] }
+  }
+  const resolvedId = String(resolveGraphNodeByCanonicalId(graphData, id)?.id || '').trim()
+  const targetIds = [id, resolvedId].filter(Boolean)
+  const shouldRemoveId = (rawId: unknown): boolean => targetIds.some(targetId => isCanonicalNodeIdEqual(rawId, targetId))
+  const removedNodeIds: string[] = []
+  const nextNodes = (graphData.nodes || []).filter(node => {
+    const nodeId = String(node.id || '').trim()
+    if (!shouldRemoveId(nodeId)) return true
+    removedNodeIds.push(nodeId)
+    return false
+  })
+  if (removedNodeIds.length === 0) {
+    return { nextGraphData: graphData, removedNodeIds: [] }
+  }
+  const nextEdges = (graphData.edges || []).filter(edge => {
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
+    return !!src && !!tgt && !shouldRemoveId(src) && !shouldRemoveId(tgt)
+  })
+  return {
+    nextGraphData: normalizeGraphData({ ...graphData, nodes: nextNodes, edges: nextEdges }),
+    removedNodeIds,
+  }
+}
+
+export function isStoryboardWidgetNodeRemovalTarget(args: {
+  nodeId: unknown
+  removalNodeIds: ReadonlyArray<string>
+}): boolean {
+  const id = String(args.nodeId || '').trim()
+  if (!id) return false
+  return args.removalNodeIds.some(removalNodeId => isCanonicalNodeIdEqual(id, removalNodeId))
+}
 
 export function useStoryboardWidgetNodeDraftActions(args: {
   active: boolean
@@ -85,21 +133,24 @@ export function useStoryboardWidgetNodeDraftActions(args: {
 
   const removeNodeById = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
-    if (!id || !args.draftGraphData) return
-    const nodeIdSet = new Set([id])
-    const nextNodes = (args.draftGraphData.nodes || []).filter(n => !nodeIdSet.has(String(n.id || '')))
-    const nextEdges = (args.draftGraphData.edges || []).filter(e => {
-      const { src, tgt } = readGraphEdgeEndpoints(e)
-      return !!src && !!tgt && !nodeIdSet.has(src) && !nodeIdSet.has(tgt)
-    })
-    args.setGraphDataPreservingLayout(normalizeGraphData({ ...args.draftGraphData, nodes: nextNodes, edges: nextEdges }))
-    args.updateOpenWidgetNodeIds(prev => prev.filter(x => String(x || '') !== id))
-    if (String(useGraphStore.getState().selectedNodeId || '') === id) {
+    const graphDataForRemoval = (args.draftGraphDataRef.current || args.draftGraphData || args.baseGraphData) as GraphData | null
+    if (!id) return
+    const removal = deriveStoryboardWidgetNodeRemoval({ graphData: graphDataForRemoval, nodeId: id })
+    if (removal.removedNodeIds.length > 0 && removal.nextGraphData) {
+      args.draftGraphDataRef.current = bumpStoryboardWidgetDraftGraphDataRevision(
+        removal.nextGraphData,
+        { revisionFloor: readDraftMutationRevisionFloor() },
+      )
+      args.setGraphDataPreservingLayout(args.draftGraphDataRef.current)
+    }
+    const idsForOpenWidgetClose = removal.removedNodeIds.length > 0 ? removal.removedNodeIds : [id]
+    args.updateOpenWidgetNodeIds(prev => prev.filter(x => !isStoryboardWidgetNodeRemovalTarget({ nodeId: x, removalNodeIds: idsForOpenWidgetClose })))
+    if (isStoryboardWidgetNodeRemovalTarget({ nodeId: useGraphStore.getState().selectedNodeId, removalNodeIds: idsForOpenWidgetClose })) {
       args.setSelectionSource('canvas')
       args.selectNode(null)
       args.selectEdge(null)
     }
-  }, [args])
+  }, [args, readDraftMutationRevisionFloor])
 
   const clearNodeOutputById = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()

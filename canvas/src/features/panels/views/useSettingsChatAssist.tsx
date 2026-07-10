@@ -62,21 +62,6 @@ export function useSettingsChatAssist({
     }))
   }, [patchIntegrationJson])
 
-  const setPixVerseVideoIntegration = React.useCallback((
-    enabled: boolean,
-    strategy: 'auto' | 'image-to-video' | 'transition-video' | 'text-to-video' = 'auto',
-  ) => {
-    patchIntegrationJson(current => ({
-      ...current,
-      pixverseVideo: {
-        ...DEFAULT_INTEGRATION_CONFIGS.pixverseVideo,
-        ...current.pixverseVideo,
-        enabled,
-        strategy,
-      },
-    }))
-  }, [patchIntegrationJson])
-
   const resetChatIntegrationRouting = React.useCallback(() => {
     patchIntegrationJson(current => ({
       ...current,
@@ -125,10 +110,6 @@ export function useSettingsChatAssist({
     () => parseIntegrationConfigsJson(typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null).aiChat,
     [values.integrationConfigsJson],
   )
-  const pixverseVideoIntegration = React.useMemo(
-    () => parseIntegrationConfigsJson(typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null).pixverseVideo,
-    [values.integrationConfigsJson],
-  )
   const chatModelSuggestions = React.useMemo(() => {
     return getSharedChatModelSuggestionOptions({
       provider: values.chatProvider,
@@ -148,9 +129,6 @@ export function useSettingsChatAssist({
       integrationProviderLabels: [...KNOWGRPH_SUPERAGENT_MAIN_PANEL_PROVIDER_LABELS],
       integrationEnabled: chatIntegration.enabled === true,
       integrationOpenTab: String(chatIntegration.openTab || '').trim(),
-      pixverseVideoEnabled: pixverseVideoIntegration.enabled === true,
-      pixverseVideoStrategy: String(pixverseVideoIntegration.strategy || '').trim() || 'auto',
-      pixverseVideoTransport: String(pixverseVideoIntegration.transport || '').trim() || 'mcp-stdio',
       isRefreshingChatModels,
       chatModelsStatus,
       discoveredChatModelCount: discoveredChatModels.length,
@@ -159,9 +137,6 @@ export function useSettingsChatAssist({
   }, [
     chatIntegration.enabled,
     chatIntegration.openTab,
-    pixverseVideoIntegration.enabled,
-    pixverseVideoIntegration.strategy,
-    pixverseVideoIntegration.transport,
     chatModelSuggestions.length,
     chatModelsStatus,
     discoveredChatModels.length,
@@ -262,70 +237,6 @@ export function useSettingsChatAssist({
         >
           Format JSON
         </button>,
-        <span
-          key="chat-pixverse-status"
-          className={getUiSectionChipClassName('secondary')}
-        >
-          {pixverseVideoIntegration.enabled
-            ? `PixVerse ${String(pixverseVideoIntegration.strategy || 'auto')}`
-            : 'PixVerse disabled'}
-        </span>,
-        <button
-          key="chat-pixverse-auto"
-          type="button"
-          className={
-            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'auto'
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            setPixVerseVideoIntegration(true, 'auto')
-          }}
-        >
-          PixVerse Auto
-        </button>,
-        <button
-          key="chat-pixverse-i2v"
-          type="button"
-          className={
-            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'image-to-video'
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            setPixVerseVideoIntegration(true, 'image-to-video')
-          }}
-        >
-          PixVerse I2V
-        </button>,
-        <button
-          key="chat-pixverse-transition"
-          type="button"
-          className={
-            pixverseVideoIntegration.enabled === true && pixverseVideoIntegration.strategy === 'transition-video'
-              ? activeSectionActionClassName
-              : sectionActionClassName
-          }
-          onClick={e => {
-            e.stopPropagation()
-            setPixVerseVideoIntegration(true, 'transition-video')
-          }}
-        >
-          PixVerse Transition
-        </button>,
-        <button
-          key="chat-pixverse-disable"
-          type="button"
-          className={sectionActionClassName}
-          onClick={e => {
-            e.stopPropagation()
-            setPixVerseVideoIntegration(false, 'auto')
-          }}
-        >
-          Disable PixVerse
-        </button>,
       ]
     }
     if (rowKey === CHAT_KTV_ROW_KEYS.model) {
@@ -364,12 +275,9 @@ export function useSettingsChatAssist({
     isRefreshingChatModels,
     normalizedChatProvider,
     openLocalChatApiKeyEntry,
-    pixverseVideoIntegration.enabled,
-    pixverseVideoIntegration.strategy,
     refreshChatModels,
     resetChatIntegrationRouting,
     setChatIntegrationEnabled,
-    setPixVerseVideoIntegration,
     values.chatEndpointUrl,
   ])
 

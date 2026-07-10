@@ -55,7 +55,7 @@ export const CREDIT_LEDGER_ID_FIELDS = Object.freeze([
 
 /**
  * Provider identities (R8.4). Mirrors the constants in
- * `mcp/video-remix/render-providers.js`: the live-path BytePlus/PixVerse render
+ * `mcp/video-remix/render-providers.js`: the live-path BytePlus/external video provider render
  * queue and the deterministic zero-spend mock (the R8.5 fallback).
  */
 export const CREDIT_LEDGER_PROVIDER = Object.freeze({

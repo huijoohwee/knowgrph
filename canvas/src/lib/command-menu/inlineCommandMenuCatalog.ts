@@ -1,4 +1,4 @@
-import { AGENTIC_OS_DOC_INVOCATIONS, AGENTIC_OS_SEMANTIC_INVOCATIONS } from '@/features/agentic-os/agenticOsDocInvocations'
+import { getAgenticOsDocInvocations, getAgenticOsSemanticInvocations } from '@/features/agentic-os/agenticOsDocInvocations'
 export type InlineCommandMenuKind = 'slash' | 'variable' | 'keyword'
 export type InlineSlashCommandId =
   | 'heading'
@@ -495,7 +495,7 @@ export function collectInlineKeywordCommandCandidates(args: {
     push(action.label, action.group, action.description, [...action.keywords])
     if (reachedLimit()) return candidates
   }
-  for (const doc of AGENTIC_OS_DOC_INVOCATIONS) {
+  for (const doc of getAgenticOsDocInvocations()) {
     if (reachedLimit()) return candidates
     if (seen.has(doc.hashToken)) continue
     seen.add(doc.hashToken)
@@ -508,7 +508,7 @@ export function collectInlineKeywordCommandCandidates(args: {
       keywords: [doc.hashToken, doc.slashCommand, doc.atToken, doc.sourcePath, ...doc.keywords],
     })
   }
-  for (const invocation of AGENTIC_OS_SEMANTIC_INVOCATIONS) {
+  for (const invocation of getAgenticOsSemanticInvocations()) {
     if (reachedLimit()) return candidates
     const token = invocation.token
     if (seen.has(token)) continue

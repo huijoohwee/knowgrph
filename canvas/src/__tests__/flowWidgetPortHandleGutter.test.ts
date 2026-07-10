@@ -3,7 +3,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { defaultSchema } from '@/lib/graph/schema'
-import { WidgetEditorPortHandles } from '@/components/StoryboardWidget/WidgetEditorPortHandles'
+import { WidgetEditorPortHandles, orderFlowPortHandlesByCenterPriority } from '@/components/StoryboardWidget/WidgetEditorPortHandles'
 
 export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -52,4 +52,22 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   if (outputDisabled !== false) throw new Error('expected output handle to be enabled in select mode')
 
   root.unmount()
+}
+
+export const testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane = () => {
+  const ordered = orderFlowPortHandlesByCenterPriority([
+    { id: 'out:top', topPct: 16.6666666667 },
+    { id: 'out:upper', topPct: 33.3333333333 },
+    { id: 'out:center', topPct: 50 },
+    { id: 'out:lower', topPct: 66.6666666667 },
+    { id: 'out:bottom', topPct: 83.3333333333 },
+  ])
+
+  const ids = ordered.map(handle => handle.id)
+  if (ids[0] !== 'out:center') {
+    throw new Error(`expected center output handle to be first DOM target, got ${ids.join(', ')}`)
+  }
+  if (ids.length !== 5 || new Set(ids).size !== 5) {
+    throw new Error(`expected center-priority ordering to preserve all handles, got ${ids.join(', ')}`)
+  }
 }

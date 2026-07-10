@@ -117,11 +117,6 @@ import {
   getGeminiVideoGenerationApiRowAnchorId,
 } from './geminiVideoGenerationApiDocs'
 import {
-  PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
-  PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
-  getPixVerseVideoGenerationApiRowAnchorId,
-} from './pixverseVideoGenerationApiDocs'
-import {
   VIDEODB_API_DOC_AREA,
   VIDEODB_API_DOC_ENTRIES,
   getVideodbApiRowAnchorId,
@@ -192,7 +187,6 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...GEMINI_VIDEO_GENERATION_API_DOC_ENTRIES,
-  ...PIXVERSE_VIDEO_GENERATION_API_DOC_ENTRIES,
   ...SENSENOVA_API_DOC_ENTRIES,
   ...VIDEODB_API_DOC_ENTRIES,
   ...MIROMIND_API_DOC_ENTRIES,
@@ -1042,8 +1036,6 @@ export function useSettingsView({
             ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === GEMINI_VIDEO_GENERATION_API_DOC_AREA
             ? getGeminiVideoGenerationApiRowAnchorId(entry.meta.key)
-          : area === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA
-            ? getPixVerseVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === SENSENOVA_API_DOC_AREA
             ? getSensenovaApiRowAnchorId(entry.meta.key)
           : area === VIDEODB_API_DOC_AREA
@@ -1261,11 +1253,6 @@ export function useSettingsView({
           title: GEMINI_VIDEO_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('Gemini Veo Video Generation API Google FloatingPanel Gemini Video Widget geminiVideoApi.model geminiVideoModel'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === GEMINI_VIDEO_GENERATION_API_DOC_AREA,
-        },
-        {
-          title: PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
-          searchIndex: normalizeText('PixVerse Video Generation mcp readiness image-to-video transition-video'),
-          match: entry => normalizeSettingsAreaLabel(entry.details.area) === PIXVERSE_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
           title: SENSENOVA_API_DOC_AREA,

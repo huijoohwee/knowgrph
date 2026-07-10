@@ -43,6 +43,9 @@ The runtime direction is:
   `@sandbox-workspace`, and `@message-gateway`.
 - MainPanel MCP shows readiness and non-secret setup metadata. It does not
   execute tools or store credentials in browser settings.
+- MainPanel readiness claims must distinguish `documented`,
+  `browser-published`, and `runtime-executable` states so doc guidance,
+  browser snapshots, and executable MCP owners do not drift into one label.
 - FloatingPanel Chat and KGC keep source-backed runtime materialization on the
   existing Markdown -> KTV frontmatter -> Canvas path.
 - Local MCP, Pages HTTP MCP, Browser WebMCP, and approved Cloudflare control
@@ -185,6 +188,36 @@ flow:
 | Parser CLI / Codex | Run documents and harnesses headlessly from `knowgrph_parser` or Codex entrypoints. |
 | Cloudflare control plane | Pages, Workers, D1, R2, AI Gateway, and payment/runtime owners when an explicit deploy lane is open. |
 
+## MCP-compatible LLM readiness
+
+**Intent**
+
+- keep the shipped MCP readiness story truthful for external LLM hosts
+- keep install/discovery separate from approval-gated orchestration
+- keep `/`, `#`, and `@` grammar invocation aligned with the current Agentic
+  Canvas OS control-plane contract
+
+MCP-compatible LLM hosts are ready to use Knowgrph today through the shipped
+public discovery and control-plane surfaces. The repo currently ships explicit
+setup and readiness contracts for ChatGPT/OpenAI Apps, Claude, Qwen Code, Kimi
+CLI, BytePlus ModelArk, and generic MCP clients that can talk to MCP over
+stdio or Streamable HTTP.
+
+**Current topology**
+
+| Surface | Endpoint | Role | Status |
+| --- | --- | --- | --- |
+| Public discovery | `https://airvio.co/knowgrph/mcp` | Canonical public install and discovery endpoint; read-only retrieval, prompt discovery, resource discovery, and inspection | Shipped |
+| Control plane | `https://airvio.co/knowgrph/control-plane/mcp` | Approval-gated orchestration endpoint; exposes `knowgrph.agentic_canvas_os.docs.invoke` for live remote `/`, `#`, and `@` grammar invocation | Shipped |
+| Local stdio MCP | `mcp/server.js` | Repo-local MCP surface for hosts that want the same grammar tool and the richer local tool catalog without the remote control plane | Shipped |
+
+**Operational truth**
+
+An MCP-compatible LLM can install the public Knowgrph server for discovery and
+retrieval, then route grammar invocation to the control-plane MCP surface when
+it needs live `/`, `#`, and `@` resolution against the current Agentic Canvas
+OS documentation contract.
+
 Baseline runs are provable **offline with deterministic mock providers**. Real
 providers activate only when host-owned keys are wired and the matching gate is
 approved.
@@ -192,15 +225,15 @@ approved.
 ## Quick start: run a document
 
 Execute a Knowgrph canvas document headlessly with the `knowgrph_parser` CLI.
-The default provider mode is a deterministic **mock** — zero network, zero paid
-calls — so this runs offline out of the box:
+For a fully offline deterministic run, pass `--provider-mode mock`:
 
 ```bash
 python3 -m knowgrph_parser run-goal \
   --input docs/documents/your-canvas-doc.md \
-  --goal-file goal \
+  --goal-file goal.md \
   --output-dir data/outputs/my-run \
   --run-id my-run \
+  --provider-mode mock \
   --print-summary
 ```
 
@@ -217,8 +250,8 @@ data/outputs/my-run/
 
 Useful flags:
 
-- `--provider-mode mock|pixverse` — `mock` (default, offline) or `pixverse` for
-  live media (falls back to mock when unavailable).
+- `--provider-mode byteplus-modelark|mock` — `byteplus-modelark` (default,
+  placeholder-backed media lane) or `mock` for deterministic offline runs.
 - `--resume` — resume from `output-dir/state.json`.
 - `--stop-after-step N` — checkpoint after N tasks, then stop (interruptible).
 - `--fail-once <tool>` — inject one bounded failure for a tool (recovery testing).
@@ -251,11 +284,36 @@ or deploy is requested.
 | Source Files | Canonical Markdown documents (the runnable canvases), JSON, binary metadata, generated KGC, chat logs, traces. |
 | Graph Canvas | Visual exploration + execution of the widget flow: nodes, edges, rich-media panels, layouts. |
 | Floating Panel Chat | Agent-native assistant with workspace, selection, and source-aware context. |
-| MainPanel Integrations | Provider, endpoint, model, auth-mode, storage, and runtime configuration. |
+| MainPanel Integrations | Provider, endpoint, model, auth-mode, storage, and runtime configuration for the Settings-backed provider universe; any narrower subset must be labeled as scoped. |
 | Storyboard Widget | Structured 2D renderer editing over source-backed Markdown documents: Cards, Widgets, Rich Media Panels, reusable elements, and timeline lanes. |
-| MainPanel MCP | Readiness rows and connection templates for local stdio, read-only Pages HTTP, Browser WebMCP, and external MCP tool servers. |
+| MainPanel MCP | Readiness rows and connection templates for local stdio, read-only Pages HTTP, Browser WebMCP, and external MCP tool servers, labeled by `documented`, `browser-published`, or `runtime-executable` state. |
 | Agentic OS docs | Sibling control surface for `/`, `#`, `@` route dictionaries, MCP gateway policy, harnesses, and runtime proof. |
 | Cloudflare Runtime | Pages, Workers (`McpAgent`), D1, R2, AI Gateway, and server-managed provider secrets when deploy is explicitly opened. |
+
+## MainPanel Readiness States
+
+Use one readiness label per claim:
+
+- `documented`: static setup or operator guidance exists, but no browser or
+  executable runtime proof is implied
+- `browser-published`: the browser publishes a runtime snapshot or inspection
+  artifact for the claim
+- `runtime-executable`: a local or remote runtime owner actually registers the
+  tool, route, or action
+
+Current repo truth:
+
+- MainPanel Integrations is anchored to the broader Settings-backed provider
+  universe; any demo or SuperAgent subset must be called out as scoped
+- MainPanel MCP can contain both browser-published rows and documented-only
+  connection guidance
+- external bridge ids such as `knowgrph.tool.search`,
+  `knowgrph.tool.describe`, and `knowgrph.tool.call` are planned contract
+  targets, not current executable runtime owners
+
+Release-gate checklist and readiness rubric:
+
+- `docs/documents/knowgrph-mainpanel-readiness-rubric.md`
 
 ## Repo Layout
 
@@ -386,7 +444,7 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 | --- | --- |
 | Agentic Canvas OS control surface | `../agentic-canvas-os/docs/` |
 | 2D Renderer Storyboard template | `../huijoohwee.github.io/template/knowgrph-2d-renderer-storyboard-template.md` |
-| Agentic Canvas OS PRD/TAD | `docs/documents/knowgrph-mcp-agentic-canvas-os-prd-tad.md` |
+| Agentic Canvas OS PRD/TAD | `docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md` |
 | AI provider layer (MiroMindAI) | `docs/documents/knowgrph-api-reference/knowgrph-miromind-api-prd-tad.md` |
 | MCP | `docs/documents/knowgrph-mcp/` and `mcp/README.md` |
 | Storage sync | `docs/documents/knowgrph-storage-sync-document.companion.md` |

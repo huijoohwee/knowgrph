@@ -69,18 +69,18 @@ export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = asyn
   }
 }
 
-export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts = async () => {
+export async function testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts() {
   resetWorkspaceUrlContentCacheForTests()
   const upstream = [
-    '# Pencil',
+    '# Canvas Studio',
     '',
     '<section style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px">',
-    '<a href="/">Pencil Logo</a>',
+    '<a href="/">Studio Home</a>',
     '<a href="/downloads">Downloads</a>',
     '<a href="/pricing">Pricing</a>',
     '<a href="/gallery">Prompt Gallery</a>',
     '<a href="/docs">Docs</a>',
-    '<a href="/download">Download Pencil</a>',
+    '<a href="/download">Download Studio</a>',
     '</section>',
     '',
     'Backed by',
@@ -94,14 +94,14 @@ export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifa
 
   const doc = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
     upstreamMarkdown: upstream,
-    url: 'https://www.pencil.dev/',
+    url: 'https://canvas.example/',
     view: 'markdown',
     scriptPolicy: 'allow',
     fidelityLevel: 4,
     includeImages: false,
   })
 
-  if (!doc.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
+  if (!doc.includes('| [Studio Home](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
     throw new Error('expected nav links to be coalesced into a markdown table')
   }
   if (doc.includes('\n### Icons\n') || doc.includes('\n### Icons\r\n')) {

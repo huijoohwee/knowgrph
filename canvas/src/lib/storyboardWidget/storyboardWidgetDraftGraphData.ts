@@ -76,6 +76,105 @@ function hasSameDraftGraphBaseSignature(currentDraft: GraphData | null, baseGrap
   return buildStoryboardWidgetDraftGraphBaseSignature(currentDraft) === buildStoryboardWidgetDraftGraphBaseSignature(baseGraphData)
 }
 
+const graphValueEquals = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true
+  try {
+    return JSON.stringify(left) === JSON.stringify(right)
+  } catch {
+    return false
+  }
+}
+
+function mergeChangedRecord(
+  previous: Record<string, unknown>,
+  current: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = { ...current }
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)])
+  for (const key of keys) {
+    if (graphValueEquals(previous[key], next[key])) continue
+    if (Object.prototype.hasOwnProperty.call(next, key)) merged[key] = next[key]
+    else delete merged[key]
+  }
+  return merged
+}
+
+function mergeChangedGraphEntity<T extends GraphNode | GraphEdge>(previous: T, current: T, next: T): T {
+  const merged = mergeChangedRecord(
+    previous as unknown as Record<string, unknown>,
+    current as unknown as Record<string, unknown>,
+    next as unknown as Record<string, unknown>,
+  )
+  merged.properties = mergeChangedRecord(
+    (previous.properties || {}) as Record<string, unknown>,
+    (current.properties || {}) as Record<string, unknown>,
+    (next.properties || {}) as Record<string, unknown>,
+  )
+  return merged as T
+}
+
+function mergeChangedGraphEntities<T extends GraphNode | GraphEdge>(
+  previousEntities: readonly T[],
+  currentEntities: readonly T[],
+  nextEntities: readonly T[],
+): T[] {
+  const previousById = new Map(previousEntities.map(entity => [String(entity.id || ''), entity]))
+  const nextById = new Map(nextEntities.map(entity => [String(entity.id || ''), entity]))
+  const merged = currentEntities
+    .filter(entity => !previousById.has(String(entity.id || '')) || nextById.has(String(entity.id || '')))
+    .map(current => {
+      const id = String(current.id || '')
+      const next = nextById.get(id)
+      if (!next) return current
+      const previous = previousById.get(id)
+      if (previous) return mergeChangedGraphEntity(previous, current, next)
+      return {
+        ...current,
+        ...next,
+        properties: { ...((current.properties || {}) as Record<string, unknown>), ...((next.properties || {}) as Record<string, unknown>) },
+      } as T
+    })
+  const mergedIds = new Set(merged.map(entity => String(entity.id || '')))
+  for (const next of nextEntities) {
+    if (!mergedIds.has(String(next.id || ''))) merged.push(next)
+  }
+  return merged
+}
+
+export function reconcileStoryboardWidgetDraftGraphDataWithBaseChanges(args: {
+  previousBaseGraphData: GraphData
+  currentDraftGraphData: GraphData
+  nextBaseGraphData: GraphData
+}): GraphData {
+  const mergedGraph = mergeChangedRecord(
+    args.previousBaseGraphData as unknown as Record<string, unknown>,
+    args.currentDraftGraphData as unknown as Record<string, unknown>,
+    args.nextBaseGraphData as unknown as Record<string, unknown>,
+  ) as unknown as GraphData
+  mergedGraph.metadata = mergeChangedRecord(
+    (args.previousBaseGraphData.metadata || {}) as Record<string, unknown>,
+    (args.currentDraftGraphData.metadata || {}) as Record<string, unknown>,
+    (args.nextBaseGraphData.metadata || {}) as Record<string, unknown>,
+  ) as GraphData['metadata']
+  mergedGraph.nodes = mergeChangedGraphEntities(
+    args.previousBaseGraphData.nodes || [],
+    args.currentDraftGraphData.nodes || [],
+    args.nextBaseGraphData.nodes || [],
+  )
+  mergedGraph.edges = mergeChangedGraphEntities(
+    args.previousBaseGraphData.edges || [],
+    args.currentDraftGraphData.edges || [],
+    args.nextBaseGraphData.edges || [],
+  )
+  return bumpStoryboardWidgetDraftGraphDataRevision(mergedGraph, {
+    revisionFloor: Math.max(
+      readGraphDataRevision(args.currentDraftGraphData),
+      readGraphDataRevision(args.nextBaseGraphData),
+    ),
+  })
+}
+
 export function bumpStoryboardWidgetDraftGraphDataRevision(graphData: GraphData, opts?: { revisionFloor?: number | null }): GraphData {
   const metadata = (graphData.metadata || {}) as Record<string, unknown>
   const current = Math.max(
@@ -92,6 +191,7 @@ export function resolveStoryboardWidgetDraftGraphDataForBaseReset(args: {
   previousDocumentKey: string | null
   currentDraftGraphData: GraphData | null
   nextBaseGraphData: GraphData | null
+  previousBaseGraphData?: GraphData | null
 }): GraphData | null {
   const base = args.nextBaseGraphData
   if (!base) return null
@@ -99,6 +199,18 @@ export function resolveStoryboardWidgetDraftGraphDataForBaseReset(args: {
   if (!current || current === base) return base
   if (args.previousDocumentKey !== args.activeDocumentKey) return base
   if (hasSameDraftGraphBaseSignature(current, base)) return current
+  const previousBase = args.previousBaseGraphData || null
+  if (
+    previousBase
+    && readGraphDataRevision(base) >= readGraphDataRevision(previousBase)
+    && buildStoryboardWidgetDraftGraphBaseSignature(previousBase) !== buildStoryboardWidgetDraftGraphBaseSignature(base)
+  ) {
+    return reconcileStoryboardWidgetDraftGraphDataWithBaseChanges({
+      previousBaseGraphData: previousBase,
+      currentDraftGraphData: current,
+      nextBaseGraphData: base,
+    })
+  }
   const currentRevision = readGraphDataRevision(current)
   const baseRevision = readGraphDataRevision(base)
   if (currentRevision < baseRevision) return base

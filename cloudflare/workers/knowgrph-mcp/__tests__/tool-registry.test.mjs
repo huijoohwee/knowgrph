@@ -21,6 +21,7 @@ import {
   buildKnowgrphMcpToolDefinitions,
   collectApprovedGateIds,
   executeKnowgrphMcpTool,
+  executeKnowgrphMcpToolAsync,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_MCP_STAGE_GATES,
@@ -162,8 +163,8 @@ test("Agentic Canvas OS docs invocation is cataloged remotely as read-only", () 
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
 });
 
-test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", () => {
-  const result = executeKnowgrphMcpTool(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, {
+test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", async () => {
+  const result = await executeKnowgrphMcpToolAsync(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, {
     token: "/query",
   });
 

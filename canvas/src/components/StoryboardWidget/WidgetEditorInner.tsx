@@ -553,7 +553,6 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
       active={active}
       toolbarVisible={toolbarVisible}
       toolbarDock={placement.toolbarDock}
-      toolbarSideClamp={placement.toolbarSideClamp}
       toolbarInlineShiftPx={placement.toolbarInlineShiftPx}
       toolbarMaxWidthPx={placement.toolbarMaxWidthPx}
       isRichMediaPanelWidget={isRichMediaPanelWidget}

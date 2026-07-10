@@ -1,6 +1,7 @@
 import React from 'react'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { normalizeCardInlineMediaSoftLineBreaks } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdown-core/ui/markdownInlineEditActivation'
 import { readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -34,6 +35,9 @@ type CardInlineTextDisplaySurfaceProps = {
 }
 
 export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurfaceProps) {
+  const displaySourceValue = props.inlineChipDensity === 'compact'
+    ? normalizeCardInlineMediaSoftLineBreaks(props.displaySourceValue).trim()
+    : props.displaySourceValue
   const openFromPointer = (event: React.MouseEvent<HTMLElement>) => {
     const useMarkdownViewerActivation = props.showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
     if (!useMarkdownViewerActivation && props.shouldIgnoreInlineEditTarget(event.target)) return
@@ -77,8 +81,8 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
       onDragStart={event => { event.preventDefault(); event.stopPropagation() }}
     >
       {props.showPlaceholder ? props.placeholder : props.showMarkdownPreview ? (
-        <CardMarkdownPreview markdownText={props.displaySourceValue} activeDocumentPath="/__card_inline_text_editor/preview.md" className="min-w-0" uiPanelTextFontClass="font-sans" uiPanelMonospaceTextClass="font-mono text-xs" />
-      ) : props.displayText ? renderMarkdownSigilInlineText(props.displaySourceValue, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, renderKeywordChip: props.renderInlineMediaCandidateChip }) : null}
+        <CardMarkdownPreview markdownText={props.displaySourceValue} activeDocumentPath="/__card_inline_text_editor/preview.md" className="min-w-0" uiPanelTextFontClass="font-sans" uiPanelMonospaceTextClass="font-mono text-xs" inlineChipDensity={props.inlineChipDensity} />
+      ) : props.displayText ? renderMarkdownSigilInlineText(props.displayText, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, renderKeywordChip: props.renderInlineMediaCandidateChip }) : null}
     </section>
   )
 }

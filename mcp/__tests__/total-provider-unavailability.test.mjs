@@ -54,8 +54,8 @@ test("normalizeUnavailableProviders accepts a single name, an array, and objects
   assert.deepEqual(normalizeUnavailableProviders("byteplus"), ["byteplus"]);
   assert.deepEqual(normalizeUnavailableProviders(["byteplus", "exa"]), ["byteplus", "exa"]);
   assert.deepEqual(
-    normalizeUnavailableProviders([{ provider: "byteplus" }, { name: "exa" }, { id: "pixverse" }]),
-    ["byteplus", "exa", "pixverse"],
+    normalizeUnavailableProviders([{ provider: "byteplus" }, { name: "exa" }, { id: "external_video_provider" }]),
+    ["byteplus", "exa", "external_video_provider"],
   );
 });
 
@@ -99,7 +99,7 @@ test("R5.5: the degraded error keeps finalRetryCount at the CURRENT retryCount (
   // must NOT have its count incremented — retries are not consumed.
   const error = buildProviderUnavailabilityDegradedError({
     stageId: "storyboard",
-    providers: ["pixverse"],
+    providers: ["external_video_provider"],
     retryCount: 2,
   });
   assert.equal(error.finalRetryCount, 2);

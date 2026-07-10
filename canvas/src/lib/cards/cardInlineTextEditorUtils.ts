@@ -29,16 +29,3 @@ export function replaceCardInlineEditorTextRange(args: { text: string; start: nu
   const next = `${text.slice(0, start)}${args.replacement}${text.slice(end)}`
   return { text: next, cursor: start + args.replacement.length }
 }
-
-export function readCardInlineMediaCommandDuplicateNeedle(url: string): string {
-  const raw = String(url || '').trim()
-  if (!raw) return ''
-  try {
-    const parsed = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://example.invalid')
-    parsed.searchParams.delete('kg_media_token')
-    const pathAndQuery = `${parsed.pathname}${parsed.search}`
-    return parsed.origin === 'https://example.invalid' ? pathAndQuery : `${parsed.origin}${pathAndQuery}`
-  } catch {
-    return raw.split('?kg_media_token=')[0]?.trim() || raw
-  }
-}

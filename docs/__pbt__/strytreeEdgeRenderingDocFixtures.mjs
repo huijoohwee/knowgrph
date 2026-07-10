@@ -120,7 +120,7 @@ export function captureEpicConcerns(prdTad) {
     'epic.E03.wallet': regionBetween(prdTad, /^### PRD-STR-E03\b/, /^### PRD-STR-E04\b/),
     'epic.E04.payment': regionBetween(prdTad, /^### PRD-STR-E04\b/, /^### PRD-STR-E05\b/),
     'epic.E05.unlockSplit': regionBetween(prdTad, /^### PRD-STR-E05\b/, /^### PRD-STR-E06\b/),
-    'epic.E06.pixverseHarness': regionBetween(prdTad, /^### PRD-STR-E06\b/, /^### PRD-STR-E07\b/),
+    'epic.E06.externalVideoProviderHarness': regionBetween(prdTad, /^### PRD-STR-E06\b/, /^### PRD-STR-E07\b/),
     'epic.E07.observability': regionBetween(prdTad, /^### PRD-STR-E07\b/, /^### PRD-STR-E08\b/),
     // E08 non-UI clauses: intro + AC-01..AC-03 up to (not including) AC-04.
     'epic.E08.forkCompareNonUi': regionBetween(prdTad, /^### PRD-STR-E08\b/, /^\*\*PRD-STR-E08-AC-04\*\*/),

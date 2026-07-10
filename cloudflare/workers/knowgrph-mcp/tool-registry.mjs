@@ -20,7 +20,7 @@ import {
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION,
 } from "../../../mcp/agentic-canvas-os-docs-contract.mjs";
-import { buildAgenticCanvasOsDocsStaticResolutionPayload } from "../../../mcp/agentic-canvas-os-docs-core.mjs";
+import { buildAgenticCanvasOsDocsStaticResolutionPayload, buildAgenticCanvasOsDocsDynamicResolutionPayload } from "../../../mcp/agentic-canvas-os-docs-core.mjs";
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
@@ -414,7 +414,7 @@ const STAGE_TOOL_DEFINITIONS = Object.freeze([
     name: KNOWGRPH_MCP_STAGE_TOOL_NAMES.render,
     title: "Knowgrph Video Remix - Render Stage",
     description:
-      "Dispatch per-shot media generation via the Strytree/PixVerse queue. Gated by `render-action`.",
+      "Dispatch per-shot media generation via the Strytree external video provider queue. Gated by `render-action`.",
     inputSchema: RENDER_INPUT_SCHEMA,
     outputSchema: RENDER_OUTPUT_SCHEMA,
   },
@@ -540,14 +540,6 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
   }
 
   if (toolName === KNOWGRPH_OS_STATUS_TOOL_NAME) return executeCloudflareOsStatusTool(args, { toolDefinitions: buildKnowgrphMcpToolDefinitions() });
-  if (toolName === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME) {
-    const payload = buildAgenticCanvasOsDocsStaticResolutionPayload(args);
-    return {
-      ok: payload.ok,
-      structuredContent: payload,
-      text: JSON.stringify(payload, null, 2),
-    };
-  }
 
   const gateId = KNOWGRPH_MCP_STAGE_GATES[toolName];
   if (!gateId) {
@@ -602,5 +594,11 @@ export async function executeKnowgrphMcpToolAsync(toolName, rawArgs = {}, deps =
       text: result.text,
     };
   }
+
+  if (toolName === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME) {
+    const payload = await buildAgenticCanvasOsDocsDynamicResolutionPayload(args);
+    return { ok: payload.ok, structuredContent: payload, text: JSON.stringify(payload, null, 2) };
+  }
+
   return executeKnowgrphMcpTool(toolName, args);
 }

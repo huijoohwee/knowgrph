@@ -165,6 +165,18 @@ export function useRichMediaOverlays2d(args: {
       const n = suggested[i]!
       stickyMap.set(n.id, n)
     }
+    const suggestedIdSet = new Set<string>()
+    for (let i = 0; i < suggested.length; i += 1) {
+      const id = String(suggested[i]?.id || '').trim()
+      if (id) suggestedIdSet.add(id)
+    }
+    const isLiveFrozenOverlayId = (id: string): boolean => {
+      const key = String(id || '').trim()
+      if (!key) return false
+      if (excludeNodeIdSet?.has(key)) return false
+      if (suggestedIdSet.has(key)) return true
+      return !!sceneGraphNodeById?.get(key)
+    }
 
     const pinnedOrder = Array.from(iframeOverlayElsRef.current.keys())
     const prevOrder = stickyOverlayOrderRef.current
@@ -176,6 +188,7 @@ export function useRichMediaOverlays2d(args: {
         const id = String(frozenSource[i] || '').trim()
         if (!id) continue
         if (frozenIds.includes(id)) continue
+        if (!isLiveFrozenOverlayId(id)) continue
         const n = stickyMap.get(id)
         if (!n) continue
         frozenIds.push(id)

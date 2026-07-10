@@ -162,8 +162,8 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
   if (!overlays2dText.includes('graphSemanticKey: sceneGraphSemanticKey,')) {
     throw new Error('expected D3 rich media overlay path to reuse the scene graph semantic key for connected-value caching')
   }
-  if (!overlays2dText.includes('readWidgetRegistryMetadataEntries<WidgetRegistryEntry>(metadata)')) {
-    throw new Error('expected D3 rich media overlay path to reuse the shared widget-registry metadata reader before connected-value caching')
+  if (!overlays2dText.includes('readWidgetRegistryMetadataEntries<WidgetRegistryEntry>(metadata)') || !overlays2dText.includes('const isLiveFrozenOverlayId = (id: string): boolean => {') || !overlays2dText.includes('if (!isLiveFrozenOverlayId(id)) continue')) {
+    throw new Error('expected D3 rich media overlay path to reuse shared registry metadata and drop removed nodes from the sticky overlay cache')
   }
   if (overlays2dText.includes('const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]')) {
     throw new Error('expected D3 rich media overlay path to stop parsing widget registry metadata inline')

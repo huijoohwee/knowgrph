@@ -116,4 +116,16 @@ export function testStoryboardCanvasPaintScaleBoundsD3ZoomInterference() {
   }).box
   assert(highProjected.scale === highRawBox.scale, 'expected normalized high-zoom projection to preserve bounded paint scale')
   assert(centerDistance(highProjected) < centerDistance(highRawBox), 'expected capped high raw zoom to contract centers into painted layout scale instead of letting cards diverge from edges')
+
+  const hydrated = projectVectorPaintedOverlayZoomBox({
+    previousTransform: null,
+    currentTransform: d3.zoomIdentity.translate(420, 160).scale(4),
+    previousBox: baseBox,
+    rawBox: highRawBox,
+    anchorX: anchor.x,
+    anchorY: anchor.y,
+    width: cardSize.width,
+    height: cardSize.height,
+  }).box
+  assert(hydrated.left === baseBox.left && hydrated.top === baseBox.top && hydrated.scale === baseBox.scale, 'expected fixed-card projection to preserve the painted box when the real transform hydrates after initial render')
 }

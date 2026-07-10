@@ -86,8 +86,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
   projectWithWorldTransformScale?: boolean
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
+  getScreenAnchorForId?: (id: string) => { clientX: number; clientY: number } | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
   getNodeWorldTopLeftForId?: (id: string) => { x: number; y: number } | null
+  onResolvedWorldTopLeftForId?: (id: string, point: { x: number; y: number }) => void
   getCollisionObstacles?: () => Array<{ id: string; left: number; top: number; width: number; height: number }>
   sizingConfig: MediaOverlaySizingConfig
   clampToViewport?: { margin: number; marginLeft?: number; marginRight?: number; marginTop?: number; marginBottom?: number } | null
@@ -257,7 +259,26 @@ export function startMediaOverlayLayoutLoop2d(args: {
             scale: rawK,
           }
         : null
-      const preferredCenter = projectedWorldBox
+      const screenAnchor = args.getScreenAnchorForId?.(id) || null
+      const anchoredWorldBox = screenAnchor && Number.isFinite(screenAnchor.clientX) && Number.isFinite(screenAnchor.clientY)
+        ? {
+            left: Number(screenAnchor.clientX) - (w * rawK) / 2,
+            top: Number(screenAnchor.clientY) - (h * rawK) / 2,
+            scale: rawK,
+          }
+        : null
+      if (anchoredWorldBox && rawK > 0) {
+        const worldTopLeft = {
+          x: (anchoredWorldBox.left - t.x) / rawK,
+          y: (anchoredWorldBox.top - t.y) / rawK,
+        }
+        if (Number.isFinite(worldTopLeft.x) && Number.isFinite(worldTopLeft.y)) {
+          args.onResolvedWorldTopLeftForId?.(id, worldTopLeft)
+        }
+      }
+      const preferredCenter = anchoredWorldBox
+        ? { cx: anchoredWorldBox.left + (w * rawK) / 2, cy: anchoredWorldBox.top + (h * rawK) / 2 }
+        : projectedWorldBox
         ? { cx: projectedWorldBox.left + w / 2, cy: projectedWorldBox.top + h / 2 }
         : projectedZoomBox
         ? { cx: projectedZoomBox.left + w / 2, cy: projectedZoomBox.top + h / 2 }
@@ -270,13 +291,13 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const rect = computePanelRect({ cx: preferredCenter.cx, cy: preferredCenter.cy, w, h, clamp })
       preferred.push({
         id,
-        left: projectedWorldBox ? quantizePanelPos(projectedWorldBox.left) : quantizePanelPos(rect.left),
-        top: projectedWorldBox ? quantizePanelPos(projectedWorldBox.top) : quantizePanelPos(rect.top),
+        left: anchoredWorldBox ? quantizePanelPos(anchoredWorldBox.left) : projectedWorldBox ? quantizePanelPos(projectedWorldBox.left) : quantizePanelPos(rect.left),
+        top: anchoredWorldBox ? quantizePanelPos(anchoredWorldBox.top) : projectedWorldBox ? quantizePanelPos(projectedWorldBox.top) : quantizePanelPos(rect.top),
         w,
         h,
-        scale: projectedWorldBox ? projectedWorldBox.scale : 1,
+        scale: anchoredWorldBox ? anchoredWorldBox.scale : projectedWorldBox ? projectedWorldBox.scale : 1,
         el,
-        preserveWorldTopLeft: !!projectedWorldBox && !!topLeftNow,
+        preserveWorldTopLeft: !!anchoredWorldBox || (!!projectedWorldBox && !!topLeftNow),
       })
     }
 

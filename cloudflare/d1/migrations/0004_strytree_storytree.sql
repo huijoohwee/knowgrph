@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS strytree_assets (
   asset_type TEXT NOT NULL,
   name TEXT NOT NULL,
   ref_name TEXT,
-  pixverse_img_id TEXT,
+  external_provider_image_id TEXT,
   object_key TEXT,
   prompt_prefix TEXT,
   negative_prompt TEXT,

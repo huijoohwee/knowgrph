@@ -60,6 +60,13 @@ type FlowPortHandleDragSession = {
 
 let nextFlowPortHandleDragSessionId = 1
 let activeFlowPortHandleDragSession: FlowPortHandleDragSession | null = null
+let lastFlowPortHandleDragEndedAtMs = 0
+const FLOW_PORT_HANDLE_PROJECTION_SETTLE_FREEZE_MS = 5000
+
+export function shouldFreezeProjectionForFlowPortHandleDrag(nowMs = Date.now()): boolean {
+  if (activeFlowPortHandleDragSession) return true
+  return Number.isFinite(lastFlowPortHandleDragEndedAtMs) && nowMs - lastFlowPortHandleDragEndedAtMs < FLOW_PORT_HANDLE_PROJECTION_SETTLE_FREEZE_MS
+}
 
 export function readFlowPortHandleAtClientPoint(args: {
   clientX: number
@@ -172,6 +179,25 @@ function beginFlowPortHandleDragSession(kind: FlowPortHandleDragSession['kind'])
 function clearFlowPortHandleDragSession(session: FlowPortHandleDragSession): void {
   if (activeFlowPortHandleDragSession?.id !== session.id) return
   activeFlowPortHandleDragSession = null
+  lastFlowPortHandleDragEndedAtMs = Date.now()
+}
+
+function consumeFlowPortHandleDragEvent(event: Event): void {
+  try {
+    event.preventDefault()
+  } catch {
+    void 0
+  }
+  try {
+    event.stopPropagation()
+  } catch {
+    void 0
+  }
+  try {
+    ;(event as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+  } catch {
+    void 0
+  }
 }
 
 export function startFlowPortHandlePointerDrag(args: FlowPortHandlePointerDragArgs): boolean {
@@ -197,13 +223,16 @@ export function startFlowPortHandlePointerDrag(args: FlowPortHandlePointerDragAr
     clearFlowPortHandleDragSession(session)
   }
   const move = (event: PointerEvent) => {
+    consumeFlowPortHandleDragEvent(event)
     if (event.pointerId === pointerId) dispatchFlowPortHandlePreview({ phase: 'move', sourceNodeId, sourcePortKey, clientX: event.clientX, clientY: event.clientY })
   }
   const moveMouse = (event: MouseEvent) => {
+    consumeFlowPortHandleDragEvent(event)
     dispatchFlowPortHandlePreview({ phase: 'move', sourceNodeId, sourcePortKey, clientX: event.clientX, clientY: event.clientY })
   }
   const cancel = (event: PointerEvent) => {
     if (event.pointerId !== pointerId) return
+    consumeFlowPortHandleDragEvent(event)
     dispatchFlowPortHandlePreview({ phase: 'cancel', sourceNodeId, sourcePortKey, clientX: event.clientX, clientY: event.clientY })
     cleanup()
   }
@@ -220,9 +249,11 @@ export function startFlowPortHandlePointerDrag(args: FlowPortHandlePointerDragAr
   }
   const finish = (event: PointerEvent) => {
     if (event.pointerId !== pointerId) return
+    consumeFlowPortHandleDragEvent(event)
     finishAt(event.clientX, event.clientY)
   }
   const finishMouse = (event: MouseEvent) => {
+    consumeFlowPortHandleDragEvent(event)
     finishAt(event.clientX, event.clientY)
   }
 
@@ -245,9 +276,11 @@ export function startFlowPortHandleMouseDrag(args: FlowPortHandleMouseDragArgs):
   dispatchFlowPortHandlePreview({ phase: 'start', sourceNodeId, sourcePortKey, clientX: args.event.clientX, clientY: args.event.clientY })
 
   const move = (event: MouseEvent) => {
+    consumeFlowPortHandleDragEvent(event)
     dispatchFlowPortHandlePreview({ phase: 'move', sourceNodeId, sourcePortKey, clientX: event.clientX, clientY: event.clientY })
   }
   const finish = (event: MouseEvent) => {
+    consumeFlowPortHandleDragEvent(event)
     document.removeEventListener('mousemove', move, true)
     document.removeEventListener('mouseup', finish, true)
     clearFlowPortHandleDragSession(session)

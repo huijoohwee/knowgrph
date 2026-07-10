@@ -48,9 +48,6 @@ export const inspectLocalSettingsChatReadiness = (
       contextScope: snapshot.chatContextScope,
       integrationEnabled: snapshot.integrationEnabled,
       integrationOpenTab: snapshot.integrationOpenTab,
-      pixverseVideoEnabled: snapshot.pixverseVideoEnabled,
-      pixverseVideoStrategy: snapshot.pixverseVideoStrategy,
-      pixverseVideoTransport: snapshot.pixverseVideoTransport,
     },
     modelDiscovery: {
       refreshing: snapshot.isRefreshingChatModels,

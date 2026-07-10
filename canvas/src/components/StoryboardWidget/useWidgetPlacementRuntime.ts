@@ -21,7 +21,6 @@ import { readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandl
 import {
   WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX,
   WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX,
-  WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX,
   WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
 } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
@@ -213,7 +212,6 @@ export function useWidgetPlacementRuntime(args: {
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).top)
   const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).left)
   const [toolbarDock, setToolbarDock] = React.useState<'above' | 'below'>('above')
-  const [toolbarSideClamp, setToolbarSideClamp] = React.useState(false)
   const [toolbarInlineShiftPx, setToolbarInlineShiftPx] = React.useState(0)
   const [toolbarMaxWidthPx, setToolbarMaxWidthPx] = React.useState(WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX)
 
@@ -765,10 +763,6 @@ export function useWidgetPlacementRuntime(args: {
     if (updateToolbarLayout) setToolbarInlineShiftPx(prev => (Math.abs(prev - nextToolbarInlineShiftPx) <= 0.001 ? prev : nextToolbarInlineShiftPx))
     const nextToolbarMaxWidthPx = toolbarMaxScreenWidth / safeEffectivePanelScale
     if (updateToolbarLayout) setToolbarMaxWidthPx(prev => (Math.abs(prev - nextToolbarMaxWidthPx) <= 0.001 ? prev : nextToolbarMaxWidthPx))
-    if (updateToolbarLayout) setToolbarSideClamp(prev => {
-      const nextToolbarSideClamp = pos.left + effectiveScaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportW
-      return prev === nextToolbarSideClamp ? prev : nextToolbarSideClamp
-    })
     const offset = canvasWindowOffsetRef.current
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0; const offsetTop = Number.isFinite(offset.top) ? offset.top : 0
     const tx = pos.left + offsetLeft; const ty = pos.top + offsetTop
@@ -993,7 +987,6 @@ export function useWidgetPlacementRuntime(args: {
     setPinnedTopPx,
     setPinnedLeftPx,
     toolbarDock,
-    toolbarSideClamp,
     toolbarInlineShiftPx,
     toolbarMaxWidthPx,
     applyOverlayPosition,

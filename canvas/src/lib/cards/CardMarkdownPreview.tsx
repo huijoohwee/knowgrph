@@ -6,6 +6,7 @@ import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   hasCardMarkdownPreviewSyntax,
+  normalizeCardInlineMediaSoftLineBreaks,
   readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -184,6 +185,7 @@ export function CardMarkdownPreview({
   uiPanelMonospaceTextClass = 'font-mono text-xs',
   richMediaDataAttrs = false,
   previewScrollable = false,
+  inlineChipDensity = 'regular',
 }: {
   markdownText: string
   activeDocumentPath: string
@@ -193,16 +195,23 @@ export function CardMarkdownPreview({
   uiPanelMonospaceTextClass?: string
   richMediaDataAttrs?: boolean
   previewScrollable?: boolean
+  inlineChipDensity?: 'regular' | 'compact'
 }) {
-  const sourceText = String(markdownText || '')
+  const sourceText = inlineChipDensity === 'compact'
+    ? normalizeCardInlineMediaSoftLineBreaks(String(markdownText || '')).trim()
+    : String(markdownText || '')
   const splitPreview = React.useMemo(() => splitCardMarkdownPreviewInlineParts(sourceText), [sourceText])
   const previewText = splitPreview.text
   const renderPlainPreviewText = previewText && !hasCardMarkdownPreviewSyntax(previewText)
   const renderInlineMediaPreview = splitPreview.hasMedia && !hasCardMarkdownPreviewSyntax(previewText)
-  const rootClassName = ['min-w-0 w-full text-xs leading-5', className].filter(Boolean).join(' ')
+  const rootTextMetricsClassName = inlineChipDensity === 'compact'
+    ? 'min-w-0 w-full [font-size:inherit] [line-height:inherit]'
+    : 'min-w-0 w-full text-xs leading-5'
+  const rootClassName = [rootTextMetricsClassName, className].filter(Boolean).join(' ')
   return (
     <section
       data-kg-card-markdown-preview="1"
+      data-kg-card-inline-chip-density={inlineChipDensity === 'compact' ? 'compact' : undefined}
       data-kg-rich-media-markdown-preview={richMediaDataAttrs ? '1' : undefined}
       className={rootClassName}
       style={style}

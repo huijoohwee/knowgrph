@@ -41,7 +41,7 @@ import {
 import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPanelUpload'
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { readCardInlineMediaCommandDuplicateNeedle } from '@/lib/cards/cardInlineTextEditorUtils'
+import { sourceContainsInlineMediaUrl } from '@/lib/command-menu/inlineMediaUrlIdentity'
 import { findInlineCommandTokenRange, focusCardInlineTextInputSelectionSoon, insertMarkdownBlockRange, readCardInlineTextInputSelection, replaceCurrentLine, replaceDraftRange } from '@/lib/cards/CardInlineTextCommandMenuUtils'
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 export type CardInlineTextCommandMenuMode = 'slash' | 'variable' | 'keyword'
@@ -76,6 +76,7 @@ export function CardInlineTextCommandMenus(props: {
   commandSelectionRef: React.MutableRefObject<{ start: number; end: number }>
   commandContextText?: string
   draft: string
+  sourceDraft: string
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>
   menuAnchorRef?: React.RefObject<HTMLElement | null>
   focusSelection?: (start: number, end?: number) => void
@@ -97,6 +98,7 @@ export function CardInlineTextCommandMenus(props: {
     commandSelectionRef,
     commandContextText,
     draft,
+    sourceDraft,
     focusSelection,
     inputRef,
     menuAnchorRef,
@@ -184,32 +186,35 @@ export function CardInlineTextCommandMenus(props: {
   }, [commandSelectionRef, draft, focusSelection, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
+    const sourceText = String(sourceDraft || '')
     const shouldRouteToExternalMediaTarget = mediaCommandMode === 'external' && !!candidate.url && typeof onMediaCommandSelect === 'function'
+    const duplicateMedia = !!candidate.url && sourceContainsInlineMediaUrl(sourceText, candidate.url)
+    if (duplicateMedia) {
+      const selection = commandSelectionRef.current
+      const tokenRange = findInlineCommandTokenRange({ text, selection, sigil: '@' })
+      const tokenText = text.slice(tokenRange.start, tokenRange.end)
+      const next = shouldRouteToExternalMediaTarget && tokenText.startsWith('@')
+        ? `${text.slice(0, tokenRange.start)}${text.slice(tokenRange.end)}`
+        : text
+      if (next !== text) {
+        setDraft(next)
+        onCommandDraftChange?.(next)
+      }
+      setCommandMode(null)
+      setCommandQuery('')
+      const focusOffset = next !== text ? tokenRange.start : commandSelectionRef.current.end
+      focusCardInlineTextInputSelectionSoon(inputRef.current, focusOffset, focusOffset, focusSelection)
+      if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
+      return
+    }
+    if (candidate.url) onMediaCommandSelect?.(candidate)
     if (shouldRouteToExternalMediaTarget) {
-      onMediaCommandSelect(candidate)
-      const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
       const selection = commandSelectionRef.current
       const selected = text.slice(
         Math.max(0, Math.min(text.length, selection.start)),
         Math.max(0, Math.min(text.length, selection.end)),
       )
       const tokenRange = findInlineCommandTokenRange({ text, selection, sigil: '@' })
-      const tokenText = text.slice(tokenRange.start, tokenRange.end)
-      if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
-        const next = tokenText.startsWith('@') ? `${text.slice(0, tokenRange.start)}${text.slice(tokenRange.end)}` : text
-        if (next !== text) {
-          setDraft(next)
-          onCommandDraftChange?.(next)
-        }
-        setCommandMode(null)
-        setCommandQuery('')
-        {
-          const focusOffset = tokenText.startsWith('@') ? tokenRange.start : commandSelectionRef.current.end
-          focusCardInlineTextInputSelectionSoon(inputRef.current, focusOffset, focusOffset, focusSelection)
-        }
-        if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
-        return
-      }
       const replaceRange = selected && !/^@[A-Za-z0-9_.-]{0,96}$/.test(selected)
         ? { start: selection.end, end: selection.end }
         : tokenRange
@@ -233,13 +238,6 @@ export function CardInlineTextCommandMenus(props: {
       setCommandQuery('')
       focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor, next.cursor, focusSelection)
       if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-      return
-    }
-    const duplicateNeedle = readCardInlineMediaCommandDuplicateNeedle(candidate.url)
-    if (candidate.url && (text.includes(candidate.url) || (!!duplicateNeedle && text.includes(duplicateNeedle)))) {
-      setCommandMode(null)
-      setCommandQuery('')
-      focusCardInlineTextInputSelectionSoon(inputRef.current, commandSelectionRef.current.end, commandSelectionRef.current.end, focusSelection)
       return
     }
     const selection = commandSelectionRef.current
@@ -270,7 +268,7 @@ export function CardInlineTextCommandMenus(props: {
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-  }, [commandSelectionRef, draft, focusSelection, inputRef, mediaCommandMode, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft])
+  }, [commandSelectionRef, draft, focusSelection, inputRef, mediaCommandMode, onCommandDraftApplied, onCommandDraftChange, onMediaCommandSelect, setCommandMode, setCommandQuery, setDraft, sourceDraft])
   const uploadMediaCommand = React.useCallback(async (fileList: FileList | null) => {
     const results = await uploadFilesToUploadedMediaPanel({
       files: Array.from(fileList || []),

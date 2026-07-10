@@ -60,6 +60,7 @@ const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; 
 export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
+  container.className = 'text-[10px] leading-4'
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   try {
@@ -84,8 +85,15 @@ export async function testCardMarkdownPreviewInlineVideoChipKeepsParagraphFlow()
     if (!(chip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected inline video chip in card preview, html=${container.innerHTML}`)
     }
-    if (!chip.className.includes('mr-1') || !chip.className.includes('items-center') || !chip.className.includes('align-middle') || !chip.className.includes('text-[11px]')) {
-      throw new Error(`expected inline video chip to use centered spacing classes, got ${chip.className}`)
+    for (const expectedClass of ['mr-1', 'items-center', 'align-baseline', 'gap-0.5', '[font-size:inherit]', '[line-height:inherit]']) {
+      if (!chip.className.includes(expectedClass)) {
+        throw new Error(`expected inline video chip to use inherited compact spacing ${expectedClass}, got ${chip.className}`)
+      }
+    }
+    for (const staleClass of ['align-middle', 'text-[11px]', 'gap-1']) {
+      if (chip.className.includes(staleClass)) {
+        throw new Error(`expected inline video chip to avoid stale spacing class ${staleClass}, got ${chip.className}`)
+      }
     }
     const stackWrapper = chip.closest('.space-y-1')
     if (stackWrapper) {
@@ -189,23 +197,40 @@ export async function testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypo
 export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypography() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
+  container.className = 'text-[10px] leading-4'
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   try {
     await act(async () => {
       root.render(
         React.createElement(CardMarkdownPreview, {
-          markdownText: 'Review the ![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token) #image source evidence into editable storyboard elements.',
+          markdownText: 'Review the\n\n![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg?kg_media_token=token)\n#image source evidence into editable storyboard elements.\n',
           activeDocumentPath: '/__card_inline_text_editor/preview.md',
-          className: 'm-0 mt-1 text-xs leading-5 text-[color:var(--kg-text-secondary)]',
+          className: 'm-0 mt-1 text-[color:var(--kg-text-secondary)]',
+          inlineChipDensity: 'compact',
         }),
       )
       await waitForFrames(dom.window, 8)
     })
     const previewRoot = container.querySelector('[data-kg-card-markdown-preview="1"]')
     if (!(previewRoot instanceof dom.window.HTMLElement)) throw new Error(`expected card markdown preview root, html=${container.innerHTML}`)
+    if (previewRoot.getAttribute('data-kg-card-inline-chip-density') !== 'compact') {
+      throw new Error(`expected compact card markdown preview density, html=${previewRoot.outerHTML}`)
+    }
+    const previewRootClassName = previewRoot.getAttribute('class') || ''
+    for (const expectedClass of ['[font-size:inherit]', '[line-height:inherit]']) {
+      if (!previewRootClassName.includes(expectedClass)) {
+        throw new Error(`expected compact card markdown preview to inherit card text metrics ${expectedClass}, got ${previewRootClassName}`)
+      }
+    }
+    for (const staleClass of ['text-xs', 'leading-5']) {
+      if (previewRootClassName.includes(staleClass)) {
+        throw new Error(`expected compact card markdown preview not to hardcode ${staleClass}, got ${previewRootClassName}`)
+      }
+    }
     const attachments = previewRoot.querySelector('[data-kg-card-markdown-preview-attachments="1"]')
     if (attachments) throw new Error(`expected inline image media to remain inline, not render in a separate attachment strip, html=${container.innerHTML}`)
+    if (previewRoot.querySelector('br')) throw new Error(`expected compact card markdown preview to flatten media-adjacent soft line breaks, html=${previewRoot.innerHTML}`)
     const inlineChip = previewRoot.querySelector('[data-kg-card-inline-media-pill="1"]')
     if (!(inlineChip instanceof dom.window.HTMLElement)) throw new Error(`expected inline image media to render as an inline chip, html=${container.innerHTML}`)
     if (!inlineChip.className.includes('[font-size:inherit]') || !inlineChip.className.includes('[line-height:inherit]')) {
@@ -223,7 +248,7 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
     }
     const keywordChip = previewRoot.querySelector('[data-kg-card-inline-keyword-pill="1"]')
     if (!(keywordChip instanceof dom.window.HTMLElement)) throw new Error(`expected #keyword token to reuse the shared inline chip renderer in card preview text, html=${container.innerHTML}`)
-    if (String(keywordChip.textContent || '').trim() !== 'image') {
+    if (String(keywordChip.textContent || '').trim() !== '#image') {
       throw new Error(`expected #image chip to preserve readable keyword text, got ${JSON.stringify(keywordChip.textContent)}`)
     }
     for (const expectedClass of DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME.split(' ')) {
@@ -245,6 +270,63 @@ export async function testCardMarkdownPreviewInlineImageDoesNotMutateProseTypogr
     const markdownParagraph = previewRoot.querySelector('article p, .prose p')
     if (markdownParagraph) {
       throw new Error(`expected inline image media to avoid markdown paragraph typography, html=${container.innerHTML}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardInlineTextEditorCompactProjectedAtMediaKeepsParagraphFlow() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const sourceText = [
+    'Imported 123 document source unit:',
+    'Strybldr starter source.',
+    '',
+    '@空武.jpg',
+  ].join('\n')
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: sourceText,
+          ariaLabel: 'Summary for workspace-source',
+          placeholder: 'Add summary',
+          canEdit: true,
+          editActivation: 'click',
+          multiline: true,
+          markdownPreview: 'auto',
+          inlineChipDensity: 'compact',
+          projectedMediaAttachments: [{
+            mediaKind: 'image',
+            label: '空武.jpg',
+            sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+            thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg',
+          }],
+          displayClassName: 'm-0 min-w-0 whitespace-pre-wrap break-words text-[10px] leading-4',
+          onCommit: () => void 0,
+        }),
+      )
+      await waitForFrames(dom.window, 8)
+    })
+    const display = container.querySelector('[aria-label="Summary for workspace-source"][data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error(`expected card inline display surface, html=${container.innerHTML}`)
+    const chip = display.querySelector('[data-kg-card-inline-display-media-chip="1"]')
+    if (!(chip instanceof dom.window.HTMLElement)) throw new Error(`expected authored @ media reference to render as projected media chip, html=${display.innerHTML}`)
+    const text = String(display.textContent || '')
+    if (!text.includes('Imported 123 document source unit:\nStrybldr starter source.')) {
+      throw new Error(`expected compact card display to preserve non-media paragraph break, got ${JSON.stringify(text)}`)
+    }
+    if (!text.includes('Strybldr starter source. @空武.jpg')) {
+      throw new Error(`expected compact card display to keep @ media chip in paragraph flow, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('Strybldr starter source.\n@空武.jpg')) {
+      throw new Error(`expected compact card display not to force authored @ media chip onto a new line, got ${JSON.stringify(text)}`)
     }
   } finally {
     await act(async () => {

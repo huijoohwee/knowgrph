@@ -243,7 +243,7 @@ It does not create a new MainPanel tab, a new graph-mutation service, or a paral
 
 ## Executive Summary
 
-Knowgrph already exposes a MainPanel MCP surface that hosts Stripe, Exa, GrabMaps, PixVerse, Lark, OpenAI, Cloudflare AI Gateway, and Knowgrph-native MCP configurations. The VideoDB Director MCP adds video intelligence (upload, index, search, stream, AI generation) to this same surface.
+Knowgrph already exposes a MainPanel MCP surface that hosts Stripe, Exa, GrabMaps, external video provider, Lark, OpenAI, Cloudflare AI Gateway, and Knowgrph-native MCP configurations. The VideoDB Director MCP adds video intelligence (upload, index, search, stream, AI generation) to this same surface.
 
 The product risk is not lack of video API coverage — `knowgrph-videodb-api-reference.md` already maps the full REST surface. The risks are:
 - **Credential sprawl**: `VIDEODB_API_KEY` copied into browser storage instead of kept in a host environment

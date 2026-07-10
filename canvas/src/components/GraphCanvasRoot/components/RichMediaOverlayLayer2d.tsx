@@ -141,9 +141,12 @@ export function RichMediaOverlayLayer2d(props: {
   const removePanel = React.useCallback((id: string) => {
     const key = String(id || '').trim()
     if (!key) return
+    setActivePanelId(prev => (prev === key ? '' : prev))
     removeNode(key)
+    updateOpenWidgetNodeIds(prev => prev.filter(nodeId => String(nodeId || '').trim() !== key))
+    requestMediaOverlaySchedule?.()
     addHistory('Rich Media remove')
-  }, [addHistory, removeNode])
+  }, [addHistory, removeNode, requestMediaOverlaySchedule, updateOpenWidgetNodeIds])
 
   const getPanelRefForId = React.useCallback((id: string) => {
     const key = String(id || '').trim()

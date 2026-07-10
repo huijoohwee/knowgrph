@@ -4,8 +4,14 @@ import { JSDOM } from 'jsdom'
 
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { handleStoryboardCardMetaWheelEvent } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
+import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
+import { isStoryboardHeaderDragBlockedTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { readStoryboardCardSummaryText } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryText'
+import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanvas/storyboardCardTextModel'
+import { shouldStoryboardCardTextColumnOwnSummaryEditTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryEditTarget'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphData } from '@/lib/graph/types'
@@ -18,7 +24,7 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
   const authoredSummary = [
     'Imported  source evidence for a validation-ready storyboard card.',
     '',
-    '![Evidence frame](https://example.test/source.png)',
+    '![Evidence frame](https://media.invalid/source.png)',
     'Review   authored spacing before generation.',
   ].join('\n')
   const graphData: GraphData = {
@@ -67,13 +73,13 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
 
 export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {
   const rawSummary = [
-    'check my hand, numb... ![空武.jpg](http://localhost:5185/api/storage/media/airvio/runs/upload-demo/image/%E7%A9%BA%E6%AD%A6.jpg?kg_media_token=secret)',
-    '<video src="https://example.test/source.mp4" title="source clip" controls></video>',
-    '<audio src="https://example.test/source.mp3" controls></audio>',
+    'Author supplied inline media. ![inline media](https://media.invalid/source.png?kg_media_token=redacted)',
+    '<video src="https://media.invalid/source.mp4" title="source clip" controls></video>',
+    '<audio src="https://media.invalid/source.mp3" controls></audio>',
     'Review source symptoms.',
   ].join('\n')
   const actual = readStoryboardCardSummaryText(rawSummary)
-  assert(actual === 'check my hand, numb...\nReview source symptoms.', `expected Storyboard summary text to strip inline media embeds, got ${JSON.stringify(actual)}`)
+  assert(actual === 'Author supplied inline media.\nReview source symptoms.', `expected Storyboard summary text to strip inline media embeds, got ${JSON.stringify(actual)}`)
   const formattedSummary = `  ${rawSummary}\n\n  Preserve  authored   spacing.  `
   const patch = buildGraphNodeCanonicalTextPatch({
     currentProperties: { description: 'old summary' },
@@ -86,18 +92,193 @@ export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {
   assert(!('description' in patch), 'expected WYSIWYG summary patch to remove stale alias properties')
 }
 
+export function testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt() {
+  const prompt = 'Generate /runtime #storyboard @asset response.'
+  const textOnlyModel = buildStoryboardCardTextModel({
+    summary: '',
+    output: '',
+    action: '',
+    prompt,
+  })
+  assert(textOnlyModel.primaryRaw === prompt, `expected prompt to become the primary card Viewer text, got ${JSON.stringify(textOnlyModel.primaryRaw)}`)
+  assert(textOnlyModel.primaryField.id === 'prompt', `expected prompt-only Text Widget card edits to persist through prompt, got ${textOnlyModel.primaryField.id}`)
+  assert(textOnlyModel.secondaryRaw === '', `expected prompt-only Text Widget not to duplicate into secondary text, got ${JSON.stringify(textOnlyModel.secondaryRaw)}`)
+  const nextPrompt = 'Generate an edited /runtime #storyboard @asset response.'
+  const promptPatch = buildGraphNodeCanonicalTextPatch({
+    currentProperties: { imagePrompt: prompt },
+    propertyKeys: textOnlyModel.primaryField.propertyKeys,
+    canonicalKey: textOnlyModel.primaryField.canonicalKey,
+    nextValue: nextPrompt,
+    preserveFormatting: true,
+  })
+  assert(promptPatch.prompt === nextPrompt, `expected prompt-backed card edit to write canonical prompt, got ${JSON.stringify(promptPatch)}`)
+  assert(!('imagePrompt' in promptPatch), 'expected prompt-backed card edit to remove stale prompt aliases')
+  const summaryWithDistinctPrompt = buildStoryboardCardTextModel({
+    summary: 'Reviewed source summary.',
+    output: '',
+    action: '',
+    prompt,
+  })
+  assert(summaryWithDistinctPrompt.primaryField.id === 'summary', `expected summary-backed cards to keep summary as primary edit target, got ${summaryWithDistinctPrompt.primaryField.id}`)
+  assert(summaryWithDistinctPrompt.secondaryRaw === prompt, 'expected a distinct prompt to remain available as secondary shared Card text')
+  assert(summaryWithDistinctPrompt.secondaryField?.id === 'prompt', 'expected secondary Card text to preserve its prompt semantic label')
+  const dialogueOnlyModel = buildStoryboardCardTextModel({ dialogue: 'Keep the authored dialogue.' })
+  assert(dialogueOnlyModel.primaryField.id === 'dialogue', `expected dialogue-only cards to remain visible and editable, got ${dialogueOnlyModel.primaryField.id}`)
+  const styleOnlyModel = buildStoryboardCardTextModel({ style: 'Neutral documentary treatment.' })
+  assert(styleOnlyModel.primaryField.id === 'style', `expected style-only cards to remain visible and editable, got ${styleOnlyModel.primaryField.id}`)
+}
+
+export function testStoryboardCardPromptCommitMirrorsStrybldrMarkdownSource() {
+  const cardId = 'prompt-card'
+  const prompt = 'Draft response from the active request.'
+  const nextPrompt = 'Edited response from the active request.'
+  let committedNodeId = ''
+  let committedProperties: Record<string, unknown> = {}
+  const history: string[] = []
+  const textModel = buildStoryboardCardTextModel({ summary: '', output: '', action: '', prompt })
+  commitStoryboardCardCanonicalText2d({
+    addHistory: label => history.push(label),
+    canonicalKey: textModel.primaryField.canonicalKey,
+    cardId,
+    currentProperties: { imagePrompt: prompt },
+    historyLabel: 'Storyboard prompt',
+    nextValue: nextPrompt,
+    preserveFormatting: true,
+    propertyKeys: textModel.primaryField.propertyKeys,
+    updateNode: (id, patch) => {
+      committedNodeId = id
+      committedProperties = (patch.properties || {}) as Record<string, unknown>
+    },
+  })
+  assert(committedNodeId === cardId, `expected prompt edit to route through the canonical node owner, got ${committedNodeId}`)
+  assert(committedProperties.prompt === nextPrompt, `expected canonical node update to receive prompt edit, got ${JSON.stringify(committedProperties)}`)
+  assert(!('imagePrompt' in committedProperties), 'expected canonical node update to neutralize stale prompt aliases')
+  assert(history.join('|') === 'Storyboard prompt', `expected one history entry for prompt commit, got ${JSON.stringify(history)}`)
+}
+
+export function testStoryboardCardSequentialPromptCommitsUseLiveGraphState() {
+  const firstCardId = 'prompt-card-a'
+  const secondCardId = 'prompt-card-b'
+  const firstPrompt = 'Draft response for first card.'
+  const secondPrompt = 'Draft response for second card.'
+  const nextFirstPrompt = 'Edited response for first card.'
+  const nextSecondPrompt = 'Edited response for second card.'
+  const staleRenderGraphData: GraphData = {
+    type: 'application/json',
+    nodes: [
+      { id: firstCardId, type: 'TextWidget', label: 'Text Widget', properties: { imagePrompt: firstPrompt, keep: 'first' } },
+      { id: secondCardId, type: 'TextWidget', label: 'Text Widget', properties: { imagePrompt: secondPrompt, keep: 'second' } },
+    ],
+    edges: [],
+  }
+  const store = useGraphStore.getState()
+  const previousGraphData = store.graphData
+  const history: string[] = []
+  const committedGraphs: GraphData[] = []
+  const textModel = buildStoryboardCardTextModel({ summary: '', output: '', action: '', prompt: firstPrompt })
+  const commitPrompt = (cardId: string, nextValue: string) => {
+    const liveGraphData = useGraphStore.getState().graphData
+    const liveNode = liveGraphData?.nodes.find(node => String(node.id || '') === cardId)
+    commitStoryboardCardCanonicalText2d({
+      addHistory: label => history.push(label),
+      canonicalKey: textModel.primaryField.canonicalKey,
+      cardId,
+      currentProperties: (liveNode?.properties || {}) as Record<string, unknown>,
+      historyLabel: 'Storyboard prompt',
+      nextValue,
+      preserveFormatting: true,
+      propertyKeys: textModel.primaryField.propertyKeys,
+      updateNode: (id, patch) => {
+        const currentGraphData = useGraphStore.getState().graphData
+        if (!currentGraphData) return
+        const nextGraphData = {
+          ...currentGraphData,
+          nodes: currentGraphData.nodes.map(node => String(node.id || '') === id ? { ...node, ...patch } : node),
+        }
+        committedGraphs.push(nextGraphData)
+        useGraphStore.setState({ graphData: nextGraphData } as never)
+      },
+    })
+  }
+  try {
+    useGraphStore.setState({ graphData: staleRenderGraphData } as never)
+    commitPrompt(firstCardId, nextFirstPrompt)
+    commitPrompt(secondCardId, nextSecondPrompt)
+    const finalGraph = useGraphStore.getState().graphData
+    const firstCard = finalGraph?.nodes?.find(node => String(node.id || '') === firstCardId)
+    const secondCard = finalGraph?.nodes?.find(node => String(node.id || '') === secondCardId)
+    assert(firstCard?.properties?.prompt === nextFirstPrompt, `expected second prompt commit not to resurrect stale first-card graph properties, got ${JSON.stringify(firstCard?.properties)}`)
+    assert(secondCard?.properties?.prompt === nextSecondPrompt, `expected second-card prompt commit to persist, got ${JSON.stringify(secondCard?.properties)}`)
+    assert(firstCard?.properties?.keep === 'first' && secondCard?.properties?.keep === 'second', 'expected prompt commits to preserve unrelated node properties from the live graph')
+    assert(committedGraphs.length === 2, `expected both prompt commits to update graph state, got ${committedGraphs.length}`)
+    assert(history.join('|') === 'Storyboard prompt|Storyboard prompt', `expected two prompt history entries, got ${JSON.stringify(history)}`)
+  } finally {
+    useGraphStore.setState({ graphData: previousGraphData } as never)
+  }
+}
+
+export function testStoryboardCardSummaryTextColumnLetsInlineEditorOwnDirectTargets() {
+  const dom = new JSDOM('<section><section data-kg-card-inline-edit="1"><p>summary</p></section><button>Run</button><span data-blank="1"></span></section>')
+  const doc = dom.window.document
+  const textColumn = doc.querySelector('section')
+  const inlineText = doc.querySelector('[data-kg-card-inline-edit="1"] p')
+  const button = doc.querySelector('button')
+  const blank = doc.querySelector('[data-blank="1"]')
+  assert(inlineText && !shouldStoryboardCardTextColumnOwnSummaryEditTarget(inlineText), 'expected direct card text clicks to stay owned by CardInlineTextEditor')
+  assert(button && !shouldStoryboardCardTextColumnOwnSummaryEditTarget(button), 'expected Storyboard text column not to steal control clicks')
+  assert(blank && shouldStoryboardCardTextColumnOwnSummaryEditTarget(blank, textColumn), 'expected blank text-column clicks to use the Storyboard edit fallback')
+  const activeEditor = doc.createElement('section')
+  activeEditor.setAttribute('contenteditable', 'true')
+  activeEditor.setAttribute('data-kg-card-inline-edit-input', '1')
+  activeEditor.setAttribute('data-kg-card-inline-viewer-edit-surface', '1')
+  textColumn?.appendChild(activeEditor)
+  assert(blank && !shouldStoryboardCardTextColumnOwnSummaryEditTarget(blank, textColumn), 'expected blank text-column clicks to yield to an active Viewer editor so blur can commit')
+}
+
+export function testStoryboardCardHeaderDragYieldsToInlineEditors() {
+  const dom = new JSDOM('<header><section data-kg-card-inline-edit="1"><span>Runtime Gate</span></section><button>Run</button><span data-drag="1"></span></header>')
+  const doc = dom.window.document
+  const inlineTitle = doc.querySelector('[data-kg-card-inline-edit="1"] span')
+  const button = doc.querySelector('button')
+  const dragBlank = doc.querySelector('[data-drag="1"]')
+  assert(inlineTitle && isStoryboardHeaderDragBlockedTarget(inlineTitle), 'expected Storyboard header drag to yield to shared Card inline title displays')
+  assert(button && isStoryboardHeaderDragBlockedTarget(button), 'expected Storyboard header drag to yield to header controls')
+  assert(dragBlank && !isStoryboardHeaderDragBlockedTarget(dragBlank), 'expected blank Storyboard header chrome to remain draggable')
+}
+
+export function testStoryboardWidgetPanelHeaderYieldsToSharedInlineEditors() {
+  const dom = new JSDOM('<header><section data-kg-card-inline-edit="1"><span>Runtime Gate</span></section><section contenteditable="true">Summary</section><span data-drag="1"></span></header>')
+  const doc = dom.window.document
+  const inlineTitle = doc.querySelector('[data-kg-card-inline-edit="1"] span')
+  const activeViewer = doc.querySelector('[contenteditable="true"]')
+  const dragBlank = doc.querySelector('[data-drag="1"]')
+  assert(inlineTitle && shouldStoryboardWidgetHeaderYieldToInteractiveTarget(inlineTitle), 'expected shared Storyboard header chrome to yield to Card inline title display surfaces')
+  assert(activeViewer && shouldStoryboardWidgetHeaderYieldToInteractiveTarget(activeViewer), 'expected shared Storyboard header chrome to yield to Viewer edit surfaces')
+  assert(dragBlank && !shouldStoryboardWidgetHeaderYieldToInteractiveTarget(dragBlank), 'expected blank shared Storyboard header chrome to remain draggable')
+}
+
 export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
-  const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const source = [
+    fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8'),
+    fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts'), 'utf8'),
+  ].join('\n')
   const surface = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
   const runtime = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
   const inlineEditor = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditor.tsx'), 'utf8')
   const inlineEditorSupport = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditorSupport.ts'), 'utf8')
+  const inlineDisplaySurface = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextDisplaySurface.tsx'), 'utf8')
+  const inlineEditingSurface = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextEditingSurface.tsx'), 'utf8')
+  const cardMarkdownPreview = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardMarkdownPreview.tsx'), 'utf8')
   const mediaResponsiveCss = fs.readFileSync(path.resolve(process.cwd(), 'src/styles/markdown-media-responsive.css'), 'utf8')
   const overlayProxy = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const overlayInteractions = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
+  const headerInteractiveTarget = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget.ts'), 'utf8')
+  const panelChrome = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetPanelChrome.tsx'), 'utf8')
   const metaRail = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail.tsx'), 'utf8')
   for (const snippet of [
     'data-kg-storyboard-card-title-row="1"',
+    'ariaLabel={`Storyboard title for ${card.id}`}',
+    'editorSurface="viewer"',
     'data-kg-storyboard-card-pixel-snap="1"',
     'data-kg-storyboard-card-vector-zoom="1"',
     'rounded-md shadow-md',
@@ -105,12 +286,16 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     "import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'",
     "import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'",
     'const currentTransform = getTransform()',
-    'const paintScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1',
+    'shouldFreezeProjectionForFlowPortHandleDrag()',
+    'const transformScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1',
+    'const paintScale = fixedLayoutEnabled ? 1 : transformScale',
+    'if (fixedLayoutEnabled && previous)',
+    'return { left: previous.left, top: previous.top, scale: previous.scale }',
     'const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())',
     'projectVectorPaintedOverlayZoomBox({',
     'transform: currentTransform',
     'paintScale',
-    'applyVectorPaintedOverlayBox(el, {',
+    'applyVectorPaintedOverlayBox(item.el, {',
     'left: box.left',
     'top: box.top',
     'scale: box.scale',
@@ -125,13 +310,22 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'data-kg-canvas-pointer-ignore="true"',
     'data-kg-media-scroll-surface="1"',
     'onWheelCapture={event => event.stopPropagation()}',
-    'displayClassName="m-0 h-full min-h-0 select-none overflow-auto',
+    'shouldStoryboardCardTextColumnOwnSummaryEditTarget(event.target, event.currentTarget)',
+    'React.useState<number | null>(null)',
+    'ariaLabel={`${textModel.primaryField.label} for ${card.id}`}',
+    'placeholder={textModel.primaryField.placeholder}',
+    'onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}',
+    "displayClassName={cn('m-0 h-full min-h-0 select-none overflow-auto",
     'whitespace-pre-wrap break-words',
-    'editorClassName="h-full min-h-[3rem] overflow-auto',
+    "editorClassName={cn('h-full min-h-[3rem] overflow-auto",
+    'STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME',
     'mediaCommandMode="external"',
     'inlineChipDensity="compact"',
     'showCommandLaunchers={false}',
-    'max-h-[2.625rem] overflow-auto overscroll-contain',
+    'textModel.secondaryRaw && textModel.secondaryField ? (',
+    'ariaLabel={`${textModel.secondaryField.label} for ${card.id}`}',
+    'markdownCommandMenus={false}',
+    'max-h-[2.625rem] select-none overflow-auto overscroll-contain',
     '<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />',
     'card, runCard: onRun',
     'void runWorkflowNode?.(card.id)',
@@ -141,6 +335,10 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   const metaRailIndex = source.indexOf('<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />')
   const summaryScrollIndex = source.indexOf('data-kg-storyboard-card-summary-scroll="1"')
   assert(metaRailIndex >= 0 && summaryScrollIndex >= 0 && metaRailIndex < summaryScrollIndex, 'expected Storyboard card metadata rail to render above the summary editor')
+  const titleLabelIndex = source.indexOf('ariaLabel={`Storyboard title for ${card.id}`}')
+  const titleViewerSurfaceIndex = source.indexOf('editorSurface="viewer"', titleLabelIndex)
+  const titleCommitIndex = source.indexOf('onCommit={nextValue => onCommitTitle(card, nextValue)}', titleLabelIndex)
+  assert(titleLabelIndex >= 0 && titleViewerSurfaceIndex > titleLabelIndex && titleViewerSurfaceIndex < titleCommitIndex, 'expected Storyboard title editor to opt into the shared Viewer edit surface')
   for (const snippet of [
     'data-kg-storyboard-card-meta-row="1"',
     'data-kg-storyboard-card-meta-scroll="1"',
@@ -172,14 +370,29 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(!source.includes("willChange: 'transform'"), 'expected Storyboard card projection not to request transform raster compositing')
   assert(!source.includes("backfaceVisibility: 'hidden'"), 'expected Storyboard card projection not to force a transformed compositor layer')
   assert(mediaResponsiveCss.includes("[data-kg-card-inline-chip-density='compact'] .kg-inline-chip-shell-15ch") && mediaResponsiveCss.includes('line-height: inherit') && mediaResponsiveCss.includes('padding-block: 0'), 'expected compact Card inline chip density to inherit Storyboard summary text metrics')
+  assert(mediaResponsiveCss.includes("[data-kg-card-inline-chip-density='compact'] [data-kg-card-inline-keyword-pill='1']"), 'expected compact Card inline density to cover keyword and invocation chip line-height')
   assert(inlineEditor.includes("inlineChipDensity = 'regular'") && inlineEditor.includes('inlineChipDensity={inlineChipDensity}'), 'expected CardInlineTextEditor to keep compact chip density explicit and opt-in')
+  assert(inlineDisplaySurface.includes('inlineChipDensity={props.inlineChipDensity}'), 'expected CardInlineTextDisplaySurface to thread compact density into CardMarkdownPreview')
+  assert(cardMarkdownPreview.includes("inlineChipDensity?: 'regular' | 'compact'") && cardMarkdownPreview.includes("[font-size:inherit] [line-height:inherit]") && cardMarkdownPreview.includes('data-kg-card-inline-chip-density'), 'expected CardMarkdownPreview compact mode to inherit card typography instead of hardcoding text-xs leading-5')
+  assert(inlineEditingSurface.includes("inlineChipDensity === 'compact' ? editorClassName"), 'expected compact Viewer card editor to avoid appending DataView control padding and text sizing')
+  assert(source.includes("const STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME = 'text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]'"), 'expected Storyboard summary view and edit surfaces to share one typography owner')
+  assert(!source.includes('editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)]'), 'expected Storyboard summary edit mode not to mutate text tone from the read surface')
   assert(source.includes('nextValue,\n      preserveFormatting: true,'), 'expected Storyboard summary commits to preserve raw Viewer WYSIWYG text and spacing on graph writeback')
   assert(!source.includes('nextValue: readStoryboardCardSummaryText(nextValue)'), 'expected Storyboard summary commits not to reuse read-only display projection for graph writeback')
+  assert(!source.includes('<p className="m-0 max-h-[2.625rem]'), 'expected Storyboard card body not to render widget text through a local paragraph surface')
+  assert(!source.includes('textModel.secondaryDisplay || card.prompt'), 'expected Text Widget seed prompt not to duplicate below the shared summary Viewer')
+  assert(!source.includes('editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)]'), 'expected Storyboard title edit mode not to reuse local bordered input chrome')
   assert(inlineEditorSupport.includes("multiline && !/\\boverflow-auto\\b/.test(className)"), 'expected scrollable multiline card display to keep caller-owned wrapping classes')
   assert(inlineEditor.includes("displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto')"), 'expected scrollable multiline card display to avoid density-owned truncation')
   assert(overlayProxy.includes('[data-kg-canvas-pointer-ignore="true"]'), 'expected Storyboard overlay proxy to treat pointer-ignore scroll surfaces as interactive controls')
   assert(overlayProxy.includes('[data-kg-media-scroll-surface="1"]'), 'expected Storyboard overlay proxy to treat inner scroll surfaces as interactive controls')
+  assert(overlayInteractions.includes('shouldStoryboardWidgetHeaderYieldToInteractiveTarget'), 'expected fixed Storyboard card header drag to reuse the shared header interactive target guard')
+  assert(headerInteractiveTarget.includes('[data-kg-card-inline-edit="1"]'), 'expected Storyboard header drag to yield to Card inline editor display surfaces before edit mode')
+  assert(panelChrome.includes('shouldStoryboardWidgetHeaderYieldToInteractiveTarget(event.target)'), 'expected reusable Storyboard widget header chrome to yield before starting header drag')
   assert(overlayInteractions.includes('shouldForwardWheel: event => !isWidgetInnerPanelWheelTarget(event, root)'), 'expected Storyboard overlay wheel forwarding to yield to card-owned scroll surfaces')
+  assert(source.includes('propertyKeys: field.propertyKeys'), 'expected Storyboard primary text commits to reuse the selected graph card text field spec')
+  assert(!source.includes('onCommitSummary'), 'expected Storyboard primary text commits not to hardwire prompt-backed Text Widgets into summary')
+  assert(!source.includes('React.useState(0)'), 'expected Storyboard cards not to auto-open every Viewer editor on mount')
 }
 
 export function testStoryboardCardOverlayProjectionSnapsToDevicePixels() {

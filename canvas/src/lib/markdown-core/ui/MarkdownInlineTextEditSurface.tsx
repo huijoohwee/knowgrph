@@ -16,9 +16,17 @@ import {
 } from '@/lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml'
 import { readFastInlineMarkdownDraft } from '@/lib/markdown-core/ui/markdownBlockContainerCore.inlineDraftSerialization'
 import {
+  MARKDOWN_CONTENT_EDITABLE_PLACEHOLDER_CLASS,
+  MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
+  applyMarkdownContentEditableSelection,
+  readMarkdownContentEditableCaretRangeFromPoint,
+  type MarkdownContentEditablePoint,
+} from '@/lib/markdown-core/ui/markdownContentEditableSurface'
+import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
+  normalizeCardInlineMediaSoftLineBreaks,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import {
   collectTextareaInvocationMediaAttachmentCandidateChips,
@@ -31,15 +39,15 @@ import { cn } from '@/lib/utils'
 const CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE = 'data-kg-card-inline-wysiwyg-virtual-media-chip'
 const CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE = 'data-kg-card-inline-wysiwyg-media-markdown'
 
-type CardInlineTextViewerPendingSelection = { start: number; end: number }
-type CardInlineTextViewerMediaChipMatch = {
+type MarkdownInlineTextPendingSelection = { start: number; end: number }
+type MarkdownInlineTextMediaChipMatch = {
   chip: TextareaInvocationProjectedMediaChip
   chipIndex: number
   label: string
   start: number
   end: number
 }
-type CardInlineTextViewerEditSegment =
+type MarkdownInlineTextEditSegment =
   | { kind: 'text'; value: string }
   | {
     kind: 'media'
@@ -48,7 +56,7 @@ type CardInlineTextViewerEditSegment =
     prefixGap: boolean
   }
 
-const pendingViewerSelections = new WeakMap<HTMLElement, CardInlineTextViewerPendingSelection>()
+const pendingViewerSelections = new WeakMap<HTMLElement, MarkdownInlineTextPendingSelection>()
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
@@ -80,8 +88,8 @@ function findExactProjectedMediaChipMatch(args: {
   source: string
   cursor: number
   chips: readonly TextareaInvocationProjectedMediaChip[]
-}): CardInlineTextViewerMediaChipMatch | null {
-  let best: CardInlineTextViewerMediaChipMatch | null = null
+}): MarkdownInlineTextMediaChipMatch | null {
+  let best: MarkdownInlineTextMediaChipMatch | null = null
   args.chips.forEach((chip, chipIndex) => {
     readProjectedMediaChipLabels(chip).forEach(label => {
       let searchIndex = args.cursor
@@ -110,14 +118,14 @@ function findKeyedProjectedMediaChipMatch(args: {
   source: string
   cursor: number
   chips: readonly TextareaInvocationProjectedMediaChip[]
-}): CardInlineTextViewerMediaChipMatch | null {
+}): MarkdownInlineTextMediaChipMatch | null {
   const chipKeys = args.chips.map(chip => new Set(
     readProjectedMediaChipLabels(chip)
       .map(readTextareaInvocationMediaReferenceKey)
       .filter(key => key.length >= 8),
   ))
   if (!chipKeys.some(keys => keys.size > 0)) return null
-  const tokenPattern = /@[A-Za-z0-9_][A-Za-z0-9_.-]*[A-Za-z0-9]/g
+  const tokenPattern = /@[\p{L}\p{N}_][\p{L}\p{N}_.-]*[\p{L}\p{N}]/gu
   tokenPattern.lastIndex = Math.max(0, args.cursor)
   for (;;) {
     const match = tokenPattern.exec(args.source)
@@ -139,7 +147,7 @@ function findProjectedMediaChipMatch(args: {
   source: string
   cursor: number
   chips: readonly TextareaInvocationProjectedMediaChip[]
-}): CardInlineTextViewerMediaChipMatch | null {
+}): MarkdownInlineTextMediaChipMatch | null {
   const exact = findExactProjectedMediaChipMatch(args)
   const keyed = findKeyedProjectedMediaChipMatch(args)
   if (!exact) return keyed
@@ -149,14 +157,14 @@ function findProjectedMediaChipMatch(args: {
   return exact.label.length >= keyed.label.length ? exact : keyed
 }
 
-function buildCardInlineTextViewerEditSegments(args: {
+function buildMarkdownInlineTextEditSegments(args: {
   value: string
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
-}): CardInlineTextViewerEditSegment[] {
+}): MarkdownInlineTextEditSegment[] {
   const source = String(args.value || '').replace(/\r/g, '')
   const virtualChips = collectTextareaInvocationMediaAttachmentCandidateChips(args.projectedMediaAttachments)
   if (!virtualChips.length) return [{ kind: 'text', value: source }]
-  const segments: CardInlineTextViewerEditSegment[] = []
+  const segments: MarkdownInlineTextEditSegment[] = []
   let cursor = 0
   for (;;) {
     const match = findProjectedMediaChipMatch({ source, cursor, chips: virtualChips })
@@ -207,8 +215,9 @@ function buildVirtualMediaChipHtml(args: {
   ].join('')
 }
 
-export function buildCardInlineTextViewerEditHtml(args: {
+export function buildMarkdownInlineTextEditHtml(args: {
   value: string
+  inlineChipDensity?: 'regular' | 'compact'
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
 }): string {
   const markdownIt = getMarkdownItFastHtml()
@@ -216,7 +225,10 @@ export function buildCardInlineTextViewerEditHtml(args: {
     .split(/\n/g)
     .map((line, index) => `${index > 0 ? '<br/>' : ''}${line ? markdownIt.renderInline(line) : ''}`)
     .join('')
-  return buildCardInlineTextViewerEditSegments(args)
+  const value = args.inlineChipDensity === 'compact'
+    ? normalizeCardInlineMediaSoftLineBreaks(args.value).replace(/^\n+|\n+$/g, '')
+    : args.value
+  return buildMarkdownInlineTextEditSegments({ ...args, value })
     .map(segment => segment.kind === 'text'
       ? rewriteRenderedInlineMediaForEditorHtml(renderTextSegment(segment.value))
       : buildVirtualMediaChipHtml({
@@ -229,7 +241,7 @@ export function buildCardInlineTextViewerEditHtml(args: {
     .join('')
 }
 
-export function readCardInlineTextViewerEditDraft(
+export function readMarkdownInlineTextEditDraft(
   root: HTMLElement | null,
 ): string {
   if (!root) return ''
@@ -244,12 +256,12 @@ export function readCardInlineTextViewerEditDraft(
   return virtualChips.length ? normalizeVirtualMediaDraftSpacing(draft) : draft
 }
 
-type CardInlineTextViewerSelectionBoundary = {
+type MarkdownInlineTextSelectionBoundary = {
   node: Node
   offset: number
 }
 
-function readElementChildBoundary(element: Element, child: Node, after: boolean): CardInlineTextViewerSelectionBoundary {
+function readElementChildBoundary(element: Element, child: Node, after: boolean): MarkdownInlineTextSelectionBoundary {
   const parent = child.parentNode || element
   return {
     node: parent,
@@ -270,11 +282,11 @@ function isZeroLengthTokenElement(element: Element): boolean {
   return element.matches(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_SELECTOR)
 }
 
-function findSelectionBoundary(root: HTMLElement, targetOffset: number): CardInlineTextViewerSelectionBoundary {
+function findSelectionBoundary(root: HTMLElement, targetOffset: number): MarkdownInlineTextSelectionBoundary {
   const target = Math.max(0, targetOffset)
   let markdownOffset = 0
-  let fallback: CardInlineTextViewerSelectionBoundary = { node: root, offset: root.childNodes.length }
-  const visit = (node: Node): CardInlineTextViewerSelectionBoundary | null => {
+  let fallback: MarkdownInlineTextSelectionBoundary = { node: root, offset: root.childNodes.length }
+  const visit = (node: Node): MarkdownInlineTextSelectionBoundary | null => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = String(node.nodeValue || '').replace(/\r/g, '')
       const nextOffset = markdownOffset + text.length
@@ -322,7 +334,7 @@ function findSelectionBoundary(root: HTMLElement, targetOffset: number): CardInl
   return fallback
 }
 
-export function focusCardInlineTextViewerSelectionSoon(
+export function focusMarkdownInlineTextSelectionSoon(
   editorRef: React.RefObject<HTMLElement | null>,
   start: number,
   end: number = start,
@@ -337,46 +349,74 @@ export function focusCardInlineTextViewerSelectionSoon(
     const root = editorRef.current
     if (!root) return
     pendingViewerSelections.delete(root)
-    const selection = root.ownerDocument.defaultView?.getSelection()
-    if (!selection) return
     const range = root.ownerDocument.createRange()
     const startBoundary = findSelectionBoundary(root, pendingSelection.start)
     const endBoundary = findSelectionBoundary(root, pendingSelection.end)
     range.setStart(startBoundary.node, startBoundary.offset)
     range.setEnd(endBoundary.node, endBoundary.offset)
-    root.focus({ preventScroll: true })
-    selection.removeAllRanges()
-    selection.addRange(range)
+    applyMarkdownContentEditableSelection(root, range)
   })
 }
 
-export function CardInlineTextViewerEditSurface(props: {
+export function focusMarkdownInlineTextSelectionAtPointSoon(
+  editorRef: React.RefObject<HTMLElement | null>,
+  point: MarkdownContentEditablePoint,
+  fallbackStart: number,
+  fallbackEnd: number = fallbackStart,
+  onApplied?: () => void,
+) {
+  window.requestAnimationFrame(() => {
+    const root = editorRef.current
+    if (!root) return
+    const rangeAtPoint = readMarkdownContentEditableCaretRangeFromPoint(root, point).range
+    const range = rangeAtPoint || root.ownerDocument.createRange()
+    if (!rangeAtPoint) {
+      const startBoundary = findSelectionBoundary(root, Math.max(0, fallbackStart))
+      const endBoundary = findSelectionBoundary(root, Math.max(0, fallbackEnd))
+      range.setStart(startBoundary.node, startBoundary.offset)
+      range.setEnd(endBoundary.node, endBoundary.offset)
+    } else {
+      range.collapse(true)
+    }
+    applyMarkdownContentEditableSelection(root, range)
+    onApplied?.()
+  })
+}
+
+export function MarkdownInlineTextEditSurface(props: {
   value: string
   ariaLabel: string
   placeholder: string
   className?: string
   commandMode: unknown
+  enableMarkdownCommandMenus?: boolean
   editorRef: React.RefObject<HTMLElement | null>
   inlineChipDensity?: 'regular' | 'compact'
   inputProxyRef: React.RefObject<HTMLTextAreaElement | null>
+  initialSelectionPointRef?: React.MutableRefObject<MarkdownContentEditablePoint | null>
+  multiline?: boolean
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
   isCommandMenuTarget: (target: EventTarget | null) => boolean
   onCancel: () => void
   onCommit: (nextValue?: string) => void
   onDraftChange: (nextValue: string) => void
   onFocus: () => void
+  onSelectionChange?: (selection: { start: number; end: number }) => void
   onOpenCommandMenuForSigilAtSelection: (sigil: '/' | '@' | '#', selection: { start: number; end: number }) => void
   readCommandSigilFromKeyEvent: (event: KeyboardEvent) => '/' | '@' | '#' | null
   readCommandSigilFromInsertedText: (value: string | null | undefined) => '/' | '@' | '#' | null
   cardInlineEditInputAttribute: string
 }) {
+  const domDirtyRef = React.useRef(false)
   const lastRenderedHtmlRef = React.useRef('')
+  const latestDraftRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
+  const showPlaceholder = !String(props.value || '').trim()
 
   const readSelection = React.useCallback(() => {
     const root = props.editorRef.current
     const selection = getInlineMediaEditorMarkdownSelectionOffsets(root)
     if (selection) return { start: selection.startOffset, end: selection.endOffset }
-    const fallback = readCardInlineTextViewerEditDraft(root).length
+    const fallback = readMarkdownInlineTextEditDraft(root).length
     return { start: fallback, end: fallback }
   }, [props.editorRef])
 
@@ -384,16 +424,25 @@ export function CardInlineTextViewerEditSurface(props: {
     const input = props.inputProxyRef.current
     if (!input) return
     const selection = readSelection()
+    props.onSelectionChange?.(selection)
     try {
       input.setSelectionRange(selection.start, selection.end)
     } catch {
       void 0
     }
-  }, [props.inputProxyRef, readSelection])
+  }, [props.inputProxyRef, props.onSelectionChange, readSelection])
 
   const publishDraftFromDom = React.useCallback(() => {
     const root = props.editorRef.current
-    const next = readCardInlineTextViewerEditDraft(root)
+    if (!domDirtyRef.current) {
+      const next = latestDraftRef.current
+      props.onDraftChange(next)
+      syncProxySelection()
+      return next
+    }
+    const next = readMarkdownInlineTextEditDraft(root)
+    domDirtyRef.current = false
+    latestDraftRef.current = next
     props.onDraftChange(next)
     syncProxySelection()
     return next
@@ -403,6 +452,7 @@ export function CardInlineTextViewerEditSurface(props: {
     const root = props.editorRef.current
     if (!root) return
     const value = String(props.value || '').replace(/\r/g, '')
+    latestDraftRef.current = value
     const pendingSelection = pendingViewerSelections.get(root)
     const ownerSelection = root.ownerDocument.defaultView?.getSelection()
     const ownsSelection = !!ownerSelection
@@ -410,31 +460,34 @@ export function CardInlineTextViewerEditSurface(props: {
       && root.contains(ownerSelection.anchorNode)
       && root.contains(ownerSelection.focusNode)
     const selectionBeforeRender = pendingSelection || (ownsSelection ? readSelection() : null)
-    const html = buildCardInlineTextViewerEditHtml({
+    const html = buildMarkdownInlineTextEditHtml({
       value,
+      inlineChipDensity: props.inlineChipDensity,
       projectedMediaAttachments: props.projectedMediaAttachments,
     })
+    if (root.innerHTML === html) {
+      domDirtyRef.current = false
+      lastRenderedHtmlRef.current = html
+      return
+    }
     if (html !== lastRenderedHtmlRef.current || root.innerHTML !== html) {
       const wasUnrendered = !lastRenderedHtmlRef.current
       root.innerHTML = html
+      domDirtyRef.current = false
       lastRenderedHtmlRef.current = html
-      const nextSelection = selectionBeforeRender || (wasUnrendered ? { start: value.length, end: value.length } : null)
-      if (nextSelection) {
-        focusCardInlineTextViewerSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
+      const pendingPoint = wasUnrendered && !selectionBeforeRender ? props.initialSelectionPointRef?.current || null : null
+      if (pendingPoint && props.initialSelectionPointRef) props.initialSelectionPointRef.current = null
+      const nextSelection = selectionBeforeRender || (!pendingPoint && wasUnrendered ? { start: value.length, end: value.length } : null)
+      if (pendingPoint) {
+        focusMarkdownInlineTextSelectionAtPointSoon(props.editorRef, pendingPoint, value.length, value.length, syncProxySelection)
+      } else if (nextSelection) {
+        focusMarkdownInlineTextSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
       }
     }
-  }, [props.editorRef, props.projectedMediaAttachments, props.value, readSelection])
+  }, [props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
 
   return (
     <section className="relative h-full min-h-0 w-full" data-kg-card-inline-viewer-edit-shell="1">
-      {!String(props.value || '').trim() ? (
-        <span
-          className="pointer-events-none absolute left-1.5 top-1 z-0 italic text-[color:var(--kg-text-tertiary)]"
-          data-kg-card-inline-viewer-edit-placeholder="1"
-        >
-          {props.placeholder}
-        </span>
-      ) : null}
       <section
         ref={(node: HTMLElement | null) => {
           ;(props.editorRef as React.MutableRefObject<HTMLElement | null>).current = node
@@ -442,22 +495,31 @@ export function CardInlineTextViewerEditSurface(props: {
         contentEditable
         suppressContentEditableWarning
         role="textbox"
-        aria-multiline="true"
+        aria-multiline={props.multiline ? 'true' : 'false'}
         aria-label={props.ariaLabel}
         spellCheck
         className={cn(
           MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
           MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS,
-          'relative z-10 min-h-0 w-full focus:outline-none focus-visible:outline-none',
+          'relative z-10 min-h-0 w-full',
+          MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
           '[overflow-wrap:anywhere] [caret-color:var(--kg-text-primary)]',
+          showPlaceholder ? MARKDOWN_CONTENT_EDITABLE_PLACEHOLDER_CLASS : '',
           props.className,
         )}
+        aria-placeholder={showPlaceholder ? props.placeholder : undefined}
+        data-kg-markdown-edit-placeholder={showPlaceholder ? '1' : undefined}
         data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
         data-kg-card-inline-viewer-edit-surface="1"
         {...{ [props.cardInlineEditInputAttribute]: '1' }}
         onBeforeInput={event => {
-          if (props.commandMode) return
           const nativeEvent = event.nativeEvent as InputEvent
+          if (!props.multiline && (nativeEvent.inputType === 'insertParagraph' || nativeEvent.inputType === 'insertLineBreak')) {
+            event.preventDefault()
+            props.onCommit(publishDraftFromDom())
+            return
+          }
+          if (props.commandMode || !props.enableMarkdownCommandMenus) return
           if (nativeEvent.inputType !== 'insertText') return
           const sigil = props.readCommandSigilFromInsertedText(nativeEvent.data)
           if (!sigil) return
@@ -465,6 +527,7 @@ export function CardInlineTextViewerEditSurface(props: {
           props.onOpenCommandMenuForSigilAtSelection(sigil, readSelection())
         }}
         onInput={() => {
+          domDirtyRef.current = true
           publishDraftFromDom()
         }}
         onFocus={() => {
@@ -483,13 +546,13 @@ export function CardInlineTextViewerEditSurface(props: {
             props.onCancel()
             return
           }
-          const sigil = props.readCommandSigilFromKeyEvent(event.nativeEvent)
+          const sigil = props.enableMarkdownCommandMenus ? props.readCommandSigilFromKeyEvent(event.nativeEvent) : null
           if (sigil) {
             event.preventDefault()
             props.onOpenCommandMenuForSigilAtSelection(sigil, readSelection())
             return
           }
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          if (event.key === 'Enter' && (!props.multiline || event.metaKey || event.ctrlKey)) {
             event.preventDefault()
             props.onCommit(publishDraftFromDom())
           }
@@ -506,9 +569,9 @@ export function CardInlineTextViewerEditSurface(props: {
         readOnly
         aria-hidden="true"
         tabIndex={-1}
-      className="sr-only"
-      data-kg-card-inline-viewer-edit-command-proxy="1"
-    />
+        className="sr-only"
+        data-kg-card-inline-viewer-edit-command-proxy="1"
+      />
     </section>
   )
 }

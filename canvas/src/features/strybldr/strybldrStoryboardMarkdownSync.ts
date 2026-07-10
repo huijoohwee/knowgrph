@@ -1,25 +1,49 @@
 import type { GraphNode } from '@/lib/graph/types'
+import {
+  GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_STYLE_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
+  readGraphNodeAuthoredTextProperty,
+} from '@/lib/cards/graphNodeCardFields'
 import { buildMermaidGanttWorkflowCode } from '@/lib/mermaid/mermaidDiagramCode'
 import type { StrybldrCardOverride, StrybldrStoryboardDocument } from './strybldrTypes'
 
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
-const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
+const STRYBLDR_CARD_OVERRIDE_TEXT_KEYS = ['title', 'type', 'lane', 'summary', 'output', 'action', 'dialogue', 'prompt', 'style', 'chatModel', 'outputSrcDoc', 'imageUrl', 'mediaKind', 'mediaUrl', 'renderUrl', 'sourceUrl'] as const
 const STRYBLDR_CARD_OVERRIDE_NUMBER_KEYS = ['order'] as const
+const STRYBLDR_SEMANTIC_TEXT_FIELDS = [
+  ['summary', GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS],
+  ['output', GRAPH_NODE_CARD_OUTPUT_PROPERTY_KEYS],
+  ['action', GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS],
+  ['dialogue', GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS],
+  ['prompt', GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS],
+  ['style', GRAPH_NODE_CARD_STYLE_PROPERTY_KEYS],
+] as const
 
 export const buildStrybldrCardOverridePatchFromGraphNodeChange = (args: { previousNode?: GraphNode | null; nextNode?: GraphNode | null }): Omit<Partial<StrybldrCardOverride>, 'nodeId'> => {
   const previousNode = args.previousNode || null
   const nextNode = args.nextNode || null
-  if (!previousNode || !nextNode) return {}
+  if (!nextNode) return {}
   const patch: Omit<Partial<StrybldrCardOverride>, 'nodeId'> = {}
-  const previousLabel = cleanMultilineText(previousNode.label)
+  const previousLabel = cleanMultilineText(previousNode?.label)
   const nextLabel = cleanMultilineText(nextNode.label)
-  const previousType = cleanMultilineText(previousNode.type)
+  const previousType = cleanMultilineText(previousNode?.type)
   const nextType = cleanMultilineText(nextNode.type)
-  const previousProperties = (previousNode.properties || {}) as Record<string, unknown>
+  const previousProperties = (previousNode?.properties || {}) as Record<string, unknown>
   const nextProperties = (nextNode.properties || {}) as Record<string, unknown>
   if (previousLabel !== nextLabel) patch.title = nextLabel
   if (previousType !== nextType) patch.type = nextType
+  const semanticKeys = new Set<string>()
+  for (const [canonicalKey, propertyKeys] of STRYBLDR_SEMANTIC_TEXT_FIELDS) {
+    propertyKeys.forEach(key => semanticKeys.add(key))
+    const previousValue = readGraphNodeAuthoredTextProperty(previousProperties, propertyKeys)
+    const nextValue = readGraphNodeAuthoredTextProperty(nextProperties, propertyKeys)
+    if (previousValue !== nextValue) patch[canonicalKey] = nextValue
+  }
   for (const key of STRYBLDR_CARD_OVERRIDE_TEXT_KEYS) {
     if (key === 'title') {
       const previousTitle = cleanMultilineText(previousProperties.title)
@@ -28,6 +52,7 @@ export const buildStrybldrCardOverridePatchFromGraphNodeChange = (args: { previo
       continue
     }
     if (key === 'type') continue
+    if (semanticKeys.has(key)) continue
     const previousValue = cleanMultilineText(previousProperties[key])
     const nextValue = cleanMultilineText(nextProperties[key])
     if (previousValue !== nextValue) patch[key] = nextValue

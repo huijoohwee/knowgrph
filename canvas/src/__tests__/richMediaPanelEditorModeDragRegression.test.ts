@@ -308,14 +308,10 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   const richMediaShellText = readFileSync(richMediaShellPath, 'utf8')
   const storyboardToolbarPropsText = readFileSync(storyboardToolbarPropsPath, 'utf8')
 
-  if (panelText.includes('WidgetEditorActionsToolbar')) {
-    throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
-  }
-  if (!sharedToolbarPropsText.includes('buildWidgetBubbleToolbarPresentation({') || !sharedToolbarPropsText.includes("placement: 'flow-rich-media-right-middle'")) {
-    throw new Error('expected shared 2D Rich Media toolbar placement to reuse the Storyboard Widget Rich Media bubble-toolbar presentation helper')
-  }
-  if (sharedBubbleToolbarText.includes("'right-middle'") || sharedBubbleToolbarText.includes('absolute left-full top-1/2')) {
-    throw new Error('expected the shared bubble-toolbar presentation helper to remove the stale generic Rich Media side placement')
+  if (panelText.includes('WidgetEditorActionsToolbar')) throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
+  if (!sharedToolbarPropsText.includes('buildWidgetBubbleToolbarPresentation({') || !sharedToolbarPropsText.includes("placement: 'flow-widget-above-center'")) throw new Error('expected shared 2D Rich Media toolbar placement to reuse the Storyboard Widget above-center bubble-toolbar presentation helper')
+  for (const stale of ['flow-rich-media-right-middle', 'FLOW_RICH_MEDIA_BUBBLE_TOOLBAR_NAV_STYLE', "'right-middle'", 'absolute left-full top-1/2', "left: '100%'", "transform: 'translateY(-50%)'"]) {
+    if (sharedBubbleToolbarText.includes(stale)) throw new Error(`expected the shared bubble-toolbar presentation helper to remove stale generic Rich Media side placement: ${stale}`)
   }
   for (const snippet of ['RICH_MEDIA_OVERLAY_ACTION_VISIBILITY', 'run: false', 'updateKvEntry: false', 'clearOutput: false', 'help: false', 'openInSidepane: true', 'duplicate: true', 'remove: true']) {
     if (!sharedToolbarPropsText.includes(snippet)) {
@@ -325,9 +321,10 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   if (!storyboardToolbarPropsText.includes('buildWidgetBubbleToolbarPresentation({') || !storyboardToolbarPropsText.includes("placement: 'flow-widget-above-center'")) {
     throw new Error('expected Storyboard card/widget toolbar placement to reuse the Storyboard Widget bubble-toolbar presentation helper')
   }
-  if (sharedBubbleToolbarText.includes("'above-center'") || sharedBubbleToolbarText.includes('absolute bottom-full left-1/2')) {
-    throw new Error('expected the shared bubble-toolbar presentation helper to remove the stale Storyboard-only above-card placement')
+  for (const snippet of ["export type WidgetBubbleToolbarPlacement = 'flow-widget-above-center'", "const WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME = 'absolute left-1/2 z-10'", 'top: -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX', "transform: 'translateX(-50%)'"]) {
+    if (!sharedBubbleToolbarText.includes(snippet)) throw new Error(`expected the shared bubble-toolbar presentation helper to own the canonical above-center placement: ${snippet}`)
   }
+  if (sharedBubbleToolbarText.includes('absolute bottom-full left-1/2')) throw new Error('expected the shared bubble-toolbar presentation helper to remove stale Storyboard-only bottom-full placement')
   if (flowCanvasOverlayText.includes('onPointerDownCapture={richMediaPanelHeaderToolbar.activate}')) {
     throw new Error('expected Rich Media overlay shell not to preempt shared panel header drag with a parent capture-phase activation')
   }
@@ -365,9 +362,8 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
       throw new Error(`expected RichMediaPanelShell not to force stale header controls without callbacks: ${snippet}`)
     }
   }
-  if (!panelChromeText.includes('onHeaderMouseDown?: (event: React.MouseEvent<HTMLElement>) => void')
-    || !panelChromeText.includes('onMouseDown={onHeaderMouseDown}')) {
-    throw new Error('expected shared Storyboard Widget panel chrome header to expose mouse fallback drag ownership')
+  for (const snippet of ['onHeaderMouseDown?: (event: React.MouseEvent<HTMLElement>) => void', 'const handleHeaderMouseDown = React.useCallback((event: React.MouseEvent<HTMLElement>) => {', 'if (shouldStoryboardWidgetHeaderYieldToInteractiveTarget(event.target)) return', 'onMouseDown={handleHeaderMouseDown}']) {
+    if (!panelChromeText.includes(snippet)) throw new Error(`expected shared Storyboard Widget panel chrome header to expose guarded mouse fallback drag ownership: ${snippet}`)
   }
   if (richMediaShellText.includes('showPinToggle={true}')) {
     throw new Error('expected RichMediaPanelShell not to force stale Rich Media header pin controls without callbacks')
@@ -590,6 +586,9 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     if (!graphCanvasToolbarText.includes(snippet)) {
       throw new Error(`expected D3 Rich Media panel pin controls to reuse graph-scoped Card pin utilities: ${snippet}`)
     }
+  }
+  for (const snippet of ['setActivePanelId(prev => (prev === key ? \'\' : prev))', 'updateOpenWidgetNodeIds(prev => prev.filter(nodeId => String(nodeId || \'\').trim() !== key))', 'requestMediaOverlaySchedule?.()']) {
+    if (!graphCanvasToolbarText.includes(snippet)) throw new Error(`expected D3 Rich Media Remove to clear local toolbar state and schedule overlay removal: ${snippet}`)
   }
   for (const snippet of [
     "from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'",

@@ -18,7 +18,6 @@ import {
   resolveWidgetEditorSurfaceLabel,
   type WidgetEditorSurfaceKind,
   WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
-  WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX,
 } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 
 type RichMediaPanelToolbarProps = Pick<
@@ -36,7 +35,6 @@ export function WidgetEditorView(args: {
   active: boolean
   toolbarVisible: boolean
   toolbarDock: 'above' | 'below'
-  toolbarSideClamp: boolean
   toolbarInlineShiftPx: number
   toolbarMaxWidthPx: number
   isRichMediaPanelWidget: boolean
@@ -100,7 +98,6 @@ export function WidgetEditorView(args: {
     active,
     toolbarVisible,
     toolbarDock,
-    toolbarSideClamp,
     toolbarInlineShiftPx,
     toolbarMaxWidthPx,
     isRichMediaPanelWidget,
@@ -233,23 +230,11 @@ export function WidgetEditorView(args: {
       <section className="relative">
         <section
           ref={toolbarMotionRef}
-          className={
-            isRichMediaPanelWidget
-              ? `absolute z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
-              : `absolute left-1/2 z-10 ${pointerPolicy.toolbarPointerEventsClassName}`
-          }
-          style={isRichMediaPanelWidget
-            ? {
-                top: '50%',
-                left: toolbarSideClamp ? undefined : '100%',
-                right: toolbarSideClamp ? `${WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX}px` : undefined,
-                marginLeft: toolbarSideClamp ? undefined : `${WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX}px`,
-                transform: 'translateY(-50%)',
-              }
-            : {
-                top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8,
-                transform: `translateX(calc(-50% + ${safeToolbarInlineShiftPx}px))`,
-              }}
+          className={`absolute left-1/2 z-10 ${pointerPolicy.toolbarPointerEventsClassName}`}
+          style={{
+            top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8,
+            transform: `translateX(calc(-50% + ${safeToolbarInlineShiftPx}px))`,
+          }}
         >
           <WidgetEditorActionsToolbar
             visible={toolbarVisible}

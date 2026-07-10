@@ -6,18 +6,10 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
 
-const waitForBodyLink = async (container: HTMLElement, win: Window, url: string, maxFrames = 12) => {
-  for (let i = 0; i < maxFrames; i += 1) {
-    const link = Array.from(container.querySelectorAll('section a')).find(anchor =>
-      String((anchor as HTMLAnchorElement).getAttribute('href') || '') === url,
-    ) as HTMLAnchorElement | undefined
-    if (link) return link
-    await waitForNextFrame(win)
-  }
-  return null
-}
+const queryRichMediaTextEditor = (container: HTMLElement): HTMLElement | null =>
+  container.querySelector('[contenteditable="true"][data-kg-card-inline-viewer-edit-surface="1"][aria-label="Rich Media Panel text"]')
 
 const resetRichMediaPanelTestStoreState = () => {
   const state = useGraphStore.getState()
@@ -119,7 +111,7 @@ export async function testRichMediaPanelTextModeAddTextReusesMediaDropZone() {
     if (dropZone.getAttribute('data-kg-media-drop-consumes-canvas-drop') !== '1') {
       throw new Error('expected Rich Media Panel media drop zone to consume canvas-level media drops')
     }
-    const editor = container.querySelector('textarea[aria-label="Rich Media Panel text"]')
+    const editor = queryRichMediaTextEditor(container)
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!editor && !/Add text/.test(String(display?.textContent || ''))) {
       throw new Error(`expected Rich Media Panel Add text editor to remain available inside the media drop zone, html=${container.innerHTML}`)
@@ -339,12 +331,12 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
       await waitForNextFrame(dom.window)
     })
 
-    const editor = container.querySelector('textarea[aria-label="Rich Media Panel text"]')
-    if (!(editor instanceof dom.window.HTMLTextAreaElement)) {
-      throw new Error(`expected click activation to open the shared multiline CardInlineTextEditor, html=${container.innerHTML}`)
+    const editor = queryRichMediaTextEditor(container)
+    if (!(editor instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected click activation to open the shared multiline Viewer edit surface, html=${container.innerHTML}`)
     }
-    if (editor.value !== 'Connected panel text') {
-      throw new Error(`expected inline editor to open with connected panel text, got ${JSON.stringify(editor.value)}`)
+    if (editor.textContent !== 'Connected panel text') {
+      throw new Error(`expected inline editor to open with connected panel text, got ${JSON.stringify(editor.textContent)}`)
     }
     if (!container.querySelector('button[title="Slash commands"]')) {
       throw new Error('expected RichMediaPanel text mode to enable shared slash commands')

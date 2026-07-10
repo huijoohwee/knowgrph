@@ -11,13 +11,6 @@ export function testIntegrationConfigsNormalizeKnownKeysAndPreserveUnknowns() {
       provider: 'external-provider',
       openTab: 'other-tab',
     },
-    pixverseVideo: {
-      enabled: true,
-      providerMode: 'external-pixverse',
-      transport: 'http',
-      strategy: 'transition-video',
-      openTab: 'other-tab',
-    },
     simulationCommands: {
       enabled: false,
       commandPrefix: '  /run  ',
@@ -33,15 +26,6 @@ export function testIntegrationConfigsNormalizeKnownKeysAndPreserveUnknowns() {
 
   if (parsed.aiChat.enabled !== false || parsed.aiChat.provider !== 'native' || parsed.aiChat.openTab !== 'chat') {
     throw new Error(`expected aiChat known keys to normalize to the shared native chat surface, got ${JSON.stringify(parsed.aiChat)}`)
-  }
-  if (
-    parsed.pixverseVideo.enabled !== true ||
-    parsed.pixverseVideo.providerMode !== 'pixverse' ||
-    parsed.pixverseVideo.transport !== 'mcp-stdio' ||
-    parsed.pixverseVideo.strategy !== 'transition-video' ||
-    parsed.pixverseVideo.openTab !== 'chat'
-  ) {
-    throw new Error(`expected pixverseVideo known keys to normalize to the shared MCP stdio surface, got ${JSON.stringify(parsed.pixverseVideo)}`)
   }
   if (
     parsed.simulationCommands.enabled !== false ||
@@ -65,7 +49,6 @@ export function testIntegrationConfigsFallbackAndStringifyStayTyped() {
   const malformed = parseIntegrationConfigsJson('{not valid json')
   if (
     malformed.aiChat.enabled !== DEFAULT_INTEGRATION_CONFIGS.aiChat.enabled ||
-    malformed.pixverseVideo.strategy !== DEFAULT_INTEGRATION_CONFIGS.pixverseVideo.strategy ||
     malformed.simulationCommands.commandPrefix !== DEFAULT_INTEGRATION_CONFIGS.simulationCommands.commandPrefix
   ) {
     throw new Error(`expected malformed integration config JSON to fall back to defaults, got ${JSON.stringify(malformed)}`)
@@ -73,18 +56,10 @@ export function testIntegrationConfigsFallbackAndStringifyStayTyped() {
 
   const roundTrip = parseIntegrationConfigsJson(stringifyIntegrationConfigs({
     ...DEFAULT_INTEGRATION_CONFIGS,
-    pixverseVideo: {
-      ...DEFAULT_INTEGRATION_CONFIGS.pixverseVideo,
-      enabled: true,
-      strategy: 'image-to-video',
-    },
     customProvider: {
       preserved: true,
     },
   }))
-  if (roundTrip.pixverseVideo.enabled !== true || roundTrip.pixverseVideo.strategy !== 'image-to-video') {
-    throw new Error(`expected stringifyIntegrationConfigs to preserve typed PixVerse config, got ${JSON.stringify(roundTrip.pixverseVideo)}`)
-  }
   const customProvider = roundTrip.customProvider as { preserved?: unknown } | undefined
   if (customProvider?.preserved !== true) {
     throw new Error(`expected stringifyIntegrationConfigs to preserve unknown integration config keys, got ${JSON.stringify(roundTrip)}`)
