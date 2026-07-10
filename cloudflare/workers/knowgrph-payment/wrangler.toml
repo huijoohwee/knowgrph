@@ -11,7 +11,28 @@ STRYTREE_PIXVERSE_BASE_URL = "https://app-api.pixverse.ai"
 STRYTREE_PIXVERSE_MAX_POLLS = "60"
 STRYTREE_PIXVERSE_POLL_INTERVAL_MS = "1500"
 STRYTREE_DAILY_PROVIDER_BUDGET_CENTS = "0"
+SELLER_ID = "airvio.co"
+CHECKOUT_BASE_URL = "https://airvio.co"
+WEB3_ENABLED = "true"
+WEB3_DEPOSIT_ADDRESS = ""
+BASE_RPC_URL = ""
+BASE_CONFIRMATION_BLOCKS = "2"
+EAS_ATTEST_URL = ""
+OPENBOX_API_URL = ""
+OPENBOX_INGEST_URL = ""
 STRIPE_CHECKOUT_PRICE_ID = "price_1TeXU4GzH0w0k4VUqOmX4aTn"
+STRIPE_DELEGATE_PAYMENT_URL = ""
+X402_NETWORK = "eip155:84532"
+X402_ASSET = "USDC"
+X402_AMOUNT = "1000"
+X402_FACILITATOR_URL = "https://x402.org/facilitator"
+X402_PRICE = "$0.001"
+SOLANA_PAY_RECIPIENT = ""
+SOLANA_PAY_SPL_TOKEN = ""
+SOLANA_PAY_LABEL = "Knowgrph"
+SOLANA_PAY_RPC_URL = ""
+SOLANA_PAY_NETWORK = "mainnet"
+SOLANA_PAY_COMMITMENT = "confirmed"
 # Placeholder only. Replace with an operator-owned EVM receiving wallet before x402 production readiness.
 X402_PAY_TO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
@@ -53,6 +74,11 @@ queue = "knowgrph-strytree-generation"
 queue = "knowgrph-strytree-generation"
 max_batch_size = 3
 max_batch_timeout = 5
+
+[[kv_namespaces]]
+binding = "STRYTREE_PROVIDER_BUDGET_KV"
+id = "1211a5ce91a143778744dc40c2afa8dd"
+preview_id = "e4629795512143468970bb26d85d2f52"
 
 [[r2_buckets]]
 binding = "STRYTREE_MEDIA_BUCKET"

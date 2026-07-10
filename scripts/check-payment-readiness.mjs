@@ -60,6 +60,7 @@ if (liveCheckoutCreate) stripeArgs.push('--live-checkout-create')
 
 const components = [
   runJsonScript('stripe-payment-readiness', './scripts/check-stripe-payment-readiness.mjs', stripeArgs),
+  runJsonScript('agentic-payment-readiness', './scripts/check-agentic-payment-readiness.mjs', ['--config', configPath]),
   runJsonScript('x402-payment-readiness', './scripts/check-agent-ready-commerce.mjs', ['--origin', originUrl]),
 ]
 

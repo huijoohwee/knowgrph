@@ -60,6 +60,7 @@
     "runtime:test": "node --test --test-concurrency=1 cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__pbt__/*.test.mjs mcp/__tests__/*.test.mjs mcp/__pbt__/*.test.mjs web/__tests__/*.test.mjs web/__pbt__/*.test.mjs contracts/__tests__/*.test.mjs contracts/__pbt__/*.test.mjs",
     "payment:stripe:configure": "node ./scripts/configure-stripe-payment-worker.mjs",
     "payment:stripe:readiness": "node ./scripts/check-stripe-payment-readiness.mjs",
+    "payment:agentic:readiness": "node ./scripts/check-agentic-payment-readiness.mjs",
     "payment:x402:configure": "node ./scripts/configure-x402-payment-worker.mjs",
     "payment:x402:readiness": "node ./scripts/check-agent-ready-commerce.mjs",
     "payment:readiness": "node ./scripts/check-payment-readiness.mjs",

@@ -76,7 +76,24 @@ const createFakeWranglerWorkspace = () => {
   writeFileSync(configPath, [
     'name = "knowgrph-payment-test"',
     '[vars]',
+    'SELLER_ID = "airvio.co"',
+    'CHECKOUT_BASE_URL = "https://airvio.co"',
+    'WEB3_ENABLED = "true"',
+    'WEB3_DEPOSIT_ADDRESS = "0x1111111111111111111111111111111111111111"',
+    'BASE_RPC_URL = "https://base.example/rpc"',
+    'BASE_CONFIRMATION_BLOCKS = "2"',
+    'EAS_ATTEST_URL = "https://eas.example/attest"',
+    'OPENBOX_API_URL = "https://openbox.example/risk"',
+    'OPENBOX_INGEST_URL = "https://openbox.example/ingest"',
     'STRIPE_CHECKOUT_PRICE_ID = "price_configured"',
+    'STRIPE_DELEGATE_PAYMENT_URL = "https://airvio.co/api/payments/stripe/delegate"',
+    'X402_NETWORK = "eip155:84532"',
+    'X402_ASSET = "USDC"',
+    'X402_AMOUNT = "1000"',
+    'X402_FACILITATOR_URL = "https://x402.org/facilitator"',
+    'X402_PRICE = "$0.001"',
+    'SOLANA_PAY_RECIPIENT = "3cUh3LBCi9PKYfJmE1vDLteA94ppWKqhzyap5mpQxb38"',
+    'SOLANA_PAY_RPC_URL = "https://solana.example/rpc"',
     '',
     '[[d1_databases]]',
     'binding = "DB"',
@@ -88,7 +105,12 @@ const createFakeWranglerWorkspace = () => {
 const args = process.argv.slice(2)
 const command = String(args[args.indexOf('--command') + 1] || '')
 if (args.includes('secret') && args.includes('list')) {
-  console.log(JSON.stringify([{ name: 'STRIPE_SECRET_KEY' }, { name: 'STRIPE_WEBHOOK_SECRET' }]))
+  console.log(JSON.stringify([
+    { name: 'STRIPE_SECRET_KEY' },
+    { name: 'STRIPE_WEBHOOK_SECRET' },
+    { name: 'ACP_BEARER_TOKEN' },
+    { name: 'OPENBOX_API_KEY' },
+  ]))
   process.exit(0)
 }
 if (args.includes('d1') && args.includes('execute')) {
@@ -182,17 +204,21 @@ const withLocalPaymentReadinessServer = async (run: (baseUrl: string) => Promise
   return checkoutRequests
 }
 
-export function testPaymentReadinessScriptUsesStripeAndX402ReadinessOwners() {
+export function testPaymentReadinessScriptUsesStripeAgenticAndX402ReadinessOwners() {
   const text = readFileSync(scriptPath, 'utf8')
-  if (!text.includes('check-stripe-payment-readiness.mjs') || !text.includes('check-agent-ready-commerce.mjs')) {
-    throw new Error('expected combined payment readiness to reuse existing Stripe and x402 readiness scripts')
+  if (
+    !text.includes('check-stripe-payment-readiness.mjs')
+    || !text.includes('check-agentic-payment-readiness.mjs')
+    || !text.includes('check-agent-ready-commerce.mjs')
+  ) {
+    throw new Error('expected combined payment readiness to reuse existing Stripe, agentic, and x402 readiness scripts')
   }
   if (text.includes('STRIPE_CHECKOUT_PRICE_ID') || text.includes('X402_PAY_TO_ADDRESS')) {
     throw new Error('expected combined payment readiness wrapper not to duplicate payment authority constants')
   }
 }
 
-export async function testPaymentReadinessScriptAggregatesStripeAndX402WithLiveSmoke() {
+export async function testPaymentReadinessScriptAggregatesStripeAgenticAndX402WithLiveSmoke() {
   const workspace = createFakeWranglerWorkspace()
   try {
     const checkoutRequests = await withLocalPaymentReadinessServer(async (baseUrl) => {
@@ -214,9 +240,9 @@ export async function testPaymentReadinessScriptAggregatesStripeAndX402WithLiveS
       const result = await waitForReadinessProcess(child)
       const summary = JSON.parse(result.stdout || '{}') as PaymentReadinessSummary
       if (result.status !== 0 || summary.ok !== true) {
-        throw new Error(`expected combined payment readiness to pass with fake Stripe/x402 gates, got ${JSON.stringify({ status: result.status, summary, stderr: result.stderr })}`)
+        throw new Error(`expected combined payment readiness to pass with fake Stripe/agentic/x402 gates, got ${JSON.stringify({ status: result.status, summary, stderr: result.stderr })}`)
       }
-      for (const name of ['stripe-payment-readiness', 'x402-payment-readiness']) {
+      for (const name of ['stripe-payment-readiness', 'agentic-payment-readiness', 'x402-payment-readiness']) {
         if (!summary.components?.some(component => component.name === name && component.status === 'pass')) {
           throw new Error(`expected ${name} component to pass, got ${JSON.stringify(summary)}`)
         }

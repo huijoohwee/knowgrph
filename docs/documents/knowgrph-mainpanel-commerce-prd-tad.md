@@ -116,7 +116,8 @@ Commerce consumes route metadata from shared owners:
 | Stripe webhook settlement | Stripe webhook route and ACP settlement path | `STRIPE_PAYMENT_ROUTE_PATHS.webhook`, `AGENTIC_COMMERCE_ROUTE_PATHS.commerceWebhook` |
 | Stripe D1 migrations | Payment Worker D1 migration command for pending Stripe/ACP schema changes | `payment:d1:migrate:remote`, `STRIPE_PAYMENT_D1_MIGRATION_APPLY_COMMAND_TEMPLATE` |
 | Stripe readiness gate | Worker secret names, visible Worker vars including checkout mode and return origin, remote D1 payment tables, required webhook-processing columns, and bounded optional hosted Checkout create-and-expire smoke | `STRIPE_PAYMENT_READINESS_CHECK_SUMMARY`, `payment:stripe:readiness` |
-| Combined payment readiness | Final post-config payment readiness wrapper for Stripe plus x402 gates | `payment:readiness`, `payment:stripe:readiness`, `payment:x402:readiness` |
+| Agentic payment readiness gate | Visible Worker vars for ACP, Web3, x402, OpenBOX, and Solana Pay plus required ACP/OpenBOX Worker secrets | `AGENTIC_COMMERCE_PAYMENT_READINESS_CHECK_SUMMARY`, `payment:agentic:readiness` |
+| Combined payment readiness | Final post-config payment readiness wrapper for Stripe, agentic-payment, and x402 gates | `payment:readiness`, `payment:stripe:readiness`, `payment:agentic:readiness`, `payment:x402:readiness` |
 | Web3 settlement | Web3 settlement route | `AGENTIC_COMMERCE_ROUTE_PATHS.web3Settle` |
 | Solana Pay settlement | Solana Pay signature settlement route; verifies RPC transaction reference, recipient, amount, optional SPL token mint, and memo before proof emission | `AGENTIC_COMMERCE_ROUTE_PATHS.solanaPaySettle`, `SOLANA_PAY_RECIPIENT`, `SOLANA_PAY_SPL_TOKEN`, `SOLANA_PAY_RPC_URL` |
 | OpenBOX ingest | OpenBOX ingest route | `AGENTIC_COMMERCE_ROUTE_PATHS.openboxIngest` |

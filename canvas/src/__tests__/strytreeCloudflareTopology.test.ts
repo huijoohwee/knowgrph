@@ -133,6 +133,8 @@ export function testStrytreePaymentWorkerDeclaresCloudflareRuntimeBindings() {
     'queue = "knowgrph-strytree-generation"',
     '[[queues.consumers]]',
     'max_batch_size = 3',
+    '[[kv_namespaces]]',
+    'binding = "STRYTREE_PROVIDER_BUDGET_KV"',
     '[[r2_buckets]]',
     'binding = "STRYTREE_MEDIA_BUCKET"',
     'bucket_name = "knowgrph-strytree-media"',

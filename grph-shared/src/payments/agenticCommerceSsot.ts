@@ -2,6 +2,7 @@ import { STRIPE_PAYMENT_ROUTE_PATHS } from './stripePaymentSsot.js'
 import { buildAgenticCommerceSemanticKey } from './agenticCommerceSemanticKey.js'
 import {
   AGENTIC_COMMERCE_SOLANA_PAY_KEY,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS,
   AGENTIC_COMMERCE_SOLANA_PAY_SETTLE_PATH,
 } from './agenticCommerceSolanaPaySsot.js'
 
@@ -87,6 +88,44 @@ export const AGENTIC_COMMERCE_ENV_KEYS = {
   x402FacilitatorUrl: 'X402_FACILITATOR_URL',
   x402Price: 'X402_PRICE',
 } as const
+
+export const AGENTIC_COMMERCE_REQUIRED_VISIBLE_ENV_KEYS = [
+  AGENTIC_COMMERCE_ENV_KEYS.sellerId,
+  AGENTIC_COMMERCE_ENV_KEYS.checkoutBaseUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.web3Enabled,
+  AGENTIC_COMMERCE_ENV_KEYS.web3DepositAddress,
+  AGENTIC_COMMERCE_ENV_KEYS.baseRpcUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.baseConfirmationBlocks,
+  AGENTIC_COMMERCE_ENV_KEYS.easAttestUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.openboxApiUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.openboxIngestUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.stripeDelegatePaymentUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.x402Network,
+  AGENTIC_COMMERCE_ENV_KEYS.x402Asset,
+  AGENTIC_COMMERCE_ENV_KEYS.x402Amount,
+  AGENTIC_COMMERCE_ENV_KEYS.x402FacilitatorUrl,
+  AGENTIC_COMMERCE_ENV_KEYS.x402Price,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.recipient,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.rpcUrl,
+] as const
+
+export const AGENTIC_COMMERCE_OPTIONAL_VISIBLE_ENV_KEYS = [
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.splToken,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.label,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.amountScale,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.network,
+  AGENTIC_COMMERCE_SOLANA_PAY_ENV_KEYS.commitment,
+] as const
+
+export const AGENTIC_COMMERCE_REQUIRED_SECRET_ENV_KEYS = [
+  AGENTIC_COMMERCE_ENV_KEYS.acpBearerToken,
+  AGENTIC_COMMERCE_ENV_KEYS.openboxApiKey,
+] as const
+
+export const AGENTIC_COMMERCE_PAYMENT_READINESS_CHECK_SUMMARY = [
+  'Visible Worker [vars] for ACP, Web3, x402, OpenBOX, and Solana Pay.',
+  'Worker secrets for ACP bearer auth and OpenBOX API access.',
+].join(' ')
 
 export type AgenticCommerceEnvLike = Record<string, unknown>
 

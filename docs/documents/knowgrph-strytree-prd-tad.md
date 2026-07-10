@@ -1583,7 +1583,7 @@ flowchart LR
 
 - Stop polling after configured timeout.
 - Stop before provider call when user balance is insufficient.
-- Stop before provider call when daily provider budget is exhausted. `STRYTREE_DAILY_PROVIDER_BUDGET_CENTS=0` disables the breaker for local/demo mode; when the limit is positive, the Worker reads `STRYTREE_PROVIDER_BUDGET_KV` and returns `provider_budget_exceeded` before debit/enqueue if spend is at or above the limit.
+- Stop before provider call when daily provider budget is exhausted. `STRYTREE_DAILY_PROVIDER_BUDGET_CENTS=0` disables the breaker for local/demo mode; when the limit is positive, the Worker reads `STRYTREE_PROVIDER_BUDGET_KV` from the payment Worker Cloudflare KV binding and returns `provider_budget_exceeded` before debit/enqueue if spend is at or above the limit.
 - Stop after moderation failure and do not publish public branch.
 
 **Fallback path**:
