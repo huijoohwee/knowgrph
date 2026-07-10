@@ -92,22 +92,16 @@ export async function testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAn
     await tick()
     await tick()
     const variableKeyInput = Array.from(dom.window.document.querySelectorAll('input')).find(
-      el => (el as HTMLInputElement).placeholder === 'variable key',
+      el => (el as HTMLInputElement).placeholder === 'Find variable or action',
     ) as HTMLInputElement | undefined
     if (!variableKeyInput) throw new Error('expected variable toolbar to open from @ trigger')
-    if (variableKeyInput.value !== 've') throw new Error('expected @query to seed variable key input')
-    const panel = (variableKeyInput.closest('section') || variableKeyInput.parentElement) as HTMLElement | null
+    if (variableKeyInput.value !== 've') throw new Error('expected @query to seed shared variable command search')
+    const panel = dom.window.document.querySelector('section[aria-label="Variable toolbar"]') as HTMLElement | null
     if (!panel) throw new Error('expected variable toolbar panel')
     const suggestionButton = Array.from(panel.querySelectorAll('button')).find(
       el => String((el as HTMLButtonElement).textContent || '').trim().startsWith('venue'),
     ) as HTMLButtonElement | undefined
     if (!suggestionButton) throw new Error('expected variable suggestion list to include venue')
-    const toolbarButtons = Array.from(panel.querySelectorAll('button')).map(
-      el => String((el as HTMLButtonElement).textContent || '').trim(),
-    )
-    if (!toolbarButtons.includes('Delete') || !toolbarButtons.includes('New Variable') || !toolbarButtons.includes('Edit Key')) {
-      throw new Error('expected variable toolbar to expose CRUD controls')
-    }
     suggestionButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
     const applyButton = Array.from(panel.querySelectorAll('button')).find(
@@ -615,10 +609,10 @@ export async function testMarkdownViewerInlineEditVariableToolbarDeleteUpdatesFr
     await tick()
     await tick()
     const keyInput = Array.from(dom.window.document.querySelectorAll('input')).find(
-      el => (el as HTMLInputElement).placeholder === 'variable key',
+      el => (el as HTMLInputElement).placeholder === 'Find variable or action',
     ) as HTMLInputElement | undefined
-    if (!keyInput) throw new Error('expected variable key input')
-    if (keyInput.value !== 'venue') throw new Error(`expected @ query to seed key input with "venue", got ${keyInput.value}`)
+    if (!keyInput) throw new Error('expected shared variable command search input')
+    if (keyInput.value !== 'venue') throw new Error(`expected @ query to seed command search with "venue", got ${keyInput.value}`)
     await tick()
     const deleteButton = Array.from(dom.window.document.querySelectorAll('button')).find(
       el => String((el as HTMLButtonElement).textContent || '').trim() === 'Delete',

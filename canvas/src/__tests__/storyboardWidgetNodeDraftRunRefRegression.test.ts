@@ -5,26 +5,31 @@ import type { GraphData } from '@/lib/graph/types'
 
 export function testStoryboardWidgetNodeDraftUpdatesRefBeforeRunStoreWriteback() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetNodeDraftActions.ts'), 'utf8')
-  const draftWrite = 'args.draftGraphDataRef.current = bumpStoryboardWidgetDraftGraphDataRevision('
-  const storeWrite = 'args.updateNode(id, patch)'
+  const draftWrite = 'args.draftGraphDataRef.current = nextDraft'
+  const storeWrite = 'args.updateNode(storeNodeId || id, patch)'
+  const draftStateWrite = 'if (nextDraft) args.setDraftGraphData(nextDraft)'
 
-  if (!text.includes('const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>) => {')
+  if (!text.includes('const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => {')
     || !text.includes(draftWrite)
     || !text.includes('const readDraftMutationRevisionFloor = React.useCallback((): number => {')
     || !text.includes('{ revisionFloor: readDraftMutationRevisionFloor() },')
     || !text.includes(storeWrite)
+    || !text.includes(draftStateWrite)
     || text.indexOf(draftWrite) > text.indexOf(storeWrite)) {
     throw new Error('expected Storyboard Widget node property commits to update the live draft graph ref before store writeback so Run All cannot read stale KTV values')
+  }
+  if (text.indexOf(draftStateWrite) < text.indexOf(storeWrite)) {
+    throw new Error('expected Storyboard Widget draft state publication after canonical store writeback so the base subscription cannot overwrite it in the same batch')
   }
 }
 
 export function testStoryboardWidgetPropertyPatchesPreferLiveDraftBeforeStoreGraph() {
   const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetNodeDraftActions.ts'), 'utf8')
-  const liveDraftRead = 'const cur = args.draftGraphDataRef.current || args.draftGraphData || useGraphStore.getState().graphData'
-  const patchWrite = 'updateNodeById(id, { properties: nextProps as never })'
+  const liveDraftRead = 'const resolved = resolveGraphDataAndNodeByCanonicalId(['
+  const patchWrite = 'updateNodeById(id, { properties: nextProps as never }, resolved?.graphData || sourceGraphData)'
 
-  if (!text.includes(liveDraftRead) || !text.includes(patchWrite) || text.indexOf(liveDraftRead) > text.indexOf(patchWrite)) {
-    throw new Error('expected Storyboard Widget KTV property patches to merge from the live draft graph before falling back to the indexed store graph')
+  if (!text.includes(liveDraftRead) || !text.includes('sourceGraphData,') || !text.includes(patchWrite) || text.indexOf(liveDraftRead) > text.indexOf(patchWrite)) {
+    throw new Error('expected Storyboard Widget property patches to resolve the canonical renderer source before draft and store fallbacks')
   }
 }
 
@@ -149,14 +154,14 @@ export function testStoryboardWidgetRunCommitsActiveSharedInlineEditorBeforeRun(
   const toolbarText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx'), 'utf8')
   const overlayElementsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceElements.tsx'), 'utf8')
   const renderGraphText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRenderGraph.ts'), 'utf8')
-  const cardInlineText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'cards', 'CardInlineTextEditor.tsx'), 'utf8')
+  const cardInlineText = ['CardInlineTextEditor.tsx', 'CardInlineTextEditorSupport.ts'].map(fileName => readFileSync(resolve(process.cwd(), 'src', 'lib', 'cards', fileName), 'utf8')).join('\n')
   const plainTextInput = readFileSync(resolve(process.cwd(), 'src', 'components', 'ui', 'PlainTextInputEditor.tsx'), 'utf8')
 
   for (const snippet of [
     'export function commitActiveCardInlineTextEditor(ownerDocument?: Document | null): boolean {',
     "const CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE = 'data-kg-card-inline-edit-input'",
     'active.blur()',
-    "dataAttributes={{ [CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1' }}",
+    "[CARD_INLINE_TEXT_EDITOR_INPUT_ATTRIBUTE]: '1'",
   ]) {
     if (!cardInlineText.includes(snippet)) {
       throw new Error(`expected shared CardInlineTextEditor to expose active-editor commit contract: ${snippet}`)

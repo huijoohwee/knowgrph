@@ -17,10 +17,12 @@ export type CardInlineTextEditorProps = {
   editActivation?: CardInlineTextEditActivation
   editRequestKey?: string | number | null
   multiline?: boolean
+  displayLineClamp?: 'density' | 'none'
   displayClassName?: string
   editorClassName?: string
   emptyClassName?: string
   markdownPreview?: boolean | 'auto'
+  markdownDocumentPath?: string
   markdownCommandMenus?: boolean
   markdownCommandContextText?: string
   mediaCommandMode?: 'inline' | 'external'

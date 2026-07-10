@@ -12,9 +12,8 @@ export function RichMediaPanelDirectMediaSurface(args: {
   props: RichMediaPanelProps
 }) {
   const { model, props } = args
-  if (model.panelIsLoading || model.isEmptyPanel || model.showPanelInlineTextEditor || model.showPanelMarkdownPreview || model.kind === 'iframe') {
-    return null
-  }
+  const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)
+  const directVideoPassivePlayback = model.kind === 'video' && !directVideoControls
   if (model.kind === 'image' || model.kind === 'svg' || model.kind === 'video') {
     return (
       <section
@@ -104,11 +103,12 @@ export function RichMediaPanelDirectMediaSurface(args: {
               url={model.mediaSrc}
               title={model.title}
               {...model.directMediaPreviewCardProps}
+              interactive={model.contentInteractive}
               fit="contain"
-              videoControls={model.kind === 'video' ? props.videoControls === true : false}
-              videoMuted={model.kind === 'video' ? props.videoControls !== true : undefined}
-              videoAutoPlay={model.kind === 'video' ? props.videoControls !== true : undefined}
-              videoLoop={model.kind === 'video' ? props.videoControls !== true : undefined}
+              videoControls={directVideoControls}
+              videoMuted={directVideoPassivePlayback ? true : undefined}
+              videoAutoPlay={directVideoPassivePlayback ? true : undefined}
+              videoLoop={directVideoPassivePlayback ? true : undefined}
               videoPoster={model.kind === 'video' ? props.videoPoster : undefined}
               mediaThumbnailDataAttr
               onMediaElement={model.handleDirectMediaElement}
@@ -144,19 +144,5 @@ export function RichMediaPanelDirectMediaSurface(args: {
       />
     )
   }
-  return (
-    <CardMediaPreview
-      kind={model.kind === 'svg' ? 'svg' : 'image'}
-      url={model.mediaSrc}
-      title={model.title}
-      interactive={false}
-      fit="contain"
-      mediaThumbnailDataAttr
-      onReady={() => model.setReady(true)}
-      onError={() => {
-        if (!model.fallbackToRawSrc()) model.setReady(true)
-      }}
-      mediaStyle={model.buildDirectMediaStyle('block', 'rgba(15, 23, 42, 0.06)')}
-    />
-  )
+  return null
 }

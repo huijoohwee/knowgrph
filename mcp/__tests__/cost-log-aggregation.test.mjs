@@ -99,7 +99,7 @@ test("aggregateCostLogs: aggregate equals the sums of the per-stage entries", ()
   assert.equal(costLogAggregationHolds(logs, aggregate), true);
 });
 
-test("costLogAggregationHolds: rejects a missing/duplicate/extra stage", () => {
+test("costLogAggregationHolds: rejects a missing, duplicate, or tampered stage ledger", () => {
   const logs = buildModelStageCostLogs({ plannedEstimateUsd: 0.03 });
   const aggregate = aggregateCostLogs(logs);
   // Missing a stage (only one entry).

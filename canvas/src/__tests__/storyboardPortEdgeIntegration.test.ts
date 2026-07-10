@@ -490,12 +490,12 @@ export function testStoryboardRichMediaDropCentersPanelOnPointer() {
   if (surface.includes('http://127.0.0.1:7777') || surface.includes('storyboard-media-panel-loop') || surface.includes('[DEBUG]')) {
     throw new Error('forbid hardcoded Storyboard surface debug endpoints and debug traces in the shared media drop owner')
   }
-  const overlayPlacementRuntime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/useWidgetPlacementRuntime.ts'), 'utf8')
+  const overlayPlacementRuntime = ['src/components/StoryboardWidget/useWidgetPlacementRuntime.ts', 'src/components/StoryboardWidget/widgetPlacementRuntimeProjection.ts'].map(path => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n')
   if (!overlayPlacementRuntime.includes('const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)')
     || !overlayPlacementRuntime.includes('&& !hasAuthoritativeNodeWorldPos')
     || !overlayPlacementRuntime.includes('hasAuthoritativeNodeWorldPos')
     || !readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/richMediaOverlayFrameSize.ts'), 'utf8').includes('return RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE')
-    || !overlayPlacementRuntime.includes('const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos')
+    || !overlayPlacementRuntime.includes('const richMediaAuthoritativeScreenBase = effectiveRichMediaFrameSize && hasAuthoritativeNodeWorldPos')
     || !overlayPlacementRuntime.includes('screenY + frameHeight * (1 - panelScale) / 2')) {
     throw new Error('expected dropped Rich Media frontmatter panels to honor graph coordinates instead of balanced viewport fallback')
   }

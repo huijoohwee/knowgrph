@@ -16,6 +16,11 @@ frontmatter_contract: required
 
 > Canonical source: `docs/documents/knowgrph-agent-ready-prd-tad.md`
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+
 ## Technical Architecture
 
 ### Deployed agent-ready surface

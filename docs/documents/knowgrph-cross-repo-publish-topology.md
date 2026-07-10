@@ -2,6 +2,11 @@
 
 Canonical companion for the clean end-state topology shared with `singabldr`.
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+
 ## Scope
 
 - Dev SSOT repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`

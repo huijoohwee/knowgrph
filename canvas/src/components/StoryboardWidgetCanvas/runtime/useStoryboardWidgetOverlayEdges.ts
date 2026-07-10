@@ -589,12 +589,6 @@ export function useStoryboardWidgetOverlayEdges(args: {
       })
       return
     }
-    if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {
-      pushOverlayEdgeTrace('schedule-skip-graph-mutation-lock', {
-        existingPathCount: overlayEdgePathByIdRef.current.size,
-      })
-      return
-    }
     if (!args.overlayEdgesEnabledRef.current) {
       pushOverlayEdgeTrace('schedule-skip-disabled', {
         workspaceOverlayOpen: workspaceOverlayOpenRef.current ? 1 : 0,
@@ -604,12 +598,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
     if (overlayEdgeRafRef.current != null) return
     overlayEdgeRafRef.current = requestAnimationFrame(() => {
       overlayEdgeRafRef.current = null
-      if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {
-        pushOverlayEdgeTrace('raf-skip-graph-mutation-lock', {
-          existingPathCount: overlayEdgePathByIdRef.current.size,
-        })
-        return
-      }
+      const graphMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
       const workspaceOverlayOpen = workspaceOverlayOpenRef.current
       const root = args.rootRef.current
       if (!root) {
@@ -711,14 +700,17 @@ export function useStoryboardWidgetOverlayEdges(args: {
         && stableGraphEdgeCount > 0
         && stableGraphContainsRequestedOverlayIdentities
         && (
-          workspaceOverlayOpen
+          graphMutationBlocked
+          || stableGraphRevision > liveGraphRevision
+          || workspaceOverlayOpen
           || withinWorkspaceCloseRecoveryWindow
           || (
             canReuseMetadataLessStableGraph
           )
         )
         && (
-          workspaceOverlayOpen
+          graphMutationBlocked
+          || workspaceOverlayOpen
           || !liveGraph
           || liveGraph === stableGraph
           || liveGraphNodeCount === 0
@@ -726,7 +718,15 @@ export function useStoryboardWidgetOverlayEdges(args: {
           || !liveGraphMetaKind
         )
       const graph = shouldReuseStableGraph ? stableGraph : liveGraph
-      if (workspaceOverlayOpen && shouldReuseStableGraph) {
+      if (stableGraphRevision > liveGraphRevision && shouldReuseStableGraph) {
+        pushOverlayEdgeTrace('schedule-newer-stable-revision', { liveGraphRevision, stableGraphRevision })
+      } else if (graphMutationBlocked && shouldReuseStableGraph) {
+        pushOverlayEdgeTrace('schedule-graph-mutation-lock-stable-geometry', {
+          existingPathCount: overlayEdgePathByIdRef.current.size,
+          stableGraphNodeCount,
+          stableGraphEdgeCount,
+        })
+      } else if (workspaceOverlayOpen && shouldReuseStableGraph) {
         pushOverlayEdgeTrace('schedule-workspace-open-live-geometry', {
           overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
           stableGraphNodeCount,

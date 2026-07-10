@@ -31,6 +31,21 @@ const REMOTE_GRAMMAR_SIGIL_ORDER: readonly AgenticOsRemoteGrammarSigil[] = ['/',
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 const normalizeToken = (value: unknown): string => normalizeString(value)
+const isLocalhostHost = (value: unknown): boolean => {
+  const normalized = normalizeString(value).toLowerCase()
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0'
+}
+const isBareLocalhostOrigin = (value: unknown): boolean => {
+  const origin = normalizeString(value)
+  if (!origin) return false
+  try {
+    const parsed = new URL(origin)
+    const port = normalizeString(parsed.port)
+    return isLocalhostHost(parsed.hostname) && !port
+  } catch {
+    return false
+  }
+}
 const normalizeSigil = (value: unknown): AgenticOsRemoteGrammarSigil | null => {
   const token = normalizeToken(value)
   return token.startsWith('/') || token.startsWith('#') || token.startsWith('@')
@@ -43,7 +58,7 @@ const readKnowgrphAgentReadyBaseUrl = (): string => {
   if (configuredBaseUrl) return configuredBaseUrl.replace(/\/+$/, '')
   if (typeof window !== 'undefined') {
     const currentOrigin = normalizeString(window.location?.origin)
-    if (currentOrigin) {
+    if (currentOrigin && !isBareLocalhostOrigin(currentOrigin)) {
       return new URL('/knowgrph/', currentOrigin.endsWith('/') ? currentOrigin : `${currentOrigin}/`)
         .toString()
         .replace(/\/+$/, '')
@@ -312,7 +327,8 @@ export async function primeAgenticOsRemoteGrammarCatalogBySigil(
     remoteGrammarHydrationPromises.set(sigil, fetchAgenticOsRemoteGrammarCatalog({ query: sigil })
       .catch(error => {
         remoteGrammarHydrationPromises.delete(sigil)
-        throw error
+        if (error instanceof DOMException && error.name === 'AbortError') return []
+        return []
       }))
   }
   const promise = remoteGrammarHydrationPromises.get(sigil)

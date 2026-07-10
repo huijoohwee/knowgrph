@@ -1,7 +1,7 @@
 import React from 'react'
 import { buildFlowCanvasHeaderPinProps, type FlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
-import { StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
+import { STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
 import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
 import { StoryboardCardMetaScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
@@ -30,6 +30,7 @@ import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '
 import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS, type GraphNodeCardTextFieldSpec } from '@/lib/cards/graphNodeCardFields'
 import { buildInlineMediaCommandDragPayload } from '@/lib/command-menu/inlineMediaCommandDragPayload'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -41,9 +42,9 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS } from '@/lib/render/richMediaPanelDefaults'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { screenToWorld } from '@/lib/zoom/viewport'
 import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
-const STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME = 'text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]'
 const ignoreStoryboardCardAction = () => void 0
 export { resolveStoryboardCardOverlayRemoval } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayRemoval'
 
@@ -98,7 +99,7 @@ function StoryboardCardOverlayItem(props: {
       aria-label={`Storyboard card ${card.title}`}
       className={cn(
         getStoryboardWidgetPanelChromeClassName(),
-        'pointer-events-auto absolute left-0 top-0 overflow-visible rounded-md shadow-md',
+        'pointer-events-auto absolute left-0 top-0 overflow-visible',
         selected ? 'ring-2 ring-blue-500/80' : '',
       )}
       data-kg-storyboard-card-pixel-snap="1"
@@ -154,8 +155,8 @@ function StoryboardCardOverlayItem(props: {
               editorSurface="viewer"
               inlineChipDensity="compact"
               onCommit={nextValue => onCommitTitle(card, nextValue)}
-              displayClassName="min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]"
-              editorClassName="min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]"
+              displayClassName={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}
+              editorClassName={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}
             />
           </section>}
           richMediaHeader
@@ -177,14 +178,14 @@ function StoryboardCardOverlayItem(props: {
           data-kg-storyboard-card-body-layout="brief-media"
         >
           <section
-            className="flex min-h-0 flex-col gap-1.5 overflow-hidden rounded border bg-[color:var(--kg-panel-bg)]/70 p-1.5"
+            className={CARD_TEXT_SURFACE_COLUMN_CLASS_NAME}
             data-kg-storyboard-card-text-column="1"
             onPointerDownCapture={requestSummaryEditFromTextColumn}
             onMouseDownCapture={requestSummaryEditFromTextColumn}
             style={{ borderColor: 'var(--kg-border)' }}
           >
             <StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />
-            <section className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]" data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-brief="1" data-kg-storyboard-card-summary-scroll="1" onWheelCapture={event => event.stopPropagation()}>
+            <section className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME} data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-brief="1" data-kg-storyboard-card-summary-scroll="1" onWheelCapture={event => event.stopPropagation()}>
               <CardInlineTextEditor
                 value={textModel.primaryRaw || card.slugline || ''}
                 displayValue={textModel.primaryDisplay || card.slugline || ''}
@@ -194,6 +195,7 @@ function StoryboardCardOverlayItem(props: {
                 editActivation="click"
                 editRequestKey={summaryEditRequestKey}
                 multiline
+                displayLineClamp="none"
                 markdownPreview="auto"
                 markdownCommandContextText={storyboardCommandContextText}
                 mediaCommandMode="external"
@@ -205,8 +207,8 @@ function StoryboardCardOverlayItem(props: {
                 showCommandLaunchers={false}
                 onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}
                 onMediaCommandSelect={applyInlineMediaCommandToCard}
-                displayClassName={cn('m-0 h-full min-h-0 select-none overflow-auto whitespace-pre-wrap break-words', STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME)}
-                editorClassName={cn('h-full min-h-[3rem] overflow-auto', STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME)}
+                displayClassName={cn(CARD_TEXT_SURFACE_VIEW_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
+                editorClassName={cn(CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
               />
             </section>
             {textModel.secondaryRaw && textModel.secondaryField ? (
@@ -315,6 +317,17 @@ export function StoryboardCardOverlayLayer2d(props: {
     [board, nodeById, schema, strybldrStoryboardCardAspectMode],
   )
   const setDragVisualOverride = React.useCallback((id: string, point: { x: number; y: number } | null) => { const key = String(id || '').trim(); if (!key) return; if (point) dragWorldOverrideByCardIdRef.current.set(key, point); else dragWorldOverrideByCardIdRef.current.delete(key) }, [])
+  const preserveCardScreenPlacementForUnpin = React.useCallback((id: string, nextPinned: boolean) => {
+    const key = String(id || '').trim()
+    if (!key || nextPinned) return
+    const rect = overlayElsRef.current.get(key)?.getBoundingClientRect()
+    if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top) || rect.width <= 0 || rect.height <= 0) return
+    dragWorldOverrideByCardIdRef.current.set(key, screenToWorld({
+      transform: getTransform(),
+      sx: rect.left + rect.width / 2,
+      sy: rect.top + rect.height / 2,
+    }))
+  }, [getTransform])
   const readCardCenter = React.useCallback((node: GraphNode): StoryboardCardPlacement | null => {
     const id = String(node.id || '').trim()
     if (!id) return readStoryboardCardCenter2d(node)
@@ -548,6 +561,7 @@ export function StoryboardCardOverlayLayer2d(props: {
           flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
           flowWidgetStateGraphKey,
           nodeId: card.id,
+          onBeforePinnedChange: nextPinned => preserveCardScreenPlacementForUnpin(card.id, nextPinned),
           stopEvent: stopCardHeaderControlEvent,
         })
         return (

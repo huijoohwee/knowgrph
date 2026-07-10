@@ -5,7 +5,6 @@ import {
   type CardMediaPlaceholderVariant,
   type CardMediaSkeletonVariant,
 } from '@/lib/cards/cardMediaPreviewUtils'
-import { CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   readOverlayPointerTargetState,
@@ -27,6 +26,21 @@ import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelMediaState } from './useRichMediaPanelMediaState'
 
+const isPointerLikeEvent = (event: unknown): event is PointerEvent => {
+  if (!event || typeof event !== 'object') return false
+  if (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent) return true
+  const candidate = event as {
+    clientX?: unknown
+    clientY?: unknown
+    pointerId?: unknown
+    pointerType?: unknown
+  }
+  return Number.isFinite(candidate.clientX)
+    && Number.isFinite(candidate.clientY)
+    && Number.isFinite(candidate.pointerId)
+    && typeof candidate.pointerType === 'string'
+}
+
 export type RichMediaPanelSurfaceState = {
   allowClickToOpenOverlay: boolean
   allowPanelContentPointerEvents: boolean
@@ -47,7 +61,6 @@ export type RichMediaPanelSurfaceState = {
   handleRootMouseDownCapture: React.MouseEventHandler<HTMLElement>
   handleRootPointerDownCapture: React.PointerEventHandler<HTMLElement>
   iframeSurfaceStyle: React.CSSProperties
-  inlineSrcDocEmbeddedSurfaceHeight: string
   inlineSrcDocEmbeddedSurfaceStyle: React.CSSProperties
   inlineSrcDocPanelContentHeight: number
   inlineSrcDocSurfaceStyle: React.CSSProperties
@@ -66,8 +79,8 @@ export type RichMediaPanelSurfaceState = {
   rootRef: React.RefCallback<HTMLElement>
   rootStyle: React.CSSProperties
   showStoryboardWidgetChrome: boolean
-  showPanelInlineTextEditor: boolean
-  showPanelMarkdownPreview: boolean
+  panelTextEditable: boolean
+  showPanelTextSurface: boolean
   shouldHideSurfaceUntilReady: boolean
   useSurfaceFrame: boolean
 }
@@ -90,17 +103,15 @@ export function useRichMediaPanelSurfaceState(
     props.storyboardWidgetFrontmatterDocumentMode === true || mediaState.storyboardWidgetFrontmatterDocumentModeFromStore
   const storyboardWidgetOverlayProxyMode = props.storyboardWidgetInteractionMode === true
   const storyboardWidgetInteractionMode = storyboardWidgetOverlayProxyMode || storyboardWidgetFrontmatterDocumentMode
-  const canInlineEditPanelText = Boolean(
+  const panelTextEditable = Boolean(
     mediaState.panel && mediaState.panelSelectedTab === 'text' && typeof props.onPanelChange === 'function',
   )
   const showPanelTextSurface = Boolean(
     mediaState.panel
     && mediaState.panelSelectedTab === 'text'
     && !mediaState.effectiveInlineSrcDoc
-    && (canInlineEditPanelText || mediaState.panelDisplayText.trim()),
+    && (panelTextEditable || mediaState.panelDisplayText.trim()),
   )
-  const showPanelInlineTextEditor = showPanelTextSurface && canInlineEditPanelText
-  const showPanelMarkdownPreview = Boolean(showPanelTextSurface && !showPanelInlineTextEditor && mediaState.panelDisplayText.trim())
   const hasDirectRenderableUrl = Boolean(mediaState.rawUrl)
   const isTextPanelEmpty =
     mediaState.kind === 'iframe'
@@ -243,7 +254,7 @@ export function useRichMediaPanelSurfaceState(
     const canForwardPointerDown =
       typeof props.forwardPointerTo === 'function'
       && typeof props.shouldForwardPointerDown === 'function'
-      && nativePointerEvent instanceof PointerEvent
+      && isPointerLikeEvent(nativePointerEvent)
       && props.shouldForwardPointerDown(nativePointerEvent)
     if (!isHeaderTarget && shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer }) && !canForwardPointerDown) {
       return false
@@ -268,7 +279,7 @@ export function useRichMediaPanelSurfaceState(
       const canForwardPointerDown =
         typeof props.forwardPointerTo === 'function'
         && typeof props.shouldForwardPointerDown === 'function'
-        && native instanceof PointerEvent
+        && isPointerLikeEvent(native)
         && props.shouldForwardPointerDown(native)
       if (!pointerTarget.isHeader && shouldBlockOverlayPanTarget(pointerTarget, { scrollSurfaceCanForwardPointer }) && !canForwardPointerDown) return
       handleRichMediaPanelOverlayNativeDragStartCapture({
@@ -337,19 +348,16 @@ export function useRichMediaPanelSurfaceState(
     panelOwnsInlineSrcDocScroll && mediaState.inlineSrcDocContentSize && mediaState.inlineSrcDocContentSize.height > 0
       ? Math.ceil(mediaState.inlineSrcDocContentSize.height)
       : 0
-  const inlineSrcDocEmbeddedSurfaceHeight = inlineSrcDocPanelContentHeight > 0
-    ? `calc(${inlineSrcDocPanelContentHeight}px + ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE} + ${CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE})`
-    : ''
+  const inlineSrcDocPanelContentHeightCss = inlineSrcDocPanelContentHeight > 0 ? `${inlineSrcDocPanelContentHeight}px` : ''
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
     position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative'),
     ...(!useSurfaceFrame && storyboardWidgetFrontmatterDocumentMode
       ? {
           background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
-          borderRadius: '12px',
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -4px rgba(0,0,0,0.10)',
         }
       : null),
+    ...(showStoryboardWidgetChrome ? { borderRadius: undefined, boxShadow: undefined } : null),
     ...(useSurfaceFrame
       ? {
           background: 'transparent',
@@ -369,7 +377,7 @@ export function useRichMediaPanelSurfaceState(
           : (contentInteractive || canClickToOpen ? 'auto' : 'none'),
     transition: 'opacity 180ms ease-out',
     ...(props.style || null),
-    ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocEmbeddedSurfaceHeight, minHeight: '100%' } : null),
+    ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocPanelContentHeightCss, minHeight: '100%' } : null),
   }
   const bodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
@@ -424,8 +432,8 @@ export function useRichMediaPanelSurfaceState(
     pointerEvents: 'auto',
     touchAction: panelOwnsInlineSrcDocScroll ? 'pan-y' : 'auto',
     width: '100%',
-    ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocEmbeddedSurfaceHeight, minHeight: '100%' } : null),
-  }), [inlineSrcDocEmbeddedSurfaceHeight, inlineSrcDocPanelContentHeight, panelOwnsInlineSrcDocScroll])
+    ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocPanelContentHeightCss, minHeight: '100%' } : null),
+  }), [inlineSrcDocPanelContentHeight, inlineSrcDocPanelContentHeightCss, panelOwnsInlineSrcDocScroll])
   const directMediaZoomContentSize = React.useMemo(() => {
     const ratio = readCanvasAspectRatioWidthToHeight(strybldrStoryboardCardAspectMode)
     return ratio >= 1 ? { h: 1, w: ratio } : { h: 1 / ratio, w: 1 }
@@ -499,7 +507,6 @@ export function useRichMediaPanelSurfaceState(
     handleRootMouseDownCapture,
     handleRootPointerDownCapture,
     iframeSurfaceStyle,
-    inlineSrcDocEmbeddedSurfaceHeight,
     inlineSrcDocEmbeddedSurfaceStyle,
     inlineSrcDocPanelContentHeight,
     inlineSrcDocSurfaceStyle,
@@ -518,8 +525,8 @@ export function useRichMediaPanelSurfaceState(
     rootRef,
     rootStyle,
     showStoryboardWidgetChrome,
-    showPanelInlineTextEditor,
-    showPanelMarkdownPreview,
+    panelTextEditable,
+    showPanelTextSurface,
     shouldHideSurfaceUntilReady,
     useSurfaceFrame,
   }

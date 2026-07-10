@@ -1,8 +1,3 @@
-// Knowgrph McpAgent tool registry (knowgrph-acos-mcp-connector spec, task 1.1).
-//
-// Pure-JS module shared by the Cloudflare Worker entry (`index.ts`) and Node
-// `node:test` unit tests. This file is the single source of truth for:
-//
 //   * the tool list exposed at airvio.co/knowgrph/control-plane/mcp (Director + 5 stage
 //     tools) with both inputSchema and outputSchema (Property 26 / R14.4),
 //   * approval-gate enforcement at the McpAgent boundary so a remote
@@ -14,8 +9,7 @@
 // enforce their McpAgent gate boundary, then hand execution back to the
 // Director-owned pipeline so sequencing, retry, and manifest writes stay in one
 // source owner.
-
-import { runVideoRemix, runVideoRemixAsync } from "../../../mcp/video-remix-runtime.js";
+import { runVideoRemix, runVideoRemixAsync, VIDEO_WORKFLOW_INPUT_SCHEMA } from "../../../mcp/video-remix-runtime.js";
 import {
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION,
@@ -147,6 +141,7 @@ const VIDEO_REMIX_RUN_INPUT_SCHEMA = Object.freeze({
     runId: { type: "string" },
     failOnceTool: { type: "string" },
     maxIterations: { type: "number", minimum: 1, maximum: 100 },
+    workflow: VIDEO_WORKFLOW_INPUT_SCHEMA,
     frontendUrl: { type: "string", format: "uri" },
     backendHealthUrl: { type: "string", format: "uri" },
   },

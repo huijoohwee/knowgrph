@@ -1,7 +1,7 @@
 import type * as d3 from 'd3'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { applyMediaPanelCssVars, applyPanelBox, computePanelRect } from '@/lib/render/mediaPanelLayout'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect } from '@/lib/render/mediaPanelLayout'
 import { applyMediaEagerLoadingOnce } from '@/lib/render/mediaEagerLoading'
 import { computeMediaOverlaySizing, type MediaOverlaySizingConfig, type MediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
@@ -145,6 +145,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
       lastSizing = sizing
     }
     const useSizing = lastSizing || sizing
+    const frameCssVars = args.projectWithWorldTransformScale === true
+      ? computeMediaPanelCssVars3d({ density, sizeScale: 1 }).vars
+      : useSizing.vars
     const viewportClampEnabled = !!args.clampToViewport
     const clampMargin = args.clampToViewport ? Math.max(0, Number(args.clampToViewport.margin) || 0) : 0
     const clampMarginLeft = args.clampToViewport && Number.isFinite(args.clampToViewport.marginLeft)
@@ -494,7 +497,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
     for (let i = 0; i < preferred.length; i += 1) {
       const p = preferred[i]!
       const pos = nextById.get(p.id) || { left: p.left, top: p.top }
-      applyMediaPanelCssVars(p.el, useSizing.vars)
+      applyMediaPanelCssVars(p.el, frameCssVars)
       applyMediaEagerLoadingOnce(p.el)
       const snappedPos = p.preserveWorldTopLeft ? pos : snapPanelTopLeftToGrid(pos)
       const nextBox = { left: quantizePanelPos(snappedPos.left), top: quantizePanelPos(snappedPos.top), w: p.w, h: p.h, scale: Math.max(0.001, Number(p.scale) || 1) }

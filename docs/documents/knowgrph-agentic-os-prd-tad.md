@@ -16,14 +16,7 @@ doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
 domain: "knowgrph"
-orientation:
-  - "solo-dev"
-  - "AI-native"
-  - "min-viable-max-value"
-  - "TCO-zero"
-  - "FOSS-first"
-  - "token-economical"
-  - "harness-first"
+orientation: ["solo-dev", "AI-native", "min-viable-max-value", "TCO-zero", "FOSS-first", "token-economical", "harness-first"]
 constraints:
   - "universal"
   - "neutral"
@@ -54,7 +47,8 @@ source_references:
 
 # Knowgrph — Agentic OS PRD/TAD
 
-SSOT upstream: `.kiro/specs/knowgrph-agentic-os/requirements.md` (EARS acceptance criteria, Glossary, MoSCoW) and `.kiro/specs/knowgrph-agentic-os/design.md` (components, data models, correctness properties). This document weaves both into the combined PRD/TAD form established by `knowgrph-tech-stack-document.md`, and **consolidates** the former `knowgrph-mcp-agentic-canvas-os-prd-tad.md` (v0.3.1): the Video_Remix Director connector content from that document is retained here as a native-in-repo harness aggregated by the Agentic OS, while its Vercel product tier, AWS Agent-API fallback, and AWS AgentCore wrapper lane are **removed from the runtime topology** per ADR-3.
+SSOT upstream: `.kiro/specs/knowgrph-agentic-os/requirements.md` (EARS acceptance criteria, Glossary, MoSCoW) and `.kiro/specs/knowgrph-agentic-os/design.md` (components, data models, correctness properties). This document weaves both into the combined PRD/TAD form established by `knowgrph-tech-stack-document.md`, and **consolidates** the former `knowgrph-mcp-agentic-canvas-os-prd-tad.md` (v0.3.1): the Video_Remix Director connector content from that document is retained here as a native-in-repo harness aggregated by the Agentic OS, while its Vercel product tier, AWS Agent-API fallback, and AWS AgentCore wrapper lane are **removed from the runtime topology** per ADR-3. For remote MCP onboarding, use `knowgrph-mcp-onboarding-index.md`, then the canonical `knowgrph-mcp-install-contract.md` public-discovery/control-plane boundary.
+
 ## Overview
 `knowgrph` already runs nine independent AI/automation harnesses — FloatingPanel Chat → KGC, the AI Agents Memory Layer, the Visual Annotation Engine, the HTML Video Renderer, the Video Intelligence pipeline (VideoDB Director MCP), the SuperAgent Harness, the AI Showrunner, the `knowgrph.video_remix.run` Director (research → storyboard → render → commerce, formerly specified in the Agentic Canvas OS PRD/TAD), and the Swarm Prediction Engine — each with its own run-state shape, its own tool surface, and its own circuit-breaker. The **knowgrph Agentic OS** is a thin, OS-level unification layer over these *already-existing* harnesses: the smallest set of cross-harness primitives (process visibility, capability discovery, cost/token accounting, approval-gate consistency, circuit-breaker observability) that lets an Operator or an External_Agent reason about *all* running knowgrph agent work through one surface — the **Os_Status_Tool** (`knowgrph.os.status`) — instead of learning each harness's bespoke shape individually.
 

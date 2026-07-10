@@ -893,7 +893,6 @@ export function useStoryboardWidgetRuntimeScene(args: {
     const renderGraphNodeCount = Array.isArray(renderGraphDataOverrideRef.current?.nodes) ? renderGraphDataOverrideRef.current.nodes.length : graphNodes.length
     const partitionedFrontmatterRuntimeScene = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && renderGraphNodeCount > 0
     const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && !partitionedFrontmatterRuntimeScene
-
     const pendingRaw = effectiveOrFallbackOpenIds
       .map(id => String(id || '').trim())
       .filter(Boolean)
@@ -904,7 +903,8 @@ export function useStoryboardWidgetRuntimeScene(args: {
         if (!shouldAutoPlaceStoryboardWidget({ graphMetaKind, pinnedInCanvas: pinned, worldPos: worldById[id] })) return false
         const w = worldById[id]
         if (w && Number.isFinite(w.x) && Number.isFinite(w.y)) return false
-        return !hasAuthoritativeGraphWorldAnchor(id)
+        const node = graphNodeById.get(id)
+        return !node || !Number.isFinite(node.fx) || !Number.isFinite(node.fy)
       })
 
     const liveZoom = getLiveZoomTransform()

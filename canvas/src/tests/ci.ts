@@ -401,6 +401,7 @@ if (!g.ResizeObserver) {
 
 async function main() {
   const { runAllTests } = await import('@/tests/run')
+  const { readCurrentRunningTest } = await import('@/tests/runner/execTest')
   const startedAt = Date.now()
   const timeoutMs = (() => {
     const raw = Number(process.env.KG_TEST_TIMEOUT_MS)
@@ -410,7 +411,13 @@ async function main() {
   const results = await Promise.race([
     runAllTests(),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`tests timed out after ${timeoutMs}ms`)), timeoutMs),
+      setTimeout(() => {
+        const activeTest = readCurrentRunningTest()
+        const activeSuffix = activeTest
+          ? `; active test=${activeTest.name}; activeElapsedMs=${activeTest.elapsedMs}`
+          : ''
+        reject(new Error(`tests timed out after ${timeoutMs}ms${activeSuffix}`))
+      }, timeoutMs),
     ),
   ])
   const finishedAt = Date.now()

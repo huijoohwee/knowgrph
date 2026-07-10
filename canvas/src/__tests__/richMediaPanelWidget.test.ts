@@ -33,7 +33,7 @@ function readRichMediaPanelSourceBundle(root: string): string {
     'RichMediaPanel.types.ts',
     'RichMediaPanelSurface.tsx',
     'RichMediaPanelShell.tsx',
-    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelContentSurface.tsx', 'richMediaPanelSurfaceVariant.ts',
     'RichMediaPanelTextSurface.tsx',
     'RichMediaPanelIframeSurface.tsx',
     'RichMediaPanelDirectMediaSurface.tsx',
@@ -416,7 +416,7 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   const storyboardWidgetCanvasSharedText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx'), 'utf8')
   const widgetPanelText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx'), 'utf8')
   const widgetViewText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'), 'utf8')
-  const widgetFormText = readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx'), 'utf8')
+  const widgetFormText = ['WidgetEditorForm.tsx', 'WidgetEditorFormContent.tsx'].map(file => readFileSync(resolve(root, 'src', 'components', 'StoryboardWidget', file), 'utf8')).join('\n')
   const cardMediaPreviewText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'CardMediaPreview.tsx'), 'utf8')
   const mediaSurfaceSelectionText = readFileSync(resolve(root, 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts'), 'utf8')
   const zoomPanViewportText = readFileSync(resolve(root, 'src', 'features', 'panels', 'views', 'preview-panel', 'ui', 'ZoomPanViewport.tsx'), 'utf8')
@@ -435,13 +435,13 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   }
   if (
     !componentText.includes('const inlineSrcDocEmbeddedSurfaceStyle = React.useMemo')
-    || !componentText.includes('const inlineSrcDocEmbeddedSurfaceHeight = inlineSrcDocPanelContentHeight > 0')
+    || !componentText.includes('const inlineSrcDocPanelContentHeightCss = inlineSrcDocPanelContentHeight > 0')
     || !componentText.includes('data-kg-rich-media-embedded-preview="1"')
-    || !componentText.includes('CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME')
-    || !componentText.includes('CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE')
+    || !componentText.includes('CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME')
+    || componentText.includes('CARD_MARKDOWN_PREVIEW_CODE_SURFACE_INSET_CSS_VALUE') || componentText.includes('CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME')
     || !componentText.includes("boxSizing: 'border-box'")
   ) {
-    throw new Error('expected RichMediaPanel inline srcdoc/chart surfaces to reuse the shared code-like Card media chrome')
+    throw new Error('expected RichMediaPanel inline srcdoc surfaces to reuse the bounded Card media shell without legacy code-surface padding')
   }
   if (!componentText.includes('borderRadius: 0')) {
     throw new Error('expected inline srcdoc Rich Media Panel iframe to avoid a nested rounded frame')
@@ -1097,11 +1097,11 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
     'onHeaderDragStart={richMediaPanelMoveEnabled ?',
     'onHeaderDrag={richMediaPanelMoveEnabled ?',
     'onHeaderDragEnd={richMediaPanelMoveEnabled ?',
-    'const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === \'flowCanvas\')',
+    'const resizeHandleVisible = resizeInteractionActive',
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',
-    "if (storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas') return",
+    'if (mediaOverlayDragInteractionMode) return',
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {

@@ -208,14 +208,9 @@ export function resolveRichMediaThumbnailUrl(item: Pick<CommandMenuRichMediaItem
 function getRichMediaItemDedupKey(item: CommandMenuRichMediaItem): string {
   if (item.kind === 'mermaid') return ''
   const url = canonicalMediaDedupUrl(item.openUrl || item.src || '')
-  if (item.source === 'graph' && item.nodeId) {
-    if (url) return `graph-node:${item.nodeId}:url:${url}`
-    const srcDoc = String(item.srcDoc || '').trim()
-    return srcDoc ? `graph-node:${item.nodeId}:srcdoc:${item.kind}:${srcDoc}` : ''
-  }
-  if (url) return `url:${url}`
+  if (url) return `${item.kind}:url:${url}`
   const srcDoc = String(item.srcDoc || '').trim()
-  return srcDoc ? `srcdoc:${item.kind}:${srcDoc}` : ''
+  return srcDoc ? `${item.kind}:srcdoc:${srcDoc}` : ''
 }
 
 function scoreRichMediaItemForDedup(item: CommandMenuRichMediaItem): number {

@@ -1,4 +1,4 @@
-import { filterGraphByExcludedNodeIds } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { filterGraphByExcludedNodeIds } from '@/lib/graph/filterByNodeIds'
 import { getCanvas2dSurfaceId, isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'
 import { buildCanonicalNodeIdSet, canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'

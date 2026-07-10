@@ -43,6 +43,7 @@
 // Node tests and the Cloudflare Worker bundle.
 
 import { cleanString } from "./helpers.js";
+import { resolveShotRenderPrompt } from "./expressive-storyboard.js";
 import { RENDER_GATE_ID, verifyRenderToken } from "./render-token.js";
 import { buildApprovalRejectionError } from "./approval-rejection.js";
 import {
@@ -131,7 +132,7 @@ function normalizeShot(shot, index) {
     if (!shotId) {
       throw new RenderHarnessInputError(`shots[${index}].shotId`, "each shot requires a non-empty shotId");
     }
-    return { shotId, prompt: cleanString(shot.prompt), raw: shot };
+    return { shotId, prompt: resolveShotRenderPrompt(shot), imagePrompt: cleanString(shot.imagePrompt), primaryReference: shot.primaryReference || null, firstFrameReferences: Array.isArray(shot.firstFrameReferences) ? shot.firstFrameReferences : [], raw: shot };
   }
   throw new RenderHarnessInputError(`shots[${index}]`, "each shot must be a string id or an object with a shotId");
 }

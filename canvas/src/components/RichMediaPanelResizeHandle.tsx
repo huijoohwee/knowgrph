@@ -19,6 +19,7 @@ export function beginRichMediaPanelResizeDrag(
   const pointerId = native.pointerId
   const x0 = native.clientX
   const y0 = native.clientY
+  const dragTarget = event.currentTarget.closest('[data-kg-rich-media-panel="1"]') || event.currentTarget
   try {
     args.onBeforeStart?.(native)
   } catch {
@@ -38,10 +39,11 @@ export function beginRichMediaPanelResizeDrag(
   startPointerDrag({
     ev: native,
     cursor: 'nwse-resize',
+    target: dragTarget,
     onMove: nextEvent => {
       try {
         args.onResize?.({
-          pointerId: nextEvent.pointerId,
+          pointerId,
           clientX: nextEvent.clientX,
           clientY: nextEvent.clientY,
           dx: nextEvent.clientX - x0,
@@ -54,7 +56,7 @@ export function beginRichMediaPanelResizeDrag(
     onEnd: nextEvent => {
       try {
         args.onResizeEnd?.({
-          pointerId: nextEvent.pointerId,
+          pointerId,
           clientX: nextEvent.clientX,
           clientY: nextEvent.clientY,
         })
@@ -65,7 +67,7 @@ export function beginRichMediaPanelResizeDrag(
     onCancel: nextEvent => {
       try {
         args.onResizeEnd?.({
-          pointerId: nextEvent.pointerId,
+          pointerId,
           clientX: nextEvent.clientX,
           clientY: nextEvent.clientY,
         })

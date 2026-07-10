@@ -1,6 +1,7 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
+  ["flow.widget.richMediaPanel.textMode.readEditSurfaceParity","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelReadAndEditableTextReuseOneCardSurface"],
   ["graph.selectionZoom.edgeSelectionSubset","@/__tests__/selectionZoom.test","testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors"],
   ["graph.selectionZoom.noSelectionSubset","@/__tests__/selectionZoom.test","testSelectionZoomNoSelectionReturnsEmptySubset"],
   ["zoom.scaleExtentPolicy.toolbarZoomIn.expandsMax","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyExpandsMaxForToolbarZoomIn"],
@@ -253,12 +254,13 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["mediaOverlayPool.deduplicatesByKindAndUrl","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesByKindAndUrl"],
   ["mediaOverlayPool.deduplicatesProxyWrappedUrlsToCanonicalWidgetVersion","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSingleCanonicalWidgetVersion"],
   ["mediaOverlayPool.appliesConnectedTextToRichMediaPanelShellBeforeSpecSelection","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolAppliesConnectedTextToRichMediaPanelShellBeforeSpecSelection"],
-  ["mediaOverlayPool.richMediaPanel.prefersFunctionalPanelOverEmptyShell","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolSuppressesEmptyRichMediaShellWhenFunctionalPanelExists"],
-  ["mediaOverlayPool.richMediaPanel.deduplicatesMultipleEmptyShells","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShellsToSingleCanonicalShell"],
+  ["mediaOverlayPool.richMediaPanel.preservesEmptyShellBesideFunctionalPanel","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolPreservesEmptyRichMediaShellBesideFunctionalPanel"],
+  ["mediaOverlayPool.richMediaPanel.preservesDistinctEmptyShells","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolPreservesDistinctEmptyRichMediaShells"],
   ["mediaOverlayPool.richMediaPanel.keepsExplicitEmptyImageTab","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolKeepsExplicitEmptyImagePanelAsImageOverlay"],
   ["mediaOverlayPool.richMediaPanel.keepsExplicitEmptyVideoTab","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolKeepsExplicitEmptyVideoPanelAsVideoOverlay"],
   ["mediaOverlayPool.richMediaPanel.preservesUntouchedVariantsAcrossConnectedOverrides","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolPreservesUntouchedRichMediaVariantsAcrossConnectedChannelOverrides"],
   ["mediaOverlayLayout2d.fallbackWhenPosMissing","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing"],
+  ["mediaOverlayLayout2d.worldProjection.cardChromeMetrics","@/__tests__/mediaOverlayWorldProjectionChrome.test","testMediaOverlayWorldProjectionKeepsUnscaledCardChromeMetrics"],
   ["mediaOverlayLayout2d.infiniteCanvas.noViewportBounce","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscreenPositions"],
   ["mediaOverlayLayout2d.frontmatter.visibleMarginReseed","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverlapsInsideVisibleMargins"],
   ["mediaOverlayLayout2d.frontmatter.missingCenterFallback","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontmatterMissingCenters"],

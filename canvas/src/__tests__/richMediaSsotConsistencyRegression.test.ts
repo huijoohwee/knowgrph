@@ -280,7 +280,8 @@ export function testRichMediaSsotConsistencyRegression() {
   const markdownWorkspaceViewShellText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceViewShell.tsx'), 'utf8')
   const workspaceUrlContentText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'workspaceImport', 'urlContent.ts'), 'utf8')
   const markdownWorkspaceWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'presentation', 'MarkdownWorkspaceWebpageSurface.tsx'), 'utf8')
-  const richMediaPanelContentStackText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelContentStack.tsx'), 'utf8')
+  const richMediaPanelContentSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelContentSurface.tsx'), 'utf8')
+  const richMediaPanelSurfaceVariantText = readFileSync(resolve(process.cwd(), 'src', 'components', 'richMediaPanelSurfaceVariant.ts'), 'utf8')
   const richMediaPanelIframeSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelIframeSurface.tsx'), 'utf8')
   const richMediaPanelDirectMediaSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelDirectMediaSurface.tsx'), 'utf8')
   const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
@@ -560,9 +561,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (markdownWorkspaceWebpageSurfaceText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")) {
     throw new Error('expected markdown workspace webpage surfaces to stop rendering snapshot previews directly after shared-surface extraction')
   }
-  if (!richMediaPanelContentStackText.includes('RichMediaPanelIframeSurface') || !richMediaPanelContentStackText.includes('RichMediaPanelDirectMediaSurface')) {
-    throw new Error('expected RichMediaPanel content stack to delegate iframe/webpage rendering through dedicated shared-surface seams')
-  }
+  if (!richMediaPanelContentSurfaceText.includes('resolveRichMediaPanelSurfaceVariant') || !richMediaPanelContentSurfaceText.includes("variant === 'iframe'") || !richMediaPanelContentSurfaceText.includes("variant === 'directMedia'")) throw new Error('expected RichMediaPanel content surface to route iframe/webpage rendering through one neutral variant resolver')
+  if (!richMediaPanelSurfaceVariantText.includes('export function resolveRichMediaPanelSurfaceVariant') || !richMediaPanelSurfaceVariantText.includes("return 'iframe'") || !richMediaPanelSurfaceVariantText.includes("return 'directMedia'")) throw new Error('expected RichMediaPanel surface variant resolver to own iframe/direct media selection')
   if (
     !richMediaPanelIframeSurfaceText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")
     || !richMediaPanelDirectMediaSurfaceText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")

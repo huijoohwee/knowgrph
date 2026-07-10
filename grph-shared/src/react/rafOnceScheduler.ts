@@ -1,3 +1,5 @@
+import { resolveRafRuntime } from './rafRuntime.js'
+
 export type RafOnceScheduler = {
   schedule: () => void
   cancel: () => void
@@ -13,17 +15,13 @@ export function createRafOnceScheduler(onTick: () => void): RafOnceScheduler {
 
   const schedule = () => {
     if (raf != null) return
-    if (typeof window === 'undefined') {
-      flush()
-      return
-    }
-    raf = window.requestAnimationFrame(flush)
+    raf = resolveRafRuntime().request(flush)
   }
 
   const cancel = () => {
     if (raf == null) return
     try {
-      window.cancelAnimationFrame(raf)
+      resolveRafRuntime().cancel(raf)
     } catch {
       void 0
     }
@@ -32,4 +30,3 @@ export function createRafOnceScheduler(onTick: () => void): RafOnceScheduler {
 
   return { schedule, cancel }
 }
-

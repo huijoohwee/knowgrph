@@ -43,6 +43,11 @@ describes the deployed `Dev -> Prod -> Cloudflare` chain, the Cloudflare Pages a
 ownership model, the D1-backed storage surface, the payment Worker boundary, and the live DNS-AID
 records under `airvio.co`.
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+
 **Governing lenses**: min-viable-max-value, TCO-zero, FOSS-first, token economics, and
 harness-first. This document has no AI harness in its own runtime path; token cost is therefore
 `$0` for the Cloudflare surfaces described here.

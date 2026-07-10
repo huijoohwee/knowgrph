@@ -60,3 +60,18 @@ export function testStoryboardOverlayEdgeRendererUsesMeasuredFallbackAnchorHelpe
     throw new Error('forbid viewport-margin clamping for measured Storyboard overlay edge endpoints')
   }
 }
+
+export function testStoryboardOverlayEdgeRefreshesGeometryDuringGraphMutationLock() {
+  const overlayEdges = readFileSync(
+    resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlayEdges.ts'),
+    'utf8',
+  )
+  if (!overlayEdges.includes('const graphMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())')
+    || !overlayEdges.includes("pushOverlayEdgeTrace('schedule-graph-mutation-lock-stable-geometry'")) {
+    throw new Error('expected graph mutation locks to preserve stable topology while Storyboard edge geometry refreshes')
+  }
+  if (overlayEdges.includes("pushOverlayEdgeTrace('schedule-skip-graph-mutation-lock'")
+    || overlayEdges.includes("pushOverlayEdgeTrace('raf-skip-graph-mutation-lock'")) {
+    throw new Error('forbid graph mutation locks from freezing Storyboard edge geometry during zoom')
+  }
+}

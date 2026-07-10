@@ -22,7 +22,7 @@ function readRichMediaPanelSourceBundle(): string {
     'RichMediaPanel.types.ts',
     'RichMediaPanelSurface.tsx',
     'RichMediaPanelShell.tsx',
-    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelContentSurface.tsx', 'richMediaPanelSurfaceVariant.ts',
     'RichMediaPanelTextSurface.tsx',
     'RichMediaPanelIframeSurface.tsx',
     'RichMediaPanelDirectMediaSurface.tsx',
@@ -54,6 +54,7 @@ export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
 export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   const surfaceStateText = readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8')
   const shellText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelShell.tsx'), 'utf8')
+  const resizeHandleText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelResizeHandle.tsx'), 'utf8')
   const typesText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.types.ts'), 'utf8')
   if (!surfaceStateText.includes("'kg-mediaBody'")) {
     throw new Error('expected shared Rich Media Panel to keep a dedicated panel frame render surface')
@@ -66,6 +67,13 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   }
   if (!shellText.includes('<RichMediaPanelResizeHandle placement="root" onPointerDown={model.onResizePointerDown} />')) {
     throw new Error('expected shared Rich Media Panel resize handle to stay mounted at the root frame owner')
+  }
+  if (!resizeHandleText.includes("event.currentTarget.closest('[data-kg-rich-media-panel=\"1\"]')")
+    || !resizeHandleText.includes('target: dragTarget')) {
+    throw new Error('expected shared Rich Media Panel resize drag to capture the stable semantic root across selection rerenders')
+  }
+  if (resizeHandleText.includes('pointerId: nextEvent.pointerId')) {
+    throw new Error('expected shared Rich Media Panel resize drag to preserve the pointer-down id across mouse fallback events')
   }
   if (typesText.includes('showHeader?: boolean') || shellText.includes('data-kg-media-panel-header="1"')) {
     throw new Error('expected shared Rich Media Panel to remove the legacy headered variant while using the current Storyboard Widget chrome contract')
@@ -133,13 +141,19 @@ export function testRichMediaPanelStoryboardWidgetChromeMaintainsContentAspectAc
   if (chromePanelEl.style.display !== 'flex') {
     throw new Error(`expected imperative overlay sizing to preserve Storyboard Widget rich-media flex frame, got display=${chromePanelEl.style.display}`)
   }
+  chromePanelEl.style.width = '100px'
+  applyPanelBox(chromePanelEl, { left: 0, top: 0, w: 226, h: 163, display: 'block' })
+  if (chromePanelEl.style.width !== '226px') {
+    throw new Error(`expected shared panel-box cache to repair external size drift, got width=${chromePanelEl.style.width}`)
+  }
 
   const chromePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
   const chromeText = readFileSync(chromePath, 'utf8')
   for (const snippet of [
     "height: 'var(--kg-media-panel-header-h, 28px)'",
     "flex: '0 0 var(--kg-media-panel-header-h, 28px)'",
-    "fontSize: 'var(--kg-media-panel-title-size, 12px)'",
+    'STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME',
+    'text-[12px] font-semibold leading-4',
     'richMediaActionStyle',
     'richMediaIconStyle',
   ]) {
@@ -302,14 +316,16 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     throw new Error('expected Storyboard Widget Rich Media Panel body to avoid owning the fixed resize height')
   }
   const placementRuntimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
-  const placementRuntimeText = readFileSync(placementRuntimePath, 'utf8')
+  const placementProjectionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeProjection.ts')
+  const placementRuntimeText = [placementRuntimePath, placementProjectionPath]
+    .map(path => readFileSync(path, 'utf8'))
+    .join('\n')
   const richMediaPanelText = readRichMediaPanelSourceBundle()
   const mediaSurfaceSelectionPath = resolve(process.cwd(), 'src', 'lib', 'cards', 'mediaPreviewSurfaceSelection.ts')
   const mediaSurfaceSelectionText = readFileSync(mediaSurfaceSelectionPath, 'utf8')
   for (const snippet of [
     "position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative')",
     "'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined",
-    'interactive={false}',
     'const directMediaPreviewSelectionProps = React.useMemo',
     'const directMediaPreviewCardProps = React.useMemo',
     'resolveMediaPreviewSurfaceSelectionProps({',
@@ -322,10 +338,13 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     'className="relative h-full w-full overflow-hidden"',
     'model.directVideoFallbackSrcDoc',
     'transparentBackground',
-    "videoControls={model.kind === 'video' ? props.videoControls === true : false}",
-    "videoMuted={model.kind === 'video' ? props.videoControls !== true : undefined}",
-    "videoAutoPlay={model.kind === 'video' ? props.videoControls !== true : undefined}",
-    "videoLoop={model.kind === 'video' ? props.videoControls !== true : undefined}",
+    "const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)",
+    "const directVideoPassivePlayback = model.kind === 'video' && !directVideoControls",
+    'interactive={model.contentInteractive}',
+    'videoControls={directVideoControls}',
+    'videoMuted={directVideoPassivePlayback ? true : undefined}',
+    'videoAutoPlay={directVideoPassivePlayback ? true : undefined}',
+    'videoLoop={directVideoPassivePlayback ? true : undefined}',
     "pointerEvents: props.videoControls === true ? 'auto' : 'none'",
     'shouldUseDirectRichMediaPanelSrcDocSandbox(model.directVideoFallbackSrcDoc) ? resolveIframeSandbox(\'direct\') : undefined',
     'shouldUseDirectRichMediaPanelSrcDocSandbox(model.normalizedInlineSrcDoc) ? resolveIframeSandbox(\'direct\') : undefined',
@@ -474,55 +493,62 @@ export function testRichMediaPanelResizeWiredAcross2dRendererOwners() {
 }
 
 export function testSharedRichMediaPanelUsesNativeSkeletonLoadingSsot() {
-  const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('CardMediaLoadingSkeleton')) {
+  const componentText = [
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelContentSurface.tsx'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelTextSurface.tsx'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'richMediaPanelSurfaceVariant.ts'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8'),
+  ].join('\n')
+  if (!componentText.includes('CardMediaLoadingSkeleton')) {
     throw new Error('expected shared Rich Media Panel to reuse the shared CardMediaLoadingSkeleton owner')
   }
-  if (text.includes('function RichMediaLoadingSkeleton(') || text.includes('kgRichMediaSkeletonShimmer')) {
+  if (componentText.includes('function RichMediaLoadingSkeleton(') || componentText.includes('kgRichMediaSkeletonShimmer')) {
     throw new Error('expected shared Rich Media Panel to avoid duplicate local loading skeleton implementations')
   }
-  if (!text.includes('richMediaDataAttrs')) {
+  if (!componentText.includes('richMediaDataAttrs')) {
     throw new Error('expected shared Rich Media Panel to request rich-media data attributes from shared card surfaces')
   }
-  if (!text.includes('<CardMediaLoadingSkeleton')) {
+  if (!componentText.includes('<CardMediaLoadingSkeleton')) {
     throw new Error('expected shared Rich Media Panel loading branch to reuse the shared Card skeleton component')
   }
-  if (!text.includes("transition: 'opacity 180ms ease-out'")) {
+  if (!componentText.includes("transition: 'opacity 180ms ease-out'")) {
     throw new Error('expected shared Rich Media Panel surface to fade into revealed content after loading')
   }
-  if (!text.includes('const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading')) {
+  if (!componentText.includes('const shouldHideSurfaceUntilReady = mediaState.hideUntilReady && !mediaState.ready && !isEmptyPanel && !panelIsLoading')) {
     throw new Error('expected shared Rich Media Panel to keep loading skeletons visible even when media-ready gating is active')
   }
-  const loadingBranchIndex = text.indexOf(') : panelIsLoading ? (')
-  const emptyBranchIndex = text.indexOf(') : isEmptyPanel ? (')
+  const loadingBranchIndex = componentText.indexOf('if (model.panelIsLoading) {')
+  const emptyBranchIndex = componentText.indexOf('if (model.isEmptyPanel) {')
   if (loadingBranchIndex < 0 || emptyBranchIndex < 0 || loadingBranchIndex > emptyBranchIndex) {
     throw new Error('expected shared Rich Media Panel to render loading skeleton before empty placeholder so progress remains visible')
   }
 }
 
 export function testSharedRichMediaPanelUsesNativeEmptyCardPlaceholderSsot() {
-  const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('CardMediaEmptyPlaceholder')) {
+  const componentText = [
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelTextSurface.tsx'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts'), 'utf8'),
+  ].join('\n')
+  if (!componentText.includes('CardMediaEmptyPlaceholder')) {
     throw new Error('expected shared Rich Media Panel to reuse the shared CardMediaEmptyPlaceholder owner')
   }
-  if (text.includes('function RichMediaEmptyCardPlaceholder({')) {
+  if (componentText.includes('function RichMediaEmptyCardPlaceholder({')) {
     throw new Error('expected shared Rich Media Panel to avoid duplicate local empty-card placeholder implementations')
   }
-  if (!text.includes('richMediaDataAttrs')) {
+  if (!componentText.includes('richMediaDataAttrs')) {
     throw new Error('expected shared Rich Media Panel to request rich-media data attributes from shared empty card surfaces')
   }
-  if (!text.includes('const expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant =')) {
+  if (!componentText.includes('const expectedEmptyPlaceholderVariant: CardMediaPlaceholderVariant =')) {
     throw new Error('expected shared Rich Media Panel to compute an expected target-mode variant for the empty card placeholder')
   }
-  if (!text.includes('<CardMediaEmptyPlaceholder variant={expectedEmptyPlaceholderVariant} richMediaDataAttrs />')) {
+  if (!componentText.includes('<CardMediaEmptyPlaceholder') || !componentText.includes('variant={model.expectedEmptyPlaceholderVariant}') || !componentText.includes('richMediaDataAttrs')) {
     throw new Error('expected shared Rich Media Panel no-content branch to reuse the shared mode-aware empty card placeholder')
   }
-  if (!text.includes('const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading')) {
+  if (!componentText.includes('const shouldHideSurfaceUntilReady = mediaState.hideUntilReady && !mediaState.ready && !isEmptyPanel && !panelIsLoading')) {
     throw new Error('expected shared Rich Media Panel to keep empty card placeholders visible even when media-ready gating is active')
   }
-  if (text.includes('Connect media to render')) {
+  if (componentText.includes('Connect media to render')) {
     throw new Error('expected shared Rich Media Panel to remove the legacy plain-text empty state')
   }
 }

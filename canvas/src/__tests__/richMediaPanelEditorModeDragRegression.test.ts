@@ -13,7 +13,7 @@ function readRichMediaPanelSourceBundle(): string {
     'RichMediaPanel.types.ts',
     'RichMediaPanelSurface.tsx',
     'RichMediaPanelShell.tsx',
-    'RichMediaPanelContentStack.tsx',
+    'RichMediaPanelContentSurface.tsx', 'richMediaPanelSurfaceVariant.ts',
     'RichMediaPanelTextSurface.tsx',
     'RichMediaPanelIframeSurface.tsx',
     'RichMediaPanelDirectMediaSurface.tsx',
@@ -294,7 +294,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   const panelText = readRichMediaPanelSourceBundle()
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
-  const overlayEditorFormText = readFileSync(overlayEditorFormPath, 'utf8')
+  const overlayEditorFormText = [overlayEditorFormPath, resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')].map(path => readFileSync(path, 'utf8')).join('\n')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
   const toolbarHookText = readFileSync(toolbarHookPath, 'utf8')
   const sharedToolbarPropsText = readFileSync(sharedToolbarPropsPath, 'utf8')
@@ -353,7 +353,6 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   }
   for (const snippet of [
     "showPinToggle={typeof props.onHeaderTogglePinned === 'function'}",
-    "showValidate={typeof props.onHeaderValidate === 'function'}",
     "showMinimizeToggle={typeof props.onHeaderToggleMinimized === 'function'}",
     'onHeaderPointerDown={model.handleRootPointerDownCapture}',
     'onHeaderMouseDown={model.handleRootMouseDownCapture}',
@@ -454,7 +453,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     'fy: finalPoint.y,',
     'x: finalPoint.x,',
     'y: finalPoint.y,',
-    'getNodeWorldTopLeftForId: storyboardSharedSurfaceRendererMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id)',
+    'getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id)',
     "const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')",
     'isCanonicalNodeIdEqual(selectedNodeId, node.id)',
     'isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)',
@@ -520,19 +519,19 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     'commitTogglePinned()',
     'toggleFlowWidgetPinnedById(currentPinnedById, nodeId)',
     'st.setFlowWidgetPinnedByNodeIdForGraph(args.flowWidgetStateGraphKey, nextPinnedById)',
-    'args.onPinnedChange?.(readFlowWidgetPinnedInCanvas(nextPinnedById, nodeId))',
+    'args.onBeforePinnedChange?.(nextPinned)',
+    'args.onPinnedChange?.(nextPinned)',
     'onPinnedChange: () => {',
     'args.scheduleLayout()',
     'args.requestCommit()',
 	    'widgetToolbarActive: args.isSelected',
-	    'onHeaderValidate: activate',
     'onHeaderTogglePinned: togglePinned',
-    'onHeaderToggleMinimized: toggleSize',
   ]) {
     if (!flowCanvasHeaderToolbarText.includes(snippet)) {
       throw new Error(`expected Storyboard Rich Media panels to reuse Storyboard Widget header-toolbar controls through the shared helper: ${snippet}`)
     }
   }
+  if (flowCanvasHeaderToolbarText.includes('toggleSize') || flowCanvasHeaderToolbarText.includes('onHeaderToggleMinimized')) throw new Error('expected Storyboard Rich Media headers to remove the stale compact-size variant and reuse the shared Card frame size')
   if (flowCanvasHeaderToolbarText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedById, [nodeId]: !pinned })')) {
     throw new Error('expected Storyboard Rich Media pin toggles to write through explicit graph-scoped widget state')
   }

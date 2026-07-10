@@ -274,23 +274,22 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   const overlayInteractions = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d.ts'), 'utf8')
   const headerInteractiveTarget = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget.ts'), 'utf8')
   const panelChrome = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetPanelChrome.tsx'), 'utf8')
+  const panelChromeClassName = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidget/storyboardWidgetPanelChromeClassName.ts'), 'utf8')
   const metaRail = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail.tsx'), 'utf8')
+  const cardTextSurfaceFrame = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/cardTextSurfaceFrame.ts'), 'utf8')
   for (const snippet of [
     'data-kg-storyboard-card-title-row="1"',
     'ariaLabel={`Storyboard title for ${card.id}`}',
     'editorSurface="viewer"',
     'data-kg-storyboard-card-pixel-snap="1"',
     'data-kg-storyboard-card-vector-zoom="1"',
-    'rounded-md shadow-md',
     'snapToDevicePixels: true',
     "import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'",
     "import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'",
     'const currentTransform = getTransform()',
     'shouldFreezeProjectionForFlowPortHandleDrag()',
     'const transformScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1',
-    'const paintScale = fixedLayoutEnabled ? 1 : transformScale',
-    'if (fixedLayoutEnabled && previous)',
-    'return { left: previous.left, top: previous.top, scale: previous.scale }',
+    'const paintScale = transformScale',
     'const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())',
     'projectVectorPaintedOverlayZoomBox({',
     'transform: currentTransform',
@@ -300,10 +299,11 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'top: box.top',
     'scale: box.scale',
     'emitStoryboardWidgetInteractionFrame()',
-    'min-w-0 flex-1 truncate text-[12px]',
+    'STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME',
     'grid-cols-[minmax(0,1fr)_minmax(6.25rem,36%)]',
     'data-kg-storyboard-card-body-layout="brief-media"',
-    'rounded border bg-[color:var(--kg-panel-bg)]/70 p-1.5',
+    'CARD_TEXT_SURFACE_COLUMN_CLASS_NAME',
+    'CARD_TEXT_SURFACE_SCROLL_CLASS_NAME',
     'data-kg-storyboard-card-brief="1"',
     'data-kg-storyboard-card-summary-scroll="1"',
     'data-kg-canvas-wheel-ignore="true"',
@@ -315,10 +315,9 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'ariaLabel={`${textModel.primaryField.label} for ${card.id}`}',
     'placeholder={textModel.primaryField.placeholder}',
     'onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}',
-    "displayClassName={cn('m-0 h-full min-h-0 select-none overflow-auto",
-    'whitespace-pre-wrap break-words',
-    "editorClassName={cn('h-full min-h-[3rem] overflow-auto",
-    'STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME',
+    'CARD_TEXT_SURFACE_VIEW_CLASS_NAME',
+    'CARD_TEXT_SURFACE_EDIT_CLASS_NAME',
+    'CARD_TEXT_SURFACE_TEXT_CLASS_NAME',
     'mediaCommandMode="external"',
     'inlineChipDensity="compact"',
     'showCommandLaunchers={false}',
@@ -367,6 +366,8 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(runtime.includes('runWorkflowNode={runWorkflowNode}'), 'expected Storyboard runtime to thread fixed card Run through the shared workflow runner')
   assert(!source.includes('grid-rows-[auto_minmax(0,1fr)_auto]'), 'expected Storyboard card text column not to reserve a blank middle row that hides useful card copy')
   assert(!source.includes('translate3d(${box.left}px, ${box.top}px, 0) scale(${box.scale})'), 'expected Storyboard card projection not to scale a composited transform texture at max zoom')
+  assert(!source.includes('const paintScale = fixedLayoutEnabled ? 1 : transformScale'), 'expected fixed Storyboard cards to follow the shared camera scale instead of remaining screen-fixed')
+  assert(!source.includes('if (fixedLayoutEnabled && previous)'), 'expected fixed Storyboard cards not to freeze their previous screen box during camera updates')
   assert(!source.includes("willChange: 'transform'"), 'expected Storyboard card projection not to request transform raster compositing')
   assert(!source.includes("backfaceVisibility: 'hidden'"), 'expected Storyboard card projection not to force a transformed compositor layer')
   assert(mediaResponsiveCss.includes("[data-kg-card-inline-chip-density='compact'] .kg-inline-chip-shell-15ch") && mediaResponsiveCss.includes('line-height: inherit') && mediaResponsiveCss.includes('padding-block: 0'), 'expected compact Card inline chip density to inherit Storyboard summary text metrics')
@@ -375,15 +376,20 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(inlineDisplaySurface.includes('inlineChipDensity={props.inlineChipDensity}'), 'expected CardInlineTextDisplaySurface to thread compact density into CardMarkdownPreview')
   assert(cardMarkdownPreview.includes("inlineChipDensity?: 'regular' | 'compact'") && cardMarkdownPreview.includes("[font-size:inherit] [line-height:inherit]") && cardMarkdownPreview.includes('data-kg-card-inline-chip-density'), 'expected CardMarkdownPreview compact mode to inherit card typography instead of hardcoding text-xs leading-5')
   assert(inlineEditingSurface.includes("inlineChipDensity === 'compact' ? editorClassName"), 'expected compact Viewer card editor to avoid appending DataView control padding and text sizing')
-  assert(source.includes("const STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME = 'text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]'"), 'expected Storyboard summary view and edit surfaces to share one typography owner')
+  assert(cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_COLUMN_CLASS_NAME") && cardTextSurfaceFrame.includes('rounded border bg-[color:var(--kg-panel-bg)]/70 p-1.5'), 'expected shared Card text frame to own the readable bordered surface chrome')
+  assert(cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") && cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]'), 'expected shared Card text frame to own summary typography')
+  assert(cardTextSurfaceFrame.includes("'h-full min-h-0'") && !cardTextSurfaceFrame.includes("'min-h-full min-h-[3rem]'"), 'expected shared Card edit surface to fill the read frame without competing minimum heights')
+  assert(panelChromeClassName.includes('rounded-md border shadow-md flex flex-col relative'), 'expected the shared Storyboard Widget chrome owner to align Card and Rich Media frame styling')
+  assert(!source.includes('overflow-visible rounded-md shadow-md'), 'expected Storyboard Card to avoid a downstream frame-style override')
+  assert(source.includes("from '@/lib/cards/cardTextSurfaceFrame'"), 'expected Storyboard Card summary to consume the shared Card text frame owner')
   assert(!source.includes('editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)]'), 'expected Storyboard summary edit mode not to mutate text tone from the read surface')
   assert(source.includes('nextValue,\n      preserveFormatting: true,'), 'expected Storyboard summary commits to preserve raw Viewer WYSIWYG text and spacing on graph writeback')
   assert(!source.includes('nextValue: readStoryboardCardSummaryText(nextValue)'), 'expected Storyboard summary commits not to reuse read-only display projection for graph writeback')
   assert(!source.includes('<p className="m-0 max-h-[2.625rem]'), 'expected Storyboard card body not to render widget text through a local paragraph surface')
   assert(!source.includes('textModel.secondaryDisplay || card.prompt'), 'expected Text Widget seed prompt not to duplicate below the shared summary Viewer')
   assert(!source.includes('editorClassName="min-w-[8rem] rounded border bg-[color:var(--kg-input-bg)]'), 'expected Storyboard title edit mode not to reuse local bordered input chrome')
-  assert(inlineEditorSupport.includes("multiline && !/\\boverflow-auto\\b/.test(className)"), 'expected scrollable multiline card display to keep caller-owned wrapping classes')
-  assert(inlineEditor.includes("displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto')"), 'expected scrollable multiline card display to avoid density-owned truncation')
+  assert(inlineEditorSupport.includes("displayLineClamp?: 'density' | 'none'"), 'expected shared Card surface to expose an explicit density-clamp policy')
+  assert(inlineEditor.includes("displayLineClamp === 'density'") && source.includes('displayLineClamp="none"'), 'expected full Storyboard Card surfaces to preserve caller-owned wrapping without Data View truncation')
   assert(overlayProxy.includes('[data-kg-canvas-pointer-ignore="true"]'), 'expected Storyboard overlay proxy to treat pointer-ignore scroll surfaces as interactive controls')
   assert(overlayProxy.includes('[data-kg-media-scroll-surface="1"]'), 'expected Storyboard overlay proxy to treat inner scroll surfaces as interactive controls')
   assert(overlayInteractions.includes('shouldStoryboardWidgetHeaderYieldToInteractiveTarget'), 'expected fixed Storyboard card header drag to reuse the shared header interactive target guard')
@@ -411,10 +417,13 @@ export function testStoryboardCardOverlayProjectionSnapsToDevicePixels() {
 
 export function testStoryboardCardOverlayLayoutKeepsSharedAspectRatioSizing() {
   const card = { id: 'card-1', type: 'StoryboardFrame', label: 'Frame', properties: {} }
+  const compactCard = { ...card, id: 'card-compact', properties: { 'visual:width': 284, 'visual:height': 160 } }
   const wide = readStoryboardCardSize2d(card, '16:9')
   const vertical = readStoryboardCardSize2d(card, '9:16')
+  const compact = readStoryboardCardSize2d(compactCard, '16:9')
   assert(wide.width > wide.height, `expected 16:9 storyboard card size to stay landscape, got ${JSON.stringify(wide)}`)
   assert(vertical.height > vertical.width, `expected 9:16 storyboard card size to stay vertical, got ${JSON.stringify(vertical)}`)
+  assert(compact.width === 284 && compact.height === 160, `expected explicit sub-default Card size to remain responsive without default-size snap-back, got ${JSON.stringify(compact)}`)
 }
 
 export function testStoryboardCardInvocationChipsReuseSharedInvocationRenderer() {

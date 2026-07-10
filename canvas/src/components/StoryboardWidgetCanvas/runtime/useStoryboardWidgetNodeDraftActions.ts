@@ -25,6 +25,7 @@ import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidg
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import {
   isCanonicalNodeIdEqual,
+  resolveGraphDataAndNodeByCanonicalId,
   resolveGraphNodeByCanonicalId,
 } from '@/lib/graph/canonicalNodeIds'
 
@@ -76,6 +77,7 @@ export function useStoryboardWidgetNodeDraftActions(args: {
   active: boolean
   draftGraphData: GraphData | null
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
+  setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
   baseGraphData: GraphData | null
   selectedNodeId: string | null
   selectedEdgeId: string | null
@@ -110,25 +112,36 @@ export function useStoryboardWidgetNodeDraftActions(args: {
     )
   }, [args.baseGraphData, args.draftGraphData, args.draftGraphDataRef])
 
-  const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>) => {
+  const updateNodeById = React.useCallback((nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => {
     const id = String(nodeId || '').trim()
     if (!id) return
-    const draft = (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null
+    const storeGraphData = useGraphStore.getState().graphData as GraphData | null
+    const storeNodeId = String(resolveGraphNodeByCanonicalId(storeGraphData, id)?.id || '').trim()
+    const draft = resolveGraphDataAndNodeByCanonicalId([
+      sourceGraphData,
+      args.draftGraphDataRef.current,
+      args.draftGraphData,
+      args.baseGraphData,
+      storeGraphData,
+    ], id)?.graphData || null
+    let nextDraft: GraphData | null = null
     if (draft && Array.isArray(draft.nodes)) {
       let changed = false
       const nodes = draft.nodes.map(node => {
-        if (String(node.id || '') !== id) return node
+        if (!isCanonicalNodeIdEqual(node.id, id)) return node
         changed = true
         return { ...node, ...patch }
       })
       if (changed) {
-        args.draftGraphDataRef.current = bumpStoryboardWidgetDraftGraphDataRevision(
+        nextDraft = bumpStoryboardWidgetDraftGraphDataRevision(
           normalizeGraphData({ ...draft, nodes }),
           { revisionFloor: readDraftMutationRevisionFloor() },
         )
+        args.draftGraphDataRef.current = nextDraft
       }
     }
-    args.updateNode(id, patch)
+    args.updateNode(storeNodeId || id, patch)
+    if (nextDraft) args.setDraftGraphData(nextDraft)
   }, [args, readDraftMutationRevisionFloor])
 
   const removeNodeById = React.useCallback((nodeId: string) => {
@@ -192,11 +205,17 @@ export function useStoryboardWidgetNodeDraftActions(args: {
     if (args.selectedNodeId) setNodeTypeById(args.selectedNodeId, type)
   }, [args.selectedNodeId, setNodeTypeById])
 
-  const patchNodePropertiesById = React.useCallback((nodeId: string, patch: Record<string, unknown>) => {
+  const patchNodePropertiesById = React.useCallback((nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => {
     const id = String(nodeId || '').trim()
     if (!id) return
-    const cur = args.draftGraphDataRef.current || args.draftGraphData || useGraphStore.getState().graphData
-    const node = cur?.nodes?.find(n => String(n.id || '') === id) || null
+    const resolved = resolveGraphDataAndNodeByCanonicalId([
+      sourceGraphData,
+      args.draftGraphDataRef.current,
+      args.draftGraphData,
+      args.baseGraphData,
+      useGraphStore.getState().graphData as GraphData | null,
+    ], id)
+    const node = resolved?.node || null
     if (!node) return
     const prevProps = (node.properties || {}) as Record<string, unknown>
     const nextProps: Record<string, unknown> = { ...prevProps }
@@ -212,7 +231,7 @@ export function useStoryboardWidgetNodeDraftActions(args: {
         const nextValue = nextProps[key]
         return !Object.is(prevValue, nextValue)
       })
-    updateNodeById(id, { properties: nextProps as never })
+    updateNodeById(id, { properties: nextProps as never }, resolved?.graphData || sourceGraphData)
     args.onNodePropertiesCommittedForAutoRun?.(id, changedPropertyKeys)
   }, [args, updateNodeById])
 

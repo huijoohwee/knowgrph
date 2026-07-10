@@ -1,9 +1,7 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
-import {
-  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-} from '@/lib/storyboardWidget/richMediaPanelConfig'
+import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL } from '@/lib/storyboardWidget/richMediaPanelConfig'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
@@ -257,6 +255,7 @@ export function buildRichMediaPanelPreviewSpec(args: {
     hasRenderableUrl: !!String(renderSpec?.url || '').trim(),
     hasInlineSrcDoc: !!String(renderSpec?.srcDoc || rawOutputSrcDoc || '').trim(),
   }) || 'text'
+  const selectedText = String(panel.connectedText || panel.text || '').trim()
   if (selectedTab === 'video' || selectedTab === 'image') {
     const selectedUrl = selectedTab === 'video' ? playableVideoUrl : rawImageUrl
     if (selectedTab === 'video' && !selectedUrl && fallbackSrcDoc.trim()) {
@@ -280,6 +279,7 @@ export function buildRichMediaPanelPreviewSpec(args: {
     const url = String(rawAudioUrl || renderSpec?.url || rawMediaUrl || '').trim()
     return { kind: 'audio', url, openUrl: rawAudioUrl || rawOpenUrl || url, interactive: renderSpec?.interactive !== false }
   }
+  if (selectedTab === 'text' && selectedText) return { kind: 'iframe', url: rawOpenUrl || String(renderSpec?.url || ''), openUrl: rawOpenUrl || String(renderSpec?.url || ''), interactive: false }
   return {
     kind: 'iframe',
     url: rawOpenUrl || String(renderSpec?.url || ''),

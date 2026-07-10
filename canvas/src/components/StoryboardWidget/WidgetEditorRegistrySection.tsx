@@ -12,12 +12,7 @@ import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'
 import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
-import { inferTextGenerationProviderFamily, listVisibleWidgetRegistryPortsForPropsEditor, resolveWidgetRegistryApiDocRef, resolveWidgetRegistryMainPanelLink, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
-import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
-import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { useShallow } from 'zustand/react/shallow'
-import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { listVisibleWidgetRegistryPortsForPropsEditor, resolveWidgetRegistryApiDocRef, resolveWidgetRegistryMainPanelLink } from '@/features/storyboard-widget-manager/registryTemplates'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { applyWidgetFieldValueUpdate, normalizeWidgetFieldSchemaPath, readWidgetFieldValueText } from '@/features/storyboard-widget-manager/widgetFieldMutation'
 import {
@@ -25,22 +20,10 @@ import {
   JsonLikeValueEditor,
   normalizeJsonLikeValueText,
 } from '@/components/StoryboardWidget/WidgetEditorJsonLikeValueEditor'
-
-type RegistryPortRowModel = {
-  port: WidgetRegistryPort
-  rowIndex: number
-  portKey: string
-  isIn: boolean
-  schemaPath: string
-  normalizedSchemaPath: string
-  portValueId: string
-  handlePath: ReturnType<typeof readFlowHandlePath>
-  portKeyLabel: string
-  portSubLabel: string
-  aria: string
-  mainPanelLink: ReturnType<typeof resolveWidgetRegistryMainPanelLink>
-  portValueText: string
-}
+import {
+  type RegistryPortRowModel,
+  useWidgetEditorRegistryEffectiveProperties,
+} from '@/components/StoryboardWidget/useWidgetEditorRegistryEffectiveProperties'
 
 export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegistrySection(props: {
   active: boolean
@@ -98,34 +81,6 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
   }, [properties, registryEntry])
 
   const rows: WidgetEditorKvRow[] = []
-  const globalTextDefaults = useGraphStore(
-    useShallow(s => ({
-      chatProvider: s.chatProvider,
-      chatAuthMode: s.chatAuthMode,
-      chatEndpointUrl: s.chatEndpointUrl,
-      chatModel: s.chatModel,
-      chatTemperature: s.chatTemperature,
-      chatMaxCompletionTokens: s.chatMaxCompletionTokens,
-      chatServiceTier: s.chatServiceTier,
-      chatStream: s.chatStream,
-      chatMessagesJson: s.chatMessagesJson,
-      chatReasoningEffort: s.chatReasoningEffort,
-      chatThinkingType: s.chatThinkingType,
-      chatThinkingJson: s.chatThinkingJson,
-      chatFrequencyPenalty: s.chatFrequencyPenalty,
-      chatPresencePenalty: s.chatPresencePenalty,
-      chatTopP: s.chatTopP,
-      chatLogprobs: s.chatLogprobs,
-      chatTopLogprobs: s.chatTopLogprobs,
-      chatParallelToolCalls: s.chatParallelToolCalls,
-      chatStopJson: s.chatStopJson,
-      chatStreamOptionsJson: s.chatStreamOptionsJson,
-      chatResponseFormatJson: s.chatResponseFormatJson,
-      chatLogitBiasJson: s.chatLogitBiasJson,
-      chatToolsJson: s.chatToolsJson,
-      chatToolChoiceJson: s.chatToolChoiceJson,
-    })),
-  )
 
   const fieldKeyCounts = React.useMemo(() => {
     const counts = new Map<string, number>()
@@ -136,29 +91,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
     return counts
   }, [registryFields])
 
-  const effectiveProperties = React.useMemo(() => {
-    if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-      return resolveEffectiveBytePlusImageWidgetProperties({
-        localProperties: properties,
-      })
-    }
-    if (String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-      return resolveEffectiveBytePlusVideoWidgetProperties({
-        localProperties: properties,
-      })
-    }
-    if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return properties
-    const providerFamily = inferTextGenerationProviderFamily({
-      provider: properties.chatProvider,
-      widgetTypeId: registryEntry.widgetTypeId,
-      formId: registryEntry.formId,
-    })
-    return resolveEffectiveTextGenerationWidgetProperties({
-      providerFamily,
-      localProperties: properties,
-      globalProperties: globalTextDefaults,
-    })
-  }, [globalTextDefaults, properties, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
+  const effectiveProperties = useWidgetEditorRegistryEffectiveProperties({ properties, registryEntry })
 
   const registryFieldSchemaPathSet = React.useMemo(() => {
     const out = new Set<string>()

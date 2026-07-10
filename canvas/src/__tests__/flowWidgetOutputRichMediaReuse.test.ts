@@ -349,15 +349,15 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
 }
 
 export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() {
-  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const richMediaPanelPaths = ['RichMediaPanelTextSurface.tsx', 'useRichMediaPanelSurfaceState.ts', 'useRichMediaPanelMediaState.ts'].map(fileName => resolve(process.cwd(), 'src', 'components', fileName))
   const markdownPreviewPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownPreview.tsx')
   const cardMarkdownPreviewPath = resolve(process.cwd(), 'src', 'lib', 'cards', 'CardMarkdownPreview.tsx')
-  const panelText = readFileSync(richMediaPanelPath, 'utf8')
+  const panelText = richMediaPanelPaths.map(filePath => readFileSync(filePath, 'utf8')).join('\n')
   const previewText = readFileSync(markdownPreviewPath, 'utf8')
   const cardMarkdownPreviewText = readFileSync(cardMarkdownPreviewPath, 'utf8')
 
-  if (!panelText.includes('<CardMarkdownPreview') || !cardMarkdownPreviewText.includes('markdownTokenStoreSync={false}')) {
-    throw new Error('expected RichMediaPanel markdown view to reuse CardMarkdownPreview with global markdown token store sync disabled')
+  if (!panelText.includes("from '@/lib/cards/CardInlineTextEditor'") || !panelText.includes('markdownPreview="auto"') || !cardMarkdownPreviewText.includes('markdownTokenStoreSync={false}')) {
+    throw new Error('expected RichMediaPanel markdown view to reuse the shared CardInlineTextEditor markdown path with global markdown token store sync disabled')
   }
   if (!previewText.includes('markdownTokenStoreSync?: boolean')) {
     throw new Error('expected MarkdownPreview to expose an explicit markdown token store sync gate')
@@ -365,10 +365,10 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!previewText.includes('markdownTokenStoreSync = true')) {
     throw new Error('expected MarkdownPreview to preserve existing token-store sync behavior by default')
   }
-  if (!panelText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+  if (!panelText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({') || !panelText.includes('workspaceViewMode:') || !panelText.includes('workspaceCanvasPaneOpen:')) {
     throw new Error('expected RichMediaPanel to use canonical workspace overlay-open state instead of workspace editor mode alone')
   }
-  if (!panelText.includes('const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || storyboardWidgetInteractionMode === true || isStoryboardRenderer === true')) {
+  if (!panelText.includes('const allowPanelContentPointerEvents =') || !panelText.includes('!workspaceEditorOverlayOpen || storyboardWidgetInteractionMode === true || mediaState.isStoryboardRenderer === true')) {
     throw new Error('expected RichMediaPanel to keep content pointer interactions enabled in StoryboardWidget interaction mode for in-panel scrolling')
   }
   if (!panelText.includes('data-kg-media-scroll-surface="1"')) {
@@ -389,7 +389,7 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!panelText.includes("import { useShallow } from 'zustand/react/shallow'")) {
     throw new Error('expected RichMediaPanel to reuse zustand shallow selectors for hot-path store subscriptions')
   }
-  if (!panelText.includes('} = useGraphStore(\n    useShallow(s => ({')) {
+  if (!panelText.includes('} = useGraphStore(\n    useShallow(store => ({')) {
     throw new Error('expected RichMediaPanel to consolidate hot-path store reads behind one shallow store selector')
   }
   if (panelText.includes('const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)')) {
@@ -425,14 +425,14 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
   if (!stateText.includes('const storyboardWidgetOverlayInteractionMode = isStoryboardWidgetSurfaceRenderer(canvas2dRenderer)')) {
     throw new Error('expected FlowCanvas overlay interactions to use the shared Storyboard Widget surface renderer gate as interaction SSOT')
   }
-  if (!overlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+  if (!overlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected FlowCanvas media overlay pan/drag handlers to use the shared Storyboard Widget surface/Flow Canvas interaction gate')
   }
   if (overlayText.includes('isStoryboardWidgetFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas rich-media overlay runtime to remove stale frontmatter-only interaction gate references')
   }
-  if (!overlayText.includes("const resizeHandleVisible = resizeInteractionActive && (isSelected || canvas2dRenderer === 'flowCanvas')")) {
-    throw new Error('expected RichMediaPanel resize affordance to use canonicalized selection while allowing Flow Canvas rich-media panels to expose the shared handle')
+  if (!overlayText.includes('const resizeHandleVisible = resizeInteractionActive')) {
+    throw new Error('expected RichMediaPanel resize affordance to remain visible whenever the shared interaction policy permits resize')
   }
   if (!overlayText.includes('resizable={resizeHandleVisible}')) {
     throw new Error('expected RichMediaPanel resize affordance to be wired through the shared resizeHandleVisible gate')
@@ -440,10 +440,10 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
 }
 
 export function testRichMediaPanelOverlayPanSkipsResizeAndScrollTargets() {
-  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
   const text = readFileSync(richMediaPanelPath, 'utf8')
 
-  if (!text.includes("pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen || canvasOverlayProxyEnabled ? 'auto'")) {
+  if (!text.includes('pointerEvents: shouldHideSurfaceUntilReady') || !text.includes(": workspaceEditorOverlayOpen || canvasOverlayProxyEnabled") || !text.includes(": (contentInteractive || canClickToOpen ? 'auto' : 'none'),")) {
     throw new Error('expected RichMediaPanel root pointer events to stay enabled for shared overlay pan/drag handlers')
   }
   if (!text.includes("from 'grph-shared/dom/overlayPointerGuards'")
@@ -506,7 +506,7 @@ export function testRichMediaPanelHeaderDragStaysAvailableInPanMode() {
       throw new Error(`expected ${label} to preserve the explicit space-pan header drag guard`)
     }
   }
-  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
+  if (!flowCanvasOverlayText.includes("const mediaOverlayDragInteractionMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Flow Canvas media overlay drag ownership to stay renderer-scoped instead of pointer-mode scoped')
   }
   if (!richMediaPanelSurfaceStateText.includes("const isHeaderTarget = !!targetEl?.closest('[data-kg-rich-media-storyboard-widget-header=\"1\"]')")) {

@@ -20,6 +20,18 @@ This document describes the Codex-compatible harness implemented by:
 python3 -m knowgrph_parser superagent --input docs/documents/my-input.md --output-dir data/outputs/superagent-neutral-example --run-id superagent-neutral-example
 ```
 
+## Fastest Evaluation Use
+
+When the goal is the shortest proof path with low TCO and zero provider setup, this harness is the
+recommended local evaluation route.
+
+Use it before hosted MCP wiring when you need:
+
+- deterministic offline proof
+- bounded research/code/create execution
+- source-owned artifacts and trace outputs
+- a quick demo of Knowgrph as a runnable document system
+
 The harness is intentionally project-agnostic. It accepts a user-provided brief, extracts source evidence from neutral frontmatter or markdown body text, selects registry-backed capability lanes and frontmatter skill hints through `skill.select`, writes a research pack, creates and executes deterministic code inside a bounded local sandbox artifact directory, generates deterministic text/image/video artifacts, composes a canvas graph, verifies the run, and writes a final report. The default media provider mode is a bare-minimum BytePlus ModelArk placeholder that records the Codex-facing remote MCP server key without performing a live provider call; deterministic `mock` remains available for local tests.
 
 For research-code-create work, this harness is the local artifact loop and Codex

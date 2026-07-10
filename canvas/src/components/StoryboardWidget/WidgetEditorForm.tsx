@@ -1,24 +1,13 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import RichMediaPanel from '@/components/RichMediaPanel'
-import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
-import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { buildInlineMediaCommandContextFromRecord } from '@/lib/command-menu/inlineMediaCommandContext'
 import { resolveMediaPreviewSurfaceCardProps, resolveMediaPreviewSurfaceSelectionProps } from '@/lib/cards/mediaPreviewSurfaceSelection'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
-import {
-  FLOW_EDGE_SOURCE_PORT_KEY,
-  FLOW_EDGE_TARGET_PORT_KEY,
-  FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
-  readSchemaFieldSpecs,
-} from '@/lib/graph/flowPorts'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
@@ -32,172 +21,39 @@ import {
   buildFrontmatterWidgetContractRowSpecs,
 } from '@/features/storyboard-widget-manager/frontmatterWidgetContract'
 import {
-  applyWidgetFieldValueUpdate,
-  coerceWidgetFieldValue,
-  formatWidgetFieldValueText,
-  normalizeWidgetFieldSchemaPath,
-  readWidgetFieldValueText,
-} from '@/features/storyboard-widget-manager/widgetFieldMutation'
-import {
   applyWidgetCompactPreviewTextUpdate,
   buildWidgetCompactPreviewViewModel,
   resolveWidgetCompactPreview,
 } from '@/features/storyboard-widget-manager/widgetCompactPreview'
 import { readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandleUi'
-import {
-  formatFlowHandleAccessibleName,
-  formatFlowHandleKtvKeyLabel,
-  formatFlowHandleSemanticKey,
-  readFlowHandlePath,
-} from '@/lib/graph/flowHandlePresentation'
-import { WidgetEditorSchemaTable } from '@/components/StoryboardWidget/WidgetEditorSchemaTable'
-import { WidgetEditorRegistrySection } from '@/components/StoryboardWidget/WidgetEditorRegistrySection'
-import { WidgetEditorParamsSection } from '@/components/StoryboardWidget/WidgetEditorParamsSection'
-import { WidgetEditorKvTable, type WidgetEditorKvRow } from '@/components/StoryboardWidget/WidgetEditorKvTable'
-import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
-import { WidgetEditorBeatByBeatSection } from '@/components/StoryboardWidget/WidgetEditorBeatByBeatSection'
 import type { GraphEdge } from '@/lib/graph/types'
 import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'
-import { PORT_HANDLE_STROKE_CLASS } from '@/components/StoryboardWidget/portHandleUi'
-import {
-  handleWidgetInnerPanelScrollCapture,
-  handleWidgetInnerPanelWheelCapture,
-  RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE,
-} from '@/components/StoryboardWidget/flowWidgetOverlayShared'
+import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import type { RichMediaWidgetPreviewState } from '@/components/StoryboardWidget/useRichMediaWidgetPreview'
-import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
+import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import {
   buildRichMediaPanelOverlayState,
   buildRichMediaPanelPreviewSpec,
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
-import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { getChatProviderLabel } from '@/lib/chatEndpoint'
-import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
 import {
-  TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT,
-  type TimelineTransportPlaybackRequestDetail,
-} from '@/components/timeline/videoSequenceTimeline'
-import {
-  resolveRichMediaTimelineDurationUnits,
-  resolveRichMediaTimelineMediaTargetSeconds,
-} from '@/lib/render/richMediaTimelineSync'
+  buildConnectedValuesSemanticSignature,
+  buildGraphEdgesSemanticSignature,
+  buildWidgetRegistryEntriesSemanticSignature,
+  buildWidgetRegistryEntrySemanticSignature,
+  cleanDomIdPart,
+  pickString,
+} from '@/components/StoryboardWidget/widgetEditorFormSemantics'
+import { useWidgetEditorCompactPreviewTimelineSync } from '@/components/StoryboardWidget/useWidgetEditorCompactPreviewTimelineSync'
+import { WidgetEditorFormContent } from '@/components/StoryboardWidget/WidgetEditorFormContent'
+import { useWidgetEditorFrontmatterRows } from '@/components/StoryboardWidget/useWidgetEditorFrontmatterRows'
 
 const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
-
-type FrontmatterPortKvRow = WidgetEditorKvRow & {
-  dir: 'in' | 'out'
-  portKey: string
-  schemaPath: string
-  normalizedSchemaPath: string
-}
-
-function buildWidgetRegistryEntrySemanticSignature(entry: WidgetRegistryEntry | null | undefined): string {
-  if (!entry) return hashSignatureParts(['widget-registry-entry', 0])
-  return hashSignatureParts([
-    'widget-registry-entry',
-    String(entry.id || '').trim(),
-    String(entry.nodeTypeId || '').trim(),
-    String(entry.widgetTypeId || '').trim(),
-    String(entry.formId || '').trim(),
-    String(entry.updatedAt || '').trim(),
-    hashArrayOfObjectsSignature(entry.fields ?? [], {
-      maxItems: Math.max(16, Array.isArray(entry.fields) ? entry.fields.length : 0),
-      maxKeysPerItem: 8,
-    }),
-    hashArrayOfObjectsSignature(entry.ports ?? [], {
-      maxItems: Math.max(16, Array.isArray(entry.ports) ? entry.ports.length : 0),
-      maxKeysPerItem: 8,
-    }),
-  ])
-}
-
-function buildWidgetRegistryEntriesSemanticSignature(
-  registryEntries: ReadonlyArray<WidgetRegistryEntry> | null | undefined,
-): string {
-  const entries = Array.isArray(registryEntries) ? registryEntries : []
-  return hashArrayOfObjectsSignature(
-    entries.map(entry => ({
-      id: String(entry?.id || '').trim(),
-      nodeTypeId: String(entry?.nodeTypeId || '').trim(),
-      widgetTypeId: String(entry?.widgetTypeId || '').trim(),
-      formId: String(entry?.formId || '').trim(),
-      updatedAt: String(entry?.updatedAt || '').trim(),
-      entrySignature: buildWidgetRegistryEntrySemanticSignature(entry),
-    })),
-    { maxItems: Math.max(24, entries.length), maxKeysPerItem: 6 },
-  )
-}
-
-function buildGraphEdgesSemanticSignature(edges: ReadonlyArray<GraphEdge> | null | undefined): string {
-  const edgeList = Array.isArray(edges) ? edges : []
-  return hashArrayOfObjectsSignature(
-    edgeList.map(edge => {
-      const props =
-        edge && typeof edge === 'object' && !Array.isArray(edge)
-          ? ((edge as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
-          : null
-      return {
-        id: String((edge as { id?: unknown })?.id || '').trim(),
-        source: readEdgeEndpointId(edge?.source),
-        target: readEdgeEndpointId(edge?.target),
-        sourcePortKey:
-          typeof props?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
-            ? String(props?.[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
-            : '',
-        targetPortKey:
-          typeof props?.[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
-            ? String(props?.[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
-            : '',
-      }
-    }),
-    { maxItems: Math.max(24, edgeList.length), maxKeysPerItem: 5 },
-  )
-}
-
-function buildConnectedValuesSemanticSignature(
-  connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | null | undefined,
-): string {
-  const record =
-    connectedValuesBySchemaPath && typeof connectedValuesBySchemaPath === 'object' && !Array.isArray(connectedValuesBySchemaPath)
-      ? (connectedValuesBySchemaPath as Record<string, unknown>)
-      : {}
-  const keys = Object.keys(record).sort()
-  return hashArrayOfObjectsSignature(
-    keys.map(path => {
-      const entry = record[path] as Record<string, unknown> | null | undefined
-      const value = entry?.value
-      return {
-        path,
-        valueType: typeof value,
-        valueText:
-          typeof value === 'string'
-            ? value
-            : typeof value === 'number' && Number.isFinite(value)
-              ? String(value)
-              : typeof value === 'boolean'
-                ? (value ? '1' : '0')
-                : '',
-        valueSignature: hashRecordSignature32(value, { maxEntries: 60, maxDepth: 2 }),
-      }
-    }),
-    { maxItems: Math.max(24, keys.length), maxKeysPerItem: 4 },
-  )
-}
-
-function pickString(v: unknown): string {
-  return typeof v === 'string' ? v : ''
-}
-
-function cleanDomIdPart(v: unknown): string {
-  return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
-}
 
 export const WidgetEditorForm = React.memo(function WidgetEditorForm({
   active,
@@ -587,16 +443,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
   )
   const compactPreviewMediaElementRef = React.useRef<HTMLMediaElement | null>(null)
   const [compactPreviewMediaElement, setCompactPreviewMediaElement] = React.useState<HTMLMediaElement | null>(null)
-  const timelineDocumentKey = React.useMemo(
-    () => cleanTimelinePreviewDocumentKey(markdownDocumentName),
-    [markdownDocumentName],
-  )
-  const timelineDurationUnits = React.useMemo(
-    () => resolveRichMediaTimelineDurationUnits(graphData),
-    [graphData, graphDataRevision],
-  )
   const compactPreviewKind = compactPreviewView?.kind || 'text'
-  const compactPreviewIsPlayableMedia = compactPreviewKind === 'video' || compactPreviewKind === 'audio'
   const compactPreviewMediaUrl = compactPreviewView && compactPreviewView.kind !== 'text'
     ? compactPreviewView.mediaUrl
     : ''
@@ -604,92 +451,19 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
     compactPreviewMediaElementRef.current = element
     setCompactPreviewMediaElement(prev => (prev === element ? prev : element))
   }, [])
-  const syncCompactPreviewMediaToTimeline = React.useCallback((
-    media: HTMLMediaElement,
-    override?: Partial<TimelineTransportPlaybackRequestDetail>,
-  ) => {
-    if (!compactPreviewIsPlayableMedia) return
-    const documentKey = cleanTimelinePreviewDocumentKey(override?.documentKey || timelineTransportDocumentKey)
-    if (!timelineDocumentKey || documentKey !== timelineDocumentKey) return
-    const positionSource = typeof override?.position === 'number' ? override.position : timelineTransportPosition
-    const playing = typeof override?.playing === 'boolean' ? override.playing : timelineTransportPlaying
-    const playbackRateSource = typeof override?.playbackRate === 'number' ? override.playbackRate : timelineTransportPlaybackRate
-    const playbackRate = Number.isFinite(playbackRateSource) && playbackRateSource > 0 ? playbackRateSource : 1
-    const mediaDuration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0
-    const targetSecondsRaw = resolveRichMediaTimelineMediaTargetSeconds({
-      mediaDurationSeconds: mediaDuration,
-      positionUnits: Number.isFinite(positionSource) ? Math.max(0, positionSource) : 0,
-      timelineDurationUnits,
-    })
-    const targetSeconds = mediaDuration > 0 ? Math.min(mediaDuration, targetSecondsRaw) : targetSecondsRaw
-    const currentTime = Number.isFinite(media.currentTime) ? media.currentTime : 0
-    if (!playing || Math.abs(currentTime - targetSeconds) > 0.18) {
-      try {
-        media.currentTime = targetSeconds
-      } catch {
-        void 0
-      }
-    }
-    if (media.playbackRate !== playbackRate) media.playbackRate = playbackRate
-    if (playing) {
-      if (media.paused) {
-        try {
-          const maybePromise = media.play()
-          if (maybePromise && typeof maybePromise.catch === 'function') maybePromise.catch(() => undefined)
-        } catch {
-          void 0
-        }
-      }
-      return
-    }
-    if (!media.paused) {
-      try {
-        media.pause()
-      } catch {
-        void 0
-      }
-    }
-  }, [
-    compactPreviewIsPlayableMedia,
-    timelineDocumentKey,
-    timelineDurationUnits,
-    timelineTransportDocumentKey,
-    timelineTransportPlaybackRate,
-    timelineTransportPlaying,
-    timelineTransportPosition,
-  ])
-  React.useEffect(() => {
-    if (!compactPreviewIsPlayableMedia) return
-    const media = compactPreviewMediaElement || compactPreviewMediaElementRef.current
-    if (!media) return
-    const syncCompactPreviewMedia = () => syncCompactPreviewMediaToTimeline(media)
-    syncCompactPreviewMedia()
-    media.addEventListener('loadedmetadata', syncCompactPreviewMedia)
-    media.addEventListener('durationchange', syncCompactPreviewMedia)
-    return () => {
-      media.removeEventListener('loadedmetadata', syncCompactPreviewMedia)
-      media.removeEventListener('durationchange', syncCompactPreviewMedia)
-    }
-  }, [
-    compactPreviewIsPlayableMedia,
-    compactPreviewMediaElement,
+  const { compactPreviewIsPlayableMedia } = useWidgetEditorCompactPreviewTimelineSync({
+    compactPreviewKind,
     compactPreviewMediaUrl,
-    syncCompactPreviewMediaToTimeline,
-  ])
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const handlePlaybackRequest = (event: Event) => {
-      const detail = (event as CustomEvent<TimelineTransportPlaybackRequestDetail>).detail
-      if (!detail || cleanTimelinePreviewDocumentKey(detail.documentKey) !== timelineDocumentKey) return
-      const media = compactPreviewMediaElementRef.current
-      if (media) syncCompactPreviewMediaToTimeline(media, detail)
-    }
-    window.addEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
-    return () => window.removeEventListener(TIMELINE_TRANSPORT_PLAYBACK_REQUEST_EVENT, handlePlaybackRequest)
-  }, [
-    syncCompactPreviewMediaToTimeline,
-    timelineDocumentKey,
-  ])
+    compactPreviewMediaElementRef,
+    compactPreviewMediaElement,
+    timelineTransportDocumentKey,
+    timelineTransportPosition,
+    timelineTransportPlaying,
+    timelineTransportPlaybackRate,
+    markdownDocumentName,
+    graphData,
+    graphDataRevision,
+  })
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
@@ -711,712 +485,99 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
     onSetProperties(nextProperties)
   }, [compactPreview, onSetProperties, properties])
 
-  const renderFrontmatterPortButton = React.useCallback((
-    dir: 'in' | 'out',
-    portKey: string,
-    accessibleName?: string,
-    schemaPath?: string,
-  ) => {
-    const aria = String(accessibleName || '').trim() || formatFlowHandleSemanticKey({ dir, portKey })
-    return (
-      <button
-        key={`${dir}:${portKey}`}
-        type="button"
-        aria-label={aria}
-        title={aria}
-        data-kg-port-handle="1"
-        data-kg-port-handle-kind="dot"
-        data-kg-port-dir={dir}
-        data-kg-port-key={portKey}
-        data-kg-port-path={readFlowHandlePath(dir)}
-        data-kg-port-schema-path={String(schemaPath || '').trim() || undefined}
-        className={cn('relative block', UI_THEME_TOKENS.button.text)}
-        style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
-        onPointerDown={e => {
-          try {
-            e.stopPropagation()
-          } catch {
-            void 0
-          }
-        }}
-        onClick={e => {
-          try {
-            e.stopPropagation()
-          } catch {
-            void 0
-          }
-          if (!active || !portHandlesEnabled) return
-          onSchemaPortHandleClick?.({ dir, portKey })
-        }}
-        disabled={!active || !portHandlesEnabled}
-      >
-        <span
-          aria-hidden={true}
-          className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)}
-          style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
-        />
-      </button>
-    )
-  }, [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled])
-  const frontmatterEnvelopeFieldSchemaPathSet = React.useMemo(() => {
-    const out = new Set<string>()
-    frontmatterContractRowSpecs.envelopeRows.forEach(rowSpec => {
-      if (rowSpec.kind !== 'field') return
-      const schemaPath = normalizeWidgetFieldSchemaPath(rowSpec.schemaPath, rowSpec.fieldKey)
-      if (schemaPath) out.add(schemaPath)
-    })
-    return out
-  }, [frontmatterContractRowSpecs.envelopeRows])
-  const frontmatterPortRows = React.useMemo<FrontmatterPortKvRow[]>(() => {
-    return frontmatterContractRowSpecs.handleRows.flatMap(rowSpec => {
-      const portKeys = rowSpec.portKeys
-        .map(portKey => String(portKey || '').trim())
-        .filter(Boolean)
-      if (portKeys.length === 0) return []
-      const occurrenceCounts = new Map<string, number>()
-      portKeys.forEach(portKey => {
-        occurrenceCounts.set(portKey, (occurrenceCounts.get(portKey) || 0) + 1)
-      })
-      const occurrenceIndexes = new Map<string, number>()
-      return portKeys.map((portKey, index) => {
-        const occurrenceCount = occurrenceCounts.get(portKey) || 1
-        const occurrenceIndex = occurrenceIndexes.get(portKey) || 0
-        occurrenceIndexes.set(portKey, occurrenceIndex + 1)
-        const schemaPath = portKey
-        const normalizedSchemaPath = normalizeWidgetFieldSchemaPath(schemaPath, portKey)
-        const accessibleName = formatFlowHandleAccessibleName({
-          dir: rowSpec.dir,
-          portKey,
-          schemaPath,
-          occurrenceIndex,
-          occurrenceCount,
-        })
-        const rowKey = `${rowSpec.rowKey}-${index}-${cleanDomIdPart(portKey) || 'port'}`
-        const inputId = `${idBase}-${rowKey}`
-        const portButton = renderFrontmatterPortButton(rowSpec.dir, portKey, accessibleName, schemaPath)
-        const keyLabel = formatFlowHandleKtvKeyLabel({ dir: rowSpec.dir, portKey }) || accessibleName
-        const connectedPortValue = rowSpec.dir === 'in'
-          ? connectedValuesSnapshot?.[normalizedSchemaPath]?.value
-          : undefined
-        const connectedPortValueText = typeof connectedPortValue !== 'undefined'
-          ? formatWidgetFieldValueText(connectedPortValue)
-          : ''
-        const portValueText = readWidgetFieldValueText({
-          properties: propertiesSnapshot,
-          schemaPath,
-          fallbackKey: portKey,
-        })
-        return {
-          rowKey,
-          dir: rowSpec.dir,
-          portKey,
-          schemaPath,
-          normalizedSchemaPath,
-          labelId: `${idBase}-kv-${rowKey}`,
-          inPortNode: rowSpec.dir === 'in' ? portButton : undefined,
-          outPortNode: rowSpec.dir === 'out' ? portButton : undefined,
-          keyNode: (
-            <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId} title={accessibleName || keyLabel}>
-              {keyLabel}
-            </label>
-          ),
-          valueNode: (
-            <PlainTextInputEditor
-              id={inputId}
-              data-kg-authored-value-contract="value={portValueText}"
-              value={portValueText || connectedPortValueText}
-              disabled
-              className={cn(
-                keyValueInputClass,
-                textSizeClass,
-                'text-left',
-                monospaceTextClass,
-                UI_THEME_TOKENS.input.bg,
-                UI_THEME_TOKENS.input.border,
-                UI_THEME_TOKENS.input.text,
-              )}
-            />
-          ),
-        }
-      })
-    })
-  }, [
-    frontmatterContractRowSpecs.handleRows,
+  const { frontmatterPortRows, frontmatterEnvelopeRows } = useWidgetEditorFrontmatterRows({
+    active,
     idBase,
     keyLabelClass,
     keyValueInputClass,
+    textSizeClass,
     monospaceTextClass,
+    dotSizePx,
+    dotHitPx,
+    portHandlesEnabled,
+    onSchemaPortHandleClick,
+    frontmatterContractRowSpecs,
     connectedValuesSnapshot,
     propertiesSnapshot,
-    renderFrontmatterPortButton,
-    textSizeClass,
-  ])
-  const frontmatterFieldPortNodesBySchemaPath = React.useMemo(() => {
-    const out = new Map<string, Pick<WidgetEditorKvRow, 'inPortNode' | 'outPortNode'>>()
-    frontmatterPortRows.forEach(row => {
-      if (!row.normalizedSchemaPath || !frontmatterEnvelopeFieldSchemaPathSet.has(row.normalizedSchemaPath)) return
-      const current = out.get(row.normalizedSchemaPath) || {}
-      out.set(row.normalizedSchemaPath, {
-        ...current,
-        ...(row.dir === 'in' ? { inPortNode: row.inPortNode } : { outPortNode: row.outPortNode }),
-      })
-    })
-    return out
-  }, [frontmatterEnvelopeFieldSchemaPathSet, frontmatterPortRows])
-  const frontmatterEnvelopeRows = React.useMemo<WidgetEditorKvRow[]>(() => {
-    return frontmatterContractRowSpecs.envelopeRows.flatMap<WidgetEditorKvRow>((rowSpec, fieldIndex) => {
-      if (rowSpec.kind === 'handle') {
-        return frontmatterPortRows.filter(row => (
-          (row.rowKey === rowSpec.rowKey || row.rowKey.startsWith(`${rowSpec.rowKey}-`))
-          && !frontmatterEnvelopeFieldSchemaPathSet.has(row.normalizedSchemaPath)
-        ))
-      }
-      const inputId = `${idBase}-${rowSpec.rowKey}`
-      // data-row contract marker: rowKey: 'flow-data'
-      if (rowSpec.kind === 'data' || rowSpec.rowKey === 'flow-data') {
-        return [{
-          rowKey: rowSpec.rowKey,
-          labelId: `${idBase}-kv-${rowSpec.rowKey}`,
-          showInPortDot: false,
-          showOutPortDot: false,
-          keyNode: (
-            <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
-              {rowSpec.fieldKey}
-            </label>
-          ),
-          valueNode: (
-            <StoryboardWidgetInlineValueEditor
-              id={inputId}
-              value={flowDataDraft}
-              active={active}
-              multiline
-              markdownCommandContextText={propertiesInlineMediaCommandContext}
-              className={flowEnvelopeValueBoxClass}
-              onCommit={next => {
-                const raw = String(next ?? '')
-                setFlowDataDraft(raw)
-                if (!raw.trim()) {
-                  onPatchProperties({ data: undefined })
-                  return
-                }
-                try {
-                  const parsed = JSON.parse(raw)
-                  onPatchProperties({ data: parsed })
-                } catch {
-                  void 0
-                }
-              }}
-            />
-          ),
-        }]
-      }
-      // compute-row contract marker: rowKey: 'flow-compute'
-      if (rowSpec.kind === 'compute' || rowSpec.rowKey === 'flow-compute') {
-        return [{
-          rowKey: rowSpec.rowKey,
-          labelId: `${idBase}-kv-${rowSpec.rowKey}`,
-          showInPortDot: false,
-          showOutPortDot: false,
-          keyNode: (
-            <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
-              {rowSpec.fieldKey}
-            </label>
-          ),
-          valueNode: (
-            <StoryboardWidgetInlineValueEditor
-              id={inputId}
-              value={flowCompute}
-              active={active}
-              multiline
-              markdownCommandContextText={propertiesInlineMediaCommandContext}
-              className={flowEnvelopeValueBoxClass}
-              onCommit={next => onPatchProperties({ 'flow:compute': next || undefined })}
-            />
-          ),
-        }]
-      }
-      const fieldSchemaPath = normalizeWidgetFieldSchemaPath(
-        rowSpec.kind === 'field' ? rowSpec.schemaPath : '',
-        rowSpec.fieldKey,
-      )
-      const mergedPortNodes = frontmatterFieldPortNodesBySchemaPath.get(fieldSchemaPath)
-      return [{
-        rowKey: rowSpec.rowKey,
-        labelId: `${idBase}-kv-flow-envelope-field-${fieldIndex}`,
-        inPortNode: mergedPortNodes?.inPortNode,
-        outPortNode: mergedPortNodes?.outPortNode,
-        keyNode: (
-          <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={inputId}>
-            {rowSpec.fieldKey}
-          </label>
-        ),
-        valueNode: (
-          <StoryboardWidgetInlineValueEditor
-            id={inputId}
-            value={rowSpec.valueText}
-            active={active}
-            multiline
-            markdownCommandContextText={propertiesInlineMediaCommandContext}
-            className={flowEnvelopeValueBoxClass}
-            onCommit={next => {
-              if (!fieldSchemaPath) return
-              const raw = String(next ?? '')
-              const nextValue = raw.trim()
-                ? coerceWidgetFieldValue({ fieldType: rowSpec.typeLabel, value: raw })
-                : undefined
-              onSetProperties(applyWidgetFieldValueUpdate({
-                properties: propertiesSnapshot,
-                schemaPath: fieldSchemaPath,
-                nextValue,
-              }))
-            }}
-          />
-        ),
-      }]
-    }).filter(Boolean) as WidgetEditorKvRow[]
-  }, [
-    active,
-    flowCompute,
     flowDataDraft,
+    setFlowDataDraft,
+    flowCompute,
     flowEnvelopeValueBoxClass,
-    frontmatterContractRowSpecs.envelopeRows,
-    frontmatterEnvelopeFieldSchemaPathSet,
-    frontmatterFieldPortNodesBySchemaPath,
-    frontmatterPortRows,
-    idBase,
-    keyLabelClass,
+    propertiesInlineMediaCommandContext,
     onPatchProperties,
     onSetProperties,
-    propertiesInlineMediaCommandContext,
-    propertiesSnapshot,
-  ])
+  })
 
   return (
-    <form
-      data-kg-media-scroll-surface="1"
-      className={cn(
-        UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME,
-        'py-0',
-        'px-3',
-        panelTextClass,
-      )}
-      aria-label={UI_LABELS.flowWidgetForm}
-      onSubmit={e => e.preventDefault()}
-      onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitInteractionFrame)}
-      onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}
-    >
-      <section className="min-w-0" aria-label={UI_LABELS.flowWidgetNodeLegend}>
-        <WidgetEditorKvTable
-          ariaLabel={UI_LABELS.flowWidgetNodeLegend}
-          microLabelClass={microLabelClass}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          forcePortDots
-          rows={[
-            {
-              rowKey: 'node-label',
-              labelId: `${idBase}-kv-node-label`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.label}>label</label>,
-              valueNode: (
-                <input
-                  ref={labelInputRef}
-                  id={ids.label}
-                  className={cn(
-                    keyValueInputClass,
-                    textSizeClass,
-                    'text-left',
-                    UI_THEME_TOKENS.input.bg,
-                    UI_THEME_TOKENS.input.border,
-                    UI_THEME_TOKENS.input.text,
-                  )}
-                  value={labelDraft}
-                  onFocus={() => {
-                    labelEditInProgressRef.current = true
-                  }}
-                  onChange={e => {
-                    const nextLabel = String(e.target.value || '')
-                    setLabelDraft(nextLabel)
-                  }}
-                  onBlur={e => {
-                    labelEditInProgressRef.current = false
-                    const nextLabel = String(e.currentTarget.value || '')
-                    setLabelDraft(nextLabel)
-                    commitLabelDraft(nextLabel)
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const nextLabel = String(e.currentTarget.value || '')
-                      labelEditInProgressRef.current = false
-                      setLabelDraft(nextLabel)
-                      commitLabelDraft(nextLabel)
-                      e.currentTarget.blur()
-                      return
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      labelEditInProgressRef.current = false
-                      setLabelDraft(liveNodeLabel)
-                      e.currentTarget.blur()
-                    }
-                  }}
-                  disabled={!active}
-                />
-              ),
-            },
-          ]}
-        />
-      </section>
-
-      <section
-        className="min-w-0 mt-4 space-y-1"
-        aria-label={`Model for flow widget ${String(nodeHelperSnapshot.label || nodeHelperSnapshot.id || '')}`}
-      >
-        <p className={cn('m-0 text-[10px] font-semibold uppercase tracking-[0.08em]', UI_THEME_TOKENS.text.tertiary)}>
-          {UI_COPY.chatModelSelectLabel}
-        </p>
-        <ChatModelCredentialControls
-          apiKeyPrompt={widgetApiKeyPrompt}
-          modelId={widgetModelSelect.modelId}
-          modelOptions={widgetModelSelect.options}
-          onModelChanged={nextModel => onPatchProperties({ chatModel: nextModel })}
-          disabled={!active}
-          uiPanelMicroLabelTextSizeClass={microLabelClass}
-        />
-      </section>
-
-      {showRichMediaPanelViewer && (
-        <section
-          data-kg-widget-body="1"
-          data-kg-rich-media-render-surface="1"
-          data-kg-rich-media-scroll-owner="panel"
-          data-kg-media-scroll-surface="1"
-          className="relative min-h-0 mt-4 overflow-y-auto overflow-x-hidden"
-          style={{
-            width: `${richMediaPanelViewSize.width}px`,
-            maxWidth: '100%',
-            height: `${richMediaPanelViewSize.height}px`,
-            overscrollBehaviorX: 'none',
-            overscrollBehaviorY: 'contain',
-            pointerEvents: 'auto',
-            scrollbarGutter: 'stable',
-          }}
-        >
-          <RichMediaPanel
-            overlayId={String(nodeHelperSnapshot.id || '')}
-            title={String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())}
-            url={richMediaPreview?.url || ''}
-            srcDoc={richMediaPreview?.srcDoc}
-            openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
-            kind={richMediaPreview?.kind || 'iframe'}
-            interactive={richMediaPreview?.interactive !== false}
-            resizable={true}
-            onResizeStart={handleRichMediaResizeStart || handleFallbackRichMediaResize}
-            onResize={handleRichMediaResize || handleFallbackRichMediaResize}
-            onResizeEnd={handleRichMediaResizeEnd || handleFallbackRichMediaResize}
-            panel={richMediaPanelState || undefined}
-            widgetToolbarActive={false}
-            onPanelChange={handleRichMediaPanelChange}
-            frameMode="surface"
-            scrollOwner="panel"
-            storyboardWidgetInteractionMode={true}
-            storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
-            headerPinned={pinnedInCanvas === true}
-            storyboardWidgetFrontmatterDocumentMode={isFrontmatterFlow}
-            onInlineContentSize={handleRichMediaContentSize}
-            style={PANEL_FRAME_EMBEDDED_SURFACE_STYLE}
-          />
-        </section>
-      )}
-
-      {compactPreview && compactPreviewView && (
-        <section className="min-w-0 mt-4" aria-label={compactPreviewView.sectionAriaLabel}>
-          <section
-            className={cn(
-              'w-full overflow-hidden rounded-lg border',
-              UI_THEME_TOKENS.input.bg,
-              UI_THEME_TOKENS.input.border,
-            )}
-            data-kg-widget-preview-kind={compactPreviewView.kind}
-            {...compactMediaPreviewSelectionProps}
-          >
-            {compactPreviewView.kind === 'text' ? (
-              <CardInlineTextEditor
-                value={compactPreviewView.textValue}
-                ariaLabel={compactPreviewView.textAriaLabel}
-                placeholder="Add preview text"
-                canEdit={active && !compactPreviewView.readOnly}
-                editActivation="click"
-                multiline
-                rows={6}
-                markdownPreview="auto" markdownCommandContextText={propertiesInlineMediaCommandContext} editorSurface="viewer" inlineChipDensity="compact" openOnPointerDown
-                onCommit={setCompactPreviewText}
-                displayClassName={compactPreviewEditorClass}
-                editorClassName={compactPreviewEditorClass}
-              />
-            ) : (
-              <CardMediaPreview
-                kind={compactPreviewView.kind}
-                url={compactPreviewView.mediaUrl}
-                title={
-                  compactPreviewView.kind === 'image'
-                    ? compactPreviewView.mediaAlt
-                    : String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())
-                }
-                {...compactMediaPreviewCardProps}
-                fit="contain"
-                className="block h-48 w-full"
-                mediaClassName="block h-48 w-full"
-                videoControls={compactMediaPreviewCardProps.interactive && compactPreviewView.kind === 'video'}
-                onMediaElement={compactPreviewIsPlayableMedia ? compactPreviewMediaElementHandler : undefined}
-              />
-            )}
-          </section>
-        </section>
-      )}
-
-      {hideFields && isFrontmatterFlow && !hideFrontmatterFlowContractRows && frontmatterPortRows.length > 0 && (
-        <section className="min-w-0 mt-4" aria-label="Flow Handles">
-          <WidgetEditorKvTable
-            ariaLabel="Flow Handles"
-            microLabelClass={microLabelClass}
-            dotSizePx={dotSizePx}
-            dotHitPx={dotHitPx}
-            forcePortDots
-            rows={frontmatterPortRows}
-          />
-        </section>
-      )}
-
-      {!hideFields && isFrontmatterFlow && !hideFrontmatterFlowContractRows && (
-        <section className="min-w-0 mt-4" aria-label="Flow Envelope">
-          <WidgetEditorKvTable
-            ariaLabel="Flow Envelope"
-            microLabelClass={microLabelClass}
-            dotSizePx={dotSizePx}
-            dotHitPx={dotHitPx}
-            forcePortDots
-            rows={frontmatterEnvelopeRows}
-          />
-        </section>
-      )}
-
-      {!isFrontmatterFlow && !isRichMediaPanelWidget && (
-      <section className="min-w-0 mt-4" aria-label={UI_LABELS.storyboardWidgetMapping}>
-        <WidgetEditorKvTable
-          ariaLabel={UI_LABELS.storyboardWidgetMapping}
-          microLabelClass={microLabelClass}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          forcePortDots
-          rows={[
-            {
-              rowKey: 'mapping-registry',
-              labelId: `${idBase}-kv-mapping-registry`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.registrySelect}>{UI_LABELS.flowWidget}</label>,
-              valueNode: (
-                <select
-                  id={ids.registrySelect}
-                  className={cn(
-                    keyValueInputClass,
-                    textSizeClass,
-                    'text-left',
-                    UI_THEME_TOKENS.input.bg,
-                    UI_THEME_TOKENS.input.border,
-                    UI_THEME_TOKENS.input.text,
-                  )}
-                  value={registrySelectionId}
-                  onChange={handleRegistrySelect}
-                  disabled={!active || !hasRegistryOptions}
-                >
-                  <option value="">{hasRegistryOptions ? UI_COPY.flowWidgetSelectPlaceholder : UI_LABELS.noneLabel}</option>
-                  {registryOptions.map(entry => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.id}
-                    </option>
-                  ))}
-                </select>
-              ),
-            },
-          ]}
-        />
-      </section>
-      )}
-
-      {!isRichMediaPanelWidget && (
-        <WidgetEditorBeatByBeatSection
-          node={node}
-          graphMetaKind={graphMetaKind}
-          edges={edgesSnapshot}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          compact={hideFields}
-        />
-      )}
-
-      {showRichMediaPanelKtvRows && registryEntrySnapshot && (
-        <WidgetEditorRegistrySection
-          active={active}
-          properties={propertiesSnapshot}
-          registryEntry={registryEntrySnapshot}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          textSizeClass={textSizeClass}
-          keyValueInputClass={keyValueInputClass}
-          keyLabelClass={keyLabelClass}
-          ids={{ registryField: ids.registryField }}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesSnapshot}
-          onSetProperties={onSetProperties}
-          onSchemaPortHandleClick={onSchemaPortHandleClick}
-          showFieldRows
-          showPortRows
-          showTableHeader
-        />
-      )}
-
-      {showFrontmatterWidgetRegistrySection && registryEntrySnapshot && (
-        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidget}>
-          <WidgetEditorKvTable
-            ariaLabel={UI_LABELS.flowWidget}
-            microLabelClass={microLabelClass}
-            dotSizePx={dotSizePx}
-            dotHitPx={dotHitPx}
-            forcePortDots
-            rows={[
-              {
-                rowKey: 'frontmatter-widget-identity',
-                labelId: `${idBase}-kv-frontmatter-widget-identity`,
-                keyNode: (
-                  <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-frontmatter-widget-identity`}>
-                    {UI_LABELS.flowWidget}
-                  </label>
-                ),
-                valueNode: (
-                  <PlainTextInputEditor
-                    id={`${idBase}-frontmatter-widget-identity`}
-                    value={frontmatterWidgetIdentityLabel}
-                    disabled
-                    readOnly
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                  />
-                ),
-              },
-            ]}
-          />
-        </section>
-      )}
-
-      {showFrontmatterWidgetRegistrySection && registryEntrySnapshot && (
-        <WidgetEditorRegistrySection
-          active={active}
-          properties={propertiesSnapshot}
-          registryEntry={registryEntrySnapshot}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          textSizeClass={textSizeClass}
-          keyValueInputClass={keyValueInputClass}
-          keyLabelClass={keyLabelClass}
-          ids={{ registryField: ids.registryField }}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesSnapshot}
-          onSetProperties={onSetProperties}
-          onSchemaPortHandleClick={onSchemaPortHandleClick}
-          showFieldRows
-          showPortRows
-        />
-      )}
-
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && hideFields && registryEntrySnapshot && (
-        <WidgetEditorRegistrySection
-          active={active}
-          properties={propertiesSnapshot}
-          registryEntry={registryEntrySnapshot}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          textSizeClass={textSizeClass}
-          keyValueInputClass={keyValueInputClass}
-          keyLabelClass={keyLabelClass}
-          ids={{ registryField: ids.registryField }}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesSnapshot}
-          onSetProperties={onSetProperties}
-          onSchemaPortHandleClick={onSchemaPortHandleClick}
-          showFieldRows={false}
-          showPortRows
-        />
-      )}
-
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && registryEntrySnapshot && (
-        <WidgetEditorRegistrySection
-          active={active}
-          properties={propertiesSnapshot}
-          registryEntry={registryEntrySnapshot}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          textSizeClass={textSizeClass}
-          keyValueInputClass={keyValueInputClass}
-          keyLabelClass={keyLabelClass}
-          ids={{ registryField: ids.registryField }}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesSnapshot}
-          onSetProperties={onSetProperties}
-          onSchemaPortHandleClick={onSchemaPortHandleClick}
-          showPortRows={!isFrontmatterFlow}
-        />
-      )}
-
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && (
-        <WidgetEditorParamsSection
-          active={active}
-          properties={properties}
-          microLabelClass={microLabelClass}
-          monospaceTextClass={monospaceTextClass}
-          textSizeClass={textSizeClass}
-          keyValueInputClass={keyValueInputClass}
-          keyLabelClass={keyLabelClass}
-          ids={{ paramsJson: ids.paramsJson, paramsJsonInput: ids.paramsJsonInput }}
-          dotSizePx={dotSizePx}
-          dotHitPx={dotHitPx}
-          onPatchProperties={onPatchProperties}
-        />
-      )}
-
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && (schemaFields.length > 0 || (registryEntrySnapshot?.widgetTypeId || '').toLowerCase().includes('schema')) && (
-        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSchemaLegend}>
-          <WidgetEditorSchemaTable
-            active={active}
-            schemaFields={schemaFields}
-            portHandlesEnabled={portHandlesEnabled}
-            dotSizePx={dotSizePx}
-            dotHitPx={dotHitPx}
-            microLabelClass={microLabelClass}
-            textSizeClass={textSizeClass}
-            keyValueInputClass={keyValueInputClass}
-            onSchemaPortHandleClick={onSchemaPortHandleClick}
-            onRenameSchemaFieldId={onRenameSchemaFieldId}
-            onCommitSchemaFields={next => {
-              onPatchProperties({ [FLOW_SCHEMA_FIELDS_PROPERTY_KEY]: next })
-            }}
-          />
-        </section>
-      )}
-
-    </form>
+    <WidgetEditorFormContent
+      active={active}
+      storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
+      pinnedInCanvas={pinnedInCanvas}
+      node={node}
+      nodeHelperSnapshot={nodeHelperSnapshot}
+      graphMetaKind={graphMetaKind}
+      edgesSnapshot={edgesSnapshot}
+      hideFields={hideFields}
+      hideFrontmatterFlowContractRows={hideFrontmatterFlowContractRows}
+      labelInputRef={labelInputRef}
+      labelDraft={labelDraft}
+      setLabelDraft={setLabelDraft}
+      labelEditInProgressRef={labelEditInProgressRef}
+      liveNodeLabel={liveNodeLabel}
+      commitLabelDraft={commitLabelDraft}
+      onPatchProperties={onPatchProperties}
+      onSetProperties={onSetProperties}
+      onSchemaPortHandleClick={onSchemaPortHandleClick}
+      onRenameSchemaFieldId={onRenameSchemaFieldId}
+      properties={properties}
+      propertiesSnapshot={propertiesSnapshot}
+      propertiesInlineMediaCommandContext={propertiesInlineMediaCommandContext}
+      ids={ids}
+      idBase={idBase}
+      keyValueInputClass={keyValueInputClass}
+      textSizeClass={textSizeClass}
+      keyLabelClass={keyLabelClass}
+      panelTextClass={panelTextClass}
+      microLabelClass={microLabelClass}
+      monospaceTextClass={monospaceTextClass}
+      dotSizePx={dotSizePx}
+      dotHitPx={dotHitPx}
+      emitInteractionFrame={emitInteractionFrame}
+      isRichMediaPanelWidget={isRichMediaPanelWidget}
+      widgetApiKeyPrompt={widgetApiKeyPrompt}
+      widgetModelSelect={widgetModelSelect}
+      showRichMediaPanelViewer={showRichMediaPanelViewer}
+      richMediaPanelViewSize={richMediaPanelViewSize}
+      richMediaPreview={richMediaPreview}
+      richMediaPanelState={richMediaPanelState}
+      handleRichMediaResizeStart={handleRichMediaResizeStart}
+      handleRichMediaResize={handleRichMediaResize}
+      handleRichMediaResizeEnd={handleRichMediaResizeEnd}
+      handleRichMediaPanelChange={handleRichMediaPanelChange}
+      handleRichMediaContentSize={handleRichMediaContentSize}
+      handleFallbackRichMediaResize={handleFallbackRichMediaResize}
+      compactPreview={compactPreview}
+      compactPreviewView={compactPreviewView}
+      compactMediaPreviewSelectionProps={compactMediaPreviewSelectionProps}
+      setCompactPreviewText={setCompactPreviewText}
+      compactPreviewEditorClass={compactPreviewEditorClass}
+      compactMediaPreviewCardProps={compactMediaPreviewCardProps}
+      compactPreviewIsPlayableMedia={compactPreviewIsPlayableMedia}
+      compactPreviewMediaElementHandler={compactPreviewMediaElementHandler}
+      frontmatterPortRows={frontmatterPortRows}
+      frontmatterEnvelopeRows={frontmatterEnvelopeRows}
+      isFrontmatterFlow={isFrontmatterFlow}
+      registrySelectionId={registrySelectionId}
+      handleRegistrySelect={handleRegistrySelect}
+      hasRegistryOptions={hasRegistryOptions}
+      registryOptions={registryOptions}
+      showRichMediaPanelKtvRows={showRichMediaPanelKtvRows}
+      registryEntrySnapshot={registryEntrySnapshot}
+      connectedValuesSnapshot={connectedValuesSnapshot}
+      showFrontmatterWidgetRegistrySection={showFrontmatterWidgetRegistrySection}
+      frontmatterWidgetIdentityLabel={frontmatterWidgetIdentityLabel}
+      portHandlesEnabled={portHandlesEnabled}
+      schemaFields={schemaFields}
+    />
   )
 })

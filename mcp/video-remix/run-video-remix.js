@@ -1,9 +1,3 @@
-// Top-level Director orchestrator (`runVideoRemix`) for the video-remix
-// runtime. Composes the cohesive modules under `mcp/video-remix/` — input
-// validation, approvals, evidence/research, storyboard, stages, failure
-// handling, budget, and demo-pack — into the canonical Run_Manifest payload.
-// Extracted verbatim from `mcp/video-remix-runtime.js` (reuse-not-rebuild).
-
 import {
   CONTRACT_VERSION,
   DEFAULT_MAX_ITERATIONS,
@@ -18,12 +12,12 @@ import {
   STAGE_STATUS_BUDGET_HELD,
   FAILURE_REASON_PROVIDER_UNAVAILABLE,
 } from "./constants.js";
-import { cleanString, slugify, normalizeMoney, normalizeCount, buildRunText } from "./helpers.js";
+import { cleanString, slugify, normalizeMoney, buildRunText } from "./helpers.js";
 import { normalizeMaxIterations, buildExhaustionFailureRecord } from "./retry.js";
 import { buildWeakSignalHalt } from "./weak-signal-halt.js";
 import { normalizeApprovals, buildApprovalGates, hasGate } from "./approvals.js";
 import { normalizeSourceCards, buildMarketRadar } from "./evidence.js";
-import { buildShotPlan, buildStoryboardMarkdown } from "./storyboard.js";
+import { buildShotPlan, buildStoryboardFlow, buildStoryboardMarkdown } from "./storyboard.js";
 import { buildDryRunPlanArtifact } from "./stages.js";
 import { buildDemoPack } from "./demo-pack.js";
 import { buildFailureHandling } from "./failure-handling.js";
@@ -36,21 +30,23 @@ import {
 } from "./cost-log.js";
 import { buildLedgerReconciliation } from "./reconciliation.js";
 import { buildEditStage } from "./editing-harness.js";
-import { checkNarrativeCoherence } from "./storyboard-harness.js";
+import { checkNarrativeCoherence, clampShotCount } from "./storyboard-harness.js";
 import { executeVideoAgentStages } from "./video-agent-execution.js";
+import { prepareVideoWorkflow } from "./workflow-control.js";
+import {
+  buildVideoWorkflowGuardrails,
+  buildVideoWorkflowManifest,
+  buildVideoWorkflowValidationChecks,
+} from "./workflow-manifest.js";
 
 export function runVideoRemix(args = {}) {
-  // Director input-validation gate (spec task 2.5 / R2.1, R2.2 / Property 4):
-  // reject malformed input by throwing a typed error naming the bad field
-  // BEFORE any Run_Manifest is built. Because this runs first, a rejected call
-  // performs zero paid-provider calls and produces no Run_Manifest.
   const validated = validateDirectorInput(args);
   const referenceUrl = validated.referenceUrl;
   const brief = validated.brief;
   const mode = validated.mode;
   const budgetUsd = normalizeMoney(validated.budgetUsd, 0);
   const maxIterations = normalizeMaxIterations(args.maxIterations, DEFAULT_MAX_ITERATIONS);
-  const shotCount = normalizeCount(args.shotCount, DEFAULT_SHOT_COUNT);
+  const shotCount = clampShotCount(args.shotCount ?? DEFAULT_SHOT_COUNT);
   const runId = cleanString(args.runId, `${slugify(brief)}-${Date.now()}`);
   const nowIso = new Date().toISOString();
   const approvedGateIds = normalizeApprovals(args.approvals);
@@ -68,7 +64,9 @@ export function runVideoRemix(args = {}) {
   const weakSignalHalt = buildWeakSignalHalt(sources.length, REQUIRED_RESEARCH_SOURCE_COUNT, args.weakSignalContinuation);
   const weakSignal = weakSignalHalt.weakSignal;
   const marketRadar = buildMarketRadar(sources, brief);
-  const plannedShots = buildShotPlan({ brief, sourceCount: sources.length, shotCount });
+  const basePlannedShots = buildShotPlan({ brief, sourceCount: sources.length, shotCount });
+  const videoWorkflow = prepareVideoWorkflow({ workflow: args.workflow, runId, brief, plannedShots: basePlannedShots, sourceCards: sources });
+  const plannedShots = videoWorkflow.plannedShots;
   const canvasDocumentMarkdown = buildStoryboardMarkdown({ runId, referenceUrl, brief, shots: plannedShots });
   const failureHandling = buildFailureHandling(args, maxIterations);
   const injectedFailure = failureHandling.failures.length > 0;
@@ -99,6 +97,9 @@ export function runVideoRemix(args = {}) {
   else if (injectedFailure) state = "blocked";
   else if (liveRequested && (!renderApproved || !paymentApproved || !deployApproved)) state = "approval_required";
   else if (liveRequested) state = "complete";
+  if (!videoWorkflow.renderGuard.ok) state = RUN_STATE_BLOCKED;
+  else if (videoWorkflow.negotiation.decision === "block") state = RUN_STATE_BLOCKED;
+  else if (state === "complete" && !videoWorkflow.renderEnabled) state = "awaiting_review";
 
   const videoAgentStages = executeVideoAgentStages({
     liveRequested,
@@ -111,6 +112,17 @@ export function runVideoRemix(args = {}) {
     renderDeps: args.renderDeps,
     mediaPersister: args.mediaPersister,
     maxIterations,
+    priorAssets: videoWorkflow.reusedAssets,
+    renderEnabled: videoWorkflow.renderEnabled,
+    narrative: videoWorkflow.narrative,
+    continuity: videoWorkflow.continuity,
+    storyboardDesign: videoWorkflow.storyboardDesign,
+    multiCameraDesign: videoWorkflow.multiCameraDesign,
+    referenceSelection: videoWorkflow.referenceSelection,
+    imageGeneration: videoWorkflow.imageGeneration,
+    imageConsistencyPolicy: videoWorkflow.imageConsistencyPolicy,
+    parallelShotPlan: videoWorkflow.parallelShotPlan,
+    qualityPolicy: videoWorkflow.qualityPolicy,
   });
   const finalFailureHandling = videoAgentStages.executionFailure
     ? { ...failureHandling, failures: [...failureHandling.failures, videoAgentStages.executionFailure] }
@@ -207,8 +219,12 @@ export function runVideoRemix(args = {}) {
     ? "failed"
     : videoAgentStages.renderResult?.status === "rejected"
       ? "rejected"
-      : assets.length
+    : !videoWorkflow.renderGuard.ok
+      ? "blocked_landscape_guard"
+    : assets.length
     ? "complete"
+    : state === "awaiting_review"
+      ? "awaiting_review"
     : budgetExceeded
       ? STAGE_STATUS_BUDGET_HELD
       : (renderApproved ? "dry_run_ready" : "approval_required");
@@ -238,9 +254,7 @@ export function runVideoRemix(args = {}) {
     buildSpendBearingStage("checkout", checkoutStatus),
   ];
 
-  // Weak-signal halt invariant (task 3.4 / R4.5 / Property 11).
   const weakSignalHaltOk = weakSignalHalt.haltEnforced({ state, researchStatus, storyboardStatus, stages });
-
   // Recorded paid-provider-call counter (spec task 2.3 / R2.3, R2.6 / Properties
   // 2, 3). Observable count of paid-provider calls derived from the run's actual
   // spend signals: model-bearing calls (research + storyboard) count only when
@@ -287,12 +301,6 @@ export function runVideoRemix(args = {}) {
       : null,
   };
 
-  // Spend-bearing stages and their plan-artifact resolution (R2.6, R4.4 /
-  // Property 3). In dry-run every spend-bearing stage must resolve to a plan
-  // artifact (no execution); for R4.4, any spend-bearing stage left at
-  // `approval_required` (reached without a verified Approval_Token) must also
-  // resolve to a plan artifact. These are computed here so they can be asserted
-  // in `validation.checks` and surfaced on `guardrails`.
   const spendBearingStages = stages.filter((stage) => SPEND_BEARING_STAGES.includes(stage.id));
   const dryRunPlanArtifactsResolved = liveRequested
     ? true
@@ -302,7 +310,7 @@ export function runVideoRemix(args = {}) {
   const approvalRequiredStagesResolveToPlanArtifact = spendBearingStages
     .filter((stage) => stage.status === "approval_required")
     .every((stage) => stage.artifact && stage.artifact.resolvedTo === "plan_artifact");
-
+  const workflowManifest = buildVideoWorkflowManifest(videoWorkflow, videoAgentStages);
   const payload = {
     contractVersion: CONTRACT_VERSION,    runId,
     state,
@@ -321,17 +329,11 @@ export function runVideoRemix(args = {}) {
     marketRadar,
     storyboard: {
       canvasDocumentMarkdown,
-      flow: {
-        nodes: plannedShots.map((shot) => ({ id: shot.shotId, label: shot.label, type: shot.type, status: shot.status })),
-        edges: plannedShots.slice(1).map((shot, index) => ({
-          id: `edge-${index + 1}`,
-          source: plannedShots[index].shotId,
-          target: shot.shotId,
-        })),
-      },
+      flow: buildStoryboardFlow(plannedShots),
       plannedShots,
       narrativeCoherence: checkNarrativeCoherence(plannedShots),
     },
+    workflow: workflowManifest,
     render: { assets },
     edit: editResult,
     commerce: { publish: { publishedUrls }, checkout },
@@ -358,6 +360,7 @@ export function runVideoRemix(args = {}) {
       creditLedgerEvents: videoAgentStages.videoAccounting.creditLedgerEvents,
       creditLedgerValidationFailures: videoAgentStages.videoAccounting.creditLedgerValidationFailures,
       editManifestPersistCallCount: videoAgentStages.manifestPersistCallCount,
+      multiAgentPipeline: workflowManifest.multiAgentPipeline,
     },
     // R10.5 / Property 21 (task 2.12): reconciliation discrepancy flags (design
     // data model `reconciliationFlags: string[]`). Empty when consistent within
@@ -456,11 +459,12 @@ export function runVideoRemix(args = {}) {
         editResult.status !== "complete" || videoAgentStages.manifestPersistCallCount === 1,
       editBlocksPublish:
         !editResult.blocksPublish || publishedUrls.length === 0,
+      ...buildVideoWorkflowGuardrails(videoWorkflow, videoAgentStages, renderProviderCalls),
       // R4.5 / task 3.4 / Property 11: weak-signal research HALTS before storyboard.
       weakSignalHaltsBeforeStoryboard: weakSignalHaltOk,
     },
     validation: {
-      ok: state === "complete" || state === "approval_required" || state === "dry_run_ready" || state === "blocked" || state === RUN_STATE_BUDGET_EXCEEDED,
+      ok: state === "complete" || state === "approval_required" || state === "awaiting_review" || state === "dry_run_ready" || state === "blocked" || state === RUN_STATE_BUDGET_EXCEEDED,
       checks: [
         { id: "approval_gates_present", ok: approvalGates.length >= 5 },
         { id: "unapproved_live_cost_zero", ok: !liveRequested || paidApproved || budgetMeters.estimatedCostUsd === 0 },
@@ -585,6 +589,7 @@ export function runVideoRemix(args = {}) {
           id: "edit_result_blocks_publish",
           ok: !editResult.blocksPublish || publishedUrls.length === 0,
         },
+        ...buildVideoWorkflowValidationChecks(videoWorkflow, videoAgentStages, renderProviderCalls),
         { id: "weak_signal_halts_before_storyboard", ok: weakSignalHaltOk }, // R4.5 / task 3.4 / Property 11
       ],
     },

@@ -3,7 +3,7 @@ import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiv
 import FlowCanvas from '@/components/FlowCanvas'
 import { StoryboardCardOverlayLayer2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-import { deriveStoryboardCanvasRichMediaPanelNodeIds, filterGraphByExcludedNodeIds, readResolvedStoryboardWidgetDropTransform } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { readResolvedStoryboardWidgetDropTransform } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { Z_INDEX_GRAPH_OVERLAY_EDGES } from '@/lib/ui/zIndex'
@@ -28,9 +28,10 @@ import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/co
 import { useStoryboardEdgeCreationRequest } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardEdgeCreationRequest'
 import { useStoryboardSharedSurfacePan } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardSharedSurfacePan'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
+import { readStoryboardCardMediaDropPanelTargetId } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
+import { applyCanonicalNodePropertyAuthority } from '@/lib/graph/applyCanonicalNodePropertyAuthority'
 
 export default function StoryboardWidgetCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -70,6 +71,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   zoomViewKeyRef: React.MutableRefObject<string | null>
   addNodeFromRegistryAtWorld: (args: { entry: WidgetRegistryEntry; x: number; y: number }) => void
   addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => string
+  patchNodePropertiesById: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
@@ -80,6 +82,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
   const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
+  const canonicalGraphData = useGraphStore(s => s.graphData)
   const storyboardSurfaceRouteActive = String(props.storyboardWidgetSurfaceId || '').trim() === 'storyboard' || canvas2dRenderer === 'storyboard'
   const storyboardCardsActive = props.storyboardCardsMode === true && storyboardSurfaceRouteActive
   const storyboardSharedSurfaceActive =
@@ -93,12 +96,16 @@ export default function StoryboardWidgetCanvasSurface(props: {
     keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
     globalByNodeId: flowWidgetPinnedByNodeId,
   }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
+  const storyboardSourceGraphData = React.useMemo(() => applyCanonicalNodePropertyAuthority({
+    graphData: props.storyboardSourceGraphData,
+    propertyAuthorityGraphData: canonicalGraphData,
+  }), [canonicalGraphData, graphContentRevision, graphDataRevision, props.storyboardSourceGraphData])
   const storyboardGraphData = React.useMemo(() => {
     if (!storyboardSharedSurfaceActive) return null
     return applyFixedStoryboardCardPlacementsToGraphData2d({
       aspectRatioMode: strybldrStoryboardCardAspectMode,
       flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
-      graphData: props.storyboardSourceGraphData || null,
+      graphData: storyboardSourceGraphData,
       graphRevision: graphContentRevision || graphDataRevision || 0,
       readPlacementSize: props.storyboardWidgetMode === true
         ? node => readStoryboardWidgetPlacementSize2d(node, strybldrStoryboardCardAspectMode)
@@ -106,8 +113,8 @@ export default function StoryboardWidgetCanvasSurface(props: {
       schema,
       widgetRegistry: props.widgetRegistry,
     })
-  }, [effectiveFlowWidgetPinnedByNodeId, graphContentRevision, graphDataRevision, props.storyboardSourceGraphData, schema, storyboardSharedSurfaceActive, strybldrStoryboardCardAspectMode])
-  const storyboardHiddenNodeIds = React.useMemo(() => {
+  }, [effectiveFlowWidgetPinnedByNodeId, graphContentRevision, graphDataRevision, schema, storyboardSharedSurfaceActive, storyboardSourceGraphData, strybldrStoryboardCardAspectMode])
+  const storyboardFixedCardNodeIds = React.useMemo(() => {
     if (!storyboardSharedSurfaceActive) return []
     const board = buildStoryboardBoardModel({
       graphData: storyboardGraphData,
@@ -124,43 +131,35 @@ export default function StoryboardWidgetCanvasSurface(props: {
     const fixedCardNodeIds = board.lanes
       .flatMap(lane => lane.cards.map(card => String(card.id || '').trim()))
       .filter(id => isStoryboardFixedCardOwnedNode(resolveGraphNodeByCanonicalId(storyboardGraphData, id)))
-    const explicitOpenWidgetNodeIds =
-      props.storyboardWidgetMode === true && Array.isArray(props.openWidgetNodeIds)
-        ? props.openWidgetNodeIds
-        : []
-    const openRichMediaPanelNodeIds = buildRichMediaPanelOverlayExcludeNodeIdSet({
-      graphData: storyboardGraphData,
-      nodeById,
-      candidateRawIds: explicitOpenWidgetNodeIds,
-    })
-    const storyboardCanvasRichMediaPanelNodeIds = storyboardCardsActive
-      ? deriveStoryboardCanvasRichMediaPanelNodeIds(storyboardGraphData)
-      : []
-    const hiddenNodeIds = new Set<string>(fixedCardNodeIds)
-    for (const id of openRichMediaPanelNodeIds) hiddenNodeIds.add(id)
-    for (const id of storyboardCanvasRichMediaPanelNodeIds) hiddenNodeIds.add(id)
-    return Array.from(hiddenNodeIds)
-  }, [graphContentRevision, graphDataRevision, props.openWidgetNodeIds, props.widgetRegistry, storyboardCardsActive, storyboardSharedSurfaceActive, storyboardGraphData])
+    return fixedCardNodeIds
+  }, [graphContentRevision, graphDataRevision, props.widgetRegistry, storyboardSharedSurfaceActive, storyboardGraphData])
+  const storyboardCardOwnedMediaPanelNodeIds = React.useMemo(() => {
+    if (!storyboardSharedSurfaceActive || storyboardFixedCardNodeIds.length === 0) return []
+    const fixedCardNodeIdSet = new Set(storyboardFixedCardNodeIds)
+    return (storyboardGraphData?.nodes || [])
+      .filter(node => fixedCardNodeIdSet.has(readStoryboardCardMediaDropPanelTargetId(node)))
+      .map(node => String(node?.id || '').trim())
+      .filter(Boolean)
+  }, [storyboardFixedCardNodeIds, storyboardGraphData, storyboardSharedSurfaceActive])
   const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {
     const flowCanvasGraphDataOverride = storyboardSharedSurfaceActive ? storyboardGraphData : props.renderGraphDataOverride
     return flowCanvasGraphDataOverride
   }, [props.renderGraphDataOverride, storyboardGraphData, storyboardSharedSurfaceActive])
   const flowCanvasGraphDataOverride = React.useMemo(() => {
-    const baseGraphData = readFlowCanvasBaseGraphDataOverride()
-    if (!storyboardSharedSurfaceActive) return baseGraphData
-    return filterGraphByExcludedNodeIds({
-      graphData: baseGraphData,
-      excludedNodeIds: storyboardHiddenNodeIds,
-    })
-  }, [readFlowCanvasBaseGraphDataOverride, storyboardHiddenNodeIds, storyboardSharedSurfaceActive])
+    return readFlowCanvasBaseGraphDataOverride()
+  }, [readFlowCanvasBaseGraphDataOverride])
   const storyboardEdgeGraphData = storyboardSharedSurfaceActive ? storyboardGraphData : flowCanvasGraphDataOverride
-  const flowCanvasHiddenNodeIds = storyboardSharedSurfaceActive ? storyboardHiddenNodeIds : undefined
+  const flowCanvasNativeSceneExcludedNodeIds = React.useMemo(() => (
+    storyboardSharedSurfaceActive
+      ? [...storyboardFixedCardNodeIds, ...storyboardCardOwnedMediaPanelNodeIds]
+      : undefined
+  ), [storyboardCardOwnedMediaPanelNodeIds, storyboardFixedCardNodeIds, storyboardSharedSurfaceActive])
   const storyboardSurfaceGraphSignature = React.useMemo(() => {
     return [
       String(storyboardSharedSurfaceActive),
       String(Array.isArray(props.storyboardSourceGraphData?.nodes) ? props.storyboardSourceGraphData.nodes.length : 0),
       String(Array.isArray(storyboardGraphData?.nodes) ? storyboardGraphData.nodes.length : 0),
-      String(storyboardHiddenNodeIds.length),
+      String(flowCanvasNativeSceneExcludedNodeIds?.length || 0),
       String(Array.isArray(flowCanvasGraphDataOverride?.nodes) ? flowCanvasGraphDataOverride.nodes.length : 0),
     ].join('::')
   }, [
@@ -168,7 +167,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     props.storyboardSourceGraphData,
     storyboardGraphData,
     storyboardSharedSurfaceActive,
-    storyboardHiddenNodeIds.length,
+    flowCanvasNativeSceneExcludedNodeIds?.length,
   ])
   const reportedStoryboardSurfaceGraphSignatureRef = React.useRef('')
   React.useEffect(() => {
@@ -180,7 +179,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     props.storyboardSourceGraphData,
     storyboardCardsActive,
     storyboardGraphData,
-    storyboardHiddenNodeIds,
+    flowCanvasNativeSceneExcludedNodeIds,
     storyboardSurfaceGraphSignature,
   ])
   useStoryboardEdgeCreationRequest({ active: storyboardCardsActive, beginEdge: props.beginAddEdgeFromNode, graphData: storyboardEdgeGraphData })
@@ -294,7 +293,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
       aria-label="Storyboard"
       data-kg-storyboard-widget-surface-root={props.storyboardWidgetSurfaceId}
       data-kg-storyboard-display-mode={storyboardCardsActive ? 'card' : props.storyboardWidgetMode === true ? 'widget' : undefined}
-      data-kg-storyboard-hidden-node-count={storyboardSharedSurfaceActive ? String(storyboardHiddenNodeIds.length) : undefined}
+      data-kg-storyboard-native-excluded-node-count={storyboardSharedSurfaceActive ? String(flowCanvasNativeSceneExcludedNodeIds?.length || 0) : undefined}
       data-kg-storyboard-overlay-node-count={storyboardSharedSurfaceActive ? String(props.overlayEditorNodeCount || 0) : undefined}
       onDragOverCapture={(ev) => {
         if (props.geospatialWidgetPanelMode || !props.canEdit) return
@@ -373,8 +372,11 @@ export default function StoryboardWidgetCanvasSurface(props: {
           storyboardWidgetSurfaceId={props.storyboardWidgetSurfaceId}
           allowNodeDragOverride={props.canInteract}
           graphDataOverride={flowCanvasGraphDataOverride}
+          mutationSourceGraphDataOverride={storyboardSourceGraphData || flowCanvasGraphDataOverride}
           graphDataRevisionOverride={props.storyboardWidgetViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
-          excludeRichMediaOverlayNodeIds={flowCanvasHiddenNodeIds}
+          excludeNativeSceneNodeIds={flowCanvasNativeSceneExcludedNodeIds}
+          excludeRichMediaOverlayNodeIds={storyboardCardOwnedMediaPanelNodeIds}
+          onNodePropertiesChange={props.patchNodePropertiesById}
           exposeRuntimeRef={ref => {
             props.flowRuntimeRefRef.current = ref
           }}

@@ -3,6 +3,8 @@ import type { TestResult } from './testRunnerTypes'
 
 let cachedFilterLower: string | null | undefined
 let cachedTimeoutMs: number | undefined
+let currentRunningTestName = ''
+let currentRunningTestStartedAt = 0
 
 const readFilterLower = () => {
   if (cachedFilterLower !== undefined) return cachedFilterLower
@@ -19,6 +21,25 @@ const readTimeoutMs = () => {
   return cachedTimeoutMs
 }
 
+export const readCurrentRunningTest = (): { name: string; startedAt: number; elapsedMs: number } | null => {
+  if (!currentRunningTestName || !currentRunningTestStartedAt) return null
+  return {
+    name: currentRunningTestName,
+    startedAt: currentRunningTestStartedAt,
+    elapsedMs: Math.max(0, Date.now() - currentRunningTestStartedAt),
+  }
+}
+
+const setCurrentRunningTest = (name: string) => {
+  currentRunningTestName = String(name || '')
+  currentRunningTestStartedAt = currentRunningTestName ? Date.now() : 0
+}
+
+const clearCurrentRunningTest = () => {
+  currentRunningTestName = ''
+  currentRunningTestStartedAt = 0
+}
+
 export const execTest = async (results: TestResult[], name: string, fn: () => void | Promise<void>) => {
   const filterLower = readFilterLower()
   if (filterLower && !name.toLowerCase().includes(filterLower)) return
@@ -27,6 +48,7 @@ export const execTest = async (results: TestResult[], name: string, fn: () => vo
     ensureTestEnvPolyfills()
     console.log(`RUN ${name}`)
     const startedAt = Date.now()
+    setCurrentRunningTest(name)
     const timeoutMs = readTimeoutMs()
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let heartbeatId: ReturnType<typeof setInterval> | null = null
@@ -57,6 +79,7 @@ export const execTest = async (results: TestResult[], name: string, fn: () => vo
     })()
     console.log(`DONE ${name} (error)`)
     results.push({ name, ok: false, error: msg })
+  } finally {
+    clearCurrentRunningTest()
   }
 }
-

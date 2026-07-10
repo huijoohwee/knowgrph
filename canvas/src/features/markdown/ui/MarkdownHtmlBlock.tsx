@@ -24,6 +24,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { renderMarkdownHtmlAudioBlock } from './MarkdownHtmlAudioBlock'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
@@ -369,6 +370,9 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       )
     }
   }
+
+  const audioBlock = renderMarkdownHtmlAudioBlock({ html, opts, token: t, highlightClass, highlightStyle })
+  if (audioBlock) return audioBlock
 
   // img
   if (looksLikeSingleTagBlock(html, 'img')) {

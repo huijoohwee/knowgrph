@@ -191,12 +191,12 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
     'localScreenAnchorsRef.current[id]',
     'localPanelSizesRef.current[id]',
     'localPositionsRef.current[n.id]',
-    "'visual:zIndex':",
+    'const getPanelZIndexForId = React.useCallback',
+    "const z = Number(readNodeProperties(id)['visual:zIndex'])",
     'resizable={true}',
     'widgetToolbarActive={true}',
     'headerPinned={readPanelPinned(n.id)}',
     'onHeaderTogglePinned={event =>',
-    'onHeaderValidate={() => bringToFront(n.id)}',
     'onHeaderToggleMinimized={() => togglePanelSize(n.id)}',
     'const stopPanelChromeSafeEvent = React.useCallback',
     "target?.closest('button,a,input,textarea,select,[role=\"button\"],[data-kg-rich-media-resize-handle=\"1\"]')",
@@ -340,7 +340,17 @@ export function testThreeRichMediaLayoutKeepsUnanchoredPanelsVisible() {
   }
   const style = el.style as unknown as Record<string, string>
   if (style.display !== 'block') throw new Error(`expected visible panel display block, got ${String(style.display)}`)
-  if (!String(style.transform || '').includes('translate3d(') || String(style.transform || '').includes('-99999')) {
+  const hasViewportAnchorTransform =
+    String(style.transform || '').includes('translate3d(')
+    || String(style.transform || '').includes('matrix(')
+    || (
+      style.transform === 'none'
+      && style.left === '0px'
+      && style.top === '0px'
+      && Number.isFinite(Number.parseFloat(String((style as Record<string, string>).width || '')))
+      && Number.isFinite(Number.parseFloat(String((style as Record<string, string>).height || '')))
+    )
+  if (!hasViewportAnchorTransform || String(style.transform || '').includes('-99999')) {
     throw new Error(`expected viewport-anchored panel transform, got ${String(style.transform || '')}`)
   }
   if (style.left !== '0px' || style.top !== '0px') {

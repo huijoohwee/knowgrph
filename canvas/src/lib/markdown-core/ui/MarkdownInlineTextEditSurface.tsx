@@ -58,6 +58,25 @@ type MarkdownInlineTextEditSegment =
 
 const pendingViewerSelections = new WeakMap<HTMLElement, MarkdownInlineTextPendingSelection>()
 
+function scheduleMarkdownInlineSelectionFrame(
+  editorRef: React.RefObject<HTMLElement | null>,
+  callback: () => void,
+): void {
+  const ownerWindow = editorRef.current?.ownerDocument?.defaultView || null
+  const request =
+    (ownerWindow && typeof ownerWindow.requestAnimationFrame === 'function'
+      ? ownerWindow.requestAnimationFrame.bind(ownerWindow)
+      : null)
+    || (typeof globalThis.requestAnimationFrame === 'function'
+      ? globalThis.requestAnimationFrame.bind(globalThis)
+      : null)
+  if (request) {
+    request(() => callback())
+    return
+  }
+  setTimeout(callback, 0)
+}
+
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -284,10 +303,13 @@ function isZeroLengthTokenElement(element: Element): boolean {
 
 function findSelectionBoundary(root: HTMLElement, targetOffset: number): MarkdownInlineTextSelectionBoundary {
   const target = Math.max(0, targetOffset)
+  const ownerNode = root.ownerDocument.defaultView?.Node
+  const textNodeType = ownerNode?.TEXT_NODE ?? 3
+  const elementNodeType = ownerNode?.ELEMENT_NODE ?? 1
   let markdownOffset = 0
   let fallback: MarkdownInlineTextSelectionBoundary = { node: root, offset: root.childNodes.length }
   const visit = (node: Node): MarkdownInlineTextSelectionBoundary | null => {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === textNodeType) {
       const text = String(node.nodeValue || '').replace(/\r/g, '')
       const nextOffset = markdownOffset + text.length
       if (target <= nextOffset) {
@@ -297,7 +319,7 @@ function findSelectionBoundary(root: HTMLElement, targetOffset: number): Markdow
       fallback = { node, offset: text.length }
       return null
     }
-    if (node.nodeType !== Node.ELEMENT_NODE) return null
+    if (node.nodeType !== elementNodeType) return null
     const element = node as HTMLElement
     const tag = String(element.tagName || '').toLowerCase()
     if (isZeroLengthTokenElement(element)) {
@@ -345,7 +367,7 @@ export function focusMarkdownInlineTextSelectionSoon(
     end: Math.max(0, end),
   }
   if (pendingRoot) pendingViewerSelections.set(pendingRoot, pendingSelection)
-  window.requestAnimationFrame(() => {
+  scheduleMarkdownInlineSelectionFrame(editorRef, () => {
     const root = editorRef.current
     if (!root) return
     pendingViewerSelections.delete(root)
@@ -365,7 +387,7 @@ export function focusMarkdownInlineTextSelectionAtPointSoon(
   fallbackEnd: number = fallbackStart,
   onApplied?: () => void,
 ) {
-  window.requestAnimationFrame(() => {
+  scheduleMarkdownInlineSelectionFrame(editorRef, () => {
     const root = editorRef.current
     if (!root) return
     const rangeAtPoint = readMarkdownContentEditableCaretRangeFromPoint(root, point).range

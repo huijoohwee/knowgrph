@@ -8,7 +8,19 @@ import { TEST_CASES_POST_PARSER_5 } from './postParserCases5'
 import { TEST_CASES_POST_PARSER_6 } from './postParserCases6'
 import { TEST_CASES_POST_PARSER_7 } from './postParserCases7'
 
-export const ALL_POST_PARSER_CASES: TestCaseTuple[] = [
+const dedupeExactTestCaseTuples = (tuples: readonly TestCaseTuple[]): TestCaseTuple[] => {
+  const seen = new Set<string>()
+  const deduped: TestCaseTuple[] = []
+  for (const tuple of tuples) {
+    const key = JSON.stringify(tuple)
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(tuple)
+  }
+  return deduped
+}
+
+export const ALL_POST_PARSER_CASES: TestCaseTuple[] = dedupeExactTestCaseTuples([
   ...TEST_CASES_POST_PARSER_0,
   ...TEST_CASES_POST_PARSER_5,
   ...TEST_CASES_POST_PARSER_6,
@@ -17,4 +29,4 @@ export const ALL_POST_PARSER_CASES: TestCaseTuple[] = [
   ...TEST_CASES_POST_PARSER_4,
   ...TEST_CASES_POST_PARSER_2,
   ...TEST_CASES_POST_PARSER_3,
-]
+])

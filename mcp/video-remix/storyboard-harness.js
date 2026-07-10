@@ -36,7 +36,6 @@ export const STORYBOARD_MAX_SHOTS = 500;
 export const STORYBOARD_DEFAULT_SHOT_COUNT = DEFAULT_SHOT_COUNT;
 export const STORYBOARD_BRIEF_MAX_LENGTH = 5000;
 export { DEFAULT_TOKEN_BUDGET_CEILING, checkNarrativeCoherence, wrapChatClientWithTokenCeiling };
-
 const STORYBOARD_STATUS_COMPLETE = "complete";
 // Terminal status for the R7.4 reject path: the produced Kgc_Document failed
 // `kgc-computing-flow/v1` validation (or the one-node-per-shot count invariant),
@@ -168,8 +167,12 @@ export function validateStoryboardInput(args = {}) {
     }
   }
   const shotCount = clampShotCount(input.shotCount);
+  const scriptContext = input.scriptContext && typeof input.scriptContext === "object" && !Array.isArray(input.scriptContext)
+    ? input.scriptContext
+    : null;
+  const storyboardProfile = input.storyboardProfile && typeof input.storyboardProfile === "object" && !Array.isArray(input.storyboardProfile) ? input.storyboardProfile : null;
 
-  return { brief, evidencePack, sourceIds, sourceCount, shotCount };
+  return { brief, evidencePack, sourceIds, sourceCount, shotCount, scriptContext, storyboardProfile };
 }
 
 /**
@@ -427,7 +430,7 @@ function buildStoryboardFallbackResult({ brief, sourceIds, sourceCount, runId, r
  * @param {number} [deps.paidProviderCalls] - paid-call count for a live client.
  */
 export async function runStoryboardHarness(input, deps = {}) {
-  const { brief, evidencePack, sourceIds, sourceCount, shotCount } = validateStoryboardInput(input);
+  const { brief, evidencePack, sourceIds, sourceCount, shotCount, scriptContext, storyboardProfile } = validateStoryboardInput(input);
 
   let degradedMode = null;
   const chatClient = wrapChatClientWithTokenCeiling(
@@ -460,7 +463,7 @@ export async function runStoryboardHarness(input, deps = {}) {
   let reasoning;
   let reasoningFailure = null;
   try {
-    reasoning = await chatClient.plan({ brief, sourceIds, shotCount });
+    reasoning = await chatClient.plan({ brief, sourceIds, shotCount, scriptContext, storyboardProfile });
     if (reasoningSignaledFailure(reasoning)) reasoningFailure = reasoning;
   } catch (error) {
     reasoningFailure = error;
@@ -491,6 +494,23 @@ export async function runStoryboardHarness(input, deps = {}) {
       ...shot,
       prompt: cleanString(idea.prompt, shot.prompt),
       sourceCardIds,
+      actId: cleanString(idea.actId),
+      sceneId: cleanString(idea.sceneId),
+      objective: cleanString(idea.objective),
+      characterIds: Array.isArray(idea.characterIds) ? idea.characterIds : [],
+      characterStates: idea.characterStates && typeof idea.characterStates === "object" ? idea.characterStates : {},
+      environmentState: idea.environmentState && typeof idea.environmentState === "object" ? idea.environmentState : {},
+      dependencyShotIds: Array.isArray(idea.dependencyShotIds) ? idea.dependencyShotIds : [],
+      transitionReason: cleanString(idea.transitionReason),
+      scriptSegmentIds: Array.isArray(idea.scriptSegmentIds) ? idea.scriptSegmentIds : [],
+      scriptUnitIds: Array.isArray(idea.scriptUnitIds) ? idea.scriptUnitIds : [],
+      dialogueUnitIds: Array.isArray(idea.dialogueUnitIds) ? idea.dialogueUnitIds : [],
+      dramaticPurpose: cleanString(idea.dramaticPurpose),
+      dramaticIntensity: Number(idea.dramaticIntensity),
+      cinematography: idea.cinematography && typeof idea.cinematography === "object" ? idea.cinematography : {},
+      actionBeatId: cleanString(idea.actionBeatId),
+      cameraId: cleanString(idea.cameraId),
+      spatialBlocking: idea.spatialBlocking && typeof idea.spatialBlocking === "object" ? idea.spatialBlocking : {},
     };
   });
 
@@ -574,5 +594,6 @@ export async function runStoryboardHarness(input, deps = {}) {
     canvasDocumentMarkdown: emission.canvasDocumentMarkdown,
     flow: emission.flow,
     plannedShots,
+    creativePlan: reasoning?.creativePlan ?? null,
   };
 }

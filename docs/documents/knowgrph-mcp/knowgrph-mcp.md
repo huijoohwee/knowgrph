@@ -50,6 +50,8 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 
 Knowgrph should present one low-friction public remote MCP install story:
 
+- The canonical operator-facing install boundary and host recipes live in `docs/documents/knowgrph-mcp-install-contract.md`; use that install contract when a setup guide, host integration, or onboarding note needs one explicit answer.
+- For the shortest guided path across the install contract, release note, agent-ready context, and MCP overview, start with `docs/documents/knowgrph-mcp-onboarding-index.md`.
 - `https://airvio.co/knowgrph/mcp` is the canonical public install and discovery endpoint.
 - `https://airvio.co/knowgrph/control-plane/mcp` is the approval-gated orchestration endpoint and must stay documented as a separate control-plane surface.
 - MCP server-card metadata, `.well-known` discovery, readiness payloads, and copy-paste host setup snippets must all point basic remote installs at the same canonical public endpoint.

@@ -523,9 +523,6 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('mediaOverlayLayoutScheduleRef.current?.()')) {
     throw new Error('expected FlowCanvas media overlays to schedule layout updates')
   }
-  if (!text.includes('plannedOverlayNodeIdsKey')) {
-    throw new Error('expected FlowCanvas media overlay layout scheduling to track planned overlay ids')
-  }
   if (!text.includes('mediaLayoutItemIdsKey')) {
     throw new Error('expected FlowCanvas media overlay layout scheduling to track media overlay item ids')
   }
@@ -1142,9 +1139,6 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
 
   const flowCanvasMediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const flowCanvasMediaText = readFileSync(flowCanvasMediaPath, 'utf8')
-  if (!flowCanvasMediaText.includes('plannedOverlayNodeIdsKey')) {
-    throw new Error('expected frontmatter collective scheduling to key off planned overlay ids instead of workspace view toggles')
-  }
   if (!flowCanvasMediaText.includes('mediaLayoutItemIdsKey')) {
     throw new Error('expected frontmatter collective scheduling to key off active media layout items instead of workspace view toggles')
   }

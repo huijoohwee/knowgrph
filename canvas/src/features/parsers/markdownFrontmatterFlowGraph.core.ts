@@ -10,6 +10,7 @@ import {
   tryParseFlowBlockFromFrontmatterLines,
   tryParseFlowBlockFromMarkdownBodyLines,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import { countYamlIndent as countIndent, findLeadingUnfencedYamlMetadataEnd, repairWrappedQuotedFrontmatterKeys } from '@/lib/markdown/frontmatterYamlRepair'
 import { buildFrontmatterFlowSourceLayerHash } from '@/features/parsers/markdownFrontmatterFlowGraph.sourceKey'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
@@ -692,12 +693,6 @@ function readFlowWarnings(metaRecord: Record<string, unknown>): string[] {
   return out
 }
 
-function countIndent(rawLine: string): number {
-  let i = 0
-  while (i < rawLine.length && rawLine[i] === ' ') i += 1
-  return i
-}
-
 function coerceFrontmatterScalar(raw: string): unknown {
   const value = String(raw || '').trim()
   if (!value) return ''
@@ -1244,7 +1239,12 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   name: string,
   text: string,
 ): { graphData: GraphData; warnings: string[] } | null {
-  const raw = repairFlowInlineEnvelopeBlockScalars(String(text || '').replace(/^\uFEFF/, ''))
+  let raw = repairWrappedQuotedFrontmatterKeys(repairFlowInlineEnvelopeBlockScalars(String(text || '').replace(/^\uFEFF/, '')))
+  if (!raw.trimStart().startsWith('---')) {
+    const rawLines = splitMarkdownLines(raw)
+    const unfencedYamlEnd = findLeadingUnfencedYamlMetadataEnd(rawLines)
+    if (unfencedYamlEnd > 0) raw = ['---', ...rawLines.slice(0, unfencedYamlEnd), '---', ...rawLines.slice(unfencedYamlEnd)].join('\n')
+  }
   if (!raw.trimStart().startsWith('---')) {
     const lines = splitMarkdownLines(raw)
     const flowFromBody = tryParseFlowBlockFromMarkdownBodyLines({ lines })

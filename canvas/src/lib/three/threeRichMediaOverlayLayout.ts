@@ -441,6 +441,7 @@ export function updateThreeMediaOverlayLayout(args: {
       h: layout.rect.h,
       zIndex: zById.get(layout.id) || 2000,
       display: 'block',
+      positionMode: 'matrix',
     })
     try {
       layout.el.style.opacity = String(layout.opacity)

@@ -168,10 +168,14 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     return subscribeGrabMapsPoiRichMediaPreview(payload => applyPayload(payload))
   }, [props.overlayId])
   const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc
+  const inlineSrcDocRequestsPanelScroll = React.useMemo(() => shouldUsePanelOwnedRichMediaPanelSrcDocScroll(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
+  const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
+  const scrollOwner = inlineSrcDocRequestsPanelScroll ? 'panel' : declaredScrollOwner
   const normalizedInlineSrcDoc = React.useMemo(() => normalizeRichMediaPanelInlineSrcDoc({
     srcDoc: effectiveInlineSrcDoc,
     title,
-  }), [effectiveInlineSrcDoc, title])
+    scrollOwner,
+  }), [effectiveInlineSrcDoc, scrollOwner, title])
   const playableRawUrl = React.useMemo(() => resolveRichMediaPlayableUrl({
     fallbackSrcDocAvailable: kind === 'video' && !!normalizedInlineSrcDoc,
     url: rawUrl,
@@ -180,9 +184,6 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     kind === 'iframe' ? rawUrl : applyImageLikeProxySrc(playableRawUrl)
   ), [kind, playableRawUrl, rawUrl])
   const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
-  const inlineSrcDocRequestsPanelScroll = React.useMemo(() => shouldUsePanelOwnedRichMediaPanelSrcDocScroll(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
-  const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
-  const scrollOwner = inlineSrcDocRequestsPanelScroll ? 'panel' : declaredScrollOwner
   React.useEffect(() => {
     setInlineSrcDocContentSize(null)
   }, [normalizedInlineSrcDoc])

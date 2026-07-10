@@ -131,7 +131,6 @@ export function useThreeRichMediaOverlayController(args: {
   const headerDragRef = React.useRef<null | RichMediaHeaderDragState3d>(null)
   const overlayPanRef = React.useRef<null | { pointerId: number; pose: ThreeCameraPose }>(null)
   const resizeRef = React.useRef<RichMediaResizeState3d | null>(null)
-  const zIndexCounterRef = React.useRef<number>(1)
   const [controlRevision, setControlRevision] = React.useState(0)
   const scratchRef = React.useRef(createThreeMediaOverlayLayoutScratch())
 
@@ -468,15 +467,6 @@ export function useThreeRichMediaOverlayController(args: {
     bumpControlRevision()
   }, [args.positions, bumpControlRevision, readPanelPinned, requestSchedule, updateNodeProperties])
 
-  const bringToFront = React.useCallback((id: string) => {
-    const next = zIndexCounterRef.current + 1
-    zIndexCounterRef.current = next
-    localZIndexRef.current[id] = next
-    updateNodeProperties(id, { 'visual:zIndex': next as unknown as JSONValue })
-    requestSchedule()
-    bumpControlRevision()
-  }, [bumpControlRevision, requestSchedule, updateNodeProperties])
-
   const togglePanelSize = React.useCallback((id: string) => {
     const el = overlayElsRef.current.get(id) || null
     const rect = el?.getBoundingClientRect()
@@ -516,7 +506,6 @@ export function useThreeRichMediaOverlayController(args: {
             stopHeaderControlEvent(event)
             togglePinned(n.id)
           }}
-          onHeaderValidate={() => bringToFront(n.id)}
           onHeaderToggleMinimized={() => togglePanelSize(n.id)}
           interactive={resolveRichMediaPanelInteractive({
             nodeInteractive: n.interactive,

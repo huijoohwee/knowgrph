@@ -5,7 +5,7 @@ import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } f
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 import { AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION } from "./agentic-canvas-os-docs-contract.mjs";
 import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.js";
-
+import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-tool-contract.js"; import { VIDEO_WORKFLOW_INPUT_SCHEMA } from "./video-remix/workflow-contract.js";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
@@ -376,6 +376,7 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
             type: "number",
             description: "Agent loop iteration budget. Default: 8.",
           },
+          workflow: VIDEO_WORKFLOW_INPUT_SCHEMA,
           frontendUrl: {
             type: "string",
             description: "Optional product frontend URL to record in the demo pack after all live gates are approved.",
@@ -529,6 +530,7 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
         },
       },
     }, READ_ONLY_TOOL_ANNOTATIONS),
+    ...buildAgentSandboxPolicyToolDefinitions({ toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES, withDefaults: withLocalMcpDescriptorDefaults, readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS }),
     withLocalMcpDescriptorDefaults(buildOsStatusToolDefinition(), READ_ONLY_TOOL_ANNOTATIONS), withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:

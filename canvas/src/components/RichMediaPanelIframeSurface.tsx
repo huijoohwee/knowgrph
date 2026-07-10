@@ -1,7 +1,7 @@
 import RichMediaIframe from '@/components/RichMediaIframe'
 import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
-import { CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { shouldUseDirectRichMediaPanelSrcDocSandbox } from '@/lib/render/richMediaPanelSrcDoc'
 import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
@@ -10,15 +10,12 @@ export function RichMediaPanelIframeSurface(args: {
   model: RichMediaPanelModel
 }) {
   const { model } = args
-  if (model.kind !== 'iframe' || model.panelIsLoading || model.isEmptyPanel || model.showPanelInlineTextEditor || model.showPanelMarkdownPreview) {
-    return null
-  }
   if (model.effectiveInlineSrcDoc) {
     return (
       <section
         aria-label="Rich media embedded preview"
         data-kg-rich-media-embedded-preview="1"
-        className={CARD_MARKDOWN_PREVIEW_EMBEDDED_MEDIA_SURFACE_CLASS_NAME}
+        className={CARD_MARKDOWN_PREVIEW_MEDIA_SHELL_CLASS_NAME}
         style={model.inlineSrcDocEmbeddedSurfaceStyle}
       >
         <SharedWebpageSurface

@@ -1,8 +1,7 @@
 import React from 'react'
 import { Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
-import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
+import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
-import { LS_KEYS } from '@/lib/config'
 import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { PanelSelect, PanelTextarea } from '@/lib/ui/panelFormControls'
@@ -93,8 +92,6 @@ export function MediaLightbox({
   const hasMediaSource = !!String(src || '').trim()
   const isImage = kind === 'image'
   const isVideo = kind === 'video'
-  const lightboxMediaContentSize = React.useCallback(() => ({ w: 1600, h: isVideo ? 900 : 1000 }), [isVideo])
-
   React.useEffect(() => {
     if (!open) return
     setPromptDraft(promptDraftSeed)
@@ -198,63 +195,34 @@ export function MediaLightbox({
               <section className="grid h-full w-full max-w-5xl place-items-center gap-4">
                 {isImage ? (
                   <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-image="1">
-                    <ZoomPanViewport
-                      open={hasMediaSource}
-                      storageKey={LS_KEYS.previewZoomPanMedia}
-                      getContentSize={lightboxMediaContentSize}
-                      fitOnOpen
-                      fitKey={`${kind}:${src}`}
-                      frameAspectRatio={16 / 10}
-                      framePaddingPx={0}
-                      wheelZoomBehavior="active"
-                      showControls={false}
-                      showZoomIndicator={false}
-                      frameClassName="bg-transparent"
-                      contentFillsFrame
-                      transparentBackground
-                    >
-                      <CardMediaPreview
-                        kind="image"
+                    <section className="h-full w-full overflow-hidden rounded-md" data-kg-media-lightbox-image-panel="1">
+                      <RichMediaPanel
+                        overlayId="media-lightbox-image"
                         title={displayTitle || alt || 'Image'}
                         url={src}
-                        href={src}
+                        openUrl={src}
+                        kind="image"
                         interactive={false}
-                        fit="contain"
-                        mediaClassName="h-full w-full"
-                        mediaThumbnailDataAttr
+                        panelChrome="storyboardWidget"
+                        frameMode="surface"
                       />
-                    </ZoomPanViewport>
+                    </section>
                   </section>
                 ) : isVideo ? (
                   <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-video="1">
-                    <ZoomPanViewport
-                      open={hasMediaSource}
-                      storageKey={LS_KEYS.previewZoomPanMedia}
-                      getContentSize={lightboxMediaContentSize}
-                      fitOnOpen
-                      fitKey={`${kind}:${src}`}
-                      frameAspectRatio={16 / 9}
-                      framePaddingPx={0}
-                      wheelZoomBehavior="active"
-                      showControls={false}
-                      showZoomIndicator={false}
-                      frameClassName="bg-transparent"
-                      contentFillsFrame
-                      transparentBackground
-                    >
-                      <CardMediaPreview
-                        kind="video"
+                    <section className="h-full w-full overflow-hidden rounded-md" data-kg-media-lightbox-video-panel="1">
+                      <RichMediaPanel
+                        overlayId="media-lightbox-video"
                         title={displayTitle || alt || 'Video'}
                         url={src}
-                        href={src}
+                        openUrl={src}
+                        kind="video"
                         interactive
-                        fit="contain"
                         videoControls
-                        videoMuted={false}
-                        mediaClassName="h-full w-full"
-                        mediaThumbnailDataAttr
+                        panelChrome="storyboardWidget"
+                        frameMode="surface"
                       />
-                    </ZoomPanViewport>
+                    </section>
                   </section>
                 ) : (
                   <section className="grid h-full w-full max-h-[24rem] place-items-center gap-4" data-kg-media-lightbox-audio="1">

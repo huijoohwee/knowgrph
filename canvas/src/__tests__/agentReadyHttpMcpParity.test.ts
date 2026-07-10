@@ -23,13 +23,12 @@ import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agent
 import { createPublishedAgentReadyToolExecutors } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { onRequest, buildAgentReadyStaticFiles } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 import { buildKnowgrphCommerceDiscovery, buildKnowgrphX402PaymentRequiredResponse } from '../../../cloudflare/pages/knowgrph-agent-ready-commerce.mjs'
-
+import { assertAgentReadyOnboardingHtml, assertAgentReadyOnboardingReadiness, type AgentReadyOnboarding } from './agentReadyOnboardingAssertions'
 const EXPECTED_PUBLISHED_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 })
 const EXPECTED_PROMPT_CONTRACTS = buildKnowgrphAgentReadyPromptContracts()
 const EXPECTED_RESOURCE_TEMPLATE_CONTRACTS = buildKnowgrphAgentReadyResourceTemplateContracts()
-
 const toComparableMcpToolEntry = (tool: Record<string, unknown>) => ({
   name: tool.name,
   title: tool.title,
@@ -40,11 +39,9 @@ const toComparableMcpToolEntry = (tool: Record<string, unknown>) => ({
   annotations: tool.annotations,
   _meta: tool._meta,
 })
-
 const EXPECTED_MCP_TOOL_ENTRIES = EXPECTED_PUBLISHED_TOOL_CONTRACTS
   .map((tool) => toComparableMcpToolEntry(tool as unknown as Record<string, unknown>))
   .sort((left, right) => String(left.name || '').localeCompare(String(right.name || '')))
-
 const assertReadOnlyAnnotations = (tool: { name?: string, annotations?: Record<string, unknown> } | undefined): void => {
   if (
     tool?.annotations?.readOnlyHint !== true
@@ -189,6 +186,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (!Array.isArray(paymentRequired.accepts) || paymentRequired.accepts.length <= 0) {
     throw new Error(`expected x402 payment-required response body, got ${JSON.stringify(paymentRequired)}`)
   }
+  assertAgentReadyOnboardingHtml(String(staticMcpAppHtml?.body || ''))
   if (
     !staticMcpAppHtml
     || !String(staticMcpAppHtml.contentType || '').includes(KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE)
@@ -626,6 +624,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
         ready?: boolean
         uriTemplates?: string[]
       }
+      onboarding?: AgentReadyOnboarding
       clients?: Record<string, any>
       tool?: {
         securitySchemes?: Array<{ type?: string }>
@@ -674,6 +673,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (readiness.resourceTemplates?.ready !== true || !readiness.resourceTemplates.uriTemplates?.includes(EXPECTED_RESOURCE_TEMPLATE_CONTRACTS[0].uriTemplate)) {
     throw new Error(`expected readiness resource-template details to prove Source Files template discovery, got ${JSON.stringify(readiness.resourceTemplates)}`)
   }
+  assertAgentReadyOnboardingReadiness(readiness.onboarding)
   if (readiness.tool?.securitySchemes?.[0]?.type !== 'noauth' || readiness.tool?.mirroredSecuritySchemes?.[0]?.type !== 'noauth' || readiness.tool?.widgetAccessible !== true || readiness.tool?.openAiWidgetBridge !== true || readiness.tool?.annotationsReady !== true || readiness.tool?.openWorld !== false || readiness.tool?.destructive !== false || readiness.tool?.idempotent !== true) {
     throw new Error(`expected readiness tool details to prove mirrored noauth security, widget accessibility, and complete read-only annotations, got ${JSON.stringify(readiness.tool)}`)
   }

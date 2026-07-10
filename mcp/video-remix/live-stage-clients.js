@@ -32,6 +32,9 @@
 // fake `fetch` (ZERO live calls).
 
 import { cleanString } from "./helpers.js";
+import { CINEMATOGRAPHY_GRAMMAR, resolveShotRenderPrompt } from "./expressive-storyboard.js";
+
+const plainRecord = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
 
 // Default endpoints / models. Kept as local constants (same discipline as the
 // Exa client) so this JS module imports nothing from the TS SSOTs at runtime.
@@ -50,6 +53,13 @@ export class RenderClientError extends Error {
   constructor(message, code = "render_dispatch_failed") {
     super(message);
     this.name = "RenderClientError";
+    this.code = code;
+  }
+}
+export class ImageGenerationClientError extends Error {
+  constructor(message, code = "image_generation_request_failed") {
+    super(message);
+    this.name = "ImageGenerationClientError";
     this.code = code;
   }
 }
@@ -122,7 +132,46 @@ export function parseStoryboardCompletion(completion) {
     sourceCardIds: Array.isArray(shot?.sourceCardIds)
       ? shot.sourceCardIds.map((id) => cleanString(id)).filter(Boolean)
       : [],
+    actId: cleanString(shot?.actId),
+    sceneId: cleanString(shot?.sceneId),
+    objective: cleanString(shot?.objective),
+    characterIds: Array.isArray(shot?.characterIds) ? shot.characterIds.map((id) => cleanString(id)).filter(Boolean) : [],
+    characterStates: plainRecord(shot?.characterStates),
+    environmentState: plainRecord(shot?.environmentState),
+    dependencyShotIds: Array.isArray(shot?.dependencyShotIds) ? shot.dependencyShotIds.map((id) => cleanString(id)).filter(Boolean) : [],
+    transitionReason: cleanString(shot?.transitionReason),
+    scriptSegmentIds: Array.isArray(shot?.scriptSegmentIds) ? shot.scriptSegmentIds.map((id) => cleanString(id)).filter(Boolean) : [],
+    scriptUnitIds: Array.isArray(shot?.scriptUnitIds) ? shot.scriptUnitIds.map((id) => cleanString(id)).filter(Boolean) : [],
+    dialogueUnitIds: Array.isArray(shot?.dialogueUnitIds) ? shot.dialogueUnitIds.map((id) => cleanString(id)).filter(Boolean) : [],
+    dramaticPurpose: cleanString(shot?.dramaticPurpose),
+    dramaticIntensity: Number(shot?.dramaticIntensity),
+    cinematography: plainRecord(shot?.cinematography),
+    actionBeatId: cleanString(shot?.actionBeatId),
+    cameraId: cleanString(shot?.cameraId),
+    spatialBlocking: plainRecord(shot?.spatialBlocking),
   }));
+}
+
+export function parseCreativePlanCompletion(completion) {
+  const choice = Array.isArray(completion?.choices) ? completion.choices[0] : null;
+  const content = choice?.message?.content;
+  let parsed = null;
+  if (content && typeof content === "object") parsed = content;
+  else if (typeof content === "string" && content.trim()) {
+    try { parsed = JSON.parse(content); } catch { parsed = null; }
+  }
+  const characters = Array.isArray(parsed?.characters)
+    ? parsed.characters.map((character) => ({
+        id: cleanString(character?.id || character?.name),
+        name: cleanString(character?.name || character?.id),
+        description: cleanString(character?.description),
+        referenceImageId: cleanString(character?.referenceImageId),
+      })).filter((character) => character.id && character.name)
+    : [];
+  return {
+    script: cleanString(parsed?.script),
+    characters,
+  };
 }
 
 /**
@@ -145,17 +194,21 @@ export function createByteplusStoryboardClient(opts = {}) {
   return {
     isDeterministicMock: false,
     requiresAsyncHarness: false, // runStoryboardHarness already awaits plan()
-    async plan({ brief, sourceIds, shotCount }) {
+    async plan({ brief, sourceIds, shotCount, scriptContext, storyboardProfile }) {
       if (!endpoint) {
         throw new StoryboardClientError("no AI Gateway chat endpoint configured", "storyboard_unconfigured");
       }
       const headers = {};
       if (cleanString(opts.apiKey)) headers.authorization = `Bearer ${opts.apiKey}`;
       const ids = Array.isArray(sourceIds) ? sourceIds : [];
+      const scriptEntries = Array.isArray(scriptContext?.entries) ? scriptContext.entries : [];
       const instruction =
-        `You are a video-remix storyboard planner. Produce exactly ${shotCount} shots as ` +
-        `JSON {"shots":[{"prompt":string,"sourceCardIds":string[]}]}. Each shot's ` +
+        `You are a video production planner. Produce a concise script, a character continuity registry, and exactly ${shotCount} shots as ` +
+        `JSON {"script":string,"characters":[{"id":string,"name":string,"description":string}],"shots":[{"prompt":string,"sourceCardIds":string[],"actId":string,"sceneId":string,"objective":string,"characterIds":string[],"characterStates":object,"environmentState":object,"dependencyShotIds":string[],"transitionReason":string,"scriptSegmentIds":string[],"scriptUnitIds":string[],"dialogueUnitIds":string[],"dramaticPurpose":string,"dramaticIntensity":number,"cinematography":{"shotSize":string,"cameraAngle":string,"cameraMovement":string,"composition":string,"transition":string,"lightingIntent":string,"audienceRationale":string},"actionBeatId":string,"cameraId":string,"spatialBlocking":{"characters":object,"background":object}}]}. Each shot's ` +
         `sourceCardIds MUST be drawn only from this evidence id set: ${JSON.stringify(ids)}. ` +
+        `Treat the supplied script segments as immutable source material: preserve their plot order and dialogue wording, cite their segment/unit ids on shots, and do not invent replacement dialogue. ` +
+        `Script segments: ${JSON.stringify(scriptEntries)}. ` +
+        `Storyboard profile: ${JSON.stringify(storyboardProfile || {})}. Use only this cinematography grammar: ${JSON.stringify(CINEMATOGRAPHY_GRAMMAR)}. Establish a deliberate intensity and duration rhythm across shots for the stated audience and requirements. For shots in the same scene and action beat, preserve identical character coordinates and background state while varying only the requested camera coverage. ` +
         `Brief: ${cleanString(brief)}`;
       const completion = await postJson(
         fetchImpl,
@@ -174,11 +227,162 @@ export function createByteplusStoryboardClient(opts = {}) {
         StoryboardClientError,
       );
       const shots = parseStoryboardCompletion(completion);
+      const creativePlan = parseCreativePlanCompletion(completion);
       if (shots.length === 0) {
         // No usable shots → fail closed so the harness emits its fallback (R7.5).
         throw new StoryboardClientError("model returned no usable shots", "storyboard_empty_plan");
       }
-      return { shots };
+      return { shots, creativePlan };
+    },
+  };
+}
+
+export function createAiGatewayVisualReviewClient(opts = {}) {
+  const fetchImpl = resolveFetch(opts.fetchImpl, StoryboardClientError);
+  const endpoint = cleanString(opts.endpoint);
+  const model = cleanString(opts.model) || DEFAULT_BYTEPLUS_CHAT_MODEL;
+  return {
+    isDeterministicMock: false,
+    async review(packet = {}) {
+      if (!endpoint) throw new StoryboardClientError("no AI Gateway chat endpoint configured", "visual_review_unconfigured");
+      const headers = {};
+      if (cleanString(opts.apiKey)) headers.authorization = `Bearer ${opts.apiKey}`;
+      const assetUrl = cleanString(packet.assetUrl);
+      const mediaContent = /\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i.test(assetUrl)
+        ? { type: "video_url", video_url: { url: assetUrl } }
+        : { type: "image_url", image_url: { url: assetUrl, detail: "high" } };
+      const completion = await postJson(fetchImpl, endpoint, {
+        headers,
+        body: {
+          model,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Review narrative and visual continuity. Return JSON {"narrativeScore":number,"visualScore":number,"findings":string[],"proposedPrompt":string}. Expected state: ${JSON.stringify(packet.expectedContinuity || {})}. Planned prompt: ${cleanString(packet.prompt)}`,
+              },
+              mediaContent,
+            ],
+          }],
+          response_format: { type: "json_object" },
+        },
+      }, StoryboardClientError);
+      const choice = Array.isArray(completion?.choices) ? completion.choices[0] : null;
+      let result = choice?.message?.content;
+      if (typeof result === "string") {
+        try { result = JSON.parse(result); } catch { result = null; }
+      }
+      if (!result || typeof result !== "object") {
+        throw new StoryboardClientError("visual review returned invalid JSON", "visual_review_invalid");
+      }
+      const usage = completion?.usage || {};
+      const promptTokens = Number.isInteger(usage.prompt_tokens) ? usage.prompt_tokens : "unknown";
+      const completionTokens = Number.isInteger(usage.completion_tokens) ? usage.completion_tokens : "unknown";
+      return {
+        narrativeScore: Number(result.narrativeScore),
+        visualScore: Number(result.visualScore),
+        findings: Array.isArray(result.findings) ? result.findings : [],
+        proposedPrompt: cleanString(result.proposedPrompt),
+        costLog: {
+          model,
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          cache_hits: Number.isInteger(usage.cache_hits) ? usage.cache_hits : 0,
+          estimated_cost_usd: Number(usage.estimated_cost_usd || completion?.estimated_cost_usd) || 0,
+          incomplete: promptTokens === "unknown" || completionTokens === "unknown",
+        },
+      };
+    },
+    async reviewCandidate(packet = {}) {
+      if (!endpoint) throw new StoryboardClientError("no AI Gateway chat endpoint configured", "image_consistency_review_unconfigured");
+      const headers = {};
+      if (cleanString(opts.apiKey)) headers.authorization = `Bearer ${opts.apiKey}`;
+      const completion = await postJson(fetchImpl, endpoint, {
+        headers,
+        body: {
+          model,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Evaluate this candidate first frame against the planned references and spatial continuity. Return JSON {"identityScore":number,"environmentScore":number,"spatialScore":number,"temporalScore":number,"technicalScore":number,"findings":string[]}. Expected state: ${JSON.stringify(packet.expectedContinuity || {})}. Planned image prompt: ${cleanString(packet.prompt)}`,
+              },
+              { type: "image_url", image_url: { url: cleanString(packet.assetUrl), detail: "high" } },
+            ],
+          }],
+          response_format: { type: "json_object" },
+        },
+      }, StoryboardClientError);
+      const choice = Array.isArray(completion?.choices) ? completion.choices[0] : null;
+      let result = choice?.message?.content;
+      if (typeof result === "string") {
+        try { result = JSON.parse(result); } catch { result = null; }
+      }
+      if (!result || typeof result !== "object") {
+        throw new StoryboardClientError("image consistency review returned invalid JSON", "image_consistency_review_invalid");
+      }
+      const usage = completion?.usage || {};
+      return {
+        identityScore: Number(result.identityScore),
+        environmentScore: Number(result.environmentScore),
+        spatialScore: Number(result.spatialScore),
+        temporalScore: Number(result.temporalScore),
+        technicalScore: Number(result.technicalScore),
+        findings: Array.isArray(result.findings) ? result.findings : [],
+        costLog: {
+          model,
+          prompt_tokens: Number.isInteger(usage.prompt_tokens) ? usage.prompt_tokens : "unknown",
+          completion_tokens: Number.isInteger(usage.completion_tokens) ? usage.completion_tokens : "unknown",
+          cache_hits: Number.isInteger(usage.cache_hits) ? usage.cache_hits : 0,
+          estimated_cost_usd: Number(usage.estimated_cost_usd || completion?.estimated_cost_usd) || 0,
+          incomplete: !Number.isInteger(usage.prompt_tokens) || !Number.isInteger(usage.completion_tokens),
+        },
+      };
+    },
+  };
+}
+
+export function createAiGatewayImageGenerationClient(opts = {}) {
+  const fetchImpl = resolveFetch(opts.fetchImpl, ImageGenerationClientError);
+  const endpoint = cleanString(opts.endpoint);
+  const model = cleanString(opts.model);
+  return {
+    isDeterministicMock: false,
+    async generate({ runId, shotId, variantIndex, prompt, referenceImages } = {}) {
+      if (!endpoint || !model) {
+        throw new ImageGenerationClientError("image generation endpoint and model are required", "image_generation_unconfigured");
+      }
+      const headers = {};
+      if (cleanString(opts.apiKey)) headers.authorization = `Bearer ${opts.apiKey}`;
+      const completion = await postJson(fetchImpl, endpoint, {
+        headers,
+        body: {
+          model,
+          prompt: cleanString(prompt),
+          n: 1,
+          metadata: { run_id: cleanString(runId), shot_id: cleanString(shotId), variant_index: Number(variantIndex) || 0 },
+          reference_images: (Array.isArray(referenceImages) ? referenceImages : []).map((reference) => cleanString(reference?.assetUrl)).filter(Boolean),
+        },
+      }, ImageGenerationClientError);
+      const output = Array.isArray(completion?.data) ? completion.data[0] : Array.isArray(completion?.output) ? completion.output[0] : completion;
+      const assetUrl = cleanString(output?.url || output?.assetUrl || output?.durableR2Url);
+      if (!assetUrl) throw new ImageGenerationClientError("image generation returned no durable asset URL", "image_generation_no_asset");
+      const usage = completion?.usage || {};
+      return {
+        assetUrl,
+        durableR2Url: cleanString(output?.durableR2Url, assetUrl),
+        provider: cleanString(completion?.provider || output?.provider),
+        costLog: {
+          model,
+          prompt_tokens: Number.isInteger(usage.prompt_tokens) ? usage.prompt_tokens : "unknown",
+          completion_tokens: Number.isInteger(usage.completion_tokens) ? usage.completion_tokens : "unknown",
+          cache_hits: Number.isInteger(usage.cache_hits) ? usage.cache_hits : 0,
+          estimated_cost_usd: Number(usage.estimated_cost_usd || completion?.estimated_cost_usd) || 0,
+          incomplete: !Number.isInteger(usage.prompt_tokens) || !Number.isInteger(usage.completion_tokens),
+        },
+      };
     },
   };
 }
@@ -226,7 +430,10 @@ export function createStrytreeRenderQueueClient(opts = {}) {
           body: {
             runId: cleanString(runId),
             shotId: cleanString(shot?.shotId),
-            prompt: cleanString(shot?.prompt),
+            prompt: resolveShotRenderPrompt(shot),
+            imagePrompt: cleanString(shot?.imagePrompt),
+            firstFrameImage: shot?.primaryReference?.assetUrl || undefined,
+            referenceImages: Array.isArray(shot?.firstFrameReferences) ? shot.firstFrameReferences.map((reference) => reference.assetUrl).filter(Boolean) : [],
           },
         },
         RenderClientError,

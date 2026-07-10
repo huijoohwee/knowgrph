@@ -1,6 +1,10 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["graph.canonicalNodePropertyAuthority.preservesScopedLayout","@/__tests__/applyCanonicalNodePropertyAuthority.test","testCanonicalNodePropertyAuthorityPreservesScopedLayout"],
+  ["ui.storyboard.canvasGraphAuthority.prefersLiveDraft","@/__tests__/storyboardCanvasGraphAuthority.test","testStoryboardCanvasGraphAuthorityPrefersLiveNonEmptyDraft"],
+  ["ui.storyboard.canvasGraphAuthority.rejectsEmptyDraft","@/__tests__/storyboardCanvasGraphAuthority.test","testStoryboardCanvasGraphAuthorityRejectsEmptyTransientDraft"],
+  ["ui.flowCanvas.overlays.nativeScenePartition","@/__tests__/flowCanvasOverlayNativeScenePartitionRegression.test","testFlowCanvasPartitionsOverlayOwnedNodesBeforeNativeSceneBuild"],
   ["aiShowrunner.briefScript.roundTrip","@/__tests__/aiShowrunner.test","testAiShowrunnerBriefAndScriptRoundTrip"],
   ["aiShowrunner.stateBusToken.contracts","@/__tests__/aiShowrunner.test","testAiShowrunnerStateBusAndTokenContracts"],
   ["aiShowrunner.dryRun.artifactStructure","@/__tests__/aiShowrunner.test","testAiShowrunnerDryRunProducesArtifactStructure"],
@@ -26,6 +30,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.flowWidget.storyboardCardEdges.fullGraphNotFilteredD3","@/__tests__/storyboardFixedCardPlacementProjection.test","testStoryboardCardModeEdgesUseFullGraphWhileD3UsesFilteredGraph"],
   ["canvas.storyboard.portEdge.fallbackAnchorPreservesMeasuredOffViewportRect","@/__tests__/storyboardOverlayEdgeAnchorProjection.test","testStoryboardOverlayEdgeFallbackAnchorPreservesMeasuredOffViewportRect"],
   ["canvas.storyboard.portEdge.fallbackAnchorOwner","@/__tests__/storyboardOverlayEdgeAnchorProjection.test","testStoryboardOverlayEdgeRendererUsesMeasuredFallbackAnchorHelper"],
+  ["canvas.storyboard.portEdge.graphMutationLockRefreshesGeometry","@/__tests__/storyboardOverlayEdgeAnchorProjection.test","testStoryboardOverlayEdgeRefreshesGeometryDuringGraphMutationLock"],
   ["ui.storyboardCanvas.zoomPaintScale.boundsD3Interference","@/__tests__/storyboardCanvasZoomPaintScaleRegression.test","testStoryboardCanvasPaintScaleBoundsD3ZoomInterference"],
   ["strybldr.markdown.storyboard2dTemplateRuntimeReadyNeutral","@/__tests__/strybldrStoryboardTemplateValidation.test","testStrybldr2dRendererStoryboardTemplateStaysRuntimeReadyAndNeutral"],
   ["ui.flowWidget.storyboardCardTextLayout.readableLabels","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardTextLayoutKeepsSemanticLabelsReadable"],
@@ -43,6 +48,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.flowWidget.storyboardCardTextLayout.metaWheelRail","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardMetaWheelScrollsInsideRail"],
   ["ui.inlineCardEditor.viewerSurface.keepsFocusedDomWhenRenderedDraftMatches","@/__tests__/cardInlineTextEditorViewerSurfaceRegression.test.tsx","testCardInlineTextEditorViewerSurfaceKeepsFocusedDomWhenRenderedDraftMatches"],
   ["ui.inlineCardEditor.viewerSurface.singleLineTitle","@/__tests__/cardInlineTextEditorViewerSurfaceRegression.test.tsx","testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles"],
+  ["ui.inlineCardEditor.viewerSurface.stableViewEditLayout","@/__tests__/cardInlineTextSurfaceLayoutRegression.test.tsx","testCardInlineTextSurfaceKeepsViewEditLayoutStable"],
   ["ui.inlineCardEditor.viewerSurface.mediaCatalogInsertionKeepsMiddleLineSelection","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerMediaCatalogInsertionKeepsMiddleLineSelection"],
   ["ui.inlineCardEditor.viewerSurface.openPlacesCaretAtClickedPoint","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerOpenPlacesCaretAtClickedPoint"],
   ["ui.inlineCardEditor.viewerSurface.blankPlaceholderSharesInvocationTextOrigin","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerBlankPlaceholderSharesInvocationTextOrigin"],

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testStoryboardWidgetTextRunsPersistWorkspaceOutputArtifacts() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts'), 'utf8')
+  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
   const richMediaRunText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts'), 'utf8')
 
   if (!richMediaRunText.includes('export const writeTextWidgetRunOutputArtifact = async (args: {')) {
@@ -20,7 +20,7 @@ export function testStoryboardWidgetTextRunsPersistWorkspaceOutputArtifacts() {
 }
 
 export function testStoryboardWidgetRichMediaRunsPersistWorkspaceManifests() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts'), 'utf8')
+  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
   const richMediaRunText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts'), 'utf8')
 
   if (!richMediaRunText.includes('export const writeRichMediaWidgetRunOutputArtifact = async (args: {')) {

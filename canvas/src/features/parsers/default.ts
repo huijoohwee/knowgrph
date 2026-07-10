@@ -238,6 +238,7 @@ const markdownSpec: ParserSpec = {
   name: 'Markdown',
   match: (name, text) => {
     const lower = (name || '').toLowerCase()
+    if (isStrybldrStoryboardMarkdown(text)) return false
     if (/^https?:\/\//i.test(lower)) {
       const isMdByName = isMarkdownLikeFileName(lower)
       if (isMdByName) return !isLikelyPlainTextMarkdown(text) || containsFrontmatterMermaid(text)

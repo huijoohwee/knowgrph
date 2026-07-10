@@ -35,6 +35,11 @@ traceability:
 
 Parent SSOT: [`knowgrph-agentic-os-prd-tad.md`](knowgrph-agentic-os-prd-tad.md) v0.4.0 (Must-tier Agentic OS + MCP Gateway federation). This document closes the three **P1/P2 follow-on tracks** called out there: **HITL Gate Service completion**, **live stage harness wiring on the control plane**, and **Agentic Canvas OS dashboard UI lanes**.
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+
 ## Overview
 
 The Must-tier increment shipped read-only OS visibility and discovery-first MCP Gateway federation. What remains is **closing the spend-safety and live-orchestration loops** and **rendering the Agentic Canvas OS dashboard on Canvas** — all native-in-repo, reusing modules that already exist locally with passing tests.

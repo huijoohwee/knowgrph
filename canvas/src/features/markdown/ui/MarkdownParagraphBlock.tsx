@@ -331,7 +331,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
   const standaloneMediaEnabled =
     opts.markdownPresentationMode ||
-    opts.markdownCardPreviewMode === true ||
+    opts.markdownCardPreviewMode === true || blockControlsAllowed ||
     opts.markdownViewerMediaMode === 'image'
 
   const dnd = useMarkdownLineBlockDnD({

@@ -14,6 +14,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
   ariaLabel?: string
   placeholder?: string
   multiline?: boolean
+  editorSurface?: 'control' | 'viewer'
   rows?: number
   className?: string
   displayClassName?: string
@@ -28,6 +29,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
     ariaLabel,
     placeholder,
     multiline = false,
+    editorSurface = 'viewer',
     rows,
     className,
     displayClassName,
@@ -51,23 +53,32 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
     editorClassName,
   )
 
-  return (
+  const commonEditorProps = {
+    id,
+    value: String(value ?? ''),
+    ariaLabel: ariaLabel || id,
+    placeholder: placeholder || '',
+    canEdit: true,
+    editActivation: 'click' as const,
+    multiline,
+    markdownPreview: multiline ? 'auto' as const : undefined,
+    markdownCommandContextText,
+    rows,
+    displayClassName: baseDisplayClass,
+    editorClassName: baseEditorClass,
+    emptyClassName: UI_THEME_TOKENS.text.tertiary,
+    onCommit,
+  }
+
+  return editorSurface === 'control' ? (
     <CardInlineTextEditor
-      id={id}
-      value={String(value ?? '')}
-      ariaLabel={ariaLabel || id}
-      placeholder={placeholder || ''}
-      canEdit
-      editActivation="click"
+      {...commonEditorProps}
+      editorSurface="control"
+    />
+  ) : (
+    <CardInlineTextEditor
+      {...commonEditorProps}
       editorSurface="viewer"
-      multiline={multiline}
-      markdownPreview={multiline ? 'auto' : undefined}
-      markdownCommandContextText={markdownCommandContextText}
-      rows={rows}
-      displayClassName={baseDisplayClass}
-      editorClassName={baseEditorClass}
-      emptyClassName={UI_THEME_TOKENS.text.tertiary}
-      onCommit={onCommit}
     />
   )
 })

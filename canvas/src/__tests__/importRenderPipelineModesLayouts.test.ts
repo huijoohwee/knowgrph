@@ -26,7 +26,7 @@ import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from
 import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import type { GraphNode } from '@/lib/graph/types'
-import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
+import { resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
   const docPath = resolveMarkdownSlideDemoDocumentPath() || 'data/test-data/md-demo-00.md'
@@ -67,7 +67,7 @@ const readKnowgrphVideoDemoPath = (): string => {
     ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return resolveDocsSsotFixturePath(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
+  return resolveDocsSsotFixturePath('knowgrph-video-demo.md')
 }
 
 const readKnowgrphVideoDemoSeededPath = (): string => {

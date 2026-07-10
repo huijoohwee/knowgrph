@@ -63,6 +63,15 @@ type Candidate = {
   preferred: boolean
 }
 
+function buildRichMediaPanelDedupKey(candidate: Candidate): string {
+  const canonicalUrl = canonicalMediaDedupUrl(candidate.url || candidate.openUrl)
+  if (canonicalUrl) return `${candidate.kind}\nrich-media-panel\nurl:${canonicalUrl}`
+  const srcDoc = String(candidate.srcDoc || '').trim()
+  if (srcDoc) return `${candidate.kind}\nrich-media-panel\nsrcdoc:${srcDoc}`
+  const activeTab = String(candidate.panel?.activeTab || 'auto').trim() || 'auto'
+  return `${candidate.kind}\nrich-media-panel\nempty:${activeTab}`
+}
+
 function decodeRemoteFetchProxyUrl(raw: string): string {
   const trimmed = String(raw || '').trim()
   if (!trimmed) return ''
@@ -207,28 +216,6 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   else if (kind === 'iframe') score += 6
 
   return score
-}
-
-function hasMeaningfulRichMediaPanelOverlayContent(candidate: Candidate): boolean {
-  if (!candidate.panel) return false
-  if (String(candidate.url || '').trim()) return true
-  if (String(candidate.openUrl || '').trim()) return true
-  if (String(candidate.srcDoc || '').trim()) return true
-  if (candidate.panel.activeTab !== 'auto') return true
-  if (candidate.panel.hasImage || candidate.panel.hasVideo || candidate.panel.hasAudio || candidate.panel.hasText) return true
-  if (candidate.panel.isLoading) return true
-  return false
-}
-
-function getRichMediaPanelTextDedupKey(candidate: Candidate): string {
-  if (!candidate.panel) return ''
-  const connected = String(candidate.panel.connectedText || '').trim()
-  if (connected) return connected
-  const local = String(candidate.panel.text || '').trim()
-  if (local) return local
-  const srcDoc = String(candidate.srcDoc || '').trim()
-  if (srcDoc) return srcDoc
-  return ''
 }
 
 function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
@@ -399,11 +386,7 @@ export function listMediaOverlayNodes(args: {
     const keyUrl = canonicalMediaDedupUrl(c.url || c.openUrl)
     const key = (() => {
       if (!c.panel) return `${c.kind}\n${keyUrl || c.id}`
-      if (keyUrl) return `${c.kind}\n${keyUrl}`
-      const textKey = getRichMediaPanelTextDedupKey(c)
-      if (textKey) return `${c.kind}\nrich-media-text\n${textKey}`
-      if (hasMeaningfulRichMediaPanelOverlayContent(c)) return `${c.kind}\nrich-media-panel\n${c.id}`
-      return `${c.kind}\nrich-media-empty-shell\n${c.id}`
+      return buildRichMediaPanelDedupKey(c)
     })()
     const prev = bestByKey.get(key)
     if (!prev) {
@@ -425,7 +408,9 @@ export function listMediaOverlayNodes(args: {
     return a.idx - b.idx
   })
 
-  return unique.slice(0, poolMax).map(n => ({
+  return unique
+    .slice(0, poolMax)
+    .map(n => ({
     id: n.id,
     title: n.title,
     url: n.url,
@@ -440,5 +425,5 @@ export function listMediaOverlayNodes(args: {
     ...(typeof n.fy === 'number' && Number.isFinite(n.fy) ? { fy: n.fy } : {}),
     ...(typeof n.width === 'number' && Number.isFinite(n.width) ? { width: n.width } : {}),
     ...(typeof n.height === 'number' && Number.isFinite(n.height) ? { height: n.height } : {}),
-  }))
+    }))
 }

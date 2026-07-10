@@ -15,6 +15,7 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
   const storyboardOverlay = readUtf8('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx')
   const storyboardValueEditor = readUtf8('../components/StoryboardWidget/StoryboardWidgetInlineValueEditor.tsx')
   const richMediaTextSurface = readUtf8('../components/RichMediaPanelTextSurface.tsx')
+  const cardTextSurfaceFrame = readUtf8('../lib/cards/cardTextSurfaceFrame.ts')
   for (const snippet of [
     'MarkdownInlineTextEditSurface',
     'displaySourceValue',
@@ -89,8 +90,23 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
   if (!storyboardOverlay.includes('value={textModel.primaryRaw || card.slugline || \'\'}') || !storyboardOverlay.includes('displayValue={textModel.primaryDisplay || card.slugline || \'\'}')) {
     throw new Error('expected Storyboard card summary edit mode to keep raw source value separate from read-view display projection')
   }
-  if (!storyboardOverlay.includes("const STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME = 'text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]'") || !storyboardOverlay.includes("editorClassName={cn('h-full min-h-[3rem] overflow-auto', STORYBOARD_CARD_SUMMARY_TEXT_CLASS_NAME)}")) {
-    throw new Error('expected Storyboard card summary edit mode to reuse read-view typography and inherit Viewer WYSIWYG chrome')
+  if (!cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") || !cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]') || !cardTextSurfaceFrame.includes('CARD_TEXT_SURFACE_VIEW_CLASS_NAME') || !cardTextSurfaceFrame.includes("'h-full min-h-0'")) {
+    throw new Error('expected shared Card text frame owner to define read-view typography')
+  }
+  if (!storyboardOverlay.includes('displayLineClamp="none"') || !storyboardOverlay.includes('editorClassName={cn(CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}')) {
+    throw new Error('expected Storyboard card summary edit mode to reuse shared read-view typography and inherit Viewer WYSIWYG chrome')
+  }
+  if (!richMediaTextSurface.includes("from '@/lib/cards/cardTextSurfaceFrame'") || !richMediaTextSurface.includes('data-kg-rich-media-card-text-frame="1"')) {
+    throw new Error('expected Rich Media text mode to reuse the shared Card text frame chrome')
+  }
+  if (richMediaTextSurface.includes("from '@/lib/cards/CardMarkdownPreview'") || (richMediaTextSurface.match(/<CardInlineTextEditor/g) || []).length !== 1) {
+    throw new Error('expected Rich Media read/edit rendering to use one CardInlineTextEditor path without a parallel markdown preview variant')
+  }
+  if (!richMediaTextSurface.includes('canEdit={model.panelTextEditable}') || !richMediaTextSurface.includes('displayLineClamp="none"') || !richMediaTextSurface.includes('markdownDocumentPath={model.panelMarkdownDocumentPath}') || !richMediaTextSurface.includes('inlineChipDensity="compact"') || !richMediaTextSurface.includes('showCommandLaunchers={false}')) {
+    throw new Error('expected Rich Media view/edit state and document context to flow through the shared Card inline surface')
+  }
+  if (richMediaTextSurface.includes('CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME') || !richMediaTextSurface.includes('className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME}')) {
+    throw new Error('expected Rich Media and Card text surfaces to reuse one vertical scroll owner without nested markdown overflow chrome')
   }
   if (/editorClassName=\{cn\('h-full min-h-\[3rem\] overflow-auto (?:border|bg-)/.test(storyboardOverlay)) {
     throw new Error('expected Storyboard card summary edit mode not to add local textarea border/background styling')

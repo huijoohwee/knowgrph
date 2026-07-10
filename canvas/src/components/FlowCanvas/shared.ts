@@ -37,6 +37,7 @@ export function subscribeFlowResetZoomFloorCache(listener: () => void): () => vo
 export type FlowCanvasProps = {
   active?: boolean
   graphDataOverride?: GraphData | null
+  mutationSourceGraphDataOverride?: GraphData | null
   graphDataRevisionOverride?: number
   collisionDuringDrag?: boolean
   allowNodeDragOverride?: boolean
@@ -47,8 +48,10 @@ export type FlowCanvasProps = {
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
   excludeRichMediaOverlayNodeIds?: string[]
+  excludeNativeSceneNodeIds?: string[]
   storyboardWidgetSurfaceId?: string
   forbidCircleNodes?: boolean
+  onNodePropertiesChange?: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
 }
 
 export type FlowCanvasMediaOverlayInteractionPolicy = {

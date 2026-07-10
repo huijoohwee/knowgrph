@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowWidgetFrontmatterPadAccountsForPortHandles() {
-  const p = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const p = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeProjection.ts')
   const frontmatterPlacementPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetFrontmatterPlacement.ts')
   const text = readFileSync(p, 'utf8')
   const frontmatterPlacementText = readFileSync(frontmatterPlacementPath, 'utf8')

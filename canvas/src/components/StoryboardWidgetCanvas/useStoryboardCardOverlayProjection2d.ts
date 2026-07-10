@@ -8,6 +8,7 @@ import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type 
 import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { screenToWorld } from '@/lib/zoom/viewport'
 
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
@@ -80,7 +81,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
         return
       }
       const transformScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1
-      const paintScale = fixedLayoutEnabled ? 1 : transformScale
+      const paintScale = transformScale
       const previousTransform = lastOverlayTransformRef.current
       const devicePixelRatio = Number.isFinite(window.devicePixelRatio) ? Math.max(1, window.devicePixelRatio) : 1
       const viewportRect = rootRef.current?.getBoundingClientRect() || null
@@ -92,9 +93,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
       const pending: Array<{ rawBox: ProjectedCardBox; card: StoryboardCardModel; el: HTMLElement; width: number; height: number }> = []
       const readProjectedBox = (cardId: string, rawBox: ProjectedCardBox, width: number, height: number, anchorX: number, anchorY: number) => {
         const previous = lastAppliedBoxByCardIdRef.current.get(cardId) || null
-        if (fixedLayoutEnabled && previous) {
-          return { left: previous.left, top: previous.top, scale: previous.scale }
-        }
         const projected = projectVectorPaintedOverlayZoomBox({
           previousBox: previous,
           baseBox: zoomLayoutBaseBoxByCardIdRef.current.get(cardId) || null,
@@ -117,17 +115,24 @@ export function useStoryboardCardOverlayProjection2d(args: {
         const cardPinned = fixedLayoutEnabled ? readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, card.id) : true
         const referencePlacement = fixedCardReferencePlacements.get(card.id)
         const previousPinned = lastPinnedByCardIdRef.current.get(card.id)
-        if (fixedLayoutEnabled && previousPinned === true && cardPinned === false && referencePlacement && !dragWorldOverrideByCardIdRef.current.has(card.id)) {
-          dragWorldOverrideByCardIdRef.current.set(card.id, referencePlacement)
-        }
         lastPinnedByCardIdRef.current.set(card.id, cardPinned)
         const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement || fixedCardPlacements.get(card.id) : null
+        const { width, height } = readCardSize(node)
+        if (fixedLayoutEnabled && previousPinned === true && cardPinned === false && !dragWorldOverrideByCardIdRef.current.has(card.id)) {
+          const liveBox = lastAppliedBoxByCardIdRef.current.get(card.id) || null
+          const sx = liveBox ? liveBox.left + width * liveBox.scale / 2 : null
+          const sy = liveBox ? liveBox.top + height * liveBox.scale / 2 : null
+          if (sx != null && sy != null) {
+            dragWorldOverrideByCardIdRef.current.set(card.id, screenToWorld({ transform: currentTransform, sx, sy }))
+          } else if (referencePlacement) {
+            dragWorldOverrideByCardIdRef.current.set(card.id, referencePlacement)
+          }
+        }
         const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id)
           || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || referencePlacement : referencePlacement || readStoryboardCardCenter2d(node))
           || null
         const x = fixedPlacement?.x ?? nodeCenter?.x ?? 0
         const y = fixedPlacement?.y ?? nodeCenter?.y ?? 0
-        const { width, height } = readCardSize(node)
         const rawBox = computeStoryboardWidgetOverlayScreenBox({
           transform: currentTransform,
           centerWorld: { x, y },

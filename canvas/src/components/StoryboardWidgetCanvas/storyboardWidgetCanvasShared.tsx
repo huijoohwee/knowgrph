@@ -6,8 +6,7 @@ import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibili
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
-import { filterSubgraphsByRetainedNodeIds } from '@/lib/graph/subgraphs'
+import { filterGraphByIncludedNodeIds } from '@/lib/graph/filterByNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import type { WidgetEditorSurfaceKind } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
@@ -141,21 +140,6 @@ export function readResolvedStoryboardWidgetDropTransform(args: {
   return null
 }
 
-function normalizeGraphFilterNodeIdSet(
-  graphData: GraphData | null | undefined,
-  rawIds: ReadonlyArray<string> | null | undefined,
-): Set<string> {
-  const out = new Set<string>()
-  for (const rawId of rawIds || []) {
-    const id = String(rawId || '').trim()
-    if (!id) continue
-    out.add(id)
-    const resolvedId = resolveGraphNodeIdByCanonicalId(graphData, id)
-    if (resolvedId) out.add(resolvedId)
-  }
-  return out
-}
-
 export function snapToGridPx(value: number, stepPx: number): number {
   if (!Number.isFinite(value)) return 0
   const step = Number.isFinite(stepPx) ? Math.max(1, Math.floor(stepPx)) : 1
@@ -213,50 +197,6 @@ export function deriveStoryboardWidgetViewGraph(args: {
     graphData: filtered,
     collapsedGroupIds: args.collapsedGroupIds,
   })
-}
-
-export function filterGraphByExcludedNodeIds(args: {
-  graphData: GraphData | null | undefined
-  excludedNodeIds: ReadonlyArray<string> | null | undefined
-}): GraphData | null {
-  const graphData = args.graphData
-  if (!graphData) return null
-  const excludedNodeIds = Array.from(new Set((args.excludedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
-  if (excludedNodeIds.length === 0) return graphData
-  const excluded = normalizeGraphFilterNodeIdSet(graphData, excludedNodeIds)
-  const nodes = Array.isArray(graphData.nodes)
-    ? graphData.nodes.filter(node => !excluded.has(String(node?.id || '').trim()))
-    : []
-  const edges = Array.isArray(graphData.edges)
-    ? graphData.edges.filter(edge => {
-      const { src, tgt } = readGraphEdgeEndpoints(edge)
-      return Boolean(src && tgt && !excluded.has(src) && !excluded.has(tgt))
-    })
-    : []
-  const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
-  return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes, edges }, retainedNodeIds)
-}
-
-export function filterGraphByIncludedNodeIds(args: {
-  graphData: GraphData | null | undefined
-  includedNodeIds: ReadonlyArray<string> | null | undefined
-}): GraphData | null {
-  const graphData = args.graphData
-  if (!graphData) return null
-  const includedNodeIds = Array.from(new Set((args.includedNodeIds || []).map(id => String(id || '').trim()).filter(Boolean)))
-  if (includedNodeIds.length === 0) return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes: [], edges: [] }, new Set<string>())
-  const included = normalizeGraphFilterNodeIdSet(graphData, includedNodeIds)
-  const nodes = Array.isArray(graphData.nodes)
-    ? graphData.nodes.filter(node => included.has(String(node?.id || '').trim()))
-    : []
-  const edges = Array.isArray(graphData.edges)
-    ? graphData.edges.filter(edge => {
-      const { src, tgt } = readGraphEdgeEndpoints(edge)
-      return Boolean(src && tgt && included.has(src) && included.has(tgt))
-    })
-    : []
-  const retainedNodeIds = new Set(nodes.map(node => String(node?.id || '').trim()).filter(Boolean))
-  return filterSubgraphsByRetainedNodeIds({ ...graphData, nodes, edges }, retainedNodeIds)
 }
 
 export function deriveStoryboardCanvasRichMediaPanelNodeIds(graphData: GraphData | null | undefined): string[] {

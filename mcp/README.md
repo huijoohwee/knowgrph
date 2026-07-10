@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -157,10 +157,14 @@ Canonical local tool inventory owner:
    - `knowgrph.showrunner.run_status` reads lifecycle state without mutating Creative_State
    - `knowgrph.showrunner.post_choice`, `knowgrph.showrunner.submit_critique`, and `knowgrph.showrunner.approve_stage` route explicit user/operator events through the showrunner message bus
    - `knowgrph.showrunner.get_artifact` returns a Source_File path for an existing run artifact without triggering new turns
-12. `knowgrph.os.status`
+12. Agent sandbox policy tools
+   - `knowgrph.sandbox.policy.validate` compiles a policy source inside `KNOWGRPH_ROOT`, rejects unknown fields and permissive network defaults, and returns a stable policy digest plus enforcement status
+   - `knowgrph.sandbox.policy.authorize` returns one redacted allow or deny preflight decision without reading credentials, running a process, touching the filesystem target, or opening a network connection
+   - The native default policy at `config/agent-sandbox-policy.yaml` denies every operation. This decision layer does not claim OS/kernel or container containment.
+13. `knowgrph.os.status`
    - Returns zero-token Agentic OS views for process state, capability catalogs, cost summary, approval gates, and circuit breakers
    - Optional remote MCP catalog discovery reports unavailable endpoints as status data rather than blocking local stdio readiness
-13. `knowgrph.vdeoxpln.list`
+14. `knowgrph.vdeoxpln.list`
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.

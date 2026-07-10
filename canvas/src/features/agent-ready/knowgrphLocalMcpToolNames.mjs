@@ -32,6 +32,8 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   showrunnerSubmitCritique: "knowgrph.showrunner.submit_critique",
   showrunnerApproveStage: "knowgrph.showrunner.approve_stage",
   showrunnerGetArtifact: "knowgrph.showrunner.get_artifact",
+  sandboxPolicyValidate: "knowgrph.sandbox.policy.validate",
+  sandboxPolicyAuthorize: "knowgrph.sandbox.policy.authorize",
   osStatus: KNOWGRPH_OS_STATUS_TOOL_NAME,
   vdeoxplnList: "knowgrph.vdeoxpln.list",
 });

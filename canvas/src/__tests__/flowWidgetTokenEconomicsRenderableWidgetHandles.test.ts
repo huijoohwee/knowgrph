@@ -28,7 +28,7 @@ const TOKEN_ECONOMICS_FIXTURE_BASENAME = 'knowgrph-token-economics-model-demo.md
 
 type DomGlobalSnapshot = Partial<Pick<
   typeof globalThis,
-  'window' | 'document' | 'Event' | 'InputEvent' | 'HTMLElement' | 'HTMLInputElement' | 'HTMLTextAreaElement'
+  'window' | 'document' | 'Event' | 'InputEvent' | 'Node' | 'Element' | 'Text' | 'HTMLElement' | 'HTMLInputElement' | 'HTMLTextAreaElement'
 >> & { IS_REACT_ACT_ENVIRONMENT?: unknown }
 
 type RenderedNode = {
@@ -68,6 +68,9 @@ function installDomGlobals(dom: JSDOM): () => void {
     document: g.document,
     Event: g.Event,
     InputEvent: g.InputEvent,
+    Node: g.Node,
+    Element: g.Element,
+    Text: g.Text,
     HTMLElement: g.HTMLElement,
     HTMLInputElement: g.HTMLInputElement,
     HTMLTextAreaElement: g.HTMLTextAreaElement,
@@ -77,6 +80,9 @@ function installDomGlobals(dom: JSDOM): () => void {
   g.document = dom.window.document
   g.Event = dom.window.Event as typeof Event
   g.InputEvent = dom.window.InputEvent as typeof InputEvent
+  g.Node = dom.window.Node as typeof Node
+  g.Element = dom.window.Element as typeof Element
+  g.Text = dom.window.Text as typeof Text
   g.HTMLElement = dom.window.HTMLElement as typeof HTMLElement
   g.HTMLInputElement = dom.window.HTMLInputElement as typeof HTMLInputElement
   g.HTMLTextAreaElement = dom.window.HTMLTextAreaElement as typeof HTMLTextAreaElement

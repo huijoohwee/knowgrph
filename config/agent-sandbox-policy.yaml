@@ -1,0 +1,9 @@
+{
+  "schema": "knowgrph-agent-sandbox-policy/v1",
+  "policy_id": "agent-runtime-default-deny",
+  "filesystem": { "read": [], "write": [] },
+  "process": { "executables": [], "max_runtime_ms": 60000, "max_output_bytes": 20000 },
+  "network": { "default": "deny", "rules": [] },
+  "credentials": { "environment": [] },
+  "audit": { "decision_log": "required", "redact_values": true }
+}

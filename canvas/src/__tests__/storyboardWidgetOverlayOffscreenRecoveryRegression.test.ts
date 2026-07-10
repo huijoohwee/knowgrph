@@ -123,21 +123,23 @@ export function testStoryboardWidgetOverlayPlacementRuntimePersistsOffscreenScre
 
 export function testStoryboardWidgetOverlayPlacementRuntimeSkipsStaleStoreZoomFallbackForWorkspaceBlockedPinnedWidgets() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
-  const text = fs.readFileSync(runtimePath, 'utf8')
+  const runtimeStatePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeState.ts')
+  const runtimeText = fs.readFileSync(runtimePath, 'utf8')
+  const runtimeStateText = fs.readFileSync(runtimeStatePath, 'utf8')
 
-  if (!text.includes('const shouldBypassStoreZoomFallback = React.useCallback((liveZoom: { k: number; x: number; y: number } | null): boolean => {')) {
+  if (!runtimeText.includes('const shouldBypassStoreZoomFallback = React.useCallback((liveZoom: { k: number; x: number; y: number } | null): boolean => {')) {
     throw new Error('expected Storyboard Widget overlay placement runtime to centralize the stale store-zoom fallback guard for workspace-blocked pinned widgets')
   }
-  if (!text.includes('if (!isWorkspaceGraphMutationBlocked(state)) return false')) {
+  if (!runtimeStateText.includes('if (!isWorkspaceGraphMutationBlocked(state)) return false')) {
     throw new Error('expected Storyboard Widget overlay placement runtime to gate stale store-zoom bypass on workspace-blocked state')
   }
-  if (!text.includes('return !!readStoredWidgetWorldPos()')) {
+  if (!runtimeText.includes('hasStoredWorldPos: !!readStoredWidgetWorldPos(),') || !runtimeStateText.includes('return hasStoredWorldPos')) {
     throw new Error('expected Storyboard Widget overlay placement runtime to bypass stale store-zoom fallback only when a seeded pinned widget world position already exists')
   }
-  if (!text.includes('let z = liveZoom || (bypassStoreZoomFallback ? null : zoomStateRef.current)')) {
+  if (!runtimeStateText.includes('let z = liveZoom || (bypassStore ? null : zoomStateRef.current)')) {
     throw new Error('expected Storyboard Widget overlay placement runtime to refuse cached store zoom when workspace-blocked pinned world authority is already available')
   }
-  if (!text.includes('if (!liveZoom && !bypassStoreZoomFallback && storeZoom && storeZoom !== z) {')) {
+  if (!runtimeStateText.includes('if (!liveZoom && !bypassStore && storeZoom && storeZoom !== z) {')) {
     throw new Error('expected Storyboard Widget overlay placement runtime to use persisted store zoom only when the workspace-blocked bypass is inactive')
   }
 }

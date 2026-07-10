@@ -26,6 +26,8 @@ import { createExaMcpClient } from "./research-exa-client.js";
 import { runResearchHarness } from "./research-harness.js";
 import {
   createByteplusStoryboardClient,
+  createAiGatewayVisualReviewClient,
+  createAiGatewayImageGenerationClient,
   createStrytreeRenderQueueClient,
   createStripeCommerceClients,
 } from "./live-stage-clients.js";
@@ -36,6 +38,7 @@ import {
   PROVIDER_BYTEPLUS_QUEUE,
 } from "./render-providers.js";
 import { createMediaPersister } from "./media-persist.js";
+import { resolveShotRenderPrompt } from "./expressive-storyboard.js";
 
 const DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
@@ -59,11 +62,13 @@ export function adaptBytePlusVideoProviderToRenderClient(videoProvider, options 
   return {
     isDeterministicMock: false,
     provider: videoProvider.provider || PROVIDER_BYTEPLUS_QUEUE,
+    maxCostCentsPerShot: DEFAULT_SHOT_SPEND_CENTS,
     requiresAsyncHarness: true,
     dispatchLog,
     async dispatch({ shot, runId } = {}) {
       const shotId = cleanEnv(shot?.shotId || shot?.id);
-      const prompt = typeof shot?.prompt === "string" ? shot.prompt : "";
+      const prompt = resolveShotRenderPrompt(shot);
+      const referenceImages = Array.isArray(shot?.firstFrameReferences) ? shot.firstFrameReferences.map((reference) => reference.assetUrl).filter(Boolean) : [];
       if (shot?.unplanned === true) {
         const event = { type: "unplannedShotDispatch", runId, shotId, prompt };
         dispatchLog.push(event);
@@ -76,6 +81,9 @@ export function adaptBytePlusVideoProviderToRenderClient(videoProvider, options 
         stageId: "render",
         shotId,
         prompt,
+        imagePrompt: cleanEnv(shot?.imagePrompt),
+        firstFrameImage: cleanEnv(shot?.primaryReference?.assetUrl),
+        referenceImages,
         model: shot?.model,
       });
       if (!result?.ok) {
@@ -118,7 +126,9 @@ export function resolveStageClients(env = {}, deps = {}) {
     typeof source.EXA_API_KEY === "string" && source.EXA_API_KEY.length > 0
       ? source.EXA_API_KEY
       : undefined;
-  const live = isTruthyFlag(source.KNOWGRPH_LIVE_CLIENTS) || Boolean(exaApiKey);
+  const live = isTruthyFlag(source.KNOWGRPH_LIVE_CLIENTS) || Boolean(
+    exaApiKey || cleanEnv(source.AI_GATEWAY_CHAT_URL) || cleanEnv(source.AI_GATEWAY_IMAGE_URL) || cleanEnv(source.AI_GATEWAY_VIDEO_URL),
+  );
 
   if (!live) {
     return {
@@ -126,6 +136,8 @@ export function resolveStageClients(env = {}, deps = {}) {
       mode: "mock",
       exaClient: null,
       storyboardClient: null,
+      visualReviewClient: null,
+      imageGenerationClient: null,
       renderClient: null,
       commerceClient: null,
     };
@@ -147,6 +159,24 @@ export function resolveStageClients(env = {}, deps = {}) {
         endpoint: aiGatewayChatUrl,
         model: cleanEnv(source.BYTEPLUS_CHAT_MODEL),
         apiKey: cleanEnv(source.BYTEPLUS_API_KEY) || cleanEnv(source.AI_GATEWAY_TOKEN),
+      })
+    : null;
+  const visualReviewClient = aiGatewayChatUrl
+    ? createAiGatewayVisualReviewClient({
+        fetchImpl: deps.fetchImpl,
+        endpoint: aiGatewayChatUrl,
+        model: cleanEnv(source.BYTEPLUS_CHAT_MODEL),
+        apiKey: cleanEnv(source.BYTEPLUS_API_KEY) || cleanEnv(source.AI_GATEWAY_TOKEN),
+      })
+    : null;
+  const aiGatewayImageUrl = cleanEnv(source.AI_GATEWAY_IMAGE_URL);
+  const imageGenerationModel = cleanEnv(source.IMAGE_GENERATION_MODEL);
+  const imageGenerationClient = aiGatewayImageUrl && imageGenerationModel
+    ? createAiGatewayImageGenerationClient({
+        fetchImpl: deps.fetchImpl,
+        endpoint: aiGatewayImageUrl,
+        model: imageGenerationModel,
+        apiKey: cleanEnv(source.IMAGE_GENERATION_API_KEY) || cleanEnv(source.AI_GATEWAY_TOKEN),
       })
     : null;
 
@@ -202,6 +232,8 @@ export function resolveStageClients(env = {}, deps = {}) {
     // Async Director seams consume the live storyboard/render/commerce clients
     // when the matching configuration is present.
     storyboardClient,
+    visualReviewClient,
+    imageGenerationClient,
     renderClient,
     commerceClient,
   };

@@ -2,7 +2,7 @@ import { hashText } from '@/features/parsers/hash'
 import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { splitMarkdownLines } from '@/lib/markdown'
 import { createUniqueId } from '@/lib/ids'
 import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import { dump as stringifyYaml } from 'js-yaml'
@@ -21,6 +21,7 @@ import { buildMermaidGanttWorkflowCode } from '@/lib/mermaid/mermaidDiagramCode'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
+import { parseStrybldrStoryboardFrontmatter, readStrybldrStoryboardPayloadFromFrontmatterLines, readStrybldrStoryboardPayloadValue } from './strybldrStoryboardFrontmatter'
 export { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
 import type {
   StrybldrBox,
@@ -184,7 +185,7 @@ const basenameWithoutExt = (value: string): string => {
 }
 export const isStrybldrStoryboardMarkdown = (text: string): boolean => {
   const raw = String(text || '')
-  return STRYBLDR_FRONTMATTER_MARKER_RE.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw)
+  return STRYBLDR_FRONTMATTER_MARKER_RE.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw) || STRYBLDR_FRONTMATTER_PAYLOAD_KEYS.some(key => raw.includes(`${key}:`))
 }
 export const isStrybldrStoryboardGraphData = (graphData: GraphData | null | undefined): boolean => {
   const metadata = graphData?.metadata && typeof graphData.metadata === 'object'
@@ -365,29 +366,17 @@ const readStrybldrStoryboardRawPayload = (text: string): Record<string, unknown>
 }
 
 const readStrybldrStoryboardFrontmatterRawPayload = (text: string): Record<string, unknown> | null => {
-  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(String(text || '')))
+  const parsed = parseStrybldrStoryboardFrontmatter(text)
   const meta = parsed.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta)
     ? parsed.meta as Record<string, unknown>
     : null
-  if (!meta) return null
-  for (const key of STRYBLDR_FRONTMATTER_PAYLOAD_KEYS) {
-    const value = meta[key]
-    if (!value) continue
-    if (typeof value === 'string') {
-      try {
-        const parsedPayload = JSON.parse(value)
-        return parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)
-          ? parsedPayload as Record<string, unknown>
-          : null
-      } catch {
-        return null
-      }
-    }
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      return value as Record<string, unknown>
+  if (meta) {
+    for (const key of STRYBLDR_FRONTMATTER_PAYLOAD_KEYS) {
+      const payload = readStrybldrStoryboardPayloadValue(meta[key])
+      if (payload) return payload
     }
   }
-  return null
+  return readStrybldrStoryboardPayloadFromFrontmatterLines(text, STRYBLDR_FRONTMATTER_PAYLOAD_KEYS)
 }
 
 const replaceStrybldrStoryboardFrontmatterRawPayload = (text: string, payload: Record<string, unknown>): string | null => {

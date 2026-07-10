@@ -13,7 +13,7 @@ import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel, resolve
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
-import { DOCS_SSOT_VALIDATION_FIXTURE_BASENAME, resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
+import { resolveDocsSsotFixturePath } from '@/tests/lib/docsSsotFixture'
 import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
@@ -2092,7 +2092,7 @@ function readKnowgrphVideoDemoPath(): string {
     ? process.env.KG_TEST_DOCS_SSOT_VALIDATION_FIXTURE_PATH.trim()
     : ''
   if (envPath) return envPath
-  return resolveDocsSsotFixturePath(DOCS_SSOT_VALIDATION_FIXTURE_BASENAME)
+  return resolveDocsSsotFixturePath('knowgrph-video-demo.md')
 }
 
 function readKnowgrphVideoDemoSeededPath(): string {

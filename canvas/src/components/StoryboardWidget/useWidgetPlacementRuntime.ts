@@ -1,60 +1,37 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceGraphMutationBlocked, type WorkspaceGraphMutationState } from '@/features/workspace-table/workspaceTableSsot'
-import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'
-import {
-  readScopedFlowWidgetNodeValue,
-  resolveFlowWidgetStateGraphKey,
-  resolveScopedFlowWidgetNodeMap,
-} from '@/lib/storyboardWidget/widgetStateScope'
+import { readScopedFlowWidgetNodeValue } from '@/lib/storyboardWidget/widgetStateScope'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { screenToWorld, worldToScreen } from '@/lib/zoom/viewport'
+import { screenToWorld } from '@/lib/zoom/viewport'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
-import {
-  DEFAULT_FLOW_NODE_WIDTH_PX,
-  DEFAULT_ZOOM_MAX_SCALE,
-  DEFAULT_ZOOM_MIN_SCALE,
-  DEFAULT_ZOOM_MIN_SCALE_HARD_CAP,
-  readZoomScaleExtent,
-} from '@/lib/graph/layoutDefaults'
-import { readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandleUi'
-import {
-  WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX,
-  WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX,
-  WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
-} from '@/components/StoryboardWidget/flowWidgetOverlayShared'
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
-import { computeBoundedOverlayPaintScale, computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaleKey, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
-import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, readVectorPaintedOverlayPosition, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
-import { computeDefaultWidgetFloatingPos } from '@/components/StoryboardWidget/widgetLayout'
-import { isFrontmatterManagedOverlayNode, resolveFrontmatterBalancedFallbackPos } from '@/components/StoryboardWidget/widgetFrontmatterPlacement'
-import { readRichMediaOverlayFrameSize } from '@/components/StoryboardWidget/richMediaOverlayFrameSize'
-import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
-import { computeViewportSafeInlineCenterShiftPx } from '@/lib/ui/viewportToolbarPlacement'
-import { resolveStoryboardWidgetVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
+import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import type { VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
+import { isFrontmatterManagedOverlayNode } from '@/components/StoryboardWidget/widgetFrontmatterPlacement'
 import { STORYBOARD_WIDGET_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT } from '@/lib/storyboardWidget/screenAuthorityCollectivePan'
 import type { GraphSchema } from '@/lib/graph/schema'
-
-type AppliedOverlayPlacement = { left: number; top: number; scale: number; zoomK: number; offsetLeft: number; offsetTop: number }
-
-function shouldUseFrontmatterBalancedFallbackForScreenAuthority(args: {
-  frontmatterManagedNode: boolean
-  floatingUsesScreenAuthority: boolean
-  hasAppliedPlacement: boolean
-  openWidgetNodeCount: number
-  pos: { top: number; left: number } | undefined
-  fallback: { top: number; left: number }
-}): boolean {
-  if (!args.frontmatterManagedNode) return false
-  if (!args.floatingUsesScreenAuthority) return false
-  if (args.hasAppliedPlacement) return false
-  if (args.openWidgetNodeCount <= 1) return false
-  const pos = args.pos
-  if (!pos || !Number.isFinite(pos.top) || !Number.isFinite(pos.left)) return true
-  const dx = Math.abs(pos.left - args.fallback.left)
-  const dy = Math.abs(pos.top - args.fallback.top)
-  return dx > 2 || dy > 2
-}
+import {
+  type AppliedOverlayPlacement,
+  persistCurrentScreenPlacementAsWorldPlacementState,
+  persistFloatingPlacementState,
+  persistFloatingPosForNode,
+  persistFloatingScreenPlacementState,
+  persistWorldPosForNode,
+  readCurrentOverlayScreenPlacementForHandoffState,
+  readCurrentOverlayScreenPlacementState,
+  readCurrentTransformState,
+  readPinConversionTransformState,
+  readScreenAuthorityFollowZoomKState,
+  readStoredFloatingScreenPlacementState,
+  readStoredWidgetWorldPosForNode,
+  resolveDefaultFloatingPosState,
+  resolveFloatingPosState,
+  shouldBypassStoreZoomFallback as shouldBypassStoreZoomFallbackState,
+} from '@/components/StoryboardWidget/widgetPlacementRuntimeState'
+import { applyWidgetOverlayPosition } from '@/components/StoryboardWidget/widgetPlacementRuntimeProjection'
+import { useWidgetPlacementRuntimeRefSync } from '@/components/StoryboardWidget/useWidgetPlacementRuntimeRefSync'
 
 export type ApplyOverlayPositionOptions = {
   emitInteractionFrame?: boolean
@@ -169,42 +146,37 @@ export function useWidgetPlacementRuntime(args: {
   }, [openWidgetNodeCount, viewportH, viewportW])
 
   const readScreenAuthorityFollowZoomK = React.useCallback((zoomK: number, enabled: boolean): number => {
-    if (!enabled) return zoomK
-    const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
-    if (screenAuthorityZoomBaselineKRef.current == null || !Number.isFinite(screenAuthorityZoomBaselineKRef.current) || screenAuthorityZoomBaselineKRef.current <= 0) {
-      screenAuthorityZoomBaselineKRef.current = safeZoomK
-    }
-    return computeCollectiveFollowZoomK({ zoomK: safeZoomK, baselineZoomK: screenAuthorityZoomBaselineKRef.current })
+    return readScreenAuthorityFollowZoomKState({
+      zoomK,
+      enabled,
+      screenAuthorityZoomBaselineKRef,
+      computeCollectiveFollowZoomK,
+    })
   }, [])
 
   const defaultFloatingPos = React.useMemo(() => {
-    const pos = computeDefaultWidgetFloatingPos({ stackIndex, viewportW, viewportH })
-    if (!initialFrontmatterManagedNode) return { top: pos.top, left: pos.left }
-    const zoomK = initialFrontmatterManagedNode && floatingUsesScreenAuthority
-      ? 1
-      : zoomStateRef.current?.k ?? 1
-    const frontmatterFallback = resolveFrontmatterBalancedFallbackPos({
-      enabled: true, openWidgetNodeCount, stackIndex, viewportW, viewportH,
-      scaled: computeWidgetScaledSize(readPanelScaleForZoom(zoomK, true)), zoomK,
+    return resolveDefaultFloatingPosState({
+      stackIndex,
+      viewportW,
+      viewportH,
+      initialFrontmatterManagedNode,
+      floatingUsesScreenAuthority,
+      zoomK: zoomStateRef.current?.k ?? 1,
+      openWidgetNodeCount,
+      readPanelScaleForZoom,
     })
-    if (frontmatterFallback) return frontmatterFallback
-    return { top: pos.top, left: pos.left }
   }, [floatingUsesScreenAuthority, initialFrontmatterManagedNode, openWidgetNodeCount, readPanelScaleForZoom, stackIndex, viewportH, viewportW])
 
   const resolveFloatingPos = React.useCallback(
     (pos: { top: number; left: number } | undefined, fallback: { top: number; left: number }): { top: number; left: number } => {
-      if (pos && Number.isFinite(pos.top) && Number.isFinite(pos.left)) {
-        if (shouldUseFrontmatterBalancedFallbackForScreenAuthority({
-          frontmatterManagedNode: initialFrontmatterManagedNode,
-          floatingUsesScreenAuthority,
-          hasAppliedPlacement: Boolean(lastAppliedRef.current),
-          openWidgetNodeCount,
-          pos,
-          fallback,
-        })) return fallback
-        return pos
-      }
-      return fallback
+      return resolveFloatingPosState({
+        pos,
+        fallback,
+        initialFrontmatterManagedNode,
+        floatingUsesScreenAuthority,
+        hasAppliedPlacement: Boolean(lastAppliedRef.current),
+        openWidgetNodeCount,
+      })
     },
     [floatingUsesScreenAuthority, initialFrontmatterManagedNode, openWidgetNodeCount],
   )
@@ -215,6 +187,27 @@ export function useWidgetPlacementRuntime(args: {
   const [toolbarInlineShiftPx, setToolbarInlineShiftPx] = React.useState(0)
   const [toolbarMaxWidthPx, setToolbarMaxWidthPx] = React.useState(WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX)
 
+  useWidgetPlacementRuntimeRefSync({
+    node,
+    nodeRef,
+    floating,
+    floatingRef,
+    viewportW,
+    viewportH,
+    viewportRef,
+    canvasWindowOffset,
+    canvasWindowOffsetRef,
+    schema,
+    schemaRef,
+    floatingUsesScreenAuthority,
+    storyboardWidgetSurfaceId,
+    graphMetaKey,
+    nodeId,
+    screenAuthorityZoomBaselineKRef,
+    screenAuthorityLayoutZoomBaseRef,
+    screenAuthorityHandoffPosRef,
+  })
+
   useIsomorphicLayoutEffect(() => {
     if (initialFrontmatterManagedNode && floatingUsesScreenAuthority && lastAppliedRef.current && !pinnedDragOverrideRef.current) return
     const pos = resolveFloatingPos(widgetPos, defaultFloatingPos)
@@ -222,586 +215,190 @@ export function useWidgetPlacementRuntime(args: {
     setPinnedLeftPx(prev => (prev === pos.left ? prev : pos.left))
   }, [defaultFloatingPos, floatingUsesScreenAuthority, initialFrontmatterManagedNode, widgetPos, resolveFloatingPos])
 
-  React.useEffect(() => {
-    nodeRef.current = node
-  }, [node])
-
-  React.useEffect(() => {
-    screenAuthorityZoomBaselineKRef.current = null
-    screenAuthorityLayoutZoomBaseRef.current = null
-    screenAuthorityHandoffPosRef.current = null
-  }, [floatingUsesScreenAuthority, storyboardWidgetSurfaceId, graphMetaKey, nodeId])
-
-  React.useEffect(() => {
-    viewportRef.current = { width: viewportW, height: viewportH }
-  }, [viewportH, viewportW])
-
-  useIsomorphicLayoutEffect(() => {
-    const next = canvasWindowOffset && Number.isFinite(canvasWindowOffset.left) && Number.isFinite(canvasWindowOffset.top)
-      ? { left: canvasWindowOffset.left, top: canvasWindowOffset.top }
-      : { left: 0, top: 0 }
-    canvasWindowOffsetRef.current = next
-  }, [canvasWindowOffset])
-
-  React.useEffect(() => {
-    schemaRef.current = schema && typeof schema === 'object' && !Array.isArray(schema) ? schema as GraphSchema : null
-  }, [schema])
-
-  useIsomorphicLayoutEffect(() => {
-    floatingRef.current = floating
-  }, [floating])
-
   const persistFloatingPos = React.useCallback(
     (pos: { top: number; left: number }) => {
-      if (!nodeId) return
-      const state = useGraphStore.getState()
-      if (isWorkspaceGraphMutationBlocked(state)) {
-        useGraphStore.setState(prev => {
-          const prevState = prev as unknown as {
-            graphData?: Record<string, unknown> | null
-            flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
-            flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
-          }
-          const graphKey = resolveFlowWidgetStateGraphKey({
-            graphMetaKey,
-            graphData: (prev as unknown as { graphData?: unknown }).graphData,
-          })
-          const prevPos = resolveScopedFlowWidgetNodeMap({
-            graphMetaKey: graphKey,
-            keyedByGraphMetaKey: prevState.flowWidgetPosByNodeIdByGraphMetaKey,
-            globalByNodeId: prevState.flowWidgetPosByNodeId,
-          })
-          const prevEntry = prevPos[nodeId]
-          if (prevEntry && prevEntry.top === pos.top && prevEntry.left === pos.left) return {}
-          const nextPos = { ...prevPos, [nodeId]: { top: pos.top, left: pos.left } }
-          if (!graphKey) return { flowWidgetPosByNodeId: nextPos }
-          const byKey = prevState.flowWidgetPosByNodeIdByGraphMetaKey || {}
-          return {
-            flowWidgetPosByNodeId: nextPos,
-            flowWidgetPosByNodeIdByGraphMetaKey: { ...byKey, [graphKey]: nextPos },
-          }
-        })
-        return
-      }
-      const current = state.flowWidgetPosByNodeId || {}
-      const prev = current[nodeId]
-      if (prev && prev.top === pos.top && prev.left === pos.left) return
-      const next = { ...current, [nodeId]: { top: pos.top, left: pos.left } }
-      state.setFlowWidgetPosByNodeId(next)
+      persistFloatingPosForNode({ nodeId, graphMetaKey, pos })
     },
     [graphMetaKey, nodeId],
   )
 
   const persistWorldPos = React.useCallback(
     (pos: { x: number; y: number }) => {
-      if (!nodeId) return
-      const state = useGraphStore.getState() as WorkspaceGraphMutationState & {
-        flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-        flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-        zoomState?: { k: number; x: number; y: number } | null
-        zoomStateByKey?: Record<string, { k: number; x: number; y: number } | null | undefined> | null
-        graphData?: unknown
-      }
-      if (isWorkspaceGraphMutationBlocked(state)) {
-        useGraphStore.setState(prev => {
-          const prevState = prev as unknown as {
-            graphData?: unknown
-            flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-            flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-          }
-          const graphKey = resolveFlowWidgetStateGraphKey({
-            graphMetaKey,
-            graphData: prevState.graphData,
-          })
-          const prevWorld = resolveScopedFlowWidgetNodeMap({
-            graphMetaKey: graphKey,
-            keyedByGraphMetaKey: prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey,
-            globalByNodeId: prevState.flowWidgetWorldPosByNodeId,
-          })
-          const prevEntry = prevWorld[nodeId]
-          if (prevEntry && Math.abs(prevEntry.x - pos.x) <= 0.0001 && Math.abs(prevEntry.y - pos.y) <= 0.0001) return {}
-          const nextWorld = { ...prevWorld, [nodeId]: { x: pos.x, y: pos.y } }
-          if (!graphKey) return { flowWidgetWorldPosByNodeId: nextWorld }
-          const byKey = prevState.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
-          return {
-            flowWidgetWorldPosByNodeId: nextWorld,
-            flowWidgetWorldPosByNodeIdByGraphMetaKey: { ...byKey, [graphKey]: nextWorld },
-          }
-        })
-        return
-      }
-      const current = state.flowWidgetWorldPosByNodeId || {}
-      const prev = current[nodeId]
-      if (prev && Math.abs(prev.x - pos.x) <= 0.0001 && Math.abs(prev.y - pos.y) <= 0.0001) return
-      const next = { ...current, [nodeId]: { x: pos.x, y: pos.y } }
-      setFlowWidgetWorldPosByNodeId(next)
+      persistWorldPosForNode({ nodeId, graphMetaKey, pos, setFlowWidgetWorldPosByNodeId })
     },
     [graphMetaKey, nodeId, setFlowWidgetWorldPosByNodeId],
   )
 
   const readStoredWidgetWorldPos = React.useCallback((): { x: number; y: number } | null => {
-    const state = useGraphStore.getState() as {
-      graphData?: unknown
-      flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
-      flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
-    }
-    const next = readScopedFlowWidgetNodeValue({
-      nodeId,
-      graphMetaKey,
-      graphData: state.graphData,
-      keyedByGraphMetaKey: state.flowWidgetWorldPosByNodeIdByGraphMetaKey,
-      globalByNodeId: state.flowWidgetWorldPosByNodeId,
-    }) || null
-    if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.y)) return null
-    return { x: next.x, y: next.y }
+    return readStoredWidgetWorldPosForNode({ nodeId, graphMetaKey })
   }, [graphMetaKey, nodeId])
 
   const shouldBypassStoreZoomFallback = React.useCallback((liveZoom: { k: number; x: number; y: number } | null): boolean => {
-    if (liveZoom) return false
-    if (floatingRef.current || floatingUsesScreenAuthority) return false
-    if (pinnedDragOverrideRef.current || worldDragOverrideRef.current) return false
-    const state = useGraphStore.getState()
-    if (!isWorkspaceGraphMutationBlocked(state)) return false
-    return !!readStoredWidgetWorldPos()
+    return shouldBypassStoreZoomFallbackState({
+      liveZoom,
+      floating: floatingRef.current,
+      floatingUsesScreenAuthority,
+      pinnedDragOverride: pinnedDragOverrideRef.current,
+      worldDragOverride: worldDragOverrideRef.current,
+      hasStoredWorldPos: !!readStoredWidgetWorldPos(),
+    })
   }, [floatingUsesScreenAuthority, readStoredWidgetWorldPos])
 
   const readCurrentTransform = React.useCallback(() => {
-    const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
-    const storeZoom = getEffectiveZoomStateForKey({
+    return readCurrentTransformState({
+      getLiveZoomTransform,
       zoomViewKey,
-      zoomStateByKey: useGraphStore.getState().zoomStateByKey,
-      zoomState: useGraphStore.getState().zoomState,
+      zoomStateRef,
+      shouldBypassStoreZoomFallback,
     })
-    const bypassStoreZoomFallback = shouldBypassStoreZoomFallback(liveZoom)
-    let z = liveZoom || (bypassStoreZoomFallback ? null : zoomStateRef.current)
-    if (!liveZoom && !bypassStoreZoomFallback && storeZoom && storeZoom !== z) {
-      z = storeZoom
-      zoomStateRef.current = storeZoom
-    }
-    return z || { k: 1, x: 0, y: 0 }
   }, [getLiveZoomTransform, shouldBypassStoreZoomFallback, zoomViewKey])
 
   const readPinConversionTransform = React.useCallback(() => {
-    const frontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, nodeRef.current)
-    if (frontmatterManagedNode && floatingUsesScreenAuthority) {
-      return { k: 1, x: 0, y: 0 }
-    }
-    const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
-    if (liveZoom) return liveZoom
-    return readCurrentTransform()
+    return readPinConversionTransformState({
+      graphMetaKind,
+      node: nodeRef.current,
+      floatingUsesScreenAuthority,
+      getLiveZoomTransform,
+      readCurrentTransform,
+    })
   }, [floatingUsesScreenAuthority, getLiveZoomTransform, graphMetaKind, readCurrentTransform])
 
   const persistFloatingPlacement = React.useCallback((pos: { top: number; left: number }) => {
-    screenAuthorityHandoffPosRef.current = null
-    persistFloatingPos(pos)
-    if (floatingUsesScreenAuthority) {
-      widgetWorldPosRef.current = null
-      return
-    }
-    const z = readCurrentTransform()
-    const world = screenToWorld({
-      transform: z,
-      sx: pos.left,
-      sy: pos.top,
+    persistFloatingPlacementState({
+      pos,
+      floatingUsesScreenAuthority,
+      screenAuthorityHandoffPosRef,
+      widgetWorldPosRef,
+      persistFloatingPos,
+      readCurrentTransform,
+      persistWorldPos,
     })
-    persistWorldPos(world)
   }, [floatingUsesScreenAuthority, persistFloatingPos, persistWorldPos, readCurrentTransform])
 
   const persistFloatingScreenPlacement = React.useCallback((pos: { top: number; left: number }) => {
-    persistFloatingPos(pos)
-    widgetWorldPosRef.current = null
-    const scale = lastAppliedRef.current?.scale
-    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1
-    screenAuthorityHandoffPosRef.current = {
-      left: pos.left,
-      top: pos.top,
-      scale: safeScale,
-    }
-    screenAuthorityLayoutZoomBaseRef.current = {
-      left: pos.left,
-      top: pos.top,
-      scale: safeScale,
-    }
+    persistFloatingScreenPlacementState({
+      pos,
+      persistFloatingPos,
+      widgetWorldPosRef,
+      lastAppliedRef,
+      screenAuthorityHandoffPosRef,
+      screenAuthorityLayoutZoomBaseRef,
+    })
   }, [persistFloatingPos])
 
   const readCurrentOverlayScreenPlacement = React.useCallback((): { left: number; top: number } | null => {
-    const el = asideRef.current
-    if (!el) return null
-    return readVectorPaintedOverlayPosition(el)
+    return readCurrentOverlayScreenPlacementState({ asideRef })
   }, [])
 
   const readCurrentOverlayScreenPlacementForHandoff = React.useCallback((): { left: number; top: number } | null => {
-    const el = asideRef.current
-    if (!el) return null
-    const rect = el.getBoundingClientRect()
-    if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null
-    return {
-      left: rect.left,
-      top: rect.top,
-    }
+    return readCurrentOverlayScreenPlacementForHandoffState({ asideRef })
   }, [])
 
   const readStoredFloatingScreenPlacement = React.useCallback((): { left: number; top: number } | null => {
-    if (!nodeId) return null
-    const state = useGraphStore.getState() as unknown as {
-      graphData?: unknown
-      flowWidgetPosByNodeId?: Record<string, { top: number; left: number }>
-      flowWidgetPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { top: number; left: number }>>
-    }
-    const pos = readScopedFlowWidgetNodeValue({
-      nodeId,
-      graphMetaKey,
-      graphData: state.graphData,
-      keyedByGraphMetaKey: state.flowWidgetPosByNodeIdByGraphMetaKey,
-      globalByNodeId: state.flowWidgetPosByNodeId,
-    })
-    const left = typeof pos?.left === 'number' && Number.isFinite(pos.left) ? pos.left : null
-    const top = typeof pos?.top === 'number' && Number.isFinite(pos.top) ? pos.top : null
-    return left == null || top == null ? null : { left, top }
+    return readStoredFloatingScreenPlacementState({ nodeId, graphMetaKey })
   }, [graphMetaKey, nodeId])
 
   const persistCurrentScreenPlacementAsWorldPlacement = React.useCallback((): boolean => {
-    const current = readCurrentOverlayScreenPlacement()
-    const stored = readStoredFloatingScreenPlacement()
-    const last = lastAppliedRef.current
-    const currentMatchesLast = !!current && !!last
-      && Math.abs(current.left - last.left) <= 0.001
-      && Math.abs(current.top - last.top) <= 0.001
-    const storedMatchesCurrent = !!stored && !!current
-      && Math.abs(stored.left - current.left) <= 0.001
-      && Math.abs(stored.top - current.top) <= 0.001
-    const applied = (current && (!currentMatchesLast || !stored || !storedMatchesCurrent) ? current : null) || stored || current || last
-    if (!applied) return false
-    const world = screenToWorld({
-      transform: readPinConversionTransform(),
-      sx: applied.left,
-      sy: applied.top,
+    return persistCurrentScreenPlacementAsWorldPlacementState({
+      readCurrentOverlayScreenPlacement,
+      readStoredFloatingScreenPlacement,
+      lastAppliedRef,
+      readPinConversionTransform,
+      widgetWorldPosRef,
+      lastGoodWorldPosRef,
+      pinnedDragOverrideRef,
+      persistWorldPos,
     })
-    if (!Number.isFinite(world.x) || !Number.isFinite(world.y)) return false
-    widgetWorldPosRef.current = world
-    lastGoodWorldPosRef.current = world
-    pinnedDragOverrideRef.current = { left: applied.left, top: applied.top }
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => {
-        const current = pinnedDragOverrideRef.current
-        if (current && Math.abs(current.left - applied.left) <= 0.001 && Math.abs(current.top - applied.top) <= 0.001) {
-          pinnedDragOverrideRef.current = null
-        }
-      })
-    }
-    persistWorldPos(world)
-    return true
   }, [persistWorldPos, readCurrentOverlayScreenPlacement, readPinConversionTransform, readStoredFloatingScreenPlacement])
 
   const applyOverlayPosition = React.useCallback((opts?: ApplyOverlayPositionOptions) => {
-    const el = asideRef.current
-    if (!el) return
-    const n = nodeRef.current
-    const richMediaFrameSize = readRichMediaOverlayFrameSize(n as { type?: unknown; properties?: unknown })
-    if (!cssInitRef.current) {
-      cssInitRef.current = true
-      el.style.left = '0px'
-      el.style.top = '0px'
-      el.style.transformOrigin = 'top left'
-      el.style.transform = 'none'
-      ;(el.style as CSSStyleDeclaration & { zoom: string }).zoom = '1'
-    }
-    const frameWidth = richMediaFrameSize?.width || WIDGET_BASE_SIZE.width
-    const frameHeight = richMediaFrameSize?.height || WIDGET_BASE_SIZE.height
-    const nextFrameWidth = `${frameWidth}px`
-    const nextFrameHeight = `${frameHeight}px`
-    if (el.style.width !== nextFrameWidth) el.style.width = nextFrameWidth
-    if (el.style.height !== nextFrameHeight) el.style.height = nextFrameHeight
-    const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
-    const storeZoom = getEffectiveZoomStateForKey({
+    applyWidgetOverlayPosition({
+      asideRef,
+      nodeRef,
+      getLiveZoomTransform,
       zoomViewKey,
-      zoomStateByKey: useGraphStore.getState().zoomStateByKey,
-      zoomState: useGraphStore.getState().zoomState,
-    })
-    const bypassStoreZoomFallback = shouldBypassStoreZoomFallback(liveZoom)
-    let z = liveZoom || (bypassStoreZoomFallback ? null : zoomStateRef.current)
-    if (!liveZoom && !bypassStoreZoomFallback && storeZoom && storeZoom !== z) {
-      z = storeZoom
-      zoomStateRef.current = storeZoom
-    }
-    const placementTransform = z || { k: 1, x: 0, y: 0 }
-    const zoomK = Number.isFinite(placementTransform.k) ? placementTransform.k : 1
-    const frontmatterManagedNode = isFrontmatterManagedOverlayNode(graphMetaKind, n)
-    const frontmatterVisibleViewportAuthority = frontmatterManagedNode
-    const screenAuthorityVisibleViewport = frontmatterVisibleViewportAuthority
-      ? resolveStoryboardWidgetVisibleViewport({ storyboardWidgetSurfaceId: storyboardWidgetSurfaceId || undefined, viewportW, viewportH })
-      : { left: 0, top: 0, right: viewportW, bottom: viewportH, width: viewportW, height: viewportH, centerX: viewportW / 2, centerY: viewportH / 2 }
-    const screenAuthorityViewportLeft = Number.isFinite(screenAuthorityVisibleViewport.left) ? screenAuthorityVisibleViewport.left : 0
-    const screenAuthorityViewportTop = Number.isFinite(screenAuthorityVisibleViewport.top) ? screenAuthorityVisibleViewport.top : 0
-    const screenAuthorityViewportRight = Number.isFinite(screenAuthorityVisibleViewport.right) ? screenAuthorityVisibleViewport.right : viewportW
-    const screenAuthorityViewportBottom = Number.isFinite(screenAuthorityVisibleViewport.bottom) ? screenAuthorityVisibleViewport.bottom : viewportH
-    const screenAuthorityViewportWidth = Math.max(1, Number.isFinite(screenAuthorityVisibleViewport.width) ? screenAuthorityVisibleViewport.width : viewportW)
-    const screenAuthorityViewportHeight = Math.max(1, Number.isFinite(screenAuthorityVisibleViewport.height) ? screenAuthorityVisibleViewport.height : viewportH)
-    const frontmatterPanelScaleZoomK = readScreenAuthorityFollowZoomK(zoomK, frontmatterVisibleViewportAuthority)
-    const panelScale = readPanelScaleForZoom(frontmatterPanelScaleZoomK, frontmatterManagedNode, frontmatterVisibleViewportAuthority ? { width: screenAuthorityViewportWidth, height: screenAuthorityViewportHeight } : null)
-    if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)
-    const baseScaled = computeWidgetScaledSize(panelScale)
-    const scaled = richMediaFrameSize
-      ? { width: richMediaFrameSize.width * panelScale, height: richMediaFrameSize.height * panelScale }
-      : baseScaled
-    scaledSizeRef.current = scaled
-    const rawFrontmatterBalancedFallbackPos = resolveFrontmatterBalancedFallbackPos({
-      enabled: frontmatterManagedNode,
+      shouldBypassStoreZoomFallback,
+      zoomStateRef,
+      schemaRef,
+      graphMetaKind,
+      storyboardWidgetSurfaceId,
+      viewportW,
+      viewportH,
+      readScreenAuthorityFollowZoomK,
+      readPanelScaleForZoom,
       openWidgetNodeCount,
       stackIndex,
-      viewportW: frontmatterVisibleViewportAuthority ? screenAuthorityViewportWidth : viewportW,
-      viewportH: frontmatterVisibleViewportAuthority ? screenAuthorityViewportHeight : viewportH,
-      scaled,
-      zoomK: frontmatterPanelScaleZoomK,
+      getLiveNodeWorldPos,
+      nodeId,
+      getLiveContainmentGroupAabbForNode,
+      floatingRef,
+      floatingUsesScreenAuthority,
+      lastAppliedRef,
+      storyboardPinnedZoomLayoutBaseRef,
+      lastStoryboardPinnedTransformRef,
+      screenAuthorityLayoutZoomBaseRef,
+      screenAuthorityHandoffPosRef,
+      widgetWorldPosRef,
+      lastGoodWorldPosRef,
+      pinnedDragOverrideRef,
+      worldDragOverrideRef,
+      canvasWindowOffsetRef,
+      scaledSizeRef,
+      anchoredPosRef,
+      lastFloatingScaleKeyRef,
+      cssInitRef,
+      widgetPos,
+      pinnedTopPx,
+      pinnedLeftPx,
+      autoStackOffset,
+      readStoredWidgetWorldPos,
+      persistWorldPos,
+      setToolbarDock,
+      setToolbarInlineShiftPx,
+      setToolbarMaxWidthPx,
+      opts,
     })
-    const frontmatterBalancedFallbackPos = rawFrontmatterBalancedFallbackPos
-      ? { top: rawFrontmatterBalancedFallbackPos.top + (frontmatterVisibleViewportAuthority ? screenAuthorityViewportTop : 0), left: rawFrontmatterBalancedFallbackPos.left + (frontmatterVisibleViewportAuthority ? screenAuthorityViewportLeft : 0) }
-      : null
-
-    const live = getLiveNodeWorldPos ? getLiveNodeWorldPos(nodeId) : null
-    const liveX = live && Number.isFinite(live.x) ? (live.x as number) : null; const liveY = live && Number.isFinite(live.y) ? (live.y as number) : null
-    const nx = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null; const ny = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
-    const hasAuthoritativeNodeWorldPos = (liveX != null && liveY != null) || (nx != null && ny != null)
-    const storyboardRichMediaGraphWorldPreferred = String(storyboardWidgetSurfaceId || '').trim() === 'storyboard' && !!richMediaFrameSize && nx != null && ny != null
-    const preferredAuthoritativeWorldPos =
-      storyboardRichMediaGraphWorldPreferred
-        ? { x: nx, y: ny }
-        : (liveX != null && liveY != null)
-          ? { x: liveX, y: liveY }
-          : (nx != null && ny != null)
-            ? { x: nx, y: ny }
-            : null
-    if (preferredAuthoritativeWorldPos) lastGoodWorldPosRef.current = preferredAuthoritativeWorldPos
-    const world = lastGoodWorldPosRef.current || { x: 0, y: 0 }
-    const { sx: screenX, sy: screenY } = worldToScreen({ transform: placementTransform, x: world.x, y: world.y })
-    const port = schemaRef.current?.behavior?.portHandles || null
-    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled) || frontmatterManagedNode
-    const portMetrics = readPortHandleUiMetrics(schemaRef.current || null, { zoomK }); const portExtraPadScreenPx = portEnabled ? Math.max(0, portMetrics.railWidthPx + 8) : 0
-    anchoredPosRef.current = {
-      top: screenY - 12,
-      left: screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx,
-    }
-
-    const dragOverride = pinnedDragOverrideRef.current; const worldDragOverride = worldDragOverrideRef.current
-    const storyboardPinnedCardLayoutActive = !floatingRef.current && String(storyboardWidgetSurfaceId || '').trim() === 'storyboard'
-    if (!storyboardPinnedCardLayoutActive) { storyboardPinnedZoomLayoutBaseRef.current = null; lastStoryboardPinnedTransformRef.current = null }
-    const currentStoredWorld = readStoredWidgetWorldPos()
-    if (currentStoredWorld && !storyboardPinnedCardLayoutActive) widgetWorldPosRef.current = currentStoredWorld
-    const currentStoredWorldForPlacement = storyboardPinnedCardLayoutActive || floatingUsesScreenAuthority
-      ? null
-      : currentStoredWorld
-    const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)
-    const storedWorldScreen = storedWorld ? worldToScreen({ transform: placementTransform, x: storedWorld.x, y: storedWorld.y }) : null
-    const usableFloatingScreenPos = (() => {
-      if (floatingUsesScreenAuthority || currentStoredWorld || widgetWorldPosRef.current || worldDragOverride || dragOverride) return null
-      const top = typeof widgetPos?.top === 'number' && Number.isFinite(widgetPos.top) ? widgetPos.top : null
-      const left = typeof widgetPos?.left === 'number' && Number.isFinite(widgetPos.left) ? widgetPos.left : null
-      if (top == null || left == null) return null
-      if (left < -scaled.width * 0.5 || left > viewportW - 8) return null
-      if (top < -scaled.height * 0.5 || top > viewportH - 8) return null
-      return { top, left }
-    })()
-    const frontmatterBaseFarOffscreen = frontmatterManagedNode
-      && storedWorldScreen
-      && (
-        storedWorldScreen.sx < -scaled.width * 2
-        || storedWorldScreen.sy < -scaled.height * 2
-        || storedWorldScreen.sx > viewportW + scaled.width * 2
-        || storedWorldScreen.sy > viewportH + scaled.height * 2
-      )
-    const storedWorldFarOffscreen = Boolean(frontmatterBaseFarOffscreen)
-    const defaultWorld = screenToWorld({
-      transform: placementTransform,
-      sx: anchoredPosRef.current.left + autoStackOffset.left,
-      sy: anchoredPosRef.current.top + autoStackOffset.top,
-    })
-    const effectiveStoredWorld = storedWorldFarOffscreen ? null : storedWorld
-    const worldPinnedTopLeft = worldDragOverride || (storyboardPinnedCardLayoutActive ? world : effectiveStoredWorld || defaultWorld)
-    const worldPinned = richMediaFrameSize
-      ? { x: worldPinnedTopLeft.x + frameWidth / 2, y: worldPinnedTopLeft.y + frameHeight / 2 }
-      : worldPinnedTopLeft
-    const storyboardPaintScale = computeBoundedOverlayPaintScale(zoomK)
-    const worldPinnedScreen = worldToScreen({ transform: placementTransform, x: worldPinnedTopLeft.x, y: worldPinnedTopLeft.y })
-    const storyboardPinnedRawScreenBox = storyboardPinnedCardLayoutActive
-      ? computeStoryboardWidgetOverlayScreenBox({
-          transform: placementTransform,
-          centerWorld: worldPinned,
-          paintScale: storyboardPaintScale,
-          width: frameWidth,
-          height: frameHeight,
-        })
-      : null
-    const storyboardPinnedScreenBox = storyboardPinnedRawScreenBox
-      ? (() => {
-          const projected = projectVectorPaintedOverlayZoomBox({
-            previousBox: lastAppliedRef.current,
-            baseBox: storyboardPinnedZoomLayoutBaseRef.current,
-            previousTransform: lastStoryboardPinnedTransformRef.current,
-            currentTransform: placementTransform,
-            rawBox: storyboardPinnedRawScreenBox,
-            anchorX: viewportW / 2,
-            anchorY: viewportH / 2,
-            width: frameWidth,
-            height: frameHeight,
-          })
-          storyboardPinnedZoomLayoutBaseRef.current = projected.baseBox
-          return projected.box
-        })()
-      : null
-    const floatingWorld = worldDragOverride || effectiveStoredWorld
-    const floatingWorldScreen = floatingWorld ? worldToScreen({ transform: placementTransform, x: floatingWorld.x, y: floatingWorld.y }) : null
-    const richMediaAuthoritativeScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos ? { top: screenY + frameHeight * (1 - panelScale) / 2, left: screenX + frameWidth * (1 - panelScale) / 2 } : { top: screenY, left: screenX }
-    const richMediaAuthoritativeTopLeftScreenBase = richMediaFrameSize && hasAuthoritativeNodeWorldPos
-      ? { top: screenY, left: screenX }
-      : richMediaAuthoritativeScreenBase
-    const useFrontmatterInitialBalancedBase = frontmatterManagedNode && floatingUsesScreenAuthority && !hasAuthoritativeNodeWorldPos && !lastAppliedRef.current
-    const frontmatterScreenAuthorityBase = (() => {
-      const layoutBase = screenAuthorityLayoutZoomBaseRef.current
-      if (floatingUsesScreenAuthority && layoutBase) return { top: layoutBase.top, left: layoutBase.left }
-      const applied = lastAppliedRef.current
-      if (!floatingUsesScreenAuthority || !applied) return { top: pinnedTopPx, left: pinnedLeftPx }
-      if (!frontmatterManagedNode || !frontmatterBalancedFallbackPos) return { top: applied.top, left: applied.left }
-      const intersectsVisibleViewport =
-        applied.left + scaled.width > screenAuthorityViewportLeft
-        && applied.left < screenAuthorityViewportRight
-        && applied.top + scaled.height > screenAuthorityViewportTop
-        && applied.top < screenAuthorityViewportBottom
-      return intersectsVisibleViewport
-        ? { top: applied.top, left: applied.left }
-        : frontmatterBalancedFallbackPos
-    })()
-    const screenAuthorityHandoffPos = floatingUsesScreenAuthority && floatingRef.current
-      ? screenAuthorityHandoffPosRef.current
-      : null
-    const basePos = dragOverride
-      ? { top: dragOverride.top, left: dragOverride.left }
-      : floatingRef.current
-        ? (screenAuthorityHandoffPos
-            ? { top: screenAuthorityHandoffPos.top, left: screenAuthorityHandoffPos.left }
-            : floatingWorldScreen
-            ? { top: floatingWorldScreen.sy, left: floatingWorldScreen.sx }
-            : floatingUsesScreenAuthority
-              ? (hasAuthoritativeNodeWorldPos
-                  ? richMediaAuthoritativeTopLeftScreenBase
-                  : useFrontmatterInitialBalancedBase && frontmatterBalancedFallbackPos
-                  ? frontmatterBalancedFallbackPos
-                  : frontmatterScreenAuthorityBase)
-              : usableFloatingScreenPos
-                ? usableFloatingScreenPos
-              : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx })
-        : storyboardPinnedScreenBox
-          ? { top: storyboardPinnedScreenBox.top, left: storyboardPinnedScreenBox.left }
-          : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }
-    const safeBasePos = { top: Number.isFinite(basePos.top) ? basePos.top : 8, left: Number.isFinite(basePos.left) ? basePos.left : 8 }
-    const floatingScreenAuthorityScale = floatingRef.current && floatingUsesScreenAuthority && !frontmatterManagedNode
-      ? screenAuthorityHandoffPos?.scale ?? lastAppliedRef.current?.scale
-      : null
-    const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? panelScale
-    const appliedPanelScale = floatingScreenAuthorityScale ?? effectivePanelScale
-    const effectiveScaled = richMediaFrameSize
-      ? { width: richMediaFrameSize.width * appliedPanelScale, height: richMediaFrameSize.height * appliedPanelScale }
-      : computeWidgetScaledSize(appliedPanelScale)
-    scaledSizeRef.current = effectiveScaled
-    const screenAuthorityZoomLayoutActive = frontmatterManagedNode
-      && floatingRef.current
-      && floatingUsesScreenAuthority
-      && !(richMediaFrameSize && hasAuthoritativeNodeWorldPos)
-    const posBase = (() => {
-      if (!screenAuthorityZoomLayoutActive) {
-        screenAuthorityLayoutZoomBaseRef.current = null
-        return safeBasePos
-      }
-      const shouldResetBase = !!dragOverride
-        || !screenAuthorityLayoutZoomBaseRef.current
-        || !Number.isFinite(screenAuthorityLayoutZoomBaseRef.current.scale)
-        || screenAuthorityLayoutZoomBaseRef.current.scale <= 0
-      if (shouldResetBase) screenAuthorityLayoutZoomBaseRef.current = { left: safeBasePos.left, top: safeBasePos.top, scale: effectivePanelScale }
-      const base = screenAuthorityLayoutZoomBaseRef.current
-      if (!base || dragOverride) return safeBasePos
-      return projectCollectiveScreenLayoutForZoom({ base, scale: effectivePanelScale, anchorX: screenAuthorityViewportLeft + screenAuthorityViewportWidth / 2, anchorY: screenAuthorityViewportTop + screenAuthorityViewportHeight / 2, baseWidth: WIDGET_BASE_SIZE.width, baseHeight: WIDGET_BASE_SIZE.height })
-    })()
-    const posBaseForViewport = (() => {
-      if (floatingRef.current || dragOverride || (frontmatterManagedNode && effectiveStoredWorld)) return posBase
-      const aabb = getLiveContainmentGroupAabbForNode?.(nodeId)
-      if (!aabb) return posBase
-      const a = worldToScreen({ transform: placementTransform, x: aabb.minX, y: aabb.minY })
-      const b = worldToScreen({ transform: placementTransform, x: aabb.maxX, y: aabb.maxY })
-      const left0 = Math.min(a.sx, b.sx)
-      const right0 = Math.max(a.sx, b.sx)
-      const top0 = Math.min(a.sy, b.sy)
-      const bottom0 = Math.max(a.sy, b.sy)
-      if (!Number.isFinite(left0) || !Number.isFinite(right0) || !Number.isFinite(top0) || !Number.isFinite(bottom0)) return posBase
-      const minLeft = left0 + 8
-      const minTop = top0 + 8
-      const maxLeft = Math.max(minLeft, right0 - 8 - effectiveScaled.width)
-      const maxTop = Math.max(minTop, bottom0 - 8 - effectiveScaled.height)
-      const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-      return { left: clamp(posBase.left, minLeft, maxLeft), top: clamp(posBase.top, minTop, maxTop) }
-    })()
-    const pos = posBaseForViewport
-    const updateToolbarLayout = opts?.updateToolbarLayout !== false
-    const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
-    if (updateToolbarLayout) setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
-    const safeEffectivePanelScale = Number.isFinite(appliedPanelScale) && appliedPanelScale > 0 ? appliedPanelScale : 1
-    const toolbarViewportLeft = frontmatterVisibleViewportAuthority ? screenAuthorityViewportLeft : 0
-    const toolbarViewportRight = frontmatterVisibleViewportAuthority ? screenAuthorityViewportRight : viewportW
-    const toolbarViewportWidth = Math.max(1, toolbarViewportRight - toolbarViewportLeft)
-    const toolbarMaxScreenWidth = Math.max(
-      1,
-      Math.min(
-        WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX * safeEffectivePanelScale,
-        Math.max(1, toolbarViewportWidth - WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX * 2),
-      ),
-    )
-    const toolbarShiftScreenPx = computeViewportSafeInlineCenterShiftPx({
-      anchorCenterPx: pos.left + effectiveScaled.width / 2 - toolbarViewportLeft,
-      elementWidthPx: toolbarMaxScreenWidth,
-      viewportWidthPx: toolbarViewportWidth,
-      marginPx: WIDGET_ACTIONS_TOOLBAR_VIEWPORT_MARGIN_PX,
-    })
-    const nextToolbarInlineShiftPx = toolbarShiftScreenPx / safeEffectivePanelScale
-    if (updateToolbarLayout) setToolbarInlineShiftPx(prev => (Math.abs(prev - nextToolbarInlineShiftPx) <= 0.001 ? prev : nextToolbarInlineShiftPx))
-    const nextToolbarMaxWidthPx = toolbarMaxScreenWidth / safeEffectivePanelScale
-    if (updateToolbarLayout) setToolbarMaxWidthPx(prev => (Math.abs(prev - nextToolbarMaxWidthPx) <= 0.001 ? prev : nextToolbarMaxWidthPx))
-    const offset = canvasWindowOffsetRef.current
-    const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0; const offsetTop = Number.isFinite(offset.top) ? offset.top : 0
-    const tx = pos.left + offsetLeft; const ty = pos.top + offsetTop
-    const last = lastAppliedRef.current
-    if (last && last.left === pos.left && last.top === pos.top && last.offsetLeft === offsetLeft && last.offsetTop === offsetTop && Math.abs(last.scale - appliedPanelScale) < 1e-6 && Math.abs(last.zoomK - zoomK) < 1e-6) return
-    lastAppliedRef.current = { left: pos.left, top: pos.top, scale: appliedPanelScale, zoomK, offsetLeft, offsetTop }
-    if (storyboardPinnedCardLayoutActive) lastStoryboardPinnedTransformRef.current = { k: placementTransform.k, x: placementTransform.x, y: placementTransform.y }
-    applyVectorPaintedOverlayBox(el, { left: tx, top: ty, scale: appliedPanelScale, width: frameWidth, height: frameHeight })
-    if (floatingRef.current && !floatingUsesScreenAuthority && !currentStoredWorld && !widgetWorldPosRef.current && !worldDragOverride && !dragOverride) {
-      const seedWorld = usableFloatingScreenPos
-        ? screenToWorld({ transform: placementTransform, sx: usableFloatingScreenPos.left, sy: usableFloatingScreenPos.top })
-        : worldPinnedTopLeft
-      widgetWorldPosRef.current = seedWorld
-      lastGoodWorldPosRef.current = seedWorld
-      persistWorldPos(seedWorld)
-    }
-    if (opts?.emitInteractionFrame !== false) emitStoryboardWidgetInteractionFrame()
   }, [
     autoStackOffset.left,
     autoStackOffset.top,
+    canvasWindowOffsetRef,
+    cssInitRef,
     floatingUsesScreenAuthority,
-    storyboardWidgetSurfaceId,
     getLiveContainmentGroupAabbForNode,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     graphMetaKind,
+    lastFloatingScaleKeyRef,
+    lastGoodWorldPosRef,
+    lastStoryboardPinnedTransformRef,
     nodeId,
+    nodeRef,
+    storyboardWidgetSurfaceId,
     openWidgetNodeCount,
+    pinnedDragOverrideRef,
     pinnedLeftPx,
     pinnedTopPx,
     persistWorldPos,
     readPanelScaleForZoom,
     readScreenAuthorityFollowZoomK,
     readStoredWidgetWorldPos,
+    scaledSizeRef,
+    schemaRef,
+    screenAuthorityHandoffPosRef,
+    screenAuthorityLayoutZoomBaseRef,
+    setToolbarDock,
+    setToolbarInlineShiftPx,
+    setToolbarMaxWidthPx,
     stackIndex,
+    storyboardPinnedZoomLayoutBaseRef,
     shouldBypassStoreZoomFallback,
     viewportH,
     viewportW,
     widgetPos,
+    widgetWorldPosRef,
+    worldDragOverrideRef,
+    zoomStateRef,
+    viewportH,
     zoomViewKey,
   ])
 

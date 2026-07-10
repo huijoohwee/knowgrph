@@ -1,8 +1,8 @@
 import {
   deriveOpenWidgetOverlayNodeIds,
   deriveStoryboardCanvasRichMediaPanelNodeIds,
-  filterGraphByExcludedNodeIds,
 } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { filterGraphByExcludedNodeIds } from '@/lib/graph/filterByNodeIds'
 import {
   deriveStoryboardWidgetNodeRemoval,
   isStoryboardWidgetNodeRemovalTarget,

@@ -470,9 +470,9 @@ export const testStoryboardWidgetOverlayCollisionRebalancesStoredVerticalCluster
     throw new Error('expected shared graph mutation predicate to block layout writes for the whole Run all lifecycle')
   }
   if (!overlayEdgesText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")
-    || !overlayEdgesText.includes('if (isWorkspaceGraphMutationBlocked(useGraphStore.getState()) && overlayEdgePathByIdRef.current.size > 0) {')
-    || !overlayEdgesText.includes("pushOverlayEdgeTrace('raf-skip-graph-mutation-lock'")) {
-    throw new Error('expected Storyboard Widget overlay edges to preserve existing edge DOM while Run all holds the shared graph mutation lock')
+    || !overlayEdgesText.includes('const graphMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())') || !overlayEdgesText.includes("pushOverlayEdgeTrace('schedule-graph-mutation-lock-stable-geometry'")
+    || overlayEdgesText.includes("pushOverlayEdgeTrace('schedule-skip-graph-mutation-lock'") || overlayEdgesText.includes("pushOverlayEdgeTrace('raf-skip-graph-mutation-lock'")) {
+    throw new Error('expected Storyboard Widget overlay edges to reuse stable topology while refreshing geometry during the shared graph mutation lock')
   }
   if (!workflowRunAllText.includes('setRunAllLayoutMutationLock(true)')) {
     throw new Error('expected Toolbar Run all to hold the layout mutation lock across async node execution')
@@ -486,7 +486,7 @@ export const testStoryboardWidgetOverlayCollisionRebalancesStoredVerticalCluster
   if (!workflowRichMediaPanelText.includes('if (!args.allowCreateRichMediaPanel) return null')) {
     throw new Error('expected shared Rich Media Panel helper to skip node creation when Run all is output-only')
   }
-  if (!workflowRunAllText.includes('await args.runWorkflowNode(ids[index]!, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })')) {
+  if (!workflowRunAllText.includes('await args.runWorkflowNode(nodeId, { allowCreateRichMediaPanel: false, suppressLayoutMutation: true })')) {
     throw new Error('expected Toolbar Run all to write outputs into existing nodes only without appending Rich Media Panel nodes or mutating Storyboard Widget layout')
   }
   if (!workflowActionsText.includes('readDraftGraphData: () => (args.draftGraphDataRef.current || args.draftGraphData) as GraphData | null')) {
@@ -585,24 +585,11 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   const flowCanvasText = readUtf8(flowCanvasPath)
   const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const presentationText = readUtf8(presentationPath)
-  if (!flowCanvasText.includes('const plannedOverlayNodeIdsKeyRef = React.useRef')) {
-    throw new Error('expected FlowCanvas to keep a stable planned-overlay signature ref')
+  if (!flowCanvasText.includes('sceneGraphData: nativeSceneGraphData,')) {
+    throw new Error('expected FlowCanvas to partition overlay-owned nodes before native runtime scene construction')
   }
-  if (!flowCanvasText.includes('if (plannedOverlayNodeIdsKeyRef.current === nextKey) return')) {
-    throw new Error('expected FlowCanvas planned-overlay updates to ignore unchanged overlay id signatures')
-  }
-  if (!flowCanvasText.includes('onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}')) {
-    throw new Error('expected FlowCanvas to route media overlay planning through a guarded callback')
-  }
-
   const overlayPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const overlayText = readUtf8(overlayPath)
-  if (!overlayText.includes('const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>(\'\')')) {
-    throw new Error('expected FlowCanvas media overlays to track the last emitted planned-overlay signature')
-  }
-  if (!overlayText.includes('if (lastPlannedOverlayNodeIdsKeyRef.current === plannedOverlayNodeIdsKey) return')) {
-    throw new Error('expected FlowCanvas media overlays to suppress duplicate planned-overlay callbacks')
-  }
   if (!overlayText.includes('const mediaLayoutItems = React.useMemo(') || !overlayText.includes('[mediaLayoutItemIdsKey]')) {
     throw new Error('expected Rich Media layout items to be keyed by semantic overlay id signature, not raw mediaNodes array identity')
   }
@@ -618,14 +605,16 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()')) {
     throw new Error('expected Rich Media overlay interaction reset to preserve stable panel world sizes except on full teardown')
   }
-  if (!overlayText.includes('const stableSize = readStableRichMediaPanelSize(record)')) {
-    throw new Error('expected Rich Media overlay sizing to refresh its last-known size cache from semantic scene node props')
+  if (!overlayText.includes('const stableSize = readStoryboardCardSize2d(nodes[i] as GraphNode, strybldrStoryboardCardAspectMode)')) {
+    throw new Error('expected Rich Media overlay sizing to refresh its last-known size cache through shared Card and Widget sizing')
   }
   if (!overlayText.includes('for (const id of Array.from(lastKnownSizes.keys())) {')) {
     throw new Error('expected Rich Media overlay size cache to prune removed nodes without dropping active-node stable sizes during workspace churn')
   }
-  if (!overlayText.includes('readStableRichMediaPanelSize(props) || (!props ? mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null : null)')) {
-    throw new Error('expected Rich Media layout sizing to reuse the last stable panel size only across transient missing node-prop gaps, not bare node-id reuse')
+  if (!overlayText.includes('const panelNode = (sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))')
+    || !overlayText.includes('const sharedCardSize = panelNode ? readStoryboardCardSize2d(panelNode as GraphNode, strybldrStoryboardCardAspectMode) : null')
+    || !overlayText.includes(': mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
+    throw new Error('expected Rich Media layout sizing to reuse shared Card sizing before the transient last-known world-size fallback')
   }
   if (!presentationText.includes('const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())')) {
     throw new Error('expected D3 presentation to retain last stable overlay half-extents across transient missing visual size props')

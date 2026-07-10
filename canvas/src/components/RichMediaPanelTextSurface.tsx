@@ -2,8 +2,8 @@ import type React from 'react'
 import { CardMediaEmptyPlaceholder, CardMediaLoadingSkeleton } from '@/lib/cards/CardMediaPreview'
 import { CardMediaDropZoneFrame } from '@/lib/cards/CardMediaDropZone'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
-import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
-import { CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
+import { cn } from '@/lib/utils'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
@@ -27,95 +27,50 @@ export function RichMediaPanelTextSurface(args: {
       </CardMediaDropZoneFrame>
     ) : children
   )
-  if (model.showPanelInlineTextEditor) {
-    return wrapWithMediaDropZone(
+  if (model.showPanelTextSurface) {
+    const textSurface = (
       <section
-        aria-label="Rich media markdown preview"
+        aria-label="Rich media text surface"
         data-kg-rich-media-markdown-preview="1"
-        data-kg-rich-media-inline-edit="1"
+        data-kg-rich-media-inline-edit={model.panelTextEditable ? '1' : undefined}
+        data-kg-rich-media-card-text-frame="1"
         data-kg-canvas-wheel-ignore="true"
         data-kg-media-scroll-surface="1"
-        className={CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME}
-        style={{
-          borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-          height: '100%',
-          overflowX: 'hidden',
-          overflowY: 'auto',
-          overscrollBehaviorX: 'none',
-          overscrollBehaviorY: 'contain',
-          pointerEvents: 'auto',
-          scrollbarGutter: 'stable',
-          touchAction: 'pan-y',
-          width: '100%',
-        }}
-        onPointerDownCapture={event => {
-          try {
-            event.stopPropagation()
-          } catch {
-            void 0
-          }
-        }}
-        onWheelCapture={event => {
-          try {
-            event.stopPropagation()
-          } catch {
-            void 0
-          }
-        }}
+        className={cn('h-full w-full', CARD_TEXT_SURFACE_COLUMN_CLASS_NAME)}
+        style={{ borderColor: 'var(--kg-border)', height: '100%', overflowX: 'hidden', overflowY: 'auto', overscrollBehaviorX: 'none', overscrollBehaviorY: 'contain', pointerEvents: 'auto', touchAction: 'pan-y', width: '100%' }}
+        onPointerDownCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
+        onWheelCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
       >
-        <CardInlineTextEditor
-          value={model.panelDisplayText}
-          ariaLabel={`${model.title} text`}
-          placeholder="Add text"
-          canEdit
-          editActivation="click"
-          multiline
-          rows={8}
-          markdownPreview="auto"
-          markdownCommandMenus
-          editorSurface="viewer"
-          markdownCommandContextText={model.panelMarkdownCommandContextText}
-          onCommit={nextValue => {
-            const nextText = String(nextValue || '')
-            model.setPanelDraftText(nextText)
-            props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: nextText })
-          }}
-          displayClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden"
-          editorClassName="block h-full min-h-full w-full overflow-y-auto overflow-x-hidden font-mono text-xs leading-5"
-        />
-      </section>,
-    )
-  }
-  if (model.showPanelMarkdownPreview) {
-    return (
-      <section
-        aria-label="Rich media markdown preview"
-        data-kg-rich-media-markdown-preview="1"
-        data-kg-canvas-wheel-ignore="true"
-        data-kg-media-scroll-surface="1"
-        className={CARD_MARKDOWN_PREVIEW_EMBEDDED_SURFACE_CLASS_NAME}
-        style={{
-          borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-          height: '100%',
-          overflowX: 'hidden',
-          overflowY: 'auto',
-          overscrollBehaviorX: 'none',
-          overscrollBehaviorY: 'contain',
-          pointerEvents: 'auto',
-          scrollbarGutter: 'stable',
-          touchAction: 'pan-y',
-          width: '100%',
-        }}
-      >
-        <CardMarkdownPreview
-          markdownText={model.panelDisplayText}
-          activeDocumentPath={model.panelMarkdownDocumentPath}
-          uiPanelTextFontClass={model.uiPanelTextFontClass}
-          uiPanelMonospaceTextClass={model.uiPanelMonospaceTextClass}
-          richMediaDataAttrs
-        />
+        <section className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME} data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-rich-media-card-text-scroll="1">
+          <CardInlineTextEditor
+            value={model.panelDisplayText}
+            ariaLabel={`${model.title} text`}
+            placeholder="Add text"
+            canEdit={model.panelTextEditable}
+            editActivation="click"
+            multiline
+            displayLineClamp="none"
+            rows={8}
+            markdownPreview="auto"
+            markdownDocumentPath={model.panelMarkdownDocumentPath}
+            markdownCommandMenus={model.panelTextEditable}
+            editorSurface="viewer"
+            inlineChipDensity="compact"
+            openOnPointerDown
+            showCommandLaunchers={false}
+            markdownCommandContextText={model.panelMarkdownCommandContextText}
+            onCommit={model.panelTextEditable ? nextValue => {
+              const nextText = String(nextValue || '')
+              model.setPanelDraftText(nextText)
+              props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: nextText })
+            } : undefined}
+            displayClassName={cn(CARD_TEXT_SURFACE_VIEW_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
+            editorClassName={cn(CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
+          />
+        </section>
       </section>
     )
+    return model.panelTextEditable ? wrapWithMediaDropZone(textSurface) : textSurface
   }
   if (model.panelIsLoading) {
     return (

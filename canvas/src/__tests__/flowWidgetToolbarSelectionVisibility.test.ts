@@ -6,6 +6,7 @@ function readWidgetEditorImplementationText(): string {
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx'),
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'),
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetRichMediaToolbar.ts'),
+    resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorOverlayUiState.ts'),
   ].map(path => readFileSync(path, 'utf8')).join('\n')
 }
 
@@ -140,8 +141,8 @@ export function testRichMediaPanelActionsLiveInSharedFloatingToolbar() {
   if (!lsKeysText.includes("flowWidgetRichMediaKtvRows: 'kg:ui:storyboardWidget:richMedia:ktvRows'")) {
     throw new Error('expected Rich Media Panel KTV-row mode to use a dedicated central local-storage key')
   }
-  if (!innerText.includes('const [richMediaKtvRows, setRichMediaKtvRows] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetRichMediaKtvRows, false))')
-    || !innerText.includes('const effectiveHideFields = isRichMediaPanelNode ? richMediaKtvRows : hideFields')
+  if (!overlayText.includes('const [richMediaKtvRows, setRichMediaKtvRows] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetRichMediaKtvRows, false))')
+    || !innerText.includes('const effectiveHideFields = isRichMediaPanelNode ? uiState.richMediaKtvRows : uiState.hideFields')
     || !innerText.includes('hideFields: effectiveHideFields')
     || !innerText.includes('hideFields={effectiveHideFields}')) {
     throw new Error('expected Rich Media Panel widget view mode to be isolated from generic widget hide-fields state')

@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.3.3
+version: 1.4.0
 status: implemented
 created: 2026-05-29
 updated: 2026-07-10
@@ -28,6 +28,9 @@ constraints:
   - token-efficient
   - source-owned
 related:
+  - docs/documents/knowgrph-next-step-priorities.md
+  - docs/documents/knowgrph-mcp-install-contract.md
+  - docs/documents/knowgrph-superagent-harness.md
   - docs/documents/knowgrph-agent-ready-prd-tad.md
   - docs/documents/knowgrph-agent-ready-prd-tad.runtime.md
   - docs/documents/knowgrph-agent-ready-prd-tad.companion.md
@@ -41,11 +44,7 @@ related:
 
 ## Executive Summary
 
-Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. The current
-implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, root and app-scoped `.well-known`
-artifacts, Markdown negotiation, read-only HTTP MCP, browser-visible WebMCP, control-plane Streamable
-HTTP MCP for approval-gated orchestration, Agentic OS visibility via `knowgrph.os.status`, and root
-Commerce discovery without moving authority out of the `knowgrph` repository.
+Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. Startup prioritizes the shortest install path, clear `/`, `#`, and `@` grammar, proof-backed readiness, offline deterministic evaluation, and explicit release discipline. The implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, `.well-known` artifacts, Markdown negotiation, read-only HTTP MCP, browser WebMCP, approval-gated control-plane MCP, `knowgrph.os.status`, and Commerce discovery without moving authority out of the `knowgrph` repository.
 
 The **MCP Gateway** is a discovery-first federation over four existing surfaces (local stdio, Pages
 HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
@@ -54,6 +53,7 @@ via DNS-AID → Link headers → `.well-known` MCP server card → surface selec
 MCP-compatible hosts including Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, and BytePlus ModelArk can use public discovery for read-only installation and the control plane for approval-gated grammar invocation. MainPanel claims remain `documented` or `browser-published` unless a `runtime-executable` owner is named.
 For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
 `https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
+Use `docs/documents/knowgrph-mcp-onboarding-index.md` and its canonical `knowgrph-mcp-install-contract.md` owner for the shortest guided setup, host recipes, and dual-surface boundary.
 The public install endpoint truth stays read-only retrieval/inspection plus prompt/resource/template
 discovery, while the separate control-plane surface now advertises remote Agentic Canvas OS docs
 invocation through `knowgrph.agentic_canvas_os.docs.invoke` in current source-owned discovery metadata.

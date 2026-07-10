@@ -187,7 +187,7 @@ export async function testMediaOverlayPoolPrefersCanonicalOutputSourceUrlForGene
   }
 }
 
-export async function testMediaOverlayPoolSuppressesEmptyRichMediaShellWhenFunctionalPanelExists() {
+export async function testMediaOverlayPoolPreservesEmptyRichMediaShellBesideFunctionalPanel() {
   const nodes: any[] = [
     {
       id: 'panel-functional',
@@ -209,16 +209,13 @@ export async function testMediaOverlayPoolSuppressesEmptyRichMediaShellWhenFunct
     nodes: nodes as any,
     poolMax: 24,
   })
-  if (out.length !== 1) throw new Error(`expected one canonical rich media panel when a functional panel exists, got ${out.length}`)
-  if (String(out[0]?.id || '') !== 'panel-functional') {
-    throw new Error(`expected functional rich media panel to win over empty shell, got ${String(out[0]?.id || '<none>')}`)
-  }
-  if (!String(out[0]?.srcDoc || '').includes('Functional panel')) {
-    throw new Error('expected canonical rich media panel to preserve markdown/text viewer capability')
+  const ids = new Set(out.map(node => String(node.id || '').trim()))
+  if (out.length !== 2 || !ids.has('panel-functional') || !ids.has('panel-empty')) {
+    throw new Error(`expected distinct Rich Media Panel identities to retain their own overlay owners, got ${JSON.stringify(Array.from(ids))}`)
   }
 }
 
-export async function testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShellsToSingleCanonicalShell() {
+export async function testMediaOverlayPoolPreservesDistinctEmptyRichMediaShells() {
   const nodes: any[] = [
     {
       id: 'panel-empty-1',
@@ -238,9 +235,9 @@ export async function testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShel
     nodes: nodes as any,
     poolMax: 24,
   })
-  if (out.length !== 1) throw new Error(`expected duplicate empty rich media shells to collapse to one canonical shell, got ${out.length}`)
-  if (String(out[0]?.kind || '') !== 'iframe') {
-    throw new Error(`expected canonical empty rich media shell to stay iframe-backed, got ${String(out[0]?.kind || '<none>')}`)
+  const ids = new Set(out.map(node => String(node.id || '').trim()))
+  if (out.length !== 1 || !ids.has('panel-empty-1')) {
+    throw new Error(`expected duplicate empty Rich Media Panel shells to collapse to one canonical owner, got ${JSON.stringify(Array.from(ids))}`)
   }
 }
 

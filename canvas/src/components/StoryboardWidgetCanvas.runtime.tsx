@@ -1,12 +1,10 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import {
-  deriveStoryboardWidgetViewGraph,
-  type ToolMode,
-} from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { deriveStoryboardWidgetViewGraph, type ToolMode } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { useStoryboardWidgetInspectorState } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetInspectorState'
 import { useStoryboardWidgetRuntimeScene } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRuntimeScene'
 import { useStoryboardWidgetRenderState } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRenderState'
+import { resolveStoryboardCanvasGraphDataAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
 import { useStoryboardWidgetOverlaySurface } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetOverlaySurface'
 import { useStoryboardWidgetSurfaceAnchors } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetSurfaceAnchors'
 import { useStoryboardWidgetDropBridge } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge'
@@ -260,10 +258,11 @@ export default function StoryboardWidgetCanvasRuntime(
   })
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null
-    return renderGraphDataOverride
-      || draftGraphData
-      || baseGraphData
-      || { context: '', type: 'Graph', nodes: [], edges: [] }
+    return resolveStoryboardCanvasGraphDataAuthority({
+      baseGraphData,
+      draftGraphData,
+      renderGraphData: renderGraphDataOverride,
+    })
   }, [
     baseGraphData,
     draftGraphData,
@@ -533,6 +532,7 @@ export default function StoryboardWidgetCanvasRuntime(
     active,
     draftGraphData,
     draftGraphDataRef,
+    setDraftGraphData,
     baseGraphData,
     selectedNodeId,
     selectedEdgeId,
@@ -822,6 +822,7 @@ export default function StoryboardWidgetCanvasRuntime(
       zoomViewKeyRef={zoomViewKeyRef}
       addNodeFromRegistryAtWorld={addNodeFromRegistryAtWorld}
       addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
+      patchNodePropertiesById={patchNodePropertiesById}
       upsertUiToast={upsertUiToast}
       createPortal={createPortal}
     />

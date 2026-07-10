@@ -416,10 +416,9 @@ export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () =
 export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePopup = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewportGeospatialOverlay.tsx')
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
-  const richMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const viewportText = readUtf8(viewportPath)
   const basemapText = readUtf8(basemapPath)
-  const richMediaPanelText = readUtf8(richMediaPanelPath)
+  const richMediaPanelText = ['components/useRichMediaPanelMediaState.ts', 'features/geospatial/grabMapsPoiRichMedia.ts'].map(relativePath => readUtf8(path.resolve(process.cwd(), 'src', relativePath))).join('\n')
   if (!viewportText.includes('renderPoiInRichMediaPanel')) {
     throw new Error('Expected CanvasViewport to expose a shared geospatial POI -> Rich Media Panel handoff')
   }
@@ -441,7 +440,7 @@ export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePop
   if (!richMediaPanelText.includes('subscribeGrabMapsPoiRichMediaPreview')) {
     throw new Error('Expected RichMediaPanel to subscribe via the shared GrabMaps POI preview helper')
   }
-  if (richMediaPanelText.includes('addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
+  if (readUtf8(path.resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelMediaState.ts')).includes('addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
     throw new Error('Expected RichMediaPanel to avoid raw GrabMaps POI preview listener wiring')
   }
   if (!richMediaPanelText.includes('const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc')) {

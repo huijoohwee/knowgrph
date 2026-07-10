@@ -27,6 +27,9 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   if (!overlaysText.includes('mediaOverlayLayoutScheduleRef.current?.()')) {
     throw new Error('expected FlowCanvas media overlays to schedule layout on interaction frames')
   }
+  if (!overlaysText.includes("loop: storyboardRichMediaWorldTransformProjectionMode ? 'always' : 'onDemand'")) {
+    throw new Error('expected every Storyboard Rich Media projection mode to resize on the same animation-frame cadence as Card overlays while zooming')
+  }
 }
 
 export function testMediaOverlayLayoutLoopQuantizesAndSkipsNoopBoxWrites() {

@@ -132,20 +132,6 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modFlowCanvasBlank.testFlowCanvasBlankPointerDownClearsSelection,
     )
 
-    const modFlowCanvasPanelOnlyHide = await import('../__tests__/flowCanvasPanelOnlyHideListUpdatesRegression.test')
-    await execTest(
-      results,
-      'ui.flowCanvas.panelOnly.hideListUpdates',
-      modFlowCanvasPanelOnlyHide.testFlowCanvasPanelOnlyHideListUpdatesOnPanelOnlyChange,
-    )
-
-    const modFlowCanvasPlannedOverlayHide = await import('../__tests__/flowCanvasPlannedOverlayHideSetRegression.test')
-    await execTest(
-      results,
-      'ui.flowCanvas.overlays.hideSet.planned',
-      modFlowCanvasPlannedOverlayHide.testFlowCanvasHidesPlannedOverlayNodesNotJustMountedElements,
-    )
-
     const modMdGraphBlocks = await import('../__tests__/markdownDesignLayoutGraphBlocks.test')
     await execTest(
       results,

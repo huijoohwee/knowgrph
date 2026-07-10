@@ -9,7 +9,7 @@ import {
   buildCanonicalNodeLookup,
   getCanonicalNodeLookupValue,
 } from '@/lib/graph/canonicalNodeIds'
-import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
+import { deriveFlowCanvasNativeSceneGraph } from '@/components/FlowCanvas/nativeSceneGraph'
 import { buildDataflowWidgetRegistry } from '@/lib/storyboardWidget/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import {
@@ -62,6 +62,7 @@ type UseFlowCanvasGraphStateArgs = {
   renderMediaAsNodes: boolean
   infiniteCanvasInteractionMode: 'static' | 'interactive'
   excludeRichMediaOverlayNodeIds?: string[]
+  excludeNativeSceneNodeIds?: string[]
   openWidgetNodeIds: string[]
   widgetRegistry: WidgetRegistryEntry[]
   baseWidgetRegistry: WidgetRegistryEntry[]
@@ -84,6 +85,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     canvas2dRenderer,
     renderMediaAsNodes,
     excludeRichMediaOverlayNodeIds,
+    excludeNativeSceneNodeIds,
     openWidgetNodeIds,
     widgetRegistry,
     baseWidgetRegistry,
@@ -140,13 +142,6 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     () => buildScopedGraphSemanticKey('flow-canvas-scene-graph', { graphData: sceneGraphData, graphRevision: graphDataRevision }),
     [graphDataRevision, sceneGraphData],
   )
-
-  const panelOnlyNodeIdSet = React.useMemo(() => {
-    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
-    if (nodes.length === 0) return null
-    const set = buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
-    return set.size > 0 ? set : null
-  }, [sceneGraphData])
 
   const dataflowWidgetRegistry = React.useMemo(() => {
     return buildDataflowWidgetRegistry({
@@ -371,6 +366,11 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     () => mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean).join('|'),
     [mediaNodes],
   )
+  const nativeSceneGraphData = React.useMemo(() => deriveFlowCanvasNativeSceneGraph({
+    sceneGraphData,
+    overlayNodes: mediaNodes,
+    excludedNodeIds: excludeNativeSceneNodeIds,
+  }), [excludeNativeSceneNodeIds, mediaNodeIdsSignature, mediaNodes, sceneGraphData])
   const reportedMediaNodeSignatureRef = React.useRef('')
   React.useEffect(() => {
     if (canvas2dRenderer !== 'storyboard') return
@@ -410,7 +410,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     storyboardWidgetOverlayInteractionMode,
     filteredGraphDataForRenderer,
     sceneGraphData,
-    panelOnlyNodeIdSet,
+    nativeSceneGraphData,
     mediaNodes,
     selectedOverlayNodeIds,
     selectedOverlayNodeIdSet,

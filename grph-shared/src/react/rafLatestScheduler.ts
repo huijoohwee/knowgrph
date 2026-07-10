@@ -1,3 +1,5 @@
+import { resolveRafRuntime } from './rafRuntime.js'
+
 export type RafLatestScheduler<T> = {
   schedule: (next: T) => void
   cancel: () => void
@@ -18,17 +20,13 @@ export function createRafLatestScheduler<T>(onValue: (next: T) => void): RafLate
   const schedule = (next: T) => {
     latest = next
     if (raf != null) return
-    if (typeof window === 'undefined') {
-      flush()
-      return
-    }
-    raf = window.requestAnimationFrame(flush)
+    raf = resolveRafRuntime().request(flush)
   }
 
   const cancel = () => {
     if (raf == null) return
     try {
-      window.cancelAnimationFrame(raf)
+      resolveRafRuntime().cancel(raf)
     } catch {
       void 0
     }
@@ -38,4 +36,3 @@ export function createRafLatestScheduler<T>(onValue: (next: T) => void): RafLate
 
   return { schedule, cancel }
 }
-

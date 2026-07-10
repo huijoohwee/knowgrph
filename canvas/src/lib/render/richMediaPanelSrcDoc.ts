@@ -41,11 +41,19 @@ function escapeHtmlText(raw: unknown): string {
     .replace(/'/g, '&#39;')
 }
 
-function buildRichMediaPanelSrcDocResetStyle(): string {
+export type RichMediaPanelSrcDocScrollOwner = 'media' | 'panel'
+
+function buildRichMediaPanelSrcDocResetStyle(scrollOwner: RichMediaPanelSrcDocScrollOwner): string {
   const text = resolveCssVarWithKgFallback('--kg-text-primary')
   const topLevelFrameSelector = 'body>:is(main,section,article):first-child'
   const nestedRootFrameSelector = 'body>:is(main,section,article):first-child>:is(main,section,article):first-child'
   const flattenFrameStyle = 'display:block!important;width:100%!important;max-width:none!important;min-width:0!important;min-height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important'
+  const mediaOwnedViewportStyle = scrollOwner === 'media'
+    ? [
+      'html,body{height:100%;min-height:0!important;overflow:hidden!important}',
+      `${topLevelFrameSelector}{height:100%!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;scrollbar-gutter:stable}`,
+    ].join('')
+    : ''
   return [
     `<style id="${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}">`,
     ':root{color-scheme:light dark}',
@@ -53,6 +61,7 @@ function buildRichMediaPanelSrcDocResetStyle(): string {
     '*,*::before,*::after{box-sizing:inherit}',
     `body{margin:0!important;min-width:0;width:100%;min-height:100%;background:transparent!important;color:${text}}`,
     `${topLevelFrameSelector},${nestedRootFrameSelector}{${flattenFrameStyle}}`,
+    mediaOwnedViewportStyle,
     'img,svg,video,canvas{max-width:100%}',
     '</style>',
   ].join('')
@@ -247,13 +256,14 @@ function injectStyleIntoDocument(args: {
   srcDoc: string
   title: string
   style: string
+  scrollOwner: RichMediaPanelSrcDocScrollOwner
 }): string {
   const markedSrcDoc = markHtmlElement(args.srcDoc)
   const existingResetStylePattern = new RegExp(`<style\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}["'])[^>]*>[\\s\\S]*?<\\/style>`, 'i')
   const existingResizeScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
   const existingTimelineScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
   const script = `${buildRichMediaPanelSrcDocResizeScript({
-    preserveDocumentOverflow: usesViewportRichMediaPanelSrcDocSize(args.srcDoc) && !requestsPanelOwnedRichMediaPanelSrcDocScroll(args.srcDoc),
+    preserveDocumentOverflow: args.scrollOwner === 'media',
   })}${buildRichMediaPanelSrcDocTimelineTransportScript()}`
   const srcDoc = markedSrcDoc
     .replace(existingResetStylePattern, '')
@@ -284,19 +294,23 @@ function injectStyleIntoDocument(args: {
 export function normalizeRichMediaPanelInlineSrcDoc(args: {
   srcDoc: unknown
   title?: unknown
+  scrollOwner?: RichMediaPanelSrcDocScrollOwner
 }): string {
   const srcDoc = typeof args.srcDoc === 'string' ? args.srcDoc.trim() : ''
   if (!srcDoc) return ''
   const title = String(args.title || '').trim() || 'Rich Media Panel'
   const semanticSrcDoc = normalizeSemanticHtmlContainers(srcDoc)
+  const scrollOwner = args.scrollOwner
+    || (usesViewportRichMediaPanelSrcDocSize(semanticSrcDoc) && !requestsPanelOwnedRichMediaPanelSrcDocScroll(semanticSrcDoc) ? 'media' : 'panel')
   const srcDocHash = hashStringToHexCached('rich-media-panel-srcdoc', semanticSrcDoc)
-  const cacheKey = hashSignatureParts(['rich-media-panel-srcdoc', title, semanticSrcDoc.length, srcDocHash])
+  const cacheKey = hashSignatureParts(['rich-media-panel-srcdoc', title, scrollOwner, semanticSrcDoc.length, srcDocHash])
   const cached = richMediaPanelSrcDocCache.get(cacheKey)
   if (cached) return cached
   const normalized = injectStyleIntoDocument({
     srcDoc: semanticSrcDoc,
     title,
-    style: buildRichMediaPanelSrcDocResetStyle(),
+    style: buildRichMediaPanelSrcDocResetStyle(scrollOwner),
+    scrollOwner,
   })
   richMediaPanelSrcDocCache.set(cacheKey, normalized)
   return normalized

@@ -228,9 +228,12 @@ export function StoryboardRichMediaDropSmokePage() {
       store.setCanvas2dRenderer('storyboard')
       store.setDocumentSemanticMode('document')
       store.setFrontmatterModeEnabled(true)
-      store.setZoomToSelectionMode(true)
       store.setOpenWidgetNodeIds([])
       store.setGraphData(buildSmokeGraph())
+      store.setViewPinned(false)
+      store.setFitToScreenMode(false)
+      store.setZoomToSelectionMode(false)
+      store.clearZoomRequest()
     }
     applySmokeBaseline()
   }, [])
@@ -287,6 +290,19 @@ export function StoryboardRichMediaDropSmokePage() {
       if (rafId) window.cancelAnimationFrame(rafId)
     }
   }, [baselineProjectionReady, baselineRevision])
+
+  React.useEffect(() => {
+    if (!baselineProjectionReady) return
+    const viewport = document.querySelector<HTMLElement>('[aria-label="Canvas viewport"]')
+    const rect = viewport?.getBoundingClientRect()
+    if (!rect || rect.width <= 0 || rect.height <= 0) return
+    const store = useGraphStore.getState()
+    store.setViewPinned(false)
+    store.setFitToScreenMode(false)
+    store.setZoomToSelectionMode(false)
+    store.clearZoomRequest()
+    store.requestZoomTransform({ k: 1, x: rect.width / 2, y: rect.height / 2 })
+  }, [baselineProjectionReady])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return

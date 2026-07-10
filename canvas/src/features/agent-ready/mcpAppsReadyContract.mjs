@@ -2,6 +2,8 @@ import {
   KNOWGRPH_AGENT_READY_PROMPT_NAMES,
 } from './knowgrphAgentReadyPromptContract.mjs'
 import { KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE } from './knowgrphAgentReadyResourceContract.mjs'
+import { MCP_ONBOARDING_CLIENT_SCRIPT, buildMcpOnboarding, buildMcpOnboardingHtml, resolveMcpOnboardingUrls } from './mcpAppsOnboarding.mjs'
+import { escapeHtml, normalizeString, readUrlOrigin, safeJsonForInlineScript } from './mcpAppsContractText.mjs'
 
 export const KNOWGRPH_MCP_APPS_EXTENSION_ID = 'io.modelcontextprotocol/ui'
 export const KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app'
@@ -26,26 +28,6 @@ export const KNOWGRPH_MCP_CLIENT_IDS = Object.freeze({
   bytePlusModelArk: 'byteplus-modelark',
   generic: 'generic-mcp',
 })
-
-const normalizeString = (value) => String(value || '').trim()
-
-const escapeHtml = (value) => normalizeString(value)
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-
-const safeJsonForInlineScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c')
-
-const readUrlOrigin = (value) => {
-  const source = normalizeString(value)
-  if (!source) return ''
-  try {
-    return new URL(source).origin
-  } catch {
-    return ''
-  }
-}
 
 export const buildKnowgrphMcpAppsCapabilities = () => ({
   extensions: {
@@ -235,6 +217,7 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
   const appResource = resources.find((resource) => resource?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI) || null
   const extension = capabilities.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]
   const transportUrl = normalizeString(mcpServerCard.transport?.url) || (baseUrl ? `${baseUrl}/mcp` : '')
+  const { publicReadMcpUrl, controlPlaneMcpUrl } = resolveMcpOnboardingUrls({ baseUrl, transportUrl, surfaceRoles: mcpServerCard.surfaceRoles })
   const transportType = normalizeString(mcpServerCard.transport?.type) || KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
   const appResourceHtml = normalizeString(args.appResourceHtml)
     || buildKnowgrphMcpAppsHtml({
@@ -419,6 +402,7 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
       ],
       renderMode: 'structured-summary-with-json-fallback',
     },
+    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
     checklist,
   }
 }
@@ -510,6 +494,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
   const appUrl = normalizeString(args.appUrl)
   const updatedAt = normalizeString(args.updatedAt)
   const toolName = normalizeString(args.toolName) || KNOWGRPH_MCP_APP_TOOL_NAME
+  const { publicReadMcpUrl, controlPlaneMcpUrl } = resolveMcpOnboardingUrls({ baseUrl: appUrl })
   const toolNames = Array.isArray(args.toolNames)
     ? args.toolNames.map(normalizeString).filter(Boolean)
     : [toolName]
@@ -520,6 +505,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     toolName,
     toolNames,
     protocolVersion: KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
+    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
   }
   return `<!doctype html>
 <html lang="en">
@@ -546,6 +532,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     .status { font-size: 12px; color: color-mix(in srgb, CanvasText 66%, transparent); }
     .readiness { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 6px; padding: 10px; background: color-mix(in srgb, Canvas 96%, CanvasText 4%); font-size: 12px; }
     .readiness strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .readiness ol { display: grid; gap: 6px; margin: 8px 0 0; padding-left: 18px; }
     .readiness ul { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
     .check { min-width: 0; overflow-wrap: anywhere; }
     .check.ok { color: color-mix(in srgb, CanvasText 74%, #0f766e 26%); }
@@ -573,6 +560,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
         <dt>Status</dt><dd id="status" class="status">Initializing MCP Apps host bridge.</dd>
       </dl>
     </section>
+    ${buildMcpOnboardingHtml({ publicReadMcpUrl, controlPlaneMcpUrl })}
     <section aria-label="MCP Apps server readiness">
       <section id="readiness" class="readiness">Waiting for structured server-readiness data.</section>
     </section>
@@ -585,6 +573,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     const boot = ${safeJsonForInlineScript(boot)};
     const statusEl = document.getElementById('status');
     const hostEl = document.getElementById('host');
+    const onboardingEl = document.getElementById('onboarding');
     const readinessEl = document.getElementById('readiness');
     const structuredEl = document.getElementById('structured');
     let nextId = 1;
@@ -660,6 +649,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       parent.appendChild(element);
       return element;
     };
+    ${MCP_ONBOARDING_CLIENT_SCRIPT}
     const renderReadiness = (payload) => {
       readinessEl.replaceChildren();
       const readiness = payload && payload.mcpAppsServerReadiness;
@@ -695,6 +685,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       const payload = state.result && typeof state.result === 'object'
         ? (state.result.structuredContent || state.result)
         : state.result;
+      renderOnboarding(payload);
       renderReadiness(payload);
       structuredEl.textContent = payload
         ? JSON.stringify(payload, null, 2)

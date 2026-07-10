@@ -72,10 +72,12 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     editActivation = 'doubleClick',
     editRequestKey = null,
     multiline = false,
+    displayLineClamp = 'density',
     displayClassName,
     editorClassName,
     emptyClassName,
     markdownPreview = false,
+    markdownDocumentPath = '/__card_inline_text_editor/preview.md',
     markdownCommandMenus = true,
     markdownCommandContextText = '',
     mediaCommandMode = 'inline',
@@ -280,8 +282,8 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     !showPlaceholder
     && (markdownPreview === true || (markdownPreview === 'auto' && hasCardMarkdownPreviewSyntax(displaySourceValue)))
   const enableMarkdownCommandMenus = markdownCommandMenus !== false && multiline === true
-  const densityOwnedDisplayClassName = normalizeCardInlineTextDisplayClassName(displayClassName || '', multiline)
-  const displayLineClassName = multiline && !densityOwnedDisplayClassName.includes('overflow-auto') ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : ''
+  const densityOwnedDisplayClassName = displayLineClamp === 'density' ? normalizeCardInlineTextDisplayClassName(displayClassName || '', multiline) : displayClassName || ''
+  const displayLineClassName = multiline && displayLineClamp === 'density' && !densityOwnedDisplayClassName.includes('overflow-auto') ? readDataViewFieldLineClassName(editorDensity.fieldLineMode) : ''
   const openCommandMenuAtSelection = React.useCallback((mode: CardInlineTextCommandMenuMode, selection: { start: number; end: number }, seedQuery: string = '') => {
     commandSelectionRef.current = selection
     setCommandMode(mode)
@@ -581,6 +583,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       enableMarkdownCommandMenus={enableMarkdownCommandMenus}
       id={id}
       inlineChipDensity={inlineChipDensity}
+      markdownDocumentPath={markdownDocumentPath}
       onOpenEditorFromDisplayEvent={openEditorFromDisplayEvent}
       openDisplayCommandMenuForSigil={openDisplayCommandMenuForSigil}
       openOnPointerDown={openOnPointerDown}

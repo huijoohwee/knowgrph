@@ -404,9 +404,9 @@ export function createBytePlusVideoProvider({ aiGatewayClient, mediaPersister, b
      * @param {number} [args.intervalMs]      - poll interval override.
      * @param {number} [args.maxDurationMs]   - max poll duration override.
      */
-    async dispatch({ runId, stageId = "render", shotId, prompt = "", model, intervalMs, maxDurationMs } = {}) {
+    async dispatch({ runId, stageId = "render", shotId, prompt = "", imagePrompt, firstFrameImage, referenceImages, model, intervalMs, maxDurationMs } = {}) {
       // 1. Submit async video task (R2.4, R2.5).
-      const submitResult = await aiGatewayClient.submitVideo({ prompt, model });
+      const submitResult = await aiGatewayClient.submitVideo({ prompt, model, extra: { image_prompt: imagePrompt, first_frame_image: firstFrameImage, reference_images: referenceImages } });
       if (!submitResult.ok) {
         return { ok: false, error: submitResult.error, code: submitResult.code };
       }

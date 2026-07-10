@@ -91,6 +91,18 @@ export function resolveGraphNodeByCanonicalId(graph: GraphData | null | undefine
   return innerMatches.length === 1 ? innerMatches[0] || null : null
 }
 
+export function resolveGraphDataAndNodeByCanonicalId(
+  graphs: ReadonlyArray<GraphData | null | undefined>,
+  rawId: unknown,
+): { graphData: GraphData; node: GraphNode } | null {
+  for (const graphData of graphs) {
+    if (!graphData) continue
+    const node = resolveGraphNodeByCanonicalId(graphData, rawId)
+    if (node) return { graphData, node }
+  }
+  return null
+}
+
 export function resolveGraphNodeIdsByCanonicalIds(
   graph: GraphData | null | undefined,
   rawIds: ReadonlyArray<string>,

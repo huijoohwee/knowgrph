@@ -171,6 +171,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["richMedia.panel.measuredSrcDocPanelScrolls","@/__tests__/richMediaPanelIframeScrollResizeRegression.test","testRichMediaPanelMeasuredSrcDocKeepsPanelOwnedScrolling"],
   ["richMedia.panel.iframeScrollResizeSourceContract","@/__tests__/richMediaPanelIframeScrollResizeRegression.test","testRichMediaPanelIframeScrollResizeSourceContract"],
   ["richMedia.panel.viewportSrcDocPreservesDocumentOverflow","@/__tests__/richMediaPanelIframeScrollResizeRegression.test","testRichMediaPanelViewportSrcDocPreservesDocumentOverflow"],
+  ["richMedia.panel.mediaOwnedSrcDocBoundedScrollableViewport","@/__tests__/richMediaPanelIframeScrollResizeRegression.test","testRichMediaPanelMediaOwnedSrcDocUsesBoundedScrollableViewport"],
   ["markdown.dataView.imageCellsPreserveMarkdown","@/__tests__/markdownDataViewRoundTrip.test","testMarkdownDataViewPreservesMarkdownImageCells"],
   ["markdown.dataView.imageCellsRenderThumbnails","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableRendersMarkdownImageCellsAsThumbnails"],
   ["markdown.dataView.imageCellsRenderThumbnailsInColumns","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewColumnsOrientationRendersMarkdownImageCellsAsThumbnails"],

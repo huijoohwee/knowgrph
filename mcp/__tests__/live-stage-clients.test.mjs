@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 
 import {
   createByteplusStoryboardClient,
+  createAiGatewayVisualReviewClient,
+  createAiGatewayImageGenerationClient,
   parseStoryboardCompletion,
   createStrytreeRenderQueueClient,
   createStripeCommerceClients,
@@ -73,6 +75,42 @@ test("createByteplusStoryboardClient: posts a chat completion and returns shots"
   assert.equal(out.shots.length, 1);
 });
 
+test("createByteplusStoryboardClient grounds long-script planning in retained segment ids", async () => {
+  let requestBody;
+  const client = createByteplusStoryboardClient({
+    endpoint: "https://gw/chat/completions",
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return jsonResponse(chatCompletion([{
+        prompt: "retain the reveal",
+        sourceCardIds: ["s-1"],
+        scriptSegmentIds: ["script-segment-1"],
+        scriptUnitIds: ["script-unit-1"],
+        dialogueUnitIds: ["script-unit-2"],
+        dramaticPurpose: "reveal",
+        dramaticIntensity: 0.8,
+        cinematography: { shotSize: "close-up", cameraAngle: "eye-level", cameraMovement: "dolly-in", composition: "leading-lines", transition: "match-cut" },
+      }]));
+    },
+  });
+  const result = await client.plan({
+    brief: "Novel adaptation",
+    sourceIds: ["s-1"],
+    shotCount: 1,
+    scriptContext: { entries: [{ segmentId: "script-segment-1", content: "Mira: Keep the reveal exact." }] },
+    storyboardProfile: { userRequirements: "Prioritize the reveal", targetAudience: { description: "mystery readers" }, pace: "measured" },
+  });
+
+  const instruction = requestBody.messages[1].content;
+  assert.match(instruction, /immutable source material/);
+  assert.match(instruction, /Mira: Keep the reveal exact\./);
+  assert.match(instruction, /mystery readers/);
+  assert.match(instruction, /cameraMovements/);
+  assert.deepEqual(result.shots[0].scriptSegmentIds, ["script-segment-1"]);
+  assert.deepEqual(result.shots[0].dialogueUnitIds, ["script-unit-2"]);
+  assert.equal(result.shots[0].cinematography.cameraMovement, "dolly-in");
+});
+
 test("createByteplusStoryboardClient: throws (→ harness fallback) on HTTP error", async () => {
   const client = createByteplusStoryboardClient({
     fetchImpl: async () => jsonResponse({ error: "x" }, { status: 500 }),
@@ -87,6 +125,57 @@ test("createByteplusStoryboardClient: throws (→ harness fallback) on HTTP erro
 test("createByteplusStoryboardClient: throws when unconfigured (no endpoint)", async () => {
   const client = createByteplusStoryboardClient({ fetchImpl: async () => jsonResponse({}) });
   await assert.rejects(() => client.plan({ brief: "b", sourceIds: [], shotCount: 1 }));
+});
+
+test("createAiGatewayVisualReviewClient reuses multimodal chat and returns a Cost Log", async () => {
+  let requestBody = null;
+  const client = createAiGatewayVisualReviewClient({
+    endpoint: "https://gw/chat/completions",
+    model: "vision-model",
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return jsonResponse({
+        choices: [{ message: { content: JSON.stringify({ narrativeScore: 0.8, visualScore: 0.9, findings: [], proposedPrompt: "" }) } }],
+        usage: { prompt_tokens: 12, completion_tokens: 4, cache_hits: 1, estimated_cost_usd: 0.01 },
+      });
+    },
+  });
+  const result = await client.review({ shotId: "shot-1", prompt: "p", assetUrl: "https://asset.example/frame.png", expectedContinuity: {} });
+  assert.equal(requestBody.messages[0].content[1].type, "image_url");
+  assert.equal(requestBody.messages[0].content[1].image_url.url, "https://asset.example/frame.png");
+  assert.equal(result.visualScore, 0.9);
+  assert.equal(result.costLog.estimated_cost_usd, 0.01);
+});
+
+test("createAiGatewayVisualReviewClient scores first-frame consistency dimensions", async () => {
+  const client = createAiGatewayVisualReviewClient({
+    endpoint: "https://gw/chat/completions",
+    model: "vision-model",
+    fetchImpl: async () => jsonResponse({
+      choices: [{ message: { content: JSON.stringify({ identityScore: 0.9, environmentScore: 0.8, spatialScore: 0.95, temporalScore: 0.85, technicalScore: 0.9, findings: [] }) } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    }),
+  });
+  const result = await client.reviewCandidate({ assetUrl: "https://asset.example/candidate.png", prompt: "p", expectedContinuity: {} });
+  assert.equal(result.identityScore, 0.9);
+  assert.equal(result.spatialScore, 0.95);
+  assert.equal(result.costLog.incomplete, false);
+});
+
+test("createAiGatewayImageGenerationClient maps one durable candidate asset", async () => {
+  let requestBody;
+  const client = createAiGatewayImageGenerationClient({
+    endpoint: "https://gw/images",
+    model: "image-model",
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return jsonResponse({ data: [{ url: "https://asset.example/candidate.png" }], usage: { prompt_tokens: 8, completion_tokens: 0 } });
+    },
+  });
+  const result = await client.generate({ runId: "run", shotId: "shot-1", variantIndex: 2, prompt: "p", referenceImages: [{ assetUrl: "https://asset.example/ref.png" }] });
+  assert.equal(requestBody.metadata.variant_index, 2);
+  assert.deepEqual(requestBody.reference_images, ["https://asset.example/ref.png"]);
+  assert.equal(result.assetUrl, "https://asset.example/candidate.png");
 });
 
 test("runStoryboardHarness consumes the live storyboard client and emits a valid Kgc_Document", async () => {
@@ -202,6 +291,8 @@ test("resolveStageClients: populates storyboard/render/commerce slots when endpo
     {
       KNOWGRPH_LIVE_CLIENTS: "1",
       AI_GATEWAY_CHAT_URL: "https://gw/chat/completions",
+      AI_GATEWAY_IMAGE_URL: "https://gw/images",
+      IMAGE_GENERATION_MODEL: "image-model",
       RENDER_PROVIDER: "strytree",
       STRYTREE_RENDER_URL: "https://pay/render",
       KNOWGRPH_PAYMENT_URL: "https://pay.example",
@@ -210,6 +301,7 @@ test("resolveStageClients: populates storyboard/render/commerce slots when endpo
   );
   assert.equal(clients.live, true);
   assert.ok(clients.storyboardClient && clients.storyboardClient.isDeterministicMock === false);
+  assert.ok(clients.imageGenerationClient && clients.imageGenerationClient.isDeterministicMock === false);
   assert.ok(clients.renderClient && clients.renderClient.requiresAsyncHarness === true);
   assert.ok(clients.commerceClient && clients.commerceClient.requiresAsyncHarness === true);
 });
@@ -219,6 +311,7 @@ test("resolveStageClients: live with no stage endpoints leaves stage slots null 
   assert.equal(clients.live, true);
   assert.ok(clients.exaClient, "exa is hosted-free capable");
   assert.equal(clients.storyboardClient, null);
+  assert.equal(clients.imageGenerationClient, null);
   assert.equal(clients.renderClient, null);
   assert.equal(clients.commerceClient, null);
 });

@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils'
 import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
 import { CheckCircle, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react'
 
+export const STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME =
+  'min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]'
+
 export function StoryboardWidgetPanelChromeHeader(props: {
   active: boolean
   title: React.ReactNode
@@ -78,10 +81,6 @@ export function StoryboardWidgetPanelChromeHeader(props: {
     minWidth: 0,
     height: '100%',
   } : undefined
-  const richMediaTitleStyle: React.CSSProperties | undefined = richMediaHeader ? {
-    fontSize: 'var(--kg-media-panel-title-size, 12px)',
-    lineHeight: 1.2,
-  } : undefined
   const richMediaNavStyle: React.CSSProperties | undefined = richMediaHeader ? {
     flex: '0 0 auto',
     gap: 'max(1px, calc(var(--kg-media-panel-padding, 6px) * 0.35))',
@@ -143,8 +142,7 @@ export function StoryboardWidgetPanelChromeHeader(props: {
       >
         <section className="min-w-0 flex-1" aria-label="Node title">
           {titleContent || <h3
-              className={cn('font-semibold truncate', UI_THEME_TOKENS.text.primary, minimized ? microLabelClass : '')}
-              style={richMediaTitleStyle}
+              className={cn(STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, minimized ? microLabelClass : '')}
             >{title}</h3>}
         </section>
 

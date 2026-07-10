@@ -35,6 +35,14 @@ const readSourcePortForMedia = (kind: MediaDragPayload['kind']): string => {
   return 'imageUrl'
 }
 
+const readSourcePortForPanelProperties = (props: Record<string, unknown>): string => {
+  const kind = clean(props[CARD_MEDIA_DROP_SOURCE_KIND_KEY])
+  if (kind === 'video' || kind === 'audio' || kind === 'image') return readSourcePortForMedia(kind)
+  if (clean(props.videoUrl)) return 'videoUrl'
+  if (clean(props.audioUrl)) return 'audioUrl'
+  return 'imageUrl'
+}
+
 const readFiniteNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
 
@@ -74,6 +82,30 @@ export const isStoryboardCardMediaDropPanelNodeForCard = (
   node: CardMediaDropPanelNodeLike,
   cardId: string,
 ): boolean => isDropOwnedPanelNodeForCard(node, clean(cardId))
+
+export const readStoryboardCardMediaDropPanelTargetId = (
+  node: CardMediaDropPanelNodeLike,
+): string => {
+  if (!isRichMediaPanelNode(node)) return ''
+  const props = readNodeProperties(node)
+  if (clean(props.mediaSource) !== CARD_MEDIA_DROP_SOURCE_KEY) return ''
+  return clean(props[CARD_MEDIA_DROP_TARGET_KEY])
+}
+
+export const readStoryboardCardMediaDropPanelSourcePortKey = (
+  node: CardMediaDropPanelNodeLike,
+): string => {
+  if (!isRichMediaPanelNode(node)) return ''
+  const props = readNodeProperties(node)
+  if (clean(props.mediaSource) !== CARD_MEDIA_DROP_SOURCE_KEY) return ''
+  return readSourcePortForPanelProperties(props)
+}
+
+export const buildStoryboardCardMediaDropOverlayEdgeId = (panelId: string, cardId: string): string => {
+  const source = clean(panelId).replace(/[^a-zA-Z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '') || 'rich-media-panel'
+  const target = clean(cardId).replace(/[^a-zA-Z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '') || 'storyboard-card'
+  return `storyboard-card-media-drop:${source}->${target}`
+}
 
 export const isStoryboardCardMediaDropEdge = (
   edge: Pick<GraphEdge, 'target' | 'properties'> | null | undefined,

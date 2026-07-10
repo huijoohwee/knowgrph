@@ -95,7 +95,7 @@ export function buildModelStageCostLogs({ plannedEstimateUsd = 0, actualCostUsd 
  * (R10.3 / Property 20). Summed in integer cents so the aggregated
  * estimated/actual costs equal the sums of the corresponding per-entry fields
  * with EXACT equality. Returns `entryCount` so callers can assert the
- * one-entry-per-model-bearing-stage invariant.
+ * required base-stage coverage; optional model-bearing review stages may append entries.
  */
 export function aggregateCostLogs(costLogs = []) {
   const estimatedCents = costLogs.reduce((total, entry) => total + toCents(entry.estimatedCostUsd), 0);
@@ -133,8 +133,8 @@ export function buildCostLogAccounting({ plannedEstimateUsd = 0, modelActualCost
 /**
  * Pure correctness check for Property 20, surfaced on the Run_Manifest
  * `validation.checks` and `guardrails`. Holds iff:
- *   1. there is EXACTLY one Cost_Log entry per model-bearing stage (no missing
- *      stage, no duplicate, no extra stage), and every entry carries the three
+ *   1. there is exactly one Cost_Log entry per required base model stage (no
+ *      missing or duplicate stage), optional review stages are unique, and every entry carries the three
  *      required fields as finite numbers; and
  *   2. the aggregate estimated/actual costs EQUAL the sums of the per-entry
  *      fields (aggregation correctness — verified in integer cents).
@@ -143,15 +143,14 @@ export function buildCostLogAccounting({ plannedEstimateUsd = 0, modelActualCost
  */
 export function costLogAggregationHolds(costLogs, aggregate) {
   if (!Array.isArray(costLogs)) return false;
-  if (costLogs.length !== MODEL_BEARING_STAGE_IDS.length) return false;
   const seen = new Set();
   for (const entry of costLogs) {
-    if (!entry || !MODEL_BEARING_STAGE_IDS.includes(entry.stageId)) return false;
+    if (!entry || typeof entry.stageId !== "string" || !entry.stageId) return false;
     if (seen.has(entry.stageId)) return false; // duplicate stage -> not exactly one
     seen.add(entry.stageId);
     if (!Number.isFinite(entry.estimatedCostUsd) || !Number.isFinite(entry.actualCostUsd)) return false;
   }
-  if (seen.size !== MODEL_BEARING_STAGE_IDS.length) return false;
+  if (!MODEL_BEARING_STAGE_IDS.every((stageId) => seen.has(stageId))) return false;
   const recomputed = aggregateCostLogs(costLogs);
   return (
     toCents(recomputed.estimatedCostUsd) === toCents(aggregate.estimatedCostUsd) &&

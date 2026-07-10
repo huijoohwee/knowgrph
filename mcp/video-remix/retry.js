@@ -175,4 +175,35 @@ export function buildBoundedRetryPlan({ maxIterations, baseMs, capMs } = {}) {
   };
 }
 
+export async function runWithBoundedRetry(operation, options = {}) {
+  if (typeof operation !== "function") throw new TypeError("operation must be a function");
+  const maxIterations = normalizeMaxIterations(options.maxIterations);
+  const wait = typeof options.wait === "function"
+    ? options.wait
+    : (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+  const attempts = [];
+  let lastError = null;
+  for (let index = 0; index < maxIterations; index += 1) {
+    const attempt = index + 1;
+    try {
+      const value = await operation({ attempt, retryCount: index });
+      attempts.push({ attempt, status: "complete", delayMs: index === 0 ? 0 : computeRetryBackoffMs(index - 1) });
+      return { ok: true, value, attempts, finalRetryCount: index };
+    } catch (error) {
+      lastError = error;
+      const exhausted = attempt >= maxIterations;
+      attempts.push({
+        attempt,
+        status: exhausted ? RETRY_RUN_STATE_EXHAUSTED : "retry_scheduled",
+        delayMs: exhausted ? 0 : computeRetryBackoffMs(index),
+        reason: cleanString(error?.message, "operation_failed"),
+      });
+      if (exhausted) break;
+      if (typeof options.onRetry === "function") options.onRetry(attempts[attempts.length - 1]);
+      await wait(attempts[attempts.length - 1].delayMs);
+    }
+  }
+  return { ok: false, error: lastError, attempts, finalRetryCount: maxIterations };
+}
+
 export { deriveFailureStageId };

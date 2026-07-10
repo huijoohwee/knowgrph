@@ -42,7 +42,6 @@ export type RichMediaPanelProps = {
   widgetToolbarActive?: boolean
   headerPinned?: boolean
   headerMinimized?: boolean
-  onHeaderValidate?: () => void
   onHeaderTogglePinned?: (event: React.MouseEvent) => void
   onHeaderPinnedPointerDown?: (event: React.PointerEvent) => void
   onHeaderToggleMinimized?: () => void

@@ -1,6 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-
 import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
@@ -9,7 +8,6 @@ import {
   applyFixedStoryboardCardPlacementsToGraphData2d,
   readStoryboardWidgetPlacementSize2d,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-
 function readSourceFilesUnder(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   const files: string[] = []
@@ -436,11 +434,13 @@ export function testFlowCanvasZoomHelpersStayRendererNeutral() {
 
 export function testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection() {
   const placementPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const placementProjectionPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeProjection.ts')
   const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
   const runtimeScenePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeScene.ts')
   const mediaLoopPath = path.resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
   const mediaOverlaysPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const placementText = fs.readFileSync(placementPath, 'utf8')
+  const placementProjectionText = fs.readFileSync(placementProjectionPath, 'utf8')
   const overlaySurfaceText = fs.readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = fs.readFileSync(runtimeScenePath, 'utf8')
   const mediaLoopText = fs.readFileSync(mediaLoopPath, 'utf8')
@@ -451,17 +451,17 @@ export function testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection(
     || placementText.includes('liveZoomCenterPreservingPlacement')) {
     throw new Error('expected pinned widget zoom to render from stable world positions instead of mutating layout to chase screen centers')
   }
-  assertTextIncludes(placementText, [
+  assertTextIncludes(placementProjectionText, [
     'computeStoryboardWidgetOverlayScreenBox({',
     'centerWorld: worldPinned',
     'const storyboardPinnedCardLayoutActive = !floatingRef.current',
     'const effectivePanelScale = storyboardPinnedScreenBox?.scale ?? panelScale',
     '? { top: storyboardPinnedScreenBox.top, left: storyboardPinnedScreenBox.left }',
   ], 'expected pinned Storyboard Widget placement to reuse Card world-center screen-box layout during zoom')
-  if (!placementText.includes(': { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }')) {
+  if (!placementProjectionText.includes(': { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }')) {
     throw new Error('expected non-Storyboard pinned widget placement to retain direct stable-world fallback during zoom')
   }
-  assertTextIncludes(placementText, [
+  assertTextIncludes(placementProjectionText, [
     'screenAuthorityLayoutZoomBaseRef',
     'projectCollectiveScreenLayoutForZoom({',
     'anchorX: screenAuthorityViewportLeft + screenAuthorityViewportWidth / 2',

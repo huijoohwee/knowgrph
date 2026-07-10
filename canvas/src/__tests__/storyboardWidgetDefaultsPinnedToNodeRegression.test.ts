@@ -74,43 +74,43 @@ export function testStoryboardWidgetFrontmatterWidgetsDefaultToFloatingScreenAut
 
 export function testStoryboardWidgetPinnedStateSubscribesToStoreUpdates() {
   const innerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
+  const overlayUiStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorOverlayUiState.ts')
   const text = readFileSync(innerPath, 'utf8')
-  if (!text.includes('const unsub = useGraphStore.subscribe(')) {
+  const overlayUiStateText = readFileSync(overlayUiStatePath, 'utf8')
+  if (!overlayUiStateText.includes('const unsub = useGraphStore.subscribe(')) {
     throw new Error('expected WidgetEditor pinned state to subscribe to graph store updates')
   }
-  if (!text.includes('setPinnedInCanvasState(prev => (prev === next ? prev : next))')) {
+  if (!overlayUiStateText.includes('setPinnedInCanvasState(prev => (prev === next ? prev : next))')) {
     throw new Error('expected WidgetEditor to refresh pinned state when the graph store updates after mount')
   }
-  if (!text.includes("pinnedValue: typeof v === 'boolean' ? v : null")) {
+  if (!overlayUiStateText.includes("pinnedValue: typeof v === 'boolean' ? v : null")) {
     throw new Error('expected WidgetEditor pinned subscription to resolve raw store booleans through shared authority')
   }
-  if (!text.includes('const requested = !!(typeof next === \'function\'')
-    || !text.includes('const resolved = resolveEffectiveFlowWidgetPinnedInCanvas({')
-    || !text.includes('const currentPinnedById = resolveScopedFlowWidgetNodeMap({')
-    || !text.includes('if (nextMap) setFlowWidgetPinnedByNodeIdForGraph(graphMetaKey, nextMap)')) {
+  if (!overlayUiStateText.includes('const requested = !!(typeof next === \'function\'')
+    || !overlayUiStateText.includes('const resolved = resolveEffectiveFlowWidgetPinnedInCanvas({')
+    || !overlayUiStateText.includes('const currentPinnedById = resolveScopedFlowWidgetNodeMap({')
+    || !overlayUiStateText.includes('if (nextMap) setFlowWidgetPinnedByNodeIdForGraph(graphMetaKey, nextMap)')) {
     throw new Error('expected WidgetEditor pin persistence to store explicit user pin state through the scoped shared authority resolver')
   }
-  if (!text.includes('const persistFloatingScreenPlacement = placement.persistFloatingScreenPlacement')
-    || !text.includes('const readCurrentOverlayScreenPlacementForHandoff = placement.readCurrentOverlayScreenPlacementForHandoff')
-    || !text.includes('prev === true')
-    || !text.includes('const currentScreenPlacement = readCurrentOverlayScreenPlacementForHandoff()')
-    || !text.includes('persistFloatingScreenPlacement({ top: applied.top, left: applied.left })')) {
+  if (!overlayUiStateText.includes('prev === true')
+    || !overlayUiStateText.includes('const currentScreenPlacement = placement.readCurrentOverlayScreenPlacementForHandoff()')
+    || !overlayUiStateText.includes('if (applied) placement.persistFloatingScreenPlacement({ top: applied.top, left: applied.left })')) {
     throw new Error('expected WidgetEditor unpin handoff to preserve the live Widget screen placement before changing pin state')
   }
-  if (text.includes('wasPinned && pinnedInCanvas !== true && floatingUsesScreenAuthority')) {
+  if (overlayUiStateText.includes('wasPinned && pinnedInCanvas !== true && floatingUsesScreenAuthority')) {
     throw new Error('expected WidgetEditor to avoid post-render unpin placement persistence that overwrites the pre-flip screen handoff')
   }
-  if (!text.includes("const domPinnedRaw = placement.asideRef.current?.getAttribute('data-kg-widget-pinned')")
-    || !text.includes('pinnedInCanvasRef.current = currentPinned')
-    || !text.includes('const requested = !currentPinned')) {
+  if (!overlayUiStateText.includes("const domPinnedRaw = placement.asideRef.current?.getAttribute('data-kg-widget-pinned')")
+    || !overlayUiStateText.includes('pinnedInCanvasRef.current = currentPinned')
+    || !overlayUiStateText.includes('setPinnedInCanvas(!currentPinned)')) {
     throw new Error('expected WidgetEditor pin toggle to derive current pin state from the live Widget DOM before computing the next pin state')
   }
-  if (text.includes('const effectiveNext = resolveEffectiveFlowWidgetPinnedInCanvas({')
-    || text.includes('if (effectiveNext === pinnedInCanvasRef.current) {')) {
+  if (overlayUiStateText.includes('const effectiveNext = resolveEffectiveFlowWidgetPinnedInCanvas({')
+    || overlayUiStateText.includes('if (effectiveNext === pinnedInCanvasRef.current) {')) {
     throw new Error('expected WidgetEditor pin toggle to avoid treating explicit frontmatter pin requests as rejected stale residue')
   }
-  if (!text.includes('if (nodeId && useGraphStore.getState().flowWidgetDraggingNodeId === nodeId) {')
-    || !text.includes('useGraphStore.getState().setFlowWidgetDraggingNodeId(null)')) {
+  if (!overlayUiStateText.includes('if (nodeId && useGraphStore.getState().flowWidgetDraggingNodeId === nodeId) {')
+    || !overlayUiStateText.includes('useGraphStore.getState().setFlowWidgetDraggingNodeId(null)')) {
     throw new Error('expected WidgetEditor pin guard cleanup to clear stale dragging authority when a widget unmounts mid-toggle')
   }
 }

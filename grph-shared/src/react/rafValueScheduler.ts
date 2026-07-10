@@ -1,3 +1,5 @@
+import { resolveRafRuntime } from './rafRuntime.js'
+
 export type RafValueScheduler<T> = {
   schedule: (next: T) => void
   flush: () => void
@@ -19,17 +21,13 @@ export function createRafValueScheduler<T>(apply: (next: T) => void): RafValueSc
   const schedule = (next: T) => {
     pending = next
     if (raf != null) return
-    if (typeof window === 'undefined') {
-      flush()
-      return
-    }
-    raf = window.requestAnimationFrame(flush)
+    raf = resolveRafRuntime().request(flush)
   }
 
   const cancel = () => {
     if (raf == null) return
     try {
-      window.cancelAnimationFrame(raf)
+      resolveRafRuntime().cancel(raf)
     } catch {
       void 0
     }
@@ -39,4 +37,3 @@ export function createRafValueScheduler<T>(apply: (next: T) => void): RafValueSc
 
   return { schedule, flush, cancel }
 }
-

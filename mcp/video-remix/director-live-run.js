@@ -36,6 +36,89 @@ import { buildExhaustionFailureRecord } from "./retry.js";
 import { resolveGateClientDeps, resolveStageClients } from "./live-clients.js";
 import { runVideoRemix } from "./run-video-remix.js";
 import { executeVideoAgentStagesAsync } from "./video-agent-execution.js";
+import { buildVideoWorkflowCheckpoint, prepareVideoWorkflow, refreshVideoWorkflowIntelligence } from "./workflow-control.js";
+import { buildStoryboardFlow, buildStoryboardMarkdown } from "./storyboard.js";
+import { runStoryboardHarness } from "./storyboard-harness.js";
+import { runWithBoundedRetry } from "./retry.js";
+import { aggregateCostLogs, costLogAggregationHolds } from "./cost-log.js";
+import { buildStoryboardScriptContext } from "./long-script-engine.js";
+
+function retryingStoryboardClient(client, maxIterations, retryTrace, wait) {
+  return {
+    ...client,
+    async plan(input) {
+      const result = await runWithBoundedRetry(() => client.plan(input), {
+        maxIterations,
+        wait,
+        onRetry: (entry) => retryTrace.push({ stageId: "storyboard", ...entry }),
+      });
+      retryTrace.push(...result.attempts.filter((entry) => entry.status === "complete").map((entry) => ({ stageId: "storyboard", ...entry })));
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  };
+}
+
+async function applyLiveCreativePlan(payload, clients, args, deps) {
+  if (!clients?.storyboardClient || !approvedGate(payload, "paid-model-call")) return null;
+  const retryTrace = [];
+  const result = await runStoryboardHarness({
+    brief: payload.brief,
+    evidencePack: payload.evidencePack,
+    shotCount: payload.storyboard.plannedShots.length,
+    scriptContext: buildStoryboardScriptContext(
+      payload.workflow?.longScript,
+      args.workflow?.narrativePolicy?.storyboardContextCharacters,
+    ),
+    storyboardProfile: payload.workflow?.storyboardDesign?.profile,
+  }, {
+    chatClient: retryingStoryboardClient(clients.storyboardClient, payload.maxIterations, retryTrace, deps.retryWait),
+    runId: payload.runId,
+    referenceUrl: payload.referenceUrl,
+    paidProviderCalls: 1,
+  });
+  if (result.status !== "complete") return null;
+  const workflow = prepareVideoWorkflow({
+    workflow: args.workflow,
+    runId: payload.runId,
+    brief: payload.brief,
+    plannedShots: result.plannedShots,
+    sourceCards: payload.evidencePack?.sources,
+  });
+  const modelPlan = result.creativePlan || {};
+  if (!workflow.creativePlan.script.text && modelPlan.script) {
+    workflow.creativePlan.script = { source: "model", text: modelPlan.script };
+  } else if (!args.workflow?.script && modelPlan.script) {
+    workflow.creativePlan.script = { source: "model", text: modelPlan.script };
+  }
+  if (workflow.creativePlan.characters.length === 0 && Array.isArray(modelPlan.characters)) {
+    workflow.creativePlan.characters = modelPlan.characters;
+  }
+  const enrichedWorkflow = refreshVideoWorkflowIntelligence(workflow, payload.evidencePack?.sources);
+  payload.storyboard = {
+    ...payload.storyboard,
+    canvasDocumentMarkdown: buildStoryboardMarkdown({
+      runId: payload.runId,
+      referenceUrl: payload.referenceUrl,
+      brief: payload.brief,
+      shots: enrichedWorkflow.plannedShots,
+    }),
+    flow: buildStoryboardFlow(enrichedWorkflow.plannedShots),
+    plannedShots: enrichedWorkflow.plannedShots,
+    narrativeCoherence: result.narrativeCoherence,
+  };
+  payload.workflow = {
+    ...payload.workflow,
+    creativePlan: enrichedWorkflow.creativePlan,
+    narrative: enrichedWorkflow.narrative,
+    continuity: enrichedWorkflow.continuity,
+    parallelShotPlan: enrichedWorkflow.parallelShotPlan,
+    multiAgentPipeline: enrichedWorkflow.multiAgentPipeline,
+    negotiation: enrichedWorkflow.negotiation,
+    retryTrace,
+  };
+  return enrichedWorkflow;
+}
 
 /**
  * Derive the planned shots the render stage dispatches from a Run_Manifest's
@@ -80,9 +163,11 @@ function replaceStage(manifest, id, patch) {
   );
 }
 
-function mergeVideoAgentResult(manifest, video, args = {}) {
+function mergeVideoAgentResult(manifest, video, args = {}, workflow = null) {
   const executionFailure = video.executionFailure;
   if (executionFailure) manifest.state = RUN_STATE_BLOCKED;
+  else if (video.negotiation?.decision === "block") manifest.state = RUN_STATE_BLOCKED;
+  else if (video.qualityReview?.status === "revise") manifest.state = "awaiting_review";
 
   const editResult = video.editResult;
   const publishedUrls = manifest.state === "complete" && !editResult.blocksPublish ? video.publishedUrls : [];
@@ -93,6 +178,14 @@ function mergeVideoAgentResult(manifest, video, args = {}) {
       }
     : { sessionId: "", payoutSettled: false };
 
+  if (Array.isArray(video.plannedShots) && video.plannedShots.length) {
+    manifest.storyboard = {
+      ...manifest.storyboard,
+      plannedShots: video.plannedShots,
+      flow: buildStoryboardFlow(video.plannedShots),
+      canvasDocumentMarkdown: buildStoryboardMarkdown({ runId: manifest.runId, referenceUrl: manifest.referenceUrl, brief: manifest.brief, shots: video.plannedShots }),
+    };
+  }
   manifest.render = { assets: video.assets };
   manifest.edit = editResult;
   manifest.commerce = { publish: { publishedUrls }, checkout };
@@ -116,6 +209,25 @@ function mergeVideoAgentResult(manifest, video, args = {}) {
     .filter((failure) => failure.reason === "provider_unavailable_degraded");
   manifest.failures = [...exhaustionFailures, ...providerFailures];
 
+  const qualityCostUsd = (video.qualityReview?.costLogs || []).reduce(
+    (total, entry) => total + (Number(entry?.estimated_cost_usd) || 0),
+    0,
+  );
+  const qualityDirectorLogs = qualityCostUsd > 0 || video.qualityProviderCalls > 0
+    ? [{ stageId: "visual_review", estimatedCostUsd: qualityCostUsd, actualCostUsd: qualityCostUsd }]
+    : [];
+  const imageConsistencyCostUsd = (video.imageConsistency?.costLogs || []).reduce(
+    (total, entry) => total + (Number(entry?.estimated_cost_usd) || 0),
+    0,
+  );
+  const imageConsistencyDirectorLogs = imageConsistencyCostUsd > 0 || video.imageCandidateProviderCalls > 0 || video.imageReviewProviderCalls > 0
+    ? [{ stageId: "image_consistency", estimatedCostUsd: imageConsistencyCostUsd, actualCostUsd: imageConsistencyCostUsd }]
+    : [];
+  manifest.costLogs = [
+    ...(Array.isArray(manifest.costLogs) ? manifest.costLogs.filter((entry) => !["image_consistency", "visual_review"].includes(entry.stageId)) : []),
+    ...imageConsistencyDirectorLogs,
+    ...qualityDirectorLogs,
+  ];
   const budgetUpdate = buildBudgetMetersUpdate({
     modelCostLogs: manifest.costLogs,
     renderProviderSpendUsd: video.providerSpendCents / 100,
@@ -126,13 +238,25 @@ function mergeVideoAgentResult(manifest, video, args = {}) {
     : 0;
   manifest.budgetMeters = {
     ...manifest.budgetMeters,
+    estimatedCostUsd: budgetUpdate.cumulativeEstimatedCostUsd,
     actualCostUsd: budgetUpdate.cumulativeActualCostUsd,
     spendEvents: budgetUpdate.spendEvents,
     spendEventCount: budgetUpdate.spendEventCount,
     budgetMetersUpdatedSynchronously: budgetUpdate.updatedSynchronously,
     providerSpendCents: video.providerSpendCents,
-    paidProviderCalls: modelCalls + video.renderProviderCalls + (checkout.payoutSettled ? 1 : 0),
+    costLogAggregate: aggregateCostLogs(manifest.costLogs),
+    paidProviderCalls: modelCalls + video.imageCandidateProviderCalls + video.imageReviewProviderCalls + video.renderProviderCalls + video.qualityProviderCalls + (checkout.payoutSettled ? 1 : 0),
   };
+  const budgetUsd = Number(manifest.budgetMeters.budgetUsd) || 0;
+  const budgetExceeded = budgetUsd > 0 && manifest.budgetMeters.actualCostUsd >= budgetUsd;
+  if (budgetExceeded) {
+    manifest.state = "budget_exceeded";
+    manifest.budgetMeters.budgetExceeded = true;
+    manifest.budgetMeters.budgetExceededMessage = `Budget cap of $${budgetUsd.toFixed(2)} reached; publish and checkout halted.`;
+    manifest.commerce = { publish: { publishedUrls: [] }, checkout: { sessionId: "", payoutSettled: false } };
+    replaceStage(manifest, "publish", { status: "budget_held", executed: false, publishedCount: 0 });
+    replaceStage(manifest, "checkout", { status: "budget_held", executed: false });
+  }
 
   const reconciliation = buildLedgerReconciliation({ assets: video.assets, metersProviderSpendCents: video.providerSpendCents, runId: manifest.runId });
   manifest.budgetMeters.reconciliation = reconciliation.summary;
@@ -143,7 +267,30 @@ function mergeVideoAgentResult(manifest, video, args = {}) {
     creditLedgerEvents: video.videoAccounting.creditLedgerEvents,
     creditLedgerValidationFailures: video.videoAccounting.creditLedgerValidationFailures,
     editManifestPersistCallCount: video.manifestPersistCallCount,
+    qualityReview: video.qualityReview,
+    imageConsistency: video.imageConsistency,
+    parallelShotExecution: video.parallelShotExecution,
+    multiAgentPipeline: null,
+    negotiation: video.negotiation,
   };
+  if (workflow) {
+    const checkpointWorkflow = Array.isArray(video.plannedShots) ? { ...workflow, plannedShots: video.plannedShots } : workflow;
+    const checkpoint = buildVideoWorkflowCheckpoint(checkpointWorkflow, video);
+    manifest.videoAgent.multiAgentPipeline = checkpoint.multiAgentPipeline;
+    manifest.workflow = {
+      ...manifest.workflow,
+      imageConsistency: video.imageConsistency,
+      parallelShotPlan: workflow.parallelShotPlan,
+      parallelShotExecution: video.parallelShotExecution,
+      multiAgentPipeline: checkpoint.multiAgentPipeline,
+      retryTrace: video.retryTrace,
+      resume: {
+        reusedShotCount: workflow.reusedAssets.length,
+        pendingShotCount: workflow.pendingShots.length,
+      },
+      checkpoint,
+    };
+  }
   manifest.demoPack = buildDemoPack({
     state: manifest.state,
     sources: manifest.evidencePack?.sources,
@@ -164,16 +311,19 @@ function mergeVideoAgentResult(manifest, video, args = {}) {
   manifest.guardrails.videoAgentCreditLedgerEventsValidate = video.videoAccounting.creditLedgerValidationFailures.length === 0;
   manifest.guardrails.editManifestPersistedExactlyOnce = editResult.status !== "complete" || video.manifestPersistCallCount === 1;
   manifest.guardrails.editBlocksPublish = !editResult.blocksPublish || publishedUrls.length === 0;
+  manifest.guardrails.visualReviewBlocksLowQualityPublish = !["revise", "block"].includes(video.negotiation?.decision) || publishedUrls.length === 0;
 
   updateCheck(manifest, "failure_retry_bounded", manifest.failureHandling.failures.every((failure) => failure.retryCount <= manifest.maxIterations));
   updateCheck(manifest, "exhaustion_fails_closed_with_record", !exhaustionFailures.length || manifest.state === RUN_STATE_BLOCKED);
   updateCheck(manifest, "no_premature_failure_record", manifest.guardrails.noPrematureFailureRecord);
   updateCheck(manifest, "budget_meters_reflect_cumulative_spend_events", budgetUpdate.updatedSynchronously);
+  updateCheck(manifest, "cost_log_aggregation_one_per_model_stage", costLogAggregationHolds(manifest.costLogs, manifest.budgetMeters.costLogAggregate));
   updateCheck(manifest, reconciliation.validationCheck.id, reconciliation.validationCheck.ok);
   updateCheck(manifest, "video_agent_cost_logs_validate", manifest.guardrails.videoAgentCostLogsValidate);
   updateCheck(manifest, "video_agent_credit_ledger_events_validate", manifest.guardrails.videoAgentCreditLedgerEventsValidate);
   updateCheck(manifest, "edit_manifest_persisted_exactly_once", manifest.guardrails.editManifestPersistedExactlyOnce);
   updateCheck(manifest, "edit_result_blocks_publish", manifest.guardrails.editBlocksPublish);
+  updateCheck(manifest, "visual_review_blocks_low_quality_publish", manifest.guardrails.visualReviewBlocksLowQualityPublish);
   manifest.validation.ok = ["complete", "approval_required", "dry_run_ready", "blocked", "budget_exceeded"].includes(manifest.state);
 }
 
@@ -189,10 +339,19 @@ export async function runVideoRemixAsync(args = {}, deps = {}) {
 
   const result = runVideoRemix({ ...args, renderDeps: undefined, mediaPersister });
   const payload = result.payload;
+  const liveWorkflow = await applyLiveCreativePlan(payload, clients, args, deps);
+  if (liveWorkflow?.negotiation?.decision === "block") payload.state = RUN_STATE_BLOCKED;
   if (!(payload.mode === "live" && payload.state === "complete" && approvedGate(payload, "render-action"))) {
     return result;
   }
 
+  const workflow = liveWorkflow || prepareVideoWorkflow({
+    workflow: args.workflow,
+    runId: payload.runId,
+    brief: payload.brief,
+    plannedShots: payload.storyboard.plannedShots,
+    sourceCards: payload.evidencePack?.sources,
+  });
   const video = await executeVideoAgentStagesAsync({
     liveRequested: true,
     state: payload.state,
@@ -204,8 +363,23 @@ export async function runVideoRemixAsync(args = {}, deps = {}) {
     renderDeps,
     mediaPersister,
     maxIterations: payload.maxIterations,
+    priorAssets: workflow.reusedAssets,
+    renderEnabled: workflow.renderEnabled,
+    narrative: workflow.narrative,
+    continuity: workflow.continuity,
+    storyboardDesign: workflow.storyboardDesign,
+    multiCameraDesign: workflow.multiCameraDesign,
+    referenceSelection: workflow.referenceSelection,
+    imageGeneration: workflow.imageGeneration,
+    imageConsistencyPolicy: workflow.imageConsistencyPolicy,
+    parallelShotPlan: workflow.parallelShotPlan,
+    qualityPolicy: workflow.qualityPolicy,
+    imageGenerationClient: deps.imageGenerationClient || clients.imageGenerationClient,
+    visualReviewClient: deps.visualReviewClient || clients.visualReviewClient,
+    priorImageConsistency: args.workflow?.checkpoint?.imageConsistency,
+    retryWait: deps.retryWait,
   });
-  mergeVideoAgentResult(payload, video, args);
+  mergeVideoAgentResult(payload, video, args, workflow);
   return {
     payload,
     text: buildRunText({

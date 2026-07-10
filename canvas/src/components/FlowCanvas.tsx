@@ -34,6 +34,7 @@ const WORKSPACE_PREINIT_DRAW_INTERACTION_BYPASS_MS = 1200
 export default function FlowCanvas({
   active = true,
   graphDataOverride,
+  mutationSourceGraphDataOverride,
   graphDataRevisionOverride,
   collisionDuringDrag = false,
   allowNodeDragOverride,
@@ -44,8 +45,10 @@ export default function FlowCanvas({
   hideNodeIds,
   hidePortHandleNodeIds,
   excludeRichMediaOverlayNodeIds,
+  excludeNativeSceneNodeIds,
   storyboardWidgetSurfaceId,
   forbidCircleNodes = false,
+  onNodePropertiesChange,
 }: FlowCanvasProps) {
   const containerRef = React.useRef<HTMLElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
@@ -135,13 +138,14 @@ export default function FlowCanvas({
   const storeGraphData = useGraphStore(s => (active ? s.graphData : null))
   const {
     graphDataRevision,
+    renderGraphData,
     allowMutations,
     effectiveFrontmatter,
     storyboardWidgetFrontmatterInteractionMode,
     storyboardWidgetOverlayInteractionMode,
     filteredGraphDataForRenderer,
     sceneGraphData,
-    panelOnlyNodeIdSet,
+    nativeSceneGraphData,
     mediaNodes,
     selectedOverlayNodeIdSet,
   } = useFlowCanvasGraphState({
@@ -159,6 +163,7 @@ export default function FlowCanvas({
     renderMediaAsNodes,
     infiniteCanvasInteractionMode,
     excludeRichMediaOverlayNodeIds,
+    excludeNativeSceneNodeIds,
     openWidgetNodeIds,
     widgetRegistry,
     baseWidgetRegistry,
@@ -217,8 +222,6 @@ export default function FlowCanvas({
   const storyboardWidgetSelectedPortRowKey = useGraphStore(s => s.storyboardWidgetSelectedPortRowKey || '')
   const workspacePreInitDeferredDrawRef = React.useRef(false)
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
-  const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
-  const plannedOverlayNodeIdsKeyRef = React.useRef('')
   const selectionBoxRafRef = React.useRef<number | null>(null)
   const mediaOverlayInteractionFrameSchedulerRef = React.useRef<null | (() => void)>(null)
   const requestSetSelectionBox = React.useCallback((next: null | { left: number; top: number; width: number; height: number }) => {
@@ -309,10 +312,9 @@ export default function FlowCanvas({
     scheduleFlowDraw()
   }, [active, resolvedThemeMode, scheduleFlowDraw])
 
-  const updateOverlayHiddenDrawArgs = React.useCallback(() => {
-    const overlayIds = plannedOverlayNodeIds.filter(Boolean)
-    const baseNodeIds = Array.from(new Set([...(hideNodeIds || []).map(String), ...overlayIds]))
-    const baseHandleIds = Array.from(new Set([...(hidePortHandleNodeIds || []).map(String), ...overlayIds]))
+  const updateHiddenDrawArgs = React.useCallback(() => {
+    const baseNodeIds = Array.from(new Set((hideNodeIds || []).map(String)))
+    const baseHandleIds = Array.from(new Set((hidePortHandleNodeIds || []).map(String)))
     drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph
       ? Array.from(new Set([...(selectedNodeIdsRef.current || []), ...baseNodeIds]))
       : (baseNodeIds.length > 0 ? baseNodeIds : undefined)
@@ -320,18 +322,7 @@ export default function FlowCanvas({
       ? Array.from(new Set([...(selectedNodeIdsRef.current || []), ...baseHandleIds]))
       : (baseHandleIds.length > 0 ? baseHandleIds : undefined)
     scheduleFlowDraw()
-  }, [hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, plannedOverlayNodeIds, scheduleFlowDraw])
-
-  const handlePlannedOverlayNodeIdsChange = React.useCallback((ids: string[]) => {
-    const next = ids.filter(Boolean)
-    const nextKey = next.join('|')
-    if (plannedOverlayNodeIdsKeyRef.current === nextKey) return
-    plannedOverlayNodeIdsKeyRef.current = nextKey
-    setPlannedOverlayNodeIds(prev => {
-      if (prev.length === next.length && prev.every((id, index) => id === next[index])) return prev
-      return next
-    })
-  }, [])
+  }, [hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, scheduleFlowDraw])
 
   React.useEffect(() => {
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
@@ -345,14 +336,14 @@ export default function FlowCanvas({
       drawArgsRef.current.storyboardWidgetPinnedByNodeId = undefined
       drawArgsRef.current.storyboardWidgetWorldPosByNodeId = undefined
     }
-    updateOverlayHiddenDrawArgs()
+    updateHiddenDrawArgs()
   }, [
     canvas2dRenderer,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     openWidgetNodeIds,
     schema,
-    updateOverlayHiddenDrawArgs,
+    updateHiddenDrawArgs,
   ])
 
   const storyboardWidgetFocusedEdges = React.useMemo(
@@ -379,10 +370,10 @@ export default function FlowCanvas({
 
   React.useEffect(() => {
     collisionSchemaRef.current = schema
-    collisionGraphDataRef.current = graphDataForZoom && typeof graphDataForZoom === 'object' ? graphDataForZoom : sceneGraphData
+    collisionGraphDataRef.current = nativeSceneGraphData
     collisionFlowConfigRef.current = flowConfigEffective
     collisionPresentationRef.current = flowPresentation
-  }, [flowConfigEffective, flowPresentation, graphDataForZoom, sceneGraphData, schema])
+  }, [flowConfigEffective, flowPresentation, nativeSceneGraphData, schema])
 
   const requestCommit = useFlowRequestCommit({
     cacheKey,
@@ -441,7 +432,7 @@ export default function FlowCanvas({
     rankdir,
     zoomViewKey,
     graphDataRevision,
-    sceneGraphData,
+    sceneGraphData: nativeSceneGraphData,
     computedPositions,
     seededFallbackPositions,
     layoutVariant,
@@ -499,9 +490,10 @@ export default function FlowCanvas({
       <FlowCanvasMediaOverlays
         active={active}
         mediaNodes={mediaNodes as any}
-        panelOnlyNodeIdSet={panelOnlyNodeIdSet}
         selectedOverlayNodeIdSet={selectedOverlayNodeIdSet}
         sceneGraphData={sceneGraphData}
+        mutationSourceGraphData={mutationSourceGraphDataOverride !== undefined ? mutationSourceGraphDataOverride : renderGraphData}
+        nativeSceneGraphData={nativeSceneGraphData}
         canvasRef={canvasRef}
         runtimeRef={runtimeRef}
         drawArgsRef={drawArgsRef}
@@ -523,7 +515,7 @@ export default function FlowCanvas({
         viewportH={viewportH}
         overlaySizing={overlaySizing}
         storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
-        onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
+        onNodePropertiesChange={onNodePropertiesChange}
         registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
       />
       {selectionBox ? (

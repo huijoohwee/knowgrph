@@ -1,10 +1,12 @@
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import {
   applyStoryboardCardMediaDropGraph,
+  buildStoryboardCardMediaDropOverlayEdgeId,
   isStoryboardCardMediaDropEdge,
   isStoryboardCardMediaDropOverlayEdge,
   isStoryboardCardMediaDropPanelNodeForCard,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { getCachedStoryboardWidgetOverlayEdgeGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildStoryboardOverlayEdgePathD,
   buildStoryboardOutputCardLeftSidePath,
@@ -110,6 +112,48 @@ export function testStoryboardCardMediaDropCreatesInboundRichMediaPanelEdge() {
   const board = buildStoryboardBoardModel({ graphData: connectedOnlyGraph, graphRevision: 1, widgetRegistry: registry })
   const targetCard = board.lanes.flatMap(lane => lane.cards).find(item => item.id === 'story-card')
   assert(targetCard?.media?.url === videoPayload.url && targetCard.media.kind === 'video', `expected inbound Rich Media edge to project card media, got ${JSON.stringify(targetCard?.media)}`)
+}
+
+export function testStoryboardCardMediaDropOverlayGraphDerivesMissingPanelEdge() {
+  const card = buildCardNode()
+  const result = applyStoryboardCardMediaDropGraph({
+    cardId: 'story-card',
+    cardProperties: {
+      ...card.properties,
+      mediaKind: videoPayload.kind,
+      mediaUrl: videoPayload.url,
+      thumbnailUrl: videoPayload.thumbnailUrl,
+    },
+    graphData: { type: 'Graph', nodes: [card], edges: [] },
+    media: videoPayload,
+  })
+  assert(result, 'expected media drop graph result')
+  const graphData: GraphData = {
+    ...result.graphData,
+    edges: [],
+  }
+  const overlayGraph = getCachedStoryboardWidgetOverlayEdgeGraph({
+    graphData,
+    graphRevision: 9101,
+    overlayNodeIds: ['story-card', result.panelId],
+    preferCurrentGraphDataRefs: true,
+  })
+  const expectedEdgeId = buildStoryboardCardMediaDropOverlayEdgeId(result.panelId, 'story-card')
+  const overlayEdge = overlayGraph?.edges.find(edge => edge.id === expectedEdgeId)
+  assert(overlayEdge, `expected overlay graph to derive missing panel -> card media edge ${expectedEdgeId}, got ${JSON.stringify(overlayGraph?.edges)}`)
+  assert(overlayEdge.source === result.panelId && overlayEdge.target === 'story-card', `expected derived edge to connect panel -> card, got ${JSON.stringify(overlayEdge)}`)
+  assert(overlayEdge.sourcePortKey === 'videoUrl' && overlayEdge.targetPortKey === 'mediaUrl', `expected derived edge to preserve semantic media ports, got ${JSON.stringify(overlayEdge)}`)
+  const rawEdge = overlayGraph?.rawEdgeById.get(expectedEdgeId)
+  assert(isStoryboardCardMediaDropEdge(rawEdge, 'story-card'), 'expected derived raw edge to be recognized as card media-drop owned')
+
+  const explicitOverlayGraph = getCachedStoryboardWidgetOverlayEdgeGraph({
+    graphData: result.graphData,
+    graphRevision: 9102,
+    overlayNodeIds: ['story-card', result.panelId],
+    preferCurrentGraphDataRefs: true,
+  })
+  const mediaEdges = (explicitOverlayGraph?.edges || []).filter(edge => edge.source === result.panelId && edge.target === 'story-card')
+  assert(mediaEdges.length === 1, `expected explicit card-media edge not to be duplicated by derived overlay edge, got ${JSON.stringify(mediaEdges)}`)
 }
 
 export function testStoryboardCardMediaDropReusesInboundRichMediaPanelEdge() {

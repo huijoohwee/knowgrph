@@ -54,6 +54,7 @@ credentials.json
 secrets.json
 
 # Local / generated outputs
+.tmp/
 .tmp-*.png
 .dbg/
 *.spz

@@ -18,6 +18,7 @@ export function MarkdownDataViewInlineTextCellEditor(props: {
       editActivation="click"
       editRequestKey={`${props.ariaLabel}:${props.initialValue}`}
       multiline
+      editorSurface="control"
       markdownPreview="auto"
       markdownCommandContextText={props.markdownCommandContextText}
       rows={2}

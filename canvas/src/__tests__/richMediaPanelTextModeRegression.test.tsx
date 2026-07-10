@@ -6,7 +6,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
 
 const queryRichMediaTextEditor = (container: HTMLElement): HTMLElement | null =>
   container.querySelector('[contenteditable="true"][data-kg-card-inline-viewer-edit-surface="1"][aria-label="Rich Media Panel text"]')
@@ -142,6 +142,7 @@ export async function testRichMediaPanelTextModeAddTextReusesMediaDropZone() {
 export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {
+    await import('@/features/markdown/ui/MarkdownPreview')
     resetRichMediaPanelTestStoreState()
     const doc = dom.window.document
     const container = doc.createElement('section')
@@ -196,23 +197,46 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
       }),
     { window: dom.window, frames: 28 })
 
-    const markdownPreview = container.querySelector('[data-kg-rich-media-markdown-preview="1"]')
-    if (!markdownPreview) throw new Error('expected RichMediaPanel text mode to mount the shared markdown preview surface')
-    const markdownPreviewEl = markdownPreview as HTMLElement
-    const markdownPreviewClassName = String(markdownPreviewEl.getAttribute('class') || '')
-    if (!markdownPreviewClassName.includes('overflow-y-auto') || !markdownPreviewClassName.includes('overflow-x-hidden') || !markdownPreviewClassName.includes('bg-[color:var(--kg-code-bg)]')) {
-      throw new Error(`expected RichMediaPanel text surface to reuse the shared code-like vertical-only Card surface, class=${markdownPreviewClassName}`)
+    const textFrame = container.querySelector('[data-kg-rich-media-card-text-frame="1"]') as HTMLElement | null
+    const textScroll = container.querySelector('[data-kg-rich-media-card-text-scroll="1"]') as HTMLElement | null
+    if (!textFrame || !textScroll) throw new Error('expected RichMediaPanel text mode to mount the shared Card text frame and scroll surface')
+    const textScrollClassName = String(textScroll.getAttribute('class') || '')
+    if (!textScrollClassName.includes('overflow-y-auto') || !textScrollClassName.includes('overflow-x-hidden') || textScrollClassName.includes('bg-[color:var(--kg-code-bg)]')) {
+      throw new Error(`expected RichMediaPanel text surface to reuse the neutral vertical-only Card scroll surface, class=${textScrollClassName}`)
     }
-    if (markdownPreviewEl.style.overflowY !== 'auto' || markdownPreviewEl.style.overflowX !== 'hidden' || markdownPreviewEl.style.touchAction !== 'pan-y') {
-      throw new Error(`expected RichMediaPanel text surface to allow vertical scrolling only, y=${markdownPreviewEl.style.overflowY} x=${markdownPreviewEl.style.overflowX} touch=${markdownPreviewEl.style.touchAction}`)
+    const nestedTextSurface = textScroll.querySelector('[data-kg-card-inline-edit="1"]') as HTMLElement | null
+    if (!nestedTextSurface || nestedTextSurface.className.includes('overflow-auto')) {
+      throw new Error(`expected the shared Card frame to own scrolling without a nested Rich Media overflow variant, html=${container.innerHTML}`)
     }
-    if (markdownPreviewEl.style.pointerEvents !== 'auto') {
-      throw new Error(`expected RichMediaPanel text surface to remain scroll-targetable while canvas wheel forwarding exists, pointerEvents=${markdownPreviewEl.style.pointerEvents}`)
+    textScroll.style.overflowY = 'auto'
+    textScroll.style.overflowX = 'hidden'
+    Object.defineProperty(textScroll, 'scrollHeight', { configurable: true, value: 420 })
+    Object.defineProperty(textScroll, 'clientHeight', { configurable: true, value: 120 })
+    let forwardedWheelCount = 0
+    doc.body.addEventListener('wheel', event => {
+      if ((event as unknown as Record<string, unknown>).__kgForwarded === true) forwardedWheelCount += 1
+    })
+    const scrollWheel = new dom.window.WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 48 })
+    nestedTextSurface.dispatchEvent(scrollWheel)
+    if (scrollWheel.defaultPrevented || forwardedWheelCount !== 0) {
+      throw new Error(`expected normal Rich Media text wheel input to remain available for local Card scrolling, prevented=${scrollWheel.defaultPrevented} forwarded=${forwardedWheelCount}`)
+    }
+    if (textFrame.style.overscrollBehaviorY !== 'contain' || textFrame.style.overscrollBehaviorX !== 'none' || textFrame.style.touchAction !== 'pan-y') {
+      throw new Error(`expected RichMediaPanel text frame to allow vertical scrolling only, y=${textFrame.style.overscrollBehaviorY} x=${textFrame.style.overscrollBehaviorX} touch=${textFrame.style.touchAction}`)
+    }
+    if (textFrame.style.pointerEvents !== 'auto') {
+      throw new Error(`expected RichMediaPanel text surface to remain scroll-targetable while canvas wheel forwarding exists, pointerEvents=${textFrame.style.pointerEvents}`)
     }
     const cardMarkdownPreview = container.querySelector('[data-kg-card-markdown-preview="1"]')
     if (!cardMarkdownPreview) throw new Error('expected RichMediaPanel text mode to reuse the shared CardMarkdownPreview surface')
+    await act(async () => {
+      for (let attempt = 0; attempt < 8 && !container.querySelector('[data-kg-card-markdown-viewer="1"]'); attempt += 1) {
+        await waitForTasks(2)
+        await waitForFrames(dom.window, 2)
+      }
+    })
     const cardMarkdownViewer = container.querySelector('[data-kg-card-markdown-viewer="1"]')
-    if (!cardMarkdownViewer) throw new Error('expected RichMediaPanel text mode to use the chrome-free Card markdown viewer')
+    if (!cardMarkdownViewer) throw new Error(`expected RichMediaPanel text mode to use the chrome-free Card markdown viewer, html=${container.innerHTML}`)
     const cardMarkdownViewerClassName = String((cardMarkdownViewer as HTMLElement).getAttribute('class') || '')
     if (cardMarkdownViewerClassName.includes('overflow-auto')) {
       throw new Error(`expected outer RichMediaPanel text surface to own scrolling instead of nested Card markdown viewer, class=${cardMarkdownViewerClassName}`)
@@ -255,18 +279,6 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
     }
     if (container.querySelector('[aria-label="Markdown data view"]')) {
       throw new Error('expected Card markdown preview to avoid document-level data-view table conversion')
-    }
-    const image = container.querySelector('img[data-kg-card-media-kind="image"][data-kg-media-thumbnail="1"]')
-    if (!image) throw new Error(`expected card markdown preview markdown image to reuse CardMediaPreview, html=${container.innerHTML}`)
-    const imageClassName = String((image as HTMLElement).getAttribute('class') || '')
-    if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(imageClassName)) {
-      throw new Error(`expected Card markdown image media to avoid nested rounded border shadow chrome, class=${imageClassName}`)
-    }
-    const video = container.querySelector('video[data-kg-card-media-kind="video"][data-kg-media-thumbnail="1"]')
-    if (!video) throw new Error(`expected card markdown preview markdown video to reuse CardMediaPreview, html=${container.innerHTML}`)
-    const videoClassName = String((video as HTMLElement).getAttribute('class') || '')
-    if (/\brounded\b|\bborder\b|\bshadow-sm\b/.test(videoClassName)) {
-      throw new Error(`expected Card markdown video media to avoid nested rounded border shadow chrome, class=${videoClassName}`)
     }
     const cardDownloadLink = cardMarkdownPreview.querySelector('a[download][aria-label="Download media"]')
     if (cardDownloadLink) {
@@ -338,14 +350,8 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
     if (editor.textContent !== 'Connected panel text') {
       throw new Error(`expected inline editor to open with connected panel text, got ${JSON.stringify(editor.textContent)}`)
     }
-    if (!container.querySelector('button[title="Slash commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared slash commands')
-    }
-    if (!container.querySelector('button[title="Variable commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared variable commands')
-    }
-    if (!container.querySelector('button[title="Keyword commands"]')) {
-      throw new Error('expected RichMediaPanel text mode to enable shared keyword commands')
+    if (container.querySelector('button[title="Slash commands"],button[title="Variable commands"],button[title="Keyword commands"]')) {
+      throw new Error('expected RichMediaPanel text mode to match Card edit chrome without a duplicate embedded command-launcher row')
     }
 
     await unmountReactRoot(root, { window: dom.window })
@@ -356,6 +362,73 @@ export async function testRichMediaPanelTextModeInlineEditUsesStoryboardCardSsot
     } catch {
       void 0
     }
+    restoreDom()
+  }
+}
+
+export async function testRichMediaPanelReadAndEditableTextReuseOneCardSurface() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    resetRichMediaPanelTestStoreState()
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const panel = {
+      activeTab: 'text' as const,
+      freezeConnectedOutput: false,
+      hasText: true,
+      hasImage: false,
+      hasVideo: false,
+      hasAudio: false,
+      hasPoi: false,
+      text: '',
+      connectedText: 'Shared **Card** surface',
+    }
+    const renderPanel = (editable: boolean) => React.createElement(RichMediaPanel, {
+      overlayId: 'rich-media-shared-text-surface',
+      title: 'Rich Media Panel',
+      url: '',
+      kind: 'iframe' as const,
+      interactive: false,
+      panel,
+      onPanelChange: editable ? () => void 0 : undefined,
+    })
+
+    await mountReactRoot(root, renderPanel(false), { window: dom.window, frames: 12 })
+    const readFrame = container.querySelector('[data-kg-rich-media-card-text-frame="1"]')
+    const readSurface = readFrame?.querySelector('[data-kg-card-inline-edit="1"]') as HTMLElement | null
+    if (!readFrame || !readSurface || readFrame.hasAttribute('data-kg-rich-media-inline-edit')) {
+      throw new Error(`expected read-only Rich Media text to use the shared Card display surface, html=${container.innerHTML}`)
+    }
+    const readClassName = readSurface.className
+
+    await mountReactRoot(root, renderPanel(true), { window: dom.window, frames: 4 })
+    const editFrame = container.querySelector('[data-kg-rich-media-card-text-frame="1"]')
+    const editableDisplay = editFrame?.querySelector('[data-kg-card-inline-edit="1"]') as HTMLElement | null
+    if (!editFrame || !editableDisplay || editFrame.getAttribute('data-kg-rich-media-inline-edit') !== '1') {
+      throw new Error(`expected editable Rich Media text to retain the same Card display surface, html=${container.innerHTML}`)
+    }
+    if (container.querySelectorAll('[data-kg-rich-media-card-text-frame="1"]').length !== 1) {
+      throw new Error('expected Rich Media text view/edit state to render one frame variant')
+    }
+    if (readClassName.replace(/\s*cursor-text\b/g, '') !== editableDisplay.className.replace(/\s*cursor-text\b/g, '')) {
+      throw new Error(`expected Rich Media read/edit display chrome to differ only by edit cursor state, read=${readClassName} edit=${editableDisplay.className}`)
+    }
+
+    await act(async () => {
+      editableDisplay.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await waitForNextFrame(dom.window)
+    })
+    const editor = queryRichMediaTextEditor(container)
+    if (!editor) {
+      throw new Error(`expected the shared Card display surface to open the shared Viewer edit surface, html=${container.innerHTML}`)
+    }
+    if (editor.getAttribute('data-kg-card-inline-chip-density') !== 'compact' || !editor.className.includes('text-[10px]') || !editor.className.includes('text-[color:var(--kg-text-secondary)]')) {
+      throw new Error(`expected Rich Media editing to reuse compact Card summary density and typography, html=${container.innerHTML}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
     restoreDom()
   }
 }

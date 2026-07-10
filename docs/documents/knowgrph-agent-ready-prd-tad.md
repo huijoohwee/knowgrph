@@ -43,6 +43,11 @@ as a first-class MCP tool chain. It also ships a local long-horizon SuperAgent h
 `knowgrph_parser`, `npm run goal:run`, and local MCP `knowgrph.superagent.run`; that local harness
 is not a deployed public mutation tool.
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+
 The active work is therefore not "add the first agent-ready surface." The active work is:
 
 - keep deployed discovery owned upstream in `knowgrph`

@@ -214,7 +214,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   const inlineMenusText = readUtf8(blockInlineMenusOverlayPath)
   const commandMenuText = `${readUtf8(blockCommandMenuPath)}\n${readUtf8(path.resolve(root, 'src', 'lib', 'command-menu', 'InlineMediaCommandThumbnail.tsx'))}`
-  if (!inlineMenusText.includes('MarkdownBlockContainerCommandMenu') || !inlineMenusText.includes('placeholder="Type a command"') || !inlineMenusText.includes('placeholder="Find variable or action"')) {
+  if (!inlineMenusText.includes('MarkdownBlockContainerCommandMenu') || !inlineMenusText.includes("'Type a command'") || !inlineMenusText.includes('placeholder="Find variable or action"')) {
     throw new Error('expected inline / and @ menus to reuse the shared command-menu owner with searchable action lists')
   }
   if (!commandMenuText.includes('filterMarkdownInlineCommandItems') || !commandMenuText.includes("event.key === 'ArrowDown'") || !commandMenuText.includes("event.key === 'Enter'")) {

@@ -8,7 +8,6 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import { readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
-import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 
 const DEFAULT_GRID_GAP = 64
 
@@ -20,21 +19,18 @@ export type StoryboardCardPlacement = {
 type ReadStoryboardPlacementSize = (node: GraphNode) => { width: number; height: number }
 
 export const readStoryboardCardSize2d = (node: GraphNode, aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } => {
+  const defaultSize = readDefaultStoryboardCardSize2d(aspectRatioMode)
   const props = (node.properties || {}) as Record<string, unknown>
   const stablePanelSize = readStableRichMediaPanelSize(props, aspectRatioMode)
-  if (stablePanelSize) return { width: stablePanelSize.w, height: stablePanelSize.h }
-  return readDefaultCardSize(aspectRatioMode)
+  if (!stablePanelSize) return defaultSize
+  return { width: stablePanelSize.w, height: stablePanelSize.h }
 }
 
 export const readStoryboardWidgetPlacementSize2d = (node: GraphNode, aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } => {
-  const cardSize = readStoryboardCardSize2d(node, aspectRatioMode)
-  return {
-    width: Math.max(WIDGET_BASE_SIZE.width, cardSize.width),
-    height: Math.max(WIDGET_BASE_SIZE.height, cardSize.height),
-  }
+  return readStoryboardCardSize2d(node, aspectRatioMode)
 }
 
-const readDefaultCardSize = (aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } =>
+export const readDefaultStoryboardCardSize2d = (aspectRatioMode: CanvasAspectRatioMode): { width: number; height: number } =>
   resolveCanvasAspectRatioSize({
     defaultWidth: RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX,
     mode: aspectRatioMode,
@@ -72,7 +68,7 @@ const buildStoryboardCardPlacements2d = (args: {
   if (orderedCards.length === 0) return out
 
   const centers: StoryboardCardPlacement[] = []
-  const defaultSize = readDefaultCardSize(aspectRatioMode)
+  const defaultSize = readDefaultStoryboardCardSize2d(aspectRatioMode)
   let maxCardWidth: number = defaultSize.width
   let maxCardHeight: number = defaultSize.height
   for (let i = 0; i < orderedCards.length; i += 1) {

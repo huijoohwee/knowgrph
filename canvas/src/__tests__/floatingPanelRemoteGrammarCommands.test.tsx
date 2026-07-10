@@ -5,7 +5,13 @@ import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/Flo
 import { buildFloatingPanelChatComposerOverlayParts } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
-import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+import {
+  createAgenticOsRemoteGrammarClient,
+  getAgenticOsRemoteGrammarCatalogEntries,
+  primeAgenticOsRemoteGrammarCatalogBySigil,
+  registerAgenticOsRemoteGrammarCatalogEntries,
+  resetAgenticOsRemoteGrammarCatalogForTests,
+} from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForTasks } from '@/tests/lib/reactRootHarness'
 
@@ -176,5 +182,77 @@ export function testRemoteAgenticOsGrammarHydratesSharedInvocationLookups() {
     }
   } finally {
     resetAgenticOsRemoteGrammarCatalogForTests()
+  }
+}
+
+export async function testRemoteAgenticOsGrammarIgnoresBareLocalhostOriginWithoutConfiguredBaseUrl() {
+  const originalFetch = globalThis.fetch
+  const { dom, restore } = initJsdomHarness()
+  const calls: string[] = []
+  resetAgenticOsRemoteGrammarCatalogForTests()
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push(String(input))
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+    if (body.method === 'initialize') {
+      return new Response(JSON.stringify({
+        jsonrpc: '2.0',
+        id: body.id,
+        result: { protocolVersion: '2024-11-05' },
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'mcp-session-id': 'remote-session-default',
+        },
+      })
+    }
+    return new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      id: body.id,
+      result: {
+        structuredContent: {
+          ok: true,
+          catalog: [],
+        },
+      },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }) as typeof fetch
+
+  try {
+    const client = createAgenticOsRemoteGrammarClient()
+    await client.searchCatalog('/')
+    if (calls[0] !== 'https://airvio.co/knowgrph/control-plane/mcp') {
+      throw new Error(`expected bare localhost origin to fall back to the default remote control plane, got ${JSON.stringify(calls)}`)
+    }
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
+    globalThis.fetch = originalFetch
+    restore()
+    void dom
+  }
+}
+
+export async function testRemoteAgenticOsGrammarPrimeFailsClosedWhenTransportUnavailable() {
+  const originalFetch = globalThis.fetch
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  globalThis.fetch = (async () => {
+    throw new TypeError('fetch failed')
+  }) as typeof fetch
+
+  try {
+    const entries = await primeAgenticOsRemoteGrammarCatalogBySigil('/')
+    if (!Array.isArray(entries) || entries.length !== 0) {
+      throw new Error(`expected unavailable remote grammar hydration to fail closed with an empty catalog, got ${JSON.stringify(entries)}`)
+    }
+    if (getAgenticOsRemoteGrammarCatalogEntries().length !== 0) {
+      throw new Error(`expected unavailable remote grammar hydration to avoid mutating the shared catalog, got ${JSON.stringify(getAgenticOsRemoteGrammarCatalogEntries())}`)
+    }
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
+    globalThis.fetch = originalFetch
   }
 }

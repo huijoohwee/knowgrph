@@ -105,6 +105,9 @@ export function testRichMediaPanelIframeScrollResizeSourceContract() {
   if (!mediaStateText.includes("inlineSrcDocRequestsPanelScroll ? 'panel' : declaredScrollOwner")) {
     throw new Error('expected srcdoc-authored panel scroll ownership to override caller default scroll ownership')
   }
+  if (!mediaStateText.includes('scrollOwner,') || !mediaStateText.includes('normalizeRichMediaPanelInlineSrcDoc({')) {
+    throw new Error('expected the resolved Rich Media scroll owner to drive srcdoc normalization')
+  }
   if (!surfaceStateText.includes('(!mediaState.inlineSrcDocUsesViewportSize || mediaState.inlineSrcDocRequestsPanelScroll)')) {
     throw new Error('expected viewport-sized srcdoc iframes to opt into panel-owned scroll only when requested')
   }
@@ -139,5 +142,37 @@ export function testRichMediaPanelViewportSrcDocPreservesDocumentOverflow() {
   })
   if (!panelScrollViewportDoc.includes('document.documentElement.style.overflow="hidden"') || !panelScrollViewportDoc.includes('document.body.style.overflow="hidden"')) {
     throw new Error('expected panel-scroll viewport srcdoc normalization to clamp iframe document overflow for panel-owned scrolling')
+  }
+}
+
+export function testRichMediaPanelMediaOwnedSrcDocUsesBoundedScrollableViewport() {
+  const mediaOwnedDoc = normalizeRichMediaPanelInlineSrcDoc({
+    srcDoc: '<main><section><p>Scrollable media content</p></section></main>',
+    title: 'Media-owned scroll',
+    scrollOwner: 'media',
+  })
+  for (const snippet of [
+    'html,body{height:100%;min-height:0!important;overflow:hidden!important}',
+    'height:100%!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important',
+    'overscroll-behavior:contain;scrollbar-gutter:stable',
+  ]) {
+    if (!mediaOwnedDoc.includes(snippet)) {
+      throw new Error(`expected media-owned srcdoc to keep its scroll viewport inside the responsive panel frame: ${snippet}`)
+    }
+  }
+  if (mediaOwnedDoc.includes('document.documentElement.style.overflow="hidden"') || mediaOwnedDoc.includes('document.body.style.overflow="hidden"')) {
+    throw new Error('expected media-owned srcdoc normalization to avoid the legacy resize-script overflow clamp')
+  }
+
+  const panelOwnedDoc = normalizeRichMediaPanelInlineSrcDoc({
+    srcDoc: '<main><section><p>Measured panel content</p></section></main>',
+    title: 'Panel-owned scroll',
+    scrollOwner: 'panel',
+  })
+  if (!panelOwnedDoc.includes('document.documentElement.style.overflow="hidden"') || !panelOwnedDoc.includes('document.body.style.overflow="hidden"')) {
+    throw new Error('expected panel-owned srcdoc normalization to retain measured-content overflow clamping')
+  }
+  if (panelOwnedDoc.includes('html,body{height:100%;min-height:0!important;overflow:hidden!important}')) {
+    throw new Error('expected panel-owned srcdoc to avoid the media viewport scroll variant')
   }
 }

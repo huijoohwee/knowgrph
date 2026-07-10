@@ -1,5 +1,5 @@
 import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { applyVectorPaintedOverlayBox } from '@/lib/canvas/vectorPaintedOverlayProjection'
+import { applyVectorPaintedOverlayBox, type VectorPaintedOverlayPositionMode } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 
 export type MediaPanelCssMetrics = {
@@ -286,7 +286,16 @@ function resolvePanelBoxDisplay(el: HTMLElement, display: 'block' | 'none' | 'fl
   return 'block'
 }
 
-export function applyPanelBox(el: HTMLElement, args: { left: number; top: number; w: number; h: number; zIndex?: number | string; display?: 'block' | 'none' | 'flex'; scale?: number }): void {
+export function applyPanelBox(el: HTMLElement, args: {
+  left: number
+  top: number
+  w: number
+  h: number
+  zIndex?: number | string
+  display?: 'block' | 'none' | 'flex'
+  scale?: number
+  positionMode?: VectorPaintedOverlayPositionMode
+}): void {
   const left = Number.isFinite(args.left) ? args.left : 0
   const top = Number.isFinite(args.top) ? args.top : 0
   const w = Number.isFinite(args.w) ? args.w : 1
@@ -294,26 +303,50 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1
   const display = resolvePanelBoxDisplay(el, args.display)
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const posSig = `vector|${left}|${top}|${scale}`
+  const positionMode = args.positionMode === 'matrix' ? 'matrix' : 'vectorPainted'
+  const posSig = `${positionMode}|${left}|${top}|${scale}`
   const sizeSig = `${display}|${z}|${w}|${h}`
 
   const prevPosSig = BOX_POS_CACHE.get(el) || ''
   const prevSizeSig = BOX_SIZE_CACHE.get(el) || ''
-  if (prevPosSig === posSig && prevSizeSig === sizeSig) return
+  const expectedWidth = `${w}px`
+  const expectedHeight = `${h}px`
+  const sizeStyleMatches = el.style.display === display && (
+    display === 'none'
+    || (el.style.width === expectedWidth && el.style.height === expectedHeight && el.style.zIndex === z)
+  )
+  const zoomStyle = el.style as CSSStyleDeclaration & { zoom: string }
+  const positionStyleMatches = positionMode === 'matrix'
+    ? el.style.left === '0px'
+      && el.style.top === '0px'
+      && el.style.transform === `matrix(${scale}, 0, 0, ${scale}, ${left}, ${top})`
+      && zoomStyle.zoom === '1'
+    : el.style.left === `${left / scale}px`
+      && el.style.top === `${top / scale}px`
+      && el.style.transform === 'none'
+      && zoomStyle.zoom === String(scale)
+  const sizeChanged = prevSizeSig !== sizeSig || !sizeStyleMatches
+  const positionChanged = prevPosSig !== posSig || !positionStyleMatches
+  if (!sizeChanged && !positionChanged) return
 
-  if (prevSizeSig !== sizeSig) {
+  if (sizeChanged) {
     el.style.display = display
     if (display !== 'none') {
-      el.style.width = `${w}px`
-      el.style.height = `${h}px`
+      el.style.width = expectedWidth
+      el.style.height = expectedHeight
       if (z) el.style.zIndex = z
       else el.style.zIndex = ''
     }
     BOX_SIZE_CACHE.set(el, sizeSig)
   }
 
-  if (display !== 'none' && prevPosSig !== posSig) {
-    applyVectorPaintedOverlayBox(el, { left, top, scale })
+  if (display !== 'none' && positionChanged) {
+    applyVectorPaintedOverlayBox(el, {
+      left,
+      top,
+      scale,
+      positionMode,
+    })
     BOX_POS_CACHE.set(el, posSig)
   }
 }
