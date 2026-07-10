@@ -28,6 +28,13 @@ export type LiveCanvasHeroSource = {
   sourceLayerHash: string
 }
 
+const LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME = 'knowgrph-strybldr-starter-template.md'
+
+const isLiveCanvasHeroInitializationSourcePath = (path: string): boolean => (
+  isDefaultWorkspaceSeedSourcePath(path)
+  || path.replace(/\\/g, '/').split('/').pop()?.toLowerCase() === LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME
+)
+
 export function deriveLiveCanvasHeroCommandRouteGraph(graphData: GraphData): GraphData | null {
   const commandNodeIdSet = new Set((graphData.nodes || [])
     .filter(node => String(node.properties?.command || '').trim().startsWith('/'))
@@ -132,11 +139,11 @@ export function resolveLiveCanvasHeroWorkspaceSourceState(args: {
   const sourcePaths = enabledSources.map(sourceFile => (
     String(sourceFile?.source?.path || sourceFile?.source?.url || sourceFile?.name || '').trim()
   ))
-  const meaningfulSourceFilesPresent = sourcePaths.some(path => !isDefaultWorkspaceSeedSourcePath(path))
-  const defaultSeedDocumentActive = isDefaultWorkspaceSeedSourcePath(args.markdownDocumentName)
-  const hasDefaultSeedSource = sourcePaths.some(path => isDefaultWorkspaceSeedSourcePath(path))
+  const meaningfulSourceFilesPresent = sourcePaths.some(path => !isLiveCanvasHeroInitializationSourcePath(path))
+  const defaultSeedDocumentActive = isLiveCanvasHeroInitializationSourcePath(String(args.markdownDocumentName || ''))
+  const hasDefaultSeedSource = sourcePaths.some(path => isLiveCanvasHeroInitializationSourcePath(path))
   const defaultSeedContentSignature = enabledSources
-    .filter((sourceFile, index) => isDefaultWorkspaceSeedSourcePath(sourcePaths[index]))
+    .filter((sourceFile, index) => isLiveCanvasHeroInitializationSourcePath(sourcePaths[index]))
     .map(sourceFile => [
       String(sourceFile.id || ''),
       String(sourceFile.source?.path || sourceFile.source?.url || sourceFile.name || ''),

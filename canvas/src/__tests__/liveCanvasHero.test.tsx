@@ -176,6 +176,18 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   if (!customSourceState.meaningfulSourceFilesPresent || customSourceState.defaultSeedOnly) {
     throw new Error(`expected authored sources to suppress the hero, got ${JSON.stringify(customSourceState)}`)
   }
+  const starterInitializationState = resolveLiveCanvasHeroWorkspaceSourceState({
+    sourceFiles: [sourceFile, {
+      ...sourceFile,
+      id: 'starter-template',
+      name: 'knowgrph-strybldr-starter-template.md',
+      source: { kind: 'local', path: 'workspace:/docs/knowgrph-strybldr-starter-template.md' },
+    }],
+    markdownDocumentName: 'knowgrph-strybldr-starter-template.md',
+  })
+  if (starterInitializationState.meaningfulSourceFilesPresent || !starterInitializationState.defaultSeedOnly) {
+    throw new Error(`expected the canonical starter document to remain part of landing initialization, got ${JSON.stringify(starterInitializationState)}`)
+  }
 
   const emptyGraph: GraphData = { type: 'Graph', nodes: [], edges: [] }
   const base = {
