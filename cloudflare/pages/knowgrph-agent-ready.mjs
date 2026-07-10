@@ -578,11 +578,24 @@ const mcpServerCard = {
     mcpUrl: `${APP_URL}mcp`,
     serverName: "knowgrph",
   }),
+  surfaceRoles: {
+    publicReadMcpUrl: `${APP_URL}mcp`,
+    publicReadMcpScope:
+      "Canonical public install and discovery endpoint for read-only retrieval, prompt discovery, resource discovery, and inspection.",
+    controlPlaneMcpUrl: `${APP_URL}control-plane/mcp`,
+    controlPlaneMcpScope:
+      "Approval-gated orchestration endpoint for control-plane tools and spend-bearing workflows where deployed.",
+    remoteGrammarInvokePublic: false,
+    remoteGrammarInvokeToolName: "knowgrph.agentic_canvas_os.docs.invoke",
+    remoteGrammarInvokeStatus:
+      "planned-public-enhancement",
+  },
   links: {
     apiCatalog: `${APP_URL}.well-known/api-catalog`,
     skills: `${APP_URL}.well-known/agent-skills/index.json`,
     status: HEALTH_URL,
     agentCard: A2A_AGENT_CARD_URL,
+    controlPlaneMcp: `${APP_URL}control-plane/mcp`,
   },
 };
 const mcpAppResource = buildKnowgrphMcpAppsResourceDescriptor({
@@ -1280,6 +1293,8 @@ const handleMcpTransport = async (request) => {
       transport: mcpServerCard.transport,
       serverInfo: mcpServerCard.serverInfo,
       capabilities: mcpServerCard.capabilities,
+      links: mcpServerCard.links,
+      surfaceRoles: mcpServerCard.surfaceRoles,
     });
   }
   if (method !== "POST") return jsonStatusResponse(405, { ok: false, error: "unsupported_method" });

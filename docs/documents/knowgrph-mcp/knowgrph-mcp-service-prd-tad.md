@@ -3,8 +3,8 @@ title: Knowgrph MCP Service - PRD & TAD
 id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
-updated: 2026-06-08
-version: 0.4.23
+updated: 2026-07-10
+version: 0.4.25
 status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,24 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.25
+    date: 2026-07-10
+    summary: >
+      Clarified public remote exposure and discovery coherence. Documented
+      `https://airvio.co/knowgrph/mcp` as the canonical public install/discovery
+      endpoint, kept `https://airvio.co/knowgrph/control-plane/mcp` as the
+      approval-gated orchestration endpoint, and recorded remote exposure of
+      `knowgrph.agentic_canvas_os.docs.invoke` as a planned enhancement rather
+      than a shipped public capability.
+  - version: 0.4.24
+    date: 2026-07-09
+    summary: >
+      Validated plug-and-play MCP readiness and integrated the Agentic Canvas OS 
+      invocation grammar (/, @, #). Confirmed headless UI approach where knowgrph 
+      acts as the intelligence/data plane, exposing `knowgrph.agentic_canvas_os.docs.invoke` 
+      tool for command resolution without running commands, spending model tokens, 
+      or mutating files. This prevents dependency on specific front-end packages 
+      like `cmdk` and adheres to min-viable-max-value and token economics philosophies.
   - version: 0.4.23
     date: 2026-06-08
     summary: >
@@ -117,7 +135,7 @@ changelog:
 
 > **Document type**: Combined PRD + TAD  
 > **Phase**: Implemented baseline plus planned remote extension  
-> **Version**: 0.4.23
+> **Version**: 0.4.25
 
 ---
 
@@ -195,6 +213,22 @@ Future MCP work must unify these surfaces into one consistent story:
 - MainPanel `mcp` and `integrations` remain the UX bridge into MCP-aware settings, readiness, and chat orchestration
 - any richer remote MCP service wraps the same upstream chat, validation, workspace, parser, and canvas owners that already materialize structured KGC Markdown or literal MCP structured responses into widgets, media panels, cards, compute outputs, edges, subgraphs, groups, and cluster projections
 - Agentic Canvas OS cross-repo build/control workflows are dry-run first, root-allowlisted, trace-emitting, token/TCO-budgeted, and human-approved before file writes, deployments, paid model calls, or financial actions
+
+### Public Remote Exposure And Discovery Coherence
+
+Current public remote truth must stay explicit:
+
+- `https://airvio.co/knowgrph/mcp` is the canonical public install and discovery endpoint for remote MCP hosts.
+- `https://airvio.co/knowgrph/control-plane/mcp` is the approval-gated orchestration endpoint for Director, stage tools, and control-plane health/read-back.
+- Public install snippets, MCP server-card metadata, `.well-known` discovery, and `tools/list` must all point to the same canonical public install endpoint.
+- The public endpoint currently ships read-only discovery/retrieval and inspection tools; it must not be documented as already exposing the full local stdio tool inventory.
+- `knowgrph.agentic_canvas_os.docs.invoke` is implemented locally and registered in current control-plane source, but public remote exposure and discovery of that grammar tool are still enhancement work until the deployed public surface advertises and serves it consistently.
+
+Desired enhancement state:
+
+- remote hosts install one public URL and discover both read-only retrieval (`search`, `fetch`, `inspect_agent_surface`) and the `/`, `#`, `@` invocation grammar from that same endpoint
+- public docs and setup metadata never force a basic remote host to infer endpoint roles from multiple documents
+- control-plane orchestration remains a separate, approval-gated endpoint so discovery-first installs keep low TCO, low risk, and low confusion
 
 ---
 
@@ -279,6 +313,8 @@ This document does not claim that the following are already implemented:
 
 - **PRD-MCP1-S1**: As a maintainer, I want all MCP docs to distinguish shipped stdio MCP, shipped read-only Pages/browser MCP, and planned future remote MCP service so that no stale architecture is treated as implementation truth.
 - **PRD-MCP1-S2**: As a maintainer, I want explicit forbidden-architecture rules so future changes do not reintroduce conflicting pipeline, grouping, or deploy authority narratives.
+- **PRD-MCP1-S3**: As an external MCP host operator, I want one canonical public install/discovery endpoint so that server-card metadata, install snippets, and `tools/list` stay coherent.
+- **PRD-MCP1-S4**: As an external MCP host operator, I want remote `/`, `#`, and `@` grammar invocation to be exposed truthfully so that public docs do not promise a capability the installed endpoint cannot yet serve.
 
 #### Epic MCP-2 - MainPanel Readiness Alignment
 
@@ -323,6 +359,18 @@ This document does not claim that the following are already implemented:
 **Given** a future design or implementation proposal,  
 **When** it claims a second graph pipeline, second grouping contract, mirror-owned deploy authority, or already-shipped remote Worker modules,  
 **Then** the docs classify that architecture as forbidden until real upstream owners exist in the repo.
+
+#### PRD-MCP1-S3 - Canonical public install endpoint
+
+**Given** public remote MCP discovery metadata,  
+**When** a remote host reads the MCP server card, install snippets, or setup guidance,  
+**Then** `https://airvio.co/knowgrph/mcp` is the canonical install/discovery endpoint for public remote use, while `https://airvio.co/knowgrph/control-plane/mcp` is documented separately as the approval-gated orchestration endpoint.
+
+#### PRD-MCP1-S4 - Truthful remote grammar exposure
+
+**Given** the public remote MCP surface,  
+**When** docs describe `/`, `#`, and `@` invocation grammar,  
+**Then** they state current truth: local stdio supports `knowgrph.agentic_canvas_os.docs.invoke`, public remote exposure of that tool remains enhancement work until the deployed public endpoint advertises and serves it coherently through discovery metadata and `tools/list`.
 
 #### PRD-MCP2-S1 - MainPanel shell ownership
 
@@ -461,6 +509,8 @@ This document does not claim that the following are already implemented:
 - Transport: JSON-RPC over `/knowgrph/mcp`, MCP prompt and resource discovery/read over the same route, and browser WebMCP via `navigator.modelContext`.
 - Streamable HTTP boundary: POST handles JSON-RPC requests, JSON GET returns transport metadata for discovery, GET with `Accept: text/event-stream` returns 405 while no server stream is implemented, and client notifications/responses return 202 with no body.
 - Tool surface: shared deployed contract = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface`; app-installed browser runtime additionally exposes `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot`.
+- Public discovery role: `https://airvio.co/knowgrph/mcp` is the canonical public install/discovery endpoint and must be the URL used by server-card metadata, host setup snippets, and readiness payloads.
+- Public grammar truth: the deployed public endpoint currently exposes read-only retrieval/inspection only; `knowgrph.agentic_canvas_os.docs.invoke` must not be documented as publicly available there until discovery metadata and live `tools/list` advertise it.
 - Resource surface: `resources/list` returns `ui://knowgrph/agent-ready`; `resources/templates/list` returns `kgdoc://source-file/{id}`; `resources/read` returns either MCP Apps HTML or Source Files markdown from the shared contracts.
 - Prompt surface: `prompts/list` returns shared read-only prompt templates; `prompts/get` renders Source Files research and agent-surface inspection guidance that routes hosts to existing read-only tools.
 - Data source: published Source Files and storage-backed markdown doc reads.
@@ -527,7 +577,9 @@ The next remote MCP layer is planned but not implemented. When it is implemented
 | Concern | Required direction | Forbidden shortcut |
 |---|---|---|
 | Tool contracts | reuse one SSOT manifest or builder shared across transports | per-transport drifted schemas |
+| Public remote install/discovery | keep `/knowgrph/mcp` as the single public install/discovery URL for remote hosts and advertise it consistently in `.well-known`, server-card metadata, readiness payloads, and setup snippets | splitting basic remote setup across multiple public install URLs or requiring hosts to infer endpoint roles from separate docs |
 | Auth | add explicit remote auth only for future remote tools | rewriting or weakening shipped read-only Pages/browser flows |
+| Remote grammar exposure | expose `knowgrph.agentic_canvas_os.docs.invoke` through the canonical public endpoint only when live discovery metadata, `tools/list`, and host setup guidance all agree | claiming remote `/`, `#`, `@` grammar support in public docs before the deployed public endpoint advertises and serves it coherently |
 | Published-doc reads | reuse existing storage worker and route contract | new ad hoc document fetchers |
 | Chat orchestration | wrap `useSettingsChatAssist`-owned routing semantics and existing chat submit helpers | new MCP-only provider config or submit loop |
 | KGC/MCP response validation | reuse shared recovery, validation, and structured-content extraction rules | accepting prose wrappers, parallel grouping aliases, or synthetic KGC downstream |
@@ -573,6 +625,8 @@ flowchart LR
 - keep this PRD/TAD, `knowgrph-mcp.md`, and the companion aligned to current repo owners
 - preserve browser WebMCP and MCP Apps parity across app runtime, injected HTML fallback, Pages HTTP MCP, local stdio MCP, static artifacts, and live checks
 - keep MainPanel readiness docs aligned with Stripe MCP and crawler-access MCP SSOT modules
+- keep public remote exposure coherent: `/knowgrph/mcp` stays the canonical public install/discovery URL, while `/knowgrph/control-plane/mcp` stays the approval-gated orchestration URL
+- add remote grammar exposure only after the deployed public endpoint, server-card metadata, and `tools/list` all advertise `knowgrph.agentic_canvas_os.docs.invoke` consistently
 - introduce remote read-oriented tools before mutation, reusing storage-worker, published-doc, validation, parser, KGC Markdown, and `flow.subgraphs` contracts
 - keep Agentic Canvas OS P0 at documentation, profiling, dry-run planning, dashboard manifests, companion lane contracts, secured starter-repo blueprints, and demo-pack generation until implementation-specific tests exist
 - add targeted validation around transport parity and canvas materialization correctness before any future remote pipeline bridge ships
@@ -587,6 +641,8 @@ flowchart LR
 - [x] Documents `useFloatingPanelChatSubmit.ts` as a thin shell over the coordinator/helper stack
 - [x] Documents canonical KGC validation, literal MCP structured-surface acceptance, and recovery before canvas apply
 - [x] Documents the shipped MCP Apps resource, Source Files resource template, MIME type, extension capability, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth security schemes, read-only annotations, data-first `search`/`fetch`, prompt/resource handlers, and server-readiness payload
+- [x] Documents `/knowgrph/mcp` as the canonical public install/discovery endpoint and `/knowgrph/control-plane/mcp` as the approval-gated orchestration endpoint
+- [x] States that public remote `/`, `#`, `@` grammar exposure remains planned until the deployed public endpoint advertises and serves `knowgrph.agentic_canvas_os.docs.invoke`
 - [x] Documents Agentic Canvas OS as a planned Canvas UI and cross-repo build/control dashboard with bounded companion lanes, not as a shipped mutating remote MCP platform, credential-bearing browser sync, or public private-memory service
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines
@@ -595,4 +651,4 @@ flowchart LR
 
 ---
 
-*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.23 · Updated: 2026-06-08*
+*Document ID: `md:knowgrph-mcp-service-prd-tad` · Version: 0.4.25 · Updated: 2026-07-10*

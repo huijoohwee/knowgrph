@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.3.0
+version: 1.3.1
 status: implemented
 created: 2026-05-29
-updated: 2026-07-03
+updated: 2026-07-10
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Implementation PRD/TAD"
@@ -16,6 +16,7 @@ agentic_os_prd_tad_version: 0.4.1
 agentic_os_follow_on_prd_tad: docs/documents/knowgrph-agentic-os-follow-on-prd-tad.md
 agentic_os_follow_on_version: 1.0.0
 canonical_service_url: "https://airvio.co/knowgrph/"
+public_read_mcp_url: "https://airvio.co/knowgrph/mcp"
 control_plane_mcp_url: "https://airvio.co/knowgrph/control-plane/mcp"
 cloudflare_pages_project: joohwee
 last_verified: 2026-07-03
@@ -50,6 +51,12 @@ The **MCP Gateway** is a discovery-first federation over four existing surfaces 
 HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
 fifth monolithic proxy tier (see `knowgrph-agentic-os-prd-tad.md` ADR-4). Agents discover capabilities
 via DNS-AID → Link headers → `.well-known` MCP server card → surface selection by trust boundary.
+
+For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
+`https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
+The current public endpoint truth is still read-only retrieval/inspection plus prompt/resource/template
+discovery; remote `/`, `#`, and `@` grammar exposure remains enhancement work until the deployed public
+surface advertises and serves `knowgrph.agentic_canvas_os.docs.invoke`.
 
 The **Agentic OS** (`knowgrph.os.status`) provides read-only cross-harness visibility: process list,
 capability union, cost summary, gate catalog, and circuit-breaker bounds — at zero token cost per call.
@@ -97,6 +104,10 @@ spend tokens on page interpretation. The previous failure mode was fragmented re
 discovery, auth registration, DNS entrypoints, WebMCP, MainPanel MCP surfaces, and chat-to-canvas
 flow could drift independently.
 
+Public remote exposure can also drift if the canonical install URL, MCP server card, `tools/list`,
+and host setup snippets stop telling the same story. That drift is especially costly for low-context
+remote hosts because it turns a one-paste MCP install into manual endpoint selection.
+
 Knowgrph solves this by keeping discovery and pipeline readiness rooted in upstream owners, then
 projecting generated artifacts to the production mirror and Cloudflare Pages.
 
@@ -134,6 +145,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - Markdown negotiation for root, service homepage, and published document routes
 - read-only HTTP MCP on `/knowgrph/mcp`
 - control-plane Streamable HTTP MCP on `/knowgrph/control-plane/mcp` (Director + stages + os.status)
+- public remote endpoint role separation: `/knowgrph/mcp` for install/discovery, `/knowgrph/control-plane/mcp` for approval-gated orchestration
 - browser WebMCP runtime and Pages HTML fallback WebMCP
 - local stdio MCP with Agentic OS `knowgrph.os.status` and full harness tool surface
 - Agentic OS read-only aggregation (process list, capabilities, cost, gates, circuit breakers)
@@ -152,6 +164,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 
 - a fifth monolithic MCP proxy gateway tier (federation uses existing four surfaces per ADR-4)
 - write-capable public MCP tools on Pages HTTP MCP (control-plane orchestration is approval-gated separately)
+- public docs that imply `/knowgrph/control-plane/mcp` is the default install URL for basic remote MCP discovery
 - direct mutation of unpublished browser drafts from deployed MCP
 - replacing `/knowgrph/` with apex `/` as the service homepage
 - TXT-only DNS-AID substitutes or unsigned public discovery as the canonical path
@@ -169,6 +182,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | PRD-AR-01 | As an agent resolver, I want DNS-AID records so discovery can start before HTTP fetches. | Given public DNS, when `_index._agents.airvio.co`, `_mcp._agents.airvio.co`, and `_a2a._agents.airvio.co` are queried for SVCB, then records return authenticated ServiceMode parameters. | `npm run dns-aid:check` exits 0 with 3/3 checks passing. |
 | PRD-AR-02 | As an agent registration client, I want Auth.md and agent auth metadata so registration is machine-discoverable. | Given root discovery, when `/auth.md` and OAuth metadata are fetched, then Markdown auth instructions and `agent_auth` metadata are present. | `npm run auth-md:check` exits 0 with 5/5 checks passing. |
 | PRD-AR-03 | As an MCP client, I want a read-only published document surface so I can list and read public Knowgrph content. | Given `/knowgrph/mcp`, when `initialize`, `tools/list`, and supported `tools/call` requests run, then public Source Files and shared-document reads resolve. | `KNOWGRPH_AGENT_READY_BASE_URL=https://airvio.co/knowgrph npm run agent-ready:check` exits 0. |
+| PRD-AR-03A | As a remote MCP host operator, I want one canonical public install/discovery endpoint so setup metadata stays coherent. | Given public discovery metadata and setup guidance, when a basic remote host is configured, then `/knowgrph/mcp` is the install/discovery URL and `/knowgrph/control-plane/mcp` is documented separately for approval-gated orchestration. | Docs and metadata reference one public install URL for basic remote MCP setup. |
 | PRD-AR-04 | As a browser agent, I want WebMCP in the loaded page so I can inspect the deployed surface without scraping. | Given root or `/knowgrph/` HTML, when scanner execution evaluates the page, then model-context tools are visible and no meta refresh destroys the context. | External agent-ready WebMCP scan returns `pass` with five published tools. |
 | PRD-AR-05 | As a knowledge worker, I want MainPanel MCP and integrations actions to route into the existing chat/canvas pipeline. | Given a MainPanel assist action, when FloatingPanel Chat emits LLM output, then KGC Markdown validates from YAML frontmatter or literal MCP `structuredContent` validates as a renderable structured surface before Editor Workspace and Canvas apply. | Source owners remain `SettingsView`, `useFloatingPanelChatSubmit`, KGC/MCP structured-surface validation, `chatResponseStructuredContent`, and `applyChatKgcWorkspaceDocumentToCanvas`; no duplicate pipeline is introduced. |
 | PRD-AR-06 | As maintainer, I want deployment to stay source-owned so production cannot drift from Dev. | Given Dev changes, when build/sync/deploy runs, then prod mirror assets match the generated artifact and live `/knowgrph/` serves that artifact. | `npm run pages:build-sync`, `npm run pages:check-sync`, deploy, and live asset hash comparison pass. |
@@ -201,6 +215,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 | Time-to-value (TTV steps) — Agentic OS | N/A | ≤ 2 (start local MCP; call os.status) | ≤ 2 |
 | Time-to-value (TTV elapsed) — Agentic OS | N/A | ≤ 1 min | ≤ 1 min (local MCP already running) |
 | Monthly TCO for discovery layer | Unknown | zero incremental paid services | Cloudflare-native, no added paid dependency |
+| Public remote install URLs for basic setup | Unknown | 1 canonical URL | 1 (`/knowgrph/mcp`) documented; control plane kept separate |
 | ROI score | Unscored | ship min-viable max-value readiness | High: reused existing Pages, DNS, storage, and chat owners |
 
 ### ROI And TCO Estimate
@@ -569,6 +584,7 @@ Checks:
 | PRD-AR-01 DNS-AID | `scripts/dns-aid-records.mjs` and Cloudflare DNS | `npm run dns-aid:check` |
 | PRD-AR-02 Auth.md | `cloudflare/pages/knowgrph-agent-ready.mjs` | `npm run auth-md:check` |
 | PRD-AR-03 HTTP MCP | Pages MCP handler and shared tool contract | `npm run agent-ready:check` |
+| PRD-AR-03A Public install/discovery coherence | Pages `.well-known`, MCP server card, and docs SSOT | doc review against canonical URLs |
 | PRD-AR-04 WebMCP | WebMCP lifecycle plus HTML fallback injection | external WebMCP scan |
 | PRD-AR-05 Chat to Canvas | shared MainPanel, FloatingPanel, KGC, parser, and Canvas owners | source-owner audit plus focused app tests |
 | PRD-AR-06 Deploy parity | `pages:build-sync`, prod mirror, Pages deploy artifact | sync check and live asset comparison |
@@ -582,6 +598,7 @@ Checks:
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.1 | 2026-07-10 | Documented public remote exposure and discovery coherence: `/knowgrph/mcp` is the canonical install/discovery URL, `/knowgrph/control-plane/mcp` remains orchestration-only, and remote `/`, `#`, `@` grammar exposure remains a planned enhancement. |
 | 1.3.0 | 2026-07-03 | Added follow-on PRD/TAD link, PRD-AR-16..18 (HITL durable store, live golden path, dashboard Canvas), Track A/B/C component inventory and validation commands. |
 | 1.2.0 | 2026-07-03 | Added Agentic OS (`knowgrph.os.status`), MCP Gateway four-surface federation, control-plane MCP URL, PRD-AR-12..15, ADR-006/007, updated topology and validation evidence per `knowgrph-agentic-os-prd-tad.md` v0.4.0. |
 | 1.1.0 | 2026-05-29 | Updated Commerce readiness for ACP, UCP, MPP, x402, MainPanel Commerce ownership, validation evidence, and shared payment-owner guardrails. |
