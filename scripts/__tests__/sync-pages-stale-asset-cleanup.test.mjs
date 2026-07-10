@@ -29,3 +29,9 @@ test("publish sync removes stale generated assets from both mirror trees", () =>
     "expected generated mirror cleanup to remove stale assets from /knowgrph public routes",
   );
 });
+
+test("publish sync includes the MCP Apps contract dependency closure", () => {
+  assert.match(syncScript, /'mcpAppsContractText\.mjs'/);
+  assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
+  assert.match(syncScript, /\.map\(filename => \[agentReadyFeatureSource\(filename\), agentReadyFeatureTarget\(filename\)\]\)/);
+});

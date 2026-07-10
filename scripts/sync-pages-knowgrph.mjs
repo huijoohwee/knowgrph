@@ -375,8 +375,8 @@ const fileExists = async (filePath) => {
 }
 
 const agentReadyRuntimeCopies = [
-  [agentReadyCommerceSource, agentReadyCommerceTarget],
-  [agentReadyAppShellSource, agentReadyAppShellTarget],
+  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
+  ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]
 const removeEmptyDirs = async (rootDir) => {
